@@ -1,0 +1,6 @@
+D:\Vocore\Vocore.Compute\bin\Release\Vocore.Compute.dll
+D:\Vocore\Vocore.Compute\bin\Release\Vocore.Compute.pdb
+D:\Vocore\Vocore.Compute\obj\Release\Vocore.Compute.csproj.AssemblyReference.cache
+D:\Vocore\Vocore.Compute\obj\Release\Vocore.Compute.csproj.CoreCompileInputs.cache
+D:\Vocore\Vocore.Compute\obj\Release\Vocore.Compute.dll
+D:\Vocore\Vocore.Compute\obj\Release\Vocore.Compute.pdb

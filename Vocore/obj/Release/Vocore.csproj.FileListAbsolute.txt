@@ -1,0 +1,12 @@
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore\bin\Release\Vocore.dll
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore\bin\Release\Vocore.pdb
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore\obj\Release\Vocore.csproj.AssemblyReference.cache
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore\obj\Release\Vocore.csproj.CoreCompileInputs.cache
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore\obj\Release\Vocore.dll
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore\obj\Release\Vocore.pdb
+D:\Vocore\Vocore\bin\Release\Vocore.dll
+D:\Vocore\Vocore\bin\Release\Vocore.pdb
+D:\Vocore\Vocore\obj\Release\Vocore.csproj.AssemblyReference.cache
+D:\Vocore\Vocore\obj\Release\Vocore.csproj.CoreCompileInputs.cache
+D:\Vocore\Vocore\obj\Release\Vocore.dll
+D:\Vocore\Vocore\obj\Release\Vocore.pdb

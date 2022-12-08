@@ -1,0 +1,12 @@
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore.Renderer\bin\Debug\Vocore.Renderer.dll
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore.Renderer\bin\Debug\Vocore.Renderer.pdb
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.AssemblyReference.cache
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.CoreCompileInputs.cache
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.dll
+C:\Users\IssacZhuang\OneDrive\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.pdb
+D:\Vocore\Vocore.Renderer\bin\Debug\Vocore.Renderer.dll
+D:\Vocore\Vocore.Renderer\bin\Debug\Vocore.Renderer.pdb
+D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.AssemblyReference.cache
+D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.CoreCompileInputs.cache
+D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.dll
+D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.pdb
