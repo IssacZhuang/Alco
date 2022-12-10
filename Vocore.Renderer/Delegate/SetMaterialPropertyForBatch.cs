@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using UnityEngine;
+
 namespace Vocore.Renderer
 {
-    public class Class1
-    {
-    }
+    public delegate void SetPropertyBlockForBatch(int start, int length, ref MaterialPropertyBlock propertyBlock);
 }
