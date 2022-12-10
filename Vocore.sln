@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore", ".\Vocore\Vocore.csproj", "{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore", "Vocore\Vocore.csproj", "{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Renderer", ".\Vocore.Renderer\Vocore.Renderer.csproj", "{B11168EA-4E36-4B8F-9287-EB43A494040A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Renderer", "Vocore.Renderer\Vocore.Renderer.csproj", "{B11168EA-4E36-4B8F-9287-EB43A494040A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Compute", ".\Vocore.Compute\Vocore.Compute.csproj", "{54B8E9F8-E66A-4080-8A67-E1186258C4AF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Compute", "Vocore.Compute\Vocore.Compute.csproj", "{54B8E9F8-E66A-4080-8A67-E1186258C4AF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
