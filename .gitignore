@@ -1,1 +1,4 @@
 .vs
+./Vocore/bin
+./Vocore.Compute/bin
+./Vocore.Renderer/bin

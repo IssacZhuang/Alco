@@ -10,3 +10,10 @@ D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.AssemblyReference.cac
 D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.CoreCompileInputs.cache
 D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.dll
 D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.pdb
+D:\Vocore\Vocore.Renderer\bin\Debug\UnityEditor.dll
+D:\Vocore\Vocore.Renderer\bin\Debug\UnityEngine.dll
+D:\Vocore\Vocore.Renderer\bin\Debug\Vocore.dll
+D:\Vocore\Vocore.Renderer\bin\Debug\Vocore.pdb
+D:\Vocore\Vocore.Renderer\bin\Debug\UnityEditor.xml
+D:\Vocore\Vocore.Renderer\bin\Debug\UnityEngine.xml
+D:\Vocore\Vocore.Renderer\obj\Debug\Vocore.Renderer.csproj.CopyComplete

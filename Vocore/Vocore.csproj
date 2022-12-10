@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="Interface\ITransform.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utility\NullableUtility.cs" />
     <Compile Include="Utility\VectorUtility.cs" />
   </ItemGroup>
   <ItemGroup>

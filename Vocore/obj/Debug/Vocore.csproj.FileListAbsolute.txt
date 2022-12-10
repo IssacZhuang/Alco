@@ -4,3 +4,8 @@ D:\Vocore\Vocore\obj\Debug\Vocore.csproj.AssemblyReference.cache
 D:\Vocore\Vocore\obj\Debug\Vocore.csproj.CoreCompileInputs.cache
 D:\Vocore\Vocore\obj\Debug\Vocore.dll
 D:\Vocore\Vocore\obj\Debug\Vocore.pdb
+D:\Vocore\Vocore\bin\Debug\UnityEditor.dll
+D:\Vocore\Vocore\bin\Debug\UnityEngine.dll
+D:\Vocore\Vocore\bin\Debug\UnityEditor.xml
+D:\Vocore\Vocore\bin\Debug\UnityEngine.xml
+D:\Vocore\Vocore\obj\Debug\Vocore.csproj.CopyComplete

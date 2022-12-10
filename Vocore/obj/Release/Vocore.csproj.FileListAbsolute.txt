@@ -10,3 +10,8 @@ D:\Vocore\Vocore\obj\Release\Vocore.csproj.AssemblyReference.cache
 D:\Vocore\Vocore\obj\Release\Vocore.csproj.CoreCompileInputs.cache
 D:\Vocore\Vocore\obj\Release\Vocore.dll
 D:\Vocore\Vocore\obj\Release\Vocore.pdb
+D:\Vocore\Vocore\bin\Release\UnityEditor.dll
+D:\Vocore\Vocore\bin\Release\UnityEngine.dll
+D:\Vocore\Vocore\bin\Release\UnityEditor.xml
+D:\Vocore\Vocore\bin\Release\UnityEngine.xml
+D:\Vocore\Vocore\obj\Release\Vocore.csproj.CopyComplete

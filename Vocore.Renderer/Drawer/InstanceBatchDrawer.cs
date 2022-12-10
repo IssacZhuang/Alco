@@ -9,6 +9,7 @@ using UnityEngine;
 
 namespace Vocore.Renderer
 {
+    public delegate void SetPropertyBlockForBatch(int start, int length, ref MaterialPropertyBlock propertyBlock);
     public class InstanceBatchDrawer
     {
         public const int MAX_COUNT_IN_BATCH = 1000;
