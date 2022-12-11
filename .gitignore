@@ -1,4 +1,7 @@
-.vs/
-./Vocore/bin/
-./Vocore.Compute/bin/
-./Vocore.Renderer/bin/
+/.vs/
+/Vocore/bin/
+/Vocore/obj/
+/Vocore.Compute/bin/
+/Vocore.Compute/obj/
+/Vocore.Renderer/bin/
+/Vocore.Renderer/obj/
