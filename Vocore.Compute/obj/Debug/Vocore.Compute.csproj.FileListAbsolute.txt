@@ -1,6 +1,0 @@
-D:\Vocore\Vocore.Compute\bin\Debug\Vocore.Compute.dll
-D:\Vocore\Vocore.Compute\bin\Debug\Vocore.Compute.pdb
-D:\Vocore\Vocore.Compute\obj\Debug\Vocore.Compute.csproj.AssemblyReference.cache
-D:\Vocore\Vocore.Compute\obj\Debug\Vocore.Compute.csproj.CoreCompileInputs.cache
-D:\Vocore\Vocore.Compute\obj\Debug\Vocore.Compute.dll
-D:\Vocore\Vocore.Compute\obj\Debug\Vocore.Compute.pdb
