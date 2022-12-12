@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 
 namespace Vocore
 {
-    public class StructuredBuffer<T> where T : struct
+    public class StructuredBuffer<T>: IEnumerable, IDisposable where T : struct
     {
         private readonly T[] innerArray;
+        private int size;
+        
+        public bool Created { get; private set; }
 
         public T this[int index] {
             get
@@ -27,6 +30,22 @@ namespace Vocore
         public StructuredBuffer(int size)
         {
             innerArray = new T[size];
+            this.size = size;
+        }
+
+        ~StructuredBuffer()
+        {
+
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerator GetEnumerator()
+        {
+            throw new NotImplementedException();
         }
     }
 }
