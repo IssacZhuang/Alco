@@ -1,5 +1,7 @@
 $FolderAssemblies = "./Assemblies/"
-$Modules = @("Vocore", "Vocore.Compute", "Vocore.Renderer")
+$Modules = @("Vocore", "Vocore.Compute")
+
+rm $FolderAssemblies/*.dll
 
 foreach($module in $Modules){
     dotnet build $module/$module.csproj  --configuration Release

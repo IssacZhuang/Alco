@@ -8,7 +8,7 @@ using Vocore;
 using UnityEngine;
 
 
-namespace Vocore.Renderer
+namespace Vocore
 {
     public delegate void SetMatricesForBatch(int start, int length, StructuredBuffer<Matrix4x4> matrices);
     public delegate void SetPropertyBlockForBatch(int start, int length, MaterialPropertyBlock propertyBlock);
@@ -37,7 +37,7 @@ namespace Vocore.Renderer
             get { return _material; }
             set
             {
-                if (!value.enableInstancing) throw Exceptions.Exception_MaterialNotInstanced;
+                if (!value.enableInstancing) throw ExceptionRendering.MaterialNotInstanced;
                 _material = value;
             }
         }

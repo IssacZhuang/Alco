@@ -48,8 +48,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\StructuredBuffer.cs" />
+    <Compile Include="Excoption\ExceptionRendering.cs" />
+    <Compile Include="Interface\IDrawable.cs" />
     <Compile Include="Interface\ITransform.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Rendering\InstanceBatchDrawer.cs" />
+    <Compile Include="Utility\MaterialUtility.cs" />
     <Compile Include="Utility\NullableUtility.cs" />
     <Compile Include="Utility\VectorUtility.cs" />
   </ItemGroup>
