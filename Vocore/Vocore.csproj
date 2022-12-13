@@ -50,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\StructuredBuffer.cs" />
+    <Compile Include="Collection\StructuredDrawableList.cs" />
     <Compile Include="Excoption\ExceptionRendering.cs" />
     <Compile Include="Interface\IDrawable.cs" />
     <Compile Include="Interface\ITransform.cs" />
