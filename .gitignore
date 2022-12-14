@@ -5,4 +5,6 @@
 /Vocore.Compute/obj/
 /Vocore.Renderer/bin/
 /Vocore.Renderer/obj/
+/Vocore.Test/bin/
+/Vocore.Test/obj/
 .vs/Vocore/v17/.suo

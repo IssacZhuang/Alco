@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Vocore
+namespace Vocore.Test
 {
-    public class StructuredDrawableList
+    internal class Test: Attribute
     {
+
     }
 }
