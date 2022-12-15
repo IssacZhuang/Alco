@@ -12,6 +12,7 @@ namespace Vocore.Test
         static void Main(string[] args)
         {
             Assembly assembly = Assembly.GetAssembly(typeof(Entry));
+            TestUtility.ResetCounter();
             foreach (TypeInfo typeInfo in assembly.DefinedTypes)
             {
                 //Console.WriteLine(typeInfo.FullName);
@@ -32,6 +33,7 @@ namespace Vocore.Test
             }
 
             Console.WriteLine("Test Finished");
+            TestUtility.DisplayCounter();
             Console.ReadLine();
         }
 
@@ -43,21 +45,23 @@ namespace Vocore.Test
                 if (testAttr == null) continue;
                 try
                 {
-                    TestUtility.PrintGray("--------Test: " + testAttr.name + " started:");
+                    TestUtility.PrintGray("------" + testAttr.name + " | started:");
                     method.Invoke(obj, null);
-                    TestUtility.PrintGray("--------Test: " + testAttr.name + " finished.\n");
+                    TestUtility.PrintGray("----Test finished.\n");
                 }
                 catch (Exception e)
                 {
                     if (testAttr.expectError)
                     {
                         TestUtility.PrintGreen("An error is occurred as expected");
-                        TestUtility.PrintGray("--------Test: " + testAttr.name + " finished.\n");
+                        TestUtility.AddSuccess();
+                        TestUtility.PrintGray("----Test finished.\n");
                     }
                     else
                     {
                         TestUtility.PrintRed(e.InnerException);
-                        TestUtility.PrintGray("--------Test: " + testAttr.name + " failed.\n");
+                        TestUtility.AddFailed();
+                        TestUtility.PrintGray("----Test failed.\n");
                     }
                 }
             }

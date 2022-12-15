@@ -4,18 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Vocore.Framework
+namespace Vocore
 {
     public static class ProtoDatabase<T> where T : ProtoBase
     {
         private readonly static List<T> _protoList = new List<T>();
 
         public static int Count => _protoList.Count;
-        public static List<T> AllProtos => _protoList;
+        public static IEnumerable<T> AllProtos => _protoList;
 
         public static void Load(T proto)
         {
-            if(_protoList.AsParallel().Any(x=>x.nameID == proto.nameID))
+            if (_protoList.AsParallel().Any(x => x == proto || x.nameID == proto.nameID))
             {
                 throw ExceptionFramework.ProtoAlreadyExist(proto.nameID);
             }
