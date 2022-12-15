@@ -13,7 +13,7 @@ namespace Vocore
     public delegate void SetMatricesForBatch(int start, int length, StructuredBuffer<Matrix4x4> matrices);
     public delegate void SetPropertyBlockForBatch(int start, int length, MaterialPropertyBlock propertyBlock);
 
-    public class InstanceBatchDrawer
+    public class InstancedRenderer
     {
         public const int MAX_COUNT_IN_BATCH = 1000;
 
@@ -44,13 +44,13 @@ namespace Vocore
 
         public MaterialPropertyBlock PropertyBlock => _propertyBlock;
 
-        public InstanceBatchDrawer()
+        public InstancedRenderer()
         {
             _matrixBuffer = new StructuredBuffer<Matrix4x4>(MAX_COUNT_IN_BATCH);
             _propertyBlock = new MaterialPropertyBlock();
         }
 
-        public InstanceBatchDrawer(Mesh mesh, Material material)
+        public InstancedRenderer(Mesh mesh, Material material)
         {
             _matrixBuffer = new StructuredBuffer<Matrix4x4>(MAX_COUNT_IN_BATCH);
             _propertyBlock = new MaterialPropertyBlock();
@@ -59,7 +59,7 @@ namespace Vocore
             Material = material;
         }
 
-        public InstanceBatchDrawer(Mesh mesh, Shader shader)
+        public InstancedRenderer(Mesh mesh, Shader shader)
         {
             _matrixBuffer = new StructuredBuffer<Matrix4x4>(MAX_COUNT_IN_BATCH);
             _propertyBlock = new MaterialPropertyBlock();
