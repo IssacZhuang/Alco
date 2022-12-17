@@ -9,28 +9,29 @@ namespace Vocore
 {
     public class StructuredBuffer<T> where T : struct
     {
-        private readonly T[] innerArray;
-        private int size;
+        private readonly T[] _innerArray;
+        private readonly int _size;
 
-        public int Length => size;
+        public int Length => _size;
 
         public T this[int index] {
             get
             {
-                return innerArray[index];
+                return _innerArray[index];
             }
             set
             {
-                innerArray[index] = value;
+                _innerArray[index] = value;
             }
         }
 
-        public T[] Raw => innerArray;
+        public T[] Raw => _innerArray;
 
         public StructuredBuffer(int size)
         {
-            innerArray = new T[size];
-            this.size = size;
+            if (size > 0) throw ExceptionCollection.StructureSizeIsEmpty;
+            _innerArray = new T[size];
+            this._size = size;
         }
     }
 }
