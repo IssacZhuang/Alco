@@ -1,6 +1,6 @@
 $FolderAssemblies = "./Assemblies/"
 $FolderPG2019 = "./Playground/2019/Assets/Plugins/Vocore"
-$Modules = @("Vocore", "Vocore.Compute")
+$Modules = @("Vocore", "Vocore.AssetsLib")
 
 rm $FolderPG2019/*.dll
 rm $FolderAssemblies/*.dll

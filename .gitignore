@@ -1,10 +1,8 @@
 /.vs/
 /Vocore/bin/
 /Vocore/obj/
-/Vocore.Compute/bin/
-/Vocore.Compute/obj/
-/Vocore.Renderer/bin/
-/Vocore.Renderer/obj/
+/Vocore.AssetsLib/bin/
+/Vocore.AssetsLib/obj/
 /Vocore.Test/bin/
 /Vocore.Test/obj/
 .vs/Vocore/v17/.suo

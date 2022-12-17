@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("Vocore.Compute")]
+[assembly: AssemblyTitle("Vocore.AssetsLib")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Vocore.Compute")]
+[assembly: AssemblyProduct("Vocore.AssetsLib")]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // 如果此项目向 COM 公开，则下列 GUID 用于类型库的 ID
-[assembly: Guid("54b8e9f8-e66a-4080-8a67-e1186258c4af")]
+[assembly: Guid("47cbfcc8-8f0f-4fe3-8e48-cc2507f25b84")]
 
 // 程序集的版本信息由下列四个值组成: 
 //

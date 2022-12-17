@@ -53,10 +53,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Vocore.Compute\Vocore.Compute.csproj">
-      <Project>{54b8e9f8-e66a-4080-8a67-e1186258c4af}</Project>
-      <Name>Vocore.Compute</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>

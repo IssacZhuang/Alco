@@ -1,5 +1,5 @@
 $FolderAssemblies = "./Assemblies/"
-$Modules = @("Vocore", "Vocore.Compute")
+$Modules = @("Vocore", "Vocore.AssetsLib")
 
 rm $FolderAssemblies/*.dll
 

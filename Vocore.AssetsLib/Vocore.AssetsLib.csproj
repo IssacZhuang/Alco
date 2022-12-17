@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{54B8E9F8-E66A-4080-8A67-E1186258C4AF}</ProjectGuid>
+    <ProjectGuid>{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Vocore.Compute</RootNamespace>
-    <AssemblyName>Vocore.Compute</AssemblyName>
+    <RootNamespace>Vocore.AssetsLib</RootNamespace>
+    <AssemblyName>Vocore.AssetsLib</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -47,11 +47,17 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="Rendering\InstancedRenderQueue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vocore\Vocore.csproj">
+      <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
+      <Name>Vocore</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
