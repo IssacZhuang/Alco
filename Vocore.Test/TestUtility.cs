@@ -128,7 +128,6 @@ namespace Vocore.Test
 
             Console.WriteLine("Test Finished");
             TestUtility.DisplayCounter();
-            Console.ReadLine();
         }
 
         public static void StartTest(Type type)
