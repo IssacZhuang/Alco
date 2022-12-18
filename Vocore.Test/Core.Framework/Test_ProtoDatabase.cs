@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Vocore.Test.Framework
+namespace Vocore.Test.Core.Framework
 {
     internal class Test_ProtoDatabase
     {

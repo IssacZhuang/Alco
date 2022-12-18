@@ -7,8 +7,35 @@ using System.Threading.Tasks;
 
 namespace Vocore.Test
 {
+    internal class Test : Attribute
+    {
+        public string Name { get; private set; }
+        public bool ExpectError { get; private set; }
+
+        public Test()
+        {
+            this.Name = "Test";
+            ExpectError = false;
+        }
+
+        public Test(string testName)
+        {
+            this.Name = testName;
+            ExpectError = false;
+        }
+
+        public Test(string testName, bool expectError)
+        {
+            this.Name = testName;
+            this.ExpectError = expectError;
+        }
+    }
+
     public static class TestUtility
     {
+        public static string TEXT_BENCHMARK = "Benchmark: ";
+        public static string TEXT_TIME_COST = "Time cost: ";
+
         private static int _counterFailed = 0;
         private static int _counterSuccess = 0;
 
@@ -52,6 +79,10 @@ namespace Vocore.Test
         {
             PrintColor(obj, ConsoleColor.Gray);
         }
+        public static void PrintBlue(object obj)
+        {
+            PrintColor(obj, ConsoleColor.Blue);
+        }
 
         public static void PrintColor(object obj ,ConsoleColor color)
         {
@@ -79,8 +110,7 @@ namespace Vocore.Test
             TestUtility.ResetCounter();
             foreach (TypeInfo typeInfo in assembly.DefinedTypes)
             {
-                //Console.WriteLine(typeInfo.FullName);
-                object obj = null;
+                object obj;
                 try
                 {
                     obj = Activator.CreateInstance(typeInfo);
@@ -101,6 +131,31 @@ namespace Vocore.Test
             Console.ReadLine();
         }
 
+        public static void StartTest(Type type)
+        {
+            TestUtility.ResetCounter();
+
+            object obj;
+            try
+            {
+                obj = Activator.CreateInstance(type);
+                try
+                {
+                    if (obj != null) TryInvokeTestForObj(obj, type.GetTypeInfo());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
+            catch (Exception) { }
+
+
+            Console.WriteLine("Test Finished");
+            TestUtility.DisplayCounter();
+            Console.ReadLine();
+        }
+
         public static void TryInvokeTestForObj(object obj, TypeInfo typeInfo)
         {
             foreach (MethodInfo method in typeInfo.GetMethods(BindingFlags.Instance | BindingFlags.Public))
@@ -109,13 +164,13 @@ namespace Vocore.Test
                 if (testAttr == null) continue;
                 try
                 {
-                    TestUtility.PrintGray("------" + testAttr.name + " | started:");
+                    TestUtility.PrintGray("------" + testAttr.Name + " | started:");
                     method.Invoke(obj, null);
                     TestUtility.PrintGray("----Test finished.\n");
                 }
                 catch (Exception e)
                 {
-                    if (testAttr.expectError)
+                    if (testAttr.ExpectError)
                     {
                         TestUtility.PrintGreen("An error is occurred as expected");
                         TestUtility.AddSuccess();
