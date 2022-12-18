@@ -49,6 +49,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collection\NativeBuffer.cs" />
     <Compile Include="Collection\StructuredBuffer.cs" />
     <Compile Include="Collection\StructureList.cs" />
     <Compile Include="Exception\ExceptionCollection.cs" />
@@ -58,8 +59,7 @@
     <Compile Include="Exception\ExceptionRendering.cs" />
     <Compile Include="Framework\ProtoBase.cs" />
     <Compile Include="Framework\ProtoDatabase.cs" />
-    <Compile Include="Jobs\JobTransfromMatrix.cs" />
-    <Compile Include="Jobs\JobTransMatrixFromBuffer.cs" />
+    <Compile Include="Jobs\JobTransMatricesUnsafe.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rendering\InstancedRenderer.cs" />
     <Compile Include="Utility\MaterialUtility.cs" />

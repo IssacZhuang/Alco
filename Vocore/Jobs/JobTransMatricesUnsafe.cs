@@ -10,7 +10,7 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace Vocore
 {
-    public unsafe struct JobTransfromMatrix : IJobParallelFor
+    public unsafe struct JobTransMatricesUnsafe : IJobParallelFor
     {
         [NativeDisableUnsafePtrRestriction]
         public Vector3* positions;
