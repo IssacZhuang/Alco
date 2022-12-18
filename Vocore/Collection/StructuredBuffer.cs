@@ -29,7 +29,7 @@ namespace Vocore
 
         public StructuredBuffer(int size)
         {
-            if (size > 0) throw ExceptionCollection.StructureSizeIsEmpty;
+            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             _innerArray = new T[size];
             this._size = size;
         }
