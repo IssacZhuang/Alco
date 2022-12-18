@@ -31,7 +31,7 @@ namespace Vocore.Test.Core.Framework
             ProtoDatabase<ProtoBase>.Load(proto2); // error
         }
 
-        [Test("ProtoDatabase.Load() Load", true)]
+        [Test("ProtoDatabase.Load() Load")]
         public void Test_Load()
         {
             ProtoDatabase<ProtoBase>.Clear();
@@ -53,7 +53,7 @@ namespace Vocore.Test.Core.Framework
         private class ProtoBar : ProtoBase { }
 
 
-        [Test("ProtoDatabase.Load() Load different type", true)]
+        [Test("ProtoDatabase.Load() Load different type")]
         public void Test_LoadTwoType()
         {
 
@@ -72,7 +72,7 @@ namespace Vocore.Test.Core.Framework
             TestUtility.Assert(ProtoDatabase<ProtoBase>.Count != 2);
         }
 
-        [Test("ProtoDatabase.Load() Load with different DB", true)]
+        [Test("ProtoDatabase.Load() Load with different DB")]
         public void Test_LoadTwoDB()
         {
 
