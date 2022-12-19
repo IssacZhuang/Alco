@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Vocore
 {
-    public class StructuredBuffer<T> where T : struct
+    public class StructuredBuffer<T> where T : unmanaged
     {
         private readonly T[] _innerArray;
         private readonly int _size;
@@ -26,6 +26,16 @@ namespace Vocore
         }
 
         public T[] Raw => _innerArray;
+        public unsafe T* PtrHead
+        {
+            get
+            {
+                fixed(T* result = &_innerArray[0])
+                {
+                    return result;
+                }
+            }
+        }
 
         public StructuredBuffer(int size)
         {

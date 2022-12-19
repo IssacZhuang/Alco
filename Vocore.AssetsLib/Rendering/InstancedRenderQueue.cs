@@ -5,20 +5,23 @@ using System.Text;
 using System.Threading.Tasks;
 
 using UnityEngine;
+using Unity.Jobs;
 
 namespace Vocore.AssetsLib
 {
-    public class InstancedRenderQueue
+    public class InstancedRenderQueue: IDisposable
     {
         private readonly InstancedRenderer _renderer;
 
-        private readonly StructuredBuffer<Vector3> _positionBuffer;
-        private readonly StructuredBuffer<Quaternion> _rotationBuffer;
-        private readonly StructuredBuffer<Vector3> _scaleBuffer;
+        private NativeBuffer<Vector3> _positionBuffer;
+        private NativeBuffer<Quaternion> _rotationBuffer;
+        private NativeBuffer<Vector3> _scaleBuffer;
+
+        private JobCalcMatricesUnsafe _jobMatrices;
 
         private int _count;
 
-        public InstancedRenderQueue(Mesh mesh, Material mat)
+        public unsafe InstancedRenderQueue(Mesh mesh, Material mat)
         {
             if (mesh == null) throw ExceptionRendering.MeshIsMissing;
             if (mat == null) throw ExceptionRendering.MaterialIsMissing;
@@ -31,11 +34,18 @@ namespace Vocore.AssetsLib
                 onUpdateMatriceValues = SetMatriceValue
             };
 
+            _positionBuffer = new NativeBuffer<Vector3>(InstancedRenderer.MAX_COUNT_IN_BATCH);
+            _rotationBuffer = new NativeBuffer<Quaternion>(InstancedRenderer.MAX_COUNT_IN_BATCH);
+            _scaleBuffer = new NativeBuffer<Vector3>(InstancedRenderer.MAX_COUNT_IN_BATCH);
 
-            _positionBuffer = new StructuredBuffer<Vector3>(InstancedRenderer.MAX_COUNT_IN_BATCH);
-            _rotationBuffer = new StructuredBuffer<Quaternion>(InstancedRenderer.MAX_COUNT_IN_BATCH);
-            _scaleBuffer = new StructuredBuffer<Vector3>(InstancedRenderer.MAX_COUNT_IN_BATCH);
+            InitializeJob();
+
             _count = 0;
+        }
+
+        ~InstancedRenderQueue()
+        {
+            ClearBuffer();
         }
 
         public void Draw()
@@ -44,7 +54,7 @@ namespace Vocore.AssetsLib
             ResetBuffer();
         }
 
-        public void Push(Vector3 position, Quaternion rotation, Vector3 scale)
+        public void PushToQueue(Vector3 position, Quaternion rotation, Vector3 scale)
         {
             if(_count>= InstancedRenderer.MAX_COUNT_IN_BATCH - 1)
             {
@@ -55,6 +65,7 @@ namespace Vocore.AssetsLib
             _positionBuffer[_count] = position;
             _rotationBuffer[_count] = rotation;
             _scaleBuffer[_count] = scale;
+            _count++;
         }
 
         public void ResetBuffer()
@@ -62,10 +73,34 @@ namespace Vocore.AssetsLib
             _count = 0;
         }
 
-        private void SetMatriceValue(int start, int length, StructuredBuffer<Matrix4x4> matrices)
+        public void Dispose()
+        {
+            ClearBuffer();
+            GC.SuppressFinalize(this);
+        }
+
+        protected void SetMatriceValue(int start, int length, StructuredBuffer<Matrix4x4> matrices)
         {
             if (start > 0) return; // TODO: warning
+            _jobMatrices.Schedule(length, 1).Complete();
+        }
 
+        private unsafe void InitializeJob()
+        {
+            _jobMatrices = new JobCalcMatricesUnsafe
+            {
+                positions = _positionBuffer.Raw,
+                rotations = _rotationBuffer.Raw,
+                scales = _scaleBuffer.Raw,
+                matrices = _renderer.MatrixBuffer.PtrHead
+            };
+        }
+
+        private void ClearBuffer()
+        {
+            _positionBuffer.Dispose();
+            _rotationBuffer.Dispose();
+            _scaleBuffer.Dispose();
         }
     }
 }

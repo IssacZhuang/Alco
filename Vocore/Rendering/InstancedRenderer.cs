@@ -13,14 +13,14 @@ namespace Vocore
     public delegate void SetMatricesForBatch(int start, int length, StructuredBuffer<Matrix4x4> matrices);
     public delegate void SetPropertyBlockForBatch(int start, int length, MaterialPropertyBlock propertyBlock);
 
-    public class InstancedRenderer
+    public class InstancedRenderer: IDisposable
     {
         public const int MAX_COUNT_IN_BATCH = 1000;
 
         private Mesh _mesh;
         private Material _material;
 
-        private readonly StructuredBuffer<Matrix4x4> _matrixBuffer;
+        private StructuredBuffer<Matrix4x4> _matrixBuffer;
         private readonly MaterialPropertyBlock _propertyBlock;
 
         public SetPropertyBlockForBatch onUpdateBlockValues;
@@ -42,6 +42,7 @@ namespace Vocore
             }
         }
 
+        public StructuredBuffer<Matrix4x4> MatrixBuffer => _matrixBuffer;
         public MaterialPropertyBlock PropertyBlock => _propertyBlock;
 
         public InstancedRenderer()
@@ -103,6 +104,11 @@ namespace Vocore
                 onUpdateBlockValues?.Invoke(fullBatchLength * MAX_COUNT_IN_BATCH, remain, _propertyBlock);
                 Graphics.DrawMeshInstanced(Mesh, 0, Material, _matrixBuffer.Raw, remain, PropertyBlock);
             }
+        }
+
+        public void Dispose()
+        {
+            
         }
     }
 }

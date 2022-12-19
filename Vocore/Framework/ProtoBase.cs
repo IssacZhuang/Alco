@@ -17,6 +17,11 @@ namespace Vocore
 
         }
 
+        public virtual bool CanGroupWith()
+        {
+            return false;
+        }
+
         public virtual IEnumerable<string> CheckConfigError()
         {
             yield break;

@@ -60,7 +60,7 @@
     <Compile Include="Exception\ExceptionRendering.cs" />
     <Compile Include="Framework\ProtoBase.cs" />
     <Compile Include="Framework\ProtoDatabase.cs" />
-    <Compile Include="Jobs\JobTransMatricesUnsafe.cs" />
+    <Compile Include="Jobs\JobCalcMatricesUnsafe.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rendering\InstancedRenderer.cs" />
     <Compile Include="Utility\MaterialUtility.cs" />
