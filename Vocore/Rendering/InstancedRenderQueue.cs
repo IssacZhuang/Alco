@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Unity.Jobs;
 
-namespace Vocore.AssetsLib
+namespace Vocore
 {
     public class InstancedRenderQueue: IDisposable
     {
@@ -51,7 +51,6 @@ namespace Vocore.AssetsLib
         public void Draw()
         {
             _renderer.DrawWithProperty(_count);
-            ResetBuffer();
         }
 
         public void PushToQueue(Vector3 position, Quaternion rotation, Vector3 scale)
@@ -82,7 +81,15 @@ namespace Vocore.AssetsLib
         protected void SetMatriceValue(int start, int length, StructuredBuffer<Matrix4x4> matrices)
         {
             if (start > 0) return; // TODO: warning
-            _jobMatrices.Schedule(length, 1).Complete();
+            JobHandle handle = _jobMatrices.Schedule(length, 1);
+            SetMaterialProperty(start, length, _renderer.PropertyBlock);
+            handle.Complete();
+            ResetBuffer();
+        }
+
+        protected virtual void SetMaterialProperty(int start, int length, MaterialPropertyBlock propertyBlock)
+        {
+
         }
 
         private unsafe void InitializeJob()
