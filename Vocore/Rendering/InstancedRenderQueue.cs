@@ -19,7 +19,11 @@ namespace Vocore
 
         private JobCalcMatricesUnsafe _jobMatrices;
 
-        private int _count;
+        protected int _count;
+
+        public Mesh Mesh => _renderer.Mesh;
+
+        public Material Material => _renderer.Material;
 
         public unsafe InstancedRenderQueue(Mesh mesh, Material mat)
         {
@@ -31,7 +35,7 @@ namespace Vocore
             {
                 Mesh = mesh,
                 Material = mat,
-                onUpdateMatriceValues = SetMatriceValue
+                onUpdateData = UpdateData
             };
 
             _positionBuffer = new NativeBuffer<Vector3>(InstancedRenderer.MAX_COUNT_IN_BATCH);
@@ -50,10 +54,10 @@ namespace Vocore
 
         public void Draw()
         {
-            _renderer.DrawWithProperty(_count);
+            _renderer.Draw(_count);
         }
 
-        public void PushToQueue(Vector3 position, Quaternion rotation, Vector3 scale)
+        public void AddInstance(Vector3 position, Quaternion rotation, Vector3 scale)
         {
             if(_count>= InstancedRenderer.MAX_COUNT_IN_BATCH - 1)
             {
@@ -67,27 +71,16 @@ namespace Vocore
             _count++;
         }
 
-        public void ResetBuffer()
-        {
-            _count = 0;
-        }
-
-        public void Dispose()
-        {
-            ClearBuffer();
-            GC.SuppressFinalize(this);
-        }
-
-        protected void SetMatriceValue(int start, int length, StructuredBuffer<Matrix4x4> matrices)
+        protected void UpdateData(int start, int length, StructuredBuffer<Matrix4x4> matrices, MaterialPropertyBlock propertyBlock)
         {
             if (start > 0) return; // TODO: warning
             JobHandle handle = _jobMatrices.Schedule(length, 1);
-            SetMaterialProperty(start, length, _renderer.PropertyBlock);
+            UpdateMaterialProperty(propertyBlock);
             handle.Complete();
             ResetBuffer();
         }
 
-        protected virtual void SetMaterialProperty(int start, int length, MaterialPropertyBlock propertyBlock)
+        protected virtual void UpdateMaterialProperty(MaterialPropertyBlock propertyBlock)
         {
 
         }
@@ -103,11 +96,24 @@ namespace Vocore
             };
         }
 
+        public void Dispose()
+        {
+            ClearBuffer();
+            GC.SuppressFinalize(this);
+        }
+
+        private void ResetBuffer()
+        {
+            _count = 0;
+        }
+
+
         private void ClearBuffer()
         {
             _positionBuffer.Dispose();
             _rotationBuffer.Dispose();
             _scaleBuffer.Dispose();
         }
+
     }
 }

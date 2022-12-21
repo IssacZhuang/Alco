@@ -10,21 +10,19 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public delegate void SetMatricesForBatch(int start, int length, StructuredBuffer<Matrix4x4> matrices);
-    public delegate void SetPropertyBlockForBatch(int start, int length, MaterialPropertyBlock propertyBlock);
+    public delegate void SetDataForBatch(int start, int length, StructuredBuffer<Matrix4x4> matrices, MaterialPropertyBlock propertyBlock);
 
-    public class InstancedRenderer: IDisposable
+    public class InstancedRenderer
     {
         public const int MAX_COUNT_IN_BATCH = 1000;
 
         private Mesh _mesh;
         private Material _material;
 
-        private StructuredBuffer<Matrix4x4> _matrixBuffer;
+        private readonly StructuredBuffer<Matrix4x4> _matrixBuffer;
         private readonly MaterialPropertyBlock _propertyBlock;
 
-        public SetPropertyBlockForBatch onUpdateBlockValues;
-        public SetMatricesForBatch onUpdateMatriceValues;
+        public SetDataForBatch onUpdateData;
 
         public Mesh Mesh
         {
@@ -74,41 +72,17 @@ namespace Vocore
             int fullBatchLength = count / MAX_COUNT_IN_BATCH;
             for (int i = 0; i < fullBatchLength; i++)
             {
-                
-                onUpdateMatriceValues?.Invoke(i * MAX_COUNT_IN_BATCH, MAX_COUNT_IN_BATCH, _matrixBuffer);
-                Graphics.DrawMeshInstanced(Mesh, 0, Material, _matrixBuffer.Raw);
-            }
-
-            int remain = count % MAX_COUNT_IN_BATCH;
-            if (remain > 0)
-            {
-                onUpdateMatriceValues?.Invoke(fullBatchLength * MAX_COUNT_IN_BATCH, remain, _matrixBuffer);
-                Graphics.DrawMeshInstanced(Mesh, 0, Material, _matrixBuffer.Raw, remain);
-            }
-        }
-
-        public void DrawWithProperty(int count)
-        {
-            int fullBatchLength = count / MAX_COUNT_IN_BATCH;
-            for (int i = 0; i < fullBatchLength; i++)
-            {
-                onUpdateMatriceValues?.Invoke(i * MAX_COUNT_IN_BATCH, MAX_COUNT_IN_BATCH, _matrixBuffer);
-                onUpdateBlockValues?.Invoke(i * MAX_COUNT_IN_BATCH, MAX_COUNT_IN_BATCH, _propertyBlock);
+                onUpdateData?.Invoke(i * MAX_COUNT_IN_BATCH, MAX_COUNT_IN_BATCH, _matrixBuffer, _propertyBlock);
                 Graphics.DrawMeshInstanced(Mesh, 0, Material, _matrixBuffer.Raw, MAX_COUNT_IN_BATCH, _propertyBlock);
             }
 
             int remain = count % MAX_COUNT_IN_BATCH;
             if (remain > 0)
             {
-                onUpdateMatriceValues?.Invoke(fullBatchLength * MAX_COUNT_IN_BATCH, remain, _matrixBuffer);
-                onUpdateBlockValues?.Invoke(fullBatchLength * MAX_COUNT_IN_BATCH, remain, _propertyBlock);
+                onUpdateData?.Invoke(fullBatchLength * MAX_COUNT_IN_BATCH, remain, _matrixBuffer, _propertyBlock);
                 Graphics.DrawMeshInstanced(Mesh, 0, Material, _matrixBuffer.Raw, remain, PropertyBlock);
             }
-        }
-
-        public void Dispose()
-        {
-            
+            PropertyBlock.Clear();
         }
     }
 }
