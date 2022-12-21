@@ -38,12 +38,6 @@ namespace Vocore.AssetsLib
 
         public int GetRendererID(Mesh mesh, Material material)
         {
-            //for(int i=0;i< _renderQueues.Count; i++)
-            //{
-            //    if (_renderQueues[i].Mesh == mesh && _renderQueues[i].Material == material) return i;
-            //}
-            //_renderQueues.Add(new AnimatedRenderQueue(mesh, material));
-            //return _renderQueues.Count - 1;
             if (_cacheIndex.TryGetValue((mesh, material), out int rendererID))
             {
                 return rendererID;
@@ -57,9 +51,9 @@ namespace Vocore.AssetsLib
             }
         }
 
-        public void AddInstance(int rendererID, Vector3 position, Quaternion rotattion, Vector3 scale, float frame)
+        public void AddInstance(int rendererID, Vector3 position, Quaternion rotattion, Vector3 scale, Color color = default, float frame = 0)
         {
-            _renderQueues[rendererID].AddInstance(position, rotattion, scale, frame);
+            _renderQueues[rendererID].AddInstance(position, rotattion, scale, color, frame);
         }
 
         public void Draw(int rendererID)
