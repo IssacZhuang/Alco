@@ -78,6 +78,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core.Collection\Test_NativeStructuredBuffer.cs" />
+    <Compile Include="Core.Collection\Test_QuadTree.cs" />
     <Compile Include="Entry.cs" />
     <Compile Include="Core.Framework\Test_ProtoDatabase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
