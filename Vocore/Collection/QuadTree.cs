@@ -186,7 +186,7 @@ namespace Vocore
             }
         }
 
-        private readonly static int NODE_CONTENT_LIMIT = 4;
+        private readonly static int NODE_CONTENT_LIMIT = 24;
 
         private QuadTreeNode _rootNode;
 
