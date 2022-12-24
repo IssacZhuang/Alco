@@ -7,18 +7,8 @@ using UnityEngine;
 
 namespace Vocore.AssetsLib
 {
-    public class AnimatedRenderManager
+    public class AnimatedRenderManager: Singleton<AnimatedRenderManager>
     {
-        public static AnimatedRenderManager _instance;
-        public static AnimatedRenderManager Default
-        {
-            get
-            {
-                if (_instance == null) _instance = new AnimatedRenderManager();
-                return _instance;
-            }
-        }
-
         private readonly List<AnimatedRenderQueue> _renderQueues;
         private readonly Dictionary<(Mesh, Material), int> _cacheIndex;
 

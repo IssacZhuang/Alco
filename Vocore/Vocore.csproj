@@ -41,17 +41,19 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
-    <Reference Include="UnityEditor, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Unity3D.SDK.2019.4.3.1\lib\UnityEditor.dll</HintPath>
-    </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Unity3D.SDK.2019.4.3.1\lib\UnityEngine.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Packages\Unity3D.2019.4.3.1\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>..\Packages\Unity3D.2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\NativeBuffer.cs" />
     <Compile Include="Collection\QuadTree.cs" />
     <Compile Include="Const\ShaderPropertyID.cs" />
+    <Compile Include="Framework\Singleton.cs" />
     <Compile Include="Rendering\InstancedRenderQueue.cs" />
     <Compile Include="Type\Bound2.cs" />
     <Compile Include="Utility\PointerTracker.cs" />
@@ -71,9 +73,6 @@
     <Compile Include="Utility\NullableUtility.cs" />
     <Compile Include="Utility\PointerUtility.cs" />
     <Compile Include="Utility\VectorUtility.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
