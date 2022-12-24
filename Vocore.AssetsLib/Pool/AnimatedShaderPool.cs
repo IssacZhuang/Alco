@@ -37,7 +37,7 @@ namespace Vocore.AssetsLib
             get
             {
                 if (_animated == null) _animated = GetShader("Unlit/Animated");
-                if (_animated == null) ExceptionRendering.ShaderNotFound("Vocore/Animated");
+                if (_animated == null) ExceptionRendering.ShaderNotFound("Unlit/Animated");
                 return _animated;
             }
         }
@@ -47,7 +47,7 @@ namespace Vocore.AssetsLib
             get
             {
                 if (_animatedInstanced == null) _animatedInstanced = GetShader("Unlit/AnimatedInstanced");
-                if (_animatedInstanced == null) ExceptionRendering.ShaderNotFound("Vocore/AnimatedInstanced");
+                if (_animatedInstanced == null) ExceptionRendering.ShaderNotFound("Unlit/AnimatedInstanced");
                 return _animatedInstanced;
             }
         }

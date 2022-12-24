@@ -13,5 +13,6 @@ namespace Vocore
         public readonly static int frame = Shader.PropertyToID("_Frame");
         public readonly static int color = Shader.PropertyToID("_Color");
         public readonly static int splits = Shader.PropertyToID("_Splits");
+        public readonly static int lightIntensity = Shader.PropertyToID("_LightIntensity");
     }
 }

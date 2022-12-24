@@ -12,13 +12,14 @@ namespace Vocore.AssetsLib
     {
         private readonly List<Material> _materials = new List<Material>();
 
-        public Material GetMaterial(Shader shader, Texture2D texture, Vector4 splits)
+        public Material GetMaterial(Shader shader, Texture2D texture, Vector4 splits, float lightIntensity=1f)
         {
             for (int i = 0; i < _materials.Count; i++)
             {
                 if (_materials[i].shader != shader) continue;
                 if (_materials[i].mainTexture != texture) continue;
                 if (_materials[i].GetVector(ShaderPropertyID.splits) != splits) continue;
+                if (_materials[i].GetFloat(ShaderPropertyID.lightIntensity) != lightIntensity) continue;
                 return _materials[i];
             }
 
