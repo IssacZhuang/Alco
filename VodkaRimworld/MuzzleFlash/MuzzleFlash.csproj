@@ -54,7 +54,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GameComponent\WeaponPositionCache.cs" />
+    <Compile Include="MuzzleFlashDefOf.cs" />
+    <Compile Include="MuzzleFlashDef.cs" />
+    <Compile Include="MuzzleFlashEntity.cs" />
     <Compile Include="MuzzleFlashMod.cs" />
+    <Compile Include="MuzzleFlashProps.cs" />
+    <Compile Include="MuzzleFlashUtility.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -66,6 +72,10 @@
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="MapConponent\" />
+    <Folder Include="Patch\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
