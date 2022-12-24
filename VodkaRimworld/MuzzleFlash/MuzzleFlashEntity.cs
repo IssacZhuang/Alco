@@ -27,6 +27,7 @@ namespace MuzzleFlash
 
         public MuzzleFlashEntity(MuzzleFlashDef def,Vector3 pos, float angle, Vector2 size2D)
         {
+            _lifeTicks = def.duration;
             this.def = def;
             position = pos;
             rotation = Quaternion.AngleAxis((angle - 90f) % 360f, Vector3.up);
