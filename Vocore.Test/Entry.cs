@@ -10,7 +10,7 @@ namespace Vocore.Test
 {
     internal class Entry
     {
-        static void Main(string[] args)
+        static void Main(string[] _)
         {
             PointerTracker.StaticInitialize();
             Assembly assembly = Assembly.GetAssembly(typeof(Entry));

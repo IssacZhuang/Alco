@@ -90,12 +90,6 @@
     <None Include="Properties\app.manifest" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Vocore\Vocore.csproj">
-      <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
-      <Name>Vocore</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
       <Visible>False</Visible>
       <ProductName>Microsoft .NET Framework 4.7.2 %28x86 和 x64%29</ProductName>
@@ -107,6 +101,11 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\Vocore\Vocore.csproj">
+      <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
+      <Name>Vocore</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
