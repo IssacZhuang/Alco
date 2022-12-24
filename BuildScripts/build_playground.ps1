@@ -6,7 +6,7 @@ rm $FolderPG2019/*.dll
 rm $FolderAssemblies/*.dll
 
 foreach($module in $Modules){
-    dotnet build $module/$module.csproj  --configuration Release
+    dotnet build ../$module/$module.csproj  --configuration Release
     cp ../$module/bin/Release/$module.dll $FolderAssemblies
     cp $FolderAssemblies/$module.dll $FolderPG2019
 }
