@@ -11,8 +11,6 @@ namespace Vocore.AssetsLib
     {
         private readonly StructuredBuffer<float> _frameBuffer;
         private readonly StructuredBuffer<Vector4> _coloreBuffer;
-        private readonly static int ShaderID_frame = Shader.PropertyToID("_Frame");
-        private readonly static int ShaderID_color = Shader.PropertyToID("_Color");
 
         public AnimatedRenderQueue(Mesh mesh, Material mat) : base(mesh, mat)
         {
@@ -29,8 +27,8 @@ namespace Vocore.AssetsLib
 
         protected override void UpdateMaterialProperty(MaterialPropertyBlock propertyBlock)
         {
-            propertyBlock.SetFloatArray(ShaderID_frame, _frameBuffer.Raw);
-            propertyBlock.SetVectorArray(ShaderID_color,_coloreBuffer.Raw);
+            propertyBlock.SetFloatArray(ShaderPropertyID.frame, _frameBuffer.Raw);
+            propertyBlock.SetVectorArray(ShaderPropertyID.color, _coloreBuffer.Raw);
         }
     }
 }

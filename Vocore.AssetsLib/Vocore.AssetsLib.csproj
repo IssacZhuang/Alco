@@ -49,6 +49,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Pool\AnimatedMaterialPool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rendering\AnimatedRenderManager.cs" />
     <Compile Include="Rendering\AnimatedRenderQueue.cs" />

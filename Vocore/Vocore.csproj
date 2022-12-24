@@ -51,6 +51,7 @@
   <ItemGroup>
     <Compile Include="Collection\NativeBuffer.cs" />
     <Compile Include="Collection\QuadTree.cs" />
+    <Compile Include="Const\ShaderPropertyID.cs" />
     <Compile Include="Rendering\InstancedRenderQueue.cs" />
     <Compile Include="Type\Bound2.cs" />
     <Compile Include="Utility\PointerTracker.cs" />
