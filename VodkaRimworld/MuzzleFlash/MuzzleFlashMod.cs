@@ -24,6 +24,11 @@ namespace MuzzleFlash
                     AnimatedShaderPool.Default.LoadAssetBundle(asset);
                 }
 
+                foreach(var shaderName in AnimatedShaderPool.Default.GetShaderNames())
+                {
+                    Log.Message("[Muzzle Flash] Custom shader loaded: "+ shaderName);
+                }
+
             }, "MF_LoadingShaders", false, null, true);
 
         }

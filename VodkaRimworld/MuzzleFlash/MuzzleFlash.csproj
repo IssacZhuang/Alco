@@ -32,6 +32,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>..\..\Packages\HarmonyLib\0Harmony.dll</HintPath>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\packages\Rimworld 1.4\Assembly-CSharp.dll</HintPath>
     </Reference>
@@ -55,12 +58,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="GameComponent\WeaponPositionCache.cs" />
+    <Compile Include="MapConponent\MapComponent_MuzzleFlashManager.cs" />
     <Compile Include="MuzzleFlashDefOf.cs" />
     <Compile Include="MuzzleFlashDef.cs" />
     <Compile Include="MuzzleFlashEntity.cs" />
     <Compile Include="MuzzleFlashMod.cs" />
     <Compile Include="MuzzleFlashProps.cs" />
     <Compile Include="MuzzleFlashUtility.cs" />
+    <Compile Include="Patch\HarmonyEntry.cs" />
+    <Compile Include="Patch\HarmonyPatch_PawnRenderer.cs" />
+    <Compile Include="Patch\HarmonyPatch_Verb.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -73,9 +80,6 @@
       <Name>Vocore</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="MapConponent\" />
-    <Folder Include="Patch\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

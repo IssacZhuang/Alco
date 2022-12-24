@@ -12,8 +12,9 @@ namespace MuzzleFlash
 {
     public class MuzzleFlashEntity
     {
-        private readonly MuzzleFlashDef _def;
         private int _lifeTicks = 60;
+
+        public readonly MuzzleFlashDef def;
 
         public float frame;
 
@@ -26,9 +27,9 @@ namespace MuzzleFlash
 
         public MuzzleFlashEntity(MuzzleFlashDef def,Vector3 pos, float angle, Vector2 size2D)
         {
-            _def = def;
+            this.def = def;
             position = pos;
-            rotation = Quaternion.AngleAxis(angle, Vector3.up);
+            rotation = Quaternion.AngleAxis((angle - 90f) % 360f, Vector3.up);
             size = new Vector3(size2D.x, 1f, size2D.y);
             frame = Mathf.Floor(Rand.Range(0, def.splits.y)) * (def.framesPerAnimation);
         }
@@ -36,7 +37,12 @@ namespace MuzzleFlash
         public void Tick()
         {
             _lifeTicks--;
-            frame += (_def.framesPerAnimation - 1) / _def.duration;
+            frame += (def.framesPerAnimation - 1) / def.duration;
+        }
+
+        public override string ToString()
+        {
+            return position + "\n" + size + "\n" + frame;
         }
     }
 }
