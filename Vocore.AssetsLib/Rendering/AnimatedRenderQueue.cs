@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
+using Vocore;
+
 namespace Vocore.AssetsLib
 {
     public class AnimatedRenderQueue : InstancedRenderQueue

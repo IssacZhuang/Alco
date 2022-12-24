@@ -7,8 +7,18 @@ using UnityEngine;
 
 namespace Vocore.AssetsLib
 {
-    public class AnimatedRenderManager: Singleton<AnimatedRenderManager>
+    public class AnimatedRenderManager
     {
+        private static AnimatedRenderManager _instance;
+        public static AnimatedRenderManager Default
+        {
+            get
+            {
+                if (_instance == null) _instance = new AnimatedRenderManager();
+                return _instance;
+            }
+        }
+
         private readonly List<AnimatedRenderQueue> _renderQueues;
         private readonly Dictionary<(Mesh, Material), int> _cacheIndex;
 
@@ -28,6 +38,16 @@ namespace Vocore.AssetsLib
 
         public int GetRendererID(Mesh mesh, Material material)
         {
+            if (mesh == null)
+            {
+                throw ExceptionRendering.MeshIsMissing;
+            }
+
+            if(material == null)
+            {
+                throw ExceptionRendering.MaterialIsMissing;
+            }
+
             if (_cacheIndex.TryGetValue((mesh, material), out int rendererID))
             {
                 return rendererID;
@@ -44,6 +64,14 @@ namespace Vocore.AssetsLib
         public void AddInstance(int rendererID, Vector3 position, Quaternion rotattion, Vector3 scale, Color color = default, float frame = 0)
         {
             _renderQueues[rendererID].AddInstance(position, rotattion, scale, color, frame);
+        }
+
+        public void Draw()
+        {
+            for(int i = 0; i < _renderQueues.Count; i++)
+            {
+                _renderQueues[i].Draw();
+            }
         }
 
         public void Draw(int rendererID)

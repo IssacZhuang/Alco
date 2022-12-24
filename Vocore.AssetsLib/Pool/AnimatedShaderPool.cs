@@ -8,8 +8,18 @@ using UnityEngine;
 
 namespace Vocore.AssetsLib
 {
-    public class AnimatedShaderPool : Singleton<AnimatedShaderPool>
+    public class AnimatedShaderPool
     {
+        private static AnimatedShaderPool _instance;
+        public static AnimatedShaderPool Default
+        {
+            get
+            {
+                if (_instance == null) _instance = new AnimatedShaderPool();
+                return _instance;
+            }
+        }
+
         private readonly Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
 
         private Shader _animated;
@@ -25,11 +35,19 @@ namespace Vocore.AssetsLib
 
         public Shader GetShader(string key)
         {
-            if(_shaders.TryGetValue(key, out Shader shader))
+            if(!_shaders.TryGetValue(key, out Shader shader))
             {
                 return null;
             }
             return shader;
+        }
+
+        public IEnumerable<string> GetShaderNames()
+        {
+            foreach(var shader in _shaders)
+            {
+                yield return shader.Value.name;
+            }
         }
 
         public Shader Animated
