@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("Vocore.Test")]
-[assembly: AssemblyDescription("The unit test")]
+[assembly: AssemblyTitle("VodkaTool")]
+[assembly: AssemblyDescription("The muzzle flash framework for Rimworld")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("IssacZhuang")]
-[assembly: AssemblyProduct("Vocore.Test")]
+[assembly: AssemblyProduct("VodkaTool.MuzzleFlash")]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // 如果此项目向 COM 公开，则下列 GUID 用于类型库的 ID
-[assembly: Guid("46de48f6-1c2c-4df6-99ce-7e4cafdb34be")]
+[assembly: Guid("9f2b5aeb-2832-462f-b380-3544ae249702")]
 
 // 程序集的版本信息由下列四个值组成: 
 //
