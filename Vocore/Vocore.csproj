@@ -50,7 +50,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\NativeBuffer.cs" />
+    <Compile Include="Collection\QuadTree.cs" />
     <Compile Include="Rendering\InstancedRenderQueue.cs" />
+    <Compile Include="Type\Bound2.cs" />
     <Compile Include="Utility\PointerTracker.cs" />
     <Compile Include="Collection\StructuredBuffer.cs" />
     <Compile Include="Collection\StructureList.cs" />
