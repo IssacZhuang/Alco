@@ -16,7 +16,7 @@ namespace MuzzleFlash
             float angle = direction.AngleFlat();
 
             Vector3 drawPos = drawLoc + direction * (offset.x + drawSize.x * def.drawOffsetMultiplier.x) + Vector3.Cross(direction, Vector3.up).normalized * offset.y * MuzzleFlashUtility.GetFlipped(angle);
-            drawPos.y += Altitudes.AltInc;
+            drawPos.y = AltitudeLayer.VisEffects.AltitudeFor();
 
             MuzzleFlashEntity entity = new MuzzleFlashEntity(def, drawPos, angle, drawSize);
 
