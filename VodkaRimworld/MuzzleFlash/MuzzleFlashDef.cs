@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Verse;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Vocore.AssetsLib;
 
 namespace MuzzleFlash
@@ -51,6 +52,7 @@ namespace MuzzleFlash
         {
             Shader shader = AnimatedShaderPool.Default.AnimatedInstanced;
             Material mat = AnimatedMaterialPool.Default.GetMaterial(shader, Texture, splits, lightIntensity);
+            mat.renderQueue = (int)RenderQueue.Transparent + 200;
             _renderID = AnimatedRenderManager.Default.GetRendererID(MeshPool.plane10, mat);
         }
     }
