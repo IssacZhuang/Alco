@@ -31,5 +31,11 @@ namespace MuzzleFlash
             }
             return 1f;
         }
+
+        public static bool MuzzleFlashAvailable(Verb verb)
+        {
+            if (verb == null) return false;
+            return verb.EquipmentCompSource?.PrimaryVerb == verb;
+        }
     }
 }

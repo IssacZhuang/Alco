@@ -23,6 +23,8 @@ namespace MuzzleFlash.Patch
 
             if (equipment == null) return;
 
+            if (!MuzzleFlashUtility.MuzzleFlashAvailable(__instance)) return;
+
             MuzzleFlashProps muzzleProps = equipment?.def?.GetModExtension<MuzzleFlashProps>();
             if (muzzleProps == null || muzzleProps.offsets == null || muzzleProps.offsets.NullOrEmpty()) return;
 
