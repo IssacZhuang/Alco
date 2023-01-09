@@ -36,7 +36,7 @@
       <HintPath>..\..\Packages\HarmonyLib\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\packages\Rimworld 1.4\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\..\Packages\Rimworld\1.4\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -47,13 +47,13 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine">
-      <HintPath>..\..\Packages\Unity3D.2019.4.3.1\UnityEngine.dll</HintPath>
+      <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.AssetBundleModule">
-      <HintPath>..\..\Packages\Unity3D.2019.4.3.1\UnityEngine.AssetBundleModule.dll</HintPath>
+      <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.AssetBundleModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\Packages\Unity3D.2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

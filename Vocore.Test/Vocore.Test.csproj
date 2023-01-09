@@ -71,10 +71,10 @@
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\Packages\Unity3D.2019.4.3.1\UnityEngine.dll</HintPath>
+      <HintPath>..\Packages\Unity3D\2019.4.3.1\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Packages\Unity3D.2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>..\Packages\Unity3D\2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
