@@ -34,9 +34,11 @@
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>..\..\Packages\HarmonyLib\0Harmony.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\Packages\Rimworld\1.4\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -48,12 +50,15 @@
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine">
       <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.AssetBundleModule">
       <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -74,10 +79,12 @@
     <ProjectReference Include="..\..\Vocore.AssetsLib\Vocore.AssetsLib.csproj">
       <Project>{47cbfcc8-8f0f-4fe3-8e48-cc2507f25b84}</Project>
       <Name>Vocore.AssetsLib</Name>
+      <Private>False</Private>
     </ProjectReference>
     <ProjectReference Include="..\..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
+      <Private>False</Private>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />
