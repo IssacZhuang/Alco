@@ -16,7 +16,7 @@ namespace MTA.Patch
         {
             CompMechAmmo mechAmmo = (__instance.compAmmo?.ParentHolder as Pawn)?.GetComp<CompMechAmmo>();
             if (mechAmmo == null) return true;
-            __result = __instance.compAmmo.BuildAmmoOptions();
+            __result = __instance.compAmmo.BuildAmmoOptions(mechAmmo);
             return false;
         }
     }

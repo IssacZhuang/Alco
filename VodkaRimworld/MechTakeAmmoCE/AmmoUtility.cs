@@ -17,7 +17,7 @@ namespace MTA
             return GenClosest.ClosestThingReachable(pawn.Position, pawn.Map, ThingRequest.ForDef(ammoDef), PathEndMode.ClosestTouch, TraverseParms.For(pawn, Danger.Deadly, TraverseMode.ByPawn, false, false, false), 9999f, null, null, 0, -1, false, RegionType.Set_Passable, false);
         }
 
-        public static List<FloatMenuOption> BuildAmmoOptions(this CompAmmoUser ammoUser)
+        public static List<FloatMenuOption> BuildAmmoOptions(this CompAmmoUser ammoUser, CompMechAmmo forMech = null)
         {
             List<FloatMenuOption> floatOptionList = new List<FloatMenuOption>();
 
@@ -40,6 +40,11 @@ namespace MTA
                     }
 
                     ammoUser.SelectedAmmo = ammoLink.ammo;
+
+                    if (forMech != null)
+                    {
+                        forMech.TakeAmmoNow();
+                    }
                 });
                 floatOptionList.Add(option);
             }
