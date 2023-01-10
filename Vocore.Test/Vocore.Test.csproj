@@ -82,6 +82,7 @@
     <Compile Include="Core.Collection\Test_QuadTree.cs" />
     <Compile Include="Entry.cs" />
     <Compile Include="Core.Framework\Test_ProtoDatabase.cs" />
+    <Compile Include="GeneralPerformanceTest\Test_ActivatorVsNew.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestUtility.cs" />
   </ItemGroup>
