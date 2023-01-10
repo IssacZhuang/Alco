@@ -17,31 +17,34 @@ namespace MTA
             return GenClosest.ClosestThingReachable(pawn.Position, pawn.Map, ThingRequest.ForDef(ammoDef), PathEndMode.ClosestTouch, TraverseParms.For(pawn, Danger.Deadly, TraverseMode.ByPawn, false, false, false), 9999f, null, null, 0, -1, false, RegionType.Set_Passable, false);
         }
 
-        public static void TryTakeAmmoJob(this Pawn pawn)
+        public static List<FloatMenuOption> BuildAmmoOptions(this CompAmmoUser ammoUser)
         {
-            Log.Message("Pawn Check");
-            if (pawn == null) return;
+            List<FloatMenuOption> floatOptionList = new List<FloatMenuOption>();
 
-            Log.Message("Job Def Check");
-            if (pawn.CurJobDef == JobDefOf.MTA_TakeAmmo) return;
+            if (ammoUser == null)
+            {
+                return floatOptionList;
+            }
 
-            Log.Message("CompMechAmmo Check");
-            if (pawn.GetComp<CompMechAmmo>() == null) return;
-            CompAmmoUser ammoUser = pawn.equipment.Primary.GetComp<CompAmmoUser>();
+            foreach (var ammoLink in ammoUser.Props.ammoSet.ammoTypes)
+            {
+                if (ammoLink.ammo == ammoUser.SelectedAmmo)
+                {
+                    continue;
+                }
+                FloatMenuOption option = new FloatMenuOption(ammoLink.ammo.ammoClass.label, () =>
+                {
+                    if (ammoUser.CurMagCount > 0)
+                    {
+                        ammoUser.TryUnload();
+                    }
 
-            Log.Message("CompAmmoUser Check");
-            if (ammoUser == null) return;
+                    ammoUser.SelectedAmmo = ammoLink.ammo;
+                });
+                floatOptionList.Add(option);
+            }
 
-            AmmoDef currentAmmo = ammoUser.CurrentAmmo;
-
-            Log.Message("Ammo Search");
-            Thing ammoFound = pawn.FindBestAmmo(currentAmmo);
-            if (ammoFound == null) return;
-
-            Job job = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
-            pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
-            pawn.jobs.StartJob(job);
-            Log.Message("Job issued");
+            return floatOptionList;
         }
     }
 }

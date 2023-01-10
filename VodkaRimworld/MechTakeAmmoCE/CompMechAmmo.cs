@@ -9,6 +9,7 @@ using RimWorld;
 using UnityEngine;
 
 using CombatExtended;
+using Verse.AI;
 
 namespace MTA
 {
@@ -30,7 +31,7 @@ namespace MTA
         {
             get
             {
-                if (_gizmoIconSetMagCount == null) _gizmoIconSetMagCount = ContentFinder<Texture2D>.Get(this.Props.gizmoIconSetMagCount);
+                if (_gizmoIconSetMagCount == null) _gizmoIconSetMagCount = ContentFinder<Texture2D>.Get(this.Props.gizmoIconSetMagCount, false);
                 return _gizmoIconSetMagCount;
             }
         }
@@ -39,7 +40,7 @@ namespace MTA
         {
             get
             {
-                if (_gizmoIconTakeAmmoNow == null) _gizmoIconTakeAmmoNow = ContentFinder<Texture2D>.Get(this.Props.gizmoIconTakeAmmoNow);
+                if (_gizmoIconTakeAmmoNow == null) _gizmoIconTakeAmmoNow = ContentFinder<Texture2D>.Get(this.Props.gizmoIconTakeAmmoNow, false);
                 return _gizmoIconTakeAmmoNow;
             }
         }
@@ -70,13 +71,13 @@ namespace MTA
             {
                 action = SetMagCount,
                 defaultLabel = _labelSetMagCount,
-                icon = GizmoIcon_SetMagCount,
+                //icon = GizmoIcon_SetMagCount,
             };
             yield return new Command_Action
             {
                 action = TakeAmmoNow,
                 defaultLabel = _labelTakeAmmoNow,
-                icon = GizmoIcon_TakeAmmoNow,
+                //icon = GizmoIcon_TakeAmmoNow,
             };
             yield break;
         }
@@ -93,7 +94,33 @@ namespace MTA
             if (ParentPawn.Drafted) return;
 
             Log.Message("Try Take Ammo");
-            ParentPawn.TryTakeAmmoJob();
+            this.TryTakeAmmoJob();
+        }
+
+        public void TryTakeAmmoJob()
+        {
+            if (ParentPawn == null) return;
+
+            if (ParentPawn.CurJobDef == JobDefOf.MTA_TakeAmmo) return;
+
+            if (ParentPawn.GetComp<CompMechAmmo>() == null) return;
+            CompAmmoUser ammoUser = ParentPawn.equipment.Primary?.GetComp<CompAmmoUser>();
+
+            if (ammoUser == null) return;
+
+            AmmoDef currentAmmo = ammoUser.CurrentAmmo;
+
+            Log.Message("Ammo Left:" + ammoUser.CurMagCount);
+
+            if (ammoUser.CurMagCount >= ammoUser.MagSize * magCount) return;
+
+            Thing ammoFound = ParentPawn.FindBestAmmo(currentAmmo);
+            if (ammoFound == null) return;
+
+            Job job = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
+            ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+            ParentPawn.jobs.StartJob(job);
+            Log.Message("Job issued");
         }
     }
 }
