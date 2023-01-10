@@ -10,7 +10,7 @@ using UnityEngine;
 
 using CombatExtended;
 
-namespace MechTakeAmmoCE
+namespace MTA
 {
     public class CompMechAmmo:ThingComp
     {
@@ -21,8 +21,6 @@ namespace MechTakeAmmoCE
 
         private readonly string _labelSetMagCount = "MTA_SetAmmoCount".Translate();
         private readonly string _labelTakeAmmoNow = "MTA_TakeAmmoNow".Translate();
-
-        private List<AmmoDiff> _ammoDiffs = new List<AmmoDiff>();
 
         public static readonly int REFRESH_INTERVAL = 6000;
 
@@ -94,17 +92,8 @@ namespace MechTakeAmmoCE
 
             if (ParentPawn.Drafted) return;
 
-            CompAmmoUser ammoUser = ParentPawn.equipment.Primary.GetComp<CompAmmoUser>();
-            if (ammoUser == null) return;
-
-            int magSize = ammoUser.MagSize;
-            AmmoDef currentAmmo = ammoUser.CurrentAmmo;
-
-            foreach(Thing thing in PawnInventory.innerContainer)
-            {
-                if (!(thing.def is AmmoDef ammoDef)) continue;
-                
-            }
+            Log.Message("Try Take Ammo");
+            ParentPawn.TryTakeAmmoJob();
         }
     }
 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Verse;
 using RimWorld;
 
-namespace MechTakeAmmoCE
+namespace MTA
 {
     public class CompProperties_MechAmmo: CompProperties
     {
