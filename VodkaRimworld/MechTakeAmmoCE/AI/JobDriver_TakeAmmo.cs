@@ -38,20 +38,20 @@ namespace MTA
             this.FailOnForbidden(TargetIndex.A);
             CompAmmoUser ammoUser = pawn.equipment.Primary.GetComp<CompAmmoUser>();
             CompMechAmmo mechAmmo = pawn.GetComp<CompMechAmmo>();
-            int ammoNeed = ammoUser.NeedAmmo(ammoUser.MagSize * mechAmmo.magCount);
+           
             foreach (Thing thing in pawn.inventory.innerContainer)
             {
                 if (!(thing.def is AmmoDef ammoDef)) continue;
                 if(ammoDef == Ammo.def) continue;
                 yield return Toils_Ammo.Drop(thing.def, thing.stackCount);
             }
-            if(ammoNeed > 0)
+            if(job.count > 0)
             {
                 yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch);
-                yield return Toils_Haul.TakeToInventory(TargetIndex.A, ammoNeed);
-            }else if (ammoNeed < 0)
+                yield return Toils_Haul.TakeToInventory(TargetIndex.A, job.count);
+            }else if (job.count < 0)
             {
-                yield return Toils_Ammo.Drop(ammoUser.SelectedAmmo, -ammoNeed);
+                yield return Toils_Ammo.Drop(ammoUser.SelectedAmmo, -job.count);
             }
             else
             {

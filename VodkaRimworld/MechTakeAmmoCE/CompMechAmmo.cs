@@ -92,36 +92,32 @@ namespace MTA
             this.TryMakeAmmoJob(true);
         }
 
-        public bool CanMakeJob(bool forced, out Thing ammoFound)
-        {
-            ammoFound = null;
-            if (ParentPawn == null) return false;
-
-            if (ParentPawn.Drafted && !forced) return false;
-
-            if (ParentPawn.CurJobDef == JobDefOf.MTA_TakeAmmo) return false;
-
-            if (ParentPawn.GetComp<CompMechAmmo>() == null) return false;
-            CompAmmoUser ammoUser = ParentPawn.equipment.Primary?.GetComp<CompAmmoUser>();
-
-            if (ammoUser == null) return false;
-
-            AmmoDef currentAmmo = ammoUser.SelectedAmmo;
-
-            if (ammoUser.NeedAmmo(ammoUser.MagSize * magCount) == 0) return false;
-
-            ammoFound = ParentPawn.FindBestAmmo(currentAmmo);
-            if (ammoFound == null) return false;
-
-            return true;
-        }
-
         public void TryMakeAmmoJob(bool forced = false)
         {
             Thing ammoFound;
-            if (!CanMakeJob(forced, out ammoFound)) return;
+
+            if (ParentPawn == null) return;
+
+            if (ParentPawn.Drafted && !forced) return;
+
+            if (ParentPawn.CurJobDef == JobDefOf.MTA_TakeAmmo) return;
+
+            if (ParentPawn.GetComp<CompMechAmmo>() == null) return;
+            CompAmmoUser ammoUser = ParentPawn.equipment.Primary?.GetComp<CompAmmoUser>();
+
+            if (ammoUser == null) return;
+
+            AmmoDef currentAmmo = ammoUser.SelectedAmmo;
+
+            int ammoNeed = ammoUser.NeedAmmo(ammoUser.MagSize * magCount);
+
+            if (ammoNeed == 0) return;
+
+            ammoFound = ParentPawn.FindBestAmmo(currentAmmo);
+            if (ammoFound == null) return;
 
             Job job = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
+            job.count = ammoNeed;
             ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
             ParentPawn.jobs.StartJob(job);
             Log.Message("Job issued");
