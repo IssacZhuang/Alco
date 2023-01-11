@@ -51,5 +51,15 @@ namespace MTA
 
             return floatOptionList;
         }
+
+        //public static bool NeedAmmo(this CompAmmoUser ammoUser, AmmoDef ammoNeed, out int amount)
+        //{
+        //    int 
+        //    foreach(Thing thing in ammoUser.Holder.inventory.innerContainer)
+        //    {
+
+        //    }
+        //    return false;
+        //}
     }
 }

@@ -14,7 +14,7 @@ namespace MTA.Patch
     {
         public static bool Prefix(Command_Reload __instance, ref List<FloatMenuOption> __result)
         {
-            CompMechAmmo mechAmmo = (__instance.compAmmo?.ParentHolder as Pawn)?.GetComp<CompMechAmmo>();
+            CompMechAmmo mechAmmo = (__instance.compAmmo?.parent.ParentHolder as Pawn_EquipmentTracker)?.pawn?.GetComp<CompMechAmmo>();
             if (mechAmmo == null) return true;
             __result = __instance.compAmmo.BuildAmmoOptions(mechAmmo);
             return false;

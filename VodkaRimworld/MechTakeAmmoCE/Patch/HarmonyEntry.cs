@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Verse;
 
 namespace MTA.Patch
 {
-    internal class HarmonyEntry
+    [StaticConstructorOnStartup]
+    internal static class HarmonyEntry
     {
         static HarmonyEntry()
         {
