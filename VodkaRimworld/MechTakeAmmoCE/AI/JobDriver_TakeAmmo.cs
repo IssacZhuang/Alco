@@ -10,6 +10,7 @@ using RimWorld;
 using UnityEngine;
 
 using CombatExtended;
+using System.Net.NetworkInformation;
 
 
 namespace MTA
@@ -37,14 +38,26 @@ namespace MTA
             this.FailOnForbidden(TargetIndex.A);
             CompAmmoUser ammoUser = pawn.equipment.Primary.GetComp<CompAmmoUser>();
             CompMechAmmo mechAmmo = pawn.GetComp<CompMechAmmo>();
+            int ammoNeed = ammoUser.NeedAmmo(ammoUser.MagSize * mechAmmo.magCount);
             foreach (Thing thing in pawn.inventory.innerContainer)
             {
                 if (!(thing.def is AmmoDef ammoDef)) continue;
                 if(ammoDef == Ammo.def) continue;
                 yield return Toils_Ammo.Drop(thing.def, thing.stackCount);
             }
-            yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch);
-            yield return Toils_Haul.TakeToInventory(TargetIndex.A, ammoUser.MagSize * mechAmmo.magCount);
+            if(ammoNeed > 0)
+            {
+                yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch);
+                yield return Toils_Haul.TakeToInventory(TargetIndex.A, ammoNeed);
+            }else if (ammoNeed < 0)
+            {
+                yield return Toils_Ammo.Drop(ammoUser.SelectedAmmo, -ammoNeed);
+            }
+            else
+            {
+                Log.Error("[MechTakeAmmoCE] Trying to start job that no need ammo");
+            }
+            
         }
     }
 }
