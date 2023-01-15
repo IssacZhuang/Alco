@@ -11,6 +11,10 @@ namespace MuzzleFlash
 {
     public class PatchOperationSetModExtension: PatchOperationPathed
 	{
+		public XmlContainer value;
+
+		private const string AttrClass= "Class";
+
 		protected override bool ApplyWorker(XmlDocument xml)
 		{
 			XmlNode node = this.value.node;
@@ -19,39 +23,48 @@ namespace MuzzleFlash
 
 			if(targetNodes == null || targetNodes.Count == 0)
             {
-				Log.Warning("xPath: \"" + this.xpath + "\" not found");
+				Log.Warning("The xPath: \"" + this.xpath + "\" not found");
 				return false;
             }
 
 			if(this.value.node.ChildNodes == null)
             {
-				Log.Error("the patch for xPath: \"" + this.xpath + "\" has no content");
+				Log.Error("The patch for xPath: \"" + this.xpath + "\" has no content");
 				return false;
 			}
 
-			foreach (object objTarget in targetNodes)
+			foreach (XmlNode nodeTarget in targetNodes)
 			{
-				XmlNode nodeTarget = objTarget as XmlNode;
-				XmlNode nodeExtension = nodeTarget["modExtensions"];
-				if (nodeExtension == null)
+				XmlNode nodeExtensionParent = nodeTarget["modExtensions"];
+				if (nodeExtensionParent == null)
 				{
-					nodeExtension = nodeTarget.OwnerDocument.CreateElement("modExtensions");
-					nodeTarget.AppendChild(nodeExtension);
+					nodeExtensionParent = nodeTarget.OwnerDocument.CreateElement("modExtensions");
+					nodeTarget.AppendChild(nodeExtensionParent);
 				}
-				foreach (object objPatch in node.ChildNodes)
+
+				foreach (XmlNode nodePatch in node.ChildNodes)
 				{
-					XmlNode nodePatch = (XmlNode)objPatch;
-					Log.Message("node name: "+nodePatch.Name);
-					Log.Message("node class: " + nodePatch.Attributes["Class"]);
-					nodeExtension.AppendChild(nodeTarget.OwnerDocument.ImportNode(nodePatch, true));
+					AddOrReplaceNode(node.OwnerDocument ,nodeExtensionParent, nodePatch);
 				}
 				result = true;
 			}
 			return result;
 		}
 
+		private void AddOrReplaceNode(XmlDocument ownerDocument,XmlNode nodeExtensionParent, XmlNode nodePatch)
+        {
+			XmlAttribute attrPatch = nodePatch.Attributes[AttrClass];
+			foreach (XmlNode existExtension in nodeExtensionParent.ChildNodes)
+            {
+				XmlAttribute attrExist = existExtension.Attributes[AttrClass];
+				if (attrExist == null) continue;
+				if (attrExist.Value == attrPatch?.Value)
+                {
+					Log.Message("Duplicated extesion found: " + attrExist.Value);
+                }
 
-
-		private XmlContainer value;
+			}
+			nodeExtensionParent.AppendChild(ownerDocument.ImportNode(nodePatch, true));
+		}
 	}
 }
