@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Verse;
 
-namespace MTA.Patch
+namespace MTA.HarmonyPatch
 {
     [StaticConstructorOnStartup]
     internal static class HarmonyEntry
