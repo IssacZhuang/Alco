@@ -64,15 +64,16 @@
   <ItemGroup>
     <Compile Include="GameComponent\WeaponPositionCache.cs" />
     <Compile Include="MapConponent\MapComponent_MuzzleFlashManager.cs" />
-    <Compile Include="MuzzleFlashDefOf.cs" />
-    <Compile Include="MuzzleFlashDef.cs" />
-    <Compile Include="MuzzleFlashEntity.cs" />
-    <Compile Include="MuzzleFlashMod.cs" />
-    <Compile Include="MuzzleFlashProps.cs" />
-    <Compile Include="MuzzleFlashUtility.cs" />
-    <Compile Include="Patch\HarmonyEntry.cs" />
-    <Compile Include="Patch\HarmonyPatch_PawnRenderer.cs" />
-    <Compile Include="Patch\HarmonyPatch_Verb.cs" />
+    <Compile Include="Core\MuzzleFlashDefOf.cs" />
+    <Compile Include="Core\MuzzleFlashDef.cs" />
+    <Compile Include="Core\MuzzleFlashEntity.cs" />
+    <Compile Include="Core\MuzzleFlashMod.cs" />
+    <Compile Include="Core\MuzzleFlashProps.cs" />
+    <Compile Include="Core\MuzzleFlashUtility.cs" />
+    <Compile Include="XmlPatch\PatchOperationSetModExtension.cs" />
+    <Compile Include="HarmonyPatch\HarmonyEntry.cs" />
+    <Compile Include="HarmonyPatch\HarmonyPatch_PawnRenderer.cs" />
+    <Compile Include="HarmonyPatch\HarmonyPatch_Verb.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
