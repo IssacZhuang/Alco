@@ -63,6 +63,10 @@
       <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmmoUtility.cs" />
@@ -74,6 +78,7 @@
     <Compile Include="Patch\HarmonyPatch_ShowAllAmmo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AI\Toils_Ammo.cs" />
+    <Compile Include="UI\Dialog_SetValue.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
