@@ -41,6 +41,8 @@ namespace MuzzleFlash
 				foreach (object objPatch in node.ChildNodes)
 				{
 					XmlNode nodePatch = (XmlNode)objPatch;
+					Log.Message("node name: "+nodePatch.Name);
+					Log.Message("node class: " + nodePatch.Attributes["Class"]);
 					nodeExtension.AppendChild(nodeTarget.OwnerDocument.ImportNode(nodePatch, true));
 				}
 				result = true;

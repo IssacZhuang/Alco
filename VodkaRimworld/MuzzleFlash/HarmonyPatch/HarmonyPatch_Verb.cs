@@ -8,7 +8,7 @@ using HarmonyLib;
 using Verse;
 using UnityEngine;
 
-namespace MuzzleFlash.HarmonyPatch
+namespace MuzzleFlash.Patch
 {
     [HarmonyPatch(typeof(Verb), "TryCastNextBurstShot")]
     internal class HarmonyPatch_Verb

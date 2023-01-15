@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using HarmonyLib;
 using Verse;
 
-namespace MuzzleFlash.HarmonyPatch
+namespace MuzzleFlash.Patch
 {
     [StaticConstructorOnStartup]
     internal static class HarmonyEntry

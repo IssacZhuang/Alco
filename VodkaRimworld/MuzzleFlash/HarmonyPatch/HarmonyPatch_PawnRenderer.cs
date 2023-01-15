@@ -8,7 +8,7 @@ using Verse;
 using HarmonyLib;
 using UnityEngine;
 
-namespace MuzzleFlash.HarmonyPatch
+namespace MuzzleFlash.Patch
 {
     [HarmonyPatch(typeof(PawnRenderer), "DrawEquipmentAiming")]
     internal class HarmonyPatch_PawnRenderer

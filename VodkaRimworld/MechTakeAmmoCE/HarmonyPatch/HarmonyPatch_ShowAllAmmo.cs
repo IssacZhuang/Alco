@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Verse;
 
-namespace MTA.HarmonyPatch
+namespace MTA.Patch
 {
     [HarmonyPatch(typeof(Command_Reload), "BuildAmmoOptions")]
     internal class HarmonyPatch_ShowAllAmmo
