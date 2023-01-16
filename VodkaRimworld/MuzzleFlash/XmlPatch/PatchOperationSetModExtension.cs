@@ -24,17 +24,18 @@ namespace MuzzleFlash
 			if(targetNodes == null || targetNodes.Count == 0)
             {
 				Log.Warning("The xPath: \"" + this.xpath + "\" not found");
-				return false;
+				return true;
             }
 
 			if(this.value.node.ChildNodes == null)
             {
 				Log.Error("The patch for xPath: \"" + this.xpath + "\" has no content");
-				return false;
+				return true;
 			}
 
-			foreach (XmlNode nodeTarget in targetNodes)
+			foreach (object objTarget in targetNodes)
 			{
+				XmlNode nodeTarget = objTarget as XmlNode;
 				XmlNode nodeExtensionParent = nodeTarget["modExtensions"];
 				if (nodeExtensionParent == null)
 				{
@@ -42,8 +43,9 @@ namespace MuzzleFlash
 					nodeTarget.AppendChild(nodeExtensionParent);
 				}
 
-				foreach (XmlNode nodePatch in node.ChildNodes)
+				foreach (object objPatch in node.ChildNodes)
 				{
+					XmlNode nodePatch = objPatch as XmlNode;
 					AddOrReplaceNode(nodeExtensionParent, nodePatch);
 				}
 				result = true;
