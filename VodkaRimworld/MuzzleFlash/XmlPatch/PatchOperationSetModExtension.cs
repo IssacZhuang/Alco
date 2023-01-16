@@ -44,14 +44,14 @@ namespace MuzzleFlash
 
 				foreach (XmlNode nodePatch in node.ChildNodes)
 				{
-					AddOrReplaceNode(node.OwnerDocument ,nodeExtensionParent, nodePatch);
+					AddOrReplaceNode(nodeExtensionParent, nodePatch);
 				}
 				result = true;
 			}
 			return result;
 		}
 
-		private void AddOrReplaceNode(XmlDocument ownerDocument,XmlNode nodeExtensionParent, XmlNode nodePatch)
+		private void AddOrReplaceNode(XmlNode nodeExtensionParent, XmlNode nodePatch)
         {
 			XmlAttribute attrPatch = nodePatch.Attributes[AttrClass];
 			foreach (XmlNode existExtension in nodeExtensionParent.ChildNodes)
@@ -60,11 +60,13 @@ namespace MuzzleFlash
 				if (attrExist == null) continue;
 				if (attrExist.Value == attrPatch?.Value)
                 {
-					Log.Message("Duplicated extesion found: " + attrExist.Value);
-                }
+					Log.Message("Duplicated extesion found, removing: " + attrExist.Value);
+					nodeExtensionParent.RemoveChild(existExtension);
+
+				}
 
 			}
-			nodeExtensionParent.AppendChild(ownerDocument.ImportNode(nodePatch, true));
+			nodeExtensionParent.AppendChild(this.value.node.OwnerDocument.ImportNode(nodePatch, true));
 		}
 	}
 }
