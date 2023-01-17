@@ -45,7 +45,7 @@ namespace MuzzleFlash
 
 				foreach (object objPatch in node.ChildNodes)
 				{
-					XmlNode nodePatch = objPatch as XmlNode;
+					XmlNode nodePatch = (XmlNode)objPatch;
 					AddOrReplaceNode(nodeExtensionParent, nodePatch);
 				}
 				result = true;
@@ -62,7 +62,7 @@ namespace MuzzleFlash
 				if (attrExist == null) continue;
 				if (attrExist.Value == attrPatch?.Value)
                 {
-					Log.Message("Duplicated extesion found, removing: " + attrExist.Value);
+					Log.Message("Duplicated extension found, removing: " + attrExist.Value);
 					nodeExtensionParent.RemoveChild(existExtension);
 
 				}
