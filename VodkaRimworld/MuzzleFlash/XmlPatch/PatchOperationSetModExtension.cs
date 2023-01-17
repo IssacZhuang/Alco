@@ -40,20 +40,21 @@ namespace MuzzleFlash
 				if (nodeExtensionParent == null)
 				{
 					nodeExtensionParent = nodeTarget.OwnerDocument.CreateElement("modExtensions");
+					Log.Message("1");
 					nodeTarget.AppendChild(nodeExtensionParent);
 				}
 
 				foreach (object objPatch in node.ChildNodes)
 				{
 					XmlNode nodePatch = (XmlNode)objPatch;
-					AddOrReplaceNode(nodeExtensionParent, nodePatch);
+					AddOrReplaceNode(nodeTarget.OwnerDocument,nodeExtensionParent, nodePatch);
 				}
 				result = true;
 			}
 			return result;
 		}
 
-		private void AddOrReplaceNode(XmlNode nodeExtensionParent, XmlNode nodePatch)
+		private void AddOrReplaceNode(XmlDocument importDest,XmlNode nodeExtensionParent, XmlNode nodePatch)
         {
 			XmlAttribute attrPatch = nodePatch.Attributes[AttrClass];
 			foreach (XmlNode existExtension in nodeExtensionParent.ChildNodes)
@@ -64,11 +65,10 @@ namespace MuzzleFlash
                 {
 					Log.Message("Duplicated extension found, removing: " + attrExist.Value);
 					nodeExtensionParent.RemoveChild(existExtension);
-
 				}
 
 			}
-			nodeExtensionParent.AppendChild(this.value.node.OwnerDocument.ImportNode(nodePatch, true));
+			nodeExtensionParent.AppendChild(importDest.ImportNode(nodePatch, true));
 		}
 	}
 }
