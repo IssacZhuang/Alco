@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using Verse;
 
-namespace MuzzleFlash
+namespace SafePatcher
 {
     public class PatchOperationSetModExtension: PatchOperationPathed
 	{
@@ -23,13 +23,13 @@ namespace MuzzleFlash
 
 			if(targetNodes == null || targetNodes.Count == 0)
             {
-				Log.Warning("The xPath: \"" + this.xpath + "\" not found");
+				Log.Warning("[SafePatcher]The xPath: \"" + this.xpath + "\" not found");
 				return true;
             }
 
 			if(this.value.node.ChildNodes == null)
             {
-				Log.Error("The patch for xPath: \"" + this.xpath + "\" has no content");
+				Log.Error("[SafePatcher] The patch has no content");
 				return true;
 			}
 
@@ -40,7 +40,6 @@ namespace MuzzleFlash
 				if (nodeExtensionParent == null)
 				{
 					nodeExtensionParent = nodeTarget.OwnerDocument.CreateElement("modExtensions");
-					Log.Message("1");
 					nodeTarget.AppendChild(nodeExtensionParent);
 				}
 
@@ -63,7 +62,7 @@ namespace MuzzleFlash
 				if (attrExist == null) continue;
 				if (attrExist.Value == attrPatch?.Value)
                 {
-					Log.Message("Duplicated extension found, removing: " + attrExist.Value);
+					Log.Warning("[SafePatcher] Duplicated extension found, removing: " + attrExist.Value);
 					nodeExtensionParent.RemoveChild(existExtension);
 				}
 
