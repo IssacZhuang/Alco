@@ -56,6 +56,7 @@ namespace MTA
                 Log.Error("[MechTakeAmmoCE] Trying to start job that no need ammo");
             }
 
+            yield return Toils_Ammo.TryReloadAmmo(ammoUser);
         }
     }
 }

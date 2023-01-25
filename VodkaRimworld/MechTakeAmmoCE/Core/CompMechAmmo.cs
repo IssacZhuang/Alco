@@ -148,11 +148,10 @@ namespace MTA
             if (ammoFound == null) return;
 
             Job jobTakeAmmo = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
-            Job jobReload = JobMaker.MakeJob(CE_JobDefOf.ReloadWeapon, ParentPawn, AmmoUser.parent);
+          
             jobTakeAmmo.count = ammoNeed;
             ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
             ParentPawn.jobs.StartJob(jobTakeAmmo);
-            ParentPawn.jobs.jobQueue.EnqueueLast(jobReload);
         }
 
         public bool IsWorkable()
