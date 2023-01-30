@@ -8,6 +8,7 @@ using Verse;
 using Vocore;
 using Vocore.AssetsLib;
 using UnityEngine;
+using RimWorld.Planet;
 
 namespace MuzzleFlash
 {
@@ -41,7 +42,8 @@ namespace MuzzleFlash
 
         public override void MapComponentUpdate()
         {
-            base.MapComponentUpdate();
+            if (WorldRendererUtility.WorldRenderedNow || Find.CurrentMap != this.map) return;
+
             var pointer = _entities.First;
             while (pointer != null)
             {
