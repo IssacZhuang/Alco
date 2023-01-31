@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 using Verse;
 using RimWorld;
-
+using RimWorld.Planet;
+using Vocore;
 
 namespace ADS
 {
@@ -36,6 +37,20 @@ namespace ADS
                     pointer = pointer.Next;
                 }
             }
+        }
+
+        public override void MapComponentUpdate()
+        {
+            if (WorldRendererUtility.WorldRenderedNow || Find.CurrentMap != this.map) return;
+
+            var pointer = _projectiles.First;
+            while (pointer != null)
+            {
+                var entity = pointer.Value;
+                InstancedRenderManager.Default.AddInstance(entity.renderId, entity.position, entity.rotation, entity.size);
+                pointer = pointer.Next;
+            }
+            InstancedRenderManager.Default.Draw();
         }
 
         public void RegisterProjectile(VisualProjectile entity)
