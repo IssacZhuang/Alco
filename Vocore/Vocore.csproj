@@ -55,6 +55,7 @@
     <Compile Include="Collection\NativeBuffer.cs" />
     <Compile Include="Collection\QuadTree.cs" />
     <Compile Include="Const\ShaderPropertyID.cs" />
+    <Compile Include="Rendering\BaseInstancedRenderManager.cs" />
     <Compile Include="Rendering\InstancedRenderManager.cs" />
     <Compile Include="Rendering\InstancedRenderQueue.cs" />
     <Compile Include="Type\Bound2.cs" />
