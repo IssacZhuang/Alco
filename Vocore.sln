@@ -19,7 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MechTakeAmmoCE", "VodkaRimw
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildScripts", "BuildScripts", "{A11CEEB9-B189-47D7-8169-CBE32E24697A}"
 	ProjectSection(SolutionItems) = preProject
-		BuildScripts\build_all.ps1 = BuildScripts\build_all.ps1
+		BuildScripts\build_all.bat = BuildScripts\build_all.bat
 		BuildScripts\build_core.ps1 = BuildScripts\build_core.ps1
 		BuildScripts\build_playground.ps1 = BuildScripts\build_playground.ps1
 		BuildScripts\build_rw.ps1 = BuildScripts\build_rw.ps1
