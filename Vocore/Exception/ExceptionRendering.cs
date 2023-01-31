@@ -16,5 +16,10 @@ namespace Vocore
         {
             return new Exception("Shader not found: " + shaderName);
         }
+
+        public static Exception InvalidRenderId(int from, int to, int value)
+        {
+            return new Exception("Invalid render ID: " + value + ". The render ID should start from " + from + " to " + to);
+        }
     }
 }

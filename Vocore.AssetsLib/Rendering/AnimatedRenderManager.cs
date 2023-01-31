@@ -21,6 +21,10 @@ namespace Vocore.AssetsLib
 
         public void AddInstance(int rendererID, Vector3 position, Quaternion rotattion, Vector3 scale, Color color = default, float frame = 0)
         {
+            if (rendererID < -1 || rendererID >= _renderQueues.Count)
+            {
+                throw ExceptionRendering.InvalidRenderId(0, _renderQueues.Count, rendererID);
+            }
             _renderQueues[rendererID].AddInstance(position, rotattion, scale, color, frame);
         }
     }
