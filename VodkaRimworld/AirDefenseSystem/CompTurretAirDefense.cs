@@ -103,6 +103,11 @@ namespace ADS
             Scribe_Values.Look<float>(ref _aimingAngle, "ADS_aimingAngle");
         }
 
+        public void LaunchProjectile()
+        {
+
+        }
+
         private void RegisterToManager()
         {
             if (EntityManager == null)
