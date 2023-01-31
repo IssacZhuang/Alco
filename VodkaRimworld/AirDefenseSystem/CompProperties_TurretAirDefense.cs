@@ -18,8 +18,8 @@ namespace ADS
 
         public GraphicData graphicTurretGun;
         public GraphicData graphicProjectile;
-        public float smoothTime = 0.4f;
-        public float maxAimingSpeed = 18f;
+        public float smoothTime = 0.25f;
+        public float maxAimingSpeed = 600f;
         public float range = 75;
 
         private int _projectileRenderID = -1;
@@ -45,6 +45,11 @@ namespace ADS
         public int ProjectileRenderID
         {
             get {
+                if (MatProjectileInt == null)
+                {
+                    Log.Error("[Air Defense System] null graphicProjectile of CompProperties_TurretAirDefense");
+                    return -1;
+                }
                 if (_projectileRenderID < 0)
                 {
                     MatProjectileInt.enableInstancing = true;

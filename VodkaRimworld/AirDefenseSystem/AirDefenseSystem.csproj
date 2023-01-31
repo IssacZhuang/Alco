@@ -54,8 +54,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CompProperties_TurretAirDefense.cs" />
+    <Compile Include="MapCompent_AirDefenseManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="CompTurretAirDefense.cs" />
+    <Compile Include="VisualProjectile.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Vocore\Vocore.csproj">

@@ -15,6 +15,7 @@ namespace ADS
         private float _angleVelocity = 0f;
         private Matrix4x4 _matrix = default;
         private Thing _target = null;
+        private MapCompent_AirDefenseManager _entityManager;
 
         public Thing Target
         {
@@ -46,7 +47,39 @@ namespace ADS
             }
         }
 
+        public MapCompent_AirDefenseManager EntityManager
+        {
+            get
+            {
+                if (parent.Map == null) return null;
+                if(_entityManager == null)
+                {
+                    _entityManager = parent.Map.GetComponent<MapCompent_AirDefenseManager>();
+                }
+                return _entityManager;
+            }
+        }
+
         public CompProperties_TurretAirDefense Props => (CompProperties_TurretAirDefense)props;
+
+        public override void PostSpawnSetup(bool respawningAfterLoad)
+        {
+            base.PostSpawnSetup(respawningAfterLoad);
+            RegisterToManager();
+        }
+
+
+        public override void PostDeSpawn(Map map)
+        {
+            DeregisterFromManager();
+            base.PostDeSpawn(map);
+        }
+
+        public override void PostDestroy(DestroyMode mode, Map previousMap)
+        {
+            DeregisterFromManager();
+            base.PostDestroy(mode, previousMap);
+        }
 
         public override void CompTick()
         {
@@ -68,6 +101,27 @@ namespace ADS
         {
             base.PostExposeData();
             Scribe_Values.Look<float>(ref _aimingAngle, "ADS_aimingAngle");
+        }
+
+        private void RegisterToManager()
+        {
+            if (EntityManager == null)
+            {
+                Log.Error("[Air Defense System] Trying to register turret to a null MapCompent_AirDefenseManager");
+                return;
+            }
+            EntityManager.RegisterTurret(this);
+        }
+
+        private void DeregisterFromManager()
+        {
+            if (EntityManager == null)
+            {
+                Log.Error("[Air Defense System] Trying to deregister turret to a null MapCompent_AirDefenseManager");
+                return;
+            }
+            EntityManager.DeregisterTurret(this);
+            _entityManager = null;
         }
     }
 }
