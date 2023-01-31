@@ -11,7 +11,7 @@ namespace MuzzleFlash
 {
     public class WeaponPositionCache : GameComponent
     {
-        private static Dictionary<Thing, Vector3> _drawPos = new Dictionary<Thing, Vector3>();
+        private static readonly Dictionary<Thing, Vector3> _drawPos = new Dictionary<Thing, Vector3>();
 
         public WeaponPositionCache(Game _)
         {
