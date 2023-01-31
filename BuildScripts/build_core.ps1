@@ -7,3 +7,5 @@ foreach($module in $Modules){
     dotnet build ../$module/$module.csproj  --configuration Release
     cp ../$module/bin/Release/$module.dll $FolderAssemblies
 }
+
+mv $FolderAssemblies/Vocore.dll $FolderAssemblies/0-Vocore.dll 
