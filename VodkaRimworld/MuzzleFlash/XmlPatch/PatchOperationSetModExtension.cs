@@ -33,9 +33,8 @@ namespace SafePatcher
 				return true;
 			}
 
-			foreach (object objTarget in targetNodes)
+			foreach (XmlNode nodeTarget in targetNodes)
 			{
-				XmlNode nodeTarget = objTarget as XmlNode;
 				XmlNode nodeExtensionParent = nodeTarget["modExtensions"];
 				if (nodeExtensionParent == null)
 				{
@@ -43,9 +42,8 @@ namespace SafePatcher
 					nodeTarget.AppendChild(nodeExtensionParent);
 				}
 
-				foreach (object objPatch in node.ChildNodes)
+				foreach (XmlNode nodePatch in node.ChildNodes)
 				{
-					XmlNode nodePatch = (XmlNode)objPatch;
 					AddOrReplaceNode(nodeTarget.OwnerDocument,nodeExtensionParent, nodePatch);
 				}
 				result = true;
