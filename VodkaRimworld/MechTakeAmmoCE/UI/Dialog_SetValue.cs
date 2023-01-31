@@ -78,5 +78,10 @@ namespace MTA
 				confirmAction(curValue);
 			}
 		}
+
+		public void DrawThingRow()
+        {
+
+        }
     }
 }
