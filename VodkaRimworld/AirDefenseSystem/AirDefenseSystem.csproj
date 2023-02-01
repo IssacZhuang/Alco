@@ -53,6 +53,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SkyfallerUtility.cs" />
     <Compile Include="CompProperties_TurretAirDefense.cs" />
     <Compile Include="MapCompent_AirDefenseManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -20,6 +20,7 @@ namespace ADS
         public GraphicData graphicProjectile;
         public float smoothTime = 0.25f;
         public float maxAimingSpeed = 600f;
+        public float minTargetHeight = 3f;
         public float range = 75;
 
         private int _projectileRenderID = -1;

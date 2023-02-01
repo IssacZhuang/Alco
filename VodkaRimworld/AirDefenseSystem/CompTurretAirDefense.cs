@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RimWorld;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,18 +15,19 @@ namespace ADS
         private float _aimingAngle = 0f;
         private float _angleVelocity = 0f;
         private Matrix4x4 _matrix = default;
-        private Thing _target = null;
+        private Skyfaller _target = null;
         private MapCompent_AirDefenseManager _entityManager;
 
-        public Thing Target
+
+        public Vector3 TargetPosition
         {
             get
             {
-                return _target;
-            }
-            set
-            {
-                _target = value;
+                if( _target == null)
+                {
+                    return Vector3.forward;
+                }
+                return _target.DrawPos;
             }
         }
 
@@ -33,7 +35,7 @@ namespace ADS
         {
             get
             {
-                Vector3 direction = UI.MouseMapPosition() - parent.DrawPos;
+                Vector3 direction = TargetPosition - parent.DrawPos;
                 direction.y = 0;
                 return direction;
             }
@@ -83,12 +85,8 @@ namespace ADS
 
         public override void CompTick()
         {
-            if (Props.graphicTurretGun == null) return;
-            Vector3 drawSize = default;
-            drawSize.Set(Props.graphicTurretGun.drawSize.x, 1, Props.graphicTurretGun.drawSize.y);
-
-            _aimingAngle = Mathf.SmoothDampAngle(_aimingAngle, TargetAngle, ref _angleVelocity, Props.smoothTime, Props.maxAimingSpeed);
-            _matrix.SetTRS(parent.DrawPos, Quaternion.AngleAxis(_aimingAngle,Vector3.up), drawSize);
+            UpdateMatrix();
+            TryShootTarget();
         }
 
         public override void PostDraw()
@@ -103,9 +101,40 @@ namespace ADS
             Scribe_Values.Look<float>(ref _aimingAngle, "ADS_aimingAngle");
         }
 
+        public void UpdateMatrix()
+        {
+            if (Props.graphicTurretGun == null) return;
+            Vector3 drawSize = default;
+            drawSize.Set(Props.graphicTurretGun.drawSize.x, 1, Props.graphicTurretGun.drawSize.y);
+
+            _aimingAngle = Mathf.SmoothDampAngle(_aimingAngle, TargetAngle, ref _angleVelocity, Props.smoothTime, Props.maxAimingSpeed);
+            _matrix.SetTRS(parent.DrawPos + Altitudes.AltIncVect, Quaternion.AngleAxis(_aimingAngle, Vector3.up), drawSize);
+        }
+
+        public void TryShootTarget()
+        {
+            if (_target == null) return;
+            if (_target.GetHeight() < Props.minTargetHeight)
+            {
+                UntrackSkyfaller();
+                return;
+            };
+
+        }
+
         public void LaunchProjectile()
         {
 
+        }
+
+        public void TrackSkyfaller(Skyfaller target)
+        {
+            _target = target;
+        }
+
+        public void UntrackSkyfaller()
+        {
+            _target = null;
         }
 
         private void RegisterToManager()

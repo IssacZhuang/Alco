@@ -19,6 +19,7 @@ namespace ADS
 
         private readonly LinkedList<VisualProjectile> _projectiles = new LinkedList<VisualProjectile>();
         private readonly List<CompTurretAirDefense> _turrets = new List<CompTurretAirDefense>();
+        private readonly List<Skyfaller> _skyfallers = new List<Skyfaller>();
 
         public override void MapComponentTick()
         {
@@ -53,9 +54,22 @@ namespace ADS
             InstancedRenderManager.Default.Draw();
         }
 
+        public void TryAssignTurret()
+        {
+            for(int i = 0; i < _skyfallers.Count; i++)
+            {
+
+            }
+        }
+
         public void RegisterProjectile(VisualProjectile entity)
         {
             _projectiles.AddLast(entity);
+        }
+
+        public void RegisterSkyfaller(Skyfaller skyfaller)
+        {
+            _skyfallers.Add(skyfaller);
         }
 
         public void RegisterTurret(CompTurretAirDefense comp)
