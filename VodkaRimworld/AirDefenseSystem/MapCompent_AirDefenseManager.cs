@@ -21,6 +21,8 @@ namespace ADS
         private readonly List<CompTurretAirDefense> _turrets = new List<CompTurretAirDefense>();
         private readonly List<Skyfaller> _skyfallers = new List<Skyfaller>();
 
+        private readonly List<Skyfaller> _skyfallersToRemove = new List<Skyfaller>();
+
         public override void MapComponentTick()
         {
             var pointer = _projectiles.First;
@@ -38,6 +40,8 @@ namespace ADS
                     pointer = pointer.Next;
                 }
             }
+
+            TryAssignTurret();
         }
 
         public override void MapComponentUpdate()
@@ -56,10 +60,26 @@ namespace ADS
 
         public void TryAssignTurret()
         {
-            for(int i = 0; i < _skyfallers.Count; i++)
+            _skyfallersToRemove.Clear();
+            for (int i = _skyfallers.Count - 1; i >= 0 ; i--)
             {
+                Skyfaller skyfaller = _skyfallers[i];
 
+                if (skyfaller.Destroyed || !skyfaller.Spawned)
+                {
+                    _skyfallersToRemove.Add(skyfaller);
+                }
+
+                foreach(CompTurretAirDefense turret in _turrets)
+                {
+                    if (skyfaller.InRangeOfTurret(turret)||turret.CanTrackTarget())
+                    {
+                        _skyfallersToRemove.Add(skyfaller);
+                        turret.TrackSkyfaller(skyfaller);
+                    }
+                }
             }
+            _skyfallers.RemoveAll(x => _skyfallersToRemove.Contains(x));
         }
 
         public void RegisterProjectile(VisualProjectile entity)

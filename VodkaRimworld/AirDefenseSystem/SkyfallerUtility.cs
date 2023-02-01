@@ -25,5 +25,15 @@ namespace ADS
             }
             return false;
         }
+
+        public static bool InRangeOfTurret(this Skyfaller skyfaller, CompTurretAirDefense turret)
+        {
+            return skyfaller.Position.DistanceTo(turret.parent.Position) <= turret.Props.range;
+        }
+
+        public static void RegiserToMap(this Skyfaller skyfaller, Map map)
+        {
+            map.GetComponent<MapCompent_AirDefenseManager>()?.RegisterSkyfaller(skyfaller);
+        }
     }
 }

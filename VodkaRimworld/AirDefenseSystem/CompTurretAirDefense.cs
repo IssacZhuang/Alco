@@ -114,17 +114,21 @@ namespace ADS
         public void TryShootTarget()
         {
             if (_target == null) return;
-            if (_target.GetHeight() < Props.minTargetHeight)
+            if (_target.GetHeight() < Props.minTargetHeight || _target.Destroyed || !_target.Spawned)
             {
                 UntrackSkyfaller();
                 return;
             };
-
         }
 
         public void LaunchProjectile()
         {
 
+        }
+
+        public bool CanTrackTarget()
+        {
+            return _target == null;
         }
 
         public void TrackSkyfaller(Skyfaller target)

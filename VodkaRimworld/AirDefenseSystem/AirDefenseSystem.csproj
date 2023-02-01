@@ -31,6 +31,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>..\..\Packages\HarmonyLib\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\Packages\Rimworld\1.4\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -53,6 +57,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="HarmonyPatch\HarmonyEntry.cs" />
+    <Compile Include="HarmonyPatch\HarmonyPatch_CacheSkyfaller.cs" />
     <Compile Include="SkyfallerUtility.cs" />
     <Compile Include="CompProperties_TurretAirDefense.cs" />
     <Compile Include="MapCompent_AirDefenseManager.cs" />
@@ -64,6 +70,7 @@
     <ProjectReference Include="..\..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
+      <Private>False</Private>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
