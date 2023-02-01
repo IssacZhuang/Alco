@@ -18,16 +18,29 @@ namespace ADS
         private Skyfaller _target = null;
         private MapCompent_AirDefenseManager _entityManager;
 
+        private Vector3 _lastTagetPosition;
+        private Vector3 _preAimVector;
+
+
+        public bool CanTrack
+        {
+            get
+            {
+                return _target.GetHeight() >= Props.minTargetHeight;
+            }
+        }
 
         public Vector3 TargetPosition
         {
             get
             {
-                if( _target == null)
+                if (_target != null && CanTrack)
                 {
-                    return Vector3.forward;
+                    _preAimVector = (_target.DrawPos - _lastTagetPosition) * Props.preAimFactor;
+                    _lastTagetPosition = _target.DrawPos;
+                    return _target.DrawPos+ _preAimVector;
                 }
-                return _target.DrawPos;
+                return parent.DrawPos + Vector3.forward;
             }
         }
 
@@ -85,8 +98,10 @@ namespace ADS
 
         public override void CompTick()
         {
+            Log.Message((_target != null).ToString());
             UpdateMatrix();
             TryShootTarget();
+
         }
 
         public override void PostDraw()
@@ -106,7 +121,6 @@ namespace ADS
             if (Props.graphicTurretGun == null) return;
             Vector3 drawSize = default;
             drawSize.Set(Props.graphicTurretGun.drawSize.x, 1, Props.graphicTurretGun.drawSize.y);
-
             _aimingAngle = Mathf.SmoothDampAngle(_aimingAngle, TargetAngle, ref _angleVelocity, Props.smoothTime, Props.maxAimingSpeed);
             _matrix.SetTRS(parent.DrawPos + Altitudes.AltIncVect, Quaternion.AngleAxis(_aimingAngle, Vector3.up), drawSize);
         }
@@ -114,11 +128,17 @@ namespace ADS
         public void TryShootTarget()
         {
             if (_target == null) return;
-            if (_target.GetHeight() < Props.minTargetHeight || _target.Destroyed || !_target.Spawned)
+            
+            if (_target.Destroyed || !_target.Spawned)
             {
                 UntrackSkyfaller();
                 return;
             };
+
+            if(CanTrack)
+            {
+                
+            }
         }
 
         public void LaunchProjectile()
@@ -134,6 +154,7 @@ namespace ADS
         public void TrackSkyfaller(Skyfaller target)
         {
             _target = target;
+            _lastTagetPosition = _target.DrawPos;
         }
 
         public void UntrackSkyfaller()

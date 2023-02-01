@@ -11,36 +11,13 @@ using RimWorld;
 
 namespace ADS.Patch
 {
-    [HarmonyPatch(typeof(SkyfallerMaker), "SpawnSkyfaller")]
+    [HarmonyPatch(typeof(Skyfaller), "SpawnSetup")]
     internal class HarmonyPatch_CacheSkyfaller1
     {
-        public static void Postfix(ThingDef skyfaller, IntVec3 pos, Map map, Skyfaller __result)
+        public static void Postfix(Map map, bool respawningAfterLoad, Skyfaller __instance)
         {
-            __result.RegiserToMap(map);
-        }
-    }
-    [HarmonyPatch(typeof(SkyfallerMaker), "SpawnSkyfaller")]
-    internal class HarmonyPatch_CacheSkyfaller2
-    {
-        public static void Postfix(ThingDef skyfaller, ThingDef innerThing, IntVec3 pos, Map map, Skyfaller __result)
-        {
-            __result.RegiserToMap(map);
-        }
-    }
-    [HarmonyPatch(typeof(SkyfallerMaker), "SpawnSkyfaller")]
-    internal class HarmonyPatch_CacheSkyfaller3
-    {
-        public static void Postfix(ThingDef skyfaller, Thing innerThing, IntVec3 pos, Map map, Skyfaller __result)
-        {
-            __result.RegiserToMap(map);
-        }
-    }
-    [HarmonyPatch(typeof(SkyfallerMaker), "SpawnSkyfaller")]
-    internal class HarmonyPatch_CacheSkyfaller4
-    {
-        public static void Postfix(ThingDef skyfaller, IEnumerable<Thing> things, IntVec3 pos, Map map, Skyfaller __result)
-        {
-            __result.RegiserToMap(map);
+            if (map == null) return;
+            __instance.RegiserToMap(map);
         }
     }
 }
