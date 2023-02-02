@@ -21,6 +21,8 @@ namespace ADS
         private Vector3 _lastTagetPosition;
         private Vector3 _preAimVector;
 
+        private int _tickToFire = 0;
+
 
         public bool CanTrack
         {
@@ -98,10 +100,12 @@ namespace ADS
 
         public override void CompTick()
         {
-            Log.Message((_target != null).ToString());
+            if (_tickToFire > 0)
+            {
+                _tickToFire--;
+            }
             UpdateMatrix();
             TryShootTarget();
-
         }
 
         public override void PostDraw()
@@ -135,15 +139,28 @@ namespace ADS
                 return;
             };
 
-            if(CanTrack)
+            if (CanTrack && _tickToFire <= 0 && parent.IsHashIntervalTick(Props.tickFireInterval))
             {
-                
+                LaunchProjectile();
             }
         }
 
         public void LaunchProjectile()
         {
+            if (Props.graphicProjectile == null) return;
+            Vector3 offset = default;
+            offset.Set(Props.projectileLaunchOffset.x, 0, Props.projectileLaunchOffset.y);
+            Quaternion direction = Quaternion.AngleAxis(_aimingAngle, Vector3.up);
+            Vector3 launchPoint = parent.DrawPos + (direction * offset);
+            Vector3 speed = direction * Vector3.forward * Props.projectileSpeed;
+            VisualProjectile projectile = new VisualProjectile(Props.ProjectileRenderID, launchPoint, speed, Props.graphicProjectile.drawSize);
+            EntityManager.RegisterProjectile(projectile);
+        }
 
+        public void DestroyTarget()
+        {
+            _target.Destroy();
+            UntrackSkyfaller();
         }
 
         public bool CanTrackTarget()
@@ -155,6 +172,7 @@ namespace ADS
         {
             _target = target;
             _lastTagetPosition = _target.DrawPos;
+            _tickToFire = Props.tickWarmUp;
         }
 
         public void UntrackSkyfaller()

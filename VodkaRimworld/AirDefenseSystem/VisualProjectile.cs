@@ -23,13 +23,14 @@ namespace ADS
         public int LifeTick => _lifeTicks;
         public bool IsAlive => _lifeTicks > 0;
 
-        public VisualProjectile(Vector3 pos, Vector3 spd, Vector2 size2D)
+        public VisualProjectile(int renderId,Vector3 pos, Vector3 spd, Vector2 size2D)
         {
             position = pos;
             speed = spd;
             speed.y = 0;
             rotation = Quaternion.AngleAxis(speed.AngleFlat(), Vector3.up);
             size = new Vector3(size2D.x, 1f, size2D.y);
+            this.renderId = renderId;
         }
 
         public void Tick()

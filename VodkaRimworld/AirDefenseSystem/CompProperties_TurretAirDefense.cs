@@ -23,6 +23,10 @@ namespace ADS
         public float minTargetHeight = 3f;
         public float range = 75;
         public float preAimFactor = 15f;
+        public float projectileSpeed = 100;
+        public int tickWarmUp = 20;
+        public int tickFireInterval = 2;
+        public Vector2 projectileLaunchOffset = new Vector2(2, 0);
 
         private int _projectileRenderID = -1;
 
