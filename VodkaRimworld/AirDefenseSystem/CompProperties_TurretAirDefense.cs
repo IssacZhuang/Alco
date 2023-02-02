@@ -59,7 +59,7 @@ namespace ADS
                 if (_projectileRenderID < 0)
                 {
                     MatProjectileInt.enableInstancing = true;
-                    _projectileRenderID = InstancedRenderManager.Default.GetRendererID(MeshPool.plane10, MatTurretGunInt);
+                    _projectileRenderID = InstancedRenderManager.Default.GetRendererID(MeshPool.plane10, MatProjectileInt);
                 }
                 return _projectileRenderID;
              }

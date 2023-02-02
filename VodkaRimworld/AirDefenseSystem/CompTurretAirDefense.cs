@@ -149,10 +149,12 @@ namespace ADS
         {
             if (Props.graphicProjectile == null) return;
             Vector3 offset = default;
-            offset.Set(Props.projectileLaunchOffset.x, 0, Props.projectileLaunchOffset.y);
+            offset.Set(Props.projectileLaunchOffset.y, 0, Props.projectileLaunchOffset.x);
             Quaternion direction = Quaternion.AngleAxis(_aimingAngle, Vector3.up);
             Vector3 launchPoint = parent.DrawPos + (direction * offset);
-            Vector3 speed = direction * Vector3.forward * Props.projectileSpeed;
+            launchPoint.y = Altitudes.AltitudeFor(AltitudeLayer.VisEffects);
+            Vector3 speed = direction * Vector3.forward * Props.projectileSpeed/100;
+            speed.y = 0;
             VisualProjectile projectile = new VisualProjectile(Props.ProjectileRenderID, launchPoint, speed, Props.graphicProjectile.drawSize);
             EntityManager.RegisterProjectile(projectile);
         }
