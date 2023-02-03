@@ -22,6 +22,7 @@ namespace ADS
         private Vector3 _preAimVector;
 
         private int _tickToFire = 0;
+        private int _tickToDestroyTarget = 0;
 
 
         public bool CanTrack
@@ -104,6 +105,12 @@ namespace ADS
             {
                 _tickToFire--;
             }
+
+            if (_tickToDestroyTarget > 0)
+            {
+                _tickToDestroyTarget--;
+            }
+
             UpdateMatrix();
             TryShootTarget();
         }
@@ -137,24 +144,37 @@ namespace ADS
             {
                 UntrackSkyfaller();
                 return;
-            };
+            }
+
+            if (_tickToDestroyTarget <= 0)
+            {
+                _target.Destroy();
+                UntrackSkyfaller();
+                return;
+            }
 
             if (CanTrack && _tickToFire <= 0 && parent.IsHashIntervalTick(Props.tickFireInterval))
             {
                 LaunchProjectile();
             }
+
+            
         }
 
         public void LaunchProjectile()
         {
             if (Props.graphicProjectile == null) return;
+
             Vector3 offset = default;
             offset.Set(Props.projectileLaunchOffset.y, 0, Props.projectileLaunchOffset.x);
-            Quaternion direction = Quaternion.AngleAxis(_aimingAngle, Vector3.up);
+            Quaternion direction = Quaternion.AngleAxis(_aimingAngle + Rand.Range(-Props.spread, Props.spread), Vector3.up);
+
             Vector3 launchPoint = parent.DrawPos + (direction * offset);
             launchPoint.y = Altitudes.AltitudeFor(AltitudeLayer.VisEffects);
-            Vector3 speed = direction * Vector3.forward * Props.projectileSpeed/100;
+
+            Vector3 speed = direction * Vector3.forward * Props.projectileSpeed / 100;
             speed.y = 0;
+
             VisualProjectile projectile = new VisualProjectile(Props.ProjectileRenderID, launchPoint, speed, Props.graphicProjectile.drawSize);
             EntityManager.RegisterProjectile(projectile);
         }
@@ -175,6 +195,7 @@ namespace ADS
             _target = target;
             _lastTagetPosition = _target.DrawPos;
             _tickToFire = Props.tickWarmUp;
+            _tickToDestroyTarget = Props.tickDestroy;
         }
 
         public void UntrackSkyfaller()
