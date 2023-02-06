@@ -10,7 +10,7 @@ using Verse;
 
 namespace ADS
 {
-    public class CompTurretAirDefense: ThingComp
+    public class CompTurretAirDefense: ThingComp, IVerbOwner
     {
         private float _aimingAngle = 0f;
         private float _angleVelocity = 0f;
@@ -18,11 +18,18 @@ namespace ADS
         private Skyfaller _target = null;
         private MapCompent_AirDefenseManager _entityManager;
 
+        private VerbTracker verbTracker;
+
         private Vector3 _lastTagetPosition;
         private Vector3 _preAimVector;
 
         private int _tickToFire = 0;
         private int _tickToDestroyTarget = 0;
+
+        public CompTurretAirDefense()
+        {
+            verbTracker = new VerbTracker(this);
+        }
 
 
         public bool CanTrack
@@ -80,6 +87,16 @@ namespace ADS
 
         public CompProperties_TurretAirDefense Props => (CompProperties_TurretAirDefense)props;
 
+        public VerbTracker VerbTracker => throw new NotImplementedException();
+
+        public List<VerbProperties> VerbProperties => throw new NotImplementedException();
+
+        public List<Tool> Tools => throw new NotImplementedException();
+
+        public ImplementOwnerTypeDef ImplementOwnerTypeDef => throw new NotImplementedException();
+
+        public Thing ConstantCaster => throw new NotImplementedException();
+
         public override void PostSpawnSetup(bool respawningAfterLoad)
         {
             base.PostSpawnSetup(respawningAfterLoad);
@@ -125,6 +142,10 @@ namespace ADS
         {
             base.PostExposeData();
             Scribe_Values.Look<float>(ref _aimingAngle, "ADS_aimingAngle");
+            Scribe_Deep.Look<VerbTracker>(ref this.verbTracker, "verbTracker", new object[]
+            {
+                this
+            });
         }
 
         public void UpdateMatrix()
@@ -222,6 +243,16 @@ namespace ADS
             }
             EntityManager.DeregisterTurret(this);
             _entityManager = null;
+        }
+
+        public string UniqueVerbOwnerID()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool VerbsStillUsableBy(Pawn p)
+        {
+            throw new NotImplementedException();
         }
     }
 }
