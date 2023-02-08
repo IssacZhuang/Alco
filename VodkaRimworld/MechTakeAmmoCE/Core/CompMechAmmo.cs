@@ -26,9 +26,9 @@ namespace MTA
 
         private readonly string _txtSetMagCount = "MTA_SetMagCount".Translate();
         private readonly string _txtTakeAmmoNow = "MTA_TakeAmmoNow".Translate();
-        private readonly string _txtMagCount = "MTA_MagCount".Translate();
-        private readonly string _txtShot = "MTA_Shot".Translate();
-        private readonly string _txtNoNeedAmmo = "MTA_NoNeedAmmo".Translate();
+        //private readonly string _txtMagCount = "MTA_MagCount".Translate();
+        //private readonly string _txtShot = "MTA_Shot".Translate();
+        //private readonly string _txtNoNeedAmmo = "MTA_NoNeedAmmo".Translate();
 
         public static readonly int REFRESH_INTERVAL = 6000;
 
@@ -115,7 +115,7 @@ namespace MTA
 
         public void SetMagCount()
         {
-            Dialog_SetValue dialog = new Dialog_SetValue(GetMagCountText, OnMagCountSetted, magCount);
+            Dialog_SetMagCount dialog = new Dialog_SetMagCount(this);
             Find.WindowStack.Add(dialog);
         }
 
@@ -161,20 +161,6 @@ namespace MTA
             if (ParentPawn.equipment.Primary == null) return false;
             if (AmmoUser == null) return false;
             return true;
-        }
-
-        private string GetMagCountText(int value)
-        {
-            if(AmmoUser == null)
-            {
-                return _txtNoNeedAmmo;
-            }
-            return _txtMagCount + value + " = " + value * AmmoUser.MagSize + _txtShot;
-        }
-
-        private void OnMagCountSetted(int value)
-        {
-            magCount = value;
         }
     }
 }

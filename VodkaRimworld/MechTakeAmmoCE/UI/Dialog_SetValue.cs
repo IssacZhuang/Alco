@@ -10,26 +10,32 @@ using UnityEngine;
 
 namespace MTA
 {
-    public class Dialog_SetValue : Window
+    public class Dialog_SetMagCount : Window
     {
-		private readonly Func<int, string> textGetter;
-		private readonly Action<int> confirmAction;
-
-		private int curValue;
+		private readonly CompMechAmmo mechAmmo;
 
 		private const float BotAreaWidth = 60f;
 		private const float BotAreaHeight = 30f;
-		private new const float Margin = 10f;
+		//private new const float Margin = 10f;
 
-		
 
-		public Dialog_SetValue(Func<int, string> textGetter, Action<int> confirmAction, int value)
+		public Dialog_SetMagCount(CompMechAmmo mechAmmo)
         {
-			this.textGetter = textGetter;
-			this.confirmAction = confirmAction;
-
-			curValue = value;
+			if (mechAmmo == null)
+			{
+				Log.Error("null CompMechAmmo for Dialog_SetMagCount");
+				return;
+			}
+			this.mechAmmo = mechAmmo;
 		}
+
+		public override void PreOpen()
+		{
+            Vector2 initialSize = this.InitialSize;
+			initialSize.y = (mechAmmo.AmmoUser.Props.ammoSet.ammoTypes.Count + 1) * BotAreaHeight;
+            this.windowRect = new Rect(((float)UI.screenWidth - initialSize.x) / 2f, ((float)UI.screenHeight - initialSize.y) / 2f, initialSize.x, initialSize.y);
+            this.windowRect = this.windowRect.Rounded();
+        }
 
 		public override Vector2 InitialSize
 		{
@@ -40,48 +46,35 @@ namespace MTA
 		}
 		public override void DoWindowContents(Rect inRect)
         {
-			Text.Font = GameFont.Small;
-			string text = textGetter(this.curValue);
-			float height = Text.CalcHeight(text, inRect.width);
-
-			Rect rect = new Rect(inRect.x, inRect.y, inRect.width, height);
-			Text.Anchor = TextAnchor.UpperCenter;
-			Widgets.Label(rect, text);
-			Text.Anchor = TextAnchor.UpperLeft;
-
-			float btnSetterY = inRect.y + rect.height + Margin;
-
-
-			Text.Anchor = TextAnchor.UpperCenter;
-			Text.Font = GameFont.Medium;
-			Widgets.Label(new Rect(inRect.x + BotAreaWidth, btnSetterY, inRect.width - (BotAreaWidth) * 2, BotAreaHeight), curValue.ToString());
-			Text.Font = GameFont.Small;
-
-			if (Widgets.ButtonText(new Rect(inRect.x, btnSetterY, BotAreaWidth, BotAreaHeight), "-", true, true, true, null))
+			float curY = 0;
+			foreach(var ammoType in mechAmmo.AmmoUser.Props.ammoSet.ammoTypes)
 			{
-				curValue--;
+				int value = 0;
+				DrawThingRow(inRect, ref curY, ref value, ammoType.ammo.uiIcon, ammoType.ammo.ammoClass.labelShort);
 			}
-
-			if (Widgets.ButtonText(new Rect(inRect.x + inRect.width - BotAreaWidth, btnSetterY, BotAreaWidth, BotAreaHeight), "+", true, true, true, null))
-			{
-				curValue++;
-			}
-			curValue = curValue >= 0 ? curValue : 0;
-
-			Text.Anchor = TextAnchor.UpperLeft;
-			GUI.color = Color.white;
 
 			
-			if (Widgets.ButtonText(new Rect(inRect.x, inRect.yMax - BotAreaHeight, inRect.width, BotAreaHeight), "OK".Translate(), true, true, true, null))
+			if (Widgets.ButtonText(new Rect(inRect.x, curY, inRect.width, BotAreaHeight), "OK".Translate(), true, true, true, null))
 			{
 				Close(true);
-				confirmAction(curValue);
+				
 			}
 		}
 
-		public void DrawThingRow()
-        {
+		public void DrawThingRow(Rect rect, ref float curY, ref int count, Texture2D icon, string label = "" )
+		{
+            Widgets.LabelWithIcon(new Rect(rect.x, curY, rect.width - BotAreaWidth * 4, BotAreaHeight), label.ToString(), icon);
+            if (Widgets.ButtonText(new Rect(rect.x + rect.width - BotAreaWidth * 4, curY, BotAreaWidth, BotAreaHeight), "-", true, true, true, null))
+			{
+                count--;
+			}
+            Widgets.Label(new Rect(rect.x + rect.width - BotAreaWidth * 3, curY, BotAreaWidth * 2, BotAreaHeight), count.ToString());
+            if (Widgets.ButtonText(new Rect(rect.x + rect.width - BotAreaWidth, curY, BotAreaWidth, BotAreaHeight), "+", true, true, true, null))
+			{
+                count++;
+			}
 
+			curY += BotAreaHeight;
         }
     }
 }
