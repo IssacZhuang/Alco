@@ -14,9 +14,9 @@ namespace MTA
     {
 		private readonly CompMechAmmo mechAmmo;
 
-		private const float BotAreaWidth = 60f;
+		private const float BotAreaWidth = 30f;
 		private const float BotAreaHeight = 30f;
-		//private new const float Margin = 10f;
+		private new const float Margin = 10f;
 
 
 		public Dialog_SetMagCount(CompMechAmmo mechAmmo)
@@ -32,7 +32,7 @@ namespace MTA
 		public override void PreOpen()
 		{
             Vector2 initialSize = this.InitialSize;
-			initialSize.y = (mechAmmo.AmmoUser.Props.ammoSet.ammoTypes.Count + 1) * BotAreaHeight;
+			initialSize.y = (mechAmmo.AmmoUser.Props.ammoSet.ammoTypes.Count + 3) * (BotAreaHeight);
             this.windowRect = new Rect(((float)UI.screenWidth - initialSize.x) / 2f, ((float)UI.screenHeight - initialSize.y) / 2f, initialSize.x, initialSize.y);
             this.windowRect = this.windowRect.Rounded();
         }
@@ -50,7 +50,7 @@ namespace MTA
 			foreach(var ammoType in mechAmmo.AmmoUser.Props.ammoSet.ammoTypes)
 			{
 				int value = 0;
-				DrawThingRow(inRect, ref curY, ref value, ammoType.ammo.uiIcon, ammoType.ammo.ammoClass.labelShort);
+				DrawThingRow(inRect, ref curY, ref value, ammoType.ammo, ammoType.ammo.ammoClass.labelShort);
 			}
 
 			
@@ -61,15 +61,19 @@ namespace MTA
 			}
 		}
 
-		public void DrawThingRow(Rect rect, ref float curY, ref int count, Texture2D icon, string label = "" )
+		public void DrawThingRow(Rect rect, ref float curY, ref int count, Def defForIcon, string label = "" )
 		{
-            Widgets.LabelWithIcon(new Rect(rect.x, curY, rect.width - BotAreaWidth * 4, BotAreaHeight), label.ToString(), icon);
+			Text.Anchor = TextAnchor.UpperLeft;
+			Widgets.DefIcon(new Rect(rect.x, curY, BotAreaWidth, BotAreaHeight), defForIcon);
+			Widgets.Label(new Rect(rect.x + BotAreaWidth, curY, rect.width - BotAreaWidth * 4, BotAreaHeight), label.ToString());
             if (Widgets.ButtonText(new Rect(rect.x + rect.width - BotAreaWidth * 4, curY, BotAreaWidth, BotAreaHeight), "-", true, true, true, null))
 			{
                 count--;
 			}
+			Text.Anchor = TextAnchor.UpperCenter;
             Widgets.Label(new Rect(rect.x + rect.width - BotAreaWidth * 3, curY, BotAreaWidth * 2, BotAreaHeight), count.ToString());
-            if (Widgets.ButtonText(new Rect(rect.x + rect.width - BotAreaWidth, curY, BotAreaWidth, BotAreaHeight), "+", true, true, true, null))
+			Text.Anchor = TextAnchor.UpperLeft;
+			if (Widgets.ButtonText(new Rect(rect.x + rect.width - BotAreaWidth, curY, BotAreaWidth, BotAreaHeight), "+", true, true, true, null))
 			{
                 count++;
 			}
