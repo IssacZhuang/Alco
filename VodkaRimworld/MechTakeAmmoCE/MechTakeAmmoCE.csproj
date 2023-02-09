@@ -78,7 +78,7 @@
     <Compile Include="HarmonyPatch\HarmonyPatch_ShowAllAmmo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AI\Toils_Ammo.cs" />
-    <Compile Include="UI\Dialog_SetValue.cs" />
+    <Compile Include="UI\Dialog_SetMagCount.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

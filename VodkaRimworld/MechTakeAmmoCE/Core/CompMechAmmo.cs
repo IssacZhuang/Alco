@@ -13,8 +13,14 @@ using Verse.AI;
 
 namespace MTA
 {
-    public class CompMechAmmo:ThingComp
+    public class CompMechAmmo : ThingComp
     {
+        public struct LoadoutData
+        {
+            public AmmoDef ammoDef;
+            public int magCount;
+        }
+
         private Pawn _parentPawn;
         private Pawn_InventoryTracker _pawnInventory;
         private CompAmmoUser _ammoUser;
@@ -74,7 +80,7 @@ namespace MTA
         {
             get
             {
-                if(_cachedEquipment != ParentPawn.equipment.Primary)
+                if (_cachedEquipment != ParentPawn.equipment.Primary)
                 {
                     _cachedEquipment = ParentPawn.equipment.Primary;
                     _ammoUser = _cachedEquipment?.GetComp<CompAmmoUser>();
@@ -148,7 +154,7 @@ namespace MTA
             if (ammoFound == null) return;
 
             Job jobTakeAmmo = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
-          
+
             jobTakeAmmo.count = ammoNeed;
             ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
             ParentPawn.jobs.StartJob(jobTakeAmmo);
