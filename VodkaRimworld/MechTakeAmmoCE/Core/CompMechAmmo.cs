@@ -15,11 +15,6 @@ namespace MTA
 {
     public class CompMechAmmo : ThingComp
     {
-        public struct LoadoutData
-        {
-            public AmmoDef ammoDef;
-            public int magCount;
-        }
 
         private Pawn _parentPawn;
         private Pawn_InventoryTracker _pawnInventory;
@@ -35,6 +30,8 @@ namespace MTA
         //private readonly string _txtMagCount = "MTA_MagCount".Translate();
         //private readonly string _txtShot = "MTA_Shot".Translate();
         //private readonly string _txtNoNeedAmmo = "MTA_NoNeedAmmo".Translate();
+
+        public Dictionary<AmmoDef, int> loadouts = new Dictionary<AmmoDef, int>();
 
         public static readonly int REFRESH_INTERVAL = 6000;
 
