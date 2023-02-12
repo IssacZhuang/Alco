@@ -31,11 +31,9 @@ namespace MTA
         //private readonly string _txtShot = "MTA_Shot".Translate();
         //private readonly string _txtNoNeedAmmo = "MTA_NoNeedAmmo".Translate();
 
-        public Dictionary<AmmoDef, int> loadouts = new Dictionary<AmmoDef, int>();
+        private Dictionary<AmmoDef, int> _loadouts = new Dictionary<AmmoDef, int>();
 
         public static readonly int REFRESH_INTERVAL = 6000;
-
-        public int magCount = 6;
 
         public Texture2D GizmoIcon_SetMagCount
         {
@@ -87,10 +85,23 @@ namespace MTA
             }
         }
 
+        public Dictionary<AmmoDef, int> Loadouts
+        {
+            get
+            {
+                if (_loadouts == null)
+                {
+                    _loadouts = new Dictionary<AmmoDef, int>();
+                }
+                return _loadouts;
+            }
+        }
+
         public CompProperties_MechAmmo Props => (CompProperties_MechAmmo)this.props;
 
         public override IEnumerable<Gizmo> CompGetGizmosExtra()
         {
+            if (!AmmoUser.UseAmmo) yield break;
             if (!IsWorkable()) yield break;
 
             yield return new Command_Action
@@ -116,6 +127,16 @@ namespace MTA
             TryMakeAmmoJob();
         }
 
+        public override void PostExposeData()
+        {
+            base.PostExposeData();
+            Scribe_Collections.Look<AmmoDef, int>(ref _loadouts, "MTA_Loadouts");
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && _loadouts == null)
+            {
+                _loadouts = new Dictionary<AmmoDef, int>();
+            }
+        }
+
         public void SetMagCount()
         {
             Dialog_SetMagCount dialog = new Dialog_SetMagCount(this);
@@ -131,6 +152,8 @@ namespace MTA
         {
             Thing ammoFound;
 
+            if (!AmmoUser.UseAmmo) return;
+
             if (ParentPawn == null) return;
 
             if (ParentPawn.Drafted && !forced) return;
@@ -141,20 +164,39 @@ namespace MTA
 
             if (AmmoUser == null) return;
 
-            AmmoDef currentAmmo = AmmoUser.SelectedAmmo;
+            foreach (var ammoType in AmmoUser.Props.ammoSet.ammoTypes)
+            {
+                AmmoDef currentAmmo = ammoType.ammo;
 
-            int ammoNeed = AmmoUser.NeedAmmo(AmmoUser.MagSize * magCount);
+                int ammoNeed = AmmoUser.NeedAmmo(currentAmmo, AmmoUser.MagSize * GetMagCount(currentAmmo));
 
-            if (ammoNeed == 0) return;
+                Log.Message("Need: " + currentAmmo.defName + " " + ammoNeed);
 
-            ammoFound = ParentPawn.FindBestAmmo(currentAmmo);
-            if (ammoFound == null) return;
+                if (ammoNeed == 0) continue;
 
-            Job jobTakeAmmo = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
+                ammoFound = ParentPawn.FindBestAmmo(currentAmmo);
+                if (ammoFound == null) continue;
 
-            jobTakeAmmo.count = ammoNeed;
-            ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
-            ParentPawn.jobs.StartJob(jobTakeAmmo);
+                Job jobTakeAmmo = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
+
+                jobTakeAmmo.count = ammoNeed;
+                if (ParentPawn.jobs.curJob.def != JobDefOf.MTA_TakeAmmo) ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                ParentPawn.jobs.TryTakeOrderedJob(jobTakeAmmo, 0, true);
+            }
+
+            if (ParentPawn.jobs.curJob.def == JobDefOf.MTA_TakeAmmo)
+            {
+                ParentPawn.jobs.TryTakeOrderedJob(JobMaker.MakeJob(CE_JobDefOf.ReloadWeapon, ParentPawn, AmmoUser.parent), 0, true);
+            }
+        }
+
+        public int GetMagCount(AmmoDef ammo)
+        {
+            if (Loadouts.TryGetValue(ammo, out int result))
+            {
+                return result;
+            }
+            return 0;
         }
 
         public bool IsWorkable()

@@ -50,9 +50,9 @@ namespace MTA
             foreach (var ammoType in mechAmmo.AmmoUser.Props.ammoSet.ammoTypes)
             {
                 int value = 0;
-                mechAmmo.loadouts.TryGetValue(ammoType.ammo, out value);
+                mechAmmo.Loadouts.TryGetValue(ammoType.ammo, out value);
                 DrawThingRow(inRect, ref curY, ref value, ammoType.ammo, ammoType.ammo.ammoClass.labelShort);
-                mechAmmo.loadouts.SetOrAdd(ammoType.ammo, value);
+                mechAmmo.Loadouts.SetOrAdd(ammoType.ammo, value);
             }
 
 
@@ -79,6 +79,8 @@ namespace MTA
             {
                 count++;
             }
+
+            count = count < 0 ? 0 : count;
 
             curY += BotAreaHeight;
         }

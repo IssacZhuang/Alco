@@ -36,12 +36,13 @@ namespace MTA
             this.FailOnForbidden(TargetIndex.A);
             CompAmmoUser ammoUser = pawn.equipment.Primary.GetComp<CompAmmoUser>();
 
-            foreach (Thing thing in pawn.inventory.innerContainer)
-            {
-                if (!(thing.def is AmmoDef ammoDef)) continue;
-                if (ammoDef == Ammo.def) continue;
-                yield return Toils_Ammo.Drop(thing.def, thing.stackCount);
-            }
+            // foreach (Thing thing in pawn.inventory.innerContainer)
+            // {
+            //     if (!(thing.def is AmmoDef ammoDef)) continue;
+            //     if (ammoDef == Ammo.def) continue;
+            //     yield return Toils_Ammo.Drop(thing.def, thing.stackCount);
+            // }
+
             if (job.count > 0)
             {
                 yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch);
@@ -55,8 +56,6 @@ namespace MTA
             {
                 Log.Error("[MechTakeAmmoCE] Trying to start job that no need ammo");
             }
-
-            yield return Toils_Ammo.TryReloadAmmo(ammoUser);
         }
     }
 }

@@ -14,7 +14,7 @@ namespace MTA.Patch
         static HarmonyEntry()
         {
             Harmony harmony = new Harmony("Vodka.MechTakeAmmoCE");
-            harmony.PatchAll();
+            //harmony.PatchAll();
         }
     }
 }
