@@ -51,7 +51,8 @@ namespace MTA
             {
                 int value = 0;
                 mechAmmo.Loadouts.TryGetValue(ammoType.ammo, out value);
-                DrawThingRow(inRect, ref curY, ref value, ammoType.ammo, ammoType.ammo.ammoClass.labelShort);
+                string label = ammoType.ammo.ammoClass.labelShort != null ? ammoType.ammo.ammoClass.labelShort : ammoType.ammo.ammoClass.label;
+                DrawThingRow(inRect, ref curY, ref value, ammoType.ammo, label);
                 mechAmmo.Loadouts.SetOrAdd(ammoType.ammo, value);
             }
 
@@ -63,11 +64,11 @@ namespace MTA
             }
         }
 
-        public void DrawThingRow(Rect rect, ref float curY, ref int count, Def defForIcon, string label = "")
+        public void DrawThingRow(Rect rect, ref float curY, ref int count, Def defForIcon, string label)
         {
             Text.Anchor = TextAnchor.UpperLeft;
             Widgets.DefIcon(new Rect(rect.x, curY, BotAreaWidth, BotAreaHeight), defForIcon);
-            Widgets.Label(new Rect(rect.x + BotAreaWidth, curY, rect.width - BotAreaWidth * 4, BotAreaHeight), label.ToString());
+            Widgets.Label(new Rect(rect.x + BotAreaWidth, curY, rect.width - BotAreaWidth * 4, BotAreaHeight), label);
             if (Widgets.ButtonText(new Rect(rect.x + rect.width - BotAreaWidth * 4, curY, BotAreaWidth, BotAreaHeight), "-", true, true, true, null))
             {
                 count--;
