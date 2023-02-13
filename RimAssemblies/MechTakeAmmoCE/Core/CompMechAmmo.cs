@@ -170,9 +170,10 @@ namespace MTA
             {
                 AmmoDef ammoDef = ammoType.ammo;
 
-                int ammoNeed = AmmoUser.NeedAmmo(ammoDef, AmmoUser.MagSize * GetMagCount(ammoDef));
+                int magCount = GetMagCount(ammoDef);
+                int ammoNeed = AmmoUser.NeedAmmo(ammoDef, AmmoUser.MagSize * magCount);
 
-                if(ammoDef == AmmoUser.CurrentAmmo)
+                if(ammoDef == AmmoUser.CurrentAmmo && magCount > 0)
                 {
                     currentAmmoInUse = true;
                 }
@@ -193,8 +194,8 @@ namespace MTA
             {
                 var ammoToDrop = AmmoUser.CurrentAmmo;
                 AmmoUser.TryUnload(true);
-                var ammo = ParentPawn.inventory.innerContainer.FirstOrDefault(x => x.def == ammoToDrop);
-                ParentPawn.inventory.DropCount(ammoToDrop, ammo.stackCount);
+                int count = ParentPawn.inventory.Count(ammoToDrop);
+                ParentPawn.inventory.DropCount(ammoToDrop, count);
             }
             
 
