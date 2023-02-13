@@ -164,17 +164,22 @@ namespace MTA
 
             if (AmmoUser == null) return;
 
+            bool currentAmmoInUse = false;
+
             foreach (var ammoType in AmmoUser.Props.ammoSet.ammoTypes)
             {
-                AmmoDef currentAmmo = ammoType.ammo;
+                AmmoDef ammoDef = ammoType.ammo;
 
-                int ammoNeed = AmmoUser.NeedAmmo(currentAmmo, AmmoUser.MagSize * GetMagCount(currentAmmo));
+                int ammoNeed = AmmoUser.NeedAmmo(ammoDef, AmmoUser.MagSize * GetMagCount(ammoDef));
 
-                Log.Message("Need: " + currentAmmo.defName + " " + ammoNeed);
+                if(ammoDef == AmmoUser.CurrentAmmo)
+                {
+                    currentAmmoInUse = true;
+                }
 
                 if (ammoNeed == 0) continue;
 
-                ammoFound = ParentPawn.FindBestAmmo(currentAmmo);
+                ammoFound = ParentPawn.FindBestAmmo(ammoDef);
                 if (ammoFound == null) continue;
 
                 Job jobTakeAmmo = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
@@ -183,6 +188,15 @@ namespace MTA
                 if (ParentPawn.jobs.curJob.def != JobDefOf.MTA_TakeAmmo) ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 ParentPawn.jobs.TryTakeOrderedJob(jobTakeAmmo, 0, true);
             }
+
+            if (!currentAmmoInUse && AmmoUser.CurrentAmmo != null)
+            {
+                var ammoToDrop = AmmoUser.CurrentAmmo;
+                AmmoUser.TryUnload(true);
+                var ammo = ParentPawn.inventory.innerContainer.FirstOrDefault(x => x.def == ammoToDrop);
+                ParentPawn.inventory.DropCount(ammoToDrop, ammo.stackCount);
+            }
+            
 
             if (ParentPawn.jobs.curJob.def == JobDefOf.MTA_TakeAmmo)
             {
