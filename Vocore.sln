@@ -11,11 +11,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.AssetsLib", "Vocore.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Rimworld", "Rimworld", "{62F122EE-C72F-490D-9731-16B71D743775}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuzzleFlash", "VodkaRimworld\MuzzleFlash\MuzzleFlash.csproj", "{9F2B5AEB-2832-462F-B380-3544AE249702}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuzzleFlash", "RimAssemblies\MuzzleFlash\MuzzleFlash.csproj", "{9F2B5AEB-2832-462F-B380-3544AE249702}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CoreModule", "CoreModule", "{FB7FCE15-9962-4855-90DF-26E6856A6B7A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MechTakeAmmoCE", "VodkaRimworld\MechTakeAmmoCE\MechTakeAmmoCE.csproj", "{791D4E8F-BECD-42A3-AB54-DF5427CBBAD0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MechTakeAmmoCE", "RimAssemblies\MechTakeAmmoCE\MechTakeAmmoCE.csproj", "{791D4E8F-BECD-42A3-AB54-DF5427CBBAD0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildScripts", "BuildScripts", "{A11CEEB9-B189-47D7-8169-CBE32E24697A}"
 	ProjectSection(SolutionItems) = preProject
@@ -25,7 +25,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildScripts", "BuildScript
 		BuildScripts\build_rw.ps1 = BuildScripts\build_rw.ps1
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AirDefenseSystem", "VodkaRimworld\AirDefenseSystem\AirDefenseSystem.csproj", "{181CC5F0-3014-4460-954E-9FE1B77AFEBC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AirDefenseSystem", "RimAssemblies\AirDefenseSystem\AirDefenseSystem.csproj", "{181CC5F0-3014-4460-954E-9FE1B77AFEBC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
