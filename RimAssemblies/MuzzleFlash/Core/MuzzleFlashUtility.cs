@@ -32,10 +32,42 @@ namespace MuzzleFlash
             return 1f;
         }
 
-        public static bool MuzzleFlashAvailable(Verb verb)
+        public static bool MuzzleFlashAvailable(this Verb verb)
         {
             if (verb == null) return false;
             return verb.EquipmentCompSource?.PrimaryVerb == verb;
+        }
+
+        public static bool IsPrimaryVerb(this Verb verb){
+            if (verb == null) return false;
+            return verb.EquipmentCompSource?.parent?.def?.Verbs?.FirstOrDefault() == verb.verbProps;
+        }
+
+        public static void GetMuzzleFlashProps(this ThingDef def, out MuzzleFlashProps primary, out MuzzleFlashProps senconday)
+        {
+            primary = null;
+            senconday = null;
+            if (def == null) return;
+            if (def.modExtensions == null)
+			{
+				return;
+			}
+			for (int i = 0; i < def.modExtensions.Count; i++)
+			{
+				if (!(def.modExtensions[i] is MuzzleFlashProps props))
+				{
+					continue;
+				}
+                if(props.type == WeaponMode.Primary)
+                {
+                    primary = props;
+                }
+                else if(props.type == WeaponMode.Secondary)
+                {
+                    senconday = props;
+                }
+			}
+
         }
     }
 }

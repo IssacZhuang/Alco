@@ -25,7 +25,11 @@ namespace MuzzleFlash.Patch
 
             if (!MuzzleFlashUtility.MuzzleFlashAvailable(__instance)) return;
 
-            MuzzleFlashProps muzzleProps = equipment?.def?.GetModExtension<MuzzleFlashProps>();
+            MuzzleFlashProps primary = null;
+            MuzzleFlashProps secondary = null;
+            equipment?.def?.GetMuzzleFlashProps(out primary, out secondary);
+
+            MuzzleFlashProps muzzleProps = __instance.IsPrimaryVerb() ? primary : secondary;
             if (muzzleProps == null || muzzleProps.offsets == null || muzzleProps.offsets.NullOrEmpty()) return;
 
             Vector3 targetPosition = __instance.CurrentTarget.CenterVector3;

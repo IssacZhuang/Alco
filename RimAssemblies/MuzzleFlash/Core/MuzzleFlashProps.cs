@@ -9,8 +9,14 @@ using UnityEngine;
 
 namespace MuzzleFlash
 {
+    public enum WeaponMode {
+        Primary = 1,
+        Secondary = 2,
+    }
+
     public class MuzzleFlashProps : DefModExtension
     {
+        public WeaponMode type = WeaponMode.Primary;
         public MuzzleFlashDef def = MuzzleFlashDefOf.MF_StandardMuzzleFalsh;
         public Vector2 drawSize = new Vector2(0.8f, 0.8f);
         public List<Vector2> offsets;

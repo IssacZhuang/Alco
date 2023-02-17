@@ -71,6 +71,7 @@
     <Compile Include="Core\MuzzleFlashProps.cs" />
     <Compile Include="Core\MuzzleFlashUtility.cs" />
     <Compile Include="XmlPatch\PatchOperationSetModExtension.cs" />
+    <Compile Include="XmlPatch\PatchOpertaonSetModExtWithWeaponMode.cs" />
     <Compile Include="HarmonyPatch\HarmonyEntry.cs" />
     <Compile Include="HarmonyPatch\HarmonyPatch_PawnRenderer.cs" />
     <Compile Include="HarmonyPatch\HarmonyPatch_Verb.cs" />
