@@ -14,5 +14,6 @@ namespace MTA
     public static class JobDefOf
     {
         public static JobDef MTA_TakeAmmo;
+        public static JobDef MTA_UnloadAmmo;
     }
 }

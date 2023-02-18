@@ -173,19 +173,31 @@ namespace MTA
                 int magCount = GetMagCount(ammoDef);
                 int ammoNeed = AmmoUser.NeedAmmo(ammoDef, AmmoUser.MagSize * magCount);
 
-                if(ammoDef == AmmoUser.CurrentAmmo && magCount > 0)
+                if (ammoDef == AmmoUser.CurrentAmmo && magCount > 0)
                 {
                     currentAmmoInUse = true;
                 }
 
-                if (ammoNeed == 0) continue;
+                if (ammoNeed > 0)
+                {
+                    ammoFound = ParentPawn.FindBestAmmo(ammoDef);
+                }
+                else if (ammoNeed < 0)
+                {
+                    ParentPawn.inventory.DropCount(ammoDef, -ammoNeed);
+                    continue;
+                }
+                else
+                {
+                    continue;
+                }
 
-                ammoFound = ParentPawn.FindBestAmmo(ammoDef);
                 if (ammoFound == null) continue;
 
                 Job jobTakeAmmo = JobMaker.MakeJob(JobDefOf.MTA_TakeAmmo, ammoFound);
 
                 jobTakeAmmo.count = ammoNeed;
+                Log.Message(" needs " + ammoNeed + " " + ammoDef.label + " ammo.");
                 if (ParentPawn.jobs.curJob.def != JobDefOf.MTA_TakeAmmo) ParentPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 ParentPawn.jobs.TryTakeOrderedJob(jobTakeAmmo, 0, true);
             }
@@ -195,12 +207,14 @@ namespace MTA
                 var ammoToDrop = AmmoUser.CurrentAmmo;
                 AmmoUser.TryUnload(true);
                 int count = ParentPawn.inventory.Count(ammoToDrop);
+                Log.Message("Dropping " + count + " " + ammoToDrop.label + " ammo.");
                 ParentPawn.inventory.DropCount(ammoToDrop, count);
             }
-            
 
-            if (ParentPawn.jobs.curJob.def == JobDefOf.MTA_TakeAmmo)
+
+            if (ParentPawn.jobs.curJob.def == JobDefOf.MTA_TakeAmmo && !AmmoUser.FullMagazine)
             {
+                ParentPawn.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.MTA_UnloadAmmo, ParentPawn), 0, true);
                 ParentPawn.jobs.TryTakeOrderedJob(JobMaker.MakeJob(CE_JobDefOf.ReloadWeapon, ParentPawn, AmmoUser.parent), 0, true);
             }
         }

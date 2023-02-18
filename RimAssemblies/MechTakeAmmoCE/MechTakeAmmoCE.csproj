@@ -74,6 +74,7 @@
     <Compile Include="Core\CompProperties_MechAmmo.cs" />
     <Compile Include="AI\JobDefOf.cs" />
     <Compile Include="AI\JobDriver_TakeAmmo.cs" />
+    <Compile Include="AI\JobDriver_UnloadAmmo.cs" />
     <Compile Include="HarmonyPatch\HarmonyEntry.cs" />
     <Compile Include="HarmonyPatch\HarmonyPatch_ShowAllAmmo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

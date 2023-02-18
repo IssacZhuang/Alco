@@ -24,17 +24,14 @@ namespace MTA
             return toil;
         }
 
-        // public static Toil TryReloadAmmo(CompAmmoUser ammoUser)
-        // {
-        //     Toil toil = ToilMaker.MakeToil("TryReloadAmmo");
-        //     toil.initAction = () =>
-        //     {
-        //         if (ammoUser == null) return;
-        //         if (ammoUser.FullMagazine) return;
-        //         ammoUser.TryUnload();
-        //         ammoUser.TryStartReload();
-        //     };
-        //     return toil;
-        // }
+        public static Toil TryUnloadAmmo(CompAmmoUser ammoUser)
+        {
+            Toil toil = ToilMaker.MakeToil("TryUnloadAmmo");
+            toil.initAction = () =>
+            {
+                ammoUser?.TryUnload(true);
+            };
+            return toil;
+        }
     }
 }

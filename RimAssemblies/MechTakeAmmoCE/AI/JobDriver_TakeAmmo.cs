@@ -34,7 +34,7 @@ namespace MTA
         {
             this.FailOnDespawnedOrNull(TargetIndex.A);
             this.FailOnForbidden(TargetIndex.A);
-            CompAmmoUser ammoUser = pawn.equipment.Primary.GetComp<CompAmmoUser>();
+            CompAmmoUser ammoUser = pawn?.equipment?.Primary?.GetComp<CompAmmoUser>();
 
             // foreach (Thing thing in pawn.inventory.innerContainer)
             // {
@@ -43,6 +43,8 @@ namespace MTA
             //     yield return Toils_Ammo.Drop(thing.def, thing.stackCount);
             // }
 
+            if(ammoUser == null) yield break;
+
             if (job.count > 0)
             {
                 yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch);
@@ -50,7 +52,7 @@ namespace MTA
             }
             else if (job.count < 0)
             {
-                yield return Toils_Ammo.Drop(ammoUser.SelectedAmmo, -job.count);
+                yield return Toils_Ammo.Drop(Ammo.def, -job.count);
             }
             else
             {
