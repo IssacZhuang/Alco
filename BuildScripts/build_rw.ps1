@@ -1,6 +1,6 @@
 $FolderAssemblies = "../Assemblies/Rimworld"
 $FolderRimworld = "../RimAssemblies/"
-$Modules = @("MuzzleFlash", "AirDefenseSystem", "MechTakeAmmoCE")
+$Modules = @("MuzzleFlash", "AirDefenseSystem", "WeaponEx", "WeaponEx.CE")
 
 rm $FolderAssemblies/*.dll
 
