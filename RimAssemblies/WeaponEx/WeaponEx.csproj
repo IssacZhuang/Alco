@@ -32,7 +32,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\Rimworld-Community\Packages\Rimworld\1.4\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\..\Packages\Rimworld\1.4\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
@@ -44,11 +44,11 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine">
-      <HintPath>..\..\..\Rimworld-Community\Packages\Unity3D\2019.4.3.1\UnityEngine.dll</HintPath>
+      <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\..\Rimworld-Community\Packages\Unity3D\2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>..\..\Packages\Unity3D\2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
