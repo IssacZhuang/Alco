@@ -29,7 +29,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeaponEx", "RimAssemblies\W
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeaponEx.CE", "RimAssemblies\WeaponEx.CE\WeaponEx.CE.csproj", "{541E29EF-CD1E-47E4-B38D-2B728FA55934}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EquipmentEx", "RimAssemblies\EquipmentEx\EquipmentEx.csproj", "{1E8E5C6D-B13A-4EC4-A6FE-EACB7742A13B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GearEx", "RimAssemblies\GearEx\GearEx.csproj", "{1E8E5C6D-B13A-4EC4-A6FE-EACB7742A13B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
