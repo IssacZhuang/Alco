@@ -16,6 +16,7 @@ namespace WeaponEx.CE
         public int damageAmount = 3;
         public int ammoComsume = 1;
         public DamageDef damageDef;
+        public float angle = 20f; 
     }
 
 }

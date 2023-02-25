@@ -68,17 +68,20 @@ namespace WeaponEx
             IntVec3 position = caster.Position;
 
             float angle = Mathf.Atan2((float)(-(float)(currentTarget.Cell.z - position.z)), (float)(currentTarget.Cell.x - position.x)) * 57.29578f;
-            float angleStart = angle - 12f;
-            float angleEnd = angle + 12f;
+            
 
             //FloatRange value = new FloatRange(angle - 12f, angle + 12f);
             //GenExplosion.DoExplosion(position, caster.MapHeld, verbProps.range, DamageDefOf.Flame, CasterPawn, 3, -1f, null, null, null, null, verbProps.spawnDef, 0.05f, 1, null, false, null, 0f, 1, 1f, false, null, null, new FloatRange?(value), false, 0.6f, 0f, false, null, 1f);
             if (PorpsEx != null)
             {
+                float angleStart = angle - (PorpsEx.angle/2);
+                float angleEnd = angle + (PorpsEx.angle/2);
                 ExplosionUtility.DoSectorExplosion(position, caster.MapHeld, verbProps.range, PorpsEx.damageDef, PorpsEx.damageAmount, CasterPawn, verbProps.spawnDef, angleStart, angleEnd);
             }
             else
             {
+                float angleStart = angle - 12;
+                float angleEnd = angle + 12;
                 ExplosionUtility.DoSectorExplosion(position, caster.MapHeld, verbProps.range, DamageDefOf.Flame, 3, CasterPawn, verbProps.spawnDef, angleStart, angleEnd);
             }
 
