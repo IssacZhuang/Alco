@@ -15,6 +15,7 @@ namespace GearEx
         {
             if (ReloadableCompSource == null||ReloadableCompSource.CanBeUsed)
             {
+                ReloadableCompSource.UsedOnce();
                 WrapInjury();
                 return true;
             }
