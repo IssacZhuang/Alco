@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Verse;
 using RimWorld;
 
-namespace GearEx
+namespace EquipmentEx
 {
     public class Verb_InjectMedicine: Verb
     {

@@ -10,7 +10,7 @@ using RimWorld;
 using UnityEngine;
 using CombatExtended;
 
-namespace WeaponEx.CE
+namespace EquipmentEx.CE
 {
 	public class Verb_SectorExplosion : Verb
 	{

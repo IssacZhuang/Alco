@@ -9,7 +9,7 @@ using Verse.Sound;
 using RimWorld;
 using UnityEngine;
 
-namespace WeaponEx
+namespace EquipmentEx
 {
     public class Verb_SectorExplosion : Verb
     {

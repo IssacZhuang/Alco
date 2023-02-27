@@ -1,13 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{541E29EF-CD1E-47E4-B38D-2B728FA55934}</ProjectGuid>
+    <ProjectGuid>{7E73382A-CDC6-4CDE-A679-467C4741D716}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WeaponEx.CE</RootNamespace>
-    <AssemblyName>WeaponEx.CE</AssemblyName>
+    <RootNamespace>EquipmentEx</RootNamespace>
+    <AssemblyName>EquipmentEx</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -34,10 +35,6 @@
       <HintPath>..\..\Packages\Rimworld\1.4\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="CombatExtended">
-      <HintPath>..\..\Packages\RW-CombatExtended\1.4\CombatExtended.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -58,8 +55,9 @@
   <ItemGroup>
     <Compile Include="Utility\ExplosionUtility.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Verb\Verb_SectorExplosion.cs" />
     <Compile Include="Verb\VerbProperties_SectorExplosion.cs" />
+    <Compile Include="Verb\Verb_SectorExplosion.cs" />
+    <Compile Include="Verb\Verb_InjectMedicine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
