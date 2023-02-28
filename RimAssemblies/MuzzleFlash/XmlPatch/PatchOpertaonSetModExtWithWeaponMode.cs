@@ -14,6 +14,7 @@ namespace SafePatcher
 		public XmlContainer value;
 
 		private const string AttrClass= "Class";
+		private const string ValueWeaponType = "type";
 
 		protected override bool ApplyWorker(XmlDocument xml)
 		{
@@ -54,11 +55,11 @@ namespace SafePatcher
 		private void AddOrReplaceNode(XmlDocument importDest,XmlNode nodeExtensionParent, XmlNode nodePatch)
         {
 			XmlAttribute attrPatch = nodePatch.Attributes[AttrClass];
-            XmlNode typePatch = nodePatch["WeaponMode"];
+            XmlNode typePatch = nodePatch[ValueWeaponType];
 			foreach (XmlNode existExtension in nodeExtensionParent.ChildNodes)
             {
 				XmlAttribute attrExist = existExtension.Attributes[AttrClass];
-                XmlNode typeExist = existExtension["WeaponMode"];
+                XmlNode typeExist = existExtension[ValueWeaponType];
 				if (attrExist == null) continue;
 				if (attrExist.Value == attrPatch?.Value && typeExist?.Value == typePatch?.Value)
                 {
