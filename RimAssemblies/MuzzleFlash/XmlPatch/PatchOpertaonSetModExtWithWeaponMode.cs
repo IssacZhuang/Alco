@@ -9,7 +9,7 @@ using Verse;
 
 namespace SafePatcher
 {
-    public class PatchOpertaonSetModExtWithWeaponMode: PatchOperationPathed
+    public class PatchOpertaonSetModExtWithWeaponMode: PatchOperationReloable
 	{
 		public XmlContainer value;
 

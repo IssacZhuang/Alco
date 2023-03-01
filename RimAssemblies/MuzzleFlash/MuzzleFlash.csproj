@@ -1,5 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -72,6 +71,7 @@
     <Compile Include="Core\MuzzleFlashUtility.cs" />
     <Compile Include="XmlPatch\PatchOperationSetModExtension.cs" />
     <Compile Include="XmlPatch\PatchOpertaonSetModExtWithWeaponMode.cs" />
+    <Compile Include="XmlPatch\PatchOperationReloable.cs" />
     <Compile Include="HarmonyPatch\HarmonyEntry.cs" />
     <Compile Include="HarmonyPatch\HarmonyPatch_PawnRenderer.cs" />
     <Compile Include="HarmonyPatch\HarmonyPatch_Verb.cs" />
@@ -89,6 +89,5 @@
       <Private>False</Private>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
