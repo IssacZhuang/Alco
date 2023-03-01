@@ -25,22 +25,28 @@ namespace SafePatcher
 
             //get type from defType
             Type type = Type.GetType(defType);
-            List<Def> defs = DefDatabase<Def>.AllDefsListForReading.Where(d => d.GetType() == type).ToList();
+            //List<Def> defs = DefDatabase<Def>.AllDefsListForReading.Where(d => d.GetType() == type).ToList();
+            List<ThingDef> defs = DefDatabase<ThingDef>.AllDefsListForReading;
             foreach (Def def in defs)
             {
                 if (defNames.Contains(def.defName))
                 {
-                    ApplyToObject(def);
+                    try
+                    {
+                        ApplyToObject(def);
+                        Log.Message($"[SafePatcher] Reloaded patch for {def.defName}");
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error($"[SafePatcher] Error while reloading patch for {def.defName} - {e.Message}");
+                    }
                 }
             }
-            //contact def name to a string with comma
-            string defNameString = string.Join(",", defNames);
-            //print
-            Log.Message($"[SafePatcher] Patches reloaded for {defType} - {defNameString}");
+
         }
 
         public virtual void ApplyToObject(Def def){
-            
+           
 
         }
     }
