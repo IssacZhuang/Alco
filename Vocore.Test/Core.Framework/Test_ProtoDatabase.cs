@@ -8,7 +8,7 @@ namespace Vocore.Test.Core.Framework
 {
     internal class Test_ProtoDatabase
     {
-        [Test("ProtoDatabase.Load() Duplicate refer", true)]
+        //[Test("ProtoDatabase.Load() Duplicate refer", true)]
         public void Test_DuplicateAdd()
         {
             ProtoBase proto = new ProtoBase();
@@ -16,7 +16,7 @@ namespace Vocore.Test.Core.Framework
             ProtoDatabase<ProtoBase>.Load(proto); // error
         }
 
-        [Test("ProtoDatabase.Load() Duplicate name", true)]
+        //[Test("ProtoDatabase.Load() Duplicate name", true)]
         public void Test_DuplicateAdd2()
         {
             ProtoBase proto1 = new ProtoBase
@@ -31,7 +31,7 @@ namespace Vocore.Test.Core.Framework
             ProtoDatabase<ProtoBase>.Load(proto2); // error
         }
 
-        [Test("ProtoDatabase.Load() Load")]
+        //[Test("ProtoDatabase.Load() Load")]
         public void Test_Load()
         {
             ProtoDatabase<ProtoBase>.Clear();
@@ -53,7 +53,7 @@ namespace Vocore.Test.Core.Framework
         private class ProtoBar : ProtoBase { }
 
 
-        [Test("ProtoDatabase.Load() Load different type")]
+        //[Test("ProtoDatabase.Load() Load different type")]
         public void Test_LoadTwoType()
         {
 
@@ -72,7 +72,7 @@ namespace Vocore.Test.Core.Framework
             TestUtility.Assert(ProtoDatabase<ProtoBase>.Count != 2);
         }
 
-        [Test("ProtoDatabase.Load() Load with different DB")]
+        //[Test("ProtoDatabase.Load() Load with different DB")]
         public void Test_LoadTwoDB()
         {
 

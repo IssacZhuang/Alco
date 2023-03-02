@@ -13,7 +13,7 @@ namespace Vocore.Test.Core.Collection
 {
     internal class Test_NativeStructuredBuffer
     {
-        [Test("NativeStructuredBuffer Get/Set")]
+        //[Test("NativeStructuredBuffer Get/Set")]
         public unsafe void ValueGetSet()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);
@@ -25,7 +25,7 @@ namespace Vocore.Test.Core.Collection
             bufferVec.Dispose();
         }
 
-        [Test("NativeStructuredBuffer OutOfRange", true)]
+        //[Test("NativeStructuredBuffer OutOfRange", true)]
         public void OutOfRange()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);

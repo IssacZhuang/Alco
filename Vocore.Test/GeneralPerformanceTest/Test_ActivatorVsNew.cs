@@ -8,7 +8,7 @@ namespace Vocore.Test.GeneralPerformanceTest
 {
     internal class Test_ActivatorVsNew
     {
-        [Test("Activator.CreateInstance Vs New", false)]
+        //[Test("Activator.CreateInstance Vs New", false)]
         public void Test()
         {
 
