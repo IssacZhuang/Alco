@@ -7,10 +7,14 @@ using System.Threading.Tasks;
 using System.Xml;
 using Verse;
 
+using MuzzleFlash;
+
 namespace SafePatcher
 {
+	
     public class PatchOpertaonSetModExtWithWeaponMode: PatchOperationReloable
 	{
+		[Description("Muzzle flash props only")]
 		public XmlContainer value;
 
 		private const string AttrClass= "Class";
@@ -70,5 +74,50 @@ namespace SafePatcher
 			}
 			nodeExtensionParent.AppendChild(importDest.ImportNode(nodePatch, true));
 		}
+
+		public override void ApplyToObject(Def def)
+		{
+            XmlNode nodeValue = this.value.node;
+            if (nodeValue == null)
+            {
+                Log.Message("[SafePatcher] Failed to create mod extension: empty node");
+                return;
+            }
+
+            foreach (XmlNode nodePatch in nodeValue.ChildNodes)
+            {
+
+                XmlAttribute attrClass = nodePatch.Attributes["Class"];
+				if(attrClass == null)
+				{
+					Log.Message("[SafePatcher] Failed to create mod extension: no class attribute");
+					return;
+				}
+                string strType = attrClass.Value;
+                Type type = typeof(MuzzleFlashProps);
+                var func = DirectXmlToObject.GetObjectFromXmlMethod(type);
+                MuzzleFlashProps obj = func(nodePatch, false) as MuzzleFlashProps;
+                if (obj == null)
+                {
+                    Log.Message("[SafePatcher] Failed to create muzzle flash props: " + strType);
+                    return;
+                }
+
+                //find the mod extension by	type
+                DefModExtension modExtension = def.modExtensions?.FirstOrDefault(x => x is MuzzleFlashProps props &&props.type == obj.type);
+                //copy all the fields in the mod extension
+                if (modExtension != null)
+                {
+                    foreach (var field in type.GetFields())
+                    {
+                        field.SetValue(modExtension, field.GetValue(obj));
+                    }
+                }
+                else
+                {
+                    def.modExtensions.Add(obj);
+                }
+            }
+        }
 	}
 }

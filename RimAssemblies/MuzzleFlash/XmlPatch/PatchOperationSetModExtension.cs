@@ -111,8 +111,6 @@ namespace SafePatcher
                     def.modExtensions.Add(obj);
                 }
             }
-
-
         }
     }
 }
