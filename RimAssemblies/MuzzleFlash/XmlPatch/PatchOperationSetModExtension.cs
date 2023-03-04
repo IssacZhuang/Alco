@@ -81,11 +81,11 @@ namespace SafePatcher
             {
 
                 XmlAttribute attrClass = nodePatch.Attributes["Class"];
-				if(attrClass == null)
-				{
-					Log.Message("[SafePatcher] Failed to create mod extension: no class attribute");
-					return;
-				}
+                if (attrClass == null)
+                {
+                    Log.Message("[SafePatcher] Failed to create mod extension: no class attribute");
+                    return;
+                }
                 string strType = attrClass.Value;
                 Type type = Type.GetType(strType);
                 var func = DirectXmlToObject.GetObjectFromXmlMethod(type);
@@ -95,6 +95,13 @@ namespace SafePatcher
                     Log.Message("[SafePatcher] Failed to create mod extension: " + strType);
                     return;
                 }
+                PatchUtility.ResolveDefs(obj, nodePatch);
+
+                if (def.modExtensions == null)
+                {
+                    def.modExtensions = new List<DefModExtension>();
+                }
+
 
                 //find the mod extension by	type
                 DefModExtension modExtension = def.modExtensions?.FirstOrDefault(x => x.GetType() == type);

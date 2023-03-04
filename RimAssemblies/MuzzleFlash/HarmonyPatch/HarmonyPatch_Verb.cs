@@ -37,7 +37,7 @@ namespace MuzzleFlash.Patch
             Vector3 direction = (targetPosition - sourcePostion);
             Vector3 drawPos;
 
-            if (__instance.CasterIsPawn)
+            if (__instance.CasterIsPawn && !muzzleProps.useCenterAsRootPosition)
             {
                 drawPos = WeaponPositionCache.GetDrawPos(equipment);
             }

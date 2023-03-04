@@ -93,6 +93,7 @@
       <Private>False</Private>
     </ProjectReference>
     <Compile Include="XmlPatch\SafePatcherMod.cs" />
+    <Compile Include="XmlPatch\PatchUtility.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

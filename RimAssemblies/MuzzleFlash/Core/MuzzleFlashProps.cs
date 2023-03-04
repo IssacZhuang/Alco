@@ -21,5 +21,6 @@ namespace MuzzleFlash
         public Vector2 drawSize = new Vector2(0.8f, 0.8f);
         public List<Vector2> offsets;
         public bool isAlternately;
+        public bool useCenterAsRootPosition = false;
     }
 }

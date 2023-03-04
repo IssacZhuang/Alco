@@ -18,7 +18,7 @@ namespace SafePatcher
 
         public override string SettingsCategory()
         {
-            return "MuzzleFlash".Translate();
+            return "Muzzle Flash";
         }
 
         public override void DoSettingsWindowContents(Rect inRect)
@@ -32,7 +32,13 @@ namespace SafePatcher
             }
         }
 
-        public void ReloadPatch(){
+        [DebugAction("Muzzle Flash", "Reload Safe Patcher", false, false, false, 0, false, allowedGameStates = AllowedGameStates.Playing, displayPriority = 500)]
+		private static void TryPlaceNearThing()
+		{
+			ReloadPatch();
+		}
+
+        public static void ReloadPatch(){
             var fieldMatch = typeof(PatchOperationFindMod).GetField("match", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var fieldOperations = typeof(PatchOperationSequence).GetField("operations", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var fieldMods = typeof(PatchOperationFindMod).GetField("mods", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -97,7 +103,7 @@ namespace SafePatcher
             }
         }
 
-        private void ReloadPatchReloable(PatchOperationReloable patch)
+        private static void ReloadPatchReloable(PatchOperationReloable patch)
         {
             try
             {

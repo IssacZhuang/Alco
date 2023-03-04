@@ -64,8 +64,7 @@ namespace SafePatcher
             {
                 XmlAttribute attrExist = existExtension.Attributes[AttrClass];
                 XmlNode typeExist = existExtension[ValueWeaponType];
-
-                if (attrExist.Value == attrPatch?.Value && typeExist?.Value == typePatch?.Value)
+                if (attrExist.Value == attrPatch?.Value && typeExist?.InnerText == typePatch?.InnerText)
                 {
                     Log.Warning("[SafePatcher] Duplicated extension with same muzzle flash type found, removing: " + attrExist.Value);
                     nodeExtensionParent.RemoveChild(existExtension);
@@ -102,6 +101,14 @@ namespace SafePatcher
                     Log.Message("[SafePatcher] Failed to create muzzle flash props: " + type);
                     return;
                 }
+
+                PatchUtility.ResolveDefs(obj, nodePatch);
+
+                if (def.modExtensions == null)
+                {
+                    def.modExtensions = new List<DefModExtension>();
+                }
+
 
                 //find the mod extension by	type
                 DefModExtension modExtension = def.modExtensions?.FirstOrDefault(x => x is MuzzleFlashProps props && props.type == obj.type);
