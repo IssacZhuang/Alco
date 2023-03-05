@@ -13,7 +13,11 @@ namespace SafePatcher
     public class PatchOperationReloable: PatchOperationPathed
     {
         public static string regexDefType = @"(?<=Defs/)\w+(?=\[)";
-        string regexDefName = @"defName=""([^""]+)""";
+        public static string regexDefName = @"defName=""([^""]+)""";
+        protected override bool ApplyWorker(XmlDocument xml)
+        {
+            return true;
+        }
 
         public void ReloadPatch(){
             string defType = Regex.Match(xpath, regexDefType).Value; 
