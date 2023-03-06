@@ -8,8 +8,11 @@ namespace Vocore.Xml
     public static class UtilsType
     {
         private static Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
+        private static object _lockListCache = new object();
         private static Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
+        private static object _lockDictionaryCache = new object();
         private static Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+        private static object _lockTypeCache = new object();
 
         /// <summary>
         /// Check if a type is a generic type of another type.
@@ -41,7 +44,7 @@ namespace Vocore.Xml
 				return result;
 			}
 		    result = IsGenericTypeOf(type, typeof(List<>));
-			_isListCache.Add(type, result);
+			AddIsListCache(type, result);
 			return result;
 		}
 
@@ -56,14 +59,14 @@ namespace Vocore.Xml
                 return result;
             }
             result = IsGenericTypeOf(type, typeof(Dictionary<,>));
-            _isDictionaryCache.Add(type, result);
+            AddIsDictionaryCache(type, result);
             return result;
         }
 
         /// <summary>
         /// Get the type from all loaded assemblies.
         /// </summary>
-        public static Type GetTypeFromAllAssemblies(string typeName, bool throwOnError = false)
+        public static Type GetTypeFromAllAssemblies(string typeName)
         {
             if(_typeCache.TryGetValue(typeName, out Type type))
             {
@@ -73,7 +76,7 @@ namespace Vocore.Xml
             type = Type.GetType(typeName);
             if (type != null)
             {
-                _typeCache.Add(typeName, type);
+                AddTypeCache(typeName, type);
                 return type;
             }
 
@@ -87,12 +90,83 @@ namespace Vocore.Xml
                 }
             }
 
-            if (throwOnError)
+            return null;
+        }
+
+        public static Type GetTypeFromAllAssemblies(string typeName, string defaultNamespace)
+        {
+            Type type = GetTypeFromAllAssemblies(typeName);
+            if (type != null)
             {
-                throw new Exception("Type not found: " + typeName);
+                return type;
+            }
+
+            if (defaultNamespace != null)
+            {
+                type = GetTypeFromAllAssemblies(defaultNamespace + "." + typeName);
+                if (type != null)
+                {
+                    return type;
+                }
             }
 
             return null;
+        }
+
+
+        public static void ClearCache()
+        {
+            lock (_lockListCache)
+            {
+                _isListCache.Clear();
+            }
+            lock (_lockDictionaryCache)
+            {
+                _isDictionaryCache.Clear();
+            }
+            lock (_lockTypeCache)
+            {
+                _typeCache.Clear();
+            }
+        }
+
+        private static bool AddIsListCache(Type type, bool result)
+        {
+            lock (_lockListCache)
+            {
+                if (!_isListCache.ContainsKey(type))
+                {
+                    _isListCache.Add(type, result);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool AddIsDictionaryCache(Type type, bool result)
+        {
+            lock (_lockDictionaryCache)
+            {
+                if (!_isDictionaryCache.ContainsKey(type))
+                {
+                    _isDictionaryCache.Add(type, result);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool AddTypeCache(string typeName, Type type)
+        {
+            lock (_lockTypeCache)
+            {
+                if (!_typeCache.ContainsKey(typeName))
+                {
+                    _typeCache.Add(typeName, type);
+                    return true;
+                }
+            }
+            return false;
         }
 
     }

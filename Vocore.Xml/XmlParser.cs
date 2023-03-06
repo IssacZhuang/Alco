@@ -10,26 +10,25 @@ namespace Vocore.Xml
     public static class XmlParser
     {
         public const string AttrClass = "Class";
+        public const int recursionLimit = 20;
 
         private static List<string> _errors = new List<string>();
         private static object _lock = new object();
 
-        public static object ParseToObject(this XmlNode xml)
+        public static object ParseToObject(this XmlNode xml, string defaultNamespace = "")
         {
             if (xml == null)
             {
                 AddError("Xml node is null");
                 return null;
             }
-            Type typeNode = UtilsType.GetTypeFromAllAssemblies(xml.Name);
+            Type typeNode = UtilsType.GetTypeFromAllAssemblies(xml.Name, defaultNamespace);
             Type typeAttrClass = null;
             XmlAttribute attr = xml.Attributes[AttrClass];
             if (attr != null)
             {
-                typeAttrClass = UtilsType.GetTypeFromAllAssemblies(attr.Value);
+                typeAttrClass = UtilsType.GetTypeFromAllAssemblies(attr.Value, defaultNamespace);
             }
-
-
 
             Type typeFinal = null;
             if (typeAttrClass == null)
@@ -55,8 +54,30 @@ namespace Vocore.Xml
             return ObjectFromXml(typeFinal, xml);
         }
 
-        public static object ObjectFromXml(Type type, XmlNode xml)
+        public static object ObjectFromXml(Type type, XmlNode xml, int depth = 0)
         {
+            if (depth > recursionLimit)
+            {
+                AddError("Recursion limit reached, type: " + type.Name + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                return null;
+            }
+
+            Dictionary<string, XmlNode> nodeUnused = new Dictionary<string, XmlNode>();
+            foreach (XmlNode node in xml.ChildNodes)
+            {
+                if(node.NodeType != XmlNodeType.Element)
+                {
+                    continue;
+                }
+
+                if(nodeUnused.ContainsKey(node.Name))
+                {
+                    AddError("Duplicated node found for field '" + node.Name + "' in type '" + type.Name + "', only the first node will be parsed.\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                    continue;
+                }
+                nodeUnused.Add(node.Name, node);
+            }
+
             object reuslt = Activator.CreateInstance(type);
             //iterate through the fields of the object and parse the xml
             foreach (FieldInfo field in type.GetFields())
@@ -68,12 +89,11 @@ namespace Vocore.Xml
                     continue;
                 }
 
-                if (nodes.Count > 1)
-                {
-                    AddError("Duplicated node found for field " + field.Name + " in type " + type.Name + ", only the first node will be parsed.\nRaw xml text: \n" + xml.GetXmlTextFormated());
-                }
-
                 XmlNode node = nodes[0];
+
+                //remove the node from the unused list
+                nodeUnused.Remove(field.Name);
+
                 Type fieldType = field.FieldType;
                 //parse the field use UtilsParse
 
@@ -83,7 +103,7 @@ namespace Vocore.Xml
                     IList list = (IList)Activator.CreateInstance(fieldType);
                     foreach (XmlNode child in node.ChildNodes)
                     {
-                        object childObj = ObjectFromXml(listType, child);
+                        object childObj = ObjectFromXml(listType, child, depth+1);
                         list.Add(childObj);
                     }
                     field.SetValue(reuslt, list);
@@ -98,8 +118,8 @@ namespace Vocore.Xml
                     IDictionary dict = (IDictionary)Activator.CreateInstance(fieldType);
                     foreach (XmlNode child in node.ChildNodes)
                     {
-                        object key = ObjectFromXml(keyType, child);
-                        object value = ObjectFromXml(valueType, child);
+                        object key = ObjectFromXml(keyType, child, depth);
+                        object value = ObjectFromXml(valueType, child, depth+1);
                         dict.Add(key, value);
                     }
                     field.SetValue(reuslt, dict);
@@ -111,7 +131,7 @@ namespace Vocore.Xml
                     Object objEnum = Enum.Parse(fieldType, node.InnerText);
                     if (objEnum == null)
                     {
-                        AddError("Enum parse failed for field: " + field.Name + " in type: " + type.Name + ", value: " + node.InnerText + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                        AddError("Enum parse failed for field: '" + field.Name + "' in type: '" + type.Name + "', value: " + node.InnerText + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
                     }
                     field.SetValue(reuslt, objEnum);
                     continue;
@@ -125,22 +145,28 @@ namespace Vocore.Xml
                     }
                     else
                     {
-                        Object objParsed2 = ObjectFromXml(fieldType, node);
+                        Object objParsed2 = ObjectFromXml(fieldType, node, depth+1);
                         field.SetValue(reuslt, objParsed2);
                     }
                 }
                 catch (Exception e)
                 {
-                    AddError("Parse failed for field: " + field.Name + " in type: " + type.Name + ", value: " + node.InnerText + ", error: \n" + e + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                    AddError("Parse failed for field: '" + field.Name + "' in type: '" + type.Name + "', value: " + node.InnerText + ", error: \n" + e + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
                 }
+            }
+
+            //print unused nodes
+            foreach (XmlNode node in nodeUnused.Values)
+            {
+                AddError("Unused node found: '" + node.Name + "' in type: " + type.Name + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
             }
 
             return reuslt;
         }
 
-        public static T ObjectFromXml<T>(XmlNode xml)
+        public static T ObjectFromXml<T>(XmlNode xml, int depth)
         {
-            return (T)ObjectFromXml(typeof(T), xml);
+            return (T)ObjectFromXml(typeof(T), xml, depth);
         }
 
         public static string GetXmlTextFormated(this XmlNode xml)

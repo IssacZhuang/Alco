@@ -366,6 +366,14 @@ namespace Vocore.Xml
 			return Enum.Parse(type, str);
 		}
 
+
+		/// <summary>
+		/// Parse a string to Type
+		/// </summary>
+		public static Type ToType(this string str){
+			return UtilsType.GetTypeFromAllAssemblies(str);
+		}
+
     }
 }
 
