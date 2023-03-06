@@ -7,7 +7,7 @@ using System.Text;
 
 using UnityEngine;
 
-namespace Vocore.Xml
+namespace Vocore.Serialization
 {
     public static class UtilsParse
     {

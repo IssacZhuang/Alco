@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 
-namespace Vocore.Xml
+namespace Vocore.Serialization
 {
     public static class XmlParser
     {

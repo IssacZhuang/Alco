@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32602.215
@@ -29,7 +29,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EquipmentEx", "RimAssemblie
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EquipmentEx.CE", "RimAssemblies\EquipmentEx.CE\EquipmentEx.CE.csproj", "{65029DF7-37C1-46E2-AED8-F4B8B038AAA0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Xml", "Vocore.Xml\Vocore.Xml.csproj", "{D5355234-0E7B-4740-868F-B42B8773523F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Serialization", "Vocore.Serialization\Vocore.Serialization.csproj", "{D5355234-0E7B-4740-868F-B42B8773523F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
