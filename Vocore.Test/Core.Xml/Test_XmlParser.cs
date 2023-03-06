@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Xml;
 using System.Reflection;
 using Vocore.Xml;
@@ -40,11 +41,14 @@ namespace Vocore.Test
         public bool TestBool;
         public TestEnum TestEnum;
         public InnerDataClass InnerData;
+        public TestStruct TestStruct;
     }
 
     public class TestClassChild : TestClass
     {
         public string ChildName;
+        public List<int> IntList;
+        public List<InnerDataClass> DataList;
     }
 
     public class InnerDataClass
@@ -55,6 +59,16 @@ namespace Vocore.Test
         public override string ToString()
         {
             return string.Format("Key: {0}, Value: {1}", Key, Value);
+        }
+    }
+
+    public struct TestStruct{
+        public string Name;
+        public int Value;
+
+        public override string ToString()
+        {
+            return string.Format("Name: {0}, Value: {1}", Name, Value);
         }
     }
 
@@ -91,16 +105,17 @@ namespace Vocore.Test
                     xmlDoc.Load(reader);
                     string formattedXml = xmlDoc.InnerXml;
 
-                    string xPath = "Objects/Vocore.Test.TestClass[Name = 'TestObject']";
+                    string xPath = "Objects/TestClass[Name = 'TestObject']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
                     TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
 
                     // parse xml content
-                    TestClass testClass = xmlNode.ParseToObject() as TestClass;
+                    TestClass testClass = xmlNode.ParseToObject("Vocore.Test") as TestClass;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
+                        TestUtility.AddFailed();
                         TestUtility.PrintRed(error);
                     }
                     XmlParser.ClearErrors();
@@ -108,6 +123,7 @@ namespace Vocore.Test
                     if (testClass == null)
                     {
                         TestUtility.AddFailed();
+                        TestUtility.PrintRed("testClass is null");
                         return;
                     }
 
@@ -137,16 +153,17 @@ namespace Vocore.Test
                     xmlDoc.Load(reader);
                     string formattedXml = xmlDoc.InnerXml;
 
-                    string xPath = "Objects/Vocore.Test.TestClass[Name = 'MissingContent']";
+                    string xPath = "Objects/TestClass[Name = 'MissingContent']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
                     TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
 
                     // parse xml content
-                    TestClass testClass = xmlNode.ParseToObject() as TestClass;
+                    TestClass testClass = xmlNode.ParseToObject("Vocore.Test") as TestClass;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
+                        TestUtility.AddFailed();
                         TestUtility.PrintRed(error);
                     }
                     XmlParser.ClearErrors();
@@ -154,6 +171,7 @@ namespace Vocore.Test
                     if (testClass == null)
                     {
                         TestUtility.AddFailed();
+                        TestUtility.PrintRed("testClass is null");
                         return;
                     }
 
@@ -181,16 +199,17 @@ namespace Vocore.Test
                     xmlDoc.Load(reader);
                     string formattedXml = xmlDoc.InnerXml;
 
-                    string xPath = "Objects/Vocore.Test.TestClass[Name = 'TestObject2']";
+                    string xPath = "Objects/TestClass[Name = 'TestObject2']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
                     TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClassChild"));
 
                     // parse xml content
-                    TestClassChild testClass = xmlNode.ParseToObject() as TestClassChild;
+                    TestClassChild testClass = xmlNode.ParseToObject("Vocore.Test") as TestClassChild;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
+                        TestUtility.AddFailed();
                         TestUtility.PrintRed(error);
                     }
                     XmlParser.ClearErrors();
@@ -198,6 +217,7 @@ namespace Vocore.Test
                     if (testClass == null)
                     {
                         TestUtility.AddFailed();
+                        TestUtility.PrintRed("testClass is null");
                         return;
                     }
 

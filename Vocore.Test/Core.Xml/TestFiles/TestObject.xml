@@ -1,34 +1,55 @@
 <Objects>
-    <Vocore.Test.TestClass>
-    <Name>TestObject</Name>
-    <Position>(1,2,3)</Position>
-    <Rotation>(0.8,0.8,0.8,0.8)</Rotation>
-    <Scale>(1,1,1)</Scale>
-    <TestInt>1</TestInt>
-    <TestFloat>1.1</TestFloat>
-    <TestString>TestString\\n aaa</TestString>
-    <TestBool>True</TestBool>
-    <TestEnum>Secondary</TestEnum>
-    <InnerData>
-        <Key>this is a key</Key>
-        <Value>12</Value>
-    </InnerData>
-</Vocore.Test.TestClass>
+    <TestClass>
+        <Name>TestObject</Name>
+        <Position>(1,2,3)</Position>
+        <Rotation>(0.8,0.8,0.8,0.8)</Rotation>
+        <Scale>(1,1,1)</Scale>
+        <TestInt>1</TestInt>
+        <TestFloat>1.1</TestFloat>
+        <TestString>TestString\\n aaa</TestString>
+        <TestBool>True</TestBool>
+        <TestEnum>Secondary</TestEnum>
+        <InnerData>
+            <Key>this is a key</Key>
+            <Value>12</Value>
+        </InnerData>
+        <TestStruct>
+            <Name>this is a struct key</Name>
+            <Value>222</Value>
+        </TestStruct>
+    </TestClass>
 
-<Vocore.Test.TestClass>
-    <Name>MissingContent</Name>
-</Vocore.Test.TestClass>
+    <TestClass>
+        <Name>MissingContent</Name>
+    </TestClass>
 
-<Vocore.Test.TestClass Class="Vocore.Test.TestClassChild">
-    <Name>TestObject2</Name>
-    <Position>(17,21,33)</Position>
-    <Rotation>(0.8,0.5,0.8,0.8)</Rotation>
-    <Scale>(2,3,1)</Scale>
-    <TestInt>1</TestInt>
-    <TestFloat>24.55</TestFloat>
-    <TestString>TestString\\n aaa</TestString>
-    <TestBool>false</TestBool>
-    <TestEnum>Primary</TestEnum>
-    <ChildName>child</ChildName>
-</Vocore.Test.TestClass>
+    <TestClass Class="TestClassChild">
+        <Name>TestObject2</Name>
+        <Position>(17,21,33)</Position>
+        <Rotation>(0.8,0.5,0.8,0.8)</Rotation>
+        <Scale>(2,3,1)</Scale>
+        <TestInt>1</TestInt>
+        <TestFloat>24.55</TestFloat>
+        <TestString>TestString\\n aaa</TestString>
+        <TestBool>false</TestBool>
+        <TestEnum>Primary</TestEnum>
+        <ChildName>child</ChildName>
+        <IntList>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </IntList>
+        <DataList>
+            <li>
+                <Key>this is a key</Key>
+                <Value>12</Value>
+            </li>
+            <li>
+                <Key>this is a key2</Key>
+                <Value>13</Value>
+            </li>
+        </DataList>
+    </TestClass>
+
+
 </Objects>
