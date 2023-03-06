@@ -28,10 +28,73 @@ namespace Vocore.Xml
 		private static Dictionary<Type, Func<string, object>> _parser = new Dictionary<Type, Func<string, object>>();
 
 		static UtilsParse(){
-
+			RegisterParser<string>(str => str.ParseString());
+			RegisterParser<int>(str => str.ToInt());
+			RegisterParser<float>(str => str.ToFloat());
+			RegisterParser<bool>(str => str.ToBool());
+			RegisterParser<long>(str => str.ToLong());
+			RegisterParser<double>(str => str.ToDouble());
+			RegisterParser<sbyte>(str => str.ToSByte());
+			RegisterParser<byte>(str => str.ToByte());
+			RegisterParser<Vector2>(str => str.ToVector2());
+			RegisterParser<Vector3>(str => str.ToVector3());
+			RegisterParser<Vector4>(str => str.ToVector4Adaptive());
+			RegisterParser<Quaternion>(str => str.ToQuaternion());
+			RegisterParser<Color>(str => str.ToColor());
+			RegisterParser<Rect>(str => str.ToRect());
 		}
 
+		/// <summary>
+		/// Register a parser for a type.
+		/// </summary>
+		public static void RegisterParser<T>(Func<string, T> parser){
+			_parser.Add(typeof(T), (str) => parser(str));
+		}
 
+	/// <summary>
+		/// Register a parser for a type.
+		/// </summary>
+		public static void RegisterParser(Type type, Func<string, object> parser){
+			_parser.Add(type, parser);
+		}
+
+		/// <summary>
+		/// Check if a parser is registered for a type.
+		/// </summary>
+		public static bool HasParser<T>(){
+			return _parser.ContainsKey(typeof(T));
+		}
+
+		/// <summary>
+		/// Check if a parser is registered for a type.
+		/// </summary>
+		public static bool HasParser(Type type){
+			return _parser.ContainsKey(type);
+		}
+
+		/// <summary>
+		/// Parse a string to a type.
+		/// </summary>
+		public static bool TryParse<T>(string str, out T result){
+			if (HasParser<T>()){
+				result = (T)_parser[typeof(T)](str);
+				return true;
+			}
+			result = default(T);
+			return false;
+		}
+
+		/// <summary>
+		/// Parse a string to a type.
+		/// </summary>
+		public static bool TryParse(string str, Type type, out object result){
+			if (HasParser(type)){
+				result = _parser[type](str);
+				return true;
+			}
+			result = null;
+			return false;
+		}
 
         /// <summary>
         /// Parse a string.
@@ -92,6 +155,15 @@ namespace Vocore.Xml
 		public static sbyte ToSByte(this string str)
 		{
 			return sbyte.Parse(str, CultureInfo.InvariantCulture);
+		}
+
+
+		/// <summary>
+		/// Parse a string to byte.
+		/// </summary>
+		public static byte ToByte(this string str)
+		{
+			return byte.Parse(str, CultureInfo.InvariantCulture);
 		}
 
 		
@@ -157,9 +229,34 @@ namespace Vocore.Xml
 		}
 
 		/// <summary>
+		/// Parse a string to UnityEngine.Quaternion
+		/// </summary>
+		public static Quaternion ToQuaternion(this string Str)
+		{
+			Str = Str.TrimStart(new char[]
+			{
+				'('
+			});
+			Str = Str.TrimEnd(new char[]
+			{
+				')'
+			});
+			string[] array = Str.Split(new char[]
+			{
+				','
+			});
+			CultureInfo invariantCulture = CultureInfo.InvariantCulture;
+			float x = Convert.ToSingle(array[0], invariantCulture);
+			float y = Convert.ToSingle(array[1], invariantCulture);
+			float z = Convert.ToSingle(array[2], invariantCulture);
+			float w = Convert.ToSingle(array[3], invariantCulture);
+			return new Quaternion(x, y, z, w);
+		}
+
+		/// <summary>
 		/// Parse a string to UnityEngine.Vector4
 		/// </summary>
-		public static Vector4 ToVectorAdaptive(this string Str)
+		public static Vector4 ToVector4Adaptive(this string Str)
 		{
 			Str = Str.TrimStart(new char[]
 			{
