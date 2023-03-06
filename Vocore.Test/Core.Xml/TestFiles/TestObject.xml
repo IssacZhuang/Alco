@@ -17,6 +17,11 @@
             <Name>this is a struct key</Name>
             <Value>222</Value>
         </TestStruct>
+        <RecursiveClass>
+            <RecursiveClass>
+                <Name>Recursive obj</Name>
+            </RecursiveClass>
+        </RecursiveClass>
     </TestClass>
 
     <TestClass>
@@ -35,7 +40,7 @@
         <TestEnum>Primary</TestEnum>
         <ChildName>child</ChildName>
         <IntList>
-            <li>1</li>
+            <a>1</a>
             <li>2</li>
             <li>3</li>
         </IntList>

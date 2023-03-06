@@ -42,6 +42,7 @@ namespace Vocore.Test
         public TestEnum TestEnum;
         public InnerDataClass InnerData;
         public TestStruct TestStruct;
+        public TestClass RecursiveClass;
     }
 
     public class TestClassChild : TestClass
