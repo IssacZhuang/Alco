@@ -15,7 +15,7 @@ namespace Vocore.Test
             PointerTracker.StaticInitialize();
             Assembly assembly = Assembly.GetAssembly(typeof(Entry));
             TestUtility.StartTest(assembly);
-            PointerTracker.Instance.DisplayResult();
+            //PointerTracker.Instance.DisplayResult();
             Console.ReadLine();
         }
     }

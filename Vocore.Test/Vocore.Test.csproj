@@ -100,14 +100,21 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Vocore.Xml\Vocore.Xml.csproj">
+      <Project>{d5355234-0e7b-4740-868f-b42b8773523f}</Project>
+      <Name>Vocore.Xml</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
     </ProjectReference>
     <Compile Include="Rim.Xml\Test_Pattern.cs" />
-    <Folder Include="Properties\CSharp\" />
-    <Compile Include="Core\Test_Parallel.cs" />
+    <Compile Include="GeneralPerformanceTest\Test_Parallel.cs" />
     <Compile Include="Core\Test_Bezier.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\CSharp\" />
+    <Compile Include="Core.Xml\Test_UtilsParse.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
