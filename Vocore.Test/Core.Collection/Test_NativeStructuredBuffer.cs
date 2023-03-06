@@ -11,9 +11,10 @@ using System.Diagnostics;
 
 namespace Vocore.Test.Core.Collection
 {
+    [DisabledTestTemporarily]
     internal class Test_NativeStructuredBuffer
     {
-        //[Test("NativeStructuredBuffer Get/Set")]
+        [Test("NativeStructuredBuffer Get/Set")]
         public unsafe void ValueGetSet()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);
@@ -25,7 +26,7 @@ namespace Vocore.Test.Core.Collection
             bufferVec.Dispose();
         }
 
-        //[Test("NativeStructuredBuffer OutOfRange", true)]
+        [Test("NativeStructuredBuffer OutOfRange", true)]
         public void OutOfRange()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);
@@ -33,7 +34,7 @@ namespace Vocore.Test.Core.Collection
             bufferVec.Dispose();
         }
 
-        //[Test("NativeStructuredBuffer Benchmark Write")]
+        [Test("NativeStructuredBuffer Benchmark Write")]
         public void BenchmarkWrite()
         {
             int count = 50000000;
@@ -69,7 +70,7 @@ namespace Vocore.Test.Core.Collection
             nativeBuffer.Dispose();
         }
 
-        //[Test("NativeStructuredBuffer Benchmark Modify")]
+        [Test("NativeStructuredBuffer Benchmark Modify")]
         public unsafe void BenchmarkModify()
         {
             int count = 50000000;

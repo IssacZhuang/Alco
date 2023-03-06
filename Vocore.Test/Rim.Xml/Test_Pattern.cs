@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace Vocore.Test.Rim.Xml
 {
-    
+    [DisabledTestTemporarily]
     public class Test_Pattern
     {
-        //[Test("Text Pattern", false)]
+        [Test("Text Pattern", false)]
         public void Test_Regrex(){
             string xPath = "Defs/ThingDef[defName=\"TMC_SR_MRAD\" or defName=\"PLA_QBZ\"]";
             //a regex to find the def type in the xPath (such as ThingDef, RecipeDef, etc.)

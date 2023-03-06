@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Vocore.Test
 {
-    internal class Test : Attribute
+    public class Test : Attribute
     {
         public string Name { get; private set; }
         public bool ExpectError { get; private set; }
@@ -28,6 +28,13 @@ namespace Vocore.Test
         {
             this.Name = testName;
             this.ExpectError = expectError;
+        }
+    }
+
+    public class DisabledTestTemporarily : Attribute
+    {
+        public DisabledTestTemporarily()
+        {
         }
     }
 
@@ -157,6 +164,10 @@ namespace Vocore.Test
 
         public static void TryInvokeTestForObj(object obj, TypeInfo typeInfo)
         {
+            if(typeInfo.GetCustomAttribute<DisabledTestTemporarily>() !=null){
+                return;
+            }
+            
             foreach (MethodInfo method in typeInfo.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             {
                 Test testAttr = method.GetCustomAttribute<Test>();

@@ -115,6 +115,7 @@
   <ItemGroup>
     <Folder Include="Properties\CSharp\" />
     <Compile Include="Core.Xml\Test_UtilsParse.cs" />
+    <Compile Include="Core.Xml\Test_UtilsType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
