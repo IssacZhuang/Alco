@@ -42,6 +42,7 @@ namespace Vocore.Test
     {
         public static string TEXT_BENCHMARK = "Benchmark: ";
         public static string TEXT_TIME_COST = "Time cost: ";
+        public static string TAB_SPACE = "   ";
 
         private static int _counterFailed = 0;
         private static int _counterSuccess = 0;
@@ -67,13 +68,27 @@ namespace Vocore.Test
             if (_counterSuccess > 0) PrintGreen("Success: " + _counterSuccess);
         }
 
-        public static string DumpToString(this object obj)
+        public static string DumpToString(this object obj, string prefix = "", int recursion = 2)
         {
+            if (recursion < 0)
+            {
+                return "...";
+            }
+
+            if (obj == null)
+            {
+                return "null";
+            }
+
             //iterate through all field of obj
             StringBuilder sb = new StringBuilder();
             foreach (FieldInfo field in obj.GetType().GetFields())
             {
-                sb.Append(field.Name + ": " + field.GetValue(obj) + "\n");
+                sb.Append(prefix + field.Name + ": " + field.GetValue(obj) + "\n");
+                // if (field.GetType()!=typeof(string)&&field.GetType().IsClass)
+                // {
+                //     sb.Append(DumpToString(field.GetValue(obj), prefix + TAB_SPACE, recursion - 1) + "\n");
+                // }
             }
             return sb.ToString();
         }
@@ -102,7 +117,7 @@ namespace Vocore.Test
             PrintColor(obj, ConsoleColor.Blue);
         }
 
-        public static void PrintColor(object obj ,ConsoleColor color)
+        public static void PrintColor(object obj, ConsoleColor color)
         {
             Console.ForegroundColor = color;
             Console.WriteLine(obj.ToString());
@@ -175,10 +190,11 @@ namespace Vocore.Test
 
         public static void TryInvokeTestForObj(object obj, TypeInfo typeInfo)
         {
-            if(typeInfo.GetCustomAttribute<DisabledTestTemporarily>() !=null){
+            if (typeInfo.GetCustomAttribute<DisabledTestTemporarily>() != null)
+            {
                 return;
             }
-            
+
             foreach (MethodInfo method in typeInfo.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             {
                 Test testAttr = method.GetCustomAttribute<Test>();
