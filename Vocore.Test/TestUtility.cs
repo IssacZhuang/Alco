@@ -67,6 +67,17 @@ namespace Vocore.Test
             if (_counterSuccess > 0) PrintGreen("Success: " + _counterSuccess);
         }
 
+        public static string DumpToString(this object obj)
+        {
+            //iterate through all field of obj
+            StringBuilder sb = new StringBuilder();
+            foreach (FieldInfo field in obj.GetType().GetFields())
+            {
+                sb.Append(field.Name + ": " + field.GetValue(obj) + "\n");
+            }
+            return sb.ToString();
+        }
+
 
         public static void Print(object obj)
         {

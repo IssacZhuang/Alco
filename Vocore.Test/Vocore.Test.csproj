@@ -113,9 +113,18 @@
     <Compile Include="Core\Test_Bezier.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Properties\CSharp\" />
     <Compile Include="Core.Xml\Test_UtilsParse.cs" />
     <Compile Include="Core.Xml\Test_UtilsType.cs" />
+    <EmbeddedResource Include="Core.Xml\TestFiles\TestLoad.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Core.Xml\TestFiles\TestObject.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <Compile Include="Core.Xml\Test_XmlParser.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\CSharp\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
