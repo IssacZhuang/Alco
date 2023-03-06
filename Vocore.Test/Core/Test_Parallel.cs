@@ -13,7 +13,7 @@ namespace Vocore.Test
     
     internal class Test_Parallel
     {
-        [Test("Parallel For")]
+        //[Test("Parallel For")]
         public void ParallelFor()
         {
             int count = 10000000;

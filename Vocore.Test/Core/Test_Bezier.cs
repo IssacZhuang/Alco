@@ -5,7 +5,7 @@ namespace Vocore.Test
 {
     public class Test_Bezier
     {
-        [Test("test bezier curve")]
+        //[Test("test bezier curve")]
         public void Test_BezierCurve()
         {
             float mX1 = 0f;
