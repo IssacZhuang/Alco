@@ -52,6 +52,7 @@
     <Compile Include="XmlParser.cs" />
     <Compile Include="Utility\UtilsParse.cs" />
     <Compile Include="Utility\UtilsColor.cs" />
+    <Compile Include="Utility\UtilsType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

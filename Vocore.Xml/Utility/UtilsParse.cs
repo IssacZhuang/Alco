@@ -68,7 +68,7 @@ namespace Vocore.Xml
 		/// <summary>
 		/// Check if a parser is registered for a type.
 		/// </summary>
-		public static bool HasParser(Type type){
+		public static bool HasParser(this Type type){
 			return _parser.ContainsKey(type);
 		}
 
@@ -291,10 +291,6 @@ namespace Vocore.Xml
 			{
 				w = Convert.ToSingle(array[3], invariantCulture);
 			}
-			if (array.Length >= 5)
-			{
-				// to go error
-			}
 			return new Vector4(x, y, z, w);
 		}
 
@@ -361,6 +357,13 @@ namespace Vocore.Xml
 				result = UtilsColor.FromBytes(Mathf.RoundToInt(num), Mathf.RoundToInt(num2), Mathf.RoundToInt(num3), Mathf.RoundToInt(num4));
 			}
 			return result;
+		}
+
+		/// <summary>
+		/// Parse a string to Enum
+		/// </summary>
+		public static object ToEnum(this string str, Type type){
+			return Enum.Parse(type, str);
 		}
 
     }
