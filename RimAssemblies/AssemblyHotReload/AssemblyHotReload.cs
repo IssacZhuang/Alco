@@ -10,6 +10,7 @@ using System.IO;
 using System.Reflection;
 using System.Collections;
 using System.Security.Policy;
+using System.Runtime.CompilerServices;
 
 namespace AssemblyHotReload
 {
@@ -49,32 +50,32 @@ namespace AssemblyHotReload
 
         private void ReloadAssembly()
         {
-            LoadedModManager.LoadAllActiveMods();
-            // var defs = GenDefDatabase.GetAllDefsInDatabaseForDef(typeof(ThingDef)).AsParallel().Where(def => def.modContentPack == Content);
-            // ResetAppDomain();
-            // InitAppDomain();
+            var defs = GenDefDatabase.GetAllDefsInDatabaseForDef(typeof(ThingDef)).AsParallel().Where(def => def.modContentPack == Content);
+            ResetAppDomain();
+            InitAppDomain();
 
-            // foreach (FileInfo fileInfo in Enumerable.Select<Tuple<string, FileInfo>, FileInfo>(ModContentPack.GetAllFilesForModPreserveOrder(this.Content, "Assemblies/", (string e) => e.ToLower() == ".dll", null), (Tuple<string, FileInfo> f) => f.Item2))
-            // {
-            //     if (fileInfo.Name == "AssemblyHotReload.dll") continue;
-            //     Assembly assembly = null;
-            //     try
-            //     {
-            //         var assemblyLoader = (AssemblyLoader)Domain.CreateInstanceAndUnwrap(typeof(AssemblyLoader).Assembly.FullName, typeof(AssemblyLoader).FullName);
-            //         Log.Message("Loading " + fileInfo.FullName);
-            //         assembly = assemblyLoader.LoadFrom(fileInfo.FullName);
-            //         //assembly = Domain.Load(rawAssembly);
-            //         Log.Message("Loaded " + fileInfo.Name + ", Assembly: " + assembly.FullName);
+            foreach (FileInfo fileInfo in Enumerable.Select<Tuple<string, FileInfo>, FileInfo>(ModContentPack.GetAllFilesForModPreserveOrder(this.Content, "Assemblies/", (string e) => e.ToLower() == ".dll", null), (Tuple<string, FileInfo> f) => f.Item2))
+            {
+                Log.Message("Loading " + fileInfo.FullName);
+                if (fileInfo.Name == "AssemblyHotReload.dll") continue;
+                Assembly assembly = null;
+                try
+                {
+                    byte[] rawAssembly = File.ReadAllBytes(fileInfo.FullName);
+                    // var assemblyLoader = (AssemblyLoader)Domain.CreateInstanceAndUnwrap(typeof(AssemblyLoader).Assembly.FullName, typeof(AssemblyLoader).FullName);
+                    // assembly = assemblyLoader.LoadFrom(fileInfo.FullName);
+                    assembly = Domain.Load(rawAssembly);
+                    Log.Message("Loaded " + fileInfo.Name + ", Assembly: " + assembly.FullName);
 
-            //     }
-            //     catch (Exception ex)
-            //     {
-            //         Log.Error("Exception loading " + fileInfo.Name + ": " + ex.ToString());
-            //         break;
-            //     }
-            // }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Exception loading " + fileInfo.Name + ": " + ex.ToString());
+                    break;
+                }
+            }
 
-            // Parallel.ForEach(defs, def => ReplaceType(def as ThingDef));
+            Parallel.ForEach(defs, def => ReplaceType(def as ThingDef));
         }
 
         private void ResetAppDomain()
