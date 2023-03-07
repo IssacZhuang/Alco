@@ -9,6 +9,7 @@ using UnityEngine;
 using System.IO;
 using System.Reflection;
 using System.Collections;
+using System.Security.Policy;
 
 namespace AssemblyHotReload
 {
@@ -39,7 +40,7 @@ namespace AssemblyHotReload
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
-            if (Widgets.ButtonText(new Rect(10, 10, 200, 30), "Reload Assembly"))
+            if (Widgets.ButtonText(new Rect(10, 50, 200, 30), "Reload Assembly"))
             {
                 Log.Message("[AssemblyHotReload] Reloading Assembly");
                 ReloadAssembly();
@@ -48,35 +49,32 @@ namespace AssemblyHotReload
 
         private void ReloadAssembly()
         {
-            var defs = GenDefDatabase.GetAllDefsInDatabaseForDef(typeof(ThingDef)).AsParallel().Where(def => def.modContentPack == Content);
-            ResetAppDomain();
-            InitAppDomain();
+            LoadedModManager.LoadAllActiveMods();
+            // var defs = GenDefDatabase.GetAllDefsInDatabaseForDef(typeof(ThingDef)).AsParallel().Where(def => def.modContentPack == Content);
+            // ResetAppDomain();
+            // InitAppDomain();
 
-            foreach (FileInfo fileInfo in Enumerable.Select<Tuple<string, FileInfo>, FileInfo>(ModContentPack.GetAllFilesForModPreserveOrder(this.Content, "Assemblies/", (string e) => e.ToLower() == ".dll", null), (Tuple<string, FileInfo> f) => f.Item2))
-            {
-                Assembly assembly = null;
-                try
-                {
-                    byte[] rawAssembly = File.ReadAllBytes(fileInfo.FullName);
-                    FileInfo fileInfo2 = new FileInfo(Path.Combine(fileInfo.DirectoryName, Path.GetFileNameWithoutExtension(fileInfo.FullName)) + ".pdb");
-                    if (fileInfo2.Exists)
-                    {
-                        byte[] rawSymbolStore = File.ReadAllBytes(fileInfo2.FullName);
-                        assembly = Domain.Load(rawAssembly, rawSymbolStore);
-                    }
-                    else
-                    {
-                        assembly = Domain.Load(rawAssembly);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error("Exception loading " + fileInfo.Name + ": " + ex.ToString());
-                    break;
-                }
-            }
+            // foreach (FileInfo fileInfo in Enumerable.Select<Tuple<string, FileInfo>, FileInfo>(ModContentPack.GetAllFilesForModPreserveOrder(this.Content, "Assemblies/", (string e) => e.ToLower() == ".dll", null), (Tuple<string, FileInfo> f) => f.Item2))
+            // {
+            //     if (fileInfo.Name == "AssemblyHotReload.dll") continue;
+            //     Assembly assembly = null;
+            //     try
+            //     {
+            //         var assemblyLoader = (AssemblyLoader)Domain.CreateInstanceAndUnwrap(typeof(AssemblyLoader).Assembly.FullName, typeof(AssemblyLoader).FullName);
+            //         Log.Message("Loading " + fileInfo.FullName);
+            //         assembly = assemblyLoader.LoadFrom(fileInfo.FullName);
+            //         //assembly = Domain.Load(rawAssembly);
+            //         Log.Message("Loaded " + fileInfo.Name + ", Assembly: " + assembly.FullName);
 
-            Parallel.ForEach(defs, def => ReplaceType(def as ThingDef, Domain));
+            //     }
+            //     catch (Exception ex)
+            //     {
+            //         Log.Error("Exception loading " + fileInfo.Name + ": " + ex.ToString());
+            //         break;
+            //     }
+            // }
+
+            // Parallel.ForEach(defs, def => ReplaceType(def as ThingDef));
         }
 
         private void ResetAppDomain()
@@ -89,38 +87,68 @@ namespace AssemblyHotReload
         private void InitAppDomain()
         {
             if (_domain != null) return;
+            // AppDomainSetup domaininfo = new AppDomainSetup();
+            // domaininfo.ApplicationBase = AppDomain.CurrentDomain.BaseDirectory;
+            // Evidence adevidence = AppDomain.CurrentDomain.Evidence;
             _domain = AppDomain.CreateDomain("HotReloadDomain");
         }
 
-        private void ReplaceType(ThingDef def, AppDomain domain)
+        private void ReplaceType(ThingDef def)
         {
-            if(def == null) return;
+            if (def == null) return;
             StringBuilder sb = new StringBuilder();
             sb.Append("Reload classes for " + def.defName + " : \n");
-            def.thingClass = GetTypeInDomain(def.thingClass?.FullName);
+            bool changed = false;
+            if (GetTypeInDomain(def.thingClass?.FullName, out Type newType))
+            {
+                bool isSameType = def.thingClass.Assembly == newType.Assembly;
+                Log.Message("IsSameType: " + isSameType);
+                def.thingClass = newType;
+                changed = true;
+                sb.Append("ThingClass: " + def.thingClass?.FullName + ", IsSameType: " + isSameType + "\n");
+            }
+
             if (def.comps != null)
             {
                 foreach (var comp in def.comps)
                 {
-                    comp.compClass = GetTypeInDomain(comp.compClass?.FullName);
-                    sb.Append("CompClass: " + comp.compClass?.FullName + "\n");
+                    if (GetTypeInDomain(comp.compClass?.FullName, out Type newType2))
+                    {
+                        bool isSameType = comp.compClass.Assembly == newType2.Assembly;
+                        comp.compClass = newType2;
+                        changed = true;
+                        sb.Append("CompClass: " + comp.compClass?.FullName + ", IsSameType: " + isSameType + "\n");
+                    }
+
                 }
             }
 
-            if(def.Verbs != null)
+            if (def.Verbs != null)
             {
                 foreach (var verb in def.Verbs)
                 {
-                    verb.verbClass = GetTypeInDomain(verb.verbClass?.FullName);
-                    sb.Append("VerbClass: " + verb.verbClass?.FullName + "\n");
+                    if (GetTypeInDomain(verb.verbClass?.FullName, out Type newType3))
+                    {
+                        bool isSameType = verb.verbClass.Assembly == newType3.Assembly;
+                        verb.verbClass = newType3;
+                        changed = true;
+                        sb.Append("VerbClass: " + verb.verbClass?.FullName + ", IsSameType: " + isSameType + "\n");
+                    }
                 }
             }
-            Log.Message(sb.ToString());
+            if (changed)
+            {
+                Log.Message(sb.ToString());
+            }
+
         }
 
-        private Type GetTypeInDomain(string typeName){
-            if(typeName == null) return null;
-            return Domain.GetAssemblies().SelectMany(assembly => assembly.GetTypes()).FirstOrDefault(type => type.FullName == typeName);
+        private bool GetTypeInDomain(string typeName, out Type newType)
+        {
+            newType = null;
+            if (typeName == null) return false;
+            newType = Domain.GetAssemblies().SelectMany(assembly => assembly.GetTypes()).FirstOrDefault(type => type.FullName == typeName);
+            return newType != null;
         }
     }
 }
