@@ -1,5 +1,5 @@
 <Objects>
-    <TestClass>
+    <TestCls>
         <Name>TestObject</Name>
         <Position>(1,2,3)</Position>
         <Rotation>(0.8,0.8,0.8,0.8)</Rotation>
@@ -22,13 +22,16 @@
                 <Name>Recursive obj</Name>
             </RecursiveClass>
         </RecursiveClass>
-    </TestClass>
+        <TestDictionary>
+            <Mathf>1</Mathf>
+        </TestDictionary>
+    </TestCls>
 
-    <TestClass>
+    <TestCls>
         <Name>MissingContent</Name>
-    </TestClass>
+    </TestCls>
 
-    <TestClass Class="TestClassChild">
+    <TestCls Class="TestClassChild">
         <Name>TestObject2</Name>
         <Position>(17,21,33)</Position>
         <Rotation>(0.8,0.5,0.8,0.8)</Rotation>
@@ -54,7 +57,7 @@
                 <Value>13</Value>
             </li>
         </DataList>
-    </TestClass>
+    </TestCls>
 
 
 </Objects>

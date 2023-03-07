@@ -42,7 +42,6 @@ namespace Vocore.Test
     {
         public static string TEXT_BENCHMARK = "Benchmark: ";
         public static string TEXT_TIME_COST = "Time cost: ";
-        public static string TAB_SPACE = "   ";
 
         private static int _counterFailed = 0;
         private static int _counterSuccess = 0;
@@ -66,31 +65,6 @@ namespace Vocore.Test
         {
             if (_counterFailed > 0) PrintRed("Failed: " + _counterFailed);
             if (_counterSuccess > 0) PrintGreen("Success: " + _counterSuccess);
-        }
-
-        public static string DumpToString(this object obj, string prefix = "", int recursion = 2)
-        {
-            if (recursion < 0)
-            {
-                return "...";
-            }
-
-            if (obj == null)
-            {
-                return "null";
-            }
-
-            //iterate through all field of obj
-            StringBuilder sb = new StringBuilder();
-            foreach (FieldInfo field in obj.GetType().GetFields())
-            {
-                sb.Append(prefix + field.Name + ": " + field.GetValue(obj) + "\n");
-                // if (field.GetType()!=typeof(string)&&field.GetType().IsClass)
-                // {
-                //     sb.Append(DumpToString(field.GetValue(obj), prefix + TAB_SPACE, recursion - 1) + "\n");
-                // }
-            }
-            return sb.ToString();
         }
 
 

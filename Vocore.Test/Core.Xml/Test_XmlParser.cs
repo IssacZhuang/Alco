@@ -29,7 +29,7 @@ namespace Vocore.Test
     //     <TestBool>True</TestBool>
     //     <TestEnum>Secondary</TestEnum>
     // </TestClass>
-    public class TestClass
+    public class TestCls
     {
         public string Name;
         public Vector3 Position;
@@ -42,10 +42,11 @@ namespace Vocore.Test
         public TestEnum TestEnum;
         public InnerDataClass InnerData;
         public TestStruct TestStruct;
-        public TestClass RecursiveClass;
+        public TestCls RecursiveClass;
+        public Dictionary<Type, int> TestDictionary;
     }
 
-    public class TestClassChild : TestClass
+    public class TestClassChild : TestCls
     {
         public string ChildName;
         public List<int> IntList;
@@ -106,13 +107,13 @@ namespace Vocore.Test
                     xmlDoc.Load(reader);
                     string formattedXml = xmlDoc.InnerXml;
 
-                    string xPath = "Objects/TestClass[Name = 'TestObject']";
+                    string xPath = "Objects/TestCls[Name = 'TestObject']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
                     TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
 
                     // parse xml content
-                    TestClass testClass = xmlNode.ParseToObject("Vocore.Test") as TestClass;
+                    TestCls testClass = xmlNode.ParseToObject() as TestCls;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
@@ -130,7 +131,7 @@ namespace Vocore.Test
 
 
 
-                    TestUtility.PrintBlue(TestUtility.DumpToString(testClass));
+                    TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
@@ -154,13 +155,13 @@ namespace Vocore.Test
                     xmlDoc.Load(reader);
                     string formattedXml = xmlDoc.InnerXml;
 
-                    string xPath = "Objects/TestClass[Name = 'MissingContent']";
+                    string xPath = "Objects/TestCls[Name = 'MissingContent']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
                     TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
 
                     // parse xml content
-                    TestClass testClass = xmlNode.ParseToObject("Vocore.Test") as TestClass;
+                    TestCls testClass = xmlNode.ParseToObject() as TestCls;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
@@ -176,7 +177,7 @@ namespace Vocore.Test
                         return;
                     }
 
-                    TestUtility.PrintBlue(TestUtility.DumpToString(testClass));
+                    TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
@@ -200,13 +201,13 @@ namespace Vocore.Test
                     xmlDoc.Load(reader);
                     string formattedXml = xmlDoc.InnerXml;
 
-                    string xPath = "Objects/TestClass[Name = 'TestObject2']";
+                    string xPath = "Objects/TestCls[Name = 'TestObject2']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
                     TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClassChild"));
 
                     // parse xml content
-                    TestClassChild testClass = xmlNode.ParseToObject("Vocore.Test") as TestClassChild;
+                    TestClassChild testClass = xmlNode.ParseToObject() as TestClassChild;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
@@ -222,7 +223,7 @@ namespace Vocore.Test
                         return;
                     }
 
-                    TestUtility.PrintBlue(TestUtility.DumpToString(testClass));
+                    TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
