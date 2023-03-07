@@ -43,6 +43,7 @@ namespace Vocore.Serialization
             RegisterParser<Quaternion>(str => str.ToQuaternion());
             RegisterParser<Color>(str => str.ToColor());
             RegisterParser<Rect>(str => str.ToRect());
+            RegisterParser<Type>(str =>str.ToType());
         }
 
         /// <summary>
@@ -99,7 +100,7 @@ namespace Vocore.Serialization
             if (HasParser(type))
             {
                 result = _parser[type](str);
-                return true;
+                return result != null;
             }
             result = null;
             return false;

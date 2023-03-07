@@ -6,7 +6,7 @@
     <ProjectGuid>{D5355234-0E7B-4740-868F-B42B8773523F}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Vocore.Serialization"</RootNamespace>
+    <RootNamespace>Vocore.Serialization</RootNamespace>
     <AssemblyName>Vocore.Serialization</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -53,6 +53,7 @@
     <Compile Include="Utility\UtilsParse.cs" />
     <Compile Include="Utility\UtilsColor.cs" />
     <Compile Include="Utility\UtilsType.cs" />
+    <Compile Include="Utility\UtilsLog.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

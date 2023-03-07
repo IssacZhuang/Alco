@@ -63,6 +63,11 @@ namespace Vocore.Serialization
             return result;
         }
 
+        public static object CreateDictionaty(Type keyType, Type valueType)
+        {
+            return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType));
+        }
+
         /// <summary>
         /// Get the type from all loaded assemblies.
         /// </summary>
@@ -72,42 +77,44 @@ namespace Vocore.Serialization
             {
                 return type;
             }
-            
-            type = Type.GetType(typeName);
+            //var types = Assembly.GetExecutingAssembly().GetTypes().AsParallel().Where(t => t.Name == typeName || t.FullName == typeName);
+
+            // if(types.Count()>1){
+            //     string error = "Duplicated types found for " + typeName + " : ";
+
+            //     foreach (var item in types)
+            //     {
+            //         error += item.FullName + ", ";
+            //     }
+            //     throw new Exception(error);
+            // }
+
+            // type = types.FirstOrDefault();
+            // if (type != null)
+            // {
+            //     AddTypeCache(typeName, type);
+            //     return type;
+            // }
+
+
+            AppDomain appDomain = AppDomain.CurrentDomain;
+            var types = appDomain.GetAssemblies().SelectMany<Assembly, Type>((Assembly asm)=>asm.GetTypes()).AsParallel().Where(t => t.Name == typeName || t.FullName == typeName);
+
+            if(types.Count()>1){
+                string error = "Duplicated types found for " + typeName + " : ";
+
+                foreach (var item in types)
+                {
+                    error += item.FullName + ", ";
+                }
+                throw new Exception(error);
+            }
+
+            type = types.FirstOrDefault();
             if (type != null)
             {
                 AddTypeCache(typeName, type);
                 return type;
-            }
-
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                type = assembly.GetType(typeName);
-                if (type != null)
-                {
-                    _typeCache.Add(typeName, type);
-                    return type;
-                }
-            }
-
-            return null;
-        }
-
-        public static Type GetTypeFromAllAssemblies(string typeName, string defaultNamespace)
-        {
-            Type type = GetTypeFromAllAssemblies(typeName);
-            if (type != null)
-            {
-                return type;
-            }
-
-            if (defaultNamespace != null)
-            {
-                type = GetTypeFromAllAssemblies(defaultNamespace + "." + typeName);
-                if (type != null)
-                {
-                    return type;
-                }
             }
 
             return null;
