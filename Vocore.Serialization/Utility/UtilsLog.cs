@@ -55,6 +55,13 @@ namespace Vocore.Serialization
                 return sb.ToString();
             }
 
+            if (type.IsEnum)
+            {
+                sb.Append(((Enum)obj).ToStringMultiple());
+                sb.AppendLine();
+                return sb.ToString();
+            }
+
             if (obj is string str)
             {
                 sb.Append(str.Replace("\n", "\\n"));
@@ -82,7 +89,24 @@ namespace Vocore.Serialization
             sb.AppendLine();
             return sb.ToString();
         }
+
+        public static string ToStringMultiple(this Enum e)
+        {
+            string[] names = Enum.GetNames(e.GetType());
+            Array values = Enum.GetValues(e.GetType());
+            string result = "";
+            for (int i = 0; i < names.Length; i++)
+            {
+                if (e.HasFlag((Enum)values.GetValue(i)))
+                {
+                    result += names[i] + ", ";
+                }
+            }
+            return result == "" ? "#None" : result;
+        }
     }
+
+
 }
 
 

@@ -10,11 +10,11 @@ using UnityEngine;
 
 namespace Vocore.Test
 {
-    public enum TestEnum
+    public enum TestEnum:int
     {
-        Primary,
-        Secondary,
-        Tertiary
+        Primary=1,
+        Secondary=2,
+        Tertiary=4
     }
 
     // refer to xml
@@ -81,6 +81,10 @@ namespace Vocore.Test
         {
             //load xml file from current assembly
             Assembly currentAssembly = Assembly.GetExecutingAssembly();
+
+            TestEnum e = TestEnum.Primary|TestEnum.Secondary;
+
+            TestUtility.PrintBlue("TestEnum: " + (e|TestEnum.Tertiary));
 
             //iterate all file in current assembly
             foreach (var fileName in currentAssembly.GetManifestResourceNames())

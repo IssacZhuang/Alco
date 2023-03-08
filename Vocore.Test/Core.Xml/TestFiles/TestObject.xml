@@ -8,7 +8,7 @@
         <TestFloat>1.1</TestFloat>
         <TestString>TestString\\n aaa</TestString>
         <TestBool>True</TestBool>
-        <TestEnum>Secondary</TestEnum>
+        <TestEnum>Primary,Secondary</TestEnum>
         <InnerData>
             <Key>this is a key</Key>
             <Value>12</Value>

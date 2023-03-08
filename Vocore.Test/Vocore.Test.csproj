@@ -127,6 +127,7 @@
     <Folder Include="Properties\CSharp\" />
     <Compile Include="Core\Test_StaticHashObject.cs" />
     <Compile Include="GeneralPerformanceTest\Playground.cs" />
+    <Compile Include="Core.Collection\Test_Pool.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
