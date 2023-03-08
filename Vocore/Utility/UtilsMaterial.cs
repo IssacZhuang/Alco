@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public static class MaterialUtility
+    public static class UtilsMaterial
     {
         public static Material CreateMaterial(Shader shader, bool instanced = false)
         {

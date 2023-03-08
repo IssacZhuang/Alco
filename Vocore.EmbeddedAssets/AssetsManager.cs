@@ -93,7 +93,7 @@ namespace Vocore.EmbeddedAssets
                 return _materials[i];
             }
 
-            Material result = MaterialUtility.CreateMaterial(shader, true);
+            Material result = UtilsMaterial.CreateMaterial(shader, true);
             result.mainTexture = texture;
             result.SetVector(ShaderPropertyID.splits, splits);
             result.SetFloat(ShaderPropertyID.lightIntensity,lightIntensity);

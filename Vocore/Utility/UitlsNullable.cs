@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Vocore
 {
-    public static class NullableUtility
+    public static class UitlsNullable
     {
         public static bool IsNullOrEmpty<T>(this IEnumerable<T> list)
         {

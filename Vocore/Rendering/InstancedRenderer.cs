@@ -63,7 +63,7 @@ namespace Vocore
             _propertyBlock = new MaterialPropertyBlock();
 
             Mesh = mesh;
-            Material = MaterialUtility.CreateMaterial(shader, true);
+            Material = UtilsMaterial.CreateMaterial(shader, true);
         }
 
         public void Draw(int count)

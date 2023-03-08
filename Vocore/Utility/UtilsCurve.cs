@@ -2,7 +2,7 @@ using System;
 
 namespace Vocore
 {
-    public class CurveUtility
+    public class UtilsCurve
     {
         const int NEWTON_ITERATIONS = 4;
         const float NEWTON_MIN_SLOPE = 0.001f;

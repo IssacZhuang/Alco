@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public static class VectorUtility
+    public static class UtilsVector
     {
         /// <summary>
         /// Projects a Vector 3 to a plane face to axis X.
