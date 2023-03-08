@@ -23,6 +23,50 @@ namespace MuzzleFlash
             map.GetComponent<MapComponent_MuzzleFlashManager>().RegisterEntity(entity);
         }
 
+        /// <summary>
+        /// Spawn muzzle flash based on the given verb and custom barrel index
+        /// </summary>
+        public static void SpawnMuzzleFlashByVerbIndex(this Verb verb, int index)
+        {
+            Thing caster = verb.Caster;
+            if (caster == null) return;
+            if (!(verb.DirectOwner is ThingComp)) return;
+
+            Thing equipment = verb.EquipmentSource;
+
+            if (equipment == null) return;
+
+            if (!MuzzleFlashUtility.MuzzleFlashAvailable(verb)) return;
+
+            MuzzleFlashProps primary = null;
+            MuzzleFlashProps secondary = null;
+            equipment?.def?.GetMuzzleFlashProps(out primary, out secondary);
+
+            MuzzleFlashProps muzzleProps = verb.IsPrimaryVerb() ? primary : secondary;
+            if (muzzleProps == null || muzzleProps.offsets == null || muzzleProps.offsets.NullOrEmpty()) return;
+
+            Vector3 targetPosition = verb.CurrentTarget.CenterVector3;
+            Vector3 sourcePostion = caster.DrawPos;
+            Vector3 direction = (targetPosition - sourcePostion);
+            Vector3 drawPos;
+
+            if (verb.CasterIsPawn && !muzzleProps.useCenterAsRootPosition)
+            {
+                drawPos = WeaponPositionCache.GetDrawPos(equipment);
+            }
+            else
+            {
+                drawPos = sourcePostion;
+            }
+            direction.y = 0;
+            direction.Normalize();
+
+
+            index = index % muzzleProps.offsets.Count;
+            MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize);
+        }
+
+
         public static float GetFlipped(float aimAngle)
         {
             if (aimAngle > 200f && aimAngle < 340f)
