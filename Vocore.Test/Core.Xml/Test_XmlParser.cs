@@ -97,6 +97,7 @@ namespace Vocore.Test
 
             string path = "Vocore.Test.Core.Xml.TestFiles.TestObject.xml";
 
+            UtilsType.AddDefaultNamespace("Vocore.Test");
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
             {
@@ -145,6 +146,7 @@ namespace Vocore.Test
 
             string path = "Vocore.Test.Core.Xml.TestFiles.TestObject.xml";
 
+            UtilsType.AddDefaultNamespace("Vocore.Test");
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
             {
@@ -191,6 +193,7 @@ namespace Vocore.Test
 
             string path = "Vocore.Test.Core.Xml.TestFiles.TestObject.xml";
 
+            UtilsType.AddDefaultNamespace("Vocore.Test");
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
             {

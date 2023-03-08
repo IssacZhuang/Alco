@@ -14,6 +14,12 @@ namespace Vocore.Serialization
         private static Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
         private static object _lockTypeCache = new object();
 
+        private static List<string> defaultNamespaces = new List<string>{
+            "Vocore",
+            "System"
+        };
+        private static object _lockDefaultNamespaces = new object();
+
         /// <summary>
         /// Check if a type is a generic type of another type.
         /// </summary>
@@ -37,22 +43,23 @@ namespace Vocore.Serialization
         /// Check if a type is a list.
         /// </summary>
         public static bool IsList(this Type type)
-		{
-			bool result;
-			if (_isListCache.TryGetValue(type, out result))
-			{
-				return result;
-			}
-		    result = IsGenericTypeOf(type, typeof(List<>));
-			AddIsListCache(type, result);
-			return result;
-		}
+        {
+            bool result;
+            if (_isListCache.TryGetValue(type, out result))
+            {
+                return result;
+            }
+            result = IsGenericTypeOf(type, typeof(List<>));
+            AddIsListCache(type, result);
+            return result;
+        }
 
 
         /// <summary>
         /// Check if a type is a dictionary.
         /// </summary>
-        public static bool IsDictionary(this Type type){
+        public static bool IsDictionary(this Type type)
+        {
             bool result;
             if (_isDictionaryCache.TryGetValue(type, out result))
             {
@@ -73,34 +80,16 @@ namespace Vocore.Serialization
         /// </summary>
         public static Type GetTypeFromAllAssemblies(string typeName)
         {
-            if(_typeCache.TryGetValue(typeName, out Type type))
+            if (_typeCache.TryGetValue(typeName, out Type type))
             {
                 return type;
             }
-            //var types = Assembly.GetExecutingAssembly().GetTypes().AsParallel().Where(t => t.Name == typeName || t.FullName == typeName);
-
-            // if(types.Count()>1){
-            //     string error = "Duplicated types found for " + typeName + " : ";
-
-            //     foreach (var item in types)
-            //     {
-            //         error += item.FullName + ", ";
-            //     }
-            //     throw new Exception(error);
-            // }
-
-            // type = types.FirstOrDefault();
-            // if (type != null)
-            // {
-            //     AddTypeCache(typeName, type);
-            //     return type;
-            // }
-
 
             AppDomain appDomain = AppDomain.CurrentDomain;
-            var types = appDomain.GetAssemblies().SelectMany<Assembly, Type>((Assembly asm)=>asm.GetTypes()).AsParallel().Where(t => t.Name == typeName || t.FullName == typeName);
+            var types = appDomain.GetAssemblies().SelectMany<Assembly, Type>((Assembly asm) => asm.GetTypes()).AsParallel().Where(t => t.FullName == typeName || (t.Name == typeName && defaultNamespaces.Contains(t.Namespace)));
 
-            if(types.Count()>1){
+            if (types.Count() > 1)
+            {
                 string error = "Duplicated types found for " + typeName + " : ";
 
                 foreach (var item in types)
@@ -120,6 +109,19 @@ namespace Vocore.Serialization
             return null;
         }
 
+        public static bool AddDefaultNamespace(string nameSpace)
+        {
+            lock (_lockDefaultNamespaces)
+            {
+                if (!defaultNamespaces.Contains(nameSpace))
+                {
+                    defaultNamespaces.Add(nameSpace);
+                    return true;
+                }
+            }
+            return false;
+        }
+
 
         public static void ClearCache()
         {
@@ -134,6 +136,13 @@ namespace Vocore.Serialization
             lock (_lockTypeCache)
             {
                 _typeCache.Clear();
+            }
+            lock (_lockDefaultNamespaces)
+            {
+                defaultNamespaces = new List<string>{
+                    "Vocore",
+                    "System"
+                };
             }
         }
 
