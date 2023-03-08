@@ -50,7 +50,7 @@ namespace MuzzleFlash.Patch
 
             if (muzzleProps.isAlternately)
             {
-                int index = __instance.verbProps.burstShotCount == 1 ? Rand.Range(0, muzzleProps.offsets.Count) : ___burstShotsLeft % muzzleProps.offsets.Count;
+                int index = __instance.verbProps.burstShotCount == 1? Rand.Range(0,muzzleProps.offsets.Count): ___burstShotsLeft % muzzleProps.offsets.Count;
                 MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize);
             }
             else
