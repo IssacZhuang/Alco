@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using Verse;
 using Vocore;
-using Vocore.AssetsLib;
+using Vocore.EmbeddedAssets;
 using UnityEngine;
 using RimWorld.Planet;
 

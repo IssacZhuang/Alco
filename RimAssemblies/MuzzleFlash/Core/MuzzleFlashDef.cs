@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Verse;
 using UnityEngine;
 using UnityEngine.Rendering;
-using Vocore.AssetsLib;
+using Vocore.EmbeddedAssets;
 
 namespace MuzzleFlash
 {
@@ -50,8 +50,8 @@ namespace MuzzleFlash
 
         public void InitializeMaterial()
         {
-            Shader shader = AnimatedShaderPool.Default.AnimatedInstanced;
-            Material mat = AnimatedMaterialPool.Default.GetMaterial(shader, Texture, splits, lightIntensity);
+            Shader shader = AssetsManager.Default.ShaderAnimatedInstanced;
+            Material mat = AssetsManager.Default.GetMaterial(shader, Texture, splits, lightIntensity);
             mat.renderQueue = (int)RenderQueue.Transparent + 200;
             _renderID = AnimatedRenderManager.Default.GetRendererID(MeshPool.plane10, mat);
         }

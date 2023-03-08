@@ -6,7 +6,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore", "Vocore\Vocore.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Test", "Vocore.Test\Vocore.Test.csproj", "{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.AssetsLib", "Vocore.AssetsLib\Vocore.AssetsLib.csproj", "{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.EmbeddedAssets", "Vocore.EmbeddedAssets\Vocore.EmbeddedAssets.csproj", "{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Rimworld", "Rimworld", "{62F122EE-C72F-490D-9731-16B71D743775}"
 EndProject

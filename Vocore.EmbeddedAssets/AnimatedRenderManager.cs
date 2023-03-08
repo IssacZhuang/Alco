@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Vocore.AssetsLib
+namespace Vocore.EmbeddedAssets
 {
     public class AnimatedRenderManager : BaseInstancedRenderManager<AnimatedRenderQueue>
     {

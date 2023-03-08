@@ -8,7 +8,7 @@ using Verse;
 using RimWorld;
 using UnityEngine;
 
-using Vocore.AssetsLib;
+using Vocore.EmbeddedAssets;
 
 namespace MuzzleFlash
 {
@@ -19,14 +19,11 @@ namespace MuzzleFlash
         {
             LongEventHandler.QueueLongEvent(() =>
             {
-                foreach (AssetBundle asset in content.assetBundles.loadedAssetBundles)
-                {
-                    AnimatedShaderPool.Default.LoadAssetBundle(asset);
-                }
+                AssetsManager.Default.Initialize();
 
-                foreach(var shaderName in AnimatedShaderPool.Default.GetShaderNames())
+                foreach(var shaderName in AssetsManager.Default.GetShaderNames())
                 {
-                    Log.Message("[Muzzle Flash] Custom shader loaded: "+ shaderName);
+                    Log.Message("[Muzzle Flash] Shader loaded from Vocore: "+ shaderName);
                 }
 
             }, "MF_LoadingShaders", false, null, true);

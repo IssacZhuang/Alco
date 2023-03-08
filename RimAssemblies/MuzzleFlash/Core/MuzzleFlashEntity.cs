@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using UnityEngine;
 using Verse;
-using Vocore.AssetsLib;
+using Vocore.EmbeddedAssets;
 
 namespace MuzzleFlash
 {

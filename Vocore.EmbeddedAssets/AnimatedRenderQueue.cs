@@ -7,7 +7,7 @@ using UnityEngine;
 
 using Vocore;
 
-namespace Vocore.AssetsLib
+namespace Vocore.EmbeddedAssets
 {
     public class AnimatedRenderQueue : InstancedRenderQueue
     {

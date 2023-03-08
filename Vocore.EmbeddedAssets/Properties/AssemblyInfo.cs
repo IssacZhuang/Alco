@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("Vocore.AssetsLib")]
+[assembly: AssemblyTitle("Vocore.EmbeddedAssets")]
 [assembly: AssemblyDescription("The library to control some Unity assets.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("IssacZhuang")]
-[assembly: AssemblyProduct("Vocore.AssetsLib")]
+[assembly: AssemblyProduct("Vocore.EmbeddedAssets")]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
