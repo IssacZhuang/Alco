@@ -32,6 +32,8 @@ namespace MuzzleFlash.Patch
             MuzzleFlashProps muzzleProps = __instance.IsPrimaryVerb() ? primary : secondary;
             if (muzzleProps == null || muzzleProps.offsets == null || muzzleProps.offsets.NullOrEmpty()) return;
 
+            if ((muzzleProps.type & WeaponMode.NoPatch) != 0) return;
+
             Vector3 targetPosition = __instance.CurrentTarget.CenterVector3;
             Vector3 sourcePostion = caster.DrawPos;
             Vector3 direction = (targetPosition - sourcePostion);
@@ -50,7 +52,7 @@ namespace MuzzleFlash.Patch
 
             if (muzzleProps.isAlternately)
             {
-                int index = __instance.verbProps.burstShotCount == 1? Rand.Range(0,muzzleProps.offsets.Count): ___burstShotsLeft % muzzleProps.offsets.Count;
+                int index = __instance.verbProps.burstShotCount == 1 ? Rand.Range(0, muzzleProps.offsets.Count) : ___burstShotsLeft % muzzleProps.offsets.Count;
                 MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize);
             }
             else

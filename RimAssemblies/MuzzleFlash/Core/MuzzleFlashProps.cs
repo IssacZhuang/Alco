@@ -9,9 +9,11 @@ using UnityEngine;
 
 namespace MuzzleFlash
 {
-    public enum WeaponMode {
+    public enum WeaponMode : int
+    {
         Primary = 1,
         Secondary = 2,
+        NoPatch = 4
     }
 
     public class MuzzleFlashProps : DefModExtension
