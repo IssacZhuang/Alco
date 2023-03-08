@@ -61,11 +61,14 @@ namespace Vocore
             return x;
         }
 
-        public static Func<float, float> GenerateBizerCurve(float mX1, float mY1, float mX2, float mY2)
+        /// <summary>
+        /// Generate a Bizer curve function that is used for the t value of lerp.
+        /// </summary>
+        public static Func<float, float> GenerateBizerLerpCurve(float mX1, float mY1, float mX2, float mY2)
         {
             if (!(0 <= mX1 && mX1 <= 1 && 0 <= mX2 && mX2 <= 1))
             {
-                throw new Exception("贝赛尔曲线的 x 值要在 [0, 1] 范围内");
+                throw new Exception("the value of the x must be in [0, 1]");
             }
             if (mX1 == mY1 && mX2 == mY2)
             {
