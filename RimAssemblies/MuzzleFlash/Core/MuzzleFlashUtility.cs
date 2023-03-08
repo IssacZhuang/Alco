@@ -82,7 +82,8 @@ namespace MuzzleFlash
             return verb.EquipmentCompSource?.PrimaryVerb == verb;
         }
 
-        public static bool IsPrimaryVerb(this Verb verb){
+        public static bool IsPrimaryVerb(this Verb verb)
+        {
             if (verb == null) return false;
             return verb.EquipmentCompSource?.parent?.def?.Verbs?.FirstOrDefault() == verb.verbProps;
         }
@@ -93,24 +94,24 @@ namespace MuzzleFlash
             senconday = null;
             if (def == null) return;
             if (def.modExtensions == null)
-			{
-				return;
-			}
-			for (int i = 0; i < def.modExtensions.Count; i++)
-			{
-				if (!(def.modExtensions[i] is MuzzleFlashProps props))
-				{
-					continue;
-				}
-                if((props.type & WeaponMode.Primary) != 0)
+            {
+                return;
+            }
+            for (int i = 0; i < def.modExtensions.Count; i++)
+            {
+                if (!(def.modExtensions[i] is MuzzleFlashProps props))
+                {
+                    continue;
+                }
+                if (props.type.HasFlag(WeaponMode.Primary))
                 {
                     primary = props;
                 }
-                else if((props.type & WeaponMode.Secondary) != 0)
+                else if (props.type.HasFlag(WeaponMode.Secondary))
                 {
                     senconday = props;
                 }
-			}
+            }
 
         }
     }

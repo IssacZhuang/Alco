@@ -32,7 +32,7 @@ namespace MuzzleFlash.Patch
             MuzzleFlashProps muzzleProps = __instance.IsPrimaryVerb() ? primary : secondary;
             if (muzzleProps == null || muzzleProps.offsets == null || muzzleProps.offsets.NullOrEmpty()) return;
 
-            if ((muzzleProps.type & WeaponMode.NoPatch) != 0) return;
+            if (muzzleProps.type.HasFlag(WeaponMode.NoPatch)) return;
 
             Vector3 targetPosition = __instance.CurrentTarget.CenterVector3;
             Vector3 sourcePostion = caster.DrawPos;
