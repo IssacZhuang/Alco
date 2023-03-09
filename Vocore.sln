@@ -34,6 +34,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyHotReload", "RimAss
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuzzleFlashInvoker", "RimAssemblies\MuzzleFlashInvoker\MuzzleFlashInvoker.csproj", "{B373174E-FB00-4BEE-9E1E-899186E278BE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Atlas", "Vocore.Atlas\Vocore.Atlas.csproj", "{39006A0D-1211-4EC2-BD9E-93D292B12136}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,6 +82,10 @@ Global
 		{B373174E-FB00-4BEE-9E1E-899186E278BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B373174E-FB00-4BEE-9E1E-899186E278BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B373174E-FB00-4BEE-9E1E-899186E278BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39006A0D-1211-4EC2-BD9E-93D292B12136}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39006A0D-1211-4EC2-BD9E-93D292B12136}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39006A0D-1211-4EC2-BD9E-93D292B12136}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39006A0D-1211-4EC2-BD9E-93D292B12136}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -95,6 +101,7 @@ Global
 		{D5355234-0E7B-4740-868F-B42B8773523F} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 		{08E144E7-4B44-417C-855D-BB27F9A2078B} = {62F122EE-C72F-490D-9731-16B71D743775}
 		{B373174E-FB00-4BEE-9E1E-899186E278BE} = {62F122EE-C72F-490D-9731-16B71D743775}
+		{39006A0D-1211-4EC2-BD9E-93D292B12136} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E325C963-E46F-4BB6-9A6D-6DF0D8EE048F}
