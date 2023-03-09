@@ -24,5 +24,6 @@ namespace MuzzleFlash
         public List<Vector2> offsets;
         public bool isAlternately;
         public bool useCenterAsRootPosition = false;
+        public bool useFlipped = true;
     }
 }

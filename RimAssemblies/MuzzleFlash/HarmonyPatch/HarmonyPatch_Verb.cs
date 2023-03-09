@@ -53,13 +53,13 @@ namespace MuzzleFlash.Patch
             if (muzzleProps.isAlternately)
             {
                 int index = __instance.verbProps.burstShotCount == 1 ? Rand.Range(0, muzzleProps.offsets.Count) : ___burstShotsLeft % muzzleProps.offsets.Count;
-                MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize);
+                MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize, muzzleProps.useFlipped);
             }
             else
             {
                 for (int i = 0; i < muzzleProps.offsets.Count; i++)
                 {
-                    MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[i], direction, muzzleProps.drawSize);
+                    MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[i], direction, muzzleProps.drawSize, muzzleProps.useFlipped);
                 }
             }
         }

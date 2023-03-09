@@ -11,11 +11,19 @@ namespace MuzzleFlash
 {
     public static class MuzzleFlashUtility
     {
-        public static void SpawnMuzzleFlash(this Map map, MuzzleFlashDef def, Vector3 drawLoc, Vector3 offset, Vector3 direction, Vector2 drawSize)
+        public static void SpawnMuzzleFlash(this Map map, MuzzleFlashDef def, Vector3 drawLoc, Vector3 offset, Vector3 direction, Vector2 drawSize, bool useFlipped = true)
         {
             float angle = direction.AngleFlat();
 
-            Vector3 drawPos = drawLoc + direction * (offset.x + drawSize.x * def.drawOffsetMultiplier.x) + Vector3.Cross(direction, Vector3.up).normalized * offset.y * MuzzleFlashUtility.GetFlipped(angle);
+            Vector3 offsetY = Vector3.Cross(direction, Vector3.up).normalized * offset.y;
+
+            if (useFlipped)
+            {
+                offsetY *= MuzzleFlashUtility.GetFlipped(angle);
+            }
+
+            Vector3 drawPos = drawLoc + direction * (offset.x + drawSize.x * def.drawOffsetMultiplier.x) + offsetY;
+
             drawPos.y = AltitudeLayer.VisEffects.AltitudeFor();
 
             MuzzleFlashEntity entity = new MuzzleFlashEntity(def, drawPos, angle, drawSize);
@@ -26,7 +34,7 @@ namespace MuzzleFlash
         /// <summary>
         /// Spawn muzzle flash based on the given verb and custom barrel index
         /// </summary>
-        public static void SpawnMuzzleFlashByVerbIndex(this Verb verb, int index)
+        public static void SpawnMuzzleFlashByVerbIndex(this Verb verb, int index, bool useFlipped = true)
         {
             Thing caster = verb.Caster;
             if (caster == null) return;
@@ -63,7 +71,7 @@ namespace MuzzleFlash
 
 
             index = index % muzzleProps.offsets.Count;
-            MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize);
+            MuzzleFlashUtility.SpawnMuzzleFlash(caster.MapHeld, muzzleProps.def, drawPos, muzzleProps.offsets[index], direction, muzzleProps.drawSize, useFlipped);
         }
 
 
