@@ -1,0 +1,10 @@
+{
+    "templates": [
+        {
+            "name": "Class",
+            "extension": "cs",
+            "file": "./class.cs-template",
+            "parameters": "./template-parameters.js"
+        }
+    ]
+}

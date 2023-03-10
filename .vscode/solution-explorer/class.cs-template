@@ -1,0 +1,10 @@
+using System;
+using System.Collections.Generic;
+
+namespace {{namespace}}{
+    public class {{name}}
+    {
+
+    }
+}
+
