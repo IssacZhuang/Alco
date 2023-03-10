@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "./build.bat",
+            "args": [],
+            "group": "build",
+            "presentation": {},
+        },
+        {
+            "label": "test",
+            "type": "shell",
+            "command": "./test.bat",
+            "args": [],
+            "group": "test",
+            "presentation": {},
+        }
+    ]
+}
