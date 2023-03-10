@@ -12,6 +12,10 @@ namespace Vocore.Serialization
     public static class UtilsLog
     {
         public static string TAB_SPACE = "   ";
+
+        /// <summary>
+        /// Dump all field of an object to string
+        /// </summary>
         public static string DumpToString(this object obj, string prefix = "", int recursion = 4)
         {
             if (recursion < 0)
@@ -103,6 +107,9 @@ namespace Vocore.Serialization
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Get multiple values in an enum as string
+        /// </summary>
         public static string ToStringMultiple(this Enum e)
         {
             string[] names = Enum.GetNames(e.GetType());

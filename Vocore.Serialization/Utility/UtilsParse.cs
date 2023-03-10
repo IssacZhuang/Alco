@@ -179,7 +179,7 @@ namespace Vocore.Serialization
 
 
         /// <summary>
-        /// Parse a string to UnityEngine.Vector2
+        /// Parse a string to UnityEngine.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
         /// </summary>
         public static Vector2 ToVector2(this string Str)
         {
@@ -215,7 +215,7 @@ namespace Vocore.Serialization
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Vector3
+        /// Parse a string to UnityEngine.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
         /// </summary>
         public static Vector3 ToVector3(this string Str)
         {
@@ -239,7 +239,7 @@ namespace Vocore.Serialization
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Quaternion
+        /// Parse a string to UnityEngine.Quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
         /// </summary>
         public static Quaternion ToQuaternion(this string Str)
         {
@@ -264,7 +264,7 @@ namespace Vocore.Serialization
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Vector4
+        /// Parse a string to UnityEngine.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
         /// </summary>
         public static Vector4 ToVector4Adaptive(this string Str)
         {
@@ -305,7 +305,7 @@ namespace Vocore.Serialization
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Rect
+        /// Parse a string to UnityEngine.Rect. For example: string "(1,1,1,1)" is Rect(1,1,1,1)
         /// </summary>
         public static Rect ToRect(this string str)
         {

@@ -115,6 +115,10 @@ namespace Vocore.Serialization
             return null;
         }
 
+
+        /// <summary>
+        /// Add a default namespace to search for types. This is used when the type name is not fully qualified.
+        /// </summary>
         public static bool AddDefaultNamespace(string nameSpace)
         {
             lock (_lockDefaultNamespaces)
@@ -128,7 +132,9 @@ namespace Vocore.Serialization
             return false;
         }
 
-
+        /// <summary>
+        /// Clear the cache including the default namespaces, the type cache, the list cache and the dictionary cache.
+        /// </summary>
         public static void ClearCache()
         {
             lock (_lockListCache)

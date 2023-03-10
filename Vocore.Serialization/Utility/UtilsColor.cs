@@ -5,7 +5,9 @@ namespace Vocore.Serialization
 {
     public static class UtilsColor
     {
-        
+        /// <summary>
+		/// Convert bytes to Color. For example: (r:255, g:255, b:255, a:255) is white.
+		/// </summary>
         public static Color FromBytes(int r, int g, int b, int a = 255)
 		{
 			return new Color
@@ -17,6 +19,9 @@ namespace Vocore.Serialization
 			};
 		}
 
+		/// <summary>
+		/// Convert hex string to Color. For example: #FFFFFF is white.
+		/// </summary>
         public static Color ToColorHex(this string hex)
 		{
 			if (hex.StartsWith("#"))

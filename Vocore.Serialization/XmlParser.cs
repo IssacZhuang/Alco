@@ -15,6 +15,9 @@ namespace Vocore.Serialization
         private static List<string> _errors = new List<string>();
         private static object _lock = new object();
 
+        /// <summary>
+        /// Parse a XML node to an object
+        /// </summary>
         public static object ParseToObject(this XmlNode xml)
         {
             if (xml == null)
@@ -73,6 +76,9 @@ namespace Vocore.Serialization
             return ObjectFromXml(typeFinal, xml);
         }
 
+        /// <summary>
+        /// Parse a XML node to an object with a specific type
+        /// </summary>
         public static object ObjectFromXml(Type type, XmlNode xml, int depth = 0)
         {
             if (depth > recursionLimit)
@@ -177,10 +183,8 @@ namespace Vocore.Serialization
                 }
 
                 object result = Activator.CreateInstance(type);
-                //iterate through the fields of the object and parse the xml
                 foreach (FieldInfo field in type.GetFields())
                 {
-                    //get the all xml node that matches the field name
                     XmlNodeList nodes = xml.SelectNodes(field.Name);
                     if (nodes == null || nodes.Count == 0)
                     {
@@ -189,16 +193,13 @@ namespace Vocore.Serialization
 
                     XmlNode node = nodes[0];
 
-                    //remove the node from the unused list
                     nodeUnused.Remove(field.Name);
 
                     Type fieldType = field.FieldType;
-                    //parse the field use UtilsParse
                     object subObj = ObjectFromXml(fieldType, node, depth + 1);
                     field.SetValue(result, subObj);
                 }
 
-                //print unused nodes
                 foreach (XmlNode node in nodeUnused.Values)
                 {
                     AddError("Unused node found: '" + node.Name + "' in type: " + type.Name + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
@@ -209,13 +210,19 @@ namespace Vocore.Serialization
             return null;
         }
 
-        public static T ObjectFromXml<T>(XmlNode xml, int depth)
+
+        /// <summary>
+        /// Parse a XML node to an object with a specific type
+        /// </summary>
+        public static T ObjectFromXml<T>(XmlNode xml)
         {
-            return (T)ObjectFromXml(typeof(T), xml, depth);
+            return (T)ObjectFromXml(typeof(T), xml, 0);
         }
 
 
-
+        /// <summary>
+        /// Get XML text with line breaks
+        /// </summary>
         public static string GetXmlTextFormated(this XmlNode xml)
         {
             if (xml == null)
@@ -225,6 +232,9 @@ namespace Vocore.Serialization
             return xml.OuterXml.Replace("><", ">\n<");
         }
 
+        /// <summary>
+        /// Get all errors during the parsing
+        /// </summary>
         public static IEnumerable<string> GetErrors()
         {
             foreach (string error in _errors)
@@ -233,6 +243,9 @@ namespace Vocore.Serialization
             }
         }
 
+        /// <summary>
+        /// Clear cached errors
+        /// </summary>
         public static void ClearErrors()
         {
             lock (_lock)
