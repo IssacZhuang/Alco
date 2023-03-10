@@ -43,7 +43,7 @@ namespace Vocore.Test
         public InnerDataClass InnerData;
         public TestStruct TestStruct;
         public TestCls RecursiveClass;
-        public Dictionary<Type, int> TestDictionary;
+        public List<KeyValuePair<Type, int>> TestDictionary;
     }
 
     public class TestClassChild : TestCls

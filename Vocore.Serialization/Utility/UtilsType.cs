@@ -7,6 +7,7 @@ namespace Vocore.Serialization
 {
     public static class UtilsType
     {
+
         private static Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
         private static object _lockListCache = new object();
         private static Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
@@ -68,6 +69,11 @@ namespace Vocore.Serialization
             result = IsGenericTypeOf(type, typeof(Dictionary<,>));
             AddIsDictionaryCache(type, result);
             return result;
+        }
+
+        public static object CreateKeyValuePair(Type keyType, Type valueType, object key, object value)
+        {
+            return Activator.CreateInstance(typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType), new object[]{key,value});
         }
 
         public static object CreateDictionaty(Type keyType, Type valueType)

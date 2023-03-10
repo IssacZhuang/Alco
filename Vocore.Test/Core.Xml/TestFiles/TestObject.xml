@@ -24,6 +24,8 @@
         </RecursiveClass>
         <TestDictionary>
             <Math>1</Math>
+            <Math>2</Math>
+            <Math>3</Math>
         </TestDictionary>
     </TestCls>
 

@@ -134,6 +134,19 @@ namespace Vocore.Serialization
                 return dict;
             }
 
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+            {
+                Type[] genericTypes = type.GetGenericArguments();
+                Type keyType = genericTypes[0];
+                Type valueType = genericTypes[1];
+                if (UtilsParse.TryParse(xml.Name, keyType, out Object key))
+                {
+                    object value = ObjectFromXml(valueType, xml, depth + 1);
+                    return UtilsType.CreateKeyValuePair(keyType, valueType, key, value);
+                }
+                AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+            }
+
             if (type.IsEnum)
             {
                 Object objEnum = Enum.Parse(type, xml.InnerText);

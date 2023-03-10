@@ -55,6 +55,19 @@ namespace Vocore.Serialization
                 return sb.ToString();
             }
 
+
+            //obj is key value pair
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+            {
+                
+                sb.Append(prefix);
+                sb.Append("Key: ");
+                sb.Append(type.GetProperty(ConstField.Key).GetValue(obj));
+                sb.Append(", Value: ");
+                sb.Append(DumpToString(type.GetProperty(ConstField.Value).GetValue(obj), prefix + TAB_SPACE, recursion - 1));
+                return sb.ToString();
+            }
+
             if (type.IsEnum)
             {
                 sb.Append(((Enum)obj).ToStringMultiple());

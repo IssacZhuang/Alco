@@ -54,6 +54,7 @@
     <Compile Include="Utility\UtilsColor.cs" />
     <Compile Include="Utility\UtilsType.cs" />
     <Compile Include="Utility\UtilsLog.cs" />
+    <Compile Include="Utility\ConstField.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
