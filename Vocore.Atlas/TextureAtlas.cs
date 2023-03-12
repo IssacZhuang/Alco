@@ -20,7 +20,7 @@ namespace Vocore.Atlas
         {
             get
             {
-                return MaxAtlasSize / 2 * (MaxAtlasSize / 2);
+                return (MaxAtlasSize / 2) * (MaxAtlasSize / 2);
             }
         }
         public static int MaxAtlasSize
