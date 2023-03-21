@@ -62,6 +62,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -100,6 +101,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Vocore.Animation\Vocore.Animation.csproj">
+      <Project>{06e826c1-c72b-4ca9-b009-1a73c80592da}</Project>
+      <Name>Vocore.Animation</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Vocore.Serialization\Vocore.Serialization.csproj">
       <Project>{d5355234-0e7b-4740-868f-b42b8773523f}</Project>
       <Name>Vocore.Serialization</Name>
@@ -124,10 +129,15 @@
     <Compile Include="Core.Xml\Test_XmlParser.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Properties\CSharp\" />
     <Compile Include="Core\Test_StaticHashObject.cs" />
     <Compile Include="GeneralPerformanceTest\Playground.cs" />
     <Compile Include="Core.Collection\Test_Pool.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CurveDrawer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\CSharp\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
