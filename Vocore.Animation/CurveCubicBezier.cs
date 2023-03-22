@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Vocore.Animation
 {
@@ -35,6 +36,22 @@ namespace Vocore.Animation
                 {
                     _mSampleValues[i] = CalcBezier(i * K_SAMPLE_STEP_SIZE, _x1, _x2);
                 }
+            }
+        }
+
+        public int PointsCount
+        {
+            get
+            {
+                return 4;
+            }
+        }
+
+        public IEnumerable<Vector2> Points
+        {
+            get
+            {
+                return new Vector2[] { new Vector2(0, 0), new Vector2(_x1, _y1), new Vector2(_x2, _y2), new Vector2(1, 1) };
             }
         }
 

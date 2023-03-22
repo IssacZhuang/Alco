@@ -48,10 +48,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CurveCubicSpline.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="CurveCubicBezier.cs" />
     <Compile Include="ICurve.cs" />
+    <Compile Include="CurveLinear.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
