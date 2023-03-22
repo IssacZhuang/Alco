@@ -7,6 +7,8 @@ namespace Vocore.Animation
 {
     public class CurveLinear:ICurve
     {
+
+        private List<Vector2> _points = new List<Vector2>();
         public int PointsCount
 		{
 			get
@@ -84,15 +86,6 @@ namespace Vocore.Animation
 			this._points.Sort(CurveLinear.Vector2sComparer);
 		}
 
-		public float ClampToCurve(float value)
-		{
-			if (this._points.Count == 0)
-			{
-				return value;
-			}
-			return Mathf.Clamp(value, this._points[0].y, this._points[this._points.Count - 1].y);
-		}
-
 		public float Evaluate(float x)
 		{
 			if (this._points.Count == 0)
@@ -130,9 +123,6 @@ namespace Vocore.Animation
 			float t = (x - Vector2.x) / (Vector22.x - Vector2.x);
 			return Mathf.Lerp(Vector2.y, Vector22.y, t);
 		}
-
-
-		private List<Vector2> _points = new List<Vector2>();
 
 		private static Comparison<Vector2> Vector2sComparer = delegate(Vector2 a, Vector2 b)
 		{
