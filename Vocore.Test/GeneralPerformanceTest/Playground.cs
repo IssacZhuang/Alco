@@ -9,10 +9,10 @@ namespace Vocore.Test
         public void Test()
         {
             //create a cubic spline curve
-            float[] x = { 0, 1, 2 };
-            float[] y = { 0, 1, 0 };
-            var curve = new CurveLinear(x, y);
-            CurveDrawer.Draw(curve, 0f, 2);
+            float[] x = { 0, 8, 16 };
+            float[] y = { 0, 16, 0 };
+            var curve = new CurveCubicHermite(x, y);
+            CurveDrawer.Draw(curve, 0f, 16);
         }
     }
 

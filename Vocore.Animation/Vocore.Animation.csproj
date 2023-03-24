@@ -52,6 +52,7 @@
     <Compile Include="CurveCubicBezier.cs" />
     <Compile Include="ICurve.cs" />
     <Compile Include="CurveLinear.cs" />
+    <Compile Include="CurveCubicHermite.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
