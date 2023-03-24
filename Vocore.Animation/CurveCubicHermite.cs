@@ -30,7 +30,8 @@ namespace Vocore.Animation
         public CurveCubicHermite(List<Vector2> nodes)
         {
             _points = nodes;
-            _slopes = CalculateSlopes(nodes);
+            SortPoints();
+            RefreshSlopes();
         }
 
         public CurveCubicHermite(float[] x, float[] y)
@@ -40,7 +41,8 @@ namespace Vocore.Animation
             {
                 _points.Add(new Vector2(x[i], y[i]));
             }
-            _slopes = CalculateSlopes(_points);
+            SortPoints();
+            RefreshSlopes();
         }
 
         public float Evaluate(float t)
@@ -77,6 +79,15 @@ namespace Vocore.Animation
             return interpolatedValue;
         }
 
+        public void SortPoints()
+        {
+            _points.Sort((a, b) => a.x.CompareTo(b.x));
+        }
+
+        public void RefreshSlopes()
+        {
+            _slopes = CalculateSlopes(_points);
+        }
 
         private static float[] CalculateSlopes(IList<Vector2> points)
         {

@@ -83,7 +83,7 @@ namespace Vocore.Animation
 
 		public void SortPoints()
 		{
-			this._points.Sort(CurveLinear.Vector2sComparer);
+			this._points.Sort((Vector2 a, Vector2 b) => a.x.CompareTo(b.x));
 		}
 
 		public float Evaluate(float x)
@@ -123,19 +123,6 @@ namespace Vocore.Animation
 			float t = (x - Vector2.x) / (Vector22.x - Vector2.x);
 			return Mathf.Lerp(Vector2.y, Vector22.y, t);
 		}
-
-		private static Comparison<Vector2> Vector2sComparer = delegate(Vector2 a, Vector2 b)
-		{
-			if (a.x < b.x)
-			{
-				return -1;
-			}
-			if (b.x < a.x)
-			{
-				return 1;
-			}
-			return 0;
-		};
     }
 }
 
