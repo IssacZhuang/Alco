@@ -45,6 +45,7 @@ namespace Vocore.Animation
 
         public float Evaluate(float t)
         {
+            t = Mathf.Clamp(t, _points[0].x, _points[_points.Count - 1].x);
             int index = 0;
             int count = _points.Count;
 
