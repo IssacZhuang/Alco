@@ -50,10 +50,11 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ICurve.cs" />
-    <Compile Include="Curve\CurveLinear.cs" />
-    <Compile Include="Curve\CurveCubicHermite.cs" />
+    <Compile Include="CurveBase\CurveLinear.cs" />
+    <Compile Include="CurveBase\CurveCubicHermite.cs" />
     <Compile Include="KeyFrame.cs" />
     <Compile Include="Cache\CurveCache.cs" />
+    <Compile Include="CurveMulti\Curve2D.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
