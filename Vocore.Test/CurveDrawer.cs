@@ -10,6 +10,10 @@ namespace Vocore.Test
 {
     public class CurveDrawer
     {
+        public static void Draw(ICurve curve, int bitmapHeight = 512, float step = 0.01f, float penWidth = 3, int borderMargin = 10){
+            Draw(curve, curve.Points[0].t, curve.Points[curve.PointsCount - 1].t, bitmapHeight, step, penWidth, borderMargin);
+        }
+
 
         public static void Draw(ICurve curve, float startX, float endX, int bitmapHeight = 512, float step = 0.01f, float penWidth = 3, int borderMargin = 10)
         {
@@ -52,7 +56,7 @@ namespace Vocore.Test
             //draw points
             foreach (var point in curve.Points)
             {
-                g.DrawEllipse(penPoint, borderMargin + point.x * scale - penWidth, height - borderMargin - point.y * scale - penWidth, penWidth * 2, penWidth * 2);
+                g.DrawEllipse(penPoint, borderMargin + point.t * scale - penWidth, height - borderMargin - point.value * scale - penWidth, penWidth * 2, penWidth * 2);
             }
 
             bmp.Save("curve.png", ImageFormat.Png);
