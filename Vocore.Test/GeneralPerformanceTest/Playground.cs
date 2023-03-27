@@ -12,7 +12,9 @@ namespace Vocore.Test
             float[] x = { 0, 8, 16 };
             float[] y = { 0, 16, 0 };
             var curve = new CurveCubicHermite(x, y);
-            CurveDrawer.Draw(curve, 0f, 16);
+            TestUtility.PrintBlue(curve.Evaluate(18));
+            var curveCached = new CurveCache(curve,1);
+            CurveDrawer.Draw(curveCached);
         }
     }
 

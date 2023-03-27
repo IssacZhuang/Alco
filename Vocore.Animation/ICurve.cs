@@ -6,9 +6,9 @@ namespace Vocore.Animation
 {
     public interface ICurve
     {
-        float Evaluate(float x);
+        float Evaluate(float t);
         int PointsCount { get; }
-        IEnumerable <Vector2> Points { get; }
+        IList <KeyFrame> Points { get; }
     }
 }
 

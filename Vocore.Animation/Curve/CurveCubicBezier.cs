@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+
 using UnityEngine;
 
 namespace Vocore.Animation
@@ -47,11 +48,11 @@ namespace Vocore.Animation
             }
         }
 
-        public IEnumerable<Vector2> Points
+        public IList<KeyFrame> Points
         {
             get
             {
-                return new Vector2[] { new Vector2(0, 0), new Vector2(_x1, _y1), new Vector2(_x2, _y2), new Vector2(1, 1) };
+                return new KeyFrame[] { new KeyFrame(0, 0), new KeyFrame(_x1, _y1), new KeyFrame(_x2, _y2), new KeyFrame(1, 1) };
             }
         }
 

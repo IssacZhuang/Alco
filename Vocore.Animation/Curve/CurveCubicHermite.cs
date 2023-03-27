@@ -8,7 +8,7 @@ namespace Vocore.Animation
     public class CurveCubicHermite : ICurve
     {
 
-        private List<Vector2> _points;
+        private List<KeyFrame> _points;
         private float[] _slopes;
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Vocore.Animation
             }
         }
 
-        public IEnumerable<Vector2> Points
+        public IList<KeyFrame> Points
         {
             get
             {
@@ -27,7 +27,7 @@ namespace Vocore.Animation
             }
         }
 
-        public CurveCubicHermite(List<Vector2> nodes)
+        public CurveCubicHermite(List<KeyFrame> nodes)
         {
             _points = nodes;
             SortPoints();
@@ -36,10 +36,10 @@ namespace Vocore.Animation
 
         public CurveCubicHermite(float[] x, float[] y)
         {
-            _points = new List<Vector2>();
+            _points = new List<KeyFrame>();
             for (int i = 0; i < x.Length; i++)
             {
-                _points.Add(new Vector2(x[i], y[i]));
+                _points.Add(new KeyFrame(x[i], y[i]));
             }
             SortPoints();
             RefreshSlopes();
@@ -47,23 +47,30 @@ namespace Vocore.Animation
 
         public float Evaluate(float t)
         {
-            t = Mathf.Clamp(t, _points[0].x, _points[_points.Count - 1].x);
+            if (t <= this._points[0].t)
+			{
+				return this._points[0].value;
+			}
+			if (t >= this._points[this._points.Count - 1].t)
+			{
+				return this._points[this._points.Count - 1].value;
+			}
             int index = 0;
             int count = _points.Count;
 
             for (int i = 1; i < count; i++)
             {
-                if (_points[i].x > t)
+                if (_points[i].t > t)
                 {
                     index = i - 1;
                     break;
                 }
             }
 
-            float t0 = _points[index].x;
-            float t1 = _points[index + 1].x;
-            float p0 = _points[index].y;
-            float p1 = _points[index + 1].y;
+            float t0 = _points[index].t;
+            float t1 = _points[index + 1].t;
+            float p0 = _points[index].value;
+            float p1 = _points[index + 1].value;
             float m0 = _slopes[index];
             float m1 = _slopes[index + 1];
             float dt = t1 - t0;
@@ -81,7 +88,7 @@ namespace Vocore.Animation
 
         public void SortPoints()
         {
-            _points.Sort((a, b) => a.x.CompareTo(b.x));
+            _points.Sort((a, b) => a.t.CompareTo(b.t));
         }
 
         public void RefreshSlopes()
@@ -89,25 +96,25 @@ namespace Vocore.Animation
             _slopes = CalculateSlopes(_points);
         }
 
-        private static float[] CalculateSlopes(IList<Vector2> points)
+        private static float[] CalculateSlopes(IList<KeyFrame> points)
         {
             int count = points.Count;
             float[] slopes = new float[count];
 
             for (int i = 0; i < count; i++)
             {
-                if (i == 0) // 第一个节点
+                if (i == 0)
                 {
-                    slopes[i] = (points[i + 1].y - points[i].y) / (points[i + 1].x - points[i].x);
+                    slopes[i] = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
                 }
-                else if (i == count - 1) // 最后一个节点
+                else if (i == count - 1)
                 {
-                    slopes[i] = (points[i].y - points[i - 1].y) / (points[i].x - points[i - 1].x);
+                    slopes[i] = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
                 }
-                else // 其余节点
+                else
                 {
-                    float dydx1 = (points[i].y - points[i - 1].y) / (points[i].x - points[i - 1].x);
-                    float dydx2 = (points[i + 1].y - points[i].y) / (points[i + 1].x - points[i].x);
+                    float dydx1 = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
+                    float dydx2 = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
                     slopes[i] = (dydx1 + dydx2) / 2f;
                 }
             }

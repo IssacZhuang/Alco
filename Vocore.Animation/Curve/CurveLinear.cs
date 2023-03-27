@@ -8,7 +8,7 @@ namespace Vocore.Animation
     public class CurveLinear:ICurve
     {
 
-        private List<Vector2> _points = new List<Vector2>();
+        private List<KeyFrame> _points = new List<KeyFrame>();
         public int PointsCount
 		{
 			get
@@ -17,7 +17,7 @@ namespace Vocore.Animation
 			}
 		}
 
-		public IEnumerable<Vector2> Points
+		public IList<KeyFrame> Points
 		{
 			get
 			{
@@ -27,15 +27,15 @@ namespace Vocore.Animation
 
         public CurveLinear(float[] x, float[] y)
 		{
-			this._points = new List<Vector2>();
+			this._points = new List<KeyFrame>();
             for (int i = 0; i < x.Length; i++)
             {
-                this._points.Add(new Vector2(x[i], y[i]));
+                this._points.Add(new KeyFrame(x[i], y[i]));
             }
             this.SortPoints();
 		}
 
-		public CurveLinear(IEnumerable<Vector2> points)
+		public CurveLinear(IEnumerable<KeyFrame> points)
 		{
 			this.SetPoints(points);
 		}
@@ -44,7 +44,7 @@ namespace Vocore.Animation
 		{
 		}
 
-		public Vector2 this[int i]
+		public KeyFrame this[int i]
 		{
 			get
 			{
@@ -56,10 +56,10 @@ namespace Vocore.Animation
 			}
 		}
 
-		public void SetPoints(IEnumerable<Vector2> newPoints)
+		public void SetPoints(IEnumerable<KeyFrame> newPoints)
 		{
 			this._points.Clear();
-			foreach (Vector2 item in newPoints)
+			foreach (KeyFrame item in newPoints)
 			{
 				this._points.Add(item);
 			}
@@ -68,11 +68,11 @@ namespace Vocore.Animation
 
 		public void Add(float x, float y, bool sort = true)
 		{
-			Vector2 newPoint = new Vector2(x, y);
+			KeyFrame newPoint = new KeyFrame(x, y);
 			this.Add(newPoint, sort);
 		}
 
-		public void Add(Vector2 newPoint, bool sort = true)
+		public void Add(KeyFrame newPoint, bool sort = true)
 		{
 			this._points.Add(newPoint);
 			if (sort)
@@ -83,7 +83,7 @@ namespace Vocore.Animation
 
 		public void SortPoints()
 		{
-			this._points.Sort((Vector2 a, Vector2 b) => a.x.CompareTo(b.x));
+			this._points.Sort((KeyFrame a, KeyFrame b) => a.t.CompareTo(b.t));
 		}
 
 		public float Evaluate(float x)
@@ -92,25 +92,25 @@ namespace Vocore.Animation
 			{
 				return 0f;
 			}
-			if (x <= this._points[0].x)
+			if (x <= this._points[0].t)
 			{
-				return this._points[0].y;
+				return this._points[0].value;
 			}
-			if (x >= this._points[this._points.Count - 1].x)
+			if (x >= this._points[this._points.Count - 1].t)
 			{
-				return this._points[this._points.Count - 1].y;
+				return this._points[this._points.Count - 1].value;
 			}
-			Vector2 Vector2 = this._points[0];
-			Vector2 Vector22 = this._points[this._points.Count - 1];
+			KeyFrame keyFrame1 = this._points[0];
+			KeyFrame keyFrame2 = this._points[this._points.Count - 1];
 			int i = 0;
 			while (i < this._points.Count)
 			{
-				if (x <= this._points[i].x)
+				if (x <= this._points[i].t)
 				{
-					Vector22 = this._points[i];
+					keyFrame2 = this._points[i];
 					if (i > 0)
 					{
-						Vector2 = this._points[i - 1];
+						keyFrame1 = this._points[i - 1];
 						break;
 					}
 					break;
@@ -120,8 +120,8 @@ namespace Vocore.Animation
 					i++;
 				}
 			}
-			float t = (x - Vector2.x) / (Vector22.x - Vector2.x);
-			return Mathf.Lerp(Vector2.y, Vector22.y, t);
+			float t = (x - keyFrame1.t) / (keyFrame2.t - keyFrame1.t);
+			return Mathf.Lerp(keyFrame1.value, keyFrame2.value, t);
 		}
     }
 }
