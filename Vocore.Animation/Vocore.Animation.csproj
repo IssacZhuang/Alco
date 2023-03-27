@@ -49,12 +49,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Curve\CurveCubicBezier.cs" />
     <Compile Include="ICurve.cs" />
     <Compile Include="Curve\CurveLinear.cs" />
     <Compile Include="Curve\CurveCubicHermite.cs" />
     <Compile Include="KeyFrame.cs" />
-    <Compile Include="Curve\CurveCache.cs" />
+    <Compile Include="Cache\CurveCache.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
