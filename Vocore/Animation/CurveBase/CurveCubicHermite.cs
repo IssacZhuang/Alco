@@ -8,53 +8,82 @@ namespace Vocore
     public class CurveCubicHermite : ICurve
     {
 
-        private List<KeyFrame> _points;
+        private List<KeyFrame<float>> _points = new List<KeyFrame<float>>();
         private float[] _slopes;
 
         public int PointsCount
         {
             get
             {
-                return this._points.Count;
+                return _points.Count;
             }
         }
 
-        public IList<KeyFrame> Points
+        public IList<KeyFrame<float>> Points
         {
             get
             {
-                return this._points;
+                return _points;
             }
         }
 
-        public CurveCubicHermite(List<KeyFrame> nodes)
+        public CurveCubicHermite()
         {
-            _points = nodes;
-            SortPoints();
+        }
+
+        public CurveCubicHermite(IList<KeyFrame<float>> points)
+        {
+            if (points == null)
+            {
+                throw ExceptionCurve.NullOrEmptyPoints("points");
+            }
+          
+            Sort();
             RefreshSlopes();
         }
 
-        public CurveCubicHermite(float[] x, float[] y)
+        public CurveCubicHermite(float[] t, float[] value)
         {
-            _points = new List<KeyFrame>();
-            for (int i = 0; i < x.Length; i++)
+            if (t == null)
             {
-                _points.Add(new KeyFrame(x[i], y[i]));
+                throw ExceptionCurve.NullOrEmptyPoints("t");
             }
-            SortPoints();
+
+            if (value == null)
+            {
+                throw ExceptionCurve.NullOrEmptyPoints("value");
+            }
+
+            if (t.Length != value.Length)
+            {
+                throw ExceptionCurve.UnequalPointsArray("t", "value");
+            }
+
+            for (int i = 0; i < t.Length; i++)
+            {
+                _points.Add(new KeyFrame<float>(t[i], value[i]));
+            }
+            Sort();
+            RefreshSlopes();
+        }
+
+        public void SetPoints(IList<KeyFrame<float>> points)
+        {
+            _points = new List<KeyFrame<float>>(points);
+            Sort();
             RefreshSlopes();
         }
 
         public float Evaluate(float t)
         {
-            if (t <= this._points[0].t)
-			{
-				return this._points[0].value;
-			}
-			if (t >= this._points[this._points.Count - 1].t)
-			{
-				return this._points[this._points.Count - 1].value;
-			}
+            if (t <= _points[0].t)
+            {
+                return _points[0].value;
+            }
+            if (t >= _points[_points.Count - 1].t)
+            {
+                return _points[_points.Count - 1].value;
+            }
             int index = 0;
             int count = _points.Count;
 
@@ -86,7 +115,7 @@ namespace Vocore
             return interpolatedValue;
         }
 
-        public void SortPoints()
+        public void Sort()
         {
             _points.Sort((a, b) => a.t.CompareTo(b.t));
         }
@@ -96,7 +125,7 @@ namespace Vocore
             _slopes = CalculateSlopes(_points);
         }
 
-        private static float[] CalculateSlopes(IList<KeyFrame> points)
+        private static float[] CalculateSlopes(IList<KeyFrame<float>> points)
         {
             int count = points.Count;
             float[] slopes = new float[count];

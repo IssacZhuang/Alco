@@ -56,7 +56,8 @@
   <ItemGroup>
     <Compile Remove="bin\**\*" />
     <Compile Remove="obj\**\*" />
-    <Compile Remove="Platform\**\*" />
+    <Compile Remove="**\*.csproj" />
+    <Folder Include="Animation\CurveMulti\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -5,10 +5,10 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public class CurveCache: ICurve
+    public class CurveCache : ICurve
     {
-        public const float DefaultStep = 1/60f;
-        private List<KeyFrame> _points;
+        public const float DefaultStep = 1 / 60f;
+        private List<KeyFrame<float>> _points;
         private float step = DefaultStep;
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Vocore
             }
         }
 
-        public IList<KeyFrame> Points
+        public IList<KeyFrame<float>> Points
         {
             get
             {
@@ -29,18 +29,29 @@ namespace Vocore
 
         public CurveCache(ICurve curve, float step = DefaultStep)
         {
-            if(curve == null) throw new ArgumentNullException("curve to cache");
-            
-            _points = new List<KeyFrame>();
+            CacheCurve(curve, step);
+        }
+
+        public void SetPoints(IList<KeyFrame<float>> points)
+        {
+            //default use linear
+            ICurve curve = new CurveLinear(points);
+            CacheCurve(curve, step);
+        }
+
+        public void CacheCurve(ICurve curve, float step = DefaultStep)
+        {
+            if (curve == null) throw new ArgumentNullException("curve to cache");
+
+            _points = new List<KeyFrame<float>>();
             this.step = step;
             //evaluate curve by step and cache the result
             for (float t = curve.Points[0].t; t < curve.Points[curve.PointsCount - 1].t; t += step)
             {
-                _points.Add(new KeyFrame(t, curve.Evaluate(t)));
+                _points.Add(new KeyFrame<float>(t, curve.Evaluate(t)));
             }
-            _points.Add(new KeyFrame(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
+            _points.Add(new KeyFrame<float>(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
         }
-
 
         public float Evaluate(float t)
         {
