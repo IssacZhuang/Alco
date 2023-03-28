@@ -6,13 +6,8 @@ using System.Threading.Tasks;
 
 using UnityEngine;
 
-namespace Vocore.Atlas
+namespace Vocore
 {
-    public class AtlasTile
-    {
-        public Texture2D atlas;
-        public Rect rect;
-    }
 
     public class TextureAtlas
     {

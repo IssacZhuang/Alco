@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Collections;
 
-namespace Vocore.Serialization
+namespace Vocore
 {
     public static class UtilsLog
     {

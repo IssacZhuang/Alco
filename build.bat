@@ -22,3 +22,6 @@ del /q /s .\Assemblies\Rimworld\Vocore*
 
 rmdir /q /s obj
 rmdir /q /s bin
+
+rmdir /q /s Vocore\obj
+rmdir /q /s Vocore\bin

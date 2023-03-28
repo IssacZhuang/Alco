@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Vocore.Serialization
+namespace Vocore
 {
     public static class UtilsType
     {

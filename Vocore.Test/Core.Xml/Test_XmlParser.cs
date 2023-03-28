@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 using System.Reflection;
-using Vocore.Serialization;
+using Vocore;
 using System.IO;
 
 using UnityEngine;

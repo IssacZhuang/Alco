@@ -129,7 +129,6 @@
     <Compile Include="Core.Xml\Test_XmlParser.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Core\Test_StaticHashObject.cs" />
     <Compile Include="GeneralPerformanceTest\Playground.cs" />
     <Compile Include="Core.Collection\Test_Pool.cs" />
   </ItemGroup>

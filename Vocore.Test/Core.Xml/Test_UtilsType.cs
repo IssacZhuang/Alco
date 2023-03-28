@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Vocore.Serialization;
+using Vocore;
 
 namespace Vocore.Test
 {

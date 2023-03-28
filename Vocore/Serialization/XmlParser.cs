@@ -5,11 +5,10 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 
-namespace Vocore.Serialization
+namespace Vocore
 {
     public static class XmlParser
     {
-        public const string AttrClass = "Class";
         public const int recursionLimit = 20;
 
         private static List<string> _errors = new List<string>();
@@ -36,7 +35,7 @@ namespace Vocore.Serialization
                 return null;
             }
             Type typeAttrClass = null;
-            XmlAttribute attr = xml.Attributes[AttrClass];
+            XmlAttribute attr = xml.Attributes[ConstField.Class];
 
             if (attr != null)
             {

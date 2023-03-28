@@ -1,7 +1,7 @@
 using System.Globalization;
 using UnityEngine;
 
-namespace Vocore.Serialization
+namespace Vocore
 {
     public static class UtilsColor
     {

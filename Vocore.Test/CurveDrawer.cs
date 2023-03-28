@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 
-using Vocore.Animation;
+using Vocore;
 using System.Diagnostics;
 
 namespace Vocore.Test

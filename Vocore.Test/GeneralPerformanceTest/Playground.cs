@@ -1,4 +1,4 @@
-using Vocore.Animation;
+using Vocore;
 
 namespace Vocore.Test
 {
