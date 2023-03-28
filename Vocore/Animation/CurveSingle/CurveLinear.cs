@@ -60,7 +60,7 @@ namespace Vocore
             {
                 throw ExceptionCurve.NullOrEmptyPoints("points");
             }
-            _points = new List<KeyFrame<float>>(points);
+            _points.AddRange(points);
             Sort();
         }
 

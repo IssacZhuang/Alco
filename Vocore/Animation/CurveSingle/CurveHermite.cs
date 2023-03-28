@@ -37,6 +37,8 @@ namespace Vocore
             {
                 throw ExceptionCurve.NullOrEmptyPoints("points");
             }
+
+            _points.AddRange(points);
           
             Sort();
             RefreshSlopes();
