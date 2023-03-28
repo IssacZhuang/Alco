@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public interface ICurveBae<T>
+    public interface ICurveBase<T>
     {
         T Evaluate(float t);
         int PointsCount { get; }
@@ -12,19 +12,19 @@ namespace Vocore
         IList <KeyFrame<T>> Points { get; }
     }
 
-    public interface ICurve: ICurveBae<float>
+    public interface ICurve: ICurveBase<float>
     {
     }
 
-    public interface ICurve2D: ICurveBae<Vector2>
+    public interface ICurve2D: ICurveBase<Vector2>
     {
     }
 
-    public interface ICurve3D: ICurveBae<Vector3>
+    public interface ICurve3D: ICurveBase<Vector3>
     {
     }
 
-    public interface ICurve4D: ICurveBae<Vector4>
+    public interface ICurve4D: ICurveBase<Vector4>
     {
     }
 }

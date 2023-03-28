@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public class CurveCubicHermite : ICurve
+    public class CurveHermite : ICurve
     {
 
         private List<KeyFrame<float>> _points = new List<KeyFrame<float>>();
@@ -27,11 +27,11 @@ namespace Vocore
             }
         }
 
-        public CurveCubicHermite()
+        public CurveHermite()
         {
         }
 
-        public CurveCubicHermite(IList<KeyFrame<float>> points)
+        public CurveHermite(IList<KeyFrame<float>> points)
         {
             if (points == null)
             {
@@ -42,7 +42,7 @@ namespace Vocore
             RefreshSlopes();
         }
 
-        public CurveCubicHermite(float[] t, float[] value)
+        public CurveHermite(float[] t, float[] value)
         {
             if (t == null)
             {
