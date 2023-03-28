@@ -19,3 +19,6 @@ move .\Assemblies.\Vocore.dll .\Assemblies.\0-Vocore.dll
 move .\Assemblies.\Vocore.pdb .\Assemblies.\0-Vocore.pdb
 
 del /q /s .\Assemblies\Rimworld\Vocore*
+
+rmdir /q /s obj
+rmdir /q /s bin

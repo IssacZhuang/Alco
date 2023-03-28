@@ -1,13 +1,13 @@
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}</ProjectGuid>
+    <ProjectGuid>{898CA93F-A638-41B8-8A4A-A5325F857302}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Vocore</RootNamespace>
-    <AssemblyName>Vocore</AssemblyName>
+    <AssemblyName>Vocore.Rendering</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -51,7 +51,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="**\*.cs" />
+    <Compile Include="Core\**\*.cs" />
+    <Compile Include="Rendering\**\*.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="bin\**\*" />

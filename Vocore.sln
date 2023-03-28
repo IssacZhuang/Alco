@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Atlas", "Vocore.Atla
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Animation", "Vocore.Animation\Vocore.Animation.csproj", "{06E826C1-C72B-4CA9-B009-1A73C80592DA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Rendering", "Vocore\Vocore.Rendering.csproj", "{898CA93F-A638-41B8-8A4A-A5325F857302}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -84,6 +86,10 @@ Global
 		{06E826C1-C72B-4CA9-B009-1A73C80592DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{06E826C1-C72B-4CA9-B009-1A73C80592DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{06E826C1-C72B-4CA9-B009-1A73C80592DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{898CA93F-A638-41B8-8A4A-A5325F857302}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{898CA93F-A638-41B8-8A4A-A5325F857302}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{898CA93F-A638-41B8-8A4A-A5325F857302}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{898CA93F-A638-41B8-8A4A-A5325F857302}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -101,6 +107,7 @@ Global
 		{B373174E-FB00-4BEE-9E1E-899186E278BE} = {62F122EE-C72F-490D-9731-16B71D743775}
 		{39006A0D-1211-4EC2-BD9E-93D292B12136} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 		{06E826C1-C72B-4CA9-B009-1A73C80592DA} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
+		{898CA93F-A638-41B8-8A4A-A5325F857302} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E325C963-E46F-4BB6-9A6D-6DF0D8EE048F}
