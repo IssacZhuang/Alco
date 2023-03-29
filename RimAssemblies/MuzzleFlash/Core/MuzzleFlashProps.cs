@@ -11,14 +11,15 @@ namespace MuzzleFlash
 {
     public enum WeaponMode : int
     {
+        NoPatch = 0,
         Primary = 1,
         Secondary = 2,
-        NoPatch = 4
+        All = 3
     }
 
     public class MuzzleFlashProps : DefModExtension
     {
-        public WeaponMode type = WeaponMode.Primary;
+        public WeaponMode type = WeaponMode.All;
         public MuzzleFlashDef def = MuzzleFlashDefOf.MF_StandardMuzzleFalsh;
         public Vector2 drawSize = new Vector2(0.8f, 0.8f);
         public List<Vector2> offsets;

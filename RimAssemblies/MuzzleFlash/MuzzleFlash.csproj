@@ -87,11 +87,6 @@
       <Name>Vocore.EmbeddedAssets</Name>
       <Private>False</Private>
     </ProjectReference>
-    <ProjectReference Include="..\..\Vocore\Vocore.csproj">
-      <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
-      <Name>Vocore</Name>
-      <Private>False</Private>
-    </ProjectReference>
     <Compile Include="XmlPatch\SafePatcherMod.cs" />
     <Compile Include="XmlPatch\PatchUtility.cs" />
   </ItemGroup>

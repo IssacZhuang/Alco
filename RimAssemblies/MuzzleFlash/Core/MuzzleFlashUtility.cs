@@ -111,11 +111,13 @@ namespace MuzzleFlash
                 {
                     continue;
                 }
-                if (props.type.HasFlag(WeaponMode.Primary))
+                
+                if(props.type.HasFlag(WeaponMode.Primary))
                 {
                     primary = props;
                 }
-                else if (props.type.HasFlag(WeaponMode.Secondary))
+                
+                if (props.type.HasFlag(WeaponMode.Secondary))
                 {
                     senconday = props;
                 }
