@@ -8,7 +8,7 @@ namespace Vocore
     public class CurveHermite : ICurve
     {
 
-        private List<KeyFrame<float>> _points = new List<KeyFrame<float>>();
+        private List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
         private float[] _slopes;
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<KeyFrame<float>> Points
+        public IReadOnlyList<CurvePoint<float>> Points
         {
             get
             {
@@ -31,7 +31,7 @@ namespace Vocore
         {
         }
 
-        public CurveHermite(IList<KeyFrame<float>> points)
+        public CurveHermite(IList<CurvePoint<float>> points)
         {
             if (points == null)
             {
@@ -63,15 +63,15 @@ namespace Vocore
 
             for (int i = 0; i < t.Length; i++)
             {
-                _points.Add(new KeyFrame<float>(t[i], value[i]));
+                _points.Add(new CurvePoint<float>(t[i], value[i]));
             }
             Sort();
             RefreshSlopes();
         }
 
-        public void SetPoints(IList<KeyFrame<float>> points)
+        public void SetPoints(IList<CurvePoint<float>> points)
         {
-            _points = new List<KeyFrame<float>>(points);
+            _points = new List<CurvePoint<float>>(points);
             Sort();
             RefreshSlopes();
         }
@@ -139,7 +139,7 @@ namespace Vocore
             return high;
         }
 
-        private static float[] CalculateSlopes(IList<KeyFrame<float>> points)
+        private static float[] CalculateSlopes(IList<CurvePoint<float>> points)
         {
             int count = points.Count;
             float[] slopes = new float[count];

@@ -7,7 +7,7 @@ namespace Vocore
 {
     public class CurveCache3D: ICurve3D
     {
-        private List<KeyFrame<Vector3>> _points;
+        private List<CurvePoint<Vector3>> _points;
         private float _step = ConstCurve.DefaultStep;
 
         public int PointsCount
@@ -18,7 +18,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<KeyFrame<Vector3>> Points
+        public IReadOnlyList<CurvePoint<Vector3>> Points
         {
             get
             {
@@ -31,7 +31,7 @@ namespace Vocore
             CacheCurve(curve, step);
         }
 
-        public void SetPoints(IList<KeyFrame<Vector3>> points)
+        public void SetPoints(IList<CurvePoint<Vector3>> points)
         {
             //default use linear
             ICurve3D curve = new CurveLinear3D();
@@ -43,14 +43,14 @@ namespace Vocore
         {
             if (curve == null) throw ExceptionCurve.NullCurve;
 
-            _points = new List<KeyFrame<Vector3>>();
+            _points = new List<CurvePoint<Vector3>>();
             _step = step;
             //evaluate curve by step and cache the result
             for (float t = curve.Points[0].t; t < curve.Points[curve.PointsCount - 1].t; t += step)
             {
-                _points.Add(new KeyFrame<Vector3>(t, curve.Evaluate(t)));
+                _points.Add(new CurvePoint<Vector3>(t, curve.Evaluate(t)));
             }
-            _points.Add(new KeyFrame<Vector3>(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
+            _points.Add(new CurvePoint<Vector3>(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
         }
 
         public Vector3 Evaluate(float t)

@@ -5,12 +5,12 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public struct KeyFrame<T>
+    public struct CurvePoint<T>
     {
         public float t;
         public T value;
 
-        public KeyFrame(float t, T value)
+        public CurvePoint(float t, T value)
         {
             this.t = t;
             this.value = value;

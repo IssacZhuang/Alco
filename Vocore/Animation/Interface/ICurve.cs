@@ -8,8 +8,8 @@ namespace Vocore
     {
         T Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IList<KeyFrame<T>> points);
-        IReadOnlyList <KeyFrame<T>> Points { get; }
+        void SetPoints(IList<CurvePoint<T>> points);
+        IReadOnlyList <CurvePoint<T>> Points { get; }
     }
 
     public interface ICurve: ICurveBase<float>

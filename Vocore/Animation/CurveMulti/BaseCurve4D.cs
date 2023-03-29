@@ -7,7 +7,7 @@ namespace Vocore
 {
     public class BaseCurve4D<T>:ICurve4D where T: ICurve
     {
-        private List<KeyFrame<Vector4>> _points = new List<KeyFrame<Vector4>>();
+        private List<CurvePoint<Vector4>> _points = new List<CurvePoint<Vector4>>();
 
         private T _curveX;
         private T _curveY;
@@ -22,7 +22,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<KeyFrame<Vector4>> Points
+        public IReadOnlyList<CurvePoint<Vector4>> Points
         {
             get
             {
@@ -38,12 +38,12 @@ namespace Vocore
             _curveW = (T)Activator.CreateInstance(typeof(T));
         }
 
-        public BaseCurve4D(IList<KeyFrame<Vector4>> points)
+        public BaseCurve4D(IList<CurvePoint<Vector4>> points)
         {
             SetPoints(points);
         }
 
-        public void SetPoints(IList<KeyFrame<Vector4>> points)
+        public void SetPoints(IList<CurvePoint<Vector4>> points)
         {
             if (points == null)
             {
@@ -52,17 +52,17 @@ namespace Vocore
 
             _points.Clear();
 
-            List<KeyFrame<float>> xPoints = new List<KeyFrame<float>>();
-            List<KeyFrame<float>> yPoints = new List<KeyFrame<float>>();
-            List<KeyFrame<float>> zPoints = new List<KeyFrame<float>>();
-            List<KeyFrame<float>> wPoints = new List<KeyFrame<float>>();
+            List<CurvePoint<float>> xPoints = new List<CurvePoint<float>>();
+            List<CurvePoint<float>> yPoints = new List<CurvePoint<float>>();
+            List<CurvePoint<float>> zPoints = new List<CurvePoint<float>>();
+            List<CurvePoint<float>> wPoints = new List<CurvePoint<float>>();
 
             for (int i = 0; i < points.Count; i++)
             {
-                xPoints.Add(new KeyFrame<float>(points[i].t, points[i].value.x));
-                yPoints.Add(new KeyFrame<float>(points[i].t, points[i].value.y));
-                zPoints.Add(new KeyFrame<float>(points[i].t, points[i].value.z));
-                wPoints.Add(new KeyFrame<float>(points[i].t, points[i].value.w));
+                xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.x));
+                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.y));
+                zPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.z));
+                wPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.w));
             }
 
             _curveX.SetPoints(xPoints);

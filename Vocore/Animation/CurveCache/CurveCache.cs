@@ -9,7 +9,7 @@ namespace Vocore
 {
     public class CurveCache : ICurve
     {
-        private KeyFrame<float>[] _points;
+        private CurvePoint<float>[] _points;
         private float _step = ConstCurve.DefaultStep;
 
         public int PointsCount
@@ -20,7 +20,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<KeyFrame<float>> Points
+        public IReadOnlyList<CurvePoint<float>> Points
         {
             get
             {
@@ -33,7 +33,7 @@ namespace Vocore
             CacheCurve(curve, step);
         }
 
-        public void SetPoints(IList<KeyFrame<float>> points)
+        public void SetPoints(IList<CurvePoint<float>> points)
         {
             //default use linear
             ICurve curve = new CurveLinear(points);
@@ -46,14 +46,15 @@ namespace Vocore
             _step = step;
             int count = Mathf.FloorToInt((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step) + 2;
 
-            _points = new KeyFrame<float>[count];
-            Parallel.For(0, count - 1, (i) =>
+            _points = new CurvePoint<float>[count];
+            Parallel.For(0, count - 1, (Action<int>)((i) =>
             {
                 float t = curve.Points[0].t + i * step;
                 float value = curve.Evaluate(t);
-                _points[i] = new KeyFrame<float>(t, value);
-            });
-            _points[count - 1] = new KeyFrame<float>(curve.Points[curve.PointsCount - 1].t, curve.Points[curve.PointsCount - 1].value);
+
+                _points[i] = new CurvePoint<float>(t, value);
+            }));
+            _points[count - 1] = new CurvePoint<float>(curve.Points[curve.PointsCount - 1].t, curve.Points[curve.PointsCount - 1].value);
         }
 
         public float Evaluate(float t)

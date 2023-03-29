@@ -8,7 +8,7 @@ namespace Vocore
     public class CurveLinear : ICurve
     {
 
-        private List<KeyFrame<float>> _points = new List<KeyFrame<float>>();
+        private List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
         public int PointsCount
         {
             get
@@ -17,7 +17,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<KeyFrame<float>> Points
+        public IReadOnlyList<CurvePoint<float>> Points
         {
             get
             {
@@ -49,12 +49,12 @@ namespace Vocore
 
             for (int i = 0; i < t.Length; i++)
             {
-                _points.Add(new KeyFrame<float>(t[i], value[i]));
+                _points.Add(new CurvePoint<float>(t[i], value[i]));
             }
             Sort();
         }
 
-        public CurveLinear(IList<KeyFrame<float>> points)
+        public CurveLinear(IList<CurvePoint<float>> points)
         {
             if (points == null)
             {
@@ -64,7 +64,7 @@ namespace Vocore
             Sort();
         }
 
-        public KeyFrame<float> this[int i]
+        public CurvePoint<float> this[int i]
         {
             get
             {
@@ -76,15 +76,15 @@ namespace Vocore
             }
         }
 
-        public void SetPoints(IList<KeyFrame<float>> points)
+        public void SetPoints(IList<CurvePoint<float>> points)
         {
-            _points = new List<KeyFrame<float>>(points);
+            _points = new List<CurvePoint<float>>(points);
             Sort();
         }
 
         public void Sort()
         {
-            _points.Sort((KeyFrame<float> a, KeyFrame<float> b) => a.t.CompareTo(b.t));
+            _points.Sort((CurvePoint<float> a, CurvePoint<float> b) => a.t.CompareTo(b.t));
         }
         
 
@@ -104,8 +104,8 @@ namespace Vocore
             }
            
             int i = BinarySearchFloor(x);
-            KeyFrame<float> keyFrame1 = _points[i];
-            KeyFrame<float> keyFrame2 = _points[i + 1];
+            CurvePoint<float> keyFrame1 = _points[i];
+            CurvePoint<float> keyFrame2 = _points[i + 1];
             float t = (x - keyFrame1.t) / (keyFrame2.t - keyFrame1.t);
             return Mathf.Lerp(keyFrame1.value, keyFrame2.value, t);
         }
