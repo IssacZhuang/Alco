@@ -13,6 +13,11 @@ namespace Vocore
         {
             return new Exception("Unequal points array: " + name1 + " and " + name2);
         }
+
+        public static Exception InvalidKeyFrameFormat(string str, Type type)
+        {
+            return new Exception("Invalid KeyFrame format: " + str + " for type " + type);
+        }
     }
 }
 
