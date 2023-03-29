@@ -130,6 +130,7 @@
   <ItemGroup>
     <Folder Include="Properties\CSharp\" />
     <Compile Include="Core.Animation\Test_Curve.cs" />
+    <Compile Include="Core.Collection\Test_PriorityList.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

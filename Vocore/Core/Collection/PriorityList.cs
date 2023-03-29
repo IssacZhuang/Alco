@@ -39,20 +39,12 @@ namespace Vocore
         public void Add(T item)
         {
             int count = this.innerList.Count;
-            this.innerList.Add(item);
-            while (count != 0)
-            {
-                int mid = (count - 1) / 2;
-                if (this.CompareElements(count, mid) >= 0)
-                {
-                    break;
-                }
-                this.SwapElements(count, mid);
-                count = mid;
-            }
+            //binary search and insert behind
+
+            
         }
 
-		public void Remove(T item){
+		public void RemoveOnce(T item){
 			//binary search and remove
 			int index = -1;
 			int left = 0;
