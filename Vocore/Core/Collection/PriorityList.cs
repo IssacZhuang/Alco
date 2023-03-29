@@ -6,15 +6,15 @@ namespace Vocore
 {
     public class PriorityList<T> : IReadOnlyList<T>
     {
-        protected List<T> innerList = new List<T>();
+        private List<T> _innerList = new List<T>();
 
-        protected IComparer<T> comparer;
+        private IComparer<T> _comparer;
 
         public int Count
         {
             get
             {
-                return this.innerList.Count;
+                return _innerList.Count;
             }
         }
 
@@ -22,89 +22,80 @@ namespace Vocore
         {
             get
             {
-                return this.innerList[index];
+                return _innerList[index];
             }
         }
 
         public PriorityList()
         {
-            this.comparer = Comparer<T>.Default;
+            _comparer = Comparer<T>.Default;
         }
 
         public PriorityList(IComparer<T> comparer)
         {
-            this.comparer = comparer;
+            _comparer = comparer;
         }
 
         public void Add(T item)
         {
-            int count = this.innerList.Count;
             //binary search and insert behind
-
+            int index = UtilsAlgorithm.BinarySearchCeil(_innerList, item, _comparer);
+            if (index == -1)
+            {
+                _innerList.Add(item);
+            }
+            else
+            {
+                _innerList.Insert(index, item);
+            }
             
         }
 
 		public void RemoveOnce(T item){
 			//binary search and remove
-			int index = -1;
-			int left = 0;
-			int right = this.innerList.Count - 1;
-			while (left <= right)
-			{
-				int mid = (left + right) / 2;
-				if (this.comparer.Compare(this.innerList[mid], item) == 0)
-				{
-					index = mid;
-					break;
-				}
-				else if (this.comparer.Compare(this.innerList[mid], item) > 0)
-				{
-					right = mid - 1;
-				}
-				else
-				{
-					left = mid + 1;
-				}
-			}
-			
+			int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
 			if (index == -1)
 			{
 				return;
 			}
 
-			this.innerList.RemoveAt(index);
+			_innerList.RemoveAt(index);
 		}
+
+        public void Remove(T item){
+            _innerList.Remove(item);
+        }
 
         public bool Contains(T item)
         {
-            return this.innerList.Contains(item);
+            return _innerList.Contains(item);
         }
 
         public IEnumerator<T> GetEnumerator()
         {
-            return this.innerList.GetEnumerator();
+            return _innerList.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return this.innerList.GetEnumerator();
+            return _innerList.GetEnumerator();
         }
 
         public void Clear()
         {
-            this.innerList.Clear();
+            _innerList.Clear();
         }
 
         protected void SwapElements(int i, int j)
         {
-            T value = this.innerList[i];
-            this.innerList[i] = this.innerList[j];
-            this.innerList[j] = value;
+            T value = _innerList[i];
+            _innerList[i] = _innerList[j];
+            _innerList[j] = value;
         }
 
         protected int CompareElements(int i, int j)
         {
-            return this.comparer.Compare(this.innerList[i], this.innerList[j]);
+            return _comparer.Compare(_innerList[i], _innerList[j]);
         }
     }
 }
