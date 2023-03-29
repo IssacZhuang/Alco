@@ -25,6 +25,10 @@ namespace Vocore
             ')'
         };
 
+        private static readonly char _trimStart = '(';
+        private static readonly char _trimEnd = ')';
+        private static readonly char _split = ',';
+
         private static Dictionary<Type, Func<string, object>> _parser = new Dictionary<Type, Func<string, object>>();
 
         static UtilsParse()
@@ -183,18 +187,9 @@ namespace Vocore
         /// </summary>
         public static Vector2 ToVector2(this string Str)
         {
-            Str = Str.TrimStart(new char[]
-            {
-                '('
-            });
-            Str = Str.TrimEnd(new char[]
-            {
-                ')'
-            });
-            string[] array = Str.Split(new char[]
-            {
-                ','
-            });
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
             CultureInfo invariantCulture = CultureInfo.InvariantCulture;
             float x;
             float y;
@@ -219,18 +214,9 @@ namespace Vocore
         /// </summary>
         public static Vector3 ToVector3(this string Str)
         {
-            Str = Str.TrimStart(new char[]
-            {
-                '('
-            });
-            Str = Str.TrimEnd(new char[]
-            {
-                ')'
-            });
-            string[] array = Str.Split(new char[]
-            {
-                ','
-            });
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
             CultureInfo invariantCulture = CultureInfo.InvariantCulture;
             float x = Convert.ToSingle(array[0], invariantCulture);
             float y = Convert.ToSingle(array[1], invariantCulture);
@@ -243,18 +229,9 @@ namespace Vocore
         /// </summary>
         public static Quaternion ToQuaternion(this string Str)
         {
-            Str = Str.TrimStart(new char[]
-            {
-                '('
-            });
-            Str = Str.TrimEnd(new char[]
-            {
-                ')'
-            });
-            string[] array = Str.Split(new char[]
-            {
-                ','
-            });
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
             CultureInfo invariantCulture = CultureInfo.InvariantCulture;
             float x = Convert.ToSingle(array[0], invariantCulture);
             float y = Convert.ToSingle(array[1], invariantCulture);
@@ -268,18 +245,9 @@ namespace Vocore
         /// </summary>
         public static Vector4 ToVector4Adaptive(this string Str)
         {
-            Str = Str.TrimStart(new char[]
-            {
-                '('
-            });
-            Str = Str.TrimEnd(new char[]
-            {
-                ')'
-            });
-            string[] array = Str.Split(new char[]
-            {
-                ','
-            });
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
             CultureInfo invariantCulture = CultureInfo.InvariantCulture;
             float x = 0f;
             float y = 0f;
@@ -309,18 +277,9 @@ namespace Vocore
         /// </summary>
         public static Rect ToRect(this string str)
         {
-            str = str.TrimStart(new char[]
-            {
-                '('
-            });
-            str = str.TrimEnd(new char[]
-            {
-                ')'
-            });
-            string[] array = str.Split(new char[]
-            {
-                ','
-            });
+            str = str.TrimStart(_trimStart);
+            str = str.TrimEnd(_trimEnd);
+            string[] array = str.Split(_split);
             CultureInfo invariantCulture = CultureInfo.InvariantCulture;
             float x = Convert.ToSingle(array[0], invariantCulture);
             float y = Convert.ToSingle(array[1], invariantCulture);
@@ -341,10 +300,7 @@ namespace Vocore
 
             str = str.TrimStart(_trimColorStart);
             str = str.TrimEnd(_trimColorEnd);
-            string[] array = str.Split(new char[]
-            {
-                ','
-            });
+            string[] array = str.Split(_split);
             float num = array[0].ToFloat();
             float num2 = array[1].ToFloat();
             float num3 = array[2].ToFloat();
