@@ -96,10 +96,10 @@ namespace MuzzleFlash
             return verb.EquipmentCompSource?.parent?.def?.Verbs?.FirstOrDefault() == verb.verbProps;
         }
 
-        public static void GetMuzzleFlashProps(this ThingDef def, out MuzzleFlashProps primary, out MuzzleFlashProps senconday)
+        public static void GetMuzzleFlashProps(this ThingDef def, out MuzzleFlashProps primary, out MuzzleFlashProps secondary)
         {
             primary = null;
-            senconday = null;
+            secondary = null;
             if (def == null) return;
             if (def.modExtensions == null)
             {
@@ -119,7 +119,7 @@ namespace MuzzleFlash
                 
                 if (props.type.HasFlag(WeaponMode.Secondary))
                 {
-                    senconday = props;
+                    secondary = props;
                 }
             }
 
