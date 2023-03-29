@@ -1,0 +1,104 @@
+using System;
+using System.Collections.Generic;
+
+namespace Vocore
+{
+    public class UtilsAlgorithm
+    {
+        /// <summary>
+        /// Binary search.
+        /// </summary>
+        public static int BinarySearch<T>(IList<T> list, T item, IComparer<T> comparer = null)
+        {
+            if(comparer == null){
+                comparer = Comparer<T>.Default;
+            }
+
+            int left = 0;
+            int right = list.Count - 1;
+            while (left <= right)
+            {
+                int mid = (left + right) / 2;
+                if (comparer.Compare(list[mid], item) == 0)
+                {
+                    return mid;
+                }
+                else if (comparer.Compare(list[mid], item) > 0)
+                {
+                    right = mid - 1;
+                }
+                else
+                {
+                    left = mid + 1;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Binary search, return the index of the first element that is lower than or equal to the item.
+        /// </summary>
+        public static int BinarySearchFloor<T>(IList<T> list, T item, IComparer<T> comparer = null){
+            if(comparer == null){
+                comparer = Comparer<T>.Default;
+            }
+
+            int left = 0;
+            int right = list.Count - 1;
+            int index = -1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (comparer.Compare(list[mid], item) == 0)
+                {
+                    index = mid;
+                    break;
+                }
+                else if (comparer.Compare(list[mid], item) > 0)
+                {
+                    right = mid - 1;
+                }
+                else
+                {
+                    index = mid;
+                    left = mid + 1;
+                }
+            }
+
+            return index;
+        }
+
+        /// <summary>
+        /// Binary search, return the index of the first element that is greater than or equal to the item.
+        /// </summary>
+        public static int BinarySearchCeil<T>(IList<T> list, T item, IComparer<T> comparer = null){
+            if(comparer == null){
+                comparer = Comparer<T>.Default;
+            }
+
+            int left = 0;
+            int right = list.Count - 1;
+            int index = -1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (comparer.Compare(list[mid], item) == 0)
+                {
+                    index = mid;
+                    break;
+                }
+                else if (comparer.Compare(list[mid], item) > 0)
+                {
+                    index = mid;
+                    right = mid - 1;
+                }
+                else
+                {
+                    left = mid + 1;
+                }
+            }
+            return index;
+        }
+    }
+}
+

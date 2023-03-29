@@ -23,9 +23,10 @@ namespace Vocore.Test
 
             int[] result = new int[]{-1, 1, 2, 3, 3, 4, 5, 6, 7, 10};
 
-            for (int i = 0; i < list.Count; i++)
-            {
-                TestUtility.PrintBlue(list[i].ToString());
+            if(list.Count != result.Length){
+                TestUtility.AddFailed();
+                TestUtility.PrintRed("Test_PriorityList add failed");
+                return;
             }
 
             for (int i = 0; i < list.Count; i++)
@@ -59,6 +60,12 @@ namespace Vocore.Test
             list.RemoveOnce(-1);
 
             int[] result = new int[]{1, 2, 3, 4, 6, 7};
+
+            if(list.Count != result.Length){
+                TestUtility.AddFailed();
+                TestUtility.PrintRed("Test_PriorityList add failed");
+                return;
+            }
 
             for (int i = 0; i < list.Count; i++)
             {
