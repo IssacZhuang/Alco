@@ -18,7 +18,7 @@ namespace Vocore
             }
         }
 
-        public IList<KeyFrame<Vector3>> Points
+        public IReadOnlyList<KeyFrame<Vector3>> Points
         {
             get
             {

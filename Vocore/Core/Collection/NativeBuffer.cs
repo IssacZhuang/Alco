@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Vocore
 {
-    public unsafe struct NativeBuffer<T> : IDisposable where T : unmanaged
+    public unsafe struct NativeBuffer<T> : IReadOnlyList<T>, IDisposable where T : unmanaged
     {
         private void* _ptrArray;
         private readonly int _size;
@@ -16,6 +17,8 @@ namespace Vocore
         public T* Raw => (T*)_ptrArray;
         public int Size => _size;
         public int Stride => _stride;
+
+        public int Count => Size;
 
         public T this[int index]
         {
@@ -55,6 +58,19 @@ namespace Vocore
                 _ptrArray = null;
             }
             GC.SuppressFinalize(this);
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            for (int i = 0; i < _size; i++)
+            {
+                yield return this[i];
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

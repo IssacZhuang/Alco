@@ -20,7 +20,7 @@ namespace Vocore
             }
         }
 
-        public IList<KeyFrame<float>> Points
+        public IReadOnlyList<KeyFrame<float>> Points
         {
             get
             {
@@ -44,10 +44,10 @@ namespace Vocore
         {
             if (curve == null) throw new ArgumentNullException("curve to cache");
             _step = step;
-            int count = Mathf.FloorToInt((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step)+2;
-            
+            int count = Mathf.FloorToInt((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step) + 2;
+
             _points = new KeyFrame<float>[count];
-            Parallel.For(0, count-1, (i) =>
+            Parallel.For(0, count - 1, (i) =>
             {
                 float t = curve.Points[0].t + i * step;
                 float value = curve.Evaluate(t);
@@ -67,7 +67,13 @@ namespace Vocore
             float t2 = _points[index2].t;
             float v1 = _points[index].value;
             float v2 = _points[index2].value;
-            return Mathf.Lerp(v1, v2, (t - t1) / (t2 - t1));
+
+            if (index2 == _points.Length-1)
+            {
+                return Mathf.Lerp(v1, v2, (t - t1) / (t2 - t1));
+            }
+
+            return Mathf.Lerp(v1, v2, (t - t1) / _step);
         }
     }
 }

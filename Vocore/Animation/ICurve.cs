@@ -4,12 +4,12 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public interface ICurveBase<T>
+    public interface ICurveBase<T> where T : unmanaged
     {
         T Evaluate(float t);
         int PointsCount { get; }
         void SetPoints(IList<KeyFrame<T>> points);
-        IList <KeyFrame<T>> Points { get; }
+        IReadOnlyList <KeyFrame<T>> Points { get; }
     }
 
     public interface ICurve: ICurveBase<float>

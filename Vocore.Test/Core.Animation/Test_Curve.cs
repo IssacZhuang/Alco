@@ -57,7 +57,7 @@ namespace Vocore.Test
             float[] y = { 3, 16, 0 };
             var curveHermite = new CurveHermite(x, y);
             var curveLinear = new CurveLinear(x, y);
-            var curveCached = new CurveCache(curveHermite,1);
+            var curveCached = new CurveCache(curveHermite,3);
             CurveDrawer.Draw(curveLinear, "Linear");
             CurveDrawer.Draw(curveHermite, "Hermite");
             CurveDrawer.Draw(curveCached, "Hermite Cache");

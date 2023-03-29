@@ -17,7 +17,7 @@ namespace Vocore
             }
         }
 
-        public IList<KeyFrame<float>> Points
+        public IReadOnlyList<KeyFrame<float>> Points
         {
             get
             {
