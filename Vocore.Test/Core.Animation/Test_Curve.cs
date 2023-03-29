@@ -10,7 +10,7 @@ namespace Vocore.Test
         [Test("Test linear vs hermite vs cache performance")]
         public void Test_CurvePerformance()
         {
-            int pointCount = 10000;
+            int pointCount = 100000;
             float[] t = new float[pointCount];
             float[] value = new float[pointCount];
             for (int i = 0; i < pointCount; i++)
@@ -41,7 +41,6 @@ namespace Vocore.Test
             TestUtility.PrintBlue("Hermite: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
-
             for (int i = 0; i < pointCount; i++)
             {
                 curveCache.Evaluate(i);
@@ -54,11 +53,14 @@ namespace Vocore.Test
         public void Test_DrawCurve()
         {
             //create a cubic spline curve
-            float[] x = { 0, 8, 16 };
-            float[] y = { 0, 16, 0 };
-            var curve = new CurveHermite(x, y);
-            var curveCached = new CurveCache(curve,1);
-            CurveDrawer.Draw(curveCached);
+            float[] x = { -3, 8, 16 };
+            float[] y = { 3, 16, 0 };
+            var curveHermite = new CurveHermite(x, y);
+            var curveLinear = new CurveLinear(x, y);
+            var curveCached = new CurveCache(curveHermite,1);
+            CurveDrawer.Draw(curveLinear, "Linear");
+            CurveDrawer.Draw(curveHermite, "Hermite");
+            CurveDrawer.Draw(curveCached, "Hermite Cache");
         }
     }
 }

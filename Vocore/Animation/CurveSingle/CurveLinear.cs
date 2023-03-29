@@ -86,6 +86,7 @@ namespace Vocore
         {
             _points.Sort((KeyFrame<float> a, KeyFrame<float> b) => a.t.CompareTo(b.t));
         }
+        
 
         public float Evaluate(float x)
         {
@@ -101,28 +102,34 @@ namespace Vocore
             {
                 return _points[_points.Count - 1].value;
             }
-            KeyFrame<float> keyFrame1 = _points[0];
-            KeyFrame<float> keyFrame2 = _points[_points.Count - 1];
-            int i = 0;
-            while (i < _points.Count)
+           
+            int i = BinarySearchFloor(x);
+            KeyFrame<float> keyFrame1 = _points[i];
+            KeyFrame<float> keyFrame2 = _points[i + 1];
+            float t = (x - keyFrame1.t) / (keyFrame2.t - keyFrame1.t);
+            return Mathf.Lerp(keyFrame1.value, keyFrame2.value, t);
+        }
+
+        private int BinarySearchFloor(float t){
+            int low = 0;
+            int high = _points.Count - 1;
+            while (low <= high)
             {
-                if (x <= _points[i].t)
+                int mid = (low + high) / 2;
+                if (t < _points[mid].t)
                 {
-                    keyFrame2 = _points[i];
-                    if (i > 0)
-                    {
-                        keyFrame1 = _points[i - 1];
-                        break;
-                    }
-                    break;
+                    high = mid - 1;
+                }
+                else if (t > _points[mid].t)
+                {
+                    low = mid + 1;
                 }
                 else
                 {
-                    i++;
+                    return mid;
                 }
             }
-            float t = (x - keyFrame1.t) / (keyFrame2.t - keyFrame1.t);
-            return Mathf.Lerp(keyFrame1.value, keyFrame2.value, t);
+            return high;
         }
     }
 }

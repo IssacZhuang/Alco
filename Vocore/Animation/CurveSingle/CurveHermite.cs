@@ -86,17 +86,7 @@ namespace Vocore
             {
                 return _points[_points.Count - 1].value;
             }
-            int index = 0;
-            int count = _points.Count;
-
-            for (int i = 1; i < count; i++)
-            {
-                if (_points[i].t > t)
-                {
-                    index = i - 1;
-                    break;
-                }
-            }
+            int index = BinarySearchFloor(t);
 
             float t0 = _points[index].t;
             float t1 = _points[index + 1].t;
@@ -125,6 +115,28 @@ namespace Vocore
         public void RefreshSlopes()
         {
             _slopes = CalculateSlopes(_points);
+        }
+
+        private int BinarySearchFloor(float t){
+            int low = 0;
+            int high = _points.Count - 1;
+            while (low <= high)
+            {
+                int mid = (low + high) / 2;
+                if (t < _points[mid].t)
+                {
+                    high = mid - 1;
+                }
+                else if (t > _points[mid].t)
+                {
+                    low = mid + 1;
+                }
+                else
+                {
+                    return mid;
+                }
+            }
+            return high;
         }
 
         private static float[] CalculateSlopes(IList<KeyFrame<float>> points)

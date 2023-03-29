@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -7,14 +9,14 @@ namespace Vocore
 {
     public class CurveCache : ICurve
     {
-        private List<KeyFrame<float>> _points;
+        private KeyFrame<float>[] _points;
         private float _step = ConstCurve.DefaultStep;
 
         public int PointsCount
         {
             get
             {
-                return _points.Count;
+                return _points.Length;
             }
         }
 
@@ -41,24 +43,25 @@ namespace Vocore
         public void CacheCurve(ICurve curve, float step = ConstCurve.DefaultStep)
         {
             if (curve == null) throw new ArgumentNullException("curve to cache");
-
-            _points = new List<KeyFrame<float>>();
             _step = step;
-            //evaluate curve by step and cache the result
-            for (float t = curve.Points[0].t; t < curve.Points[curve.PointsCount - 1].t; t += step)
+            int count = Mathf.FloorToInt((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step)+2;
+            
+            _points = new KeyFrame<float>[count];
+            Parallel.For(0, count-1, (i) =>
             {
-                _points.Add(new KeyFrame<float>(t, curve.Evaluate(t)));
-            }
-            _points.Add(new KeyFrame<float>(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
+                float t = curve.Points[0].t + i * step;
+                float value = curve.Evaluate(t);
+                _points[i] = new KeyFrame<float>(t, value);
+            });
+            _points[count - 1] = new KeyFrame<float>(curve.Points[curve.PointsCount - 1].t, curve.Points[curve.PointsCount - 1].value);
         }
 
         public float Evaluate(float t)
         {
-            t = Mathf.Clamp(t, _points[0].t, _points[_points.Count - 1].t);
+            t = Mathf.Clamp(t, _points[0].t, _points[_points.Length - 1].t);
             //find the nearest two point by t and step
             int index = Mathf.FloorToInt((t - _points[0].t) / _step);
             int index2 = index + 1;
-
             //interpolate between two points
             float t1 = _points[index].t;
             float t2 = _points[index2].t;

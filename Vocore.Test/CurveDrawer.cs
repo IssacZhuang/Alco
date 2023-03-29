@@ -10,12 +10,13 @@ namespace Vocore.Test
 {
     public class CurveDrawer
     {
-        public static void Draw(ICurve curve, int bitmapHeight = 512, float step = 0.01f, float penWidth = 3, int borderMargin = 10){
-            Draw(curve, curve.Points[0].t, curve.Points[curve.PointsCount - 1].t, bitmapHeight, step, penWidth, borderMargin);
+        public static void Draw(ICurve curve, string name = "curve", int bitmapHeight = 512, float step = 0.01f, float penWidth = 3, int borderMargin = 10)
+        {
+            Draw(curve, curve.Points[0].t, curve.Points[curve.PointsCount - 1].t, name, bitmapHeight, step, penWidth, borderMargin);
         }
 
 
-        public static void Draw(ICurve curve, float startX, float endX, int bitmapHeight = 512, float step = 0.01f, float penWidth = 3, int borderMargin = 10)
+        public static void Draw(ICurve curve, float startX, float endX, string name = "curve", int bitmapHeight = 512, float step = 0.01f, float penWidth = 3, int borderMargin = 10)
         {
             //get max y
             float maxY = 0;
@@ -31,7 +32,6 @@ namespace Vocore.Test
 
             float scale = (float)bitmapHeight / (maxY - minY);
 
-
             int width = (int)((endX - startX) * scale) + borderMargin * 2;
             int height = bitmapHeight + borderMargin * 2;
             Bitmap bmp = new Bitmap(width, height);
@@ -46,22 +46,22 @@ namespace Vocore.Test
             {
 
                 float y = curve.Evaluate(x);
-                g.DrawLine(penLine, borderMargin + x0 * scale, height - borderMargin - y0 * scale, borderMargin + x * scale, height - borderMargin - y * scale);
+                g.DrawLine(penLine, borderMargin + (x0 - startX) * scale, height - borderMargin - y0 * scale, borderMargin + (x - startX) * scale, height - borderMargin - y * scale);
                 x0 = x;
                 y0 = y;
             }
 
-            Pen penPoint = new Pen(Color.Red, penWidth*1.5f);
+            Pen penPoint = new Pen(Color.Red, penWidth * 1.5f);
 
             //draw points
             foreach (var point in curve.Points)
             {
-                g.DrawEllipse(penPoint, borderMargin + point.t * scale - penWidth, height - borderMargin - point.value * scale - penWidth, penWidth * 2, penWidth * 2);
+                g.DrawEllipse(penPoint, borderMargin + (point.t - startX) * scale - penWidth, height - borderMargin - point.value * scale - penWidth, penWidth * 2, penWidth * 2);
             }
-
-            bmp.Save("curve.png", ImageFormat.Png);
+            string fileName = name + ".png";
+            bmp.Save(fileName, ImageFormat.Png);
             ProcessStartInfo psi = new ProcessStartInfo();
-            psi.FileName = "curve.png";
+            psi.FileName = fileName;
             psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Normal;
             Process.Start(psi);
 
