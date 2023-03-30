@@ -32,7 +32,7 @@ namespace Vocore
 
         private List<Texture2D> _textures = new List<Texture2D>();
         private List<string> _fileName = new List<string>();
-        private Dictionary<string, AtlasTile> _tiles = new Dictionary<string, AtlasTile>();
+        private Dictionary<string, TextureInfo> _tiles = new Dictionary<string, TextureInfo>();
 
         public Texture2D Atlas
         {
@@ -74,9 +74,7 @@ namespace Vocore
             //calc the tile info
             for (int i = 0; i < rects.Length; i++)
             {
-                AtlasTile tile = new AtlasTile();
-                tile.atlas = _atlas;
-                tile.rect = rects[i];
+                TextureInfo tile = new TextureInfo(_atlas, rects[i]);
                 _tiles.Add(_fileName[i], tile);
             }
 
@@ -86,7 +84,7 @@ namespace Vocore
             }
         }
 
-        public AtlasTile GetTile(string fileName)
+        public TextureInfo GetTile(string fileName)
         {
             if (_tiles.ContainsKey(fileName))
             {
