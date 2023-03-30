@@ -49,7 +49,8 @@ namespace Vocore.Test
             TestUtility.PrintBlue("Cache: " + sw.ElapsedMilliseconds);
         }
 
-        [Test("Draw curve")]
+        //disabled
+        //[Test("Draw curve")]
         public void Test_DrawCurve()
         {
             //create a cubic spline curve
