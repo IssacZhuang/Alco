@@ -26,14 +26,32 @@ namespace Vocore
             }
         }
 
-        public PriorityList()
+        public PriorityList(IComparer<T> comparer = null)
         {
-            _comparer = Comparer<T>.Default;
+            if (comparer == null)
+            {
+                _comparer = Comparer<T>.Default;
+            }
+            else
+            {
+                _comparer = comparer;
+            }
         }
 
-        public PriorityList(IComparer<T> comparer)
+        public PriorityList(IList<T> source, IComparer<T> comparer = null)
         {
-            _comparer = comparer;
+            _innerList = new List<T>(source);
+
+            if (comparer == null)
+            {
+                _comparer = Comparer<T>.Default;
+            }
+            else
+            {
+                _comparer = comparer;
+            }
+
+            _innerList.Sort(_comparer);
         }
 
         public void Add(T item)
@@ -48,21 +66,23 @@ namespace Vocore
             {
                 _innerList.Insert(index, item);
             }
-            
+
         }
 
-		public void RemoveOnce(T item){
-			//binary search and remove
-			int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
-			if (index == -1)
-			{
-				return;
-			}
+        public void RemoveOnce(T item)
+        {
+            //binary search and remove
+            int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
+            if (index == -1)
+            {
+                return;
+            }
 
-			_innerList.RemoveAt(index);
-		}
+            _innerList.RemoveAt(index);
+        }
 
-        public void Remove(T item){
+        public void Remove(T item)
+        {
             _innerList.Remove(item);
         }
 

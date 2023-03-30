@@ -133,6 +133,7 @@
     <Compile Include="Core.Collection\Test_PriorityList.cs" />
     <Folder Include="Core.Algorithm\" />
     <Compile Include="Core.Collection\Test_BinarySearch.cs" />
+    <Compile Include="Core.Animation\Test_Animation.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

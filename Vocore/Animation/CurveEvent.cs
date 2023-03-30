@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public struct CurveEvent
+    public struct CurveEvent: IComparable<CurveEvent>, ISortable
     {
         public float t;
         public string name;
@@ -14,6 +14,13 @@ namespace Vocore
             this.t = t;
             this.name = name;
             this.direction = timeDirection;
+        }
+
+        public float SortKey => t;
+
+        public int CompareTo(CurveEvent obj)
+        {
+            return t.CompareTo(obj.t);
         }
     }
 }
