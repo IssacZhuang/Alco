@@ -99,7 +99,7 @@ namespace Vocore.Test
             //load xml file from current assembly
             Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
-            string path = "Vocore.Test.Core.Xml.TestFiles.TestObject.xml";
+            string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             UtilsType.AddDefaultNamespace("Vocore.Test");
             // get resource stream from xml file location inside the assembly
@@ -148,7 +148,7 @@ namespace Vocore.Test
             //load xml file from current assembly
             Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
-            string path = "Vocore.Test.Core.Xml.TestFiles.TestObject.xml";
+            string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             UtilsType.AddDefaultNamespace("Vocore.Test");
             // get resource stream from xml file location inside the assembly
@@ -195,7 +195,7 @@ namespace Vocore.Test
             //load xml file from current assembly
             Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
-            string path = "Vocore.Test.Core.Xml.TestFiles.TestObject.xml";
+            string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             UtilsType.AddDefaultNamespace("Vocore.Test");
             // get resource stream from xml file location inside the assembly

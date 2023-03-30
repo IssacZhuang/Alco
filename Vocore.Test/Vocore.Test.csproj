@@ -77,10 +77,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Core.Collection\Test_NativeStructuredBuffer.cs" />
+    <Compile Include="Collection\Test_NativeStructuredBuffer.cs" />
     <Compile Include="Entry.cs" />
-    <Compile Include="Core.Framework\Test_ProtoDatabase.cs" />
-    <Compile Include="GeneralPerformanceTest\Test_ActivatorVsNew.cs" />
+    <Compile Include="Framework\Test_ProtoDatabase.cs" />
+    <Compile Include="Playground\Test_ActivatorVsNew.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestUtility.cs" />
   </ItemGroup>
@@ -105,35 +105,35 @@
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
     </ProjectReference>
-    <Compile Include="Rim.Xml\Test_Pattern.cs" />
-    <Compile Include="GeneralPerformanceTest\Test_Parallel.cs" />
+    <Compile Include="Playground\Test_Parallel.cs" />
     <Compile Include="Core\Test_Bezier.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Core.Xml\Test_UtilsParse.cs" />
-    <Compile Include="Core.Xml\Test_UtilsType.cs" />
-    <EmbeddedResource Include="Core.Xml\TestFiles\TestLoad.xml">
+    <Compile Include="Serialization\Test_UtilsParse.cs" />
+    <Compile Include="Serialization\Test_UtilsType.cs" />
+    <EmbeddedResource Include="TestFiles\TestLoad.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="Core.Xml\TestFiles\TestObject.xml">
+    <EmbeddedResource Include="TestFiles\TestObject.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Compile Include="Core.Xml\Test_XmlParser.cs" />
+    <Compile Include="Serialization\Test_XmlParser.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GeneralPerformanceTest\Playground.cs" />
-    <Compile Include="Core.Collection\Test_Pool.cs" />
+    <Compile Include="Playground\Playground.cs" />
+    <Compile Include="Collection\Test_Pool.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CurveDrawer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\CSharp\" />
-    <Compile Include="Core.Animation\Test_Curve.cs" />
-    <Compile Include="Core.Collection\Test_PriorityList.cs" />
-    <Folder Include="Core.Algorithm\" />
-    <Compile Include="Core.Collection\Test_BinarySearch.cs" />
-    <Compile Include="Core.Animation\Test_Animation.cs" />
+    <Compile Include="Animation\Test_Curve.cs" />
+    <Compile Include="Collection\Test_PriorityList.cs" />
+    <Folder Include="Algorithm\" />
+    <Compile Include="Collection\Test_BinarySearch.cs" />
+    <Compile Include="Animation\Test_Animation.cs" />
+    <Folder Include="IO\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
