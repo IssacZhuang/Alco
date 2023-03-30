@@ -32,19 +32,19 @@ namespace Vocore
 
         public byte[] GetBytes()
         {
-            if (!Validate()) throw ExceptionIO.ExceptionFilePathInvalid;
-            return File.ReadAllBytes(_fileInfo.FullName);
+            if (!Validate()) throw new FileNotFoundException(_fileInfo.FullName);
+            return File.ReadAllBytes(Path);
         }
 
         public string GetString()
         {
-            if (!Validate()) throw ExceptionIO.ExceptionFilePathInvalid;
+            if (!Validate()) throw new FileNotFoundException(_fileInfo.FullName);
             return File.ReadAllText(Path);
         }
 
         public Stream GetStream()
         {
-            if (!Validate()) throw ExceptionIO.ExceptionFilePathInvalid;
+            if (!Validate()) throw new FileNotFoundException(_fileInfo.FullName);
             return _fileInfo.OpenRead();
         }
 
