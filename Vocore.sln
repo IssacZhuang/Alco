@@ -36,6 +36,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Test", "Vocore.Test\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Vocore.EmbeddedAsstes", "Vocore.EmbeddedAsstes", "{5E3F135A-D664-4F8D-BF79-D7BFEB82D812}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.IO", "Vocore\Vocore.IO.csproj", "{E0C22C0B-12D2-4129-99A6-B9848E911F70}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -94,6 +96,10 @@ Global
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E0C22C0B-12D2-4129-99A6-B9848E911F70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E0C22C0B-12D2-4129-99A6-B9848E911F70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E0C22C0B-12D2-4129-99A6-B9848E911F70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E0C22C0B-12D2-4129-99A6-B9848E911F70}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,6 +118,7 @@ Global
 		{48A5F058-C65F-4EA1-BE6C-2ADC00CB7E36} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 		{142410B5-F105-4A36-8845-A52E60AEF85D} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE} = {FA25F425-399D-492F-95C2-FE728A44D7BC}
+		{E0C22C0B-12D2-4129-99A6-B9848E911F70} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E325C963-E46F-4BB6-9A6D-6DF0D8EE048F}
