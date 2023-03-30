@@ -6,21 +6,20 @@ using System.IO;
 
 namespace Vocore
 {
-    public class FileReference
+    public class FileReference : IEquatable<FileReference>
     {
-        private FileInfo _fileInfo;
+        private readonly FileInfo _fileInfo;
 
         public string Path
         {
-            get { return _fileInfo.FullName; }
+            get
+            {
+                if (_fileInfo == null) return "";
+                return _fileInfo.FullName;
+            }
         }
 
         public FileReference(string path)
-        {
-            Link(path);
-        }
-
-        public void Link(string path)
         {
             _fileInfo = new FileInfo(path);
         }
@@ -84,6 +83,35 @@ namespace Vocore
                     if (fail != null) fail(e);
                 }
             });
+        }
+
+        public bool Equals(FileReference other)
+        {
+            return other != null && other.Path == Path;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as FileReference);
+        }
+
+        //override operator ==
+        public static bool operator ==(FileReference a, FileReference b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (ReferenceEquals(a, null)) return false;
+            if (ReferenceEquals(b, null)) return false;
+            return a.Equals(b);
+        }
+
+        public static bool operator !=(FileReference a, FileReference b)
+        {
+            return !(a == b);
+        }
+
+        public override int GetHashCode()
+        {
+            return Path.GetHashCode();
         }
     }
 }
