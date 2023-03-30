@@ -18,6 +18,11 @@ namespace Vocore
 
         public float SortKey => t;
 
+        public bool IsFollowingDirection(TimeDirection direction)
+        {
+            return (this.direction & direction) != 0;
+        }
+
         public int CompareTo(CurveEvent obj)
         {
             return t.CompareTo(obj.t);

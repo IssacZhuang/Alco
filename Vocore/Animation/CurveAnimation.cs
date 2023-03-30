@@ -60,11 +60,13 @@ namespace Vocore
 
         public bool TryInvokeEventActionInRange(float start, float end)
         {
+            TimeDirection direction = TimeDirection.Clockwise;
             if (start > end)
             {
                 float tmp = start;
                 start = end;
                 end = tmp;
+                direction = TimeDirection.CounterClockwise;
             }
 
             int index = UtilsAlgorithm.BinarySearch(events, start);
@@ -81,7 +83,7 @@ namespace Vocore
                     break;
                 }
 
-                if (TryInvokeEventAction(events[i].name))
+                if (events[i].IsFollowingDirection(direction)&&TryInvokeEventAction(events[i].name))
                 {
                     result = true;
                 }
