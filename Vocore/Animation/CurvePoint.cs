@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public struct CurvePoint<T>
+    public struct CurvePoint<T>: ISortable
     {
         public float t;
         public T value;
@@ -15,6 +15,8 @@ namespace Vocore
             this.t = t;
             this.value = value;
         }
+
+        public float SortKey => t;
     }
 }
 
