@@ -117,6 +117,15 @@
     <EmbeddedResource Include="TestFiles\TestObject.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="TestFiles\TestIO_1.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TestFiles\TestIO_2.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TestFiles\TestIO_3.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Compile Include="Serialization\Test_XmlParser.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -133,7 +142,7 @@
     <Folder Include="Algorithm\" />
     <Compile Include="Collection\Test_BinarySearch.cs" />
     <Compile Include="Animation\Test_Animation.cs" />
-    <Folder Include="IO\" />
+    <Compile Include="IO\Test_FileReference.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

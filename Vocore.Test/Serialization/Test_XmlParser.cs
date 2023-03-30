@@ -136,7 +136,7 @@ namespace Vocore.Test
 
 
 
-                    TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
+                    //TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
@@ -183,7 +183,7 @@ namespace Vocore.Test
                         return;
                     }
 
-                    TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
+                    //TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
@@ -230,7 +230,7 @@ namespace Vocore.Test
                         return;
                     }
 
-                    TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
+                    //TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }

@@ -1,0 +1,31 @@
+<Objects>
+    <TestCls>
+        <Name>Input2</Name>
+        <Position>(1,2,3)</Position>
+        <Rotation>(0.8,0.8,0.8,0.8)</Rotation>
+        <Scale>(1,1,1)</Scale>
+        <TestInt>1</TestInt>
+        <TestFloat>1.1</TestFloat>
+        <TestString>TestString\\n aaa</TestString>
+        <TestBool>True</TestBool>
+        <TestEnum>Primary,Secondary</TestEnum>
+        <InnerData>
+            <Key>this is a key</Key>
+            <Value>12</Value>
+        </InnerData>
+        <TestStruct>
+            <Name>this is a struct key</Name>
+            <Value>222</Value>
+        </TestStruct>
+        <RecursiveClass>
+            <RecursiveClass>
+                <Name>Recursive obj</Name>
+            </RecursiveClass>
+        </RecursiveClass>
+        <TestDictionary>
+            <Math>1</Math>
+            <Math>2</Math>
+            <Math>3</Math>
+        </TestDictionary>
+    </TestCls>
+</Objects>
