@@ -11,12 +11,13 @@ namespace Vocore.Test
             float[] value = new float[]{0, 5, 4, 8};
             CurveHermite curve = new CurveHermite(t, value);
             List<CurveEvent> events = new List<CurveEvent>();
-            events.Add(new CurveEvent(-1, "event0"));
+            events.Add(new CurveEvent(9, "event5"));
             events.Add(new CurveEvent(0, "event1"));
-            events.Add(new CurveEvent(1, "event2"));
+            events.Add(new CurveEvent(-1, "event0"));
             events.Add(new CurveEvent(2, "event3"));
             events.Add(new CurveEvent(7, "event4"));
-            events.Add(new CurveEvent(9, "event5"));
+            events.Add(new CurveEvent(1, "event2"));
+            
 
             CurveAnimation animation = new CurveAnimation(curve, events);
 
