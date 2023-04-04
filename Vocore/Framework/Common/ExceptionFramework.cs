@@ -8,9 +8,9 @@ namespace Vocore
 {
     public static class ExceptionFramework
     {
-        public static Exception ProtoAlreadyExist(string protoName)
+        public static Exception ResAlreadyExist(string resName)
         {
-            return new Exception("Duplicated protoName: " + protoName);
+            return new Exception("Duplicated resName: " + resName);
         }
     }
 }

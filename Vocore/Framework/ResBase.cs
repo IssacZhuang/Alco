@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,20 +6,18 @@ using System.Threading.Tasks;
 
 namespace Vocore
 {
-    public class ProtoBase
+    public class ResBase
     {
-        public string nameID;
-        public string title;
-        public string desc;
+        public string name;
         
         public virtual void Initialize()
         {
 
         }
 
-        public virtual bool CanGroupWith()
+        public virtual bool ConflictWith(ResBase other)
         {
-            return false;
+            return this.name == other.name;
         }
 
         public virtual IEnumerable<string> CheckConfigError()

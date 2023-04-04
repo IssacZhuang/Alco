@@ -7,91 +7,91 @@ using System.Threading.Tasks;
 namespace Vocore.Test.Core.Framework
 {
     [DisabledTestTemporarily]
-    internal class Test_ProtoDatabase
+    internal class Test_ResDatabase
     {
-        [Test("ProtoDatabase.Load() Duplicate refer", true)]
+        [Test("ResDatabase.Load() Duplicate refer", true)]
         public void Test_DuplicateAdd()
         {
-            ProtoBase proto = new ProtoBase();
-            ProtoDatabase<ProtoBase>.Load(proto);
-            ProtoDatabase<ProtoBase>.Load(proto); // error
+            ResBase res = new ResBase();
+            ResDatabase<ResBase>.Load(res);
+            ResDatabase<ResBase>.Load(res); // error
         }
 
-        [Test("ProtoDatabase.Load() Duplicate name", true)]
+        [Test("ResDatabase.Load() Duplicate name", true)]
         public void Test_DuplicateAdd2()
         {
-            ProtoBase proto1 = new ProtoBase
+            ResBase res1 = new ResBase
             {
-                nameID = "same"
+                name = "same"
             };
-            ProtoBase proto2 = new ProtoBase
+            ResBase res2 = new ResBase
             {
-                nameID = "same"
+                name = "same"
             };
-            ProtoDatabase<ProtoBase>.Load(proto1);
-            ProtoDatabase<ProtoBase>.Load(proto2); // error
+            ResDatabase<ResBase>.Load(res1);
+            ResDatabase<ResBase>.Load(res2); // error
         }
 
-        [Test("ProtoDatabase.Load() Load")]
+        [Test("ResDatabase.Load() Load")]
         public void Test_Load()
         {
-            ProtoDatabase<ProtoBase>.Clear();
-            ProtoBase proto1 = new ProtoBase
+            ResDatabase<ResBase>.Clear();
+            ResBase res1 = new ResBase
             {
-                nameID = "p1"
+                name = "p1"
             };
-            ProtoBase proto2 = new ProtoBase
+            ResBase res2 = new ResBase
             {
-                nameID = "p2"
+                name = "p2"
             };
-            ProtoDatabase<ProtoBase>.Load(proto1);
-            ProtoDatabase<ProtoBase>.Load(proto2);
+            ResDatabase<ResBase>.Load(res1);
+            ResDatabase<ResBase>.Load(res2);
 
-            TestUtility.Assert(ProtoDatabase<ProtoBase>.Count != 2);
+            TestUtility.Assert(ResDatabase<ResBase>.Count != 2);
         }
 
-        private class ProtoFoo : ProtoBase { }
-        private class ProtoBar : ProtoBase { }
+        private class resFoo : ResBase { }
+        private class resBar : ResBase { }
 
 
-        [Test("ProtoDatabase.Load() Load different type")]
+        [Test("ResDatabase.Load() Load different type")]
         public void Test_LoadTwoType()
         {
 
-            ProtoDatabase<ProtoBase>.Clear();
-            ProtoFoo proto1 = new ProtoFoo
+            ResDatabase<ResBase>.Clear();
+            resFoo res1 = new resFoo
             {
-                nameID = "p1"
+                name = "p1"
             };
-            ProtoBar proto2 = new ProtoBar
+            resBar res2 = new resBar
             {
-                nameID = "p2"
+                name = "p2"
             };
-            ProtoDatabase<ProtoBase>.Load(proto1);
-            ProtoDatabase<ProtoBase>.Load(proto2);
+            ResDatabase<ResBase>.Load(res1);
+            ResDatabase<ResBase>.Load(res2);
 
-            TestUtility.Assert(ProtoDatabase<ProtoBase>.Count != 2);
+            TestUtility.Assert(ResDatabase<ResBase>.Count != 2);
         }
 
-        [Test("ProtoDatabase.Load() Load with different DB")]
+        [Test("ResDatabase.Load() Load with different DB")]
         public void Test_LoadTwoDB()
         {
 
-            ProtoDatabase<ProtoBase>.Clear();
-            ProtoFoo proto1 = new ProtoFoo
+            ResDatabase<ResBase>.Clear();
+            resFoo res1 = new resFoo
             {
-                nameID = "p1"
+                name = "p1"
             };
-            ProtoBar proto2 = new ProtoBar
+            resBar res2 = new resBar
             {
-                nameID = "p2"
+                name = "p2"
             };
-            ProtoDatabase<ProtoFoo>.Load(proto1);
-            ProtoDatabase<ProtoBar>.Load(proto2);
+            ResDatabase<resFoo>.Load(res1);
+            ResDatabase<resBar>.Load(res2);
 
-            TestUtility.Assert(ProtoDatabase<ProtoBase>.Count != 0);
-            TestUtility.Assert(ProtoDatabase<ProtoFoo>.Count != 1);
-            TestUtility.Assert(ProtoDatabase<ProtoBar>.Count != 1);
+            TestUtility.Assert(ResDatabase<ResBase>.Count != 0);
+            TestUtility.Assert(ResDatabase<resFoo>.Count != 1);
+            TestUtility.Assert(ResDatabase<resBar>.Count != 1);
         }
     }
 }
