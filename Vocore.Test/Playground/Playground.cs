@@ -8,7 +8,7 @@ namespace Vocore.Test
     public class Playground
     {
         //some temp code for testing
-        [Test("Playground")]
+        //[Test("Playground")]
         public void Test()
         {
             //compare query speed of list and hashset

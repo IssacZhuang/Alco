@@ -143,6 +143,7 @@
     <Compile Include="Collection\Test_BinarySearch.cs" />
     <Compile Include="Animation\Test_Animation.cs" />
     <Compile Include="IO\Test_FileReference.cs" />
+    <Compile Include="Thread\Test_AsyncOperation.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
