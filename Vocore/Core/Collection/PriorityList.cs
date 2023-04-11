@@ -88,7 +88,8 @@ namespace Vocore
 
         public bool Contains(T item)
         {
-            return _innerList.Contains(item);
+            int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
+            return index != -1;
         }
 
         public IEnumerator<T> GetEnumerator()
@@ -116,6 +117,23 @@ namespace Vocore
         protected int CompareElements(int i, int j)
         {
             return _comparer.Compare(_innerList[i], _innerList[j]);
+        }
+
+        public static int DefaultComparer(T x, T y)
+        {
+            int hashX = x.GetHashCode();
+            int hashY = y.GetHashCode();
+
+            if (hashX > hashY)
+            {
+                return 1;
+            }
+            else if (hashX < hashY)
+            {
+                return -1;
+            }
+            
+            return 0;
         }
     }
 }
