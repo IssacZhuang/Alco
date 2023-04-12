@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class PriorityList<T> : IReadOnlyList<T>
+    public class PriorityList<T> : IReadOnlyList<T>, ICollection<T>
     {
         private List<T> _innerList = new List<T>();
 
@@ -17,6 +17,8 @@ namespace Vocore
                 return _innerList.Count;
             }
         }
+
+        public bool IsReadOnly => false;
 
         public T this[int index]
         {
@@ -69,21 +71,22 @@ namespace Vocore
 
         }
 
-        public void RemoveOnce(T item)
+        public bool RemoveOnce(T item)
         {
             //binary search and remove
             int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
             if (index == -1)
             {
-                return;
+                return false;
             }
 
             _innerList.RemoveAt(index);
+            return true;
         }
 
-        public void Remove(T item)
+        public bool Remove(T item)
         {
-            _innerList.Remove(item);
+            return _innerList.Remove(item);
         }
 
         public bool Contains(T item)
@@ -134,6 +137,11 @@ namespace Vocore
             }
             
             return 0;
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            _innerList.CopyTo(array, arrayIndex);
         }
     }
 }
