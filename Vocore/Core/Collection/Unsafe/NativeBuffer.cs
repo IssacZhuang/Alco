@@ -8,13 +8,13 @@ namespace Vocore
 {
     public unsafe struct NativeBuffer<T> : IReadOnlyList<T>, IDisposable where T : unmanaged
     {
-        private void* _ptrArray;
+        private void* _ptrBuffer;
         private readonly int _size;
         private readonly int _stride;
 
         public int Length => _size;
 
-        public T* Raw => (T*)_ptrArray;
+        public T* Raw => (T*)_ptrBuffer;
         public int Size => _size;
         public int Stride => _stride;
 
@@ -27,7 +27,7 @@ namespace Vocore
                 unsafe
                 {
                     if (index >= _size) throw ExceptionCollection.OutOfRange;
-                    return ((T*)_ptrArray)[index];
+                    return ((T*)_ptrBuffer)[index];
                 }
             }
             set
@@ -35,27 +35,26 @@ namespace Vocore
                 unsafe
                 {
                     if (index >= _size) throw ExceptionCollection.OutOfRange;
-                    ((T*)_ptrArray)[index] = value;
+                    ((T*)_ptrBuffer)[index] = value;
                 }
             }
         }
-
 
         public NativeBuffer(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
 
             _stride = Marshal.SizeOf<T>();
-            _ptrArray = Marshal.AllocHGlobal(_stride * size).ToPointer();
+            _ptrBuffer = Marshal.AllocHGlobal(_stride * size).ToPointer();
             this._size = size;
         }
 
         public void Dispose()
         {
-            if (_ptrArray != null)
+            if (_ptrBuffer != null)
             {
-                Marshal.FreeHGlobal((IntPtr)_ptrArray);
-                _ptrArray = null;
+                Marshal.FreeHGlobal((IntPtr)_ptrBuffer);
+                _ptrBuffer = null;
             }
             GC.SuppressFinalize(this);
         }

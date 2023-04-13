@@ -5,15 +5,18 @@ using System.Diagnostics;
 
 using System.Threading;
 
+using UnityEngine;
+
 namespace Vocore.Test
 {
     public class Playground
     {
         //some temp code for testing
         [Test("Playground")]
-        public void Test()
+        public unsafe void Test()
         {
-            
+            NativeBuffer<Vector3> test = default;
+            TestUtility.PrintBlue(test.Stride);
         }
     }
 
