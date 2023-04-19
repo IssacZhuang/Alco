@@ -32,7 +32,7 @@ namespace Vocore
         {
             if (comparer == null)
             {
-                _comparer = Comparer<T>.Default;
+                _comparer = new DefaultComparer();
             }
             else
             {
@@ -46,7 +46,7 @@ namespace Vocore
 
             if (comparer == null)
             {
-                _comparer = Comparer<T>.Default;
+                _comparer = new DefaultComparer();
             }
             else
             {
@@ -122,26 +122,29 @@ namespace Vocore
             return _comparer.Compare(_innerList[i], _innerList[j]);
         }
 
-        public static int DefaultComparer(T x, T y)
-        {
-            int hashX = x.GetHashCode();
-            int hashY = y.GetHashCode();
-
-            if (hashX > hashY)
-            {
-                return 1;
-            }
-            else if (hashX < hashY)
-            {
-                return -1;
-            }
-            
-            return 0;
-        }
-
         public void CopyTo(T[] array, int arrayIndex)
         {
             _innerList.CopyTo(array, arrayIndex);
+        }
+
+        internal struct DefaultComparer : IComparer<T>
+        {
+            public static int DefaultComparer(T x, T y)
+            {
+                int hashX = x.GetHashCode();
+                int hashY = y.GetHashCode();
+
+                if (hashX > hashY)
+                {
+                    return 1;
+                }
+                else if (hashX < hashY)
+                {
+                    return -1;
+                }
+
+                return 0;
+            }
         }
     }
 }
