@@ -10,5 +10,7 @@ namespace Vocore
     {
         public readonly static Exception SizeIsEmpty = new Exception("The size of StructuredBuffer should not be 0");
         public readonly static Exception OutOfRange = new Exception("The index is out of range.");
+        public readonly static Exception Full = new Exception("Trying to add an element to a full collection.");
+        public readonly static Exception Empty = new Exception("Trying to remove an element from an empty collection.");
     }
 }

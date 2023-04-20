@@ -2,6 +2,7 @@ using Vocore;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 using System.Threading;
 
@@ -15,8 +16,8 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            NativeBuffer<Vector3> test = default;
-            TestUtility.PrintBlue(test.Stride);
+
+            TestUtility.PrintBlue(Marshal.SizeOf(typeof(void*)));
         }
     }
 
