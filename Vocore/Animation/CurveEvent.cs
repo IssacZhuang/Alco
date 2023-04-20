@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public struct CurveEvent: IComparable<CurveEvent>, ISortable
+    public struct CurveEvent : IComparable<CurveEvent>, ISortable
     {
         public float t;
         public string name;

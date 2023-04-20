@@ -12,7 +12,7 @@ namespace Vocore
             _hashCode = base.GetHashCode();
         }
 
-        public int GetHashCode()
+        public override int GetHashCode()
         {
             return _hashCode;
         }

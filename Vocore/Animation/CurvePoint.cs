@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Vocore
 {
-    public struct CurvePoint<T>: ISortable
+    public struct CurvePoint<T> : IComparable<CurvePoint<T>>, ISortable
     {
         public float t;
         public T value;
@@ -17,6 +17,11 @@ namespace Vocore
         }
 
         public float SortKey => t;
+
+        public int CompareTo(CurvePoint<T> other)
+        {
+            return t.CompareTo(other.t);
+        }
     }
 }
 

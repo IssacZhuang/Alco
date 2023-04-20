@@ -5,14 +5,30 @@ namespace Vocore
 {
     public class UtilsAlgorithm
     {
+        public static Comparison<T> DefaultComparer<T>()
+        {
+            return (a, b) =>
+            {
+                return Comparer<T>.Default.Compare(a, b);
+            };
+        }
+
+        public static Comparison<T> HashComparer<T>()
+        {
+            return (a, b) =>
+            {
+                return a.GetHashCode().CompareTo(b.GetHashCode());
+            };
+        }
+
         /// <summary>
         /// Binary search.
         /// </summary>
-        public static int BinarySearch<T>(IReadOnlyList<T> list, T item, IComparer<T> comparer = null)
+        public static int BinarySearch<T>(IReadOnlyList<T> list, T item, Comparison<T> comparer = null)
         {
             if (comparer == null)
             {
-                comparer = Comparer<T>.Default;
+                comparer = DefaultComparer<T>();
             }
 
             int left = 0;
@@ -20,11 +36,11 @@ namespace Vocore
             while (left <= right)
             {
                 int mid = (left + right) / 2;
-                if (comparer.Compare(list[mid], item) == 0)
+                if (comparer(list[mid], item) == 0)
                 {
                     return mid;
                 }
-                else if (comparer.Compare(list[mid], item) > 0)
+                else if (comparer(list[mid], item) > 0)
                 {
                     right = mid - 1;
                 }
@@ -65,11 +81,11 @@ namespace Vocore
         /// <summary>
         /// Binary search, return the index of the first element that is lower than or equal to the item.
         /// </summary>
-        public static int BinarySearchFloor<T>(IReadOnlyList<T> list, T item, IComparer<T> comparer = null)
+        public static int BinarySearchFloor<T>(IReadOnlyList<T> list, T item, Comparison<T> comparer = null)
         {
             if (comparer == null)
             {
-                comparer = Comparer<T>.Default;
+                comparer = DefaultComparer<T>();
             }
 
             int left = 0;
@@ -78,12 +94,12 @@ namespace Vocore
             while (left <= right)
             {
                 int mid = left + (right - left) / 2;
-                if (comparer.Compare(list[mid], item) == 0)
+                if (comparer(list[mid], item) == 0)
                 {
                     index = mid;
                     break;
                 }
-                else if (comparer.Compare(list[mid], item) > 0)
+                else if (comparer(list[mid], item) > 0)
                 {
                     right = mid - 1;
                 }
@@ -130,11 +146,11 @@ namespace Vocore
         /// <summary>
         /// Binary search, return the index of the first element that is greater than or equal to the item.
         /// </summary>
-        public static int BinarySearchCeil<T>(IReadOnlyList<T> list, T item, IComparer<T> comparer = null)
+        public static int BinarySearchCeil<T>(IReadOnlyList<T> list, T item, Comparison<T> comparer = null)
         {
             if (comparer == null)
             {
-                comparer = Comparer<T>.Default;
+                comparer = DefaultComparer<T>();
             }
 
             int left = 0;
@@ -143,12 +159,12 @@ namespace Vocore
             while (left <= right)
             {
                 int mid = left + (right - left) / 2;
-                if (comparer.Compare(list[mid], item) == 0)
+                if (comparer(list[mid], item) == 0)
                 {
                     index = mid;
                     break;
                 }
-                else if (comparer.Compare(list[mid], item) > 0)
+                else if (comparer(list[mid], item) > 0)
                 {
                     index = mid;
                     right = mid - 1;

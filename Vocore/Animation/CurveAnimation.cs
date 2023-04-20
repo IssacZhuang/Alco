@@ -9,6 +9,8 @@ namespace Vocore
         protected PriorityList<CurveEvent> events;
         private float _lastT = 0;
 
+        public IEnumerable<CurveEvent> Events => events;
+
         protected readonly Dictionary<string, List<Action>> eventActions = new Dictionary<string, List<Action>>();
 
         public float Duration
@@ -29,7 +31,7 @@ namespace Vocore
             }
             else
             {
-                this.events = new PriorityList<CurveEvent>(events);
+                this.events = new PriorityList<CurveEvent>(events, (a, b) => a.t.CompareTo(b.t));
             }
         }
 
@@ -69,7 +71,7 @@ namespace Vocore
                 direction = TimeDirection.CounterClockwise;
             }
 
-            int index = UtilsAlgorithm.BinarySearch(events, start);
+            int index = UtilsAlgorithm.BinarySearchCeil(events, start);
             if (index < 0)
             {
                 return false;
@@ -83,7 +85,7 @@ namespace Vocore
                     break;
                 }
 
-                if (events[i].IsFollowingDirection(direction)&&TryInvokeEventAction(events[i].name))
+                if (events[i].IsFollowingDirection(direction) && TryInvokeEventAction(events[i].name))
                 {
                     result = true;
                 }

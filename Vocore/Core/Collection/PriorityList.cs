@@ -8,7 +8,7 @@ namespace Vocore
     {
         private List<T> _innerList = new List<T>();
 
-        private IComparer<T> _comparer;
+        private Comparison<T> _comparer;
 
         public int Count
         {
@@ -28,11 +28,11 @@ namespace Vocore
             }
         }
 
-        public PriorityList(IComparer<T> comparer = null)
+        public PriorityList(Comparison<T> comparer = null)
         {
             if (comparer == null)
             {
-                _comparer = new DefaultComparer();
+                _comparer = UtilsAlgorithm.DefaultComparer<T>();
             }
             else
             {
@@ -40,13 +40,13 @@ namespace Vocore
             }
         }
 
-        public PriorityList(IList<T> source, IComparer<T> comparer = null)
+        public PriorityList(IList<T> source, Comparison<T> comparer = null)
         {
             _innerList = new List<T>(source);
 
             if (comparer == null)
             {
-                _comparer = new DefaultComparer();
+                _comparer = UtilsAlgorithm.DefaultComparer<T>();
             }
             else
             {
@@ -119,32 +119,12 @@ namespace Vocore
 
         protected int CompareElements(int i, int j)
         {
-            return _comparer.Compare(_innerList[i], _innerList[j]);
+            return _comparer(_innerList[i], _innerList[j]);
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
             _innerList.CopyTo(array, arrayIndex);
-        }
-
-        internal struct DefaultComparer : IComparer<T>
-        {
-            public static int DefaultComparer(T x, T y)
-            {
-                int hashX = x.GetHashCode();
-                int hashY = y.GetHashCode();
-
-                if (hashX > hashY)
-                {
-                    return 1;
-                }
-                else if (hashX < hashY)
-                {
-                    return -1;
-                }
-
-                return 0;
-            }
         }
     }
 }
