@@ -1,15 +1,19 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace Vocore
 {
-    public class ChunkList<T>
+    public class ChunkList<T> : ICollection<T>
     {
         private Chunk _head;
         private Chunk _tail;
         private int _count;
         public int Count => _count;
+        public int ChunkSize => Chunk.MaxCount;
+
+        public bool IsReadOnly => false;
 
         public ChunkList()
         {
@@ -32,8 +36,9 @@ namespace Vocore
             _count++;
         }
 
-        public void Remove(T element)
+        public bool Remove(T element)
         {
+            bool result = false;
             Chunk chunk = _head;
             while (chunk != null)
             {
@@ -42,7 +47,50 @@ namespace Vocore
                     if (chunk[i].Equals(element))
                     {
                         Remove(chunk, i);
+                        result = true;
                     }
+                }
+
+                chunk = chunk.Next;
+            }
+            return result;
+        }
+
+        public bool Contains(T item)
+        {
+            Chunk chunk = _head;
+            while (chunk != null)
+            {
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    if (chunk[i].Equals(item))
+                    {
+                        return true;
+                    }
+                }
+
+                chunk = chunk.Next;
+            }
+
+            return false;
+        }
+
+        public void Clear()
+        {
+            _head = new Chunk();
+            _tail = _head;
+            _count = 0;
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            Chunk chunk = _head;
+            while (chunk != null)
+            {
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    array[arrayIndex] = chunk[i];
+                    arrayIndex++;
                 }
 
                 chunk = chunk.Next;
@@ -66,12 +114,29 @@ namespace Vocore
             }
         }
 
+        public IEnumerator<T> GetEnumerator()
+        {
+            Chunk chunk = _head;
+            while (chunk != null)
+            {
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    yield return chunk[i];
+                }
 
+                chunk = chunk.Next;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
 
         internal class Chunk
         {
             public const int MemSize = 16 * 1024;
-            public static readonly int MaxCount = MemSize / Marshal.SizeOf(typeof(void*));
+            public static readonly int MaxCount = GetMaxCount();
 
             private T[] _elements;
             private int _count;
@@ -143,6 +208,14 @@ namespace Vocore
                 }
 
                 _elements[index] = element;
+            }
+
+            public static int GetMaxCount()
+            {
+                if (typeof(T).IsValueType)
+                    return MemSize / Marshal.SizeOf(typeof(T));
+                else
+                    return MemSize / Marshal.SizeOf(typeof(void*));
             }
         }
     }
