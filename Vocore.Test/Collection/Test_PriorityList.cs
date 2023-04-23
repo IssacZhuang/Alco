@@ -8,7 +8,8 @@ namespace Vocore.Test
     public class Test_PriorityList
     {
         [Test("Test_PriorityList add")]
-        public void Test_Add(){
+        public void Test_Add()
+        {
             PriorityList<int> list = new PriorityList<int>();
             list.Add(1);
             list.Add(2);
@@ -21,11 +22,12 @@ namespace Vocore.Test
             list.Add(3);
             list.Add(-1);
 
-            int[] result = new int[]{-1, 1, 2, 3, 3, 4, 5, 6, 7, 10};
+            int[] result = new int[] { -1, 1, 2, 3, 3, 4, 5, 6, 7, 10 };
 
-            if(list.Count != result.Length){
-                TestUtility.AddFailed();
-                TestUtility.PrintRed("Test_PriorityList add failed");
+            if (list.Count != result.Length)
+            {
+                TestHelper.AddFailed();
+                TestHelper.PrintRed("Test_PriorityList add failed");
                 return;
             }
 
@@ -33,15 +35,16 @@ namespace Vocore.Test
             {
                 if (list[i] != result[i])
                 {
-                    TestUtility.AddFailed();
-                    TestUtility.PrintRed("Test_PriorityList add failed");
+                    TestHelper.AddFailed();
+                    TestHelper.PrintRed("Test_PriorityList add failed");
                     return;
                 }
             }
         }
 
         [Test("Test_PriorityList remove")]
-        public void Test_Remove(){
+        public void Test_Remove()
+        {
             PriorityList<int> list = new PriorityList<int>();
             list.Add(1);
             list.Add(2);
@@ -59,11 +62,12 @@ namespace Vocore.Test
             list.RemoveOnce(10);
             list.RemoveOnce(-1);
 
-            int[] result = new int[]{1, 2, 3, 4, 6, 7};
+            int[] result = new int[] { 1, 2, 3, 4, 6, 7 };
 
-            if(list.Count != result.Length){
-                TestUtility.AddFailed();
-                TestUtility.PrintRed("Test_PriorityList add failed");
+            if (list.Count != result.Length)
+            {
+                TestHelper.AddFailed();
+                TestHelper.PrintRed("Test_PriorityList add failed");
                 return;
             }
 
@@ -71,13 +75,13 @@ namespace Vocore.Test
             {
                 if (list[i] != result[i])
                 {
-                    TestUtility.AddFailed();
-                    TestUtility.PrintRed("Test_PriorityList remove failed");
+                    TestHelper.AddFailed();
+                    TestHelper.PrintRed("Test_PriorityList remove failed");
                     return;
                 }
             }
         }
-     
+
 
     }
 }

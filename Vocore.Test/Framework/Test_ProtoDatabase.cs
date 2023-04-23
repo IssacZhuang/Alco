@@ -47,7 +47,7 @@ namespace Vocore.Test.Core.Framework
             ResDatabase<ResBase>.Load(res1);
             ResDatabase<ResBase>.Load(res2);
 
-            TestUtility.Assert(ResDatabase<ResBase>.Count != 2);
+            TestHelper.Assert(ResDatabase<ResBase>.Count != 2);
         }
 
         private class resFoo : ResBase { }
@@ -70,7 +70,7 @@ namespace Vocore.Test.Core.Framework
             ResDatabase<ResBase>.Load(res1);
             ResDatabase<ResBase>.Load(res2);
 
-            TestUtility.Assert(ResDatabase<ResBase>.Count != 2);
+            TestHelper.Assert(ResDatabase<ResBase>.Count != 2);
         }
 
         [Test("ResDatabase.Load() Load with different DB")]
@@ -89,9 +89,9 @@ namespace Vocore.Test.Core.Framework
             ResDatabase<resFoo>.Load(res1);
             ResDatabase<resBar>.Load(res2);
 
-            TestUtility.Assert(ResDatabase<ResBase>.Count != 0);
-            TestUtility.Assert(ResDatabase<resFoo>.Count != 1);
-            TestUtility.Assert(ResDatabase<resBar>.Count != 1);
+            TestHelper.Assert(ResDatabase<ResBase>.Count != 0);
+            TestHelper.Assert(ResDatabase<resFoo>.Count != 1);
+            TestHelper.Assert(ResDatabase<resBar>.Count != 1);
         }
     }
 }

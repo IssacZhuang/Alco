@@ -18,11 +18,11 @@ namespace Vocore.Test.Core.Collection
         public unsafe void ValueGetSet()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);
-            TestUtility.Assert(bufferVec.Raw == null);
-            TestUtility.Assert((byte*)bufferVec.Raw == null);
+            TestHelper.Assert(bufferVec.Raw == null);
+            TestHelper.Assert((byte*)bufferVec.Raw == null);
 
             bufferVec[3] = Vector3.one;
-            TestUtility.Assert(bufferVec[3] != Vector3.one);
+            TestHelper.Assert(bufferVec[3] != Vector3.one);
             bufferVec.Dispose();
         }
 
@@ -45,12 +45,12 @@ namespace Vocore.Test.Core.Collection
 
             Stopwatch timer = new Stopwatch();
             timer.Start();
-            for(int i=0;i<count; i++)
+            for (int i = 0; i < count; i++)
             {
                 array[i] = Vector3.one;
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST+": array |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": array |" + timer.ElapsedMilliseconds);
 
             timer.Restart();
             for (int i = 0; i < count; i++)
@@ -58,7 +58,7 @@ namespace Vocore.Test.Core.Collection
                 buffer[i] = Vector3.one;
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": StructuredBuffer |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": StructuredBuffer |" + timer.ElapsedMilliseconds);
 
             timer.Restart();
             for (int i = 0; i < count; i++)
@@ -66,7 +66,7 @@ namespace Vocore.Test.Core.Collection
                 nativeBuffer[i] = Vector3.one;
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);
             nativeBuffer.Dispose();
         }
 
@@ -86,16 +86,16 @@ namespace Vocore.Test.Core.Collection
                 array[i].y = 10;
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": array |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": array |" + timer.ElapsedMilliseconds);
 
-            
+
             timer.Restart();
             for (int i = 0; i < count; i++)
             {
                 buffer[i].Set(buffer[i].x, 10, buffer[i].z);
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": StructuredBuffer |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": StructuredBuffer |" + timer.ElapsedMilliseconds);
 
             timer.Restart();
             for (int i = 0; i < count; i++)
@@ -103,7 +103,7 @@ namespace Vocore.Test.Core.Collection
                 nativeBuffer.Raw[i].y = 10;
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);
         }
     }
 }

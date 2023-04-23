@@ -17,7 +17,7 @@ namespace Vocore.Test
         public unsafe void Test()
         {
 
-            TestUtility.PrintBlue(Marshal.SizeOf(typeof(void*)));
+            TestHelper.PrintBlue(Marshal.SizeOf(typeof(void*)));
         }
     }
 

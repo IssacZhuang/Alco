@@ -13,7 +13,7 @@ namespace Vocore.Test
         static void Main(string[] _)
         {
             Assembly assembly = Assembly.GetAssembly(typeof(Entry));
-            TestUtility.StartTest(assembly);
+            TestHelper.StartTest(assembly);
             //PointerTracker.Instance.DisplayResult();
             Console.ReadLine();
         }

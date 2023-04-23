@@ -10,11 +10,11 @@ using UnityEngine;
 
 namespace Vocore.Test
 {
-    public enum TestEnum:int
+    public enum TestEnum : int
     {
-        Primary=1,
-        Secondary=2,
-        Tertiary=4
+        Primary = 1,
+        Secondary = 2,
+        Tertiary = 4
     }
 
     // refer to xml
@@ -64,7 +64,8 @@ namespace Vocore.Test
         }
     }
 
-    public struct TestStruct{
+    public struct TestStruct
+    {
         public string Name;
         public int Value;
 
@@ -82,14 +83,14 @@ namespace Vocore.Test
             //load xml file from current assembly
             Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
-            TestEnum e = TestEnum.Primary|TestEnum.Secondary;
+            TestEnum e = TestEnum.Primary | TestEnum.Secondary;
 
-            TestUtility.PrintBlue("TestEnum: " + (e|TestEnum.Tertiary));
+            TestHelper.PrintBlue("TestEnum: " + (e | TestEnum.Tertiary));
 
             //iterate all file in current assembly
             foreach (var fileName in currentAssembly.GetManifestResourceNames())
             {
-                TestUtility.PrintGray(fileName + " loaded");
+                TestHelper.PrintGray(fileName + " loaded");
             }
         }
 
@@ -115,22 +116,22 @@ namespace Vocore.Test
                     string xPath = "Objects/TestCls[Name = 'TestObject']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
-                    TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
+                    TestHelper.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
 
                     // parse xml content
                     TestCls testClass = xmlNode.ParseToObject() as TestCls;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
-                        TestUtility.AddFailed();
-                        TestUtility.PrintRed(error);
+                        TestHelper.AddFailed();
+                        TestHelper.PrintRed(error);
                     }
                     XmlParser.ClearErrors();
 
                     if (testClass == null)
                     {
-                        TestUtility.AddFailed();
-                        TestUtility.PrintRed("testClass is null");
+                        TestHelper.AddFailed();
+                        TestHelper.PrintRed("testClass is null");
                         return;
                     }
 
@@ -164,22 +165,22 @@ namespace Vocore.Test
                     string xPath = "Objects/TestCls[Name = 'MissingContent']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
-                    TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
+                    TestHelper.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
 
                     // parse xml content
                     TestCls testClass = xmlNode.ParseToObject() as TestCls;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
-                        TestUtility.AddFailed();
-                        TestUtility.PrintRed(error);
+                        TestHelper.AddFailed();
+                        TestHelper.PrintRed(error);
                     }
                     XmlParser.ClearErrors();
 
                     if (testClass == null)
                     {
-                        TestUtility.AddFailed();
-                        TestUtility.PrintRed("testClass is null");
+                        TestHelper.AddFailed();
+                        TestHelper.PrintRed("testClass is null");
                         return;
                     }
 
@@ -211,22 +212,22 @@ namespace Vocore.Test
                     string xPath = "Objects/TestCls[Name = 'TestObject2']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
-                    TestUtility.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClassChild"));
+                    TestHelper.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClassChild"));
 
                     // parse xml content
                     TestClassChild testClass = xmlNode.ParseToObject() as TestClassChild;
 
                     foreach (string error in XmlParser.GetErrors())
                     {
-                        TestUtility.AddFailed();
-                        TestUtility.PrintRed(error);
+                        TestHelper.AddFailed();
+                        TestHelper.PrintRed(error);
                     }
                     XmlParser.ClearErrors();
 
                     if (testClass == null)
                     {
-                        TestUtility.AddFailed();
-                        TestUtility.PrintRed("testClass is null");
+                        TestHelper.AddFailed();
+                        TestHelper.PrintRed("testClass is null");
                         return;
                     }
 

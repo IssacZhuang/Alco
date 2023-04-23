@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Vocore.Test
 {
@@ -38,10 +39,15 @@ namespace Vocore.Test
         }
     }
 
-    public static class TestUtility
+    public static class TestHelper
     {
-        public static string TEXT_BENCHMARK = "Benchmark: ";
-        public static string TEXT_TIME_COST = "Time cost: ";
+        public const string TEXT_BENCHMARK = "Benchmark: ";
+        public const string TEXT_TIME_COST = "Time cost: ";
+        public const string TEXT_FAILED = "Failed";
+        public const string TEXT_SUCCESS = "Success";
+        public const string TEXT_TEST_FAILED = "Failed: ";
+        public const string TEXT_TEST_SUCCESS = "Success: ";
+        public const string TEXT_TEST_FINISHED = "Test finished";
 
         private static int _counterFailed = 0;
         private static int _counterSuccess = 0;
@@ -63,8 +69,8 @@ namespace Vocore.Test
 
         public static void DisplayCounter()
         {
-            if (_counterFailed > 0) PrintRed("Failed: " + _counterFailed);
-            if (_counterSuccess > 0) PrintGreen("Success: " + _counterSuccess);
+            if (_counterFailed > 0) PrintRed(TEXT_TEST_FAILED + _counterFailed);
+            if (_counterSuccess > 0) PrintGreen(TEXT_TEST_SUCCESS + _counterSuccess);
         }
 
 
@@ -98,7 +104,7 @@ namespace Vocore.Test
             Console.ForegroundColor = ConsoleColor.White;
         }
 
-        public static void Assert(bool condition, string failed = "Failed", string success = "Success")
+        public static void Assert(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
         {
             if (condition)
             {
@@ -112,9 +118,18 @@ namespace Vocore.Test
             }
         }
 
+        public static void Benchmark(Action action, string name = TEXT_BENCHMARK)
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            action();
+            stopwatch.Stop();
+            PrintBlue(name + ": " + stopwatch.ElapsedMilliseconds + " ms");
+        }
+
         public static void StartTest(Assembly assembly)
         {
-            TestUtility.ResetCounter();
+            TestHelper.ResetCounter();
             foreach (TypeInfo typeInfo in assembly.DefinedTypes)
             {
                 object obj;
@@ -133,13 +148,13 @@ namespace Vocore.Test
                 catch (Exception) { }
             }
 
-            Console.WriteLine("Test Finished");
-            TestUtility.DisplayCounter();
+            Console.WriteLine(TEXT_TEST_FINISHED);
+            TestHelper.DisplayCounter();
         }
 
         public static void StartTest(Type type)
         {
-            TestUtility.ResetCounter();
+            TestHelper.ResetCounter();
 
             object obj;
             try
@@ -157,8 +172,8 @@ namespace Vocore.Test
             catch (Exception) { }
 
 
-            Console.WriteLine("Test Finished");
-            TestUtility.DisplayCounter();
+            Console.WriteLine(TEXT_TEST_FINISHED);
+            TestHelper.DisplayCounter();
             Console.ReadLine();
         }
 
@@ -175,23 +190,23 @@ namespace Vocore.Test
                 if (testAttr == null) continue;
                 try
                 {
-                    TestUtility.PrintGray("------" + testAttr.Name + " | started:");
+                    TestHelper.PrintGray("------" + testAttr.Name + " | started:");
                     method.Invoke(obj, null);
-                    TestUtility.PrintGray("----Test finished.\n");
+                    TestHelper.PrintGray("----Test finished.\n");
                 }
                 catch (Exception e)
                 {
                     if (testAttr.ExpectError)
                     {
-                        TestUtility.PrintGreen("An error is occurred as expected");
-                        TestUtility.AddSuccess();
-                        TestUtility.PrintGray("----Test finished.\n");
+                        TestHelper.PrintGreen("An error is occurred as expected");
+                        TestHelper.AddSuccess();
+                        TestHelper.PrintGray("----Test finished.\n");
                     }
                     else
                     {
-                        TestUtility.PrintRed(e.InnerException);
-                        TestUtility.AddFailed();
-                        TestUtility.PrintGray("----Test failed.\n");
+                        TestHelper.PrintRed(e.InnerException);
+                        TestHelper.AddFailed();
+                        TestHelper.PrintGray("----Test failed.\n");
                     }
                 }
             }

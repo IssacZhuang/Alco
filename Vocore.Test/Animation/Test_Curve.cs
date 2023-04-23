@@ -30,7 +30,7 @@ namespace Vocore.Test
                 curveLinear.Evaluate(i);
             }
             sw.Stop();
-            TestUtility.PrintBlue("Linear: " + sw.ElapsedMilliseconds);
+            TestHelper.PrintBlue("Linear: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
             for (int i = 0; i < pointCount; i++)
@@ -38,7 +38,7 @@ namespace Vocore.Test
                 curveHermite.Evaluate(i);
             }
             sw.Stop();
-            TestUtility.PrintBlue("Hermite: " + sw.ElapsedMilliseconds);
+            TestHelper.PrintBlue("Hermite: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
             for (int i = 0; i < pointCount; i++)
@@ -46,7 +46,7 @@ namespace Vocore.Test
                 curveCache.Evaluate(i);
             }
             sw.Stop();
-            TestUtility.PrintBlue("Cache: " + sw.ElapsedMilliseconds);
+            TestHelper.PrintBlue("Cache: " + sw.ElapsedMilliseconds);
         }
 
         //disabled
@@ -58,7 +58,7 @@ namespace Vocore.Test
             float[] y = { 3, 16, 0 };
             var curveHermite = new CurveHermite(x, y);
             var curveLinear = new CurveLinear(x, y);
-            var curveCached = new CurveCache(curveHermite,3);
+            var curveCached = new CurveCache(curveHermite, 3);
             CurveDrawer.Draw(curveLinear, "Linear");
             CurveDrawer.Draw(curveHermite, "Hermite");
             CurveDrawer.Draw(curveCached, "Hermite Cache");

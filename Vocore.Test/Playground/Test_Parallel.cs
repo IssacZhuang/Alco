@@ -10,7 +10,7 @@ using System.Diagnostics;
 
 namespace Vocore.Test
 {
-    
+
     internal class Test_Parallel
     {
         //[Test("Parallel For")]
@@ -27,7 +27,7 @@ namespace Vocore.Test
                 reuslt = i / 3 / 3 / 3 / 7 / 7 / 7;
             }
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": for |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": for |" + timer.ElapsedMilliseconds);
 
             timer.Restart();
             Parallel.For(0, count, (i) =>
@@ -38,7 +38,7 @@ namespace Vocore.Test
                 }
             });
             timer.Stop();
-            TestUtility.PrintBlue(TestUtility.TEXT_TIME_COST + ": Parallel.For |" + timer.ElapsedMilliseconds);
+            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": Parallel.For |" + timer.ElapsedMilliseconds);
         }
     }
 
