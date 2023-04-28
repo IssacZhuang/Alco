@@ -57,10 +57,10 @@ namespace Vocore.Test
             list.Add(3);
             list.Add(-1);
 
-            list.RemoveOnce(3);
-            list.RemoveOnce(5);
-            list.RemoveOnce(10);
-            list.RemoveOnce(-1);
+            list.Remove(3);
+            list.Remove(5);
+            list.Remove(10);
+            list.Remove(-1);
 
             int[] result = new int[] { 1, 2, 3, 4, 6, 7 };
 
@@ -82,7 +82,61 @@ namespace Vocore.Test
             }
         }
 
+        [Test("Benckmark PriorityList vs List add element")]
+        public void Test_VsList()
+        {
+            PriorityList<int> list = new PriorityList<int>();
+            List<int> list2 = new List<int>();
 
+            int count = 1000000;
+
+            TestHelper.Benchmark(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    list.Add(i);
+                }
+            }, "PriorityList add");
+
+            TestHelper.Benchmark(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    list2.Add(i);
+                }
+            }, "List add");
+        }
+
+        [Test("Benckmark PriorityList vs List remove element")]
+        public void Test_VsList2()
+        {
+            PriorityList<int> list = new PriorityList<int>();
+            List<int> list2 = new List<int>();
+
+            int count = 100000;
+
+            for (int i = 0; i < count; i++)
+            {
+                list.Add(i);
+                list2.Add(i);
+            }
+
+            TestHelper.Benchmark(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    list.Remove(i);
+                }
+            }, "PriorityList remove");
+
+            TestHelper.Benchmark(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    list2.Remove(i);
+                }
+            }, "List remove");
+        }
     }
 }
 

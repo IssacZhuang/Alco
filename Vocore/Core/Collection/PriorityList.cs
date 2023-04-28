@@ -71,7 +71,7 @@ namespace Vocore
 
         }
 
-        public bool RemoveOnce(T item)
+        public bool Remove(T item)
         {
             //binary search and remove
             int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
@@ -82,11 +82,6 @@ namespace Vocore
 
             _innerList.RemoveAt(index);
             return true;
-        }
-
-        public bool Remove(T item)
-        {
-            return _innerList.Remove(item);
         }
 
         public bool Contains(T item)
