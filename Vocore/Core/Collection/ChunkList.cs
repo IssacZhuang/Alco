@@ -47,7 +47,7 @@ namespace Vocore
                     if (chunk[i].Equals(element))
                     {
                         Remove(chunk, i);
-                        result = true;
+                        return true;
                     }
                 }
 
@@ -99,9 +99,6 @@ namespace Vocore
 
         private void Remove(Chunk chunk, int index)
         {
-            chunk.Replace(index, _tail.RemoveTail());
-            _count--;
-
             if (_tail.Count == 0)
             {
                 if (_tail.Next != null)
@@ -112,6 +109,16 @@ namespace Vocore
 
                 _tail = _tail.Prev;
             }
+
+            if(chunk == _tail && index == _tail.Count - 1)
+            {
+                _tail.RemoveTail();
+                _count--;
+                return;
+            }
+
+            chunk.Replace(index, _tail.RemoveTail());
+            _count--;
         }
 
         public IEnumerator<T> GetEnumerator()
