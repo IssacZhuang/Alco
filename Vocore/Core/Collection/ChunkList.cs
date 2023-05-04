@@ -12,7 +12,6 @@ namespace Vocore
         private int _count;
         public int Count => _count;
         public int ChunkSize => Chunk.MaxCount;
-
         public bool IsReadOnly => false;
 
         public ChunkList()
@@ -42,6 +41,7 @@ namespace Vocore
             Chunk chunk = _head;
             while (chunk != null)
             {
+
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     if (chunk[i].Equals(element))
@@ -110,7 +110,7 @@ namespace Vocore
                 _tail = _tail.Prev;
             }
 
-            if(chunk == _tail && index == _tail.Count - 1)
+            if (chunk == _tail && index == _tail.Count - 1)
             {
                 _tail.RemoveTail();
                 _count--;
@@ -156,11 +156,6 @@ namespace Vocore
             {
                 get
                 {
-                    if (index >= _count)
-                    {
-                        throw ExceptionCollection.OutOfRange;
-                    }
-
                     return _elements[index];
                 }
             }
