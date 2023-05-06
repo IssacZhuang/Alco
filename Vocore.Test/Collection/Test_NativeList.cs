@@ -161,6 +161,26 @@ namespace Vocore.Test
             list.Dispose();
         }
 
+        [Test("NativeList resize")]
+        public void TestResize()
+        {
+            int count = 10000;
+            NativeList<int> list = new NativeList<int>(100);
+            for (int i = 0; i < count; i++)
+            {
+                list.Add(i);
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                list.RemoveAt(0);
+            }
+
+            TestHelper.Assert(list.Count != 0);
+            TestHelper.Assert(list.Capacity != 100);
+            list.Dispose();
+        }
+
     }
 }
 

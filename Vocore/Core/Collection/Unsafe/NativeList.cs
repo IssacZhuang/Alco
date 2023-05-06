@@ -11,7 +11,8 @@ namespace Vocore
         private static readonly int _stride = UtilsUnsafe.SizeOf<T>();
         private void* _ptrBuffer;
         private int _size;
-        private int _listSize;
+        private int _capacity;
+        private int _preAllocSize;
         private bool _isDisposed;
         public int Length => _size;
 
@@ -21,6 +22,13 @@ namespace Vocore
         public int Count => Size;
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
+        public int Capacity
+        {
+            get
+            {
+                return _preAllocSize > 0 ? _preAllocSize : DefaultSize;
+            }
+        }
 
         public T this[int index]
         {
@@ -47,7 +55,8 @@ namespace Vocore
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             _ptrBuffer = UtilsUnsafe.Alloc(_stride * size);
             _size = 0;
-            _listSize = size;
+            _capacity = size;
+            _preAllocSize = size;
             _isDisposed = false;
         }
 
@@ -155,7 +164,7 @@ namespace Vocore
 
         private void Resize(int size)
         {
-            if (size < DefaultSize) size = DefaultSize;
+            if (size < Capacity) size = Capacity;
 
             void* tmpPtr = UtilsUnsafe.Alloc(_stride * size);
 
@@ -166,18 +175,19 @@ namespace Vocore
             }
 
             _ptrBuffer = tmpPtr;
-            _listSize = size;
+            _capacity = size;
         }
 
         private void EnsureSize(int size)
         {
-            if (size > _listSize)
+            if (size > _capacity)
             {
-                Resize(_listSize * 2);
+                Resize(_capacity * 2);
             }
-            else if (size >= DefaultSize && size < _listSize / 2)
+
+            if (size > Capacity && size < _capacity / 2)
             {
-                Resize(_listSize / 2);
+                Resize(_capacity / 2);
             }
         }
 

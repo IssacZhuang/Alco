@@ -17,7 +17,6 @@ namespace Vocore.Test
         public unsafe void Test()
         {
 
-
         }
     }
 
