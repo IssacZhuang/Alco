@@ -2,17 +2,21 @@ del /q /s .\Assemblies\*
 
 ::search all  .csproj exlude 'test'
 
+setlocal
+
+set "mode=Release"
+if "%1"=="debug" set "mode=Debug"
 
 
 for /f "delims=" %%a in ('dir /b /s Vocore*.csproj ^| findstr /v /i "test"') do (
 
     echo %%a
-    dotnet build "%%a" --configuration Release --output ./Assemblies
+    dotnet build "%%a" --configuration %mode% --output ./Assemblies
 )
 
 for /f "delims=" %%a in ('dir /b /s RimAssemblies\*.csproj') do (
     echo %%a
-    dotnet build "%%a" --configuration Release --output ./Assemblies/Rimworld
+    dotnet build "%%a" --configuration %mode% --output ./Assemblies/Rimworld
 )
 
 move .\Assemblies.\Vocore.dll .\Assemblies.\0-Vocore.dll

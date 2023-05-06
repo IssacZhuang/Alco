@@ -1,5 +1,10 @@
 ::buidl Vocore.Test and run
-dotnet build Vocore.Test/Vocore.Test.csproj  --configuration Release
-cd Vocore.Test/bin/Release/
+setlocal
+
+set "mode=Release"
+if "%1"=="debug" set "mode=Debug"
+
+dotnet build Vocore.Test/Vocore.Test.csproj  --configuration %mode%
+cd Vocore.Test/bin/%mode%/
 Vocore.Test.exe
 pause
