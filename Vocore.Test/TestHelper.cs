@@ -127,6 +127,32 @@ namespace Vocore.Test
             PrintBlue(name + ": " + stopwatch.ElapsedMilliseconds + " ms");
         }
 
+        public static void PrintList<T>(IList<T> list)
+        {
+            for(int i = 0; i < list.Count; i++)
+            {
+                Print(i + ": " + list[i]);
+            }
+        }
+
+        public static void PrintArray<T>(T[] array)
+        {
+            for (int i = 0; i < array.Length; i++)
+            {
+                Print(i + ": " + array[i]);
+            }
+        }
+
+        public static void PrintEnumerable<T>(IEnumerable<T> enumerable)
+        {
+            int i = 0;
+            foreach (T item in enumerable)
+            {
+                Print(i + ": " + item);
+                i++;
+            }
+        }
+
         public static void StartTest(Assembly assembly)
         {
             TestHelper.ResetCounter();

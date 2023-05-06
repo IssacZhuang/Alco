@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using System.Diagnostics;
+using Vocore;
 
 namespace Vocore.Test
 {
@@ -15,7 +11,13 @@ namespace Vocore.Test
             Assembly assembly = Assembly.GetAssembly(typeof(Entry));
             TestHelper.StartTest(assembly);
             //PointerTracker.Instance.DisplayResult();
+            foreach (var item in PointerTracker.GetAllocatedStackTrace())
+            {
+                TestHelper.PrintRed(item);
+            }
+
             Console.ReadLine();
+
         }
     }
 }
