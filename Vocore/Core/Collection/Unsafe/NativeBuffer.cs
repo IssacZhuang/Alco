@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
@@ -10,14 +9,13 @@ namespace Vocore
     {
         private void* _ptrBuffer;
         private readonly int _size;
-        private readonly int _stride;
+        private static readonly int _stride = UtilsUnsafe.SizeOf<T>();
 
         public int Length => _size;
 
         public T* Raw => (T*)_ptrBuffer;
         public int Size => _size;
         public int Stride => _stride;
-
         public int Count => Size;
 
         public T this[int index]
@@ -26,7 +24,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (index >= _size) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
                     return ((T*)_ptrBuffer)[index];
                 }
             }
@@ -34,7 +32,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (index >= _size) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
                     ((T*)_ptrBuffer)[index] = value;
                 }
             }
@@ -43,9 +41,7 @@ namespace Vocore
         public NativeBuffer(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-
-            _stride = Marshal.SizeOf<T>();
-            _ptrBuffer = Marshal.AllocHGlobal(_stride * size).ToPointer();
+            _ptrBuffer = UtilsUnsafe.Alloc(size * _stride);
             this._size = size;
         }
 
@@ -53,7 +49,7 @@ namespace Vocore
         {
             if (_ptrBuffer != null)
             {
-                Marshal.FreeHGlobal((IntPtr)_ptrBuffer);
+                UtilsUnsafe.Free(_ptrBuffer);
                 _ptrBuffer = null;
             }
             GC.SuppressFinalize(this);
@@ -70,6 +66,12 @@ namespace Vocore
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool NotInRange(int index)
+        {
+            return index < 0 || index >= _size;
         }
     }
 }
