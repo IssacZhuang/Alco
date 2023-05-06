@@ -145,6 +145,7 @@
     <Compile Include="IO\Test_FileReference.cs" />
     <Compile Include="Thread\Test_AsyncOperation.cs" />
     <Compile Include="Collection\Test_ChunkList.cs" />
+    <Compile Include="Collection\Test_NativeList.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
