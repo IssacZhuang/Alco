@@ -7,34 +7,20 @@ namespace Vocore
 {
     public struct BoundingBox
     {
-        public Vector3 AA;
-        public Vector3 BB;
+        public Vector3 min;
+        public Vector3 max;
 
-        public BoundingBox(Vector3 aa, Vector3 bb)
+        public BoundingBox(Vector3 min, Vector3 max)
         {
-            AA = aa;
-            BB = bb;
+            this.min = min;
+            this.max = max;
         }
-
-        public bool Contains(Vector3 point)
-        {
-            return point.x >= AA.x && point.x <= BB.x &&
-                   point.y >= AA.y && point.y <= BB.y &&
-                   point.z >= AA.z && point.z <= BB.z;
-        }
-
-        public bool Contains(BoundingBox other)
-        {
-            return other.AA.x >= AA.x && other.BB.x <= BB.x &&
-                   other.AA.y >= AA.y && other.BB.y <= BB.y &&
-                   other.AA.z >= AA.z && other.BB.z <= BB.z;
-        }
-
+        
         public bool Intersects(BoundingBox other)
         {
-            return AA.x <= other.BB.x && BB.x >= other.AA.x &&
-                   AA.y <= other.BB.y && BB.y >= other.AA.y &&
-                   AA.z <= other.BB.z && BB.z >= other.AA.z;
+            return min.x <= other.max.x && max.x >= other.min.x &&
+                   min.y <= other.max.y && max.y >= other.min.y &&
+                   min.z <= other.max.z && max.z >= other.min.z;
         }
     }
 }

@@ -4,9 +4,8 @@ using System.Collections.Generic;
 namespace Vocore
 {
     //Collider for BVH tree
-    public interface ICollider
+    public interface ICollider: IShape
     {
-        BoundingBox GetBoundingBox();
         bool CollidesWith(ICollider other);
     }
 }
