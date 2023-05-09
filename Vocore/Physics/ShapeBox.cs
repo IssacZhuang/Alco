@@ -1,17 +1,17 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
     public struct ShapeBox: IShape
     {
-        public Vector3 center;
-        public Vector3 extends;
-        public Quaternion rotation;
+        public float3 center;
+        public float3 extends;
+        public quaternion rotation;
 
-        public ShapeBox(Vector3 center, Vector3 size, Quaternion rotation)
+        public ShapeBox(float3 center, float3 size, quaternion rotation)
         {
             this.center = center;
             this.extends = size * 0.5f;
@@ -21,16 +21,16 @@ namespace Vocore
 
         public BoundingBox GetBoundingBox()
         {
-            if (rotation == Quaternion.identity)
+            if (rotation.Equals(quaternion.identity))
             {
                 return new BoundingBox(center - extends, center + extends);
             }
 
-            Vector3 x = new Vector3(extends.x, 0, 0).Rotate(rotation);
-            Vector3 y = new Vector3(0, extends.y, 0).Rotate(rotation);
-            Vector3 z = new Vector3(0, 0, extends.z).Rotate(rotation);
+            float3 x = math.rotate(rotation, new float3(extends.x, 0, 0));
+            float3 y = math.rotate(rotation, new float3(0, extends.y, 0));
+            float3 z = math.rotate(rotation, new float3(0, 0, extends.z));
 
-            Vector3 halfExtentsInB = x.Abs() + y.Abs() + z.Abs();
+            float3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 
             return new BoundingBox(center - halfExtentsInB, center + halfExtentsInB);
         }

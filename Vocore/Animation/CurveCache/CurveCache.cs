@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -44,7 +44,7 @@ namespace Vocore
         {
             if (curve == null) throw new ArgumentNullException("curve to cache");
             _step = step;
-            int count = Mathf.FloorToInt((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step) + 2;
+            int count = (int)math.floor((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step) + 2;
 
             _points = new CurvePoint<float>[count];
             Parallel.For(0, count - 1, (Action<int>)((i) =>
@@ -59,9 +59,9 @@ namespace Vocore
 
         public float Evaluate(float t)
         {
-            t = Mathf.Clamp(t, _points[0].t, _points[_points.Length - 1].t);
+            t = math.clamp(t, _points[0].t, _points[_points.Length - 1].t);
             //find the nearest two point by t and step
-            int index = Mathf.FloorToInt((t - _points[0].t) / _step);
+            int index = (int)math.floor((t - _points[0].t) / _step);
             int index2 = index + 1;
             //interpolate between two points
             float t1 = _points[index].t;
@@ -71,10 +71,10 @@ namespace Vocore
 
             if (index2 == _points.Length-1)
             {
-                return Mathf.Lerp(v1, v2, (t - t1) / (t2 - t1));
+                return math.lerp(v1, v2, (t - t1) / (t2 - t1));
             }
 
-            return Mathf.Lerp(v1, v2, (t - t1) / _step);
+            return math.lerp(v1, v2, (t - t1) / _step);
         }
     }
 }

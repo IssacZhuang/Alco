@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
     public struct ShapeSphere : IShape
     {
-        public Vector3 center;
+        public float3 center;
         public float radius;
 
-        public ShapeSphere(Vector3 center, float radius)
+        public ShapeSphere(float3 center, float radius)
         {
             this.center = center;
             this.radius = radius;
@@ -18,7 +18,8 @@ namespace Vocore
 
         public BoundingBox GetBoundingBox()
         {
-            return new BoundingBox(center - new Vector3(radius, radius, radius), center + new Vector3(radius, radius, radius));
+            float3 extends = new float3(radius, radius, radius);
+            return new BoundingBox(center - extends, center + extends);
         }
     }
 }

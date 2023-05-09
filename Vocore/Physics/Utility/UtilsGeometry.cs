@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -9,23 +9,13 @@ namespace Vocore
     {
         public static bool IntersectsBoxSphere(ShapeBox box, ShapeSphere sphere)
         {
-            Vector3 localCenter = Quaternion.Inverse(box.rotation) * (sphere.center - box.center);
+            float3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
 
-            Vector3 closestPoint = new Vector3(
-                Mathf.Clamp(localCenter.x, -box.extends.x, box.extends.x),
-                Mathf.Clamp(localCenter.y, -box.extends.y, box.extends.y),
-                Mathf.Clamp(localCenter.z, -box.extends.z, box.extends.z));
+            float3 closestPoint = math.clamp(sphereCenter, -box.extends, box.extends);
 
-            float distance = localCenter.SqrMagnitude(closestPoint);
-
-            if (distance <= sphere.radius * sphere.radius)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            float3 difference = closestPoint - sphereCenter;
+            float distanceSquared = math.dot(difference, difference);
+            return distanceSquared < sphere.radius * sphere.radius;
         }
     }
 }

@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
     public class BaseCurve3D<T>:ICurve3D where T: ICurve
     {
-        private List<CurvePoint<Vector3>> _points = new List<CurvePoint<Vector3>>();
+        private List<CurvePoint<float3>> _points = new List<CurvePoint<float3>>();
 
         private T _curveX;
         private T _curveY;
@@ -21,7 +21,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<CurvePoint<Vector3>> Points
+        public IReadOnlyList<CurvePoint<float3>> Points
         {
             get
             {
@@ -37,13 +37,13 @@ namespace Vocore
         }
 
 
-        public BaseCurve3D(IList<CurvePoint<Vector3>> points)
+        public BaseCurve3D(IList<CurvePoint<float3>> points)
         {
             SetPoints(points);
         }
 
 
-        public void SetPoints(IList<CurvePoint<Vector3>> points)
+        public void SetPoints(IList<CurvePoint<float3>> points)
         {
             if (points == null)
             {
@@ -73,9 +73,9 @@ namespace Vocore
             _curveZ.SetPoints(zPoints);
         }
 
-        public Vector3 Evaluate(float t)
+        public float3 Evaluate(float t)
         {
-            Vector3 result;
+            float3 result;
             result.x = _curveX.Evaluate(t);
             result.y = _curveY.Evaluate(t);
             result.z = _curveZ.Evaluate(t);

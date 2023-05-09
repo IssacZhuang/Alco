@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -16,15 +16,15 @@ namespace Vocore
     {
     }
 
-    public interface ICurve2D: ICurveBase<Vector2>
+    public interface ICurve2D: ICurveBase<float2>
     {
     }
 
-    public interface ICurve3D: ICurveBase<Vector3>
+    public interface ICurve3D: ICurveBase<float3>
     {
     }
 
-    public interface ICurve4D: ICurveBase<Vector4>
+    public interface ICurve4D: ICurveBase<float4>
     {
     }
 }

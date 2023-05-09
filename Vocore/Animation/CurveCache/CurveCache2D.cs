@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
     public class CurveCache2D: ICurve2D
     {
-        private List<CurvePoint<Vector2>> _points;
+        private List<CurvePoint<float2>> _points;
         private float _step = ConstCurve.DefaultStep;
 
         public int PointsCount
@@ -18,7 +18,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<CurvePoint<Vector2>> Points
+        public IReadOnlyList<CurvePoint<float2>> Points
         {
             get
             {
@@ -31,7 +31,7 @@ namespace Vocore
             CacheCurve(curve, step);
         }
 
-        public void SetPoints(IList<CurvePoint<Vector2>> points)
+        public void SetPoints(IList<CurvePoint<float2>> points)
         {
             //default use linear
             ICurve2D curve = new CurveLinear2D();
@@ -43,29 +43,29 @@ namespace Vocore
         {
             if (curve == null) throw ExceptionCurve.NullCurve;
 
-            _points = new List<CurvePoint<Vector2>>();
+            _points = new List<CurvePoint<float2>>();
             _step = step;
             //evaluate curve by step and cache the result
             for (float t = curve.Points[0].t; t < curve.Points[curve.PointsCount - 1].t; t += step)
             {
-                _points.Add(new CurvePoint<Vector2>(t, curve.Evaluate(t)));
+                _points.Add(new CurvePoint<float2>(t, curve.Evaluate(t)));
             }
-            _points.Add(new CurvePoint<Vector2>(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
+            _points.Add(new CurvePoint<float2>(curve.Points[curve.PointsCount - 1].t, curve.Evaluate(curve.Points[curve.PointsCount - 1].t)));
         }
 
-        public Vector2 Evaluate(float t)
+        public float2 Evaluate(float t)
         {
-            t = Mathf.Clamp(t, _points[0].t, _points[_points.Count - 1].t);
+            t = math.clamp(t, _points[0].t, _points[_points.Count - 1].t);
             //find the nearest two point by t and step
-            int index = Mathf.FloorToInt((t - _points[0].t) / _step);
+            int index = (int)math.floor((t - _points[0].t) / _step);
             int index2 = index + 1;
             //evaluate the value by linear
             float t1 = _points[index].t;
             float t2 = _points[index2].t;
-            Vector2 v1 = _points[index].value;
-            Vector2 v2 = _points[index2].value;
+            float2 v1 = _points[index].value;
+            float2 v2 = _points[index2].value;
             float t0 = (t - t1) / (t2 - t1);
-            return Vector2.Lerp(v1, v2, t0);
+            return math.lerp(v1, v2, t0);
         }
     }
 }

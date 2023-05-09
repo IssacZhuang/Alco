@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
     public struct BoundingBox
     {
-        public Vector3 min;
-        public Vector3 max;
+        public float3 min;
+        public float3 max;
 
-        public BoundingBox(Vector3 min, Vector3 max)
+        public BoundingBox(float3 min, float3 max)
         {
             this.min = min;
             this.max = max;

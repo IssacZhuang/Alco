@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
     public class BaseCurve2D<T> : ICurve2D where T : ICurve
     {
-        private List<CurvePoint<Vector2>> _points = new List<CurvePoint<Vector2>>();
+        private List<CurvePoint<float2>> _points = new List<CurvePoint<float2>>();
 
         private T _curveX;
         private T _curveY;
@@ -19,7 +19,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<CurvePoint<Vector2>> Points
+        public IReadOnlyList<CurvePoint<float2>> Points
         {
             get
             {
@@ -33,12 +33,12 @@ namespace Vocore
             _curveY = (T)Activator.CreateInstance(typeof(T));
         }
 
-        public BaseCurve2D(IList<CurvePoint<Vector2>> points)
+        public BaseCurve2D(IList<CurvePoint<float2>> points)
         {
             SetPoints(points);
         }
 
-        public void SetPoints(IList<CurvePoint<Vector2>> points)
+        public void SetPoints(IList<CurvePoint<float2>> points)
         {
             if (points == null)
             {
@@ -64,9 +64,9 @@ namespace Vocore
             _curveY.SetPoints(yPoints);
         }
 
-        public Vector2 Evaluate(float t)
+        public float2 Evaluate(float t)
         {
-            Vector2 result;
+            float2 result;
             result.x = _curveX.Evaluate(t);
             result.y = _curveY.Evaluate(t);
             return result;
