@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Vocore;
 
 using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore.Test
 {
@@ -68,32 +69,32 @@ namespace Vocore.Test
         public void Test_ToVector2()
         {
             string str = "(123.456,789.012)";
-            Vector2 v = UtilsParse.ToVector2(str);
-            TestHelper.Assert(v != new Vector2(123.456f, 789.012f));
+            float2 v = UtilsParse.ToFloat2(str);
+            TestHelper.Assert(!v.Equals(new float2(123.456f, 789.012f)));
         }
 
         [Test("test UtilsParse.ToVector3")]
         public void Test_ToVector3()
         {
             string str = "(123.456,789.012,345.678)";
-            Vector3 v = UtilsParse.ToVector3(str);
-            TestHelper.Assert(v != new Vector3(123.456f, 789.012f, 345.678f));
+            float3 v = UtilsParse.ToFloat3(str);
+            TestHelper.Assert(!v.Equals(new float3(123.456f, 789.012f, 345.678f)));
         }
 
         [Test("test UtilsParse.ToVector4Adaptive")]
         public void Test_ToVector4Adaptive()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            Vector4 v = UtilsParse.ToVector4Adaptive(str);
-            TestHelper.Assert(v != new Vector4(123.456f, 789.012f, 345.678f, 901.234f));
+            float4 v = UtilsParse.ToFloat4Adaptive(str);
+            TestHelper.Assert(!v.Equals(new float4(123.456f, 789.012f, 345.678f, 901.234f)));
         }
 
         [Test("test UtilsParse.ToQuaternion")]
         public void Test_ToQuaternion()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            Quaternion q = UtilsParse.ToQuaternion(str);
-            TestHelper.Assert(q != new Quaternion(123.456f, 789.012f, 345.678f, 901.234f));
+            quaternion q = UtilsParse.ToQuaternion(str);
+            TestHelper.Assert(!q.Equals(new quaternion(123.456f, 789.012f, 345.678f, 901.234f)));
         }
 
         [Test("test UtilsParse.ToColor")]

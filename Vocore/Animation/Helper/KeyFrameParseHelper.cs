@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -26,60 +26,60 @@ namespace Vocore
         }
 
         /// <summary>
-        /// Convert a string 't - (x,y)' to CurvePoint<Vector2>
+        /// Convert a string 't - (x,y)' to CurvePoint<float2>
         /// </summary>
-        public static CurvePoint<Vector2> ToKeyFrame2D(this string str){
+        public static CurvePoint<float2> ToKeyFrame2D(this string str){
             string[] split = str.Split(_splitTimeWithValue);
             if (split.Length != 2){
-                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(Vector2));
+                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(float2));
             }
             float t = float.Parse(split[0]);
             string[] splitValue = split[1].Trim(_trimStart, _trimEnd).Split(_splitInsideValue);
             if (splitValue.Length != 2){
-                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(Vector2));
+                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(float2));
             }
             float x = float.Parse(splitValue[0]);
             float y = float.Parse(splitValue[1]);
-            return new CurvePoint<Vector2>(t, new Vector2(x, y));
+            return new CurvePoint<float2>(t, new float2(x, y));
         }
 
         /// <summary>
-        /// Convert a string 't - (x,y,z)' to CurvePoint<Vector3>
+        /// Convert a string 't - (x,y,z)' to CurvePoint<float3>
         /// </summary>
-        public static CurvePoint<Vector3> ToKeyFrame3D(this string str){
+        public static CurvePoint<float3> ToKeyFrame3D(this string str){
             string[] split = str.Split(_splitTimeWithValue);
             if (split.Length != 2){
-                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(Vector3));
+                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(float3));
             }
             float t = float.Parse(split[0]);
             string[] splitValue = split[1].Trim(_trimStart, _trimEnd).Split(_splitInsideValue);
             if (splitValue.Length != 3){
-                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(Vector3));
+                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(float3));
             }
             float x = float.Parse(splitValue[0]);
             float y = float.Parse(splitValue[1]);
             float z = float.Parse(splitValue[2]);
-            return new CurvePoint<Vector3>(t, new Vector3(x, y, z));
+            return new CurvePoint<float3>(t, new float3(x, y, z));
         }
 
         /// <summary>
-        /// Convert a string 't - (x,y,z,w)' to CurvePoint<Quaternion>
+        /// Convert a string 't - (x,y,z,w)' to CurvePoint<quaternion>
         /// </summary>
-        public static CurvePoint<Quaternion> ToKeyFrame4D(this string str){
+        public static CurvePoint<quaternion> ToKeyFrame4D(this string str){
             string[] split = str.Split(_splitTimeWithValue);
             if (split.Length != 2){
-                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(Quaternion));
+                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(quaternion));
             }
             float t = float.Parse(split[0]);
             string[] splitValue = split[1].Trim(_trimStart, _trimEnd).Split(_splitInsideValue);
             if (splitValue.Length != 4){
-                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(Quaternion));
+                throw ExceptionCurve.InvalidKeyFrameFormat(str, typeof(quaternion));
             }
             float x = float.Parse(splitValue[0]);
             float y = float.Parse(splitValue[1]);
             float z = float.Parse(splitValue[2]);
             float w = float.Parse(splitValue[3]);
-            return new CurvePoint<Quaternion>(t, new Quaternion(x, y, z, w));
+            return new CurvePoint<quaternion>(t, new quaternion(x, y, z, w));
         }
     }
 }

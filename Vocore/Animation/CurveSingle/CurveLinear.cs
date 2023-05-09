@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -107,7 +107,7 @@ namespace Vocore
             CurvePoint<float> keyFrame1 = _points[i];
             CurvePoint<float> keyFrame2 = _points[i + 1];
             float t = (x - keyFrame1.t) / (keyFrame2.t - keyFrame1.t);
-            return Mathf.Lerp(keyFrame1.value, keyFrame2.value, t);
+            return math.lerp(keyFrame1.value, keyFrame2.value, t);
         }
 
         private int BinarySearchFloor(float t){

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 
 using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -41,10 +42,10 @@ namespace Vocore
             RegisterParser<double>(str => str.ToDouble());
             RegisterParser<sbyte>(str => str.ToSByte());
             RegisterParser<byte>(str => str.ToByte());
-            RegisterParser<Vector2>(str => str.ToVector2());
-            RegisterParser<Vector3>(str => str.ToVector3());
-            RegisterParser<Vector4>(str => str.ToVector4Adaptive());
-            RegisterParser<Quaternion>(str => str.ToQuaternion());
+            RegisterParser<float2>(str => str.ToFloat2());
+            RegisterParser<float3>(str => str.ToFloat3());
+            RegisterParser<float4>(str => str.ToFloat4Adaptive());
+            RegisterParser<quaternion>(str => str.ToQuaternion());
             RegisterParser<Color>(str => str.ToColor());
             RegisterParser<Rect>(str => str.ToRect());
             RegisterParser<Type>(str =>str.ToType());
@@ -185,7 +186,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to UnityEngine.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
         /// </summary>
-        public static Vector2 ToVector2(this string Str)
+        public static float2 ToFloat2(this string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -206,13 +207,13 @@ namespace Vocore
                 x = Convert.ToSingle(array[0], invariantCulture);
                 y = Convert.ToSingle(array[1], invariantCulture);
             }
-            return new Vector2(x, y);
+            return new float2(x, y);
         }
 
         /// <summary>
         /// Parse a string to UnityEngine.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
         /// </summary>
-        public static Vector3 ToVector3(this string Str)
+        public static float3 ToFloat3(this string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -221,13 +222,13 @@ namespace Vocore
             float x = Convert.ToSingle(array[0], invariantCulture);
             float y = Convert.ToSingle(array[1], invariantCulture);
             float z = Convert.ToSingle(array[2], invariantCulture);
-            return new Vector3(x, y, z);
+            return new float3(x, y, z);
         }
 
         /// <summary>
         /// Parse a string to UnityEngine.Quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
         /// </summary>
-        public static Quaternion ToQuaternion(this string Str)
+        public static quaternion ToQuaternion(this string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -237,13 +238,13 @@ namespace Vocore
             float y = Convert.ToSingle(array[1], invariantCulture);
             float z = Convert.ToSingle(array[2], invariantCulture);
             float w = Convert.ToSingle(array[3], invariantCulture);
-            return new Quaternion(x, y, z, w);
+            return new quaternion(x, y, z, w);
         }
 
         /// <summary>
         /// Parse a string to UnityEngine.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
         /// </summary>
-        public static Vector4 ToVector4Adaptive(this string Str)
+        public static float4 ToFloat4Adaptive(this string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -269,7 +270,7 @@ namespace Vocore
             {
                 w = Convert.ToSingle(array[3], invariantCulture);
             }
-            return new Vector4(x, y, z, w);
+            return new float4(x, y, z, w);
         }
 
         /// <summary>

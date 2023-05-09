@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Unity.Mathematics;
 
 namespace Vocore
 {
@@ -98,10 +98,10 @@ namespace Vocore
             float tNormalized = (t - t0) / dt;
 
             // Cubic Hermite Spline
-            float h00 = 2 * Mathf.Pow(tNormalized, 3) - 3 * Mathf.Pow(tNormalized, 2) + 1;
-            float h10 = Mathf.Pow(tNormalized, 3) - 2 * Mathf.Pow(tNormalized, 2) + tNormalized;
-            float h01 = -2 * Mathf.Pow(tNormalized, 3) + 3 * Mathf.Pow(tNormalized, 2);
-            float h11 = Mathf.Pow(tNormalized, 3) - Mathf.Pow(tNormalized, 2);
+            float h00 = 2 * math.pow(tNormalized, 3) - 3 * math.pow(tNormalized, 2) + 1;
+            float h10 = math.pow(tNormalized, 3) - 2 * math.pow(tNormalized, 2) + tNormalized;
+            float h01 = -2 * math.pow(tNormalized, 3) + 3 * math.pow(tNormalized, 2);
+            float h11 = math.pow(tNormalized, 3) - math.pow(tNormalized, 2);
 
             float interpolatedValue = h00 * p0 + h10 * dt * m0 + h01 * p1 + h11 * dt * m1;
             return interpolatedValue;

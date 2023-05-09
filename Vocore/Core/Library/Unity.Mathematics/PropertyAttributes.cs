@@ -1,4 +1,6 @@
-﻿namespace Unity.Mathematics
+﻿#if USE_UNITY_ENGINE_DLL
+
+namespace Unity.Mathematics
 {
     /// <summary>
     /// Used by property drawers when vectors should be post normalized.
@@ -10,3 +12,5 @@
     /// </summary>
     public class DoNotNormalizeAttribute : UnityEngine.PropertyAttribute {}
 }
+
+#endif

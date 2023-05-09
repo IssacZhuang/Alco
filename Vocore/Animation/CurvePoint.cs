@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 namespace Vocore
 {
     public struct CurvePoint<T> : IComparable<CurvePoint<T>>, ISortable
