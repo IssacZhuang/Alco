@@ -8,6 +8,8 @@ using System.Threading;
 
 using UnityEngine;
 
+using Unity.Mathematics;
+
 namespace Vocore.Test
 {
     public class Playground
@@ -16,6 +18,7 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
+            TestHelper.PrintBlue(quaternion.Euler(new float3(90, 90, 0)));
 
         }
     }

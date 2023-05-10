@@ -52,7 +52,7 @@ namespace Vocore
         public static bool IntersectAABBWorldToLocal(ShapeBox world, ShapeBox toLocal)
         {
             BoundingBox worldBox = new BoundingBox(-world.extends, world.extends);
-            BoundingBox localBox = toLocal.GetBoundingBox(new RigidTransform(world.rotation, world.center));
+            BoundingBox localBox = toLocal.GetBoundingBox(math.inverse(new RigidTransform(world.rotation, world.center)));
             return worldBox.Intersects(localBox);
         }
     }

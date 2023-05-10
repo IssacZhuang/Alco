@@ -9,8 +9,9 @@ namespace Vocore
     {
         public static RigidTransform ToLocal(RigidTransform transform, RigidTransform parent)
         {
-            float3 localPosition = math.transform(parent, transform.pos);
-            quaternion localRotation = math.mul(parent.rot, transform.rot);
+            RigidTransform parentInverse = math.inverse(parent);
+            float3 localPosition = math.mul(parentInverse.rot, transform.pos - parent.pos);
+            quaternion localRotation = math.mul(parentInverse.rot, transform.rot);
             return new RigidTransform(localRotation, localPosition);
         }
     }

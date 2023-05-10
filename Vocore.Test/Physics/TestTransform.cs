@@ -10,10 +10,12 @@ namespace Vocore.Test
         [Test("test transform")]
         public void TestTransformToLocal()
         {
-            RigidTransform parent = new RigidTransform(quaternion.Euler(0,0,45), new float3(2, 2, 0));
-            RigidTransform child = new RigidTransform(quaternion.Euler(0,0,90), new float3(4, 4, 0));
+            RigidTransform parent = new RigidTransform(quaternion.AxisAngle(new float3(0, 0, 1), 1), new float3(0, 0, 0));
+            RigidTransform child = new RigidTransform(quaternion.identity, new float3(1, 0, 0));
 
-            TestHelper.PrintBlue(UtilsTranform.ToLocal(child, parent));
+            RigidTransform local = UtilsTranform.ToLocal(child, parent);
+            TestHelper.PrintBlue(math.angle(quaternion.identity, local.rot));
+            TestHelper.PrintBlue(local.pos);
         }
     }
 }

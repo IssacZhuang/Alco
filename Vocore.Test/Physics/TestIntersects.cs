@@ -26,13 +26,33 @@ namespace Vocore.Test
 
             TestHelper.Assert(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(float3.zero, new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
-            boxB = new ShapeBox(new float3(0.9f, 0.9f, 0f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
+            boxA = new ShapeBox(new float3(8, 0, 0f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
+            boxB = new ShapeBox(new float3(9.1f, 0.9f, 0f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
+
+            TestHelper.Assert(!UtilsCollision.BoxBox(boxA, boxB));
+
+            boxA = new ShapeBox(new float3(8, 4, 0f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
+            boxB = new ShapeBox(new float3(9.1f, 4.9f, 0f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
+
+            TestHelper.Assert(!UtilsCollision.BoxBox(boxA, boxB));
+
+            boxA = new ShapeBox(new float3(8, 5, 7f), new float3(1f), quaternion.identity);
+            boxB = new ShapeBox(new float3(9.1f, 5.9f, 7f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
 
             TestHelper.Assert(!UtilsCollision.BoxBox(boxA, boxB));
 
             boxA = new ShapeBox(float3.zero, new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
             boxB = new ShapeBox(new float3(5f, 5f, 0f), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(45f))));
+
+            TestHelper.Assert(UtilsCollision.BoxBox(boxA, boxB));
+
+            boxA = new ShapeBox(new float3(8, 5, 7f), new float3(1f), quaternion.identity);
+            boxB = new ShapeBox(new float3(9.1f, 5, 7), new float3(1f), quaternion.identity);
+
+            TestHelper.Assert(UtilsCollision.BoxBox(boxA, boxB));
+
+            boxA = new ShapeBox(new float3(8, 5, 7f), new float3(1f), quaternion.identity);
+            boxB = new ShapeBox(new float3(9.1f, 5, 7), new float3(1f), quaternion.EulerXYZ(math.radians(new float3(1f))));
 
             TestHelper.Assert(UtilsCollision.BoxBox(boxA, boxB));
 
