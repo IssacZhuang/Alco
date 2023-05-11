@@ -57,6 +57,50 @@ namespace Vocore.Test
             TestHelper.Assert(UtilsCollision.BoxBox(boxA, boxB));
 
         }
+
+        [Test("test ray box intersects")]
+        public void TestIntersectsRayBox()
+        {
+            ShapeBox box = new ShapeBox(float3.zero, new float3(1f), quaternion.identity);
+            Ray ray = new Ray(new float3(-2, 0, 0), new float3(2, 0, 0));
+
+            TestHelper.Assert(!UtilsCollision.RayBox(ray, box, out RaycastHit hit));
+            TestHelper.PrintBlue(hit.ToString());
+
+            box = new ShapeBox(float3.zero, new float3(1f), quaternion.identity);
+            ray = new Ray(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
+
+            TestHelper.Assert(UtilsCollision.RayBox(ray, box, out hit));
+            TestHelper.PrintBlue(hit.ToString());
+
+            box = new ShapeBox(float3.zero, new float3(1f), quaternion.identity);
+            ray = new Ray(new float3(-0.9f, 0, 0), new float3(0, 0.9f, 0));
+
+            TestHelper.Assert(!UtilsCollision.RayBox(ray, box, out hit));
+            TestHelper.PrintBlue(hit.ToString());
+        }
+
+        [Test("test ray sphere intersects")]
+        public void TestIntersectsRaySphere()
+        {
+            ShapeSphere sphere = new ShapeSphere(float3.zero, 1f);
+            Ray ray = new Ray(new float3(-2, 0, 0), new float3(2, 0, 0));
+
+            TestHelper.Assert(!UtilsCollision.RaySphere(ray, sphere, out RaycastHit hit));
+            TestHelper.PrintBlue(hit.ToString());
+
+            sphere = new ShapeSphere(float3.zero, 1f);
+            ray = new Ray(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
+
+            TestHelper.Assert(UtilsCollision.RaySphere(ray, sphere, out hit));
+            TestHelper.PrintBlue(hit.ToString());
+
+            sphere = new ShapeSphere(float3.zero, 1f);
+            ray = new Ray(new float3(-2f, -1f, 0), new float3(1, 2, 0));
+
+            TestHelper.Assert(!UtilsCollision.RaySphere(ray, sphere, out hit));
+            TestHelper.PrintBlue(hit.ToString());
+        }
     }
 }
 

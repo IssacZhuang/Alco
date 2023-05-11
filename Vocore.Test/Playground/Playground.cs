@@ -18,7 +18,7 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            TestHelper.PrintBlue(quaternion.Euler(new float3(90, 90, 0)));
+            
 
         }
     }

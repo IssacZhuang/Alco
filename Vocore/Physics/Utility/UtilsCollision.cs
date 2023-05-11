@@ -55,6 +55,161 @@ namespace Vocore
             BoundingBox localBox = toLocal.GetBoundingBox(math.inverse(new RigidTransform(world.rotation, world.center)));
             return worldBox.Intersects(localBox);
         }
+
+        public static bool RaySphere(float3 rayOrigin, float3 rayDisplacement, float3 sphereCenter, float sphereRadius, ref float fraction, out float3 normal)
+        {
+            normal = float3.zero;
+            float3 diff = rayOrigin - sphereCenter;
+            float a = math.dot(rayDisplacement, rayDisplacement);
+            float b = 2f * math.dot(rayDisplacement, diff);
+            float c = math.dot(diff, diff) - sphereRadius * sphereRadius;
+            float discriminant = b * b - 4f * a * c;
+
+
+            if (c < 0f)
+            {
+                fraction = 0f;
+                normal = math.normalize(-rayDisplacement);
+                return true;
+            }
+
+            if (discriminant < 0f)
+            {
+                return false;
+            }
+
+            float sqrtDiscriminant = math.sqrt(discriminant);
+            float invDenom = 0.5f / a;
+            float t0 = (sqrtDiscriminant - b) * invDenom;
+            float t = (-sqrtDiscriminant - b) * invDenom;
+            float tMin = math.min(t0, t);
+
+            if (tMin >= 0f && tMin < fraction)
+            {
+                fraction = tMin;
+                normal = (rayOrigin + rayDisplacement * fraction - sphereCenter) / sphereRadius;
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool RaySphere(Ray ray, ShapeSphere sphere, out RaycastHit hit)
+        {
+            hit = new RaycastHit();
+            float fraction = float.MaxValue;
+            float3 normal = float3.zero;
+            hit = default;
+
+            if (RaySphere(ray.origin, ray.displacement, sphere.center, sphere.radius, ref fraction, out normal))
+            {
+                hit.point = ray.origin + ray.displacement * fraction;
+                hit.normal = normal;
+                return true;
+            }
+            return false;
+        }
+
+        public static bool RayAABB(Ray ray, BoundingBox boundingBox, ref float fraction, out float3 normal)
+        {
+            normal = float3.zero;
+            float3 rayOrigin = ray.origin;
+            float3 rayDisplacement = ray.displacement;
+            float3 min = boundingBox.min;
+            float3 max = boundingBox.max;
+
+            float tmin = (min.x - rayOrigin.x) / rayDisplacement.x;
+            float tmax = (max.x - rayOrigin.x) / rayDisplacement.x;
+
+            if (tmin > tmax)
+            {
+                float temp = tmin;
+                tmin = tmax;
+                tmax = temp;
+            }
+
+            float tymin = (min.y - rayOrigin.y) / rayDisplacement.y;
+            float tymax = (max.y - rayOrigin.y) / rayDisplacement.y;
+
+            if (tymin > tymax)
+            {
+                float temp = tymin;
+                tymin = tymax;
+                tymax = temp;
+            }
+
+            if ((tmin > tymax) || (tymin > tmax))
+            {
+                return false;
+            }
+
+            if (tymin > tmin)
+            {
+                tmin = tymin;
+            }
+
+            if (tymax < tmax)
+            {
+                tmax = tymax;
+            }
+
+            float tzmin = (min.z - rayOrigin.z) / rayDisplacement.z;
+            float tzmax = (max.z - rayOrigin.z) / rayDisplacement.z;
+
+            if (tzmin > tzmax)
+            {
+                float temp = tzmin;
+                tzmin = tzmax;
+                tzmax = temp;
+            }
+
+            if ((tmin > tzmax) || (tzmin > tmax))
+            {
+                return false;
+            }
+
+            if (tzmin > tmin)
+            {
+                tmin = tzmin;
+            }
+
+            if (tzmax < tmax)
+            {
+                tmax = tzmax;
+            }
+
+            fraction = tmin;
+            normal = math.normalize(new float3(
+                math.select(-1f, 1f, rayDisplacement.x < 0f),
+                math.select(-1f, 1f, rayDisplacement.y < 0f),
+                math.select(-1f, 1f, rayDisplacement.z < 0f)
+            ));
+
+            return true;
+        }   
+
+
+        public static bool RayBox(Ray ray, ShapeBox box, out RaycastHit hit)
+        {
+            hit = default;
+            BoundingBox localAABB = new BoundingBox(-box.extends, box.extends);
+
+            float3 rayOriginLocal = math.transform(math.inverse(new RigidTransform(box.rotation, box.center)), ray.origin);
+            float3 rayDisplacementLocal = math.rotate(math.inverse(box.rotation), ray.displacement);
+
+            Ray localRay = new Ray(rayOriginLocal, rayDisplacementLocal);
+
+            float fraction = float.MaxValue;
+
+            if (RayAABB(localRay, localAABB, ref fraction, out float3 normal))
+            {
+                hit.point = ray.origin + ray.displacement * fraction;
+                hit.normal = math.rotate(box.rotation, normal);
+                return true;
+            }
+
+            return false;
+        }
     }
 }
 

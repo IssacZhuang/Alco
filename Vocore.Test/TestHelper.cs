@@ -127,6 +127,31 @@ namespace Vocore.Test
             PrintBlue(name + ": " + stopwatch.ElapsedMilliseconds + " ms");
         }
 
+        public static void Benchmark(string name, Action action)
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            action();
+            stopwatch.Stop();
+            PrintBlue(name + ": " + stopwatch.ElapsedMilliseconds + " ms");
+        }
+
+        public static void CheckGCAlloc(Action action, string name = TEXT_BENCHMARK)
+        {
+            long start = GC.GetTotalMemory(false);
+            action();
+            long end = GC.GetTotalMemory(false);
+            PrintBlue(name + ": " + (end - start) + " bytes");
+        }
+
+        public static void CheckGCAlloc(string name, Action action)
+        {
+            long start = GC.GetTotalMemory(false);
+            action();
+            long end = GC.GetTotalMemory(false);
+            PrintBlue(name + ": " + (end - start) + " bytes");
+        }
+
         public static void PrintList<T>(IList<T> list)
         {
             for(int i = 0; i < list.Count; i++)
