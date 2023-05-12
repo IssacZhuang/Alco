@@ -62,19 +62,25 @@ namespace Vocore.Test
         public void TestIntersectsRayBox()
         {
             ShapeBox box = new ShapeBox(float3.zero, new float3(1f), quaternion.identity);
-            Ray ray = new Ray(new float3(-2, 0, 0), new float3(2, 0, 0));
+            Ray ray = Ray.CreateWithStartAndEnd(new float3(-2, 0, 0), new float3(2, 0, 0));
 
             TestHelper.Assert(!UtilsCollision.RayBox(ray, box, out RaycastHit hit));
             TestHelper.PrintBlue(hit.ToString());
 
             box = new ShapeBox(float3.zero, new float3(1f), quaternion.identity);
-            ray = new Ray(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
+            ray = Ray.CreateWithStartAndEnd(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
 
             TestHelper.Assert(UtilsCollision.RayBox(ray, box, out hit));
             TestHelper.PrintBlue(hit.ToString());
 
             box = new ShapeBox(float3.zero, new float3(1f), quaternion.identity);
-            ray = new Ray(new float3(-0.9f, 0, 0), new float3(0, 0.9f, 0));
+            ray = Ray.CreateWithStartAndEnd(new float3(-0.9f, 0, 0), new float3(0, 0.9f, 0));
+
+            TestHelper.Assert(!UtilsCollision.RayBox(ray, box, out hit));
+            TestHelper.PrintBlue(hit.ToString());
+
+            box = new ShapeBox(new float3(0, 0, 0), new float3(1f), quaternion.EulerXYZ(new float3(0, 0, math.radians(135))));
+            ray = Ray.CreateWithStartAndEnd(new float3(-1f, -0.7f, 0), new float3(3, -0.7f, 0));
 
             TestHelper.Assert(!UtilsCollision.RayBox(ray, box, out hit));
             TestHelper.PrintBlue(hit.ToString());
@@ -84,19 +90,19 @@ namespace Vocore.Test
         public void TestIntersectsRaySphere()
         {
             ShapeSphere sphere = new ShapeSphere(float3.zero, 1f);
-            Ray ray = new Ray(new float3(-2, 0, 0), new float3(2, 0, 0));
+            Ray ray = Ray.CreateWithStartAndEnd(new float3(-2, 0, 0), new float3(2, 0, 0));
 
             TestHelper.Assert(!UtilsCollision.RaySphere(ray, sphere, out RaycastHit hit));
             TestHelper.PrintBlue(hit.ToString());
 
             sphere = new ShapeSphere(float3.zero, 1f);
-            ray = new Ray(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
+            ray = Ray.CreateWithStartAndEnd(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
 
             TestHelper.Assert(UtilsCollision.RaySphere(ray, sphere, out hit));
             TestHelper.PrintBlue(hit.ToString());
 
             sphere = new ShapeSphere(float3.zero, 1f);
-            ray = new Ray(new float3(-2f, -1f, 0), new float3(1, 2, 0));
+            ray = Ray.CreateWithStartAndEnd(new float3(-2f, -0.5f, 0), new float3(1, 2, 0));
 
             TestHelper.Assert(!UtilsCollision.RaySphere(ray, sphere, out hit));
             TestHelper.PrintBlue(hit.ToString());

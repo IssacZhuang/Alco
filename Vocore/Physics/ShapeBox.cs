@@ -53,6 +53,11 @@ namespace Vocore
 
             return new BoundingBox(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
         }
+
+        public override string ToString()
+        {
+            return $"Box: {center} {extends} {rotation}";
+        }
     }
 }
 

@@ -64,33 +64,27 @@ namespace Vocore
             float b = 2f * math.dot(rayDisplacement, diff);
             float c = math.dot(diff, diff) - sphereRadius * sphereRadius;
             float discriminant = b * b - 4f * a * c;
-
-
             if (c < 0f)
             {
                 fraction = 0f;
                 normal = math.normalize(-rayDisplacement);
                 return true;
             }
-
             if (discriminant < 0f)
             {
                 return false;
             }
-
             float sqrtDiscriminant = math.sqrt(discriminant);
             float invDenom = 0.5f / a;
             float t0 = (sqrtDiscriminant - b) * invDenom;
-            float t = (-sqrtDiscriminant - b) * invDenom;
-            float tMin = math.min(t0, t);
-
+            float t1 = (0f - sqrtDiscriminant - b) * invDenom;
+            float tMin = math.min(t0, t1);
             if (tMin >= 0f && tMin < fraction)
             {
                 fraction = tMin;
                 normal = (rayOrigin + rayDisplacement * fraction - sphereCenter) / sphereRadius;
                 return true;
             }
-
             return false;
         }
 
@@ -118,21 +112,28 @@ namespace Vocore
             float3 min = boundingBox.min;
             float3 max = boundingBox.max;
 
-            float tmin = (min.x - rayOrigin.x) / rayDisplacement.x;
-            float tmax = (max.x - rayOrigin.x) / rayDisplacement.x;
+            float txmin = (min.x - rayOrigin.x) / rayDisplacement.x;
+            float txmax = (max.x - rayOrigin.x) / rayDisplacement.x;
+            float inverseX = 1f;
 
-            if (tmin > tmax)
+            if (txmin > txmax)
             {
-                float temp = tmin;
-                tmin = tmax;
-                tmax = temp;
+                inverseX = -1f;
+                float temp = txmin;
+                txmin = txmax;
+                txmax = temp;
             }
+
+            float tmin = txmin;
+            float tmax = txmax;
 
             float tymin = (min.y - rayOrigin.y) / rayDisplacement.y;
             float tymax = (max.y - rayOrigin.y) / rayDisplacement.y;
+            float inverseY = 1f;
 
             if (tymin > tymax)
             {
+                inverseY = -1f;
                 float temp = tymin;
                 tymin = tymax;
                 tymax = temp;
@@ -155,9 +156,11 @@ namespace Vocore
 
             float tzmin = (min.z - rayOrigin.z) / rayDisplacement.z;
             float tzmax = (max.z - rayOrigin.z) / rayDisplacement.z;
+            float inverseZ = 1f;
 
             if (tzmin > tzmax)
             {
+                inverseZ = -1f;
                 float temp = tzmin;
                 tzmin = tzmax;
                 tzmax = temp;
@@ -179,11 +182,32 @@ namespace Vocore
             }
 
             fraction = tmin;
-            normal = math.normalize(new float3(
-                math.select(-1f, 1f, rayDisplacement.x < 0f),
-                math.select(-1f, 1f, rayDisplacement.y < 0f),
-                math.select(-1f, 1f, rayDisplacement.z < 0f)
-            ));
+            //todo: calculate normal of hit face
+            if (txmin == tmin)
+            {
+                normal = new float3(-1.0f, 0.0f, 0.0f) * inverseX;
+            }
+            else if (txmax == tmin)
+            {
+                normal = new float3(1.0f, 0.0f, 0.0f) * inverseX;
+            }
+            else if (tymin == tmin)
+            {
+                normal = new float3(0.0f, -1.0f, 0.0f) * inverseY;
+            }
+            else if (tymax == tmin)
+            {
+                normal = new float3(0.0f, 1.0f, 0.0f) * inverseY;
+            }
+            else if (tzmin == tmin)
+            {
+                normal = new float3(0.0f, 0.0f, -1.0f) * inverseZ;
+            }
+            else if (tzmax == tmin)
+            {
+                normal = new float3(0.0f, 0.0f, 1.0f) *inverseZ;
+            }
+
 
             return true;
         }   

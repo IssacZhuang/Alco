@@ -22,5 +22,10 @@ namespace Vocore
                    min.y <= other.max.y && max.y >= other.min.y &&
                    min.z <= other.max.z && max.z >= other.min.z;
         }
+
+        public override string ToString()
+        {
+            return $"Box: {min} {max}";
+        }
     }
 }
