@@ -7,5 +7,6 @@ namespace Vocore
     public interface ICollider: IShape
     {
         bool CollidesWith(ICollider other);
+        ColliderType type { get; }
     }
 }
