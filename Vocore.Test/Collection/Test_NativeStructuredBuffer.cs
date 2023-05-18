@@ -9,7 +9,7 @@ using Vocore;
 using UnityEngine;
 using System.Diagnostics;
 
-namespace Vocore.Test.Core.Collection
+namespace Vocore.Test
 {
     [DisabledTestTemporarily]
     internal class Test_NativeStructuredBuffer

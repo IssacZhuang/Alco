@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Vocore.Test.Core.Framework
+namespace Vocore.Test
 {
     [DisabledTestTemporarily]
     internal class Test_ResDatabase

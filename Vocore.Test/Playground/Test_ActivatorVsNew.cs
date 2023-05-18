@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Vocore.Test.GeneralPerformanceTest
+namespace Vocore.Test
 {
     internal class Test_ActivatorVsNew
     {
