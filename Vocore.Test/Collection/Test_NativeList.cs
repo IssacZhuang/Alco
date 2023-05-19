@@ -177,7 +177,7 @@ namespace Vocore.Test
             }
 
             TestHelper.Assert(list.Count != 0);
-            TestHelper.Assert(list.Capacity != 100);
+            TestHelper.Assert(list.DefaultCapacity != 100);
             list.Dispose();
         }
 

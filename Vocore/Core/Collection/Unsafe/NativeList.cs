@@ -26,13 +26,22 @@ namespace Vocore
         public int Count => Size;
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
-        public int Capacity
+        public int DefaultCapacity
         {
             get
             {
                 return _preAllocSize > 0 ? _preAllocSize : DefaultSize;
             }
         }
+
+        public int Capacity
+        {
+            get
+            {
+                return _capacity;
+            }
+        }
+
 
         public T this[int index]
         {
@@ -140,7 +149,7 @@ namespace Vocore
 
         public void Clear()
         {
-            Resize(DefaultSize);
+            if (AutoCompress) Resize(DefaultCapacity);
             _size = 0;
         }
 
@@ -180,7 +189,7 @@ namespace Vocore
 
         private void Resize(int size)
         {
-            if (size < Capacity) size = Capacity;
+            if (size < DefaultCapacity) size = DefaultCapacity;
 
             void* tmpPtr = UtilsUnsafe.Alloc(_stride * size);
 
@@ -201,7 +210,7 @@ namespace Vocore
                 Resize(_capacity * 2);
             }
 
-            if (AutoCompress && size > Capacity && size < _capacity / 2)
+            if (AutoCompress && size > DefaultCapacity && size < _capacity / 2)
             {
                 Resize(_capacity / 2);
             }
