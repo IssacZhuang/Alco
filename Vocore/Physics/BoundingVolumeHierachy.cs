@@ -11,11 +11,11 @@ namespace Vocore
             bool isLeaf;
             int left;
             int right;
-            int colliderIndex;
+            int colliderRefIndex;
         }
 
         private NativeList<Node> _innerList;
-        private void* _colliderList;
+        private NativeList<ColliderRef> _colliderList;
     }
 
 }
