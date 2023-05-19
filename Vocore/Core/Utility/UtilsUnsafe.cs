@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Vocore
+namespace Vocore.Unsafe
 {
     public static unsafe class UtilsUnsafe
     {
@@ -40,7 +40,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IntPtr ToRef<T>(T value) where T : unmanaged
         {
-            IntPtr ptr = Marshal.AllocHGlobal(SizeOf<T>());
+            IntPtr ptr = Marshal.AllocHGlobal(sizeof(T));
 #if DEBUG
             PointerTracker.AddAllocated(ptr, Environment.StackTrace);
 #endif
@@ -55,9 +55,9 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>()
+        public static int SizeOf<T>() where T : unmanaged
         {
-            return Marshal.SizeOf<T>();
+            return sizeof(T);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -76,6 +76,12 @@ namespace Vocore
         public static T Get<T>(IntPtr ptr)
         {
             return (T)Marshal.PtrToStructure(ptr, typeof(T));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Get<T>(void* ptr)
+        {
+            return (T)Marshal.PtrToStructure((IntPtr)ptr, typeof(T));
         }
     }
 }

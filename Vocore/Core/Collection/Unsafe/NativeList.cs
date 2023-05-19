@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Vocore.Unsafe;
+
 namespace Vocore
 {
     public unsafe struct NativeList<T> : IList<T>, IDisposable where T : unmanaged
@@ -14,6 +16,8 @@ namespace Vocore
         private int _capacity;
         private int _preAllocSize;
         private bool _isDisposed;
+        private bool _autoCompress;
+        public bool AutoCompress { get => _autoCompress; set => _autoCompress = value;}
         public int Length => _size;
 
         public T* Raw => (T*)_ptrBuffer;
@@ -58,6 +62,18 @@ namespace Vocore
             _capacity = size;
             _preAllocSize = size;
             _isDisposed = false;
+            _autoCompress = true;
+        }
+
+        public NativeList(int size, bool autoCompress)
+        {
+            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            _ptrBuffer = UtilsUnsafe.Alloc(_stride * size);
+            _size = 0;
+            _capacity = size;
+            _preAllocSize = size;
+            _isDisposed = false;
+            _autoCompress = autoCompress;
         }
 
         public void Add(T value)
@@ -185,7 +201,7 @@ namespace Vocore
                 Resize(_capacity * 2);
             }
 
-            if (size > Capacity && size < _capacity / 2)
+            if (AutoCompress && size > Capacity && size < _capacity / 2)
             {
                 Resize(_capacity / 2);
             }

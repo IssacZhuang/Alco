@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Vocore.Unsafe;
+
 namespace Vocore
 {
     public unsafe struct NativeBuffer<T> : IReadOnlyList<T>, IDisposable where T : unmanaged
