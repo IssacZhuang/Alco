@@ -8,14 +8,26 @@ namespace Vocore
     public unsafe struct BoundingVolumeHierarchy
     {
         public struct Node{
-            bool isLeaf;
             int left;
             int right;
-            int colliderRefIndex;
+            ColliderRef collider;
+            bool IsLeaf => collider.HasCollider;
         }
 
         private NativeList<Node> _innerList;
         private NativeList<ColliderRef> _colliderList;
+
+        public void BuildTreeFromColliderList(NativeList<ColliderRef> colliderList)
+        {
+            _colliderList = colliderList;
+            _innerList = new NativeList<Node>(colliderList.Length * 2);
+            
+        }
+
+        private void BuildTree(int start, int end)
+        {
+            
+        }
     }
 
 }

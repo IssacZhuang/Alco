@@ -83,6 +83,18 @@ namespace Vocore.Unsafe
         {
             return (T)Marshal.PtrToStructure((IntPtr)ptr, typeof(T));
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static void WriteArrayElement<T>(void* destination, int index, T value)
+        {
+            *(T*)((byte*)destination + (long)index * (long)sizeof(T)) = value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static T ReadArrayElement<T>(void* source, int index)
+        {
+            return *(T*)((byte*)source + (long)index * (long)sizeof(T));
+        }
     }
 }
 

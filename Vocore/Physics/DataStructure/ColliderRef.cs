@@ -12,6 +12,8 @@ namespace Vocore
         private ICollider* InnerCollider => (ICollider*)_ptr;
 #pragma warning restore CS8500
 
+        public bool HasCollider => _ptr != null;
+
         public static ColliderRef Create<T>(T* collider) where T : unmanaged, ICollider
         {
             return new ColliderRef
