@@ -68,7 +68,7 @@ namespace Vocore
             }
         }
 
-        private unsafe static int Partition<T, U>(void* array, int lo, int hi, U comp) where T : struct where U : IComparer<T>
+        private unsafe static int Partition<T, U>(void* array, int lo, int hi, U comp) where T : unmanaged where U : IComparer<T>
         {
             int mid = lo + (hi - lo) / 2;
             SwapIfGreaterWithItems<T, U>(array, lo, mid, comp);
@@ -97,7 +97,7 @@ namespace Vocore
         }
 
 
-        private unsafe static void HeapSort<T, U>(void* array, int lo, int hi, U comp) where T : struct where U : IComparer<T>
+        private unsafe static void HeapSort<T, U>(void* array, int lo, int hi, U comp) where T : unmanaged where U : IComparer<T>
         {
             int k = hi - lo + 1;
             for (int j = k / 2; j >= 1; j--)
@@ -112,7 +112,7 @@ namespace Vocore
         }
 
 
-        private unsafe static void InsertionSort<T, U>(void* array, int lo, int hi, U comp) where T : struct where U : IComparer<T>
+        private unsafe static void InsertionSort<T, U>(void* array, int lo, int hi, U comp) where T : unmanaged where U : IComparer<T>
         {
             for (int i = lo; i < hi; i++)
             {
@@ -127,7 +127,7 @@ namespace Vocore
             }
         }
 
-        private unsafe static void SwapIfGreaterWithItems<T, U>(void* array, int lhs, int rhs, U comp) where T : struct where U : IComparer<T>
+        private unsafe static void SwapIfGreaterWithItems<T, U>(void* array, int lhs, int rhs, U comp) where T : unmanaged where U : IComparer<T>
         {
             if (lhs != rhs && comp.Compare(UtilsUnsafe.ReadArrayElement<T>(array, lhs), UtilsUnsafe.ReadArrayElement<T>(array, rhs)) > 0)
             {
@@ -135,7 +135,7 @@ namespace Vocore
             }
         }
 
-        private unsafe static void Heapify<T, U>(void* array, int i, int n, int lo, U comp) where T : struct where U : IComparer<T>
+        private unsafe static void Heapify<T, U>(void* array, int i, int n, int lo, U comp) where T : unmanaged where U : IComparer<T>
         {
             T val = UtilsUnsafe.ReadArrayElement<T>(array, lo + i - 1);
             while (i <= n / 2)
@@ -155,7 +155,7 @@ namespace Vocore
             UtilsUnsafe.WriteArrayElement<T>(array, lo + i - 1, val);
         }
 
-        private unsafe static void Swap<T>(void* array, int lhs, int rhs) where T : struct
+        private unsafe static void Swap<T>(void* array, int lhs, int rhs) where T : unmanaged
         {
             T val = UtilsUnsafe.ReadArrayElement<T>(array, lhs);
             UtilsUnsafe.WriteArrayElement<T>(array, lhs, UtilsUnsafe.ReadArrayElement<T>(array, rhs));

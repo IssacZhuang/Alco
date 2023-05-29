@@ -9,42 +9,47 @@ using System.Threading;
 using UnityEngine;
 
 using Unity.Mathematics;
+using System.Threading.Tasks;
 
 namespace Vocore.Test
 {
+    delegate void TestDelegate();
+
     public class Playground
     {
         //some temp code for testing
         [Test("Playground")]
         public unsafe void Test()
         {
-            float[] randomArray = new float[1000000];
-            Unity.Mathematics.Random random = new Unity.Mathematics.Random();
-            for (int i = 0; i < randomArray.Length; i++)
-            {
-                randomArray[i] = random.NextInt();
-            }
+            // float[] randomArray = new float[1000000];
+            // Unity.Mathematics.Random random = new Unity.Mathematics.Random();
+            // for (int i = 0; i < randomArray.Length; i++)
+            // {
+            //     randomArray[i] = random.NextInt();
+            // }
 
-            List<float> list = new List<float>();
+            // List<float> list = new List<float>();
 
-            TestHelper.Benchmark("List Add", () =>
-            {
-                for (int i = 0; i < randomArray.Length; i++)
-                {
-                    list.Add(randomArray[i]);
-                }
-                list.Sort();
-            });
+            // TestHelper.Benchmark("List Add", () =>
+            // {
+            //     for (int i = 0; i < randomArray.Length; i++)
+            //     {
+            //         list.Add(randomArray[i]);
+            //     }
+            //     list.Sort();
+            // });
 
-            NativeList<float> nativeList = new NativeList<float>();
-            TestHelper.Benchmark("NativeList Add", () =>
-            {
-                for (int i = 0; i < randomArray.Length; i++)
-                {
-                    nativeList.Add(randomArray[i]);
-                }
-                nativeList.Sort();
-            });
+            // NativeList<float> nativeList = new NativeList<float>();
+            // TestHelper.Benchmark("NativeList Add", () =>
+            // {
+            //     for (int i = 0; i < randomArray.Length; i++)
+            //     {
+            //         nativeList.Add(randomArray[i]);
+            //     }
+            //     nativeList.Sort();
+            // });
+
+            Matrix4x4.TRS(new Vector3(1, 2, 3), Quaternion.identity, Vector3.one);
 
         }
     }

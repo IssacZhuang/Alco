@@ -85,13 +85,13 @@ namespace Vocore.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static void WriteArrayElement<T>(void* destination, int index, T value)
+        public unsafe static void WriteArrayElement<T>(void* destination, int index, T value) where T : unmanaged
         {
             *(T*)((byte*)destination + (long)index * (long)sizeof(T)) = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static T ReadArrayElement<T>(void* source, int index)
+        public unsafe static T ReadArrayElement<T>(void* source, int index) where T : unmanaged
         {
             return *(T*)((byte*)source + (long)index * (long)sizeof(T));
         }

@@ -138,7 +138,8 @@ namespace Vocore.Test
 
         public static void CheckGCAlloc(Action action, string name = TEXT_BENCHMARK)
         {
-            long start = GC.GetTotalMemory(false);
+            GC.Collect();
+            long start = GC.GetTotalMemory(true);
             action();
             long end = GC.GetTotalMemory(false);
             PrintBlue(name + ": " + (end - start) + " bytes");
@@ -146,7 +147,8 @@ namespace Vocore.Test
 
         public static void CheckGCAlloc(string name, Action action)
         {
-            long start = GC.GetTotalMemory(false);
+            GC.Collect();
+            long start = GC.GetTotalMemory(true);
             action();
             long end = GC.GetTotalMemory(false);
             PrintBlue(name + ": " + (end - start) + " bytes");
