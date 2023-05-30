@@ -4,15 +4,11 @@ VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore", "Vocore\Vocore.csproj", "{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.EmbeddedAssets", "Vocore.EmbeddedAssets\Vocore.EmbeddedAssets.csproj", "{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Vocore", "Vocore", "{FB7FCE15-9962-4855-90DF-26E6856A6B7A}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Vocore.Test", "Vocore.Test", "{FA25F425-399D-492F-95C2-FE728A44D7BC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Test", "Vocore.Test\Vocore.Test.csproj", "{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Vocore.EmbeddedAsstes", "Vocore.EmbeddedAsstes", "{5E3F135A-D664-4F8D-BF79-D7BFEB82D812}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,10 +20,6 @@ Global
 		{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84}.Release|Any CPU.Build.0 = Release|Any CPU
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -38,7 +30,6 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF} = {FB7FCE15-9962-4855-90DF-26E6856A6B7A}
-		{47CBFCC8-8F0F-4FE3-8E48-CC2507F25B84} = {5E3F135A-D664-4F8D-BF79-D7BFEB82D812}
 		{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE} = {FA25F425-399D-492F-95C2-FE728A44D7BC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution

@@ -1,5 +1,6 @@
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
+    Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -70,10 +71,12 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine">
-      <HintPath>..\Packages\Unity3D\2019.4.3.1\UnityEngine.dll</HintPath>
+      <HintPath>..\Packages\UnityEngine\UnityEngine.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Packages\Unity3D\2019.4.3.1\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>..\Packages\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -136,10 +139,8 @@
     <Compile Include="CurveDrawer.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Properties\CSharp\" />
     <Compile Include="Animation\Test_Curve.cs" />
     <Compile Include="Collection\Test_PriorityList.cs" />
-    <Folder Include="Algorithm\" />
     <Compile Include="Collection\Test_BinarySearch.cs" />
     <Compile Include="Animation\Test_Animation.cs" />
     <Compile Include="IO\Test_FileReference.cs" />
@@ -148,6 +149,10 @@
     <Compile Include="Collection\Test_NativeList.cs" />
     <Compile Include="Physics\TestTransform.cs" />
     <Compile Include="Physics\TestIntersects.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Algorithm\" />
+    <Folder Include="Properties\CSharp\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
