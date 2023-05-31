@@ -17,38 +17,38 @@ namespace Terminal
         [Header("Window")]
         [Range(0, 1)]
         [SerializeField]
-        float MaxHeight = 0.7f;
+        public float MaxHeight = 0.8f;
 
         [SerializeField]
         [Range(0, 1)]
-        float SmallTerminalRatio = 0.33f;
+        public float SmallTerminalRatio = 0.33f;
 
         [Range(100, 1000)]
         [SerializeField]
-        float ToggleSpeed = 360;
+        public float ToggleSpeed = 180;
 
-        [SerializeField] string ToggleHotkey      = "`";
-        [SerializeField] string ToggleFullHotkey  = "#`";
-        [SerializeField] int BufferSize           = 512;
+        [SerializeField] public string ToggleHotkey = "`";
+        [SerializeField] public string ToggleFullHotkey = "#`";
+        [SerializeField] public int BufferSize = 512;
 
         [Header("Input")]
-        [SerializeField] Font ConsoleFont;
-        [SerializeField] string InputCaret        = ">";
-        [SerializeField] bool ShowGUIButtons      = false;
-        [SerializeField] bool RightAlignButtons   = false;
+        [SerializeField] public Font ConsoleFont;
+        [SerializeField] public string InputCaret = ">";
+        [SerializeField] public bool ShowGUIButtons = false;
+        [SerializeField] public bool RightAlignButtons = false;
 
         [Header("Theme")]
         [Range(0, 1)]
-        [SerializeField] float InputContrast      = 0.0f;
+        [SerializeField] public float InputContrast = 0.0f;
         [Range(0, 1)]
-        [SerializeField] float InputAlpha         = 0.5f;
+        [SerializeField] public float InputAlpha = 0.5f;
 
-        [SerializeField] Color BackgroundColor    = Color.black;
-        [SerializeField] Color ForegroundColor    = Color.white;
-        [SerializeField] Color ShellColor         = Color.white;
-        [SerializeField] Color InputColor         = Color.cyan;
-        [SerializeField] Color WarningColor       = Color.yellow;
-        [SerializeField] Color ErrorColor         = Color.red;
+        [SerializeField] public Color BackgroundColor = Color.black;
+        [SerializeField] public Color ForegroundColor = Color.white;
+        [SerializeField] public Color ShellColor = Color.white;
+        [SerializeField] public Color InputColor = Color.cyan;
+        [SerializeField] public Color WarningColor = Color.yellow;
+        [SerializeField] public Color ErrorColor = Color.red;
 
         private TerminalState _state;
         private TextEditor _editorState;

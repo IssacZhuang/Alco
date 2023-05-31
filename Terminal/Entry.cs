@@ -13,6 +13,8 @@ namespace Terminal
         {
             GameObject cam = Camera.main.gameObject;
             Terminal terminal = cam.AddComponent<Terminal>();
+            Font font = Resources.GetBuiltinResource(typeof(Font), "Arial.ttf") as Font;
+            terminal.ConsoleFont = font;
         }
     }
 }
