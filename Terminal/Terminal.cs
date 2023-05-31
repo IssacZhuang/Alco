@@ -25,7 +25,7 @@ namespace Terminal
 
         [Range(100, 1000)]
         [SerializeField]
-        public float ToggleSpeed = 180;
+        public float ToggleSpeed = 720;
 
         [SerializeField] public string ToggleHotkey = "`";
         [SerializeField] public string ToggleFullHotkey = "#`";
