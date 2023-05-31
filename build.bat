@@ -7,6 +7,15 @@ setlocal
 set "mode=Release"
 if "%1"=="debug" set "mode=Debug"
 
+for /f "delims=" %%a in ('dir /b /s RuntimeAssemblyLoader.csproj ^| findstr /v /i "test"') do (
+    echo %%a
+    dotnet build "%%a" --configuration %mode% --output ./Assemblies
+)
+
+for /f "delims=" %%a in ('dir /b /s Terminal.csproj ^| findstr /v /i "test"') do (
+    echo %%a
+    dotnet build "%%a" --configuration %mode% --output ./Assemblies
+)
 
 for /f "delims=" %%a in ('dir /b /s Vocore*.csproj ^| findstr /v /i "test"') do (
     echo %%a
