@@ -88,16 +88,20 @@ namespace Terminal
             get { return variables; }
         }
 
+        public void RegisterCommands() {
+            RegisterCommands(Assembly.GetCallingAssembly());
+        }
+
         /// <summary>
         /// Uses reflection to find all RegisterCommand attributes
         /// and adds them to the commands dictionary.
         /// </summary>
-        public void RegisterCommands() {
-            var rejected_commands = new Dictionary<string, CommandInfo>();
-            var method_flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        public void RegisterCommands(Assembly assembly) {
+            var rejectedCommands = new Dictionary<string, CommandInfo>();
+            var methodFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
-            foreach (var type in Assembly.GetExecutingAssembly().GetTypes()) {
-                foreach (var method in type.GetMethods(method_flags)) {
+            foreach (var type in assembly.GetTypes()) {
+                foreach (var method in type.GetMethods(methodFlags)) {
                     var attribute = Attribute.GetCustomAttribute(
                         method, typeof(RegisterCommandAttribute)) as RegisterCommandAttribute;
 
@@ -110,22 +114,22 @@ namespace Terminal
                         }
                     }
 
-                    var methods_params = method.GetParameters();
+                    var methodsParams = method.GetParameters();
 
-                    string command_name = InferFrontCommandName(method.Name);
+                    string commandName = InferFrontCommandName(method.Name);
                     Action<CommandArg[]> proc;
 
                     if (attribute.Name == null) {
                         // Use the method's name as the command's name
-                        command_name = InferCommandName(command_name == null ? method.Name : command_name);
+                        commandName = InferCommandName(commandName == null ? method.Name : commandName);
                     } else {
-                        command_name = attribute.Name;
+                        commandName = attribute.Name;
                     }
 
-                   if (methods_params.Length != 1 || methods_params[0].ParameterType != typeof(CommandArg[])) {
+                   if (methodsParams.Length != 1 || methodsParams[0].ParameterType != typeof(CommandArg[])) {
                         // Method does not match expected Action signature,
                         // this could be a command that has a FrontCommand method to handle its arguments.
-                        rejected_commands.Add(command_name.ToUpper(), CommandFromParamInfo(methods_params, attribute.Help));
+                        rejectedCommands.Add(commandName.ToUpper(), CommandFromParamInfo(methodsParams, attribute.Help));
                         continue;
                     }
 
@@ -133,10 +137,10 @@ namespace Terminal
                     // This is essentially allows us to store a reference to the method,
                     // which makes calling the method significantly more performant than using MethodInfo.Invoke().
                     proc = (Action<CommandArg[]>)Delegate.CreateDelegate(typeof(Action<CommandArg[]>), method);
-                    AddCommand(command_name, proc, attribute.MinArgCount, attribute.MaxArgCount, attribute.Help, attribute.Hint);
+                    AddCommand(commandName, proc, attribute.MinArgCount, attribute.MaxArgCount, attribute.Help, attribute.Hint);
                 }
             }
-            HandleRejectedCommands(rejected_commands);
+            HandleRejectedCommands(rejectedCommands);
         }
 
         /// <summary>
@@ -234,11 +238,11 @@ namespace Terminal
             commands.Add(name, info);
         }
 
-        public void AddCommand(string name, Action<CommandArg[]> proc, int min_args = 0, int max_args = -1, string help = "", string hint = null) {
+        public void AddCommand(string name, Action<CommandArg[]> proc, int minArgs = 0, int maxArgs = -1, string help = "", string hint = null) {
             var info = new CommandInfo() {
                 proc = proc,
-                minArgCount = min_args,
-                maxArgCount = max_args,
+                minArgCount = minArgs,
+                maxArgCount = maxArgs,
                 help = help,
                 hint = hint
             };
@@ -275,27 +279,27 @@ namespace Terminal
             IssuedErrorMessage = string.Format(format, message);
         }
 
-        string InferCommandName(string method_name) {
-            string command_name;
-            int index = method_name.IndexOf("COMMAND", StringComparison.CurrentCultureIgnoreCase);
+        string InferCommandName(string methodName) {
+            string commandName;
+            int index = methodName.IndexOf("COMMAND", StringComparison.CurrentCultureIgnoreCase);
 
             if (index >= 0) {
                 // Method is prefixed, suffixed with, or contains "COMMAND".
-                command_name = method_name.Remove(index, 7);
+                commandName = methodName.Remove(index, 7);
             } else {
-                command_name = method_name;
+                commandName = methodName;
             }
 
-            return command_name;
+            return commandName;
         }
 
-        string InferFrontCommandName(string method_name) {
-            int index = method_name.IndexOf("FRONT", StringComparison.CurrentCultureIgnoreCase);
-            return index >= 0 ? method_name.Remove(index, 5) : null;
+        string InferFrontCommandName(string methodName) {
+            int index = methodName.IndexOf("FRONT", StringComparison.CurrentCultureIgnoreCase);
+            return index >= 0 ? methodName.Remove(index, 5) : null;
         }
 
-        void HandleRejectedCommands(Dictionary<string, CommandInfo> rejected_commands) {
-            foreach (var command in rejected_commands) {
+        void HandleRejectedCommands(Dictionary<string, CommandInfo> rejectedCommands) {
+            foreach (var command in rejectedCommands) {
                 if (commands.ContainsKey(command.Key)) {
                     commands[command.Key] = new CommandInfo() {
                         proc = commands[command.Key].proc,
@@ -310,17 +314,17 @@ namespace Terminal
         }
 
         CommandInfo CommandFromParamInfo(ParameterInfo[] parameters, string help) {
-            int optional_args = 0;
+            int optionalArgs = 0;
 
             foreach (var param in parameters) {
                 if (param.IsOptional) {
-                    optional_args += 1;
+                    optionalArgs += 1;
                 }
             }
 
             return new CommandInfo() {
                 proc = null,
-                minArgCount = parameters.Length - optional_args,
+                minArgCount = parameters.Length - optionalArgs,
                 maxArgCount = parameters.Length,
                 help = help
             };
@@ -328,11 +332,11 @@ namespace Terminal
 
         CommandArg EatArgument(ref string s) {
             var arg = new CommandArg();
-            int space_index = s.IndexOf(' ');
+            int spaceIndex = s.IndexOf(' ');
 
-            if (space_index >= 0) {
-                arg.String = s.Substring(0, space_index);
-                s = s.Substring(space_index + 1); // Remaining
+            if (spaceIndex >= 0) {
+                arg.String = s.Substring(0, spaceIndex);
+                s = s.Substring(spaceIndex + 1); // Remaining
             } else {
                 arg.String = s;
                 s = "";

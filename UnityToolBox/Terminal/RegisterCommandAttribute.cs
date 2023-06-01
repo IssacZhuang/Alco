@@ -23,8 +23,8 @@ namespace Terminal
         public string Help { get; set; }
         public string Hint { get; set; }
 
-        public RegisterCommandAttribute(string command_name = null) {
-            Name = command_name;
+        public RegisterCommandAttribute(string commandName = null) {
+            Name = commandName;
         }
     }
 }

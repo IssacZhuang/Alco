@@ -24,19 +24,19 @@ namespace Terminal
                 return;
             }
 
-            string command_name = args[0].String.ToUpper();
+            string commandName = args[0].String.ToUpper();
 
-            if (!Terminal.Shell.Commands.ContainsKey(command_name))
+            if (!Terminal.Shell.Commands.ContainsKey(commandName))
             {
-                Terminal.Shell.IssueErrorMessage("Command {0} could not be found.", command_name);
+                Terminal.Shell.IssueErrorMessage("Command {0} could not be found.", commandName);
                 return;
             }
 
-            var info = Terminal.Shell.Commands[command_name];
+            var info = Terminal.Shell.Commands[commandName];
 
             if (info.help == null)
             {
-                Terminal.Log("{0} does not provide any help documentation.", command_name);
+                Terminal.Log("{0} does not provide any help documentation.", commandName);
             }
             else if (info.hint == null)
             {
@@ -66,40 +66,40 @@ namespace Terminal
             Terminal.Log(JoinArguments(args));
         }
 
-        [RegisterCommand(Help = "List all variables or set a variable value")]
-        static void CommandSet(CommandArg[] args)
-        {
-            if (args.Length == 0)
-            {
-                foreach (var kv in Terminal.Shell.Variables)
-                {
-                    Terminal.Log("{0}: {1}", kv.Key.PadRight(16), kv.Value);
-                }
-                return;
-            }
+        // [RegisterCommand(Help = "List all variables or set a variable value")]
+        // static void CommandSet(CommandArg[] args)
+        // {
+        //     if (args.Length == 0)
+        //     {
+        //         foreach (var kv in Terminal.Shell.Variables)
+        //         {
+        //             Terminal.Log("{0}: {1}", kv.Key.PadRight(16), kv.Value);
+        //         }
+        //         return;
+        //     }
 
-            string variable_name = args[0].String;
+        //     string variableName = args[0].String;
 
-            if (variable_name[0] == '$')
-            {
-                Terminal.Log(TerminalLogType.Warning, "Warning: Variable name starts with '$', '${0}'.", variable_name);
-            }
+        //     if (variableName[0] == '$')
+        //     {
+        //         Terminal.Log(TerminalLogType.Warning, "Warning: Variable name starts with '$', '${0}'.", variableName);
+        //     }
 
-            Terminal.Shell.SetVariable(variable_name, JoinArguments(args, 1));
-        }
+        //     Terminal.Shell.SetVariable(variableName, JoinArguments(args, 1));
+        // }
 
-        [RegisterCommand(Help = "No operation")]
-        static void CommandNoop(CommandArg[] args) { }
+        // [RegisterCommand(Help = "No operation")]
+        // static void CommandNoop(CommandArg[] args) { }
 
-        [RegisterCommand(Help = "Quit running application", MaxArgCount = 0)]
-        static void CommandQuit(CommandArg[] args)
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
-        }
+        //         [RegisterCommand(Help = "Quit running application", MaxArgCount = 0)]
+        //         static void CommandQuit(CommandArg[] args)
+        //         {
+        // #if UNITY_EDITOR
+        //             UnityEditor.EditorApplication.isPlaying = false;
+        // #else
+        //             Application.Quit();
+        // #endif
+        //         }
 
         static string JoinArguments(CommandArg[] args, int start = 0)
         {

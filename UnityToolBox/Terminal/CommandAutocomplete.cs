@@ -47,25 +47,25 @@ namespace Terminal
                 return "";
             }
 
-            string first_match = words[0];
-            int partial_length = first_match.Length;
+            string firstMatch = words[0];
+            int partialLength = firstMatch.Length;
 
             if (words.Length == 1) {
-                return first_match;
+                return firstMatch;
             }
 
             foreach (string word in words) {
-                if (partial_length > word.Length) {
-                    partial_length = word.Length;
+                if (partialLength > word.Length) {
+                    partialLength = word.Length;
                 }
 
-                for (int i = 0; i < partial_length; i++) {
-                    if (word[i] != first_match[i]) {
-                        partial_length = i;
+                for (int i = 0; i < partialLength; i++) {
+                    if (word[i] != firstMatch[i]) {
+                        partialLength = i;
                     }
                 }
             }
-            return first_match.Substring(0, partial_length);
+            return firstMatch.Substring(0, partialLength);
         }
     }
 }

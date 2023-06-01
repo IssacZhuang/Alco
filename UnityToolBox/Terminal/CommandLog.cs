@@ -61,7 +61,8 @@ namespace Terminal
 
         public void Clear()
         {
-            for (int i = 0; i < _logs.Count; i++)
+            int length = _logs.Count;
+            for (int i = 0; i < length; i++)
             {
                 _logs.TryDequeue(out LogItem _);
             }

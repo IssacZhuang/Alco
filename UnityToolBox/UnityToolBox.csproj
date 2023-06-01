@@ -3,11 +3,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{0CA81303-A14E-444F-8BA1-D5E31E12608F}</ProjectGuid>
+    <ProjectGuid>{B80FFB1F-C37A-405D-B31A-EA7C4E4ADC08}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Terminal</RootNamespace>
-    <AssemblyName>Terminal</AssemblyName>
+    <RootNamespace>UnityToolBox</RootNamespace>
+    <AssemblyName>UnityToolBox</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -56,21 +56,17 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BuiltinCommands.cs" />
-    <Compile Include="CommandAutocomplete.cs" />
-    <Compile Include="CommandHistory.cs" />
-    <Compile Include="CommandLog.cs" />
-    <Compile Include="CommandShell.cs" />
+    <Compile Include="RuntimeAssemblyLoader\AssemblyLoader.cs" />
+    <Compile Include="Terminal\BuiltinCommands.cs" />
+    <Compile Include="Terminal\CommandAutocomplete.cs" />
+    <Compile Include="Terminal\CommandHistory.cs" />
+    <Compile Include="Terminal\CommandLog.cs" />
+    <Compile Include="Terminal\CommandShell.cs" />
+    <Compile Include="Terminal\Entry.cs" />
+    <Compile Include="RuntimeAssemblyLoader\IEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RegisterCommandAttribute.cs" />
-    <Compile Include="Terminal.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\RuntimeAssemblyLoader\RuntimeAssemblyLoader.csproj">
-      <Project>{7d711dd0-309c-48df-a7d4-f49c12e637ca}</Project>
-      <Name>RuntimeAssemblyLoader</Name>
-    </ProjectReference>
-    <Compile Include="Entry.cs" />
+    <Compile Include="Terminal\RegisterCommandAttribute.cs" />
+    <Compile Include="Terminal\Terminal.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
