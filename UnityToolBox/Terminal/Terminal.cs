@@ -147,8 +147,8 @@ namespace Terminal
 
         void Start() {
             if (ConsoleFont == null) {
-                ConsoleFont = Font.CreateDynamicFontFromOSFont("Courier New", 16);
-                Debug.LogWarning("Command Console Warning: Please assign a font.");
+                ConsoleFont = Resources.GetBuiltinResource(typeof(Font), "Arial.ttf") as Font;
+                //Debug.LogWarning("Command Console Warning: Please assign a font.");
             }
 
             _commandText = "";

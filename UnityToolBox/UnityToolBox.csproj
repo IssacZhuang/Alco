@@ -62,7 +62,6 @@
     <Compile Include="Terminal\CommandHistory.cs" />
     <Compile Include="Terminal\CommandLog.cs" />
     <Compile Include="Terminal\CommandShell.cs" />
-    <Compile Include="Terminal\Entry.cs" />
     <Compile Include="RuntimeAssemblyLoader\IEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Terminal\RegisterCommandAttribute.cs" />
