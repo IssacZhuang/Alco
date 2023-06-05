@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-namespace RuntimeAssemblyLoader
+namespace UnityToolBox
 {
     public class AssemblyLoader : MonoBehaviour
     {

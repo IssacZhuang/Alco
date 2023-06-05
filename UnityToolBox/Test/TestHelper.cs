@@ -1,42 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Diagnostics;
 
-namespace Vocore.Test
+namespace UnityToolBox.UnitTest
 {
-    public class Test : Attribute
-    {
-        public string Name { get; private set; }
-        public bool ExpectError { get; private set; }
-
-        public Test()
-        {
-            this.Name = "Test";
-            ExpectError = false;
-        }
-
-        public Test(string testName)
-        {
-            this.Name = testName;
-            ExpectError = false;
-        }
-
-        public Test(string testName, bool expectError)
-        {
-            this.Name = testName;
-            this.ExpectError = expectError;
-        }
-    }
-
-    public class DisabledTestTemporarily : Attribute
-    {
-        public DisabledTestTemporarily()
-        {
-        }
-    }
-
-    public static class TestHelper
+    public class TestHelper
     {
         public const string TEXT_BENCHMARK = "Benchmark: ";
         public const string TEXT_TIME_COST = "Time cost: ";
@@ -73,33 +42,27 @@ namespace Vocore.Test
 
         public static void Print(object obj)
         {
-            Console.WriteLine(obj);
+            Terminal.Log(obj?.ToString());
         }
 
         public static void PrintRed(object obj)
         {
-            PrintColor(obj, ConsoleColor.Red);
+            Terminal.Log(TerminalLogType.MessageRed, obj?.ToString());
         }
 
         public static void PrintGreen(object obj)
         {
-            PrintColor(obj, ConsoleColor.Green);
+            Terminal.Log(TerminalLogType.MessageGreen, obj?.ToString());
         }
         public static void PrintGray(object obj)
         {
-            PrintColor(obj, ConsoleColor.Gray);
+            Terminal.Log(TerminalLogType.MessageGray, obj?.ToString());
         }
         public static void PrintBlue(object obj)
         {
-            PrintColor(obj, ConsoleColor.Blue);
+            Terminal.Log(TerminalLogType.MessageBlue, obj?.ToString());
         }
 
-        public static void PrintColor(object obj, ConsoleColor color)
-        {
-            Console.ForegroundColor = color;
-            Console.WriteLine(obj.ToString());
-            Console.ForegroundColor = ConsoleColor.White;
-        }
 
         public static void Assert(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
         {
@@ -153,7 +116,7 @@ namespace Vocore.Test
 
         public static void PrintList<T>(IList<T> list)
         {
-            for(int i = 0; i < list.Count; i++)
+            for (int i = 0; i < list.Count; i++)
             {
                 Print(i + ": " + list[i]);
             }
@@ -192,13 +155,13 @@ namespace Vocore.Test
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e);
+                        Terminal.Log(e.ToString());
                     }
                 }
                 catch (Exception) { }
             }
 
-            Console.WriteLine(TEXT_TEST_FINISHED);
+            Terminal.Log(TEXT_TEST_FINISHED);
             TestHelper.DisplayCounter();
         }
 
@@ -216,27 +179,20 @@ namespace Vocore.Test
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e);
+                    Terminal.Log(e.ToString());
                 }
             }
             catch (Exception) { }
 
-
-            Console.WriteLine(TEXT_TEST_FINISHED);
+            Terminal.Log(TEXT_TEST_FINISHED);
             TestHelper.DisplayCounter();
-            Console.ReadLine();
         }
 
         public static void TryInvokeTestForObj(object obj, TypeInfo typeInfo)
         {
-            if (typeInfo.GetCustomAttribute<DisabledTestTemporarily>() != null)
-            {
-                return;
-            }
-
             foreach (MethodInfo method in typeInfo.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             {
-                Test testAttr = method.GetCustomAttribute<Test>();
+                UnitTest testAttr = method.GetCustomAttribute<UnitTest>();
                 if (testAttr == null) continue;
                 try
                 {
@@ -246,20 +202,14 @@ namespace Vocore.Test
                 }
                 catch (Exception e)
                 {
-                    if (testAttr.ExpectError)
-                    {
-                        TestHelper.PrintGreen("An error is occurred as expected");
-                        TestHelper.AddSuccess();
-                        TestHelper.PrintGray("----Test finished.\n");
-                    }
-                    else
-                    {
-                        TestHelper.PrintRed(e.InnerException);
-                        TestHelper.AddFailed();
-                        TestHelper.PrintGray("----Test failed.\n");
-                    }
+
+                    TestHelper.PrintRed(e.InnerException);
+                    TestHelper.AddFailed();
+                    TestHelper.PrintGray("----Test failed.\n");
+
                 }
             }
         }
     }
 }
+

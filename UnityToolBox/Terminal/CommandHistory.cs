@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
-namespace Terminal
+namespace UnityToolBox
 {
     public class CommandHistory
     {

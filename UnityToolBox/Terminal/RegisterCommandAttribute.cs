@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace Terminal
+namespace UnityToolBox
 {
     [AttributeUsage(AttributeTargets.Method)]
     public class RegisterCommandAttribute : Attribute

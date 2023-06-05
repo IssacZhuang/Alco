@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Terminal
+namespace UnityToolBox
 {
     public class CommandAutocomplete
     {

@@ -3,7 +3,7 @@ using System.Text;
 using System.Collections;
 using UnityEngine.Assertions;
 
-namespace Terminal
+namespace UnityToolBox
 {
     public enum TerminalState
     {
@@ -29,7 +29,7 @@ namespace Terminal
 
         [SerializeField] public string ToggleHotkey = "`";
         [SerializeField] public string ToggleFullHotkey = "#`";
-        [SerializeField] public int BufferSize = 512;
+        [SerializeField] public int BufferSize = 999;
 
         [Header("Input")]
         [SerializeField] public Font ConsoleFont;
@@ -47,8 +47,11 @@ namespace Terminal
         [SerializeField] public Color ForegroundColor = Color.white;
         [SerializeField] public Color ShellColor = Color.white;
         [SerializeField] public Color InputColor = Color.cyan;
+        [SerializeField] public Color StasticColor = Color.blue;
+        [SerializeField] public Color SuccessColor = Color.green;
         [SerializeField] public Color WarningColor = Color.yellow;
         [SerializeField] public Color ErrorColor = Color.red;
+        [SerializeField] public Color CommentColor = Color.gray;
 
         private TerminalState _state;
         private TextEditor _editorState;
@@ -393,6 +396,11 @@ namespace Terminal
                 case TerminalLogType.Warning: return WarningColor;
                 case TerminalLogType.Input: return InputColor;
                 case TerminalLogType.ShellMessage: return ShellColor;
+                case TerminalLogType.MessageBlue: return StasticColor;
+                case TerminalLogType.MessageGreen: return SuccessColor;
+                case TerminalLogType.MessageYellow: return WarningColor;
+                case TerminalLogType.MessageRed: return ErrorColor;
+                case TerminalLogType.MessageGray: return CommentColor;
                 default: return ErrorColor;
             }
         }

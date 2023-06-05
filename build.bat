@@ -7,15 +7,14 @@ setlocal
 set "mode=Release"
 if "%1"=="debug" set "mode=Debug"
 
-for /f "delims=" %%a in ('dir /b /s UnityToolBox.csproj ^| findstr /v /i "test"') do (
-    echo %%a
-    dotnet build "%%a" --configuration %mode% --output ./Assemblies
-)
+dotnet build UnityToolBox\UnityToolBox.csproj --configuration %mode% --output ./Assemblies
 
 for /f "delims=" %%a in ('dir /b /s Vocore*.csproj ^| findstr /v /i "test"') do (
     echo %%a
     dotnet build "%%a" --configuration %mode% --output ./Assemblies
 )
+
+dotnet build Vocore.Test.Unity\Vocore.Test.Unity.csproj --configuration %mode% --output ./Assemblies
 
 move .\Assemblies.\Vocore.dll .\Assemblies.\0-Vocore.dll
 move .\Assemblies.\Vocore.pdb .\Assemblies.\0-Vocore.pdb

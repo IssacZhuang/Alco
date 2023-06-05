@@ -2,7 +2,7 @@ using System.Text;
 using System.Diagnostics;
 using UnityEngine;
 
-namespace Terminal
+namespace UnityToolBox
 {
     public static class BuiltinCommands
     {

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using UnityEngine;
 
-namespace Terminal
+namespace UnityToolBox
 {
     public enum TerminalLogType
     {
@@ -12,7 +12,12 @@ namespace Terminal
         Message = LogType.Log,
         Exception = LogType.Exception,
         Input,
-        ShellMessage
+        ShellMessage,
+        MessageGreen,
+        MessageRed,
+        MessageYellow,
+        MessageBlue,
+        MessageGray,
     }
 
     public struct LogItem

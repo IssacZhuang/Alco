@@ -3,11 +3,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{B80FFB1F-C37A-405D-B31A-EA7C4E4ADC08}</ProjectGuid>
+    <ProjectGuid>{6AED5068-4C82-4CB0-917D-558BB4D4D354}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>UnityToolBox</RootNamespace>
-    <AssemblyName>UnityToolBox</AssemblyName>
+    <RootNamespace>Vocore.Test.Unity</RootNamespace>
+    <AssemblyName>Vocore.Test.Unity</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -46,28 +46,22 @@
       <HintPath>..\Packages\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Packages\UnityEngine\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Packages\UnityEngine\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="RuntimeAssemblyLoader\AssemblyLoader.cs" />
-    <Compile Include="Terminal\BuiltinCommands.cs" />
-    <Compile Include="Terminal\CommandAutocomplete.cs" />
-    <Compile Include="Terminal\CommandHistory.cs" />
-    <Compile Include="Terminal\CommandLog.cs" />
-    <Compile Include="Terminal\CommandShell.cs" />
-    <Compile Include="RuntimeAssemblyLoader\IEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Terminal\RegisterCommandAttribute.cs" />
-    <Compile Include="Terminal\Terminal.cs" />
-    <Compile Include="Test\TestHelper.cs" />
-    <Compile Include="Test\UnitTest.cs" />
+    <Compile Include="Commands.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UnityToolBox\UnityToolBox.csproj">
+      <Project>{b80ffb1f-c37a-405d-b31a-ea7c4e4adc08}</Project>
+      <Name>UnityToolBox</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Vocore\Vocore.csproj">
+      <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
+      <Name>Vocore</Name>
+    </ProjectReference>
+    <Compile Include="Entry.cs" />
+    <Compile Include="TestCommon\TestJob.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
