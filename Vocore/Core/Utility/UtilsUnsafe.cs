@@ -7,6 +7,8 @@ namespace Vocore.Unsafe
 {
     public static unsafe class UtilsUnsafe
     {
+
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Alloc(int size)
         {

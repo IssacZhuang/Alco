@@ -37,6 +37,7 @@ if "%1"=="all" (
 if "%1"=="game" (
     dotnet build Vocore.Test.Unity\Vocore.Test.Unity.csproj --configuration %mode% --output ./Assemblies
     mkdir .\Game\CoreAssemblies
+    copy .\Assemblies\Vocore.dll .\Game\CoreAssemblies\Vocore.dll
     copy .\Assemblies\Vocore.Test.Unity.dll .\Game\CoreAssemblies\Vocore.Test.Unity.dll
     exit
 ) 

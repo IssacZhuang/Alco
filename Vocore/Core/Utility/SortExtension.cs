@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 using Vocore.Unsafe;
@@ -8,6 +11,91 @@ namespace Vocore
 {
     public static class SortExtension
     {
+        private struct SegmentSort<T> : IJobParallelFor where T : unmanaged, IComparable<T>
+        {
+            [NativeDisableUnsafePtrRestriction]
+            public unsafe T* Data;
+
+            public int Length;
+
+            public int SegmentWidth;
+
+            public unsafe void Execute(int index)
+            {
+                int startIndex = index * SegmentWidth;
+                int segmentLength = ((Length - startIndex < SegmentWidth) ? (Length - startIndex) : SegmentWidth);
+                Sort(Data + startIndex, segmentLength);
+            }
+        }
+
+        private struct SegmentSortMerge<T> : IJob where T : unmanaged, IComparable<T>
+        {
+            [NativeDisableUnsafePtrRestriction]
+            public unsafe T* Data;
+
+            public int Length;
+
+            public int SegmentWidth;
+
+            public unsafe void Execute()
+            {
+                int segmentCount = (Length + (SegmentWidth - 1)) / SegmentWidth;
+                int* segmentIndex = stackalloc int[segmentCount];
+                T* resultCopy = (T*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<T>() * Length, 16, Unity.Collections.Allocator.Temp);
+                for (int sortIndex = 0; sortIndex < Length; sortIndex++)
+                {
+                    int bestSegmentIndex = -1;
+                    T bestValue = default(T);
+                    for (int i = 0; i < segmentCount; i++)
+                    {
+                        int startIndex = i * SegmentWidth;
+                        int offset = segmentIndex[i];
+                        int segmentLength = ((Length - startIndex < SegmentWidth) ? (Length - startIndex) : SegmentWidth);
+                        if (offset != segmentLength)
+                        {
+                            T nextValue = Data[startIndex + offset];
+                            if (bestSegmentIndex == -1 || nextValue.CompareTo(bestValue) <= 0)
+                            {
+                                bestValue = nextValue;
+                                bestSegmentIndex = i;
+                            }
+                        }
+                    }
+                    segmentIndex[bestSegmentIndex]++;
+                    resultCopy[sortIndex] = bestValue;
+                }
+                UnsafeUtility.MemCpy((void*)Data, (void*)resultCopy, (long)(UtilsUnsafe.SizeOf<T>() * Length));
+            }
+        }
+
+        public unsafe static JobHandle SortJob<T>(this NativeList<T> array, JobHandle inputDeps = default(JobHandle)) where T : unmanaged, IComparable<T>
+        {
+            return SortJob(array.Raw, array.Length, inputDeps);
+        }
+
+        public unsafe static JobHandle SortJob<T>(T* array, int length, JobHandle inputDeps = default(JobHandle)) where T : unmanaged, IComparable<T>
+        {
+            if (length == 0)
+            {
+                return inputDeps;
+            }
+            int segmentCount = (length + 1023) / 1024;
+            int workerCount = math.max(1, 128);
+            int workerSegmentCount = segmentCount / workerCount;
+            SegmentSort<T> segmentSort = default(SegmentSort<T>);
+            segmentSort.Data = array;
+            segmentSort.Length = length;
+            segmentSort.SegmentWidth = 1024;
+            SegmentSort<T> segmentSortJob = segmentSort;
+            JobHandle segmentSortJobHandle = segmentSortJob.Schedule(segmentCount, workerSegmentCount, inputDeps);
+            SegmentSortMerge<T> segmentSortMerge = default(SegmentSortMerge<T>);
+            segmentSortMerge.Data = array;
+            segmentSortMerge.Length = length;
+            segmentSortMerge.SegmentWidth = 1024;
+            SegmentSortMerge<T> segmentSortMergeJob = segmentSortMerge;
+            return segmentSortMergeJob.Schedule(segmentSortJobHandle);
+        }
+
         public static void Sort<T>(this NativeList<T> list) where T : unmanaged, IComparable<T>
         {
             list.Sort(default(DefaultComparer<T>));
@@ -24,6 +112,11 @@ namespace Vocore
             {
                 return x.CompareTo(y);
             }
+        }
+
+        public unsafe static void Sort<T>(T* array, int length) where T : unmanaged, IComparable<T>
+        {
+            IntroSort<T, DefaultComparer<T>>(array, length, default(DefaultComparer<T>));
         }
 
         private unsafe static void IntroSort<T, U>(void* array, int length, U comp) where T : unmanaged where U : IComparer<T>

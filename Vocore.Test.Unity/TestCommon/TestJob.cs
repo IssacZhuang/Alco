@@ -6,7 +6,8 @@ using System.Collections.Concurrent;
 
 using UnityToolBox.UnitTest;
 using UnityToolBox;
-using UnityEngine;
+using Vocore;
+using Vocore.Unsafe;
 
 namespace Vocore.Test.Unity
 {
@@ -15,33 +16,34 @@ namespace Vocore.Test.Unity
         [UnitTest("TestJob")]
         public void Test()
         {
-            Queue<string> queue = new Queue<string>();
-            List<string> list = new List<string>();
-            ConcurrentQueue<string> cQueue = new ConcurrentQueue<string>();
-            int count = 1000000;
-            TestHelper.Benchmark("list", () =>
+            NativeList<int> list = new NativeList<int>(10);
+            NativeList<int> list2 = new NativeList<int>(10);
+
+            int count = 100000;
+            for (int i = 0; i < count; i++)
             {
-                for (int i = 0; i < count; i++)
-                {
-                    list.Add("test");
-                }
+                list.Add(count - i);
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                list2.Add(count - i);
+            }
+
+            TestHelper.Benchmark("single thread", () =>
+            {
+                list.Sort();
             });
 
-            TestHelper.Benchmark("queue", () =>
+            TestHelper.Benchmark("multi thread", () =>
             {
-                for (int i = 0; i < count; i++)
-                {
-                    queue.Enqueue("test");
-                }
+                list2.SortJob().Complete();
             });
 
-            TestHelper.Benchmark("cQueue", () =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    cQueue.Enqueue("test");
-                }
-            });
+            // for (int i = 0; i < count; i++)
+            // {
+            //     TestHelper.Print(list[i] + " " + list2[i]);
+            // }
         }
     }
 }
