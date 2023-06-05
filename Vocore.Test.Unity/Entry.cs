@@ -12,6 +12,15 @@ namespace Vocore.Test.Unity
         void IEntry.Entry()
         {
             Terminal.Shell.RegisterCommands();
+            string[] envArgs = Environment.GetCommandLineArgs();
+            foreach (var arg in envArgs)
+            {
+                if (arg.ToLower().Equals("test"))
+                {
+                    Terminal.Open();
+                    Terminal.Shell.RunCommand("test");
+                }
+            }
         }
     }
 }

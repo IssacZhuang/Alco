@@ -12,6 +12,12 @@ namespace UnityToolBox
             Terminal.Buffer.Clear();
         }
 
+        [RegisterCommand(Help = "Reload all assemblies", MaxArgCount = 0)]
+        static void CommandReload(CommandArg[] args)
+        {
+            AssemblyLoader.LoadAssemblies();
+        }
+
         [RegisterCommand(Help = "Display help information about a command", MaxArgCount = 1)]
         static void CommandHelp(CommandArg[] args)
         {

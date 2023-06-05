@@ -70,6 +70,7 @@ namespace UnityToolBox
         private GUIStyle _inputStyle;
         private Texture2D _backgroundTexture;
         private Texture2D _inputBackgroundTexture;
+        private static Terminal Instance { get; set; }
 
         public static CommandLog Buffer { get; private set; }
         public static CommandShell Shell { get; private set; }
@@ -150,7 +151,7 @@ namespace UnityToolBox
 
         void Start() {
             if (ConsoleFont == null) {
-                ConsoleFont = Resources.GetBuiltinResource(typeof(Font), "Arial.ttf") as Font;
+                ConsoleFont = Resources.GetBuiltinResource(typeof(Font), "LegacyRuntime.ttf") as Font;
                 //Debug.LogWarning("Command Console Warning: Please assign a font.");
             }
 
@@ -171,6 +172,8 @@ namespace UnityToolBox
             foreach (var command in Shell.Commands) {
                 Autocomplete.Register(command.Key);
             }
+
+            Instance = this;
         }
 
         void OnGUI() {
@@ -403,6 +406,16 @@ namespace UnityToolBox
                 case TerminalLogType.MessageGray: return CommentColor;
                 default: return ErrorColor;
             }
+        }
+
+        public static void Open()
+        {
+            Instance?.ToggleState(TerminalState.OpenFull);
+        }
+
+        public static void Close()
+        {
+            Instance?.ToggleState(TerminalState.Close);
         }
     }
 }

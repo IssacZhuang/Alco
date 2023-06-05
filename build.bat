@@ -6,6 +6,8 @@ setlocal
 
 set "mode=Release"
 if "%1"=="debug" set "mode=Debug"
+if "%1"=="unity" dotnet build UnityToolBox\UnityToolBox.csproj --configuration %mode% --output ./UnityContainer/Assets/Plugins
+
 
 dotnet build UnityToolBox\UnityToolBox.csproj --configuration %mode% --output ./Assemblies
 
@@ -18,6 +20,9 @@ dotnet build Vocore.Test.Unity\Vocore.Test.Unity.csproj --configuration %mode% -
 
 move .\Assemblies.\Vocore.dll .\Assemblies.\0-Vocore.dll
 move .\Assemblies.\Vocore.pdb .\Assemblies.\0-Vocore.pdb
+
+if "%1"=="game" mkdir .\Game\CoreAssemblies
+if "%1"=="game" copy .\Assemblies\Vocore.Test.Unity.dll .\Game\CoreAssemblies\Vocore.Test.Unity.dll
 
 rmdir /q /s obj
 rmdir /q /s bin

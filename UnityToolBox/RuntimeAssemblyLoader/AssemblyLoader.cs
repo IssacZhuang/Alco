@@ -11,7 +11,17 @@ namespace UnityToolBox
     public class AssemblyLoader : MonoBehaviour
     {
         public const string folderName = "CoreAssemblies";
+        private static readonly List<Assembly> _assemblies = new List<Assembly>();
         public void Awake()
+        {
+            LoadAssemblies();
+        }
+
+        public void Start(){
+            ExecuteEntry();
+        }
+
+        public static void LoadAssemblies()
         {
             string path = "";
             if (Application.isEditor)
@@ -21,11 +31,13 @@ namespace UnityToolBox
             else
             {
                 //exe path
-                path = Path.Combine(Directory.GetCurrentDirectory(), folderName);
+                path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folderName);
             }
 
-            Debug.Log(path);
-            List<Assembly> assemblies = new List<Assembly>();
+
+            Terminal.Log("App path: " + AppDomain.CurrentDomain.BaseDirectory);
+
+
             //create directory if not exits
             if (!Directory.Exists(path))
             {
@@ -38,14 +50,15 @@ namespace UnityToolBox
             {
                 try
                 {
+                    Terminal.Log("Trying to load " + file);
                     string pdb = Path.ChangeExtension(file, ".pdb");
                     if (File.Exists(pdb))
                     {
-                        assemblies.Add(Assembly.Load(File.ReadAllBytes(file), File.ReadAllBytes(pdb)));
+                        _assemblies.Add(Assembly.Load(File.ReadAllBytes(file), File.ReadAllBytes(pdb)));
                     }
                     else
                     {
-                        assemblies.Add(Assembly.Load(File.ReadAllBytes(file)));
+                        _assemblies.Add(Assembly.Load(File.ReadAllBytes(file)));
                     }
                 }
                 catch (Exception e)
@@ -53,10 +66,13 @@ namespace UnityToolBox
                     Debug.LogError(e);
                 }
             }
+        }
 
+        public static void ExecuteEntry()
+        {
             //find non-static class implement IEntry interface and sort by ExecuteOrder
             List<IEntry> entries = new List<IEntry>();
-            foreach (var assembly in assemblies)
+            foreach (var assembly in _assemblies)
             {
                 foreach (var type in assembly.GetTypes())
                 {
@@ -75,7 +91,6 @@ namespace UnityToolBox
             }
 
             entries.Sort((x, y) => x.ExecuteOder.CompareTo(y.ExecuteOder));
-
             //execute entry
             foreach (var entry in entries)
             {
