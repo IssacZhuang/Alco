@@ -72,65 +72,80 @@ namespace UnityToolBox
         public static CommandHistory History { get; private set; }
         public static CommandAutocomplete Autocomplete { get; private set; }
 
-        public static bool IssuedError {
+        public static bool IssuedError
+        {
             get { return Shell.IssuedErrorMessage != null; }
         }
 
-        public bool IsClosed {
+        public bool IsClosed
+        {
             get { return _state == TerminalState.Close && Mathf.Approximately(_currentOpenT, _openTarget); }
         }
 
-        public static void Log(string format, params object[] message) {
+        public static void Log(string format, params object[] message)
+        {
             Log(TerminalLogType.ShellMessage, format, message);
         }
 
-        public static void Log(TerminalLogType type, string format, params object[] message) {
+        public static void Log(TerminalLogType type, string format, params object[] message)
+        {
             Buffer.HandleLog(string.Format(format, message), type);
         }
 
-        public void SetState(TerminalState newState) {
+        public void SetState(TerminalState newState)
+        {
             _inputFix = true;
             _cachedCommandText = _commandText;
             _commandText = "";
 
-            switch (newState) {
-                case TerminalState.Close: {
-                    _openTarget = 0;
-                    break;
-                }
-                case TerminalState.OpenSmall: {
-                    _openTarget = Screen.height * MaxHeight * SmallTerminalRatio;
-                    if (_currentOpenT > _openTarget) {
-                        // Prevent resizing from OpenFull to OpenSmall if window y position
-                        // is greater than OpenSmall's target
+            switch (newState)
+            {
+                case TerminalState.Close:
+                    {
                         _openTarget = 0;
-                        _state = TerminalState.Close;
-                        return;
+                        break;
                     }
-                    _realWindowSize = _openTarget;
-                    _scrollPosition.y = int.MaxValue;
-                    break;
-                }
+                case TerminalState.OpenSmall:
+                    {
+                        _openTarget = Screen.height * MaxHeight * SmallTerminalRatio;
+                        if (_currentOpenT > _openTarget)
+                        {
+                            // Prevent resizing from OpenFull to OpenSmall if window y position
+                            // is greater than OpenSmall's target
+                            _openTarget = 0;
+                            _state = TerminalState.Close;
+                            return;
+                        }
+                        _realWindowSize = _openTarget;
+                        _scrollPosition.y = int.MaxValue;
+                        break;
+                    }
                 case TerminalState.OpenFull:
-                default: {
-                    _realWindowSize = Screen.height * MaxHeight;
-                    _openTarget = _realWindowSize;
-                    break;
-                }
+                default:
+                    {
+                        _realWindowSize = Screen.height * MaxHeight;
+                        _openTarget = _realWindowSize;
+                        break;
+                    }
             }
 
             _state = newState;
         }
 
-        public void ToggleState(TerminalState new_state) {
-            if (_state == new_state) {
+        public void ToggleState(TerminalState new_state)
+        {
+            if (_state == new_state)
+            {
                 SetState(TerminalState.Close);
-            } else {
+            }
+            else
+            {
                 SetState(new_state);
             }
         }
 
-        void OnEnable() {
+        void OnEnable()
+        {
             Buffer = new CommandLog(BufferSize);
             Shell = new CommandShell();
             History = new CommandHistory();
@@ -173,20 +188,26 @@ namespace UnityToolBox
             Application.logMessageReceivedThreaded -= HandleUnityLog;
         }
 
-        void OnGUI() {
-            if (Event.current.Equals(Event.KeyboardEvent(ToggleHotkey))) {
+        void OnGUI()
+        {
+            if (Event.current.Equals(Event.KeyboardEvent(ToggleHotkey)))
+            {
                 SetState(TerminalState.OpenSmall);
                 _initialOpen = true;
-            } else if (Event.current.Equals(Event.KeyboardEvent(ToggleFullHotkey))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent(ToggleFullHotkey)))
+            {
                 SetState(TerminalState.OpenFull);
                 _initialOpen = true;
             }
 
-            if (ShowGUIButtons) {
+            if (ShowGUIButtons)
+            {
                 DrawGUIButtons();
             }
 
-            if (IsClosed) {
+            if (IsClosed)
+            {
                 return;
             }
 
@@ -194,7 +215,8 @@ namespace UnityToolBox
             _window = GUILayout.Window(88, _window, DrawConsole, "", _windowStyle);
         }
 
-        void SetupWindow() {
+        void SetupWindow()
+        {
             _realWindowSize = Screen.height * MaxHeight / 3;
             _window = new Rect(0, _currentOpenT - _realWindowSize, Screen.width, _realWindowSize);
 
@@ -210,14 +232,16 @@ namespace UnityToolBox
             _windowStyle.font = ConsoleFont;
         }
 
-        void SetupLabels() {
+        void SetupLabels()
+        {
             _labelStyle = new GUIStyle();
             _labelStyle.font = ConsoleFont;
             _labelStyle.normal.textColor = ForegroundColor;
             _labelStyle.wordWrap = true;
         }
 
-        void SetupInput() {
+        void SetupInput()
+        {
             _inputStyle = new GUIStyle();
             _inputStyle.padding = new RectOffset(4, 4, 4, 4);
             _inputStyle.font = ConsoleFont;
@@ -230,7 +254,8 @@ namespace UnityToolBox
             _inputStyle.normal.background = _inputBackgroundTexture;
         }
 
-        void DrawConsole(int Window2D) {
+        void DrawConsole(int Window2D)
+        {
             GUILayout.BeginVertical();
 
             _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, false, false, GUIStyle.none, GUIStyle.none);
@@ -238,50 +263,68 @@ namespace UnityToolBox
             DrawLogs();
             GUILayout.EndScrollView();
 
-            if (_moveCursor) {
+            if (_moveCursor)
+            {
                 CursorToEnd();
                 _moveCursor = false;
             }
 
-            if (Event.current.Equals(Event.KeyboardEvent("escape"))) {
+            if (Event.current.Equals(Event.KeyboardEvent("escape")))
+            {
                 SetState(TerminalState.Close);
-            } else if (Event.current.Equals(Event.KeyboardEvent("return"))
-                || Event.current.Equals(Event.KeyboardEvent("[enter]"))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent("return"))
+                || Event.current.Equals(Event.KeyboardEvent("[enter]")))
+            {
                 EnterCommand();
-            } else if (Event.current.Equals(Event.KeyboardEvent("up"))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent("up")))
+            {
                 _commandText = History.Previous();
                 _moveCursor = true;
-            } else if (Event.current.Equals(Event.KeyboardEvent("down"))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent("down")))
+            {
                 _commandText = History.Next();
-            } else if (Event.current.Equals(Event.KeyboardEvent(ToggleHotkey))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent(ToggleHotkey)))
+            {
                 ToggleState(TerminalState.OpenSmall);
-            } else if (Event.current.Equals(Event.KeyboardEvent(ToggleFullHotkey))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent(ToggleFullHotkey)))
+            {
                 ToggleState(TerminalState.OpenFull);
-            } else if (Event.current.Equals(Event.KeyboardEvent("tab"))) {
+            }
+            else if (Event.current.Equals(Event.KeyboardEvent("tab")))
+            {
                 CompleteCommand();
                 _moveCursor = true; // Wait till next draw call
             }
 
             GUILayout.BeginHorizontal();
 
-            if (InputCaret != "") {
+            if (InputCaret != "")
+            {
                 GUILayout.Label(InputCaret, _inputStyle, GUILayout.Width(ConsoleFont.fontSize));
             }
 
             GUI.SetNextControlName("command_text_field");
             _commandText = GUILayout.TextField(_commandText, _inputStyle);
 
-            if (_inputFix && _commandText.Length > 0) {
+            if (_inputFix && _commandText.Length > 0)
+            {
                 _commandText = _cachedCommandText; // Otherwise the TextField picks up the ToggleHotkey character event
                 _inputFix = false;                  // Prevents checking string Length every draw call
             }
 
-            if (_initialOpen) {
+            if (_initialOpen)
+            {
                 GUI.FocusControl("command_text_field");
                 _initialOpen = false;
             }
 
-            if (ShowGUIButtons && GUILayout.Button("| run", _inputStyle, GUILayout.Width(Screen.width / 10))) {
+            if (ShowGUIButtons && GUILayout.Button("| run", _inputStyle, GUILayout.Width(Screen.width / 10)))
+            {
                 EnterCommand();
             }
 
@@ -289,14 +332,17 @@ namespace UnityToolBox
             GUILayout.EndVertical();
         }
 
-        void DrawLogs() {
-            foreach (var log in Buffer.Logs) {
+        void DrawLogs()
+        {
+            foreach (var log in Buffer.Logs)
+            {
                 _labelStyle.normal.textColor = GetLogColor(log.type);
                 GUILayout.Label(log.message, _labelStyle);
             }
         }
 
-        void DrawGUIButtons() {
+        void DrawGUIButtons()
+        {
             int size = ConsoleFont.fontSize;
             float x_position = RightAlignButtons ? Screen.width - 7 * size : 0;
 
@@ -305,9 +351,12 @@ namespace UnityToolBox
             GUILayout.BeginArea(new Rect(x_position, _currentOpenT, 7 * size, size * 2));
             GUILayout.BeginHorizontal();
 
-            if (GUILayout.Button("Small", _windowStyle)) {
+            if (GUILayout.Button("Small", _windowStyle))
+            {
                 ToggleState(TerminalState.OpenSmall);
-            } else if (GUILayout.Button("Full", _windowStyle)) {
+            }
+            else if (GUILayout.Button("Full", _windowStyle))
+            {
                 ToggleState(TerminalState.OpenFull);
             }
 
@@ -315,12 +364,16 @@ namespace UnityToolBox
             GUILayout.EndArea();
         }
 
-        void HandleOpenness() {
+        void HandleOpenness()
+        {
             if (_currentOpenT != _openTarget)
             {
                 _currentOpenT = _openTarget;
-            } else {
-                if (_inputFix) {
+            }
+            else
+            {
+                if (_inputFix)
+                {
                     _inputFix = false;
                 }
                 return; // Already at target
@@ -329,12 +382,14 @@ namespace UnityToolBox
             _window = new Rect(0, _currentOpenT - _realWindowSize, Screen.width, _realWindowSize);
         }
 
-        void EnterCommand() {
+        void EnterCommand()
+        {
             Log(TerminalLogType.Input, "{0}", _commandText);
             Shell.RunCommand(_commandText);
             History.Push(_commandText);
 
-            if (IssuedError) {
+            if (IssuedError)
+            {
                 Log(TerminalLogType.Error, "Error: {0}", Shell.IssuedErrorMessage);
             }
 
@@ -342,22 +397,26 @@ namespace UnityToolBox
             _scrollPosition.y = int.MaxValue;
         }
 
-        void CompleteCommand() {
+        void CompleteCommand()
+        {
             string head_text = _commandText;
             int format_width = 0;
 
             string[] completion_buffer = Autocomplete.Complete(ref head_text, ref format_width);
             int completion_length = completion_buffer.Length;
 
-            if (completion_length != 0) {
+            if (completion_length != 0)
+            {
                 _commandText = head_text;
             }
 
-            if (completion_length > 1) {
+            if (completion_length > 1)
+            {
                 // Print possible completions
                 var log_buffer = new StringBuilder();
 
-                foreach (string completion in completion_buffer) {
+                foreach (string completion in completion_buffer)
+                {
                     log_buffer.Append(completion.PadRight(format_width + 4));
                 }
 
@@ -366,21 +425,26 @@ namespace UnityToolBox
             }
         }
 
-        void CursorToEnd() {
-            if (_editorState == null) {
+        void CursorToEnd()
+        {
+            if (_editorState == null)
+            {
                 _editorState = (TextEditor)GUIUtility.GetStateObject(typeof(TextEditor), GUIUtility.keyboardControl);
             }
 
             _editorState.MoveCursorToPosition(new Vector2(999, 999));
         }
 
-        void HandleUnityLog(string message, string stack_trace, LogType type) {
+        void HandleUnityLog(string message, string stack_trace, LogType type)
+        {
             Buffer.HandleLog(message, stack_trace, (TerminalLogType)type);
             _scrollPosition.y = int.MaxValue;
         }
 
-        Color GetLogColor(TerminalLogType type) {
-            switch (type) {
+        Color GetLogColor(TerminalLogType type)
+        {
+            switch (type)
+            {
                 case TerminalLogType.Message: return ForegroundColor;
                 case TerminalLogType.Warning: return WarningColor;
                 case TerminalLogType.Input: return InputColor;

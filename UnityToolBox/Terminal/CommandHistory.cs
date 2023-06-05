@@ -8,8 +8,10 @@ namespace UnityToolBox
         private List<string> _history = new List<string>();
         private int _position;
 
-        public void Push(string command_string) {
-            if (command_string == "") {
+        public void Push(string command_string)
+        {
+            if (command_string == "")
+            {
                 return;
             }
 
@@ -17,10 +19,12 @@ namespace UnityToolBox
             _position = _history.Count;
         }
 
-        public string Next() {
+        public string Next()
+        {
             _position++;
 
-            if (_position >= _history.Count) {
+            if (_position >= _history.Count)
+            {
                 _position = _history.Count;
                 return "";
             }
@@ -28,21 +32,25 @@ namespace UnityToolBox
             return _history[_position];
         }
 
-        public string Previous() {
-            if (_history.Count == 0) {
+        public string Previous()
+        {
+            if (_history.Count == 0)
+            {
                 return "";
             }
 
             _position--;
 
-            if (_position < 0) {
+            if (_position < 0)
+            {
                 _position = 0;
             }
 
             return _history[_position];
         }
 
-        public void Clear() {
+        public void Clear()
+        {
             _history.Clear();
             _position = 0;
         }
