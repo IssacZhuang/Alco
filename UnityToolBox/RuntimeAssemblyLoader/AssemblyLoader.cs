@@ -12,12 +12,9 @@ namespace UnityToolBox
     {
         public const string folderName = "CoreAssemblies";
         private static readonly List<Assembly> _assemblies = new List<Assembly>();
-        public void Awake()
-        {
-            LoadAssemblies();
-        }
 
         public void Start(){
+            LoadAssemblies();
             ExecuteEntry();
         }
 
@@ -50,7 +47,7 @@ namespace UnityToolBox
             {
                 try
                 {
-                    Terminal.Log("Trying to load " + file);
+                    Terminal.Log("Trying to load: " + file);
                     string pdb = Path.ChangeExtension(file, ".pdb");
                     if (File.Exists(pdb))
                     {

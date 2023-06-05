@@ -1,6 +1,8 @@
-using UnityEngine;
+using System;
 using System.Text;
 using System.Collections;
+
+using UnityEngine;
 using UnityEngine.Assertions;
 
 namespace UnityToolBox
@@ -17,15 +19,11 @@ namespace UnityToolBox
         [Header("Window")]
         [Range(0, 1)]
         [SerializeField]
-        public float MaxHeight = 0.8f;
+        public float MaxHeight = 1f;
 
         [SerializeField]
         [Range(0, 1)]
         public float SmallTerminalRatio = 0.33f;
-
-        [Range(100, 1000)]
-        [SerializeField]
-        public float ToggleSpeed = 720;
 
         [SerializeField] public string ToggleHotkey = "`";
         [SerializeField] public string ToggleFullHotkey = "#`";
@@ -38,17 +36,14 @@ namespace UnityToolBox
         [SerializeField] public bool RightAlignButtons = false;
 
         [Header("Theme")]
-        [Range(0, 1)]
-        [SerializeField] public float InputContrast = 0.0f;
-        [Range(0, 1)]
-        [SerializeField] public float InputAlpha = 0.5f;
 
-        [SerializeField] public Color BackgroundColor = Color.black;
+        [SerializeField] public Color BackgroundColor = new Color(0, 0, 0, 0.7f);
         [SerializeField] public Color ForegroundColor = Color.white;
         [SerializeField] public Color ShellColor = Color.white;
         [SerializeField] public Color InputColor = Color.cyan;
-        [SerializeField] public Color StasticColor = Color.blue;
-        [SerializeField] public Color SuccessColor = Color.green;
+        [SerializeField] public Color InputFieldColor = new Color(0, 0, 0, 0);
+        [SerializeField] public Color StasticColor = new Color(0.3f, 0.6f, 1, 1);
+        [SerializeField] public Color SuccessColor = new Color(0.35f, 1, 0.5f, 1);
         [SerializeField] public Color WarningColor = Color.yellow;
         [SerializeField] public Color ErrorColor = Color.red;
         [SerializeField] public Color CommentColor = Color.gray;
@@ -143,14 +138,9 @@ namespace UnityToolBox
 
             // Hook Unity log events
             Application.logMessageReceivedThreaded += HandleUnityLog;
-        }
 
-        void OnDisable() {
-            Application.logMessageReceivedThreaded -= HandleUnityLog;
-        }
-
-        void Start() {
-            if (ConsoleFont == null) {
+            if (ConsoleFont == null)
+            {
                 ConsoleFont = Resources.GetBuiltinResource(typeof(Font), "LegacyRuntime.ttf") as Font;
                 //Debug.LogWarning("Command Console Warning: Please assign a font.");
             }
@@ -165,15 +155,22 @@ namespace UnityToolBox
 
             Shell.RegisterCommands();
 
-            if (IssuedError) {
+            if (IssuedError)
+            {
                 Log(TerminalLogType.Error, "Error: {0}", Shell.IssuedErrorMessage);
             }
 
-            foreach (var command in Shell.Commands) {
+            foreach (var command in Shell.Commands)
+            {
                 Autocomplete.Register(command.Key);
             }
 
             Instance = this;
+        }
+
+        void OnDisable()
+        {
+            Application.logMessageReceivedThreaded -= HandleUnityLog;
         }
 
         void OnGUI() {
@@ -227,14 +224,8 @@ namespace UnityToolBox
             _inputStyle.fixedHeight = ConsoleFont.fontSize * 1.6f;
             _inputStyle.normal.textColor = InputColor;
 
-            var dark_background = new Color();
-            dark_background.r = BackgroundColor.r - InputContrast;
-            dark_background.g = BackgroundColor.g - InputContrast;
-            dark_background.b = BackgroundColor.b - InputContrast;
-            dark_background.a = InputAlpha;
-
             _inputBackgroundTexture = new Texture2D(1, 1);
-            _inputBackgroundTexture.SetPixel(0, 0, dark_background);
+            _inputBackgroundTexture.SetPixel(0, 0, InputFieldColor);
             _inputBackgroundTexture.Apply();
             _inputStyle.normal.background = _inputBackgroundTexture;
         }
@@ -325,14 +316,9 @@ namespace UnityToolBox
         }
 
         void HandleOpenness() {
-            float dt = ToggleSpeed * Time.unscaledDeltaTime;
-
-            if (_currentOpenT < _openTarget) {
-                _currentOpenT += dt;
-                if (_currentOpenT > _openTarget) _currentOpenT = _openTarget;
-            } else if (_currentOpenT > _openTarget) {
-                _currentOpenT -= dt;
-                if (_currentOpenT < _openTarget) _currentOpenT = _openTarget;
+            if (_currentOpenT != _openTarget)
+            {
+                _currentOpenT = _openTarget;
             } else {
                 if (_inputFix) {
                     _inputFix = false;
