@@ -25,8 +25,8 @@ namespace UnityToolBox
         [Range(0, 1)]
         public float SmallTerminalRatio = 0.33f;
 
-        [SerializeField] public string ToggleHotkey = "`";
-        [SerializeField] public string ToggleFullHotkey = "#`";
+        [SerializeField] public string ToggleHotkey = "#home";
+        [SerializeField] public string ToggleFullHotkey = "home";
         [SerializeField] public int BufferSize = 999;
 
         [Header("Input")]
