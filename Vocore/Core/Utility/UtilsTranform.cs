@@ -14,6 +14,12 @@ namespace Vocore
             quaternion localRotation = math.mul(parentInverse.rot, transform.rot);
             return new RigidTransform(localRotation, localPosition);
         }
+
+        public static float Angle(quaternion a, quaternion b)
+        {
+            float dot = math.dot(a, b);
+            return math.acos(math.min(math.abs(dot), 1f)) * 2f * math.sign(dot);
+        }
     }
 }
 

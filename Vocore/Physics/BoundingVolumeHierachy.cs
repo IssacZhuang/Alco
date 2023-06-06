@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 
 using Unity.Mathematics;
+using Unity.Collections;
 
 namespace Vocore
 {
@@ -20,7 +21,7 @@ namespace Vocore
         public void BuildTreeFromColliderList(NativeList<ColliderRef> colliderList)
         {
             _colliderList = colliderList;
-            _innerList = new NativeList<Node>(colliderList.Length * 2);
+            _innerList = new NativeList<Node>(colliderList.Length * 2, Allocator.Temp);
             
         }
 

@@ -14,7 +14,7 @@ namespace Vocore.Test
             RigidTransform child = new RigidTransform(quaternion.identity, new float3(1, 0, 0));
 
             RigidTransform local = UtilsTranform.ToLocal(child, parent);
-            TestHelper.PrintBlue(math.angle(quaternion.identity, local.rot));
+            TestHelper.PrintBlue(UtilsTranform.Angle(parent.rot, child.rot));
             TestHelper.PrintBlue(local.pos);
         }
     }

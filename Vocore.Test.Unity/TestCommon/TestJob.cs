@@ -8,6 +8,7 @@ using UnityToolBox.UnitTest;
 using UnityToolBox;
 using Vocore;
 using Vocore.Unsafe;
+using Unity.Collections;
 
 namespace Vocore.Test.Unity
 {
@@ -16,10 +17,10 @@ namespace Vocore.Test.Unity
         [UnitTest("TestJob")]
         public void Test()
         {
-            NativeList<int> list = new NativeList<int>(10);
-            NativeList<int> list2 = new NativeList<int>(10);
+            NativeList<int> list = new NativeList<int>(Allocator.Temp);
+            NativeList<int> list2 = new NativeList<int>(Allocator.Temp);
 
-            int count = 100000;
+            int count = 1000000;
             for (int i = 0; i < count; i++)
             {
                 list.Add(count - i);
@@ -35,10 +36,10 @@ namespace Vocore.Test.Unity
                 list.Sort();
             });
 
-            TestHelper.Benchmark("multi thread", () =>
-            {
-                list2.SortJob().Complete();
-            });
+            // TestHelper.Benchmark("multi thread", () =>
+            // {
+            //     list2.SortJob().Schedule().Complete();
+            // });
 
             // for (int i = 0; i < count; i++)
             // {

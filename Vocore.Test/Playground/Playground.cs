@@ -7,8 +7,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 
 using UnityEngine;
-
-using Unity.Mathematics;
 using System.Threading.Tasks;
 
 namespace Vocore.Test
