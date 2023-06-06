@@ -17,29 +17,25 @@ namespace Vocore.Test.Unity
         [UnitTest("TestJob")]
         public void Test()
         {
-            int count = 100;
-            int[] array = new int[count];
+            int count = 1000000;
+            NativeArrayList<float> list = new NativeArrayList<float>();
+            NativeList<float> list2 = new NativeList<float>(Allocator.Temp);
 
             for (int i = 0; i < count; i++)
             {
-                array[i] = count - i;
+                list.Add(count - i);
+                list2.Add(count - i);
             }
 
-            TestHelper.Benchmark(".net sort", () =>
+            TestHelper.Benchmark("vocore native list", () =>
             {
-                Array.Sort(array);
+                list.Sort();
             });
 
-            for (int i = 0; i < count; i++)
+            TestHelper.Benchmark("unity native list", () =>
             {
-                array[i] = count - i;
-            }
-
-            TestHelper.Benchmark("unsafe sort", () =>
-            {
-                array.UnsafeSort();
+                list2.Sort();
             });
-
 
             // TestHelper.Benchmark("multi thread", () =>
             // {

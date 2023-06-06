@@ -22,12 +22,13 @@ namespace Vocore
         //     IntroSort<T, U>((T*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks<T>(list), list.Length, comp);
         // }
 
-        public unsafe static void UnsafeSort<T>(this List<T> list) where T : unmanaged, IComparable<T>
+        public unsafe static void Sort<T>(this NativeArrayList<T> list) where T : unmanaged, IComparable<T>
         {
-            
+
+            IntroSort<T, DefaultComparer<T>>(list.Raw, list.Length, default(DefaultComparer<T>));
         }
 
-        public unsafe static void UnsafeSort<T>(this T[] array) where T : unmanaged, IComparable<T>
+        public unsafe static void Sort<T>(this T[] array) where T : unmanaged, IComparable<T>
         {
             fixed (T* ptr = array)
             {
