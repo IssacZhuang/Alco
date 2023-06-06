@@ -1,5 +1,7 @@
 ﻿using System;
+using System.IO;
 using System.Reflection;
+using System.Text;
 using Vocore;
 
 namespace Vocore.Test
@@ -8,8 +10,32 @@ namespace Vocore.Test
     {
         static void Main(string[] _)
         {
-            Assembly assembly = Assembly.GetAssembly(typeof(Entry));
-            TestHelper.StartTest(assembly);
+
+            try
+            {
+                Assembly assembly = Assembly.GetAssembly(typeof(Entry));
+                TestHelper.StartTest(assembly);
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                StringBuilder sb = new StringBuilder();
+                foreach (Exception exSub in ex.LoaderExceptions)
+                {
+                    sb.AppendLine(exSub.Message);
+                    FileNotFoundException exFileNotFound = exSub as FileNotFoundException;
+                    if (exFileNotFound != null)
+                    {
+                        if (!string.IsNullOrEmpty(exFileNotFound.FusionLog))
+                        {
+                            sb.AppendLine("Fusion Log:");
+                            sb.AppendLine(exFileNotFound.FusionLog);
+                        }
+                    }
+                    sb.AppendLine();
+                }
+                string errorMessage = sb.ToString();
+                TestHelper.PrintRed(errorMessage);
+            }
             //PointerTracker.Instance.DisplayResult();
             foreach (var item in PointerTracker.GetAllocatedStackTrace())
             {

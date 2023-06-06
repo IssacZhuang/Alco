@@ -45,10 +45,7 @@ namespace Vocore.Test
             //         nativeList.Add(randomArray[i]);
             //     }
             //     nativeList.Sort();
-            // });
-
-            Matrix4x4.TRS(new Vector3(1, 2, 3), Quaternion.identity, Vector3.one);
-
+            // });        
         }
     }
 
