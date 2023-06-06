@@ -12,9 +12,9 @@ using Unity.Collections;
 
 namespace Vocore.Test.Unity
 {
-    public class TestJob
+    public class TestList
     {
-        [UnitTest("TestJob")]
+        [UnitTest("TestList")]
         public void Test()
         {
             int count = 1000000;
