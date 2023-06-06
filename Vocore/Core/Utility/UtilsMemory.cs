@@ -5,10 +5,8 @@ using System.Runtime.InteropServices;
 
 namespace Vocore.Unsafe
 {
-    public static unsafe class UtilsUnsafe
+    public static unsafe class UtilsMemory
     {
-
-        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Alloc(int size)
         {

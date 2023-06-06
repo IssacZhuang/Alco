@@ -10,7 +10,7 @@ namespace Vocore
     public unsafe struct NativeArrayList<T> : IList<T>, IDisposable where T : unmanaged
     {
         private const int DefaultSize = 4;
-        private static readonly int _stride = UtilsUnsafe.SizeOf<T>();
+        private static readonly int _stride = UtilsMemory.SizeOf<T>();
         private void* _ptrBuffer;
         private int _size;
         private int _capacity;
@@ -66,7 +66,7 @@ namespace Vocore
         public NativeArrayList(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-            _ptrBuffer = UtilsUnsafe.Alloc(_stride * size);
+            _ptrBuffer = UtilsMemory.Alloc(_stride * size);
             _size = 0;
             _capacity = size;
             _preAllocSize = size;
@@ -77,7 +77,7 @@ namespace Vocore
         public NativeArrayList(int size, bool autoCompress)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-            _ptrBuffer = UtilsUnsafe.Alloc(_stride * size);
+            _ptrBuffer = UtilsMemory.Alloc(_stride * size);
             _size = 0;
             _capacity = size;
             _preAllocSize = size;
@@ -96,7 +96,7 @@ namespace Vocore
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
             EnsureSize(_size + 1);
-            UtilsUnsafe.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, _stride * (_size - index));
+            UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, _stride * (_size - index));
             _size++;
             this[index] = value;
         }
@@ -117,7 +117,7 @@ namespace Vocore
         public void RemoveAt(int index)
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
-            UtilsUnsafe.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, _stride * (_size - index - 1));
+            UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, _stride * (_size - index - 1));
             EnsureSize(_size - 1);
             _size--;
         }
@@ -161,7 +161,7 @@ namespace Vocore
             {
                 fixed (T* ptr = array)
                 {
-                    UtilsUnsafe.MemCopy(ptr + arrayIndex, _ptrBuffer, _stride * _size);
+                    UtilsMemory.MemCopy(ptr + arrayIndex, _ptrBuffer, _stride * _size);
                 }
             }
         }
@@ -183,7 +183,7 @@ namespace Vocore
         {
             if (_isDisposed) return;
             _isDisposed = true;
-            UtilsUnsafe.Free(_ptrBuffer);
+            UtilsMemory.Free(_ptrBuffer);
             GC.SuppressFinalize(this);
         }
 
@@ -191,12 +191,12 @@ namespace Vocore
         {
             if (size < DefaultCapacity) size = DefaultCapacity;
 
-            void* tmpPtr = UtilsUnsafe.Alloc(_stride * size);
+            void* tmpPtr = UtilsMemory.Alloc(_stride * size);
 
             if (_ptrBuffer != null)
             {
-                UtilsUnsafe.MemCopy(_ptrBuffer, tmpPtr, _stride * _size);
-                UtilsUnsafe.Free(_ptrBuffer);
+                UtilsMemory.MemCopy(_ptrBuffer, tmpPtr, _stride * _size);
+                UtilsMemory.Free(_ptrBuffer);
             }
 
             _ptrBuffer = tmpPtr;

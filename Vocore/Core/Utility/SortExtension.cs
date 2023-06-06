@@ -98,16 +98,16 @@ namespace Vocore
             SwapIfGreaterWithItems<T, U>(array, lo, mid, comp);
             SwapIfGreaterWithItems<T, U>(array, lo, hi, comp);
             SwapIfGreaterWithItems<T, U>(array, mid, hi, comp);
-            T pivot = UtilsUnsafe.ReadArrayElement<T>(array, mid);
+            T pivot = UtilsMemory.ReadArrayElement<T>(array, mid);
             Swap<T>(array, mid, hi - 1);
             int left = lo;
             int right = hi - 1;
             while (left < right)
             {
-                while (comp.Compare(pivot, UtilsUnsafe.ReadArrayElement<T>(array, ++left)) > 0)
+                while (comp.Compare(pivot, UtilsMemory.ReadArrayElement<T>(array, ++left)) > 0)
                 {
                 }
-                while (comp.Compare(pivot, UtilsUnsafe.ReadArrayElement<T>(array, --right)) < 0)
+                while (comp.Compare(pivot, UtilsMemory.ReadArrayElement<T>(array, --right)) < 0)
                 {
                 }
                 if (left >= right)
@@ -141,19 +141,19 @@ namespace Vocore
             for (int i = lo; i < hi; i++)
             {
                 int j = i;
-                T t = UtilsUnsafe.ReadArrayElement<T>(array, i + 1);
-                while (j >= lo && comp.Compare(t, UtilsUnsafe.ReadArrayElement<T>(array, j)) < 0)
+                T t = UtilsMemory.ReadArrayElement<T>(array, i + 1);
+                while (j >= lo && comp.Compare(t, UtilsMemory.ReadArrayElement<T>(array, j)) < 0)
                 {
-                    UtilsUnsafe.WriteArrayElement<T>(array, j + 1, UtilsUnsafe.ReadArrayElement<T>(array, j));
+                    UtilsMemory.WriteArrayElement<T>(array, j + 1, UtilsMemory.ReadArrayElement<T>(array, j));
                     j--;
                 }
-                UtilsUnsafe.WriteArrayElement<T>(array, j + 1, t);
+                UtilsMemory.WriteArrayElement<T>(array, j + 1, t);
             }
         }
 
         private unsafe static void SwapIfGreaterWithItems<T, U>(void* array, int lhs, int rhs, U comp) where T : unmanaged where U : IComparer<T>
         {
-            if (lhs != rhs && comp.Compare(UtilsUnsafe.ReadArrayElement<T>(array, lhs), UtilsUnsafe.ReadArrayElement<T>(array, rhs)) > 0)
+            if (lhs != rhs && comp.Compare(UtilsMemory.ReadArrayElement<T>(array, lhs), UtilsMemory.ReadArrayElement<T>(array, rhs)) > 0)
             {
                 Swap<T>(array, lhs, rhs);
             }
@@ -161,29 +161,29 @@ namespace Vocore
 
         private unsafe static void Heapify<T, U>(void* array, int i, int n, int lo, U comp) where T : unmanaged where U : IComparer<T>
         {
-            T val = UtilsUnsafe.ReadArrayElement<T>(array, lo + i - 1);
+            T val = UtilsMemory.ReadArrayElement<T>(array, lo + i - 1);
             while (i <= n / 2)
             {
                 int child = 2 * i;
-                if (child < n && comp.Compare(UtilsUnsafe.ReadArrayElement<T>(array, lo + child - 1), UtilsUnsafe.ReadArrayElement<T>(array, lo + child)) < 0)
+                if (child < n && comp.Compare(UtilsMemory.ReadArrayElement<T>(array, lo + child - 1), UtilsMemory.ReadArrayElement<T>(array, lo + child)) < 0)
                 {
                     child++;
                 }
-                if (comp.Compare(UtilsUnsafe.ReadArrayElement<T>(array, lo + child - 1), val) < 0)
+                if (comp.Compare(UtilsMemory.ReadArrayElement<T>(array, lo + child - 1), val) < 0)
                 {
                     break;
                 }
-                UtilsUnsafe.WriteArrayElement<T>(array, lo + i - 1, UtilsUnsafe.ReadArrayElement<T>(array, lo + child - 1));
+                UtilsMemory.WriteArrayElement<T>(array, lo + i - 1, UtilsMemory.ReadArrayElement<T>(array, lo + child - 1));
                 i = child;
             }
-            UtilsUnsafe.WriteArrayElement<T>(array, lo + i - 1, val);
+            UtilsMemory.WriteArrayElement<T>(array, lo + i - 1, val);
         }
 
         private unsafe static void Swap<T>(void* array, int lhs, int rhs) where T : unmanaged
         {
-            T val = UtilsUnsafe.ReadArrayElement<T>(array, lhs);
-            UtilsUnsafe.WriteArrayElement<T>(array, lhs, UtilsUnsafe.ReadArrayElement<T>(array, rhs));
-            UtilsUnsafe.WriteArrayElement<T>(array, rhs, val);
+            T val = UtilsMemory.ReadArrayElement<T>(array, lhs);
+            UtilsMemory.WriteArrayElement<T>(array, lhs, UtilsMemory.ReadArrayElement<T>(array, rhs));
+            UtilsMemory.WriteArrayElement<T>(array, rhs, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

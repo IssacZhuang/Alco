@@ -11,7 +11,7 @@ namespace Vocore
     {
         private void* _ptrBuffer;
         private readonly int _size;
-        private static readonly int _stride = UtilsUnsafe.SizeOf<T>();
+        private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
         public int Length => _size;
 
@@ -43,7 +43,7 @@ namespace Vocore
         public NativeBuffer(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-            _ptrBuffer = UtilsUnsafe.Alloc(size * _stride);
+            _ptrBuffer = UtilsMemory.Alloc(size * _stride);
             this._size = size;
         }
 
@@ -51,7 +51,7 @@ namespace Vocore
         {
             if (_ptrBuffer != null)
             {
-                UtilsUnsafe.Free(_ptrBuffer);
+                UtilsMemory.Free(_ptrBuffer);
                 _ptrBuffer = null;
             }
             GC.SuppressFinalize(this);
