@@ -22,10 +22,8 @@ namespace Vocore
         }
 
         private NativeArrayList<Node> _nodeList;
-        //private NativeArrayList<ColliderRef> _colliderList;
         private bool _initialized;
         private Node _root;
-
 
         public RayCastResult CastRay(Ray ray)
         {
@@ -37,6 +35,20 @@ namespace Vocore
             return CastRay(ref ray, _root);
         }
 
+        public NativeBuffer<RayCastResult> CastRays(NativeArrayList<Ray> rays)
+        {
+            NativeBuffer<RayCastResult> result = new NativeBuffer<RayCastResult>(rays.Length);
+            JobCastRay job = new JobCastRay
+            {
+                bvh = this,
+                rays = rays,
+                results = result
+            };
+            job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
+
+            return result;
+        }
+
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
         {
             Init();
@@ -44,10 +56,10 @@ namespace Vocore
             BuildBottomTop(colliders);
         }
 
-        [BurstCompile]
         private RayCastResult CastRay(ref Ray ray, Node node)
         {
             if (!UtilsCollision.RayAABB(ray, node.boundingBox)) return RayCastResult.none;
+
             if (node.IsLeaf)
             {
                 if (node.collider.IntersectRay(ray, out RaycastHit hitInfo))
@@ -103,7 +115,6 @@ namespace Vocore
             _nodeList.Clear();
         }
 
-        [BurstCompile]
         private void BuildBottomTop(NativeArrayList<ColliderRef> colliders)
         {
             if (colliders.Length == 0)
@@ -204,7 +215,6 @@ namespace Vocore
             }.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length));
         }
 
-        [BurstCompile]
         private struct JobBuildLeaf : IJobParallelFor
         {
             [NativeDisableUnsafePtrRestriction]
@@ -213,6 +223,19 @@ namespace Vocore
             public void Execute(int index)
             {
                 nodeList[index].boundingBox = nodeList[index].collider.GetBoundingBox();
+            }
+        }
+
+        //[BurstCompile]
+        private struct JobCastRay : IJobParallelFor
+        {
+            public NativeBVH bvh;
+            public NativeArrayList<Ray> rays;
+            public NativeBuffer<RayCastResult> results;
+
+            public void Execute(int index)
+            {
+                results[index] = bvh.CastRay(rays[index]);
             }
         }
     }

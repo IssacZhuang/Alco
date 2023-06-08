@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Unity.Jobs;
 using UnityToolBox.UnitTest;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -28,7 +29,7 @@ namespace Vocore.Test.Unity
             NativeArrayList<Ray> rays = new NativeArrayList<Ray>();
 
             int colliderCount = 1500;
-            int rayCount = 1000;
+            int rayCount = 10000;
 
             Random random = new Random(12345);
             //random collider
@@ -92,12 +93,11 @@ namespace Vocore.Test.Unity
 
             });
 
+
+
             TestHelper.Benchmark("Ray cast bvh", () =>
             {
-                for (int i = 0; i < rayCount; i++)
-                {
-                    bvh.CastRay(rays[i]);
-                }
+                bvh.CastRays(rays);
             });
 
             // TestHelper.Benchmark("Ray cast brute force", () =>

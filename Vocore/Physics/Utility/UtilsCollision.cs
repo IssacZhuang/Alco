@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 
 using Unity.Burst;
@@ -9,7 +9,7 @@ namespace Vocore
 {
     public static class UtilsCollision
     {
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SphereSphere(ShapeSphere sphere1, ShapeSphere sphere2)
         {
             float3 difference = sphere1.center - sphere2.center;
@@ -18,7 +18,7 @@ namespace Vocore
             return distanceSquared < sumRadius * sumRadius;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxSphere(ShapeBox box, ShapeSphere sphere)
         {
             float3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
@@ -30,7 +30,7 @@ namespace Vocore
             return distanceSquared < sphere.radius * sphere.radius;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBox(ShapeBox box1, ShapeBox box2)
         {
             if (box1.rotation.Equals(quaternion.identity) && box2.rotation.Equals(quaternion.identity))
@@ -41,7 +41,7 @@ namespace Vocore
             return IntersectAABBWorldToLocal(box1, box2) && IntersectAABBWorldToLocal(box2, box1);
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBoxAxisAligned(ShapeBox box1, ShapeBox box2)
         {
             float3 min1 = box1.center - box1.extends;
@@ -54,7 +54,7 @@ namespace Vocore
                    min1.z <= max2.z && max1.z >= min2.z;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IntersectAABBWorldToLocal(ShapeBox world, ShapeBox toLocal)
         {
             BoundingBox worldBox = new BoundingBox(-world.extends, world.extends);
@@ -62,7 +62,7 @@ namespace Vocore
             return worldBox.Intersects(localBox);
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RaySphere(float3 rayOrigin, float3 rayDisplacement, float3 sphereCenter, float sphereRadius, ref float fraction, out float3 normal)
         {
             normal = float3.zero;
@@ -95,7 +95,7 @@ namespace Vocore
             return false;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RaySphere(Ray ray, ShapeSphere sphere, out RaycastHit hit)
         {
             hit = new RaycastHit();
@@ -112,7 +112,7 @@ namespace Vocore
             return false;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray ray, BoundingBox boundingBox, ref float fraction, out float3 normal)
         {
             normal = float3.zero;
@@ -223,7 +223,7 @@ namespace Vocore
             return true;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray ray, BoundingBox boundingBox)
         {
             float3 rayOrigin = ray.origin;
@@ -294,7 +294,7 @@ namespace Vocore
             return true;
         }
 
-        [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayBox(Ray ray, ShapeBox box, out RaycastHit hit)
         {
             hit = default;
