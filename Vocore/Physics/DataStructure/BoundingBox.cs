@@ -27,5 +27,14 @@ namespace Vocore
         {
             return $"Box: {min} {max}";
         }
+
+        public static BoundingBox Merge(BoundingBox a, BoundingBox b)
+        {
+            return new BoundingBox
+            {
+                min = math.min(a.min, b.min),
+                max = math.max(a.max, b.max),
+            };
+        }
     }
 }

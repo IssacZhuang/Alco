@@ -8,36 +8,56 @@ namespace Vocore
     {
         private void* _ptr;
 
-#pragma warning disable CS8500
-        private ICollider* InnerCollider => (ICollider*)_ptr;
-#pragma warning restore CS8500
+        private ICollider InnerCollider
+        {
+            get
+            {
+                switch (_type)
+                {
+                    case ColliderType.Box:
+                        return *(ColliderBox*)_ptr;
+                    case ColliderType.Sphere:
+                        return *(ColliderSphere*)_ptr;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+        }
+
+        private ColliderType _type;
 
         public bool HasCollider => _ptr != null;
 
-        public static ColliderRef Create<T>(T* collider) where T : unmanaged, ICollider
+        public static ColliderRef Create<T>(ref T collider) where T : unmanaged, ICollider
         {
-            return new ColliderRef
+            fixed (void* ptr = &collider)
             {
-                _ptr = collider
-            };
+                return new ColliderRef
+                {
+                    _ptr = ptr,
+                    _type = collider.type
+                };
+            }
         }
 
-        public ColliderType type => InnerCollider->type;
+        public ColliderType type => _type;
 
         public bool CollidesWith(ICollider other)
         {
-            return InnerCollider->CollidesWith(other);
+            return InnerCollider.CollidesWith(other);
         }
 
         public BoundingBox GetBoundingBox()
         {
-            return InnerCollider->GetBoundingBox();
+
+            return InnerCollider.GetBoundingBox();
         }
 
         public BoundingBox GetBoundingBox(RigidTransform transform)
         {
-            return InnerCollider->GetBoundingBox(transform);
+            return InnerCollider.GetBoundingBox(transform);
         }
+
     }
 }
 

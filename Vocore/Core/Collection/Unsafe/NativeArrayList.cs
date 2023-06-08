@@ -20,7 +20,7 @@ namespace Vocore
         public bool AutoCompress { get => _autoCompress; set => _autoCompress = value; }
         public int Length => _size;
 
-        public T* Raw => (T*)_ptrBuffer;
+        public T* Ptr => (T*)_ptrBuffer;
         public int Size => _size;
         public int Stride => _stride;
         public int Count => Size;

@@ -25,7 +25,7 @@ namespace Vocore
         public unsafe static void Sort<T>(this NativeArrayList<T> list) where T : unmanaged, IComparable<T>
         {
 
-            IntroSort<T, DefaultComparer<T>>(list.Raw, list.Length, default(DefaultComparer<T>));
+            IntroSort<T, DefaultComparer<T>>(list.Ptr, list.Length, default(DefaultComparer<T>));
         }
 
         public unsafe static void Sort<T>(this T[] array) where T : unmanaged, IComparable<T>
