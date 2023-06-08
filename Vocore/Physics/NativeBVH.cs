@@ -1,24 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using Unity.Jobs;
 
-using UnityEngine;
-using Unity.Mathematics;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
 namespace Vocore
 {
-    public unsafe struct StatelessBVH
+    public unsafe struct NativeBVH
     {
-        public enum Algorithm
-        {
-            SortX,
-            SortY,
-            SortZ,
-        }
-
         public struct Node
         {
             public int left;
@@ -31,12 +24,67 @@ namespace Vocore
         private NativeArrayList<Node> _nodeList;
         //private NativeArrayList<ColliderRef> _colliderList;
         private bool _initialized;
+        private Node _root;
+
+
+        public RayCastResult CastRay(Ray ray)
+        {
+            if (_nodeList.Length == 0)
+            {
+                return RayCastResult.none;
+            }
+
+            return CastRay(ref ray, _root);
+        }
 
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
         {
             Init();
             Reset();
             BuildBottomTop(colliders);
+        }
+
+        [BurstCompile]
+        private RayCastResult CastRay(ref Ray ray, Node node)
+        {
+            if (!UtilsCollision.RayAABB(ray, node.boundingBox)) return RayCastResult.none;
+            if (node.IsLeaf)
+            {
+                if (node.collider.IntersectRay(ray, out RaycastHit hitInfo))
+                {
+                    return new RayCastResult
+                    {
+                        hit = true,
+                        hitInfo = hitInfo,
+                        collider = node.collider
+                    };
+                }
+                else
+                {
+                    return RayCastResult.none;
+                }
+
+            }
+
+            if (node.left >= 0)
+            {
+                RayCastResult leftResult = CastRay(ref ray, _nodeList[node.left]);
+                if (leftResult.hit)
+                {
+                    return leftResult;
+                }
+            }
+
+            if (node.right >= 0)
+            {
+                RayCastResult rightResult = CastRay(ref ray, _nodeList[node.right]);
+                if (rightResult.hit)
+                {
+                    return rightResult;
+                }
+            }
+
+            return RayCastResult.none;
         }
 
         private void Init()
@@ -55,6 +103,7 @@ namespace Vocore
             _nodeList.Clear();
         }
 
+        [BurstCompile]
         private void BuildBottomTop(NativeArrayList<ColliderRef> colliders)
         {
             if (colliders.Length == 0)
@@ -65,6 +114,7 @@ namespace Vocore
             if (colliders.Length == 1)
             {
                 _nodeList.Add(CreateLeaf(colliders[0]));
+                _root = _nodeList[0];
                 return;
             }
 
@@ -101,7 +151,8 @@ namespace Vocore
 
             if (end - start == 2)
             {
-                _nodeList.Add(CreateParent(start, start + 1));
+                _root = CreateParent(start, start + 1);
+                _nodeList.Add(_root);
             }
         }
 
@@ -110,7 +161,7 @@ namespace Vocore
             return new Node
             {
                 left = singleChild,
-                right = singleChild,
+                right = -1,
                 boundingBox = _nodeList[singleChild].boundingBox
             };
         }
@@ -129,6 +180,8 @@ namespace Vocore
         {
             return new Node
             {
+                left = -1,
+                right = -1,
                 collider = collider,
                 boundingBox = collider.GetBoundingBox(),
             };
@@ -140,15 +193,18 @@ namespace Vocore
             {
                 _nodeList.Add(new Node
                 {
+                    left = -1,
+                    right = -1,
                     collider = colliders[i],
                 });
             }
             return new JobBuildLeaf
             {
                 nodeList = (Node*)_nodeList.Ptr,
-            }.Schedule(colliders.Length, Environment.ProcessorCount * 2);
+            }.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length));
         }
 
+        [BurstCompile]
         private struct JobBuildLeaf : IJobParallelFor
         {
             [NativeDisableUnsafePtrRestriction]
@@ -159,8 +215,5 @@ namespace Vocore
                 nodeList[index].boundingBox = nodeList[index].collider.GetBoundingBox();
             }
         }
-
-
     }
-
 }

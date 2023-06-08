@@ -84,7 +84,7 @@ namespace UnityToolBox.UnitTest
             stopwatch.Start();
             action();
             stopwatch.Stop();
-            PrintBlue(name + ": " + stopwatch.ElapsedMilliseconds + " ms");
+            PrintBlue(name + ": " + (double)stopwatch.ElapsedTicks / 10000 + " ms");
         }
 
         public static void Benchmark(string name, Action action)
@@ -93,7 +93,7 @@ namespace UnityToolBox.UnitTest
             stopwatch.Start();
             action();
             stopwatch.Stop();
-            PrintBlue(name + ": " + stopwatch.ElapsedMilliseconds + " ms");
+            PrintBlue(name + ": " + (double)stopwatch.ElapsedTicks / 10000 + " ms");
         }
 
         public static void CheckGCAlloc(Action action, string name = TEXT_BENCHMARK)

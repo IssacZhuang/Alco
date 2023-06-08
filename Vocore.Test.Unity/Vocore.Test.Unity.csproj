@@ -79,7 +79,7 @@
     <Compile Include="Entry.cs" />
     <Compile Include="TestCommon\TestList.cs" />
     <Compile Include="TestCommon\TestAlloc.cs" />
-    <Compile Include="TestECS\TestBase.cs" />
+    <Compile Include="TestECS\TestBVH.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

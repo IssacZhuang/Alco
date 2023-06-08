@@ -7,6 +7,7 @@ namespace Vocore
     public interface ICollider: IShape
     {
         bool CollidesWith(ICollider other);
+        bool IntersectRay(Ray ray, out RaycastHit hitInfo);
         ColliderType type { get; }
     }
 }

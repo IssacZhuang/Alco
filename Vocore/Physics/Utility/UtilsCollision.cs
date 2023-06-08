@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 
+
+using Unity.Burst;
 using Unity.Mathematics;
 
 namespace Vocore
 {
     public static class UtilsCollision
     {
+        [BurstCompile]
         public static bool SphereSphere(ShapeSphere sphere1, ShapeSphere sphere2)
         {
             float3 difference = sphere1.center - sphere2.center;
@@ -15,6 +18,7 @@ namespace Vocore
             return distanceSquared < sumRadius * sumRadius;
         }
 
+        [BurstCompile]
         public static bool BoxSphere(ShapeBox box, ShapeSphere sphere)
         {
             float3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
@@ -26,6 +30,7 @@ namespace Vocore
             return distanceSquared < sphere.radius * sphere.radius;
         }
 
+        [BurstCompile]
         public static bool BoxBox(ShapeBox box1, ShapeBox box2)
         {
             if (box1.rotation.Equals(quaternion.identity) && box2.rotation.Equals(quaternion.identity))
@@ -36,7 +41,7 @@ namespace Vocore
             return IntersectAABBWorldToLocal(box1, box2) && IntersectAABBWorldToLocal(box2, box1);
         }
 
-
+        [BurstCompile]
         public static bool BoxBoxAxisAligned(ShapeBox box1, ShapeBox box2)
         {
             float3 min1 = box1.center - box1.extends;
@@ -49,6 +54,7 @@ namespace Vocore
                    min1.z <= max2.z && max1.z >= min2.z;
         }
 
+        [BurstCompile]
         public static bool IntersectAABBWorldToLocal(ShapeBox world, ShapeBox toLocal)
         {
             BoundingBox worldBox = new BoundingBox(-world.extends, world.extends);
@@ -56,6 +62,7 @@ namespace Vocore
             return worldBox.Intersects(localBox);
         }
 
+        [BurstCompile]
         public static bool RaySphere(float3 rayOrigin, float3 rayDisplacement, float3 sphereCenter, float sphereRadius, ref float fraction, out float3 normal)
         {
             normal = float3.zero;
@@ -88,6 +95,7 @@ namespace Vocore
             return false;
         }
 
+        [BurstCompile]
         public static bool RaySphere(Ray ray, ShapeSphere sphere, out RaycastHit hit)
         {
             hit = new RaycastHit();
@@ -104,6 +112,7 @@ namespace Vocore
             return false;
         }
 
+        [BurstCompile]
         public static bool RayAABB(Ray ray, BoundingBox boundingBox, ref float fraction, out float3 normal)
         {
             normal = float3.zero;
@@ -112,8 +121,10 @@ namespace Vocore
             float3 min = boundingBox.min;
             float3 max = boundingBox.max;
 
-            float txmin = (min.x - rayOrigin.x) / rayDisplacement.x;
-            float txmax = (max.x - rayOrigin.x) / rayDisplacement.x;
+            float3 invRayDisplacement = 1f / rayDisplacement;
+
+            float txmin = (min.x - rayOrigin.x) * invRayDisplacement.x;
+            float txmax = (max.x - rayOrigin.x) * invRayDisplacement.x;
             float inverseX = 1f;
 
             if (txmin > txmax)
@@ -127,8 +138,8 @@ namespace Vocore
             float tmin = txmin;
             float tmax = txmax;
 
-            float tymin = (min.y - rayOrigin.y) / rayDisplacement.y;
-            float tymax = (max.y - rayOrigin.y) / rayDisplacement.y;
+            float tymin = (min.y - rayOrigin.y) * invRayDisplacement.y;
+            float tymax = (max.y - rayOrigin.y) * invRayDisplacement.y;
             float inverseY = 1f;
 
             if (tymin > tymax)
@@ -154,8 +165,8 @@ namespace Vocore
                 tmax = tymax;
             }
 
-            float tzmin = (min.z - rayOrigin.z) / rayDisplacement.z;
-            float tzmax = (max.z - rayOrigin.z) / rayDisplacement.z;
+            float tzmin = (min.z - rayOrigin.z) * invRayDisplacement.z;
+            float tzmax = (max.z - rayOrigin.z) * invRayDisplacement.z;
             float inverseZ = 1f;
 
             if (tzmin > tzmax)
@@ -210,9 +221,80 @@ namespace Vocore
 
 
             return true;
-        }   
+        }
 
+        [BurstCompile]
+        public static bool RayAABB(Ray ray, BoundingBox boundingBox)
+        {
+            float3 rayOrigin = ray.origin;
+            float3 rayDisplacement = ray.displacement;
+            float3 min = boundingBox.min;
+            float3 max = boundingBox.max;
 
+            float3 invRayDisplacement = 1f / rayDisplacement;
+
+            float3 originToMin = min - rayOrigin;
+            float3 originToMax = max - rayOrigin;
+
+            float txmin = originToMin.x * invRayDisplacement.x;
+            float txmax = originToMax.x * invRayDisplacement.x;
+
+            float temp;
+
+            if (txmin > txmax)
+            {
+                temp = txmin;
+                txmin = txmax;
+                txmax = temp;
+            }
+
+            float tmin = txmin;
+            float tmax = txmax;
+
+            float tymin = originToMin.y * invRayDisplacement.y;
+            float tymax = originToMax.y * invRayDisplacement.y;
+
+            if (tymin > tymax)
+            {
+                temp = tymin;
+                tymin = tymax;
+                tymax = temp;
+            }
+
+            if ((tmin > tymax) || (tymin > tmax))
+            {
+                return false;
+            }
+
+            if (tymin > tmin)
+            {
+                tmin = tymin;
+            }
+
+            if (tymax < tmax)
+            {
+                tmax = tymax;
+            }
+
+            float tzmin = originToMin.z * invRayDisplacement.z;
+            float tzmax = originToMax.z * invRayDisplacement.z;
+
+            if (tzmin > tzmax)
+            {
+                temp = tzmin;
+                tzmin = tzmax;
+                tzmax = temp;
+            }
+
+            if ((tmin > tzmax) || (tzmin > tmax))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        [BurstCompile]
         public static bool RayBox(Ray ray, ShapeBox box, out RaycastHit hit)
         {
             hit = default;

@@ -49,7 +49,6 @@ namespace Vocore
 
         public BoundingBox GetBoundingBox()
         {
-
             return InnerCollider.GetBoundingBox();
         }
 
@@ -58,6 +57,10 @@ namespace Vocore
             return InnerCollider.GetBoundingBox(transform);
         }
 
+        public bool IntersectRay(Ray ray, out RaycastHit hitInfo)
+        {
+            return InnerCollider.IntersectRay(ray, out hitInfo);
+        }
     }
 }
 

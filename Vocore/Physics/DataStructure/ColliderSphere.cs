@@ -34,6 +34,11 @@ namespace Vocore
         {
             return shape.GetBoundingBox(transform);
         }
+
+        public bool IntersectRay(Ray ray, out RaycastHit hitInfo)
+        {
+            return UtilsCollision.RaySphere(ray, shape, out hitInfo);
+        }
     }
 
 }
