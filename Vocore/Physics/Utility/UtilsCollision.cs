@@ -107,6 +107,7 @@ namespace Vocore
             {
                 hit.point = ray.origin + ray.displacement * fraction;
                 hit.normal = normal;
+                hit.fraction = fraction;
                 return true;
             }
             return false;
@@ -311,6 +312,7 @@ namespace Vocore
             {
                 hit.point = ray.origin + ray.displacement * fraction;
                 hit.normal = math.rotate(box.rotation, normal);
+                hit.fraction = fraction;
                 return true;
             }
 

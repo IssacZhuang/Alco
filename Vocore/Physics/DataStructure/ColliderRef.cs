@@ -8,22 +8,6 @@ namespace Vocore
     {
         private void* _ptr;
 
-        private ICollider InnerCollider
-        {
-            get
-            {
-                switch (_type)
-                {
-                    case ColliderType.Box:
-                        return *(ColliderBox*)_ptr;
-                    case ColliderType.Sphere:
-                        return *(ColliderSphere*)_ptr;
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-        }
-
         private ColliderType _type;
 
         public bool HasCollider => _ptr != null;
@@ -44,22 +28,51 @@ namespace Vocore
 
         public bool CollidesWith(ICollider other)
         {
-            return InnerCollider.CollidesWith(other);
+            switch (_type)
+            {
+                case ColliderType.Box:
+                    return (*(ColliderBox*)_ptr).CollidesWith(other);
+                case ColliderType.Sphere:
+                    return (*(ColliderSphere*)_ptr).CollidesWith(other);
+            }
+            return false;
         }
 
         public BoundingBox GetBoundingBox()
         {
-            return InnerCollider.GetBoundingBox();
+            switch (_type)
+            {
+                case ColliderType.Box:
+                    return (*(ColliderBox*)_ptr).GetBoundingBox();
+                case ColliderType.Sphere:
+                    return (*(ColliderSphere*)_ptr).GetBoundingBox();
+            }
+            return new BoundingBox();
         }
 
         public BoundingBox GetBoundingBox(RigidTransform transform)
         {
-            return InnerCollider.GetBoundingBox(transform);
+            switch (_type)
+            {
+                case ColliderType.Box:
+                    return (*(ColliderBox*)_ptr).GetBoundingBox(transform);
+                case ColliderType.Sphere:
+                    return (*(ColliderSphere*)_ptr).GetBoundingBox(transform);
+            }
+            return new BoundingBox();
         }
 
         public bool IntersectRay(Ray ray, out RaycastHit hitInfo)
         {
-            return InnerCollider.IntersectRay(ray, out hitInfo);
+            switch (_type)
+            {
+                case ColliderType.Box:
+                    return (*(ColliderBox*)_ptr).IntersectRay(ray, out hitInfo);
+                case ColliderType.Sphere:
+                    return (*(ColliderSphere*)_ptr).IntersectRay(ray, out hitInfo);
+            }
+            hitInfo = new RaycastHit();
+            return false;
         }
     }
 }

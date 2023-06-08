@@ -10,7 +10,9 @@ set "mode=Release"
 if "%1"=="debug" set "mode=Debug"
 
 if "%1"=="unity" (
+    dotnet build Vocore.Test.Unity\Vocore.Test.Unity.csproj --configuration %mode% --output ./Assemblies
     dotnet build UnityToolBox\UnityToolBox.csproj --configuration %mode% --output ./UnityContainer/Assets/Plugins
+    copy .\Assemblies\Vocore.dll .\UnityContainer\Assets\Plugins
     exit
 )
 
@@ -22,9 +24,6 @@ if "%1"=="all" (
         echo %%a
         dotnet build "%%a" --configuration %mode% --output ./Assemblies
     )
-    move .\Assemblies.\Vocore.dll .\Assemblies.\0-Vocore.dll
-    move .\Assemblies.\Vocore.pdb .\Assemblies.\0-Vocore.pdb
-
     rmdir /q /s obj
     rmdir /q /s bin
 
@@ -37,7 +36,6 @@ if "%1"=="all" (
 if "%1"=="game" (
     dotnet build Vocore.Test.Unity\Vocore.Test.Unity.csproj --configuration %mode% --output ./Assemblies
     mkdir .\Game\CoreAssemblies
-    copy .\Assemblies\Vocore.dll .\Game\CoreAssemblies\Vocore.dll
     copy .\Assemblies\Vocore.Test.Unity.dll .\Game\CoreAssemblies\Vocore.Test.Unity.dll
     exit
 ) 

@@ -93,12 +93,17 @@ namespace Vocore.Test.Unity
 
             });
 
-
-
             TestHelper.Benchmark("Ray cast bvh", () =>
             {
-                bvh.CastRays(rays);
+                bvh.CastBatchRay(rays);
             });
+
+            TestHelper.Benchmark("Ray cast bvh fast", () =>
+            {
+                bvh.CastBatchRay(rays);
+            });
+
+
 
             // TestHelper.Benchmark("Ray cast brute force", () =>
             // {

@@ -26,7 +26,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    //if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
                     return ((T*)_ptrBuffer)[index];
                 }
             }
@@ -34,7 +34,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    //if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
                     ((T*)_ptrBuffer)[index] = value;
                 }
             }

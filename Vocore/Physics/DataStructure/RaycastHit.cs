@@ -9,6 +9,7 @@ namespace Vocore
     {
         public float3 point;
         public float3 normal;
+        public float fraction;
 
         public override string ToString()
         {

@@ -6,7 +6,6 @@ set "mode=Release"
 if "%1"=="unity" (
     mkdir .\Game\CoreAssemblies
     dotnet build Vocore.Test.Unity/Vocore.Test.Unity.csproj  --configuration %mode% --output ./Assemblies
-    copy .\Assemblies\Vocore.dll .\Game\CoreAssemblies\Vocore.dll
     copy .\Assemblies\Vocore.Test.Unity.dll .\Game\CoreAssemblies\Vocore.Test.Unity.dll
     .\Game\Game.exe test
     exit

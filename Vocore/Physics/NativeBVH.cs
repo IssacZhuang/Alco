@@ -35,10 +35,20 @@ namespace Vocore
             return CastRay(ref ray, _root);
         }
 
-        public NativeBuffer<RayCastResult> CastRays(NativeArrayList<Ray> rays)
+        public RayCastResult CastRayFast(Ray ray)
+        {
+            if (_nodeList.Length == 0)
+            {
+                return RayCastResult.none;
+            }
+
+            return CastRayFast(ref ray, _root);
+        }
+
+        public NativeBuffer<RayCastResult> CastBatchRayFast(NativeArrayList<Ray> rays)
         {
             NativeBuffer<RayCastResult> result = new NativeBuffer<RayCastResult>(rays.Length);
-            JobCastRay job = new JobCastRay
+            JobCastRayFast job = new JobCastRayFast
             {
                 bvh = this,
                 rays = rays,
@@ -49,11 +59,67 @@ namespace Vocore
             return result;
         }
 
+        public NativeBuffer<RayCastResult> CastBatchRay(NativeArrayList<Ray> rays)
+        {
+            NativeBuffer<RayCastResult> result = new NativeBuffer<RayCastResult>(rays.Length);
+            JobCastRay job = new JobCastRay
+            {
+                bvh = this,
+                rays = rays,
+                results = result
+            };
+            job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
+            return result;
+        }
+
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
         {
             Init();
             Reset();
             BuildBottomTop(colliders);
+        }
+
+        private RayCastResult CastRayFast(ref Ray ray, Node node)
+        {
+            if (!UtilsCollision.RayAABB(ray, node.boundingBox)) return RayCastResult.none;
+
+            if (node.IsLeaf)
+            {
+                if (node.collider.IntersectRay(ray, out RaycastHit hitInfo))
+                {
+                    return new RayCastResult
+                    {
+                        hit = true,
+                        hitInfo = hitInfo,
+                        collider = node.collider
+                    };
+                }
+                else
+                {
+                    return RayCastResult.none;
+                }
+
+            }
+
+            if (node.left >= 0)
+            {
+                RayCastResult leftResult = CastRayFast(ref ray, _nodeList[node.left]);
+                if (leftResult.hit)
+                {
+                    return leftResult;
+                }
+            }
+
+            if (node.right >= 0)
+            {
+                RayCastResult rightResult = CastRayFast(ref ray, _nodeList[node.right]);
+                if (rightResult.hit)
+                {
+                    return rightResult;
+                }
+            }
+
+            return RayCastResult.none;
         }
 
         private RayCastResult CastRay(ref Ray ray, Node node)
@@ -78,19 +144,38 @@ namespace Vocore
 
             }
 
+            RayCastResult leftResult = RayCastResult.Default;
+            RayCastResult rightResult = RayCastResult.Default;
+
             if (node.left >= 0)
             {
-                RayCastResult leftResult = CastRay(ref ray, _nodeList[node.left]);
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
+                leftResult = CastRayFast(ref ray, _nodeList[node.left]);
             }
 
             if (node.right >= 0)
             {
-                RayCastResult rightResult = CastRay(ref ray, _nodeList[node.right]);
-                if (rightResult.hit)
+                rightResult = CastRayFast(ref ray, _nodeList[node.right]);
+            }
+
+            if (leftResult.hit == true && rightResult.hit == true)
+            {
+                if (leftResult.hitInfo.fraction < rightResult.hitInfo.fraction)
+                {
+                    return leftResult;
+                }
+                else
+                {
+                    return rightResult;
+                }
+            }
+
+            if (leftResult.hit != rightResult.hit)
+            {
+                if (leftResult.hit)
+                {
+                    return leftResult;
+                }
+                else
                 {
                     return rightResult;
                 }
@@ -226,7 +311,7 @@ namespace Vocore
             }
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         private struct JobCastRay : IJobParallelFor
         {
             public NativeBVH bvh;
@@ -236,6 +321,19 @@ namespace Vocore
             public void Execute(int index)
             {
                 results[index] = bvh.CastRay(rays[index]);
+            }
+        }
+
+        [BurstCompile]
+        private struct JobCastRayFast : IJobParallelFor
+        {
+            public NativeBVH bvh;
+            public NativeArrayList<Ray> rays;
+            public NativeBuffer<RayCastResult> results;
+
+            public void Execute(int index)
+            {
+                results[index] = bvh.CastRayFast(rays[index]);
             }
         }
     }

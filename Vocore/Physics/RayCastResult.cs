@@ -9,7 +9,14 @@ namespace Vocore
         public RaycastHit hitInfo;
         public ColliderRef collider;
 
-        public static RayCastResult none = new RayCastResult
+        public static readonly RayCastResult Default = new RayCastResult
+        {
+            hit = false,
+            hitInfo = new RaycastHit(),
+            collider = new ColliderRef()
+        };
+
+        public static readonly RayCastResult none = new RayCastResult
         {
             hit = false,
             hitInfo = new RaycastHit(),
