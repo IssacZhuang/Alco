@@ -89,9 +89,9 @@ namespace Vocore
         {
             _jobMatrices = new JobCalcMatricesUnsafe
             {
-                positions = _positionBuffer.Raw,
-                rotations = _rotationBuffer.Raw,
-                scales = _scaleBuffer.Raw,
+                positions = _positionBuffer.Ptr,
+                rotations = _rotationBuffer.Ptr,
+                scales = _scaleBuffer.Ptr,
                 matrices = _renderer.MatrixBuffer.PtrHead
             };
         }

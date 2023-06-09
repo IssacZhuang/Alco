@@ -22,8 +22,11 @@ namespace Vocore
         }
 
         private NativeArrayList<Node> _nodeList;
+        private NativeBuffer<RayCastResult> _batchRayCastResult;
         private bool _initialized;
         private Node _root;
+
+        public int Size => _nodeList.Length;
 
         public RayCastResult CastRay(Ray ray)
         {
@@ -47,29 +50,29 @@ namespace Vocore
 
         public NativeBuffer<RayCastResult> CastBatchRayFast(NativeArrayList<Ray> rays)
         {
-            NativeBuffer<RayCastResult> result = new NativeBuffer<RayCastResult>(rays.Length);
+            _batchRayCastResult.EnsureSize(rays.Length);
             JobCastRayFast job = new JobCastRayFast
             {
                 bvh = this,
-                rays = rays,
-                results = result
+                rays = rays.Ptr,
+                results = _batchRayCastResult.Ptr
             };
             job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
 
-            return result;
+            return _batchRayCastResult;
         }
 
         public NativeBuffer<RayCastResult> CastBatchRay(NativeArrayList<Ray> rays)
         {
-            NativeBuffer<RayCastResult> result = new NativeBuffer<RayCastResult>(rays.Length);
+            _batchRayCastResult.EnsureSize(rays.Length);
             JobCastRay job = new JobCastRay
             {
                 bvh = this,
-                rays = rays,
-                results = result
+                rays = rays.Ptr,
+                results = _batchRayCastResult.Ptr
             };
             job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
-            return result;
+            return _batchRayCastResult;
         }
 
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
@@ -77,6 +80,18 @@ namespace Vocore
             Init();
             Reset();
             BuildBottomTop(colliders);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Node GetNodeSafe(int index)
+        {
+            return _nodeList[index];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Node GetNode(int index)
+        {
+            return _nodeList.Ptr[index];
         }
 
         private RayCastResult CastRayFast(ref Ray ray, Node node)
@@ -103,7 +118,7 @@ namespace Vocore
 
             if (node.left >= 0)
             {
-                RayCastResult leftResult = CastRayFast(ref ray, _nodeList[node.left]);
+                RayCastResult leftResult = CastRayFast(ref ray, GetNode(node.left));
                 if (leftResult.hit)
                 {
                     return leftResult;
@@ -112,7 +127,7 @@ namespace Vocore
 
             if (node.right >= 0)
             {
-                RayCastResult rightResult = CastRayFast(ref ray, _nodeList[node.right]);
+                RayCastResult rightResult = CastRayFast(ref ray, GetNode(node.right));
                 if (rightResult.hit)
                 {
                     return rightResult;
@@ -149,12 +164,12 @@ namespace Vocore
 
             if (node.left >= 0)
             {
-                leftResult = CastRayFast(ref ray, _nodeList[node.left]);
+                leftResult = CastRayFast(ref ray, GetNode(node.left));
             }
 
             if (node.right >= 0)
             {
-                rightResult = CastRayFast(ref ray, _nodeList[node.right]);
+                rightResult = CastRayFast(ref ray, GetNode(node.right));
             }
 
             if (leftResult.hit == true && rightResult.hit == true)
@@ -315,8 +330,10 @@ namespace Vocore
         private struct JobCastRay : IJobParallelFor
         {
             public NativeBVH bvh;
-            public NativeArrayList<Ray> rays;
-            public NativeBuffer<RayCastResult> results;
+            [NativeDisableUnsafePtrRestriction]
+            public Ray* rays;
+            [NativeDisableUnsafePtrRestriction]
+            public RayCastResult* results;
 
             public void Execute(int index)
             {
@@ -328,8 +345,10 @@ namespace Vocore
         private struct JobCastRayFast : IJobParallelFor
         {
             public NativeBVH bvh;
-            public NativeArrayList<Ray> rays;
-            public NativeBuffer<RayCastResult> results;
+            [NativeDisableUnsafePtrRestriction]
+            public Ray* rays;
+            [NativeDisableUnsafePtrRestriction]
+            public RayCastResult* results;
 
             public void Execute(int index)
             {

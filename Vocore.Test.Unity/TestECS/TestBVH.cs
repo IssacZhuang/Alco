@@ -28,7 +28,7 @@ namespace Vocore.Test.Unity
             NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>();
             NativeArrayList<Ray> rays = new NativeArrayList<Ray>();
 
-            int colliderCount = 1500;
+            int colliderCount = 10000;
             int rayCount = 10000;
 
             Random random = new Random(12345);

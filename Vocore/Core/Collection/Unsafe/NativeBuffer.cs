@@ -10,15 +10,16 @@ namespace Vocore
     public unsafe struct NativeBuffer<T> : IReadOnlyList<T>, IDisposable where T : unmanaged
     {
         private void* _ptrBuffer;
-        private readonly int _size;
+        private int _size;
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
         public int Length => _size;
 
-        public T* Raw => (T*)_ptrBuffer;
+        public T* Ptr => (T*)_ptrBuffer;
         public int Size => _size;
         public int Stride => _stride;
         public int Count => Size;
+
 
         public T this[int index]
         {
@@ -26,7 +27,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    //if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
                     return ((T*)_ptrBuffer)[index];
                 }
             }
@@ -34,7 +35,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    //if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
                     ((T*)_ptrBuffer)[index] = value;
                 }
             }
@@ -49,11 +50,7 @@ namespace Vocore
 
         public void Dispose()
         {
-            if (_ptrBuffer != null)
-            {
-                UtilsMemory.Free(_ptrBuffer);
-                _ptrBuffer = null;
-            }
+            FreeMemory();
             GC.SuppressFinalize(this);
         }
 
@@ -68,6 +65,24 @@ namespace Vocore
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        public void EnsureSize(int size)
+        {
+            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size == _size) return;
+            FreeMemory();
+            _ptrBuffer = UtilsMemory.Alloc(size * _stride);
+            _size = size;
+        }
+
+        private void FreeMemory()
+        {
+            if (_ptrBuffer != null)
+            {
+                UtilsMemory.Free(_ptrBuffer);
+                _ptrBuffer = null;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
