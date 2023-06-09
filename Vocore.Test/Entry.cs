@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using Vocore;
+using Vocore.Unsafe;
 
 namespace Vocore.Test
 {
@@ -10,7 +11,6 @@ namespace Vocore.Test
     {
         static void Main(string[] _)
         {
-
             try
             {
                 Assembly assembly = Assembly.GetAssembly(typeof(Entry));

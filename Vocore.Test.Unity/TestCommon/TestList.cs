@@ -17,7 +17,7 @@ namespace Vocore.Test.Unity
         [UnitTest("TestList")]
         public void Test()
         {
-            int count = 1000000;
+            int count = 10000;
             NativeArrayList<float> list = new NativeArrayList<float>();
             NativeList<float> list2 = new NativeList<float>(Allocator.Temp);
 
@@ -29,13 +29,16 @@ namespace Vocore.Test.Unity
 
             TestHelper.Benchmark("vocore native list", () =>
             {
-                list.Sort();
+                list.SortJob().Complete();
             });
 
             TestHelper.Benchmark("unity native list", () =>
             {
                 list2.Sort();
             });
+
+            list.Dispose();
+            list2.Dispose();
 
             // TestHelper.Benchmark("multi thread", () =>
             // {

@@ -8,6 +8,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
+using Vocore.Unsafe;
+
 namespace Vocore.Test.Unity
 {
     public struct ComparerX : IComparer<ColliderRef>
@@ -24,11 +26,12 @@ namespace Vocore.Test.Unity
         [UnitTest("Benchmark build BVH tree")]
         public unsafe void TestBuildTree()
         {
-            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>();
-            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>();
+            TestHelper.PrintBlue(UtilsMemory.SizeOf<NativeBVH.Node>());
+            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
+            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
             NativeArrayList<Ray> rays = new NativeArrayList<Ray>();
 
-            int colliderCount = 10000;
+            int colliderCount = 1500;
             int rayCount = 10000;
 
             Random random = new Random(12345);
@@ -64,33 +67,36 @@ namespace Vocore.Test.Unity
                 rays.Add(Ray.CreateWithStartAndEnd(start, end));
             }
 
-            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>(64, false);
+            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>(colliderCount, false);
 
             NativeBVH bvh = new NativeBVH();
 
+            ColliderBox* ptrBox = boxs.Ptr;
+            ColliderSphere* ptrSphere = spheres.Ptr;
 
-            TestHelper.Benchmark("sort coliider", () =>
+            colliders.Clear();
+
+            TestHelper.Benchmark("add coliider", () =>
             {
-                colliders.Sort(default(ComparerX));
+                for (int i = 0; i < boxs.Length; i++)
+                {
+                    colliders.Add(ColliderRef.Create(ptrBox + i));
+                }
+
+                for (int i = 0; i < spheres.Length; i++)
+                {
+                    colliders.Add(ColliderRef.Create(ptrSphere + i));
+                }
             });
 
-            ColliderBox* ptr = boxs.Ptr;
-            for (int i = 0; i < colliderCount; i++)
-            {
-                colliders.Add(ColliderRef.Create(ref *(ptr + i)));
-            }
-
-            bvh.BuildTree(colliders);
-            colliders.Clear();
+            // TestHelper.Benchmark("sort coliider", () =>
+            // {
+            //     colliders.Sort(default(ComparerX));
+            // });
 
             TestHelper.Benchmark("Build BVH tree", () =>
             {
-                for (int i = 0; i < colliderCount; i++)
-                {
-                    colliders.Add(ColliderRef.Create(ref *(ptr + i)));
-                }
                 bvh.BuildTree(colliders);
-
             });
 
             TestHelper.Benchmark("Ray cast bvh", () =>
@@ -100,22 +106,14 @@ namespace Vocore.Test.Unity
 
             TestHelper.Benchmark("Ray cast bvh fast", () =>
             {
-                bvh.CastBatchRay(rays);
+                bvh.CastBatchRayFast(rays);
             });
 
-
-
-            // TestHelper.Benchmark("Ray cast brute force", () =>
-            // {
-            //     for (int i = 0; i < rayCount; i++)
-            //     {
-            //         for (int j = 0; j < colliderCount; j++)
-            //         {
-            //             UtilsCollision.RayAABB(rays[i], list[j].GetBoundingBox());
-            //         }
-            //     }
-            // });
-
+            boxs.Dispose();
+            spheres.Dispose();
+            rays.Dispose();
+            colliders.Dispose();
+            bvh.Dispose();
         }
     }
 }

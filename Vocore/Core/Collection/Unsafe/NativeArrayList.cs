@@ -101,6 +101,14 @@ namespace Vocore
             this[index] = value;
         }
 
+        public unsafe void UnsafeAdd(T value)
+        {
+            EnsureSize(_size + 1);
+            _size++;
+            Ptr[_size - 1] = value;
+        }
+
+
         public bool Remove(T value)
         {
             for (int i = 0; i < _size; i++)
@@ -185,6 +193,12 @@ namespace Vocore
             _isDisposed = true;
             UtilsMemory.Free(_ptrBuffer);
             GC.SuppressFinalize(this);
+        }
+
+        public void EnsureCapacityAndDiableAutoCompress(int size)
+        {
+            Resize(size);
+            _autoCompress = false;
         }
 
         private void Resize(int size)

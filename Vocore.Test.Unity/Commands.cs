@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using System.Collections.Generic;
 
+using Vocore.Unsafe;
 using UnityToolBox;
 using UnityToolBox.UnitTest;
 
@@ -14,6 +15,10 @@ namespace Vocore.Test.Unity
         {
             Assembly assembly = Assembly.GetAssembly(typeof(Commands));
             TestHelper.StartTest(assembly);
+            foreach (var leak in PointerTracker.GetAllocated())
+            {
+                Terminal.Log(TerminalLogType.Error, leak.ToString() + "\n");
+            }
         }
     }
 }

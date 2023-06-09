@@ -10,7 +10,7 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace Vocore
 {
-    public unsafe struct NativeBVH
+    public unsafe struct NativeBVH : IDisposable
     {
         public struct Node
         {
@@ -23,8 +23,8 @@ namespace Vocore
 
         private NativeArrayList<Node> _nodeList;
         private NativeBuffer<RayCastResult> _batchRayCastResult;
-        private bool _initialized;
         private Node _root;
+        private bool _isDisposed;
 
         public int Size => _nodeList.Length;
 
@@ -77,7 +77,7 @@ namespace Vocore
 
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
         {
-            Init();
+            _nodeList.EnsureCapacityAndDiableAutoCompress(colliders.Length * 2);
             Reset();
             BuildBottomTop(colliders);
         }
@@ -199,17 +199,6 @@ namespace Vocore
             return RayCastResult.none;
         }
 
-        private void Init()
-        {
-            if (_initialized)
-            {
-                return;
-            }
-
-            _initialized = true;
-            _nodeList = new NativeArrayList<Node>(64, false);
-        }
-
         private void Reset()
         {
             _nodeList.Clear();
@@ -235,7 +224,11 @@ namespace Vocore
             // }
 
             StartJobBuildLeaf(colliders).Complete();
+            BuildBranch();
+        }
 
+        private void BuildBranch()
+        {
             int start = 0;
             int end = _nodeList.Length;
 
@@ -248,11 +241,11 @@ namespace Vocore
                     int right = i + 1;
                     if (right >= end)
                     {
-                        _nodeList.Add(CreateParent(left));
+                        _nodeList.UnsafeAdd(CreateParent(left));
                     }
                     else
                     {
-                        _nodeList.Add(CreateParent(left, right));
+                        _nodeList.UnsafeAdd(CreateParent(left, right));
                     }
                 }
 
@@ -263,7 +256,7 @@ namespace Vocore
             if (end - start == 2)
             {
                 _root = CreateParent(start, start + 1);
-                _nodeList.Add(_root);
+                _nodeList.UnsafeAdd(_root);
             }
         }
 
@@ -273,7 +266,7 @@ namespace Vocore
             {
                 left = singleChild,
                 right = -1,
-                boundingBox = _nodeList[singleChild].boundingBox
+                boundingBox = GetNode(singleChild).boundingBox
             };
         }
 
@@ -283,7 +276,7 @@ namespace Vocore
             {
                 left = left,
                 right = right,
-                boundingBox = BoundingBox.Merge(_nodeList[left].boundingBox, _nodeList[right].boundingBox)
+                boundingBox = BoundingBox.Merge(GetNode(left).boundingBox, GetNode(right).boundingBox)
             };
         }
 
@@ -311,10 +304,41 @@ namespace Vocore
             }
             return new JobBuildLeaf
             {
-                nodeList = (Node*)_nodeList.Ptr,
+                nodeList = _nodeList.Ptr,
             }.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length));
         }
 
+        private JobHandle StartJobBuildBranch()
+        {
+            return new JobBuildBranch
+            {
+                bvh = this
+            }.Schedule();
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _batchRayCastResult.Dispose();
+            _nodeList.Dispose();
+            _isDisposed = true;
+        }
+
+        [BurstCompile]
+        private struct JobBuildBranch : IJob
+        {
+            public NativeBVH bvh;
+            public void Execute()
+            {
+                bvh.BuildBranch();
+            }
+        }
+
+        [BurstCompile]
         private struct JobBuildLeaf : IJobParallelFor
         {
             [NativeDisableUnsafePtrRestriction]

@@ -11,10 +11,10 @@ namespace Vocore
     {
         private void* _ptrBuffer;
         private int _size;
+        private bool _isDisposed;
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
         public int Length => _size;
-
         public T* Ptr => (T*)_ptrBuffer;
         public int Size => _size;
         public int Stride => _stride;
@@ -45,11 +45,13 @@ namespace Vocore
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
-            this._size = size;
+            _size = size;
+            _isDisposed = false;
         }
 
         public void Dispose()
         {
+            if (_isDisposed) return;
             FreeMemory();
             GC.SuppressFinalize(this);
         }
@@ -82,6 +84,7 @@ namespace Vocore
             {
                 UtilsMemory.Free(_ptrBuffer);
                 _ptrBuffer = null;
+                _size = 0;
             }
         }
 

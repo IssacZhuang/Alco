@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Unity.Jobs;
+using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 
 using Vocore.Unsafe;
@@ -22,18 +23,64 @@ namespace Vocore
         //     IntroSort<T, U>((T*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks<T>(list), list.Length, comp);
         // }
 
+
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
+        public unsafe static JobHandle SortJob<T>(this NativeArrayList<T> list) where T : unmanaged, IComparable<T>
+        {
+            return list.SortJob(default(DefaultComparer<T>));
+        }
+
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
+        public unsafe static JobHandle SortJob<T, U>(this NativeArrayList<T> list, U comp) where T : unmanaged where U : IComparer<T>
+        {
+            JobSortNativeArrayList<T, U> job = new JobSortNativeArrayList<T, U>
+            {
+                list = list,
+                comp = comp
+            };
+            return job.Schedule();
+        }
+
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
         public unsafe static void Sort<T , U>(this NativeArrayList<T> list, U comp) where T : unmanaged where U : IComparer<T>
         {
 
             IntroSort<T, U>(list.Ptr, list.Length, comp);
         }
 
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
         public unsafe static void Sort<T>(this NativeArrayList<T> list) where T : unmanaged, IComparable<T>
         {
 
             IntroSort<T, DefaultComparer<T>>(list.Ptr, list.Length, default(DefaultComparer<T>));
         }
 
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
         public unsafe static void Sort<T>(this T[] array) where T : unmanaged, IComparable<T>
         {
             fixed (T* ptr = array)
@@ -42,11 +89,23 @@ namespace Vocore
             }
         }
 
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
         public unsafe static void Sort<T>(T* array, int length) where T : unmanaged, IComparable<T>
         {
             IntroSort<T, DefaultComparer<T>>(array, length, default(DefaultComparer<T>));
         }
 
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
         private struct DefaultComparer<T> : IComparer<T> where T : IComparable<T>
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,6 +115,12 @@ namespace Vocore
             }
         }
 
+        [BurstCompatible(GenericTypeArguments = new[] {
+            typeof(int) ,
+            typeof(DefaultComparer<int>),
+            typeof(float) ,
+            typeof(DefaultComparer<float>),
+            })]
         private unsafe static void IntroSort<T, U>(void* array, int length, U comp) where T : unmanaged where U : IComparer<T>
         {
             IntroSort<T, U>(array, 0, length - 1, 2 * Log2Floor(length), comp);
@@ -97,6 +162,7 @@ namespace Vocore
                 hi = p - 1;
             }
         }
+
 
         private unsafe static int Partition<T, U>(void* array, int lo, int hi, U comp) where T : unmanaged where U : IComparer<T>
         {
@@ -140,7 +206,6 @@ namespace Vocore
                 Heapify<T, U>(array, 1, i - 1, lo, comp);
             }
         }
-
 
         private unsafe static void InsertionSort<T, U>(void* array, int lo, int hi, U comp) where T : unmanaged where U : IComparer<T>
         {
@@ -196,6 +261,17 @@ namespace Vocore
         private static int Log2Floor(int value)
         {
             return 31 - math.lzcnt((uint)value);
+        }
+
+        [BurstCompile]
+        internal struct JobSortNativeArrayList<T, U> : IJob where T : unmanaged where U : IComparer<T>
+        {
+            public NativeArrayList<T> list;
+            public U comp;
+            public void Execute()
+            {
+                list.Sort(comp);
+            }
         }
     }
 }

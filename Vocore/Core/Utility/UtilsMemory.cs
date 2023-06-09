@@ -12,7 +12,7 @@ namespace Vocore.Unsafe
         {
 #if DEBUG
             IntPtr ptr = Marshal.AllocHGlobal(size);
-            PointerTracker.AddAllocated(ptr, Environment.StackTrace);
+            PointerTracker.AddAllocated(ptr, size, Environment.StackTrace);
             return ptr.ToPointer();
 #else
             return Marshal.AllocHGlobal(size).ToPointer();
@@ -42,7 +42,7 @@ namespace Vocore.Unsafe
         {
             IntPtr ptr = Marshal.AllocHGlobal(sizeof(T));
 #if DEBUG
-            PointerTracker.AddAllocated(ptr, Environment.StackTrace);
+            PointerTracker.AddAllocated(ptr, sizeof(T), Environment.StackTrace);
 #endif
             Marshal.StructureToPtr(value, ptr, false);
             return ptr;

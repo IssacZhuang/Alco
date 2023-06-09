@@ -35,6 +35,9 @@ namespace Vocore.Test.Unity
                     UnsafeUtility.Free(ptr, Allocator.Temp);
                 }
             });
+
+            void* tmp = null;
+            TestHelper.Print(tmp == null);
         }
     }
 }

@@ -12,16 +12,14 @@ namespace Vocore
 
         public bool HasCollider => _ptr != null;
 
-        public static ColliderRef Create<T>(ref T collider) where T : unmanaged, ICollider
+        public static ColliderRef Create<T>(T* collider) where T : unmanaged, ICollider
         {
-            fixed (void* ptr = &collider)
+
+            return new ColliderRef
             {
-                return new ColliderRef
-                {
-                    _ptr = ptr,
-                    _type = collider.type
-                };
-            }
+                _ptr = collider,
+                _type = (*collider).type
+            };
         }
 
         public ColliderType type => _type;
