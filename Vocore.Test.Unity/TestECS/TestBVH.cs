@@ -26,7 +26,6 @@ namespace Vocore.Test.Unity
         [UnitTest("Benchmark build BVH tree")]
         public unsafe void TestBuildTree()
         {
-            TestHelper.PrintBlue(UtilsMemory.SizeOf<NativeBVH.Node>());
             NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
             NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
             NativeArrayList<Ray> rays = new NativeArrayList<Ray>();
@@ -115,6 +114,48 @@ namespace Vocore.Test.Unity
             colliders.Dispose();
             bvh.Dispose();
         }
+
+        [UnitTest("Test BVH collision")]
+        public unsafe void TestCollision()
+        {
+            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
+            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
+            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>();
+            Ray ray = Ray.CreateWithStartAndEnd(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
+
+
+
+            boxs.Add(new ColliderBox
+            {
+                shape = new ShapeBox(float3.zero, new float3(1f), quaternion.identity)
+            });
+
+            spheres.Add(new ColliderSphere
+            {
+                shape = new ShapeSphere(float3.zero, 1f)
+            });
+
+            colliders.Add(ColliderRef.Create(boxs.Ptr));
+            colliders.Add(ColliderRef.Create(spheres.Ptr));
+
+            NativeBVH bvh = new NativeBVH();
+
+            bvh.BuildTree(colliders);
+
+            RayCastResult result = bvh.CastRay(ray);
+
+            TestHelper.Assert(result.hit);
+
+
+            ray = Ray.CreateWithStartAndEnd(new float3(-1.2f, 0, 0), new float3(1.2f, 0, 0));
+
+            result = bvh.CastRay(ray);
+
+            TestHelper.Assert(!result.hit);
+            TestHelper.PrintBlue(result.hitInfo.point);
+
+        }
+
     }
 }
 

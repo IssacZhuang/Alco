@@ -19,6 +19,7 @@ namespace Vocore.Test.Unity
             {
                 Terminal.Log(TerminalLogType.Error, leak.ToString() + "\n");
             }
+            GC.Collect();
         }
     }
 }
