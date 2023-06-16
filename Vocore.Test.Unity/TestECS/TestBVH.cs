@@ -8,6 +8,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
+
 using Vocore.Unsafe;
 
 namespace Vocore.Test.Unity

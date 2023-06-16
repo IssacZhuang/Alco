@@ -80,6 +80,7 @@
     <Compile Include="TestCommon\TestList.cs" />
     <Compile Include="TestCommon\TestAlloc.cs" />
     <Compile Include="TestECS\TestBVH.cs" />
+    <Compile Include="TestCommon\Test_ComputeBuffer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

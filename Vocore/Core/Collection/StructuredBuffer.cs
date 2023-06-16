@@ -26,7 +26,7 @@ namespace Vocore
         }
 
         public T[] Raw => _innerArray;
-        public unsafe T* PtrHead
+        public unsafe T* UnsafePtr
         {
             get
             {

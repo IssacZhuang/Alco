@@ -78,6 +78,22 @@ namespace UnityToolBox.UnitTest
             }
         }
 
+        //success if exception throwed
+        public static void ExpectException(Action action, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
+        {
+            try
+            {
+                action();
+                AddFailed();
+                PrintRed(failed);
+            }
+            catch (Exception)
+            {
+                AddSuccess();
+                PrintGreen(success);
+            }
+        }
+
         public static void Benchmark(Action action, string name = TEXT_BENCHMARK)
         {
             Stopwatch stopwatch = new Stopwatch();

@@ -69,7 +69,7 @@ namespace Vocore
             return GetEnumerator();
         }
 
-        public void EnsureSize(int size)
+        public void Resize(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             if (size == _size) return;

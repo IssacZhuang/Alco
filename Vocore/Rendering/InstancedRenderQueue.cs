@@ -92,7 +92,7 @@ namespace Vocore
                 positions = _positionBuffer.Ptr,
                 rotations = _rotationBuffer.Ptr,
                 scales = _scaleBuffer.Ptr,
-                matrices = _renderer.MatrixBuffer.PtrHead
+                matrices = _renderer.MatrixBuffer.UnsafePtr
             };
         }
 

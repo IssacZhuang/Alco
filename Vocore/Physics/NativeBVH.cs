@@ -50,7 +50,7 @@ namespace Vocore
 
         public NativeBuffer<RayCastResult> CastBatchRayFast(NativeArrayList<Ray> rays)
         {
-            _batchRayCastResult.EnsureSize(rays.Length);
+            _batchRayCastResult.Resize(rays.Length);
             JobCastRayFast job = new JobCastRayFast
             {
                 bvh = this,
@@ -64,7 +64,7 @@ namespace Vocore
 
         public NativeBuffer<RayCastResult> CastBatchRay(NativeArrayList<Ray> rays)
         {
-            _batchRayCastResult.EnsureSize(rays.Length);
+            _batchRayCastResult.Resize(rays.Length);
             JobCastRay job = new JobCastRay
             {
                 bvh = this,
