@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Collections.Generic;
 
 using UnityEngine;
-
+using System.Text;
 
 namespace UnityToolBox
 {
@@ -16,6 +16,7 @@ namespace UnityToolBox
         public void Start(){
             LoadAssemblies();
             ExecuteEntry();
+            ExecuteParamCommand();
         }
 
         public static void LoadAssemblies()
@@ -49,20 +50,26 @@ namespace UnityToolBox
                 {
                     Terminal.Log("Trying to load: " + file);
                     string pdb = Path.ChangeExtension(file, ".pdb");
+                    Assembly assembly = null;
                     if (File.Exists(pdb))
                     {
-                        _assemblies.Add(Assembly.Load(File.ReadAllBytes(file), File.ReadAllBytes(pdb)));
+                        assembly = Assembly.Load(File.ReadAllBytes(file), File.ReadAllBytes(pdb));
+                        _assemblies.Add(assembly);
                     }
                     else
                     {
-                        _assemblies.Add(Assembly.Load(File.ReadAllBytes(file)));
+                        assembly = Assembly.Load(File.ReadAllBytes(file));
+                        _assemblies.Add(assembly);
                     }
+                    Terminal.Shell.RegisterCommands(assembly);
                 }
                 catch (Exception e)
                 {
                     Debug.LogError(e);
                 }
             }
+
+
         }
 
         public static void ExecuteEntry()
@@ -100,6 +107,23 @@ namespace UnityToolBox
                     Debug.LogError(e);
                 }
             }
+        }
+
+        public static void ExecuteParamCommand()
+        {
+            string[] envArgs = Environment.GetCommandLineArgs();
+            if (envArgs.Length <= 1) return;
+            StringBuilder command = new StringBuilder();
+
+            for (int i = 1; i < envArgs.Length; i++)
+            {
+                command.Append(envArgs[i]);
+                command.Append(" ");
+            }
+
+            Terminal.Open();
+            Terminal.Log("Execute param command: " + command.ToString());
+            Terminal.Shell.RunCommand(command.ToString());
         }
     }
 }
