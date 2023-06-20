@@ -69,12 +69,24 @@ namespace Vocore
             return GetEnumerator();
         }
 
+        public void FastEnsureSize(int size)
+        {
+            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= _size) return;
+            FreeMemory();
+            _ptrBuffer = UtilsMemory.Alloc(size * _stride);
+            _size = size;
+        }
+
         public void Resize(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             if (size == _size) return;
+            void* ptr = UtilsMemory.Alloc(size * _stride);
+            int min = Math.Min(size, _size);
+            UtilsMemory.MemCopy(_ptrBuffer, ptr, min * _stride);
             FreeMemory();
-            _ptrBuffer = UtilsMemory.Alloc(size * _stride);
+            _ptrBuffer = ptr;
             _size = size;
         }
 

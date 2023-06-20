@@ -99,6 +99,8 @@ namespace Vocore.Test.Unity
                 bvh.BuildTree(colliders);
             });
 
+            TestHelper.PrintBlue(bvh.Size + "," + bvh.Capacity);
+
             TestHelper.Benchmark("Ray cast bvh", () =>
             {
                 bvh.CastBatchRay(rays);
