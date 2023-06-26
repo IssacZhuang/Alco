@@ -40,10 +40,11 @@ if "%1"=="game" (
     exit
 ) 
 
+del /q /s .\Assemblies\*
 mkdir .\Assemblies
 
 dotnet build UnityToolBox\UnityToolBox.csproj --configuration %mode% --output ./Assemblies
 dotnet build Vocore\Vocore.csproj --configuration %mode% --output ./Assemblies
-dotnet build Vocore.Test.Unity\Vocore.Test.Unity.csproj --configuration %mode% --output ./Assemblies
 
-
+rmdir /q /s Vocore\obj
+rmdir /q /s Vocore\bin  

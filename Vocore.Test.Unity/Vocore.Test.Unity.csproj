@@ -8,7 +8,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Vocore.Test.Unity</RootNamespace>
     <AssemblyName>Vocore.Test.Unity</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
@@ -42,9 +42,11 @@
     <Reference Include="System.Xml" />
     <Reference Include="Unity.Entities">
       <HintPath>..\Packages\Unity.DOTS\Unity.Entities.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Physics">
       <HintPath>..\Packages\Unity.DOTS\Unity.Physics.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>..\Packages\UnityEngine\UnityEngine.dll</HintPath>
@@ -71,10 +73,12 @@
     <ProjectReference Include="..\UnityToolBox\UnityToolBox.csproj">
       <Project>{b80ffb1f-c37a-405d-b31a-ea7c4e4adc08}</Project>
       <Name>UnityToolBox</Name>
+      <Private>False</Private>
     </ProjectReference>
     <ProjectReference Include="..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
+      <Private>False</Private>
     </ProjectReference>
     <Compile Include="TestCommon\TestList.cs" />
     <Compile Include="TestCommon\TestAlloc.cs" />
