@@ -10,16 +10,22 @@ namespace Vocore
         public ColliderType type => ColliderType.Box;
         public ShapeBox shape;
 
-        public bool CollidesWith(ICollider other)
+        public unsafe bool CollidesWith<T>(T other) where T : unmanaged, ICollider
         {
-            if (other.type == ColliderType.Box)
+            T* ptr = &other;
+            return CollidesWith(ptr);
+        }
+
+        private unsafe bool CollidesWith<T>(T* other) where T : unmanaged, ICollider
+        {
+            if (other->type == ColliderType.Box)
             {
-                return UtilsCollision.BoxBox(shape, ((ColliderBox)other).shape);
+                return UtilsCollision.BoxBox(shape, ((ColliderBox*)other)->shape);
             }
             
-            if (other.type == ColliderType.Sphere)
+            if (other->type == ColliderType.Sphere)
             {
-                return UtilsCollision.BoxSphere(shape, ((ColliderSphere)other).shape);
+                return UtilsCollision.BoxSphere(shape, ((ColliderSphere*)other)->shape);
             }
 
             return false;

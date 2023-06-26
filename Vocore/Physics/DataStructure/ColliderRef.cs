@@ -24,18 +24,6 @@ namespace Vocore
 
         public ColliderType type => _type;
 
-        public bool CollidesWith(ICollider other)
-        {
-            switch (_type)
-            {
-                case ColliderType.Box:
-                    return (*(ColliderBox*)_ptr).CollidesWith(other);
-                case ColliderType.Sphere:
-                    return (*(ColliderSphere*)_ptr).CollidesWith(other);
-            }
-            return false;
-        }
-
         public bool CollidesWith<T>(T other) where T : unmanaged, ICollider
         {
             switch (_type)

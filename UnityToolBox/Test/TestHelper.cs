@@ -64,7 +64,7 @@ namespace UnityToolBox.UnitTest
         }
 
 
-        public static void Assert(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
+        public static void AssertTrue(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
         {
             if (condition)
             {

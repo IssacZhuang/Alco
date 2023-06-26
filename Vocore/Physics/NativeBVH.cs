@@ -227,7 +227,7 @@ namespace Vocore
             return RayCastResult.none;
         }
 
-        private ColliderCastResult CastColliderBox(ref ColliderBox colliderBox)
+        public ColliderCastResult CastColliderBox(ref ColliderBox colliderBox)
         {
             if (_nodeSize == 0)
             {
@@ -280,7 +280,7 @@ namespace Vocore
             return ColliderCastResult.None;
         }
 
-        private ColliderCastResult CastColliderSphere(ref ColliderSphere colliderSphere)
+        public ColliderCastResult CastColliderSphere(ref ColliderSphere colliderSphere)
         {
             if (_nodeSize == 0)
             {

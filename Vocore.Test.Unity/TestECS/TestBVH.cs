@@ -121,8 +121,8 @@ namespace Vocore.Test.Unity
             bvh.Dispose();
         }
 
-        [UnitTest("Test BVH collision")]
-        public unsafe void TestCollision()
+        [UnitTest("Test BVH ray collision")]
+        public unsafe void TestRayCollision()
         {
             NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
             NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
@@ -150,15 +150,67 @@ namespace Vocore.Test.Unity
 
             RayCastResult result = bvh.CastRay(ray);
 
-            TestHelper.Assert(result.hit);
+            TestHelper.AssertTrue(result.hit);
 
 
             ray = Ray.CreateWithStartAndEnd(new float3(-1.2f, 0, 0), new float3(1.2f, 0, 0));
 
             result = bvh.CastRay(ray);
 
-            TestHelper.Assert(!result.hit);
+            TestHelper.AssertTrue(!result.hit);
             TestHelper.PrintBlue(result.hitInfo.point);
+
+        }
+
+        [UnitTest("Test BVH collider collision")]
+        public unsafe void TestColliderCollision()
+        {
+            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
+            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
+            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>();
+
+            boxs.Add(new ColliderBox
+            {
+                shape = new ShapeBox(float3.zero, new float3(1f), quaternion.identity)
+            });
+
+            spheres.Add(new ColliderSphere
+            {
+                shape = new ShapeSphere(float3.zero, 1f)
+            });
+
+            colliders.Add(ColliderRef.Create(boxs.Ptr));
+            colliders.Add(ColliderRef.Create(spheres.Ptr));
+
+            NativeBVH bvh = new NativeBVH();
+
+            bvh.BuildTree(colliders);
+
+            ColliderBox boxCast1 = new ColliderBox
+            {
+                shape = new ShapeBox(new float3(-2, 1.1f, 0), new float3(1f), quaternion.identity)
+            };
+
+            ColliderBox boxCast2 = new ColliderBox
+            {
+                shape = new ShapeBox(new float3(-1.2f, 0, 0), new float3(1f), quaternion.identity)
+            };
+
+            ColliderSphere sphereCast1 = new ColliderSphere
+            {
+                shape = new ShapeSphere(new float3(-2, 1.1f, 0), 1f)
+            };
+
+            ColliderSphere sphereCast2 = new ColliderSphere
+            {
+                shape = new ShapeSphere(new float3(-1.2f, 0, 0), 1f)
+            };
+
+            TestHelper.AssertTrue(bvh.CastColliderBox(ref boxCast1).hit);
+            TestHelper.AssertTrue(!bvh.CastColliderBox(ref boxCast2).hit);
+
+            TestHelper.AssertTrue(bvh.CastColliderSphere(ref sphereCast1).hit);
+            TestHelper.AssertTrue(!bvh.CastColliderSphere(ref sphereCast2).hit);
 
         }
 
