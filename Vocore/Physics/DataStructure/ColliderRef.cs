@@ -36,6 +36,18 @@ namespace Vocore
             return false;
         }
 
+        public bool CollidesWith<T>(T other) where T : unmanaged, ICollider
+        {
+            switch (_type)
+            {
+                case ColliderType.Box:
+                    return (*(ColliderBox*)_ptr).CollidesWith(other);
+                case ColliderType.Sphere:
+                    return (*(ColliderSphere*)_ptr).CollidesWith(other);
+            }
+            return false;
+        }
+
         public BoundingBox GetBoundingBox()
         {
             switch (_type)

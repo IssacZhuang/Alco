@@ -22,6 +22,8 @@ namespace Vocore
 
         private NativeBuffer<Node> _nodes;
         private NativeBuffer<RayCastResult> _batchRayCastResult;
+        private NativeBuffer<ColliderCastResult> _batchColliderBoxCastResult;
+        private NativeBuffer<ColliderCastResult> _batchColliderSphereCastResult;
         private Node _root;
         private int _nodeSize;
         private bool _isDisposed;
@@ -74,6 +76,32 @@ namespace Vocore
             };
             job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
             return _batchRayCastResult;
+        }
+
+        public NativeBuffer<ColliderCastResult> CastBatchColliderBox(NativeArrayList<ColliderBox> colliders)
+        {
+            _batchColliderBoxCastResult.FastEnsureSize(colliders.Length);
+            JobCastColliderBox job = new JobCastColliderBox
+            {
+                bvh = this,
+                colliderBoxes = colliders.Ptr,
+                results = _batchColliderBoxCastResult.Ptr
+            };
+            job.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length)).Complete();
+            return _batchColliderBoxCastResult;
+        }
+
+        public NativeBuffer<ColliderCastResult> CastBatchColliderSphere(NativeArrayList<ColliderSphere> colliders)
+        {
+            _batchColliderSphereCastResult.FastEnsureSize(colliders.Length);
+            JobCastColliderSphere job = new JobCastColliderSphere
+            {
+                bvh = this,
+                colliderSpheres = colliders.Ptr,
+                results = _batchColliderSphereCastResult.Ptr
+            };
+            job.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length)).Complete();
+            return _batchColliderSphereCastResult;
         }
 
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
@@ -197,6 +225,111 @@ namespace Vocore
             }
 
             return RayCastResult.none;
+        }
+
+        private ColliderCastResult CastColliderBox(ref ColliderBox colliderBox)
+        {
+            if (_nodeSize == 0)
+            {
+                return ColliderCastResult.None;
+            }
+
+            return CastColliderBox(ref colliderBox, _root);
+        
+        }
+
+        private ColliderCastResult CastColliderBox(ref ColliderBox colliderBox, Node node)
+        {
+            if (!colliderBox.GetBoundingBox().Intersects(node.boundingBox)) return ColliderCastResult.None;
+
+            if (node.IsLeaf)
+            {
+                if (node.collider.CollidesWith<ColliderBox>(colliderBox))
+                {
+                    return new ColliderCastResult
+                    {
+                        hit = true,
+                        collider = node.collider
+                    };
+                }
+                else
+                {
+                    return ColliderCastResult.None;
+                }
+
+            }
+
+            if (node.left >= 0)
+            {
+                ColliderCastResult leftResult = CastColliderBox(ref colliderBox, GetNode(node.left));
+                if (leftResult.hit)
+                {
+                    return leftResult;
+                }
+            }
+
+            if (node.right >= 0)
+            {
+                ColliderCastResult rightResult = CastColliderBox(ref colliderBox, GetNode(node.right));
+                if (rightResult.hit)
+                {
+                    return rightResult;
+                }
+            }
+
+            return ColliderCastResult.None;
+        }
+
+        private ColliderCastResult CastColliderSphere(ref ColliderSphere colliderSphere)
+        {
+            if (_nodeSize == 0)
+            {
+                return ColliderCastResult.None;
+            }
+
+            return CastColliderSphere(ref colliderSphere, _root);
+        }
+
+        private ColliderCastResult CastColliderSphere(ref ColliderSphere colliderSphere, Node node)
+        {
+            if (!colliderSphere.GetBoundingBox().Intersects(node.boundingBox)) return ColliderCastResult.None;
+
+            if (node.IsLeaf)
+            {
+                if (node.collider.CollidesWith<ColliderSphere>(colliderSphere))
+                {
+                    return new ColliderCastResult
+                    {
+                        hit = true,
+                        collider = node.collider
+                    };
+                }
+                else
+                {
+                    return ColliderCastResult.None;
+                }
+
+            }
+
+            if (node.left >= 0)
+            {
+                ColliderCastResult leftResult = CastColliderSphere(ref colliderSphere, GetNode(node.left));
+                if (leftResult.hit)
+                {
+                    return leftResult;
+                }
+            }
+
+            if (node.right >= 0)
+            {
+                ColliderCastResult rightResult = CastColliderSphere(ref colliderSphere, GetNode(node.right));
+                if (rightResult.hit)
+                {
+                    return rightResult;
+                }
+            }
+
+            return ColliderCastResult.None;
         }
 
 
@@ -386,6 +519,36 @@ namespace Vocore
             public void Execute(int index)
             {
                 results[index] = bvh.CastRayFast(rays[index]);
+            }
+        }
+
+        [BurstCompile]
+        private struct JobCastColliderBox : IJobParallelFor
+        {
+            public NativeBVH bvh;
+            [NativeDisableUnsafePtrRestriction]
+            public ColliderBox* colliderBoxes;
+            [NativeDisableUnsafePtrRestriction]
+            public ColliderCastResult* results;
+
+            public void Execute(int index)
+            {
+                results[index] = bvh.CastColliderBox(ref colliderBoxes[index]);
+            }
+        }
+
+        [BurstCompile]
+        private struct JobCastColliderSphere : IJobParallelFor
+        {
+            public NativeBVH bvh;
+            [NativeDisableUnsafePtrRestriction]
+            public ColliderSphere* colliderSpheres;
+            [NativeDisableUnsafePtrRestriction]
+            public ColliderCastResult* results;
+
+            public void Execute(int index)
+            {
+                results[index] = bvh.CastColliderSphere(ref colliderSpheres[index]);
             }
         }
     }

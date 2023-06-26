@@ -13,7 +13,7 @@ using UnityToolBox.UnitTest;
 
 namespace Vocore.Test.Unity
 {
-    public class Test_ComputeBuffer
+    public class TestComputeBuffer
     {
         [UnitTest("Copy to ComputeBuffer")]
         public void TestTransfer()
@@ -48,7 +48,7 @@ namespace Vocore.Test.Unity
                 }
             });
 
-            
+            computeBuffer.Dispose();
 
         }
     }

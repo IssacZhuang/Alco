@@ -94,6 +94,9 @@ namespace Vocore.Test.Unity
             //     colliders.Sort(default(ComparerX));
             // });
 
+            //warm up
+            bvh.BuildTree(colliders);
+
             TestHelper.Benchmark("Build BVH tree", () =>
             {
                 bvh.BuildTree(colliders);
