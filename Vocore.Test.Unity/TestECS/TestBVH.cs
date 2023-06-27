@@ -174,13 +174,30 @@ namespace Vocore.Test.Unity
                 shape = new ShapeBox(float3.zero, new float3(1f), quaternion.identity)
             });
 
+            boxs.Add(new ColliderBox
+            {
+                shape = new ShapeBox(new float3(5, 0, 0), new float3(1f), quaternion.identity)
+            });
+
+            boxs.Add(new ColliderBox
+            {
+                shape = new ShapeBox(new float3(5, 5, 0), new float3(1f), quaternion.identity)
+            });
+
             spheres.Add(new ColliderSphere
             {
                 shape = new ShapeSphere(float3.zero, 1f)
             });
 
-            colliders.Add(ColliderRef.Create(boxs.Ptr));
-            colliders.Add(ColliderRef.Create(spheres.Ptr));
+            for (int i = 0; i < boxs.Length; i++)
+            {
+                colliders.Add(ColliderRef.Create(boxs.Ptr + i));
+            }
+
+            for (int i = 0; i < spheres.Length; i++)
+            {
+                colliders.Add(ColliderRef.Create(spheres.Ptr + i));
+            }
 
             NativeBVH bvh = new NativeBVH();
 
