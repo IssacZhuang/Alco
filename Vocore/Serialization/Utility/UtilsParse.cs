@@ -45,6 +45,9 @@ namespace Vocore
             RegisterParser<float2>(str => str.ToFloat2());
             RegisterParser<float3>(str => str.ToFloat3());
             RegisterParser<float4>(str => str.ToFloat4Adaptive());
+            RegisterParser<Vector2>(str => str.ToVector2());
+            RegisterParser<Vector3>(str => str.ToVector3());
+            RegisterParser<Vector4>(str => str.ToVector4Adaptive());
             RegisterParser<quaternion>(str => str.ToQuaternion());
             RegisterParser<Color>(str => str.ToColor());
             RegisterParser<Rect>(str => str.ToRect());
@@ -184,7 +187,7 @@ namespace Vocore
 
 
         /// <summary>
-        /// Parse a string to UnityEngine.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
+        /// Parse a string to Unity.Mathmatics.float2. For example: string "(1,1)" or "(1)" is float2(1,1)
         /// </summary>
         public static float2 ToFloat2(this string Str)
         {
@@ -211,7 +214,7 @@ namespace Vocore
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
+        /// Parse a string to Unity.Mathmatics.float3. For example: string "(1,1,1)" is float3(1,1,1)
         /// </summary>
         public static float3 ToFloat3(this string Str)
         {
@@ -226,7 +229,7 @@ namespace Vocore
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
+        /// Parse a string to Unity.Mathmatics.quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
         /// </summary>
         public static quaternion ToQuaternion(this string Str)
         {
@@ -242,7 +245,7 @@ namespace Vocore
         }
 
         /// <summary>
-        /// Parse a string to UnityEngine.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
+        /// Parse a string to Unity.Mathmatics.float4. For example: string "(1,1,1,1)" is float4(1,1,1,1)  
         /// </summary>
         public static float4 ToFloat4Adaptive(this string Str)
         {
@@ -271,6 +274,80 @@ namespace Vocore
                 w = Convert.ToSingle(array[3], invariantCulture);
             }
             return new float4(x, y, z, w);
+        }
+
+        /// <summary>
+        /// Parse a string to UnityEngine.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
+        /// </summary>
+        public static Vector2 ToVector2(this string Str)
+        {
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
+            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
+            float x;
+            float y;
+            if (array.Length == 1)
+            {
+                y = (x = Convert.ToSingle(array[0], invariantCulture));
+            }
+            else
+            {
+                if (array.Length != 2)
+                {
+                    throw new InvalidOperationException();
+                }
+                x = Convert.ToSingle(array[0], invariantCulture);
+                y = Convert.ToSingle(array[1], invariantCulture);
+            }
+            return new Vector2(x, y);
+        }
+
+        /// <summary>
+        /// Parse a string to UnityEngine.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
+        /// </summary>
+        public static Vector3 ToVector3(this string Str)
+        {
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
+            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
+            float x = Convert.ToSingle(array[0], invariantCulture);
+            float y = Convert.ToSingle(array[1], invariantCulture);
+            float z = Convert.ToSingle(array[2], invariantCulture);
+            return new Vector3(x, y, z);
+        }
+
+        /// <summary>
+        /// Parse a string to UnityEngine.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
+        /// </summary>
+        public static Vector4 ToVector4Adaptive(this string Str)
+        {
+            Str = Str.TrimStart(_trimStart);
+            Str = Str.TrimEnd(_trimEnd);
+            string[] array = Str.Split(_split);
+            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
+            float x = 0f;
+            float y = 0f;
+            float z = 0f;
+            float w = 0f;
+            if (array.Length >= 1)
+            {
+                x = Convert.ToSingle(array[0], invariantCulture);
+            }
+            if (array.Length >= 2)
+            {
+                y = Convert.ToSingle(array[1], invariantCulture);
+            }
+            if (array.Length >= 3)
+            {
+                z = Convert.ToSingle(array[2], invariantCulture);
+            }
+            if (array.Length >= 4)
+            {
+                w = Convert.ToSingle(array[3], invariantCulture);
+            }
+            return new Vector4(x, y, z, w);
         }
 
         /// <summary>

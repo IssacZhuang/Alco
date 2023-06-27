@@ -6,7 +6,6 @@ namespace Vocore{
     {
         public const string Key = "Key";
         public const string Value = "Value";
-
         public const string Class = "Class";
     }
 }
