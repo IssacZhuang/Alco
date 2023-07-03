@@ -26,9 +26,9 @@ namespace Vocore.Test
         {
             EventTestObject obj = new EventTestObject();
             Event evt = EventGenerator.Generate("TestEvent");
-            obj.RegisterEvent<EventTestObject, int>(evt, obj.OnEvent);
-            obj.SendEvent<EventTestObject, int>(evt, 1);
-            obj.UnregisterEvent<EventTestObject, int>(evt);
+            ObjectEventExtension.RegisterEvent<EventTestObject, int>(obj, evt, obj.OnEvent);
+            ObjectEventExtension.SendEvent<EventTestObject, int>(obj, evt, 1);
+            ObjectEventExtension.UnregisterEvent<EventTestObject, int>(obj, evt);
         }
 
         [Test("Bechmark event send and recieve")]
@@ -36,17 +36,17 @@ namespace Vocore.Test
         {
             EventTestObject2 obj = new EventTestObject2();
             Event evt = EventGenerator.Generate("TestEvent");
-            obj.RegisterEvent<EventTestObject2, int>(evt, obj.OnEvent);
+            ObjectEventExtension.RegisterEvent<EventTestObject2, int>(obj, evt, obj.OnEvent);
 
             TestHelper.Benchmark("Bechmark event", () =>
             {
                 for (int i = 0; i < 100000; i++)
                 {
-                    obj.SendEvent<EventTestObject2, int>(evt, i);
+                    ObjectEventExtension.SendEvent<EventTestObject2, int>(obj, evt, i);
                 }
             });
 
-            obj.UnregisterEvent<EventTestObject2, int>(evt);
+            ObjectEventExtension.UnregisterEvent<EventTestObject2, int>(obj, evt);
         }
     }
 }
