@@ -159,6 +159,7 @@
     <Folder Include="Algorithm\" />
     <Folder Include="Properties\CSharp\" />
     <Compile Include="Physics\TestBVH.cs" />
+    <Compile Include="Event\Test_Event.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
