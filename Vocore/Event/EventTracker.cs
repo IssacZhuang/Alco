@@ -8,7 +8,7 @@ namespace Vocore
     {
         private static Dictionary<object, List<EventEntry<TData>>> _events = new Dictionary<object, List<EventEntry<TData>>>();
 
-        public static void Subscribe(Event evt, object target, Action<TData> action)
+        public static void Subscribe(EventId evt, object target, Action<TData> action)
         {
             if (!_events.ContainsKey(target))
             {
@@ -18,7 +18,7 @@ namespace Vocore
             _events[target].Add(new EventEntry<TData> { evt = evt, action = action });
         }
 
-        public static void Unsubscribe(Event evt, object target)
+        public static void Unsubscribe(EventId evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -45,7 +45,7 @@ namespace Vocore
             _events.Remove(target);
         }
 
-        public static void SendEvent(Event evt, object target, TData data)
+        public static void SendEvent(EventId evt, object target, TData data)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -73,7 +73,7 @@ namespace Vocore
     {
         private static Dictionary<object, List<EventEntry>> _events = new Dictionary<object, List<EventEntry>>();
 
-        public static void Subscribe(Event evt, object target, Action action)
+        public static void Subscribe(EventId evt, object target, Action action)
         {
             if (!_events.ContainsKey(target))
             {
@@ -83,7 +83,7 @@ namespace Vocore
             _events[target].Add(new EventEntry { evt = evt, action = action });
         }
 
-        public static void Unsubscribe(Event evt, object target)
+        public static void Unsubscribe(EventId evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -109,7 +109,7 @@ namespace Vocore
             _events.Remove(target);
         }
 
-        public static void SendEvent(Event evt, object target)
+        public static void SendEvent(EventId evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {

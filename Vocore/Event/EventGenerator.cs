@@ -8,9 +8,9 @@ namespace Vocore
     {
         private static int _index = 0;
 
-        public static Event Generate(string desc)
+        public static EventId Generate(string desc)
         {
-            return new Event(GetIndex(), desc);
+            return new EventId(GetIndex(), desc);
         }
 
         private static int GetIndex()

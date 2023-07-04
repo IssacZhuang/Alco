@@ -4,14 +4,14 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
-    public struct Event : IEquatable<Event>
+    public struct EventId : IEquatable<EventId>
     {
         private const string DebugStringFormat = "Event: id = {0}, desc = {1}";
         private int _id;
         // used for debugging
         private string _desc;
 
-        public Event(int id, string desc)
+        public EventId(int id, string desc)
         {
             _id = id;
             _desc = desc;
@@ -36,21 +36,21 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(Event other)
+        public bool Equals(EventId other)
         {
             return _id == other._id;
         }
 
         // operator ==
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(Event lhs, Event rhs)
+        public static bool operator ==(EventId lhs, EventId rhs)
         {
             return lhs.Equals(rhs);
         }
 
         // operator !=
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(Event lhs, Event rhs)
+        public static bool operator !=(EventId lhs, EventId rhs)
         {
             return !lhs.Equals(rhs);
         }

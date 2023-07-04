@@ -25,7 +25,7 @@ namespace Vocore.Test
         public void Test_Send()
         {
             EventTestObject obj = new EventTestObject();
-            Event evt = EventGenerator.Generate("TestEvent");
+            EventId evt = EventGenerator.Generate("TestEvent");
             ObjectEventExtension.RegisterEvent<int>(obj, evt, obj.OnEvent);
             ObjectEventExtension.SendEvent<int>(obj, evt, 1);
             ObjectEventExtension.UnregisterEvent<int>(obj, evt);
@@ -35,7 +35,7 @@ namespace Vocore.Test
         public void Test_Send_Benchmark()
         {
             EventTestObject2 obj = new EventTestObject2();
-            Event evt = EventGenerator.Generate("TestEvent");
+            EventId evt = EventGenerator.Generate("TestEvent");
             ObjectEventExtension.RegisterEvent<int>(obj, evt, obj.OnEvent);
 
             TestHelper.Benchmark("Bechmark event", () =>

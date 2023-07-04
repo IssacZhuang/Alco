@@ -5,13 +5,13 @@ namespace Vocore
 {
     public struct EventEntry<T>
     {
-        public Event evt;
+        public EventId evt;
         public Action<T> action;
     }
 
     public struct EventEntry
     {
-        public Event evt;
+        public EventId evt;
         public Action action;
     }
 }
