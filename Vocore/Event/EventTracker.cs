@@ -4,11 +4,11 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    internal static class EventTracker<TObject, TData>
+    internal static class EventTracker<TData>
     {
-        private static Dictionary<TObject, List<EventEntry<TData>>> _events = new Dictionary<TObject, List<EventEntry<TData>>>();
+        private static Dictionary<object, List<EventEntry<TData>>> _events = new Dictionary<object, List<EventEntry<TData>>>();
 
-        public static void Subscribe(Event evt, TObject target, Action<TData> action)
+        public static void Subscribe(Event evt, object target, Action<TData> action)
         {
             if (!_events.ContainsKey(target))
             {
@@ -18,7 +18,7 @@ namespace Vocore
             _events[target].Add(new EventEntry<TData> { evt = evt, action = action });
         }
 
-        public static void Unsubscribe(Event evt, TObject target)
+        public static void Unsubscribe(Event evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -40,12 +40,12 @@ namespace Vocore
             }
         }
 
-        public static void Unsubscribe(TObject target)
+        public static void Unsubscribe(object target)
         {
             _events.Remove(target);
         }
 
-        public static void SendEvent(Event evt, TObject target, TData data)
+        public static void SendEvent(Event evt, object target, TData data)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -69,11 +69,11 @@ namespace Vocore
         }
     }
 
-    internal static class EventTracker<TObject>
+    internal static class EventTracker
     {
-        private static Dictionary<TObject, List<EventEntry>> _events = new Dictionary<TObject, List<EventEntry>>();
+        private static Dictionary<object, List<EventEntry>> _events = new Dictionary<object, List<EventEntry>>();
 
-        public static void Subscribe(Event evt, TObject target, Action action)
+        public static void Subscribe(Event evt, object target, Action action)
         {
             if (!_events.ContainsKey(target))
             {
@@ -83,7 +83,7 @@ namespace Vocore
             _events[target].Add(new EventEntry { evt = evt, action = action });
         }
 
-        public static void Unsubscribe(Event evt, TObject target)
+        public static void Unsubscribe(Event evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -104,12 +104,12 @@ namespace Vocore
             }
         }
 
-        public static void Unsubscribe(TObject target)
+        public static void Unsubscribe(object target)
         {
             _events.Remove(target);
         }
 
-        public static void SendEvent(Event evt, TObject target)
+        public static void SendEvent(Event evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {

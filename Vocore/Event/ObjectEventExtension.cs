@@ -6,34 +6,34 @@ namespace Vocore
 {
     public static class ObjectEventExtension
     {
-        public static void RegisterEvent<TObject, TData>(TObject obj, Event evt, Action<TData> action) where TObject : class, IEventReciever
+        public static void RegisterEvent<TData>(this IEventReciever obj, Event evt, Action<TData> action)
         {
-            EventTracker<TObject, TData>.Subscribe(evt, obj, action);
+            EventTracker<TData>.Subscribe(evt, obj, action);
         }
 
-        public static void UnregisterEvent<TObject, TData>(TObject obj, Event evt) where TObject : class, IEventReciever
+        public static void UnregisterEvent<TData>(this IEventReciever obj, Event evt)
         {
-            EventTracker<TObject, TData>.Unsubscribe(evt, obj);
+            EventTracker<TData>.Unsubscribe(evt, obj);
         }
 
-        public static void SendEvent<TObject, TData>(TObject obj, Event evt, TData data) where TObject : class, IEventReciever
+        public static void SendEvent<TData>(this IEventReciever obj, Event evt, TData data)
         {
-            EventTracker<TObject, TData>.SendEvent(evt, obj, data);
+            EventTracker<TData>.SendEvent(evt, obj, data);
         }
 
-        public static void RegisterEvent<TObject>(TObject obj, Event evt, Action action) where TObject : class, IEventReciever
+        public static void RegisterEvent(this IEventReciever obj, Event evt, Action action)
         {
-            EventTracker<TObject>.Subscribe(evt, obj, action);
+            EventTracker.Subscribe(evt, obj, action);
         }
 
-        public static void UnregisterEvent<TObject>(TObject obj, Event evt) where TObject : class, IEventReciever
+        public static void UnregisterEvent(this IEventReciever obj, Event evt)
         {
-            EventTracker<TObject>.Unsubscribe(evt, obj);
+            EventTracker.Unsubscribe(evt, obj);
         }
 
-        public static void SendEvent<TObject>(TObject obj, Event evt) where TObject : class, IEventReciever
+        public static void SendEvent(this IEventReciever obj, Event evt)
         {
-            EventTracker<TObject>.SendEvent(evt, obj);
+            EventTracker.SendEvent(evt, obj);
         }
 
     }
