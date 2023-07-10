@@ -7,17 +7,44 @@ using System.Xml;
 
 namespace Vocore
 {
-    public static class XmlParser
+    public class XmlParser
     {
         public const int recursionLimit = 20;
+        private object _lock = new object();
 
-        private static List<string> _errors = new List<string>();
-        private static object _lock = new object();
+        private ParseHelper _parseHelper;
+        private TypeHelper _typeHelper;
+        private Action<string> _errorCallback;
+
+        public XmlParser()
+        {
+            _parseHelper = new ParseHelper();
+           _typeHelper = _parseHelper.TypeHelper;
+        }
+
+        public XmlParser(ParseHelper parseHelper)
+        {
+            if(parseHelper == null)
+                throw new ArgumentNullException(nameof(parseHelper));
+            _parseHelper = parseHelper;
+            _typeHelper = parseHelper.TypeHelper;
+        }
+
+        public XmlParser(params string[] defaultNamespaces)
+        {
+            _parseHelper = new ParseHelper(defaultNamespaces);
+            _typeHelper = _parseHelper.TypeHelper;
+        }
+
+        public void SetErrorCallback(Action<string> errorCallback)
+        {
+            _errorCallback = errorCallback;
+        }
 
         /// <summary>
         /// Parse a XML node to an object
         /// </summary>
-        public static object ParseToObject(this XmlNode xml)
+        public object ParseToObject(XmlNode xml)
         {
             if (xml == null)
             {
@@ -27,7 +54,7 @@ namespace Vocore
             Type typeNode = null;
             try
             {
-                typeNode = UtilsType.GetTypeFromAllAssemblies(xml.Name);
+                typeNode = _typeHelper.GetTypeFromAllAssemblies(xml.Name);
             }
             catch (Exception e)
             {
@@ -41,7 +68,7 @@ namespace Vocore
             {
                 try
                 {
-                    typeAttrClass = UtilsType.GetTypeFromAllAssemblies(attr.Value);
+                    typeAttrClass = _typeHelper.GetTypeFromAllAssemblies(attr.Value);
                 }
                 catch (Exception e)
                 {
@@ -68,7 +95,7 @@ namespace Vocore
 
             if (typeFinal == null)
             {
-                AddError("Type not found: " + (attr != null ? attr.Value : xml.Name) + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                AddError("Type not found: " + (attr != null ? attr.Value : xml.Name) + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
                 return null;
             }
 
@@ -78,28 +105,28 @@ namespace Vocore
         /// <summary>
         /// Parse a XML node to an object with a specific type
         /// </summary>
-        public static object ObjectFromXml(Type type, XmlNode xml, int depth = 0)
+        public object ObjectFromXml(Type type, XmlNode xml, int depth = 0)
         {
             if (depth > recursionLimit)
             {
-                AddError("Recursion limit reached, type: " + type.Name + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                AddError("Recursion limit reached, type: " + type.Name + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
                 return null;
             }
 
             try
             {
-                if (UtilsParse.TryParse(xml.InnerText, type, out Object objParsed))
+                if (_parseHelper.TryParse(xml.InnerText, type, out Object objParsed))
                 {
                     return objParsed;
                 }
             }
             catch (Exception e)
             {
-                AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + ", error: \n" + e + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + ", error: \n" + e + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
             }
 
 
-            if (type.IsList())
+            if (_typeHelper.IsList(type))
             {
                 Type listType = type.GetGenericArguments()[0];
                 IList list = (IList)Activator.CreateInstance(type);
@@ -111,29 +138,29 @@ namespace Vocore
                 return list;
             }
 
-            if (type.IsDictionary())
+            if (_typeHelper.IsDictionary(type))
             {
                 Type[] genericTypes = type.GetGenericArguments();
                 Type keyType = genericTypes[0];
                 Type valueType = genericTypes[1];
-                IDictionary dict = (IDictionary)UtilsType.CreateDictionaty(keyType, valueType);
+                IDictionary dict = (IDictionary)_typeHelper.CreateDictionaty(keyType, valueType);
                 foreach (XmlNode child in xml.ChildNodes)
                 {
                     try
                     {
-                        if (UtilsParse.TryParse(child.Name, keyType, out Object key))
+                        if (_parseHelper.TryParse(child.Name, keyType, out Object key))
                         {
                             object value = ObjectFromXml(valueType, child, depth + 1);
                             dict.Add(key, value);
                         }
                         else
                         {
-                            AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                            AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
                         }
                     }
                     catch (Exception e)
                     {
-                        AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + ", error: \n" + e + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                        AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + ", error: \n" + e + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
                     }
                 }
                 return dict;
@@ -144,12 +171,12 @@ namespace Vocore
                 Type[] genericTypes = type.GetGenericArguments();
                 Type keyType = genericTypes[0];
                 Type valueType = genericTypes[1];
-                if (UtilsParse.TryParse(xml.Name, keyType, out Object key))
+                if (_parseHelper.TryParse(xml.Name, keyType, out Object key))
                 {
                     object value = ObjectFromXml(valueType, xml, depth + 1);
-                    return UtilsType.CreateKeyValuePair(keyType, valueType, key, value);
+                    return _typeHelper.CreateKeyValuePair(keyType, valueType, key, value);
                 }
-                AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
             }
 
             if (type.IsEnum)
@@ -157,7 +184,7 @@ namespace Vocore
                 Object objEnum = Enum.Parse(type, xml.InnerText);
                 if (objEnum == null)
                 {
-                    AddError("Enum parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                    AddError("Enum parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
                 }
                 return objEnum;
             }
@@ -175,7 +202,7 @@ namespace Vocore
 
                     if (nodeUnused.ContainsKey(node.Name))
                     {
-                        AddError("Duplicated node found for field '" + node.Name + "' in type '" + type.Name + "', only the first node will be parsed.\nRaw xml text: \n" + node.GetXmlTextFormated());
+                        AddError("Duplicated node found for field '" + node.Name + "' in type '" + type.Name + "', only the first node will be parsed.\nRaw xml text: \n" + GetXmlTextFormated(node));
                         continue;
                     }
                     nodeUnused.Add(node.Name, node);
@@ -201,7 +228,7 @@ namespace Vocore
 
                 foreach (XmlNode node in nodeUnused.Values)
                 {
-                    AddError("Unused node found: '" + node.Name + "' in type: " + type.Name + "\nRaw xml text: \n" + xml.GetXmlTextFormated());
+                    AddError("Unused node found: '" + node.Name + "' in type: " + type.Name + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
                 }
                 return result;
             }
@@ -213,7 +240,7 @@ namespace Vocore
         /// <summary>
         /// Parse a XML node to an object with a specific type
         /// </summary>
-        public static T ObjectFromXml<T>(XmlNode xml)
+        public T ObjectFromXml<T>(XmlNode xml)
         {
             return (T)ObjectFromXml(typeof(T), xml, 0);
         }
@@ -222,7 +249,7 @@ namespace Vocore
         /// <summary>
         /// Get XML text with line breaks
         /// </summary>
-        public static string GetXmlTextFormated(this XmlNode xml)
+        public string GetXmlTextFormated(XmlNode xml)
         {
             if (xml == null)
             {
@@ -231,33 +258,11 @@ namespace Vocore
             return xml.OuterXml.Replace("><", ">\n<");
         }
 
-        /// <summary>
-        /// Get all errors during the parsing
-        /// </summary>
-        public static IEnumerable<string> GetErrors()
+        private void AddError(string error)
         {
-            foreach (string error in _errors)
+            if (_errorCallback != null)
             {
-                yield return error;
-            }
-        }
-
-        /// <summary>
-        /// Clear cached errors
-        /// </summary>
-        public static void ClearErrors()
-        {
-            lock (_lock)
-            {
-                _errors.Clear();
-            }
-        }
-
-        private static void AddError(string error)
-        {
-            lock (_lock)
-            {
-                _errors.Add(error);
+                _errorCallback(error);
             }
         }
 

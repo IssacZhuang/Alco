@@ -9,11 +9,13 @@ namespace Vocore.Test
 {
     internal class Test_UtilsParse
     {
+        ParseHelper _parseHelper = ParseHelper.Default;
+
         [Test("test UtilsParse.ToInt")]
         public void Test_ToInt()
         {
             string str = "123";
-            int i = UtilsParse.ToInt(str);
+            int i = _parseHelper.ToInt(str);
             TestHelper.Assert(i != 123);
         }
 
@@ -21,7 +23,7 @@ namespace Vocore.Test
         public void Test_ToFloat()
         {
             string str = "123.456";
-            float f = UtilsParse.ToFloat(str);
+            float f = _parseHelper.ToFloat(str);
             TestHelper.Assert(f != 123.456f);
         }
 
@@ -29,7 +31,7 @@ namespace Vocore.Test
         public void Test_ToBool()
         {
             string str = "true";
-            bool b = UtilsParse.ToBool(str);
+            bool b = _parseHelper.ToBool(str);
             TestHelper.Assert(b != true);
         }
 
@@ -37,7 +39,7 @@ namespace Vocore.Test
         public void Test_ToLong()
         {
             string str = "1234567890";
-            long l = UtilsParse.ToLong(str);
+            long l = _parseHelper.ToLong(str);
             TestHelper.Assert(l != 1234567890);
         }
 
@@ -45,7 +47,7 @@ namespace Vocore.Test
         public void Test_ToDouble()
         {
             string str = "123.4567890";
-            double d = UtilsParse.ToDouble(str);
+            double d = _parseHelper.ToDouble(str);
             TestHelper.Assert(d != 123.4567890);
         }
 
@@ -53,7 +55,7 @@ namespace Vocore.Test
         public void Test_ToSByte()
         {
             string str = "123";
-            sbyte sb = UtilsParse.ToSByte(str);
+            sbyte sb = _parseHelper.ToSByte(str);
             TestHelper.Assert(sb != 123);
         }
 
@@ -61,7 +63,7 @@ namespace Vocore.Test
         public void Test_ToByte()
         {
             string str = "123";
-            byte b = UtilsParse.ToByte(str);
+            byte b = _parseHelper.ToByte(str);
             TestHelper.Assert(b != 123);
         }
 
@@ -69,7 +71,7 @@ namespace Vocore.Test
         public void Test_ToVector2()
         {
             string str = "(123.456,789.012)";
-            float2 v = UtilsParse.ToFloat2(str);
+            float2 v = _parseHelper.ToFloat2(str);
             TestHelper.Assert(!v.Equals(new float2(123.456f, 789.012f)));
         }
 
@@ -77,7 +79,7 @@ namespace Vocore.Test
         public void Test_ToVector3()
         {
             string str = "(123.456,789.012,345.678)";
-            float3 v = UtilsParse.ToFloat3(str);
+            float3 v = _parseHelper.ToFloat3(str);
             TestHelper.Assert(!v.Equals(new float3(123.456f, 789.012f, 345.678f)));
         }
 
@@ -85,7 +87,7 @@ namespace Vocore.Test
         public void Test_ToVector4Adaptive()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            float4 v = UtilsParse.ToFloat4Adaptive(str);
+            float4 v = _parseHelper.ToFloat4Adaptive(str);
             TestHelper.Assert(!v.Equals(new float4(123.456f, 789.012f, 345.678f, 901.234f)));
         }
 
@@ -93,7 +95,7 @@ namespace Vocore.Test
         public void Test_ToQuaternion()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            quaternion q = UtilsParse.ToQuaternion(str);
+            quaternion q = _parseHelper.ToQuaternion(str);
             TestHelper.Assert(!q.Equals(new quaternion(123.456f, 789.012f, 345.678f, 901.234f)));
         }
 
@@ -101,11 +103,11 @@ namespace Vocore.Test
         public void Test_ToColor()
         {
             string str = "(0,0,255,255)";
-            Color c = UtilsParse.ToColor(str);
+            Color c = _parseHelper.ToColor(str);
             TestHelper.Assert(c != Color.blue);
 
             str = "#FFFFFF";
-            c = UtilsParse.ToColor(str);
+            c = _parseHelper.ToColor(str);
             TestHelper.Assert(c != Color.white);
         }
 
@@ -113,7 +115,7 @@ namespace Vocore.Test
         public void Test_ToRect()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            Rect r = UtilsParse.ToRect(str);
+            Rect r = _parseHelper.ToRect(str);
             TestHelper.Assert(r != new Rect(123.456f, 789.012f, 345.678f, 901.234f));
         }
 

@@ -10,8 +10,10 @@ using Unity.Mathematics;
 
 namespace Vocore
 {
-    public static class UtilsParse
+    public class ParseHelper
     {
+        public static readonly ParseHelper Default = new ParseHelper();
+
         private static readonly char[] _trimColorStart = new char[]
         {
             '(',
@@ -30,34 +32,33 @@ namespace Vocore
         private static readonly char _trimEnd = ')';
         private static readonly char _split = ',';
 
-        private static Dictionary<Type, Func<string, object>> _parser = new Dictionary<Type, Func<string, object>>();
+        private Dictionary<Type, Func<string, object>> _parser = new Dictionary<Type, Func<string, object>>();
+        private TypeHelper _typeHelper = new TypeHelper();
 
-        static UtilsParse()
+        public TypeHelper TypeHelper
         {
-            RegisterParser<string>(str => str.ParseString());
-            RegisterParser<int>(str => str.ToInt());
-            RegisterParser<float>(str => str.ToFloat());
-            RegisterParser<bool>(str => str.ToBool());
-            RegisterParser<long>(str => str.ToLong());
-            RegisterParser<double>(str => str.ToDouble());
-            RegisterParser<sbyte>(str => str.ToSByte());
-            RegisterParser<byte>(str => str.ToByte());
-            RegisterParser<float2>(str => str.ToFloat2());
-            RegisterParser<float3>(str => str.ToFloat3());
-            RegisterParser<float4>(str => str.ToFloat4Adaptive());
-            RegisterParser<Vector2>(str => str.ToVector2());
-            RegisterParser<Vector3>(str => str.ToVector3());
-            RegisterParser<Vector4>(str => str.ToVector4Adaptive());
-            RegisterParser<quaternion>(str => str.ToQuaternion());
-            RegisterParser<Color>(str => str.ToColor());
-            RegisterParser<Rect>(str => str.ToRect());
-            RegisterParser<Type>(str =>str.ToType());
+            get { return _typeHelper; }
         }
+
+        public ParseHelper()
+        {
+            RegisterAllParser();
+        }
+
+        public ParseHelper(params string[] namespaces)
+        {
+            RegisterAllParser();
+            foreach (var ns in namespaces)
+            {
+                _typeHelper.AddDefaultNamespace(ns);
+            }
+        }
+
 
         /// <summary>
         /// Register a parser for a type.
         /// </summary>
-        public static void RegisterParser<T>(Func<string, T> parser)
+        public void RegisterParser<T>(Func<string, T> parser)
         {
             _parser.Add(typeof(T), (str) => parser(str));
         }
@@ -65,7 +66,7 @@ namespace Vocore
         /// <summary>
         /// Register a parser for a type.
         /// </summary>
-        public static void RegisterParser(Type type, Func<string, object> parser)
+        public void RegisterParser(Type type, Func<string, object> parser)
         {
             _parser.Add(type, parser);
         }
@@ -73,7 +74,7 @@ namespace Vocore
         /// <summary>
         /// Check if a parser is registered for a type.
         /// </summary>
-        public static bool HasParser<T>()
+        public bool HasParser<T>()
         {
             return _parser.ContainsKey(typeof(T));
         }
@@ -81,7 +82,7 @@ namespace Vocore
         /// <summary>
         /// Check if a parser is registered for a type.
         /// </summary>
-        public static bool HasParser(this Type type)
+        public bool HasParser(Type type)
         {
             return _parser.ContainsKey(type);
         }
@@ -89,7 +90,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to a type.
         /// </summary>
-        public static bool TryParse<T>(string str, out T result)
+        public bool TryParse<T>(string str, out T result)
         {
             if (HasParser<T>())
             {
@@ -103,7 +104,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to a type.
         /// </summary>
-        public static bool TryParse(string str, Type type, out object result)
+        public bool TryParse(string str, Type type, out object result)
         {
             if (HasParser(type))
             {
@@ -114,10 +115,33 @@ namespace Vocore
             return false;
         }
 
+
+        public void RegisterAllParser()
+        {
+            RegisterParser<string>(ParseString);
+            RegisterParser<int>(ToInt);
+            RegisterParser<float>(ToFloat);
+            RegisterParser<bool>(ToBool);
+            RegisterParser<long>(ToLong);
+            RegisterParser<double>(ToDouble);
+            RegisterParser<sbyte>(ToSByte);
+            RegisterParser<byte>(ToByte);
+            RegisterParser<float2>(ToFloat2);
+            RegisterParser<float3>(ToFloat3);
+            RegisterParser<float4>(ToFloat4Adaptive);
+            RegisterParser<Vector2>(ToVector2);
+            RegisterParser<Vector3>(ToVector3);
+            RegisterParser<Vector4>(ToVector4Adaptive);
+            RegisterParser<quaternion>(ToQuaternion);
+            RegisterParser<Color>(ToColor);
+            RegisterParser<Rect>(ToRect);
+            RegisterParser<Type>(ToType);
+        }
+
         /// <summary>
         /// Parse a string.
         /// </summary>
-        public static string ParseString(this string str)
+        public string ParseString(string str)
         {
             return str.Replace("\\n", "\n");
         }
@@ -125,7 +149,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to int.
         /// </summary>
-        public static int ToInt(this string str)
+        public int ToInt(string str)
         {
             int result;
             if (!int.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out result))
@@ -138,7 +162,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to float.
         /// </summary>
-        public static float ToFloat(this string str)
+        public float ToFloat(string str)
         {
             return float.Parse(str, CultureInfo.InvariantCulture);
         }
@@ -146,7 +170,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to bool.
         /// </summary>
-        public static bool ToBool(this string str)
+        public bool ToBool(string str)
         {
             return bool.Parse(str);
         }
@@ -154,7 +178,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to long.
         /// </summary>
-        public static long ToLong(this string str)
+        public long ToLong(string str)
         {
             return long.Parse(str, CultureInfo.InvariantCulture);
         }
@@ -162,7 +186,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to double.
         /// </summary>
-        public static double ToDouble(this string str)
+        public double ToDouble(string str)
         {
             return double.Parse(str, CultureInfo.InvariantCulture);
         }
@@ -170,7 +194,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to sbyte.
         /// </summary>
-        public static sbyte ToSByte(this string str)
+        public sbyte ToSByte(string str)
         {
             return sbyte.Parse(str, CultureInfo.InvariantCulture);
         }
@@ -179,17 +203,16 @@ namespace Vocore
         /// <summary>
         /// Parse a string to byte.
         /// </summary>
-        public static byte ToByte(this string str)
+        public byte ToByte(string str)
         {
             return byte.Parse(str, CultureInfo.InvariantCulture);
         }
 
 
-
         /// <summary>
         /// Parse a string to Unity.Mathmatics.float2. For example: string "(1,1)" or "(1)" is float2(1,1)
         /// </summary>
-        public static float2 ToFloat2(this string Str)
+        public float2 ToFloat2(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -216,7 +239,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to Unity.Mathmatics.float3. For example: string "(1,1,1)" is float3(1,1,1)
         /// </summary>
-        public static float3 ToFloat3(this string Str)
+        public float3 ToFloat3(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -231,7 +254,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to Unity.Mathmatics.quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
         /// </summary>
-        public static quaternion ToQuaternion(this string Str)
+        public quaternion ToQuaternion(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -247,7 +270,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to Unity.Mathmatics.float4. For example: string "(1,1,1,1)" is float4(1,1,1,1)  
         /// </summary>
-        public static float4 ToFloat4Adaptive(this string Str)
+        public float4 ToFloat4Adaptive(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -279,7 +302,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to UnityEngine.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
         /// </summary>
-        public static Vector2 ToVector2(this string Str)
+        public Vector2 ToVector2(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -306,7 +329,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to UnityEngine.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
         /// </summary>
-        public static Vector3 ToVector3(this string Str)
+        public Vector3 ToVector3(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -321,7 +344,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to UnityEngine.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
         /// </summary>
-        public static Vector4 ToVector4Adaptive(this string Str)
+        public Vector4 ToVector4Adaptive(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -353,7 +376,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to UnityEngine.Rect. For example: string "(1,1,1,1)" is Rect(1,1,1,1)
         /// </summary>
-        public static Rect ToRect(this string str)
+        public Rect ToRect(string str)
         {
             str = str.TrimStart(_trimStart);
             str = str.TrimEnd(_trimEnd);
@@ -369,7 +392,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to UnityEngine.Color
         /// </summary>
-        public static Color ToColor(this string str)
+        public Color ToColor(string str)
         {
             if (str.StartsWith("#"))
             {
@@ -379,14 +402,14 @@ namespace Vocore
             str = str.TrimStart(_trimColorStart);
             str = str.TrimEnd(_trimColorEnd);
             string[] array = str.Split(_split);
-            float num = array[0].ToFloat();
-            float num2 = array[1].ToFloat();
-            float num3 = array[2].ToFloat();
+            float num = ToFloat(array[0]);
+            float num2 = ToFloat(array[1]);
+            float num3 = ToFloat(array[2]);
             bool flag = num > 1f || num3 > 1f || num2 > 1f;
             float num4 = (float)(flag ? 255 : 1);
             if (array.Length == 4)
             {
-                num4 = array[3].ToFloat();
+                num4 = ToFloat(array[3]);
             }
             Color result;
             if (!flag)
@@ -406,7 +429,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to Enum
         /// </summary>
-        public static object ToEnum(this string str, Type type)
+        public object ToEnum(string str, Type type)
         {
             return Enum.Parse(type, str);
         }
@@ -415,9 +438,9 @@ namespace Vocore
         /// <summary>
         /// Parse a string to Type
         /// </summary>
-        public static Type ToType(this string str)
+        public Type ToType(string str)
         {
-            return UtilsType.GetTypeFromAllAssemblies(str);
+            return _typeHelper.GetTypeFromAllAssemblies(str);
         }
 
     }

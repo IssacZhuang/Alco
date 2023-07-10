@@ -5,26 +5,26 @@ using System.Reflection;
 
 namespace Vocore
 {
-    public static class UtilsType
+    public class TypeHelper
     {
+        public static readonly TypeHelper Default = new TypeHelper();
+        private Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
+        private object _lockListCache = new object();
+        private Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
+        private object _lockDictionaryCache = new object();
+        private Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+        private object _lockTypeCache = new object();
 
-        private static Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
-        private static object _lockListCache = new object();
-        private static Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
-        private static object _lockDictionaryCache = new object();
-        private static Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
-        private static object _lockTypeCache = new object();
-
-        private static List<string> defaultNamespaces = new List<string>{
+        private List<string> defaultNamespaces = new List<string>{
             "Vocore",
             "System"
         };
-        private static object _lockDefaultNamespaces = new object();
+        private object _lockDefaultNamespaces = new object();
 
         /// <summary>
         /// Check if a type is a generic type of another type.
         /// </summary>
-        public static bool IsGenericTypeOf(this Type type, Type genericType)
+        public bool IsGenericTypeOf(Type type, Type genericType)
         {
             if (type == null || genericType == null)
             {
@@ -43,7 +43,7 @@ namespace Vocore
         /// <summary>
         /// Check if a type is a list.
         /// </summary>
-        public static bool IsList(this Type type)
+        public bool IsList(Type type)
         {
             bool result;
             if (_isListCache.TryGetValue(type, out result))
@@ -59,7 +59,7 @@ namespace Vocore
         /// <summary>
         /// Check if a type is a dictionary.
         /// </summary>
-        public static bool IsDictionary(this Type type)
+        public bool IsDictionary(Type type)
         {
             bool result;
             if (_isDictionaryCache.TryGetValue(type, out result))
@@ -71,12 +71,12 @@ namespace Vocore
             return result;
         }
 
-        public static object CreateKeyValuePair(Type keyType, Type valueType, object key, object value)
+        public object CreateKeyValuePair(Type keyType, Type valueType, object key, object value)
         {
-            return Activator.CreateInstance(typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType), new object[]{key,value});
+            return Activator.CreateInstance(typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType), new object[] { key, value });
         }
 
-        public static object CreateDictionaty(Type keyType, Type valueType)
+        public object CreateDictionaty(Type keyType, Type valueType)
         {
             return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType));
         }
@@ -84,7 +84,7 @@ namespace Vocore
         /// <summary>
         /// Get the type from all loaded assemblies.
         /// </summary>
-        public static Type GetTypeFromAllAssemblies(string typeName)
+        public Type GetTypeFromAllAssemblies(string typeName)
         {
             if (_typeCache.TryGetValue(typeName, out Type type))
             {
@@ -119,7 +119,7 @@ namespace Vocore
         /// <summary>
         /// Add a default namespace to search for types. This is used when the type name is not fully qualified.
         /// </summary>
-        public static bool AddDefaultNamespace(string nameSpace)
+        public bool AddDefaultNamespace(string nameSpace)
         {
             lock (_lockDefaultNamespaces)
             {
@@ -135,7 +135,7 @@ namespace Vocore
         /// <summary>
         /// Clear the cache including the default namespaces, the type cache, the list cache and the dictionary cache.
         /// </summary>
-        public static void ClearCache()
+        public void ClearCache()
         {
             lock (_lockListCache)
             {
@@ -158,7 +158,7 @@ namespace Vocore
             }
         }
 
-        private static bool AddIsListCache(Type type, bool result)
+        private bool AddIsListCache(Type type, bool result)
         {
             lock (_lockListCache)
             {
@@ -171,7 +171,7 @@ namespace Vocore
             return false;
         }
 
-        private static bool AddIsDictionaryCache(Type type, bool result)
+        private bool AddIsDictionaryCache(Type type, bool result)
         {
             lock (_lockDictionaryCache)
             {
@@ -184,7 +184,7 @@ namespace Vocore
             return false;
         }
 
-        private static bool AddTypeCache(string typeName, Type type)
+        private bool AddTypeCache(string typeName, Type type)
         {
             lock (_lockTypeCache)
             {

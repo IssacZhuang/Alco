@@ -6,18 +6,20 @@ namespace Vocore.Test
 {
     public class Test_UtilsType
     {
+        TypeHelper _typeHelper = TypeHelper.Default;
+
         [Test("Test_IsList")]
         public void Test_IsList()
         {
             Type type = typeof(List<int>);
-            TestHelper.Assert(!type.IsList(), "Test_IsList failed. " + type.IsList());
+            TestHelper.Assert(!_typeHelper.IsList(type), "Test_IsList failed. " + _typeHelper.IsList(type));
         }
 
         [Test("Test_IsDictionary")]
         public void Test_IsDictionary()
         {
             Type type = typeof(Dictionary<int, string>);
-            TestHelper.Assert(!type.IsDictionary(), "Test_IsDictionary failed. " + type.IsDictionary());
+            TestHelper.Assert(!_typeHelper.IsDictionary(type), "Test_IsDictionary failed. " + _typeHelper.IsDictionary(type));
         }
 
     }

@@ -102,7 +102,13 @@ namespace Vocore.Test
 
             string path = "Vocore.Test.TestFiles.TestObject.xml";
 
-            UtilsType.AddDefaultNamespace("Vocore.Test");
+            XmlParser parser = new XmlParser("Vocore.Test");
+            parser.SetErrorCallback((string error) =>
+            {
+                TestHelper.AddFailed();
+                TestHelper.PrintRed(error);
+            });
+
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
             {
@@ -116,17 +122,8 @@ namespace Vocore.Test
                     string xPath = "Objects/TestCls[Name = 'TestObject']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
-                    TestHelper.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
-
                     // parse xml content
-                    TestCls testClass = xmlNode.ParseToObject() as TestCls;
-
-                    foreach (string error in XmlParser.GetErrors())
-                    {
-                        TestHelper.AddFailed();
-                        TestHelper.PrintRed(error);
-                    }
-                    XmlParser.ClearErrors();
+                    TestCls testClass = parser.ParseToObject(xmlNode) as TestCls;
 
                     if (testClass == null)
                     {
@@ -135,9 +132,9 @@ namespace Vocore.Test
                         return;
                     }
 
+                    TestHelper.AddSuccess();
 
-
-                    //TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
+                    //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
@@ -151,7 +148,13 @@ namespace Vocore.Test
 
             string path = "Vocore.Test.TestFiles.TestObject.xml";
 
-            UtilsType.AddDefaultNamespace("Vocore.Test");
+            XmlParser parser = new XmlParser("Vocore.Test");
+            parser.SetErrorCallback((string error) =>
+            {
+                TestHelper.AddFailed();
+                TestHelper.PrintRed(error);
+            });
+
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
             {
@@ -165,17 +168,10 @@ namespace Vocore.Test
                     string xPath = "Objects/TestCls[Name = 'MissingContent']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
-                    TestHelper.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClass"));
+
 
                     // parse xml content
-                    TestCls testClass = xmlNode.ParseToObject() as TestCls;
-
-                    foreach (string error in XmlParser.GetErrors())
-                    {
-                        TestHelper.AddFailed();
-                        TestHelper.PrintRed(error);
-                    }
-                    XmlParser.ClearErrors();
+                    TestCls testClass = parser.ParseToObject(xmlNode) as TestCls;
 
                     if (testClass == null)
                     {
@@ -184,7 +180,9 @@ namespace Vocore.Test
                         return;
                     }
 
-                    //TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
+                    TestHelper.AddSuccess();
+
+                    //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
@@ -198,7 +196,8 @@ namespace Vocore.Test
 
             string path = "Vocore.Test.TestFiles.TestObject.xml";
 
-            UtilsType.AddDefaultNamespace("Vocore.Test");
+            XmlParser parser = new XmlParser("Vocore.Test");
+
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
             {
@@ -212,17 +211,8 @@ namespace Vocore.Test
                     string xPath = "Objects/TestCls[Name = 'TestObject2']";
                     XmlNode xmlNode = xmlDoc.SelectSingleNode(xPath);
 
-                    TestHelper.PrintBlue("Type of xmlNode: " + Type.GetType("Vocore.Test.TestClassChild"));
-
                     // parse xml content
-                    TestClassChild testClass = xmlNode.ParseToObject() as TestClassChild;
-
-                    foreach (string error in XmlParser.GetErrors())
-                    {
-                        TestHelper.AddFailed();
-                        TestHelper.PrintRed(error);
-                    }
-                    XmlParser.ClearErrors();
+                    TestClassChild testClass = parser.ParseToObject(xmlNode) as TestClassChild;
 
                     if (testClass == null)
                     {
@@ -231,7 +221,9 @@ namespace Vocore.Test
                         return;
                     }
 
-                    //TestUtility.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
+                    TestHelper.AddSuccess();
+
+                    //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
         }
