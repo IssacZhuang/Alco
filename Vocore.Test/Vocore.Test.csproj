@@ -1,4 +1,4 @@
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -110,6 +110,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Vocore.Framework\Vocore.Framework.csproj">
+      <Project>{80a58f52-e22f-4c9a-b277-149117bcad18}</Project>
+      <Name>Vocore.Framework</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
@@ -156,10 +160,12 @@
     <Compile Include="Physics\TestIntersects.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Algorithm\" />
-    <Folder Include="Properties\CSharp\" />
     <Compile Include="Physics\TestBVH.cs" />
     <Compile Include="Event\Test_Event.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Algorithm\" />
+    <Folder Include="Properties\CSharp\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

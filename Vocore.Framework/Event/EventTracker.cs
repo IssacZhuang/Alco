@@ -45,7 +45,7 @@ namespace Vocore
             _events.Remove(target);
         }
 
-        public static void SendEvent(EventId evt, object target, TData data)
+        public static void InvokeEvent(EventId evt, object target, TData data)
         {
             if (!_events.TryGetValue(target, out var list))
             {
@@ -109,7 +109,7 @@ namespace Vocore
             _events.Remove(target);
         }
 
-        public static void SendEvent(EventId evt, object target)
+        public static void InvokeEvent(EventId evt, object target)
         {
             if (!_events.TryGetValue(target, out var list))
             {
