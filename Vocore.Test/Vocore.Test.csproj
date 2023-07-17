@@ -7,7 +7,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Vocore.Test</RootNamespace>
     <AssemblyName>Vocore.Test</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
