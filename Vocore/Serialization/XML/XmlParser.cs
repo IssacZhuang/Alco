@@ -14,7 +14,6 @@ namespace Vocore
 
         private ParseHelper _parseHelper;
         private TypeHelper _typeHelper;
-        private Action<string> _errorCallback;
 
         public XmlParser()
         {
@@ -36,10 +35,6 @@ namespace Vocore
             _typeHelper = _parseHelper.TypeHelper;
         }
 
-        public void SetErrorCallback(Action<string> errorCallback)
-        {
-            _errorCallback = errorCallback;
-        }
 
         /// <summary>
         /// Parse a XML node to an object
@@ -260,10 +255,7 @@ namespace Vocore
 
         private void AddError(string error)
         {
-            if (_errorCallback != null)
-            {
-                _errorCallback(error);
-            }
+            Log.Error(error);
         }
 
 

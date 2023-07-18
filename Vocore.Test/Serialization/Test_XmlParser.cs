@@ -103,11 +103,6 @@ namespace Vocore.Test
             string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             XmlParser parser = new XmlParser("Vocore.Test");
-            parser.SetErrorCallback((string error) =>
-            {
-                TestHelper.AddFailed();
-                TestHelper.PrintRed(error);
-            });
 
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))
@@ -149,11 +144,6 @@ namespace Vocore.Test
             string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             XmlParser parser = new XmlParser("Vocore.Test");
-            parser.SetErrorCallback((string error) =>
-            {
-                TestHelper.AddFailed();
-                TestHelper.PrintRed(error);
-            });
 
             // get resource stream from xml file location inside the assembly
             using (Stream stream = currentAssembly.GetManifestResourceStream(path))

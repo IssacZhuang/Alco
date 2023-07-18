@@ -42,6 +42,14 @@ namespace Vocore
 			}
 			return FromBytes(r, g, b, a);
 		}
+
+		/// <summary>
+		/// Convert Color to hex string. For example: (r:255, g:255, b:255, a:255) is #FFFFFF.
+		/// </summary>
+		public static string ToHex(this Color color)
+		{
+			return ColorUtility.ToHtmlStringRGBA(color);
+		}
     }
 }
 

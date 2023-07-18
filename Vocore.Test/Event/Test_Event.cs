@@ -9,12 +9,18 @@ namespace Vocore.Test
     public class EventTestObject : IEventReciever
     {
         public static EventId TestEvent = EventGenerator.Generate("TestEvent");
+        public static EventId TestEvent2 = EventGenerator.Generate("TestEvent2");
         private EventTracker _tracker;
 
         public EventTestObject()
         {
             _tracker = new EventTracker(this);
             _tracker.Subscribe<int>(TestEvent, OnEvent);
+            _tracker.Subscribe<float>(TestEvent2, (float value) =>
+            {
+                TestHelper.PrintColor("Event data: " + value, ConsoleColor.Green);
+                TestHelper.AddSuccess();
+            });
         }
 
         public void OnEvent(int data)
@@ -69,7 +75,7 @@ namespace Vocore.Test
         {
             EventTestObject obj = new EventTestObject();
             obj.InvokeEvent(EventTestObject.TestEvent, 1);
-            obj.InvokeEvent(EventTestObject.TestEvent, 2f);
+            obj.InvokeEvent(EventTestObject.TestEvent2, 2f);
             obj.InvokeEvent(EventTestObject.TestEvent, "3");
             obj.InvokeEvent(EventTestObject.TestEvent, new object());
             obj.InvokeEvent(EventGenerator.Generate("TmpEvent"), 1);
