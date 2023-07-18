@@ -22,6 +22,7 @@ namespace Vocore
         {
             if (_events.ContainsKey(evt))
             {
+                Log.Error(Text_Event.DuplicatedEvent(evt.ToString()));
                 return false;
             }
 
