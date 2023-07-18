@@ -8,58 +8,58 @@ namespace Vocore.Test
 {
     public class EventTestObject : IEventReciever
     {
+        public static EventId TestEvent = EventGenerator.Generate("TestEvent");
+        private EventTracker _tracker;
+
+        public EventTestObject()
+        {
+            _tracker = new EventTracker(this);
+            _tracker.Subscribe<int>(TestEvent, OnEvent);
+        }
+
         public void OnEvent(int data)
         {
             TestHelper.PrintColor("Event data: " + data, ConsoleColor.Green);
             TestHelper.AddSuccess();
         }
 
-        void IEventReciever.ClearEvent()
+        public void ClearEvent()
         {
             throw new NotImplementedException();
         }
 
-        void IEventReciever.InvokeEvent(EventId evt)
+        public void InvokeEvent(EventId evt)
         {
-            throw new NotImplementedException();
+            _tracker.Invoke(evt);
         }
 
-        void IEventReciever.InvokeEvent<TData>(EventId evt, TData data)
+        public void InvokeEvent<TData>(EventId evt, TData data)
         {
-            throw new NotImplementedException();
+            _tracker.Invoke(evt, data);
         }
     }
 
     public class EventTestObject2 : IEventReciever
     {
-        private int _hash;
+        public static EventId TestEvent = EventGenerator.Generate("TestEvent");
+        private EventTracker _tracker;
         public EventTestObject2()
         {
-            _hash = RuntimeHelpers.GetHashCode(this);
+            _tracker = new EventTracker(this);
+            _tracker.Subscribe<int>(TestEvent, OnEvent);
         }
-
-        // [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        // public override int GetHashCode()
-        // {
-        //     return _hash;
-        // }
         public void OnEvent(int data)
         {
         }
 
-        void IEventReciever.ClearEvent()
+        public void InvokeEvent(EventId evt)
         {
-            throw new NotImplementedException();
+            _tracker.Invoke(evt);
         }
 
-        void IEventReciever.InvokeEvent(EventId evt)
+        public void InvokeEvent<TData>(EventId evt, TData data)
         {
-            throw new NotImplementedException();
-        }
-
-        void IEventReciever.InvokeEvent<TData>(EventId evt, TData data)
-        {
-            throw new NotImplementedException();
+            _tracker.Invoke(evt, data);
         }
     }
     public class Test_Event
@@ -68,10 +68,11 @@ namespace Vocore.Test
         public void Test_Send()
         {
             EventTestObject obj = new EventTestObject();
-            EventId evt = EventGenerator.Generate("TestEvent");
-            GlobalEventManger.RegisterEvent<int>(obj, evt, obj.OnEvent);
-            GlobalEventManger.InvkeEvent<int>(obj, evt, 1);
-            GlobalEventManger.UnregisterEvent<int>(obj, evt);
+            obj.InvokeEvent(EventTestObject.TestEvent, 1);
+            obj.InvokeEvent(EventTestObject.TestEvent, 2f);
+            obj.InvokeEvent(EventTestObject.TestEvent, "3");
+            obj.InvokeEvent(EventTestObject.TestEvent, new object());
+            obj.InvokeEvent(EventGenerator.Generate("TmpEvent"), 1);
         }
 
         [Test("Bechmark event send and recieve")]
@@ -79,17 +80,16 @@ namespace Vocore.Test
         {
             EventTestObject2 obj = new EventTestObject2();
             EventId evt = EventGenerator.Generate("TestEvent");
-            GlobalEventManger.RegisterEvent<int>(obj, evt, obj.OnEvent);
+            int count = 1000000;
 
             TestHelper.Benchmark("Bechmark event", () =>
             {
-                for (int i = 0; i < 100000; i++)
+                for (int i = 0; i < count; i++)
                 {
-                    GlobalEventManger.InvkeEvent<int>(obj, evt, i);
+                    obj.InvokeEvent(evt, i);
                 }
             });
 
-            GlobalEventManger.UnregisterEvent<int>(obj, evt);
         }
     }
 }

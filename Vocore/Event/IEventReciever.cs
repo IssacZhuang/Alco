@@ -5,6 +5,5 @@ namespace Vocore
     {
         void InvokeEvent(EventId evt);
         void InvokeEvent<TData>(EventId evt, TData data);
-        void ClearEvent();
     }
 }
