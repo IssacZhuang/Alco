@@ -40,6 +40,14 @@ namespace Vocore
             return new Color(r / 255f, g / 255f, b / 255f, a / 255f);
         }
 
+        public void Clamp()
+        {
+            r = Mathf.Clamp(r, 0, 255);
+            g = Mathf.Clamp(g, 0, 255);
+            b = Mathf.Clamp(b, 0, 255);
+            a = Mathf.Clamp(a, 0, 255);
+        }
+
         //overriding operators
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ColorInt operator +(ColorInt a, ColorInt b)

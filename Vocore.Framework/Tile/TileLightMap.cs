@@ -15,16 +15,21 @@ namespace Vocore
         private NativeBuffer<float> _transparencyMap;
         private int _width;
         private int _height;
-        //the tile light map is rendered close to the center of the screen but snapped to the nearest grid
         private AABBInt _renderBounds;
 
-        public TileLightMap(int width, int height)
+        public int Width => _width;
+        public int Height => _height;
+
+        public unsafe TileLightMap(int width, int height)
         {
             _width = width;
             _height = height;
+            _renderBounds = new AABBInt(0, 0, width, height);
             _lights = new NativeArrayList<TileLight>(DefaultLightCapacity);
             _colorsMap = new NativeBuffer<ColorInt>(width * height);
             _transparencyMap = new NativeBuffer<float>(width * height);
+
+            UtilsMemory.Memset(_colorsMap.Ptr, DefaultColor, _colorsMap.Size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -109,7 +114,7 @@ namespace Vocore
             }
         }
 
-        private void FloorFillLight()
+        public void FloorFillLight()
         {
             //parallel fllod fill
 
@@ -127,15 +132,20 @@ namespace Vocore
                     //search top, bottom, left, right
                     //if any of them is not transparent, then set the current tile to the average of the 4
 
-                    ColorInt top = GetColor(j, i - 1);
-                    ColorInt bottom = GetColor(j, i + 1);
-                    ColorInt left = GetColor(j - 1, i);
-                    ColorInt right = GetColor(j + 1, i);
-
                     ColorInt atteruation = TileLight.Attenuation;
 
-                    ColorInt color = (top + bottom + left + right) - atteruation;
-                    color *= GetTransparency(j, i);
+                    ColorInt top = GetColor(j, i - 1) - atteruation;
+                    ColorInt bottom = GetColor(j, i + 1) - atteruation;
+                    ColorInt left = GetColor(j - 1, i) - atteruation;
+                    ColorInt right = GetColor(j + 1, i) - atteruation;
+
+                    top.Clamp();
+                    bottom.Clamp();
+                    left.Clamp();
+                    right.Clamp();
+
+                    ColorInt color = (top + bottom + left + right);
+                    //color *= 1 - GetTransparency(j, i);
                     SetColor(j, i, color);
                 }
             }
