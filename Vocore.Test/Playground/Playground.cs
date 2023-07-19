@@ -21,6 +21,12 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
+            
+        }
+
+        public void TestGeneric<T>(T data)
+        {
+            //Log.Info("TestGeneric: " + data);
         }
     }
 

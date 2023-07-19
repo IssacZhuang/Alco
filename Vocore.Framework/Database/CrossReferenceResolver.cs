@@ -82,6 +82,8 @@ public unsafe static class CrossReferenceResolver
             methodTyped.Add(type, method);
         }
 
+        
+
         return (BaseConfig)method.Invoke(null, new object[] { name });
     }
 

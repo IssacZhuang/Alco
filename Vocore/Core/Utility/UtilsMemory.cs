@@ -49,6 +49,25 @@ namespace Vocore.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Memset(void* ptr, byte value, long size)
+        {
+            byte* ptr2 = (byte*)ptr;
+            for (long i = 0; i < size; i++)
+            {
+                ptr2[i] = value;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Memset<T>(T* ptr, T value, long size) where T : unmanaged
+        {
+            for (long i = 0; i < size; i++)
+            {
+                ptr[i] = value;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf(Type type)
         {
             return Marshal.SizeOf(type);
