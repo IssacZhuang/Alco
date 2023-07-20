@@ -16,10 +16,26 @@ namespace Vocore.Test
         public void Test_RenderLightMapToPNG()
         {
             TileLightMap lightMap = new TileLightMap(128, 128);
-            lightMap.AddLight(TileLight.Create(new int2(64, 64), new LightColor(255, 0, 0)));
-            lightMap.AddLight(TileLight.Create(new int2(56, 64), new LightColor(0, 0, 255)));
-            lightMap.AddLight(TileLight.Create(new int2(60, 58), new LightColor(0, 255, 0)));
-            lightMap.FloorFillLight();
+            lightMap.ResetFrame();
+            lightMap.AddLight(TileLight.Create(new int2(64, 64), new LightColor(255, 200, 200)));
+            for (int i = 0; i < 8; i++)
+            {
+                int x = 60;
+                int y = 60 + i;
+                lightMap.SetTransparency(new int2(x, y), 0);
+            }
+
+            for (int i = 0; i < 20; i++)
+            {
+                int x = 66;
+                int y = 54 + i;
+                lightMap.SetTransparency(new int2(x, y), 0.8f);
+            }
+            TestHelper.Benchmark("flood fiil", () =>
+            {
+                lightMap.FloorFillLight();
+            });
+
 
             Bitmap bitmap = new Bitmap(lightMap.Width, lightMap.Height);
             for (int x = 0; x < lightMap.Width; x++)
@@ -36,6 +52,12 @@ namespace Vocore.Test
             }
 
             bitmap.SetPixel(0, 0, Color.Blue);
+            for (int i = 0; i < 20; i++)
+            {
+                int x = 66;
+                int y = 54 + i;
+                bitmap.SetPixel(x, y, Color.FromArgb(204,204,204,204));
+            }
 
             string fileName = "lightmap.png";
             bitmap.Save(fileName, ImageFormat.Png);

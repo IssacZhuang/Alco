@@ -35,8 +35,8 @@ namespace Vocore
         private int _height;
         private AABBInt _renderBounds;
         private bool _isBufferSwapped;
-        private int _iterationCount = 32;
-        private int _attenuation = 8;
+        private int _iterationCount = 64;
+        private int _attenuation = 4;
         private float _mixMultiplier = 0.05f;
 
 
@@ -71,8 +71,9 @@ namespace Vocore
             _buffer2 = new NativeBuffer<LightSpread>(width * height);
             _transparencyMap = new NativeBuffer<float>(width * height);
 
-            UtilsMemory.Memset(_buffer1.Ptr, LightSpread.Default, _buffer1.Size);
-            UtilsMemory.Memset(_buffer2.Ptr, LightSpread.Default, _buffer2.Size);
+            ResetTargetBuffer();
+            ResetOriginBuffer();
+            ResetTransparency();
         }
 
         ~TileLightMap()
@@ -117,29 +118,24 @@ namespace Vocore
             BufferOrigin.Ptr[x + y * _width] = spread;
         }
 
+        public float GetTransparency(int x, int y)
+        {
+            if (!InBounds(x, y))
+            {
+                return 0;
+            }
+            return _transparencyMap[x + y * _width];
+        }
+
         private unsafe void SwapBuffer()
         {
             _isBufferSwapped = !_isBufferSwapped;
-            //return;
-            //clear the target buffer
-            UtilsMemory.Memset(BufferTarget.Ptr, LightSpread.Default, BufferTarget.Size);
+            ResetTargetBuffer();
         }
 
         public bool InBounds(int x, int y)
         {
             return x >= 0 && x < _width && y >= 0 && y < _height;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float GetTransparency(int x, int y)
-        {
-            return _transparencyMap[x + y * _width];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetTransparency(int x, int y, float transparency)
-        {
-            _transparencyMap[x + y * _width] = transparency;
         }
 
         public void Resize(int width, int height)
@@ -161,21 +157,50 @@ namespace Vocore
             return false;
         }
 
+        public bool SetTransparency(int2 position, float transparency)
+        {
+            if (_renderBounds.Contains(position))
+            {
+                SetTransparencyNoBoundCheck(position, transparency);
+                return true;
+            }
+            return false;
+        }
+
+        public void SetTransparencyNoBoundCheck(int2 position, float transparency)
+        {
+            int2 renderPosition = position - _renderBounds.min;
+            _transparencyMap[renderPosition.x + renderPosition.y * _width] = transparency;
+        }
+
+
+
         public void AddLightNoBoundCheck(TileLight light)
         {
             int2 renderPosition = light.position - _renderBounds.min;
             light.position = renderPosition;
-            Log.Info($"AddLightNoBoundCheck {light.position}");
             _lights.Add(light);
         }
 
-        public unsafe void ResetBuffer()
+        public unsafe void ResetFrame()
         {
             _lights.Clear();
-            LightSpread* ptr = _buffer1.Ptr;
-            UtilsMemory.Memset(ptr, LightSpread.Default, _buffer1.Size);
-            ptr = _buffer2.Ptr;
-            UtilsMemory.Memset(ptr, LightSpread.Default, _buffer2.Size);
+            ResetTransparency();
+        }
+
+        private unsafe void ResetOriginBuffer()
+        {
+            UtilsMemory.Memset(BufferOrigin.Ptr, LightSpread.Default, BufferOrigin.Size);
+        }
+
+        private unsafe void ResetTargetBuffer()
+        {
+            UtilsMemory.Memset(BufferTarget.Ptr, LightSpread.Default, BufferTarget.Size);
+        }
+
+        private unsafe void ResetTransparency()
+        {
+            UtilsMemory.Memset(_transparencyMap.Ptr, 1f, _transparencyMap.Size);
         }
 
         public void SetCameraPosition(float3 center, int width, int height)
@@ -193,101 +218,166 @@ namespace Vocore
 
         public unsafe void FloorFillLight()
         {
-            LightSpread target;
-
-            LightColor fromTop = default;
-            LightColor fromLeft = default;
-            LightColor fromRight = default;
-            LightColor fromBottom = default;
-
-            int maxR = 0;
-            int maxG = 0;
-            int maxB = 0;
-
-            int sumR = 0;
-            int sumG = 0;
-            int sumB = 0;
-
-            MatrixLightWeight weight = default;
-
+            ResetOriginBuffer();
             for (int loop = 0; loop < _iterationCount; loop++)
             {
                 SwapBuffer();
                 for (int i = 0; i < _lights.Count; i++)
                 {
                     TileLight light = _lights[i];
-                    target = GetSpread(light.position.x, light.position.y);
+                    LightSpread target = GetSpread(light.position.x, light.position.y);
                     target.fixedColor = light.color;
                     SetTargetSpread(light.position.x, light.position.y, target);
                     SetOriginSpread(light.position.x, light.position.y, target);
                 }
 
-                Parallel.For(0, _height * _width, (int i) =>
+                Parallel.For(0, _height * _width, (int index) =>
                 {
-                    int x = i % _width;
-                    int y = i / _width;
+                    int x = index % _width;
+                    int y = index / _width;
+
+                    LightSpread target;
+
+                    LightColor fromTop = default;
+                    LightColor fromLeft = default;
+                    LightColor fromRight = default;
+                    LightColor fromBottom = default;
+
+                    int maxR = 0;
+                    int maxG = 0;
+                    int maxB = 0;
+
+                    int sumR = 0;
+                    int sumG = 0;
+                    int sumB = 0;
+
+                    MatrixLightWeight weight = default;
+
+                    target = GetSpread(x, y);
+
+                    fromTop = GetSpread(x, y - 1).GetColor();
+                    fromLeft = GetSpread(x - 1, y).GetColor();
+                    fromRight = GetSpread(x + 1, y).GetColor();
+                    fromBottom = GetSpread(x, y + 1).GetColor();
+
+                    //attenuation
+                    fromTop -= _attenuation;
+                    fromLeft -= _attenuation;
+                    fromRight -= _attenuation;
+                    fromBottom -= _attenuation;
+
+                    //clamp
+                    fromTop.ClampHDR();
+                    fromLeft.ClampHDR();
+                    fromRight.ClampHDR();
+                    fromBottom.ClampHDR();
+
+                    sumR = fromTop.r + fromLeft.r + fromRight.r + fromBottom.r;
+                    sumG = fromTop.g + fromLeft.g + fromRight.g + fromBottom.g;
+                    sumB = fromTop.b + fromLeft.b + fromRight.b + fromBottom.b;
+
+                    weight.r1 = (float)fromTop.r / sumR;
+                    weight.r2 = (float)fromLeft.r / sumR;
+                    weight.r3 = (float)fromRight.r / sumR;
+                    weight.r4 = (float)fromBottom.r / sumR;
+
+                    weight.g1 = (float)fromTop.g / sumG;
+                    weight.g2 = (float)fromLeft.g / sumG;
+                    weight.g3 = (float)fromRight.g / sumG;
+                    weight.g4 = (float)fromBottom.g / sumG;
+
+                    weight.b1 = (float)fromTop.b / sumB;
+                    weight.b2 = (float)fromLeft.b / sumB;
+                    weight.b3 = (float)fromRight.b / sumB;
+                    weight.b4 = (float)fromBottom.b / sumB;
+
+                    int valueR = (int)(fromTop.r * weight.r1 + fromLeft.r * weight.r2 + fromRight.r * weight.r3 + fromBottom.r * weight.r4);
+                    int valueG = (int)(fromTop.g * weight.g1 + fromLeft.g * weight.g2 + fromRight.g * weight.g3 + fromBottom.g * weight.g4);
+                    int valueB = (int)(fromTop.b * weight.b1 + fromLeft.b * weight.b2 + fromRight.b * weight.b3 + fromBottom.b * weight.b4);
+
+                    float transparency = GetTransparency(x, y);
+                    valueB = (int)(valueB * transparency);
+                    valueG = (int)(valueG * transparency);
+                    valueR = (int)(valueR * transparency);
+
+                    target.dynamicColor.r = valueR;
+                    target.dynamicColor.g = valueG;
+                    target.dynamicColor.b = valueB;
+
+                    maxR = math.max(math.max(fromTop.r, fromLeft.r), math.max(fromRight.r, fromBottom.r)) - _attenuation;
+                    maxG = math.max(math.max(fromTop.g, fromLeft.g), math.max(fromRight.g, fromBottom.g)) - _attenuation;
+                    maxB = math.max(math.max(fromTop.b, fromLeft.b), math.max(fromRight.b, fromBottom.b)) - _attenuation;
+
+                    target.dynamicColor.r = math.min(target.dynamicColor.r, maxR);
+                    target.dynamicColor.g = math.min(target.dynamicColor.g, maxG);
+                    target.dynamicColor.b = math.min(target.dynamicColor.b, maxB);
+
+                    target.dynamicColor.ClampHDR();
+                    target.fixedColor.ClampHDR();
+
+                    SetTargetSpread(x, y, target);
                 });
 
-                for (int i = 0; i < _height; i++)
-                {
-                    for (int j = 0; j < _width; j++)
-                    {
-                        target = GetSpread(j, i);
+                // for (int i = 0; i < _height; i++)
+                // {
+                //     for (int j = 0; j < _width; j++)
+                //     {
+                //         target = GetSpread(j, i);
 
-                        fromTop = GetSpread(j, i - 1).GetColor();
-                        fromLeft = GetSpread(j - 1, i).GetColor();
-                        fromRight = GetSpread(j + 1, i).GetColor();
-                        fromBottom = GetSpread(j, i + 1).GetColor();
+                //         fromTop = GetSpread(j, i - 1).GetColor();
+                //         fromLeft = GetSpread(j - 1, i).GetColor();
+                //         fromRight = GetSpread(j + 1, i).GetColor();
+                //         fromBottom = GetSpread(j, i + 1).GetColor();
 
-                        //attenuation
-                        fromTop -= _attenuation;
-                        fromLeft -= _attenuation;
-                        fromRight -= _attenuation;
-                        fromBottom -= _attenuation;
+                //         //attenuation
+                //         fromTop -= _attenuation;
+                //         fromLeft -= _attenuation;
+                //         fromRight -= _attenuation;
+                //         fromBottom -= _attenuation;
 
-                        //clamp
-                        fromTop.ClampHDR();
-                        fromLeft.ClampHDR();
-                        fromRight.ClampHDR();
-                        fromBottom.ClampHDR();
+                //         //clamp
+                //         fromTop.ClampHDR();
+                //         fromLeft.ClampHDR();
+                //         fromRight.ClampHDR();
+                //         fromBottom.ClampHDR();
 
-                        sumR = fromTop.r + fromLeft.r + fromRight.r + fromBottom.r;
-                        sumG = fromTop.g + fromLeft.g + fromRight.g + fromBottom.g;
-                        sumB = fromTop.b + fromLeft.b + fromRight.b + fromBottom.b;
+                //         sumR = fromTop.r + fromLeft.r + fromRight.r + fromBottom.r;
+                //         sumG = fromTop.g + fromLeft.g + fromRight.g + fromBottom.g;
+                //         sumB = fromTop.b + fromLeft.b + fromRight.b + fromBottom.b;
 
-                        weight.r1 = (float)fromTop.r / sumR;
-                        weight.r2 = (float)fromLeft.r / sumR;
-                        weight.r3 = (float)fromRight.r / sumR;
-                        weight.r4 = (float)fromBottom.r / sumR;
+                //         weight.r1 = (float)fromTop.r / sumR;
+                //         weight.r2 = (float)fromLeft.r / sumR;
+                //         weight.r3 = (float)fromRight.r / sumR;
+                //         weight.r4 = (float)fromBottom.r / sumR;
 
-                        weight.g1 = (float)fromTop.g / sumG;
-                        weight.g2 = (float)fromLeft.g / sumG;
-                        weight.g3 = (float)fromRight.g / sumG;
-                        weight.g4 = (float)fromBottom.g / sumG;
+                //         weight.g1 = (float)fromTop.g / sumG;
+                //         weight.g2 = (float)fromLeft.g / sumG;
+                //         weight.g3 = (float)fromRight.g / sumG;
+                //         weight.g4 = (float)fromBottom.g / sumG;
 
-                        weight.b1 = (float)fromTop.b / sumB;
-                        weight.b2 = (float)fromLeft.b / sumB;
-                        weight.b3 = (float)fromRight.b / sumB;
-                        weight.b4 = (float)fromBottom.b / sumB;
+                //         weight.b1 = (float)fromTop.b / sumB;
+                //         weight.b2 = (float)fromLeft.b / sumB;
+                //         weight.b3 = (float)fromRight.b / sumB;
+                //         weight.b4 = (float)fromBottom.b / sumB;
 
-                        target.dynamicColor.r = (int)(fromTop.r * weight.r1 + fromLeft.r * weight.r2 + fromRight.r * weight.r3 + fromBottom.r * weight.r4);
-                        target.dynamicColor.g = (int)(fromTop.g * weight.g1 + fromLeft.g * weight.g2 + fromRight.g * weight.g3 + fromBottom.g * weight.g4);
-                        target.dynamicColor.b = (int)(fromTop.b * weight.b1 + fromLeft.b * weight.b2 + fromRight.b * weight.b3 + fromBottom.b * weight.b4);
+                //         target.dynamicColor.r = (int)(fromTop.r * weight.r1 + fromLeft.r * weight.r2 + fromRight.r * weight.r3 + fromBottom.r * weight.r4);
+                //         target.dynamicColor.g = (int)(fromTop.g * weight.g1 + fromLeft.g * weight.g2 + fromRight.g * weight.g3 + fromBottom.g * weight.g4);
+                //         target.dynamicColor.b = (int)(fromTop.b * weight.b1 + fromLeft.b * weight.b2 + fromRight.b * weight.b3 + fromBottom.b * weight.b4);
 
-                        maxR = math.max(math.max(fromTop.r, fromLeft.r), math.max(fromRight.r, fromBottom.r)) - _attenuation;
-                        maxG = math.max(math.max(fromTop.g, fromLeft.g), math.max(fromRight.g, fromBottom.g)) - _attenuation;
-                        maxB = math.max(math.max(fromTop.b, fromLeft.b), math.max(fromRight.b, fromBottom.b)) - _attenuation;
+                //         maxR = math.max(math.max(fromTop.r, fromLeft.r), math.max(fromRight.r, fromBottom.r)) - _attenuation;
+                //         maxG = math.max(math.max(fromTop.g, fromLeft.g), math.max(fromRight.g, fromBottom.g)) - _attenuation;
+                //         maxB = math.max(math.max(fromTop.b, fromLeft.b), math.max(fromRight.b, fromBottom.b)) - _attenuation;
 
-                        target.dynamicColor.r = math.min(target.dynamicColor.r, maxR);
-                        target.dynamicColor.g = math.min(target.dynamicColor.g, maxG);
-                        target.dynamicColor.b = math.min(target.dynamicColor.b, maxB);
+                //         target.dynamicColor.r = math.min(target.dynamicColor.r, maxR);
+                //         target.dynamicColor.g = math.min(target.dynamicColor.g, maxG);
+                //         target.dynamicColor.b = math.min(target.dynamicColor.b, maxB);
 
-                        target.dynamicColor.ClampHDR();
-                        target.fixedColor.ClampHDR();
+                //         target.dynamicColor.ClampHDR();
+                //         target.fixedColor.ClampHDR();
 
-                        SetTargetSpread(j, i, target);
-                    }
-                }
+                //         SetTargetSpread(j, i, target);
+                //     }
+                // }
 
 
             }
