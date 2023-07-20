@@ -165,6 +165,7 @@
   <ItemGroup>
     <Folder Include="Algorithm\" />
     <Folder Include="Properties\CSharp\" />
+    <Compile Include="LightMap\Test_LightMap.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
