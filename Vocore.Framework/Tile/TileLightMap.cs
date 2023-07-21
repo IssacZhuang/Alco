@@ -216,6 +216,17 @@ namespace Vocore
             }
         }
 
+        public float2 GetRenderPlanePosition()
+        {
+            //center of aabb
+            return new float2(_renderBounds.min.x + (float)_renderBounds.Width / 2f, _renderBounds.min.y + (float)_renderBounds.Height / 2f);
+        }
+
+        public float3 GetRenderPlaneScale()
+        {
+            return new float3(_renderBounds.Width, _renderBounds.Height, 1);
+        }
+
         public unsafe void FloorFillLight()
         {
             ResetOriginBuffer();

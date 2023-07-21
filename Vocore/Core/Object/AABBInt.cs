@@ -8,6 +8,9 @@ namespace Vocore
         public int2 min;
         public int2 max;
 
+        public int Width => max.x - min.x;
+        public int Height => max.y - min.y;
+
         public AABBInt(int2 min, int2 max)
         {
             this.min = min;
