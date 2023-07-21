@@ -6,6 +6,8 @@ using Unity.Mathematics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
+using Vocore.Unsafe;
+
 public unsafe struct TileMap<T> : IDisposable where T : unmanaged
 {
     private NativeArray<T> _data;
@@ -54,6 +56,14 @@ public unsafe struct TileMap<T> : IDisposable where T : unmanaged
     public bool InRange(int x, int y)
     {
         return x >= 0 && x < Width && y >= 0 && y < Height;
+    }
+
+    public void Reset()
+    {
+        for (int i = 0; i < _data.Length; i++)
+        {
+            _data[i] = defaultValue;
+        }
     }
 
     public void ResizeNoCopy(int width, int height)
