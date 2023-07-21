@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
+using UnityEngine;
 using Unity.Mathematics;
 using Vocore.Unsafe;
 
@@ -10,6 +11,12 @@ namespace Vocore
 {
     public class TileLightMap
     {
+        public static readonly int ShaderId_bufferOrigin = Shader.PropertyToID("_bufferOrigin");
+        public static readonly int ShaderId_bufferTarget = Shader.PropertyToID("_bufferTarget");
+        public static readonly int ShaderId_transparencyMap = Shader.PropertyToID("_transparencyMap");
+        public static readonly int ShaderId_attenuation = Shader.PropertyToID("_attenuation");
+        public static readonly int ShaderId_width = Shader.PropertyToID("_width");
+        public static readonly int ShaderId_height = Shader.PropertyToID("_height");
         public struct MatrixLightWeight
         {
             public float r1;
@@ -238,7 +245,7 @@ namespace Vocore
                     TileLight light = _lights[i];
                     LightSpread target = GetSpread(light.position.x, light.position.y);
                     target.fixedColor = light.color;
-                    SetTargetSpread(light.position.x, light.position.y, target);
+                    //SetTargetSpread(light.position.x, light.position.y, target);
                     SetOriginSpread(light.position.x, light.position.y, target);
                 }
 
