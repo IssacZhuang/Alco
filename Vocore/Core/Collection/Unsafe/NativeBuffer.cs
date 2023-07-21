@@ -20,7 +20,6 @@ namespace Vocore
         public int Stride => _stride;
         public int Count => Size;
 
-
         public T this[int index]
         {
             get
@@ -105,5 +104,25 @@ namespace Vocore
         {
             return index < 0 || index >= _size;
         }
+
+        public void CopyToArray(T[] array)
+        {
+            if (array.Length < _size) throw ExceptionCollection.SizeIsEmpty;
+            if(array.Length == _size) throw ExceptionCollection.LengthNotEqual;
+            
+            for (int i = 0; i < _size; i++)
+            {
+                array[i] = this[i];
+            }
+        }
+
+        public unsafe void CopyToArrayUnsafe(T[] array)
+        {
+            fixed (T* ptr = array)
+            {
+                UtilsMemory.MemCopy(_ptrBuffer, ptr, _size * _stride);
+            }
+        }
+
     }
 }
