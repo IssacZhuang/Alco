@@ -1,3 +1,5 @@
+//Used by Vocore.TileLightMapGPU
+
 #pragma kernel FloodFill
 #pragma kernel ResetBuffer
 
@@ -29,7 +31,7 @@ float3 GetColor(uint x, uint y)
     {
         return float3(0, 0, 0);
     }
-    return _bufferOrigin[x + y * _width] + _fixedLight[x + y * _width];
+    return max(_bufferOrigin[x + y * _width], _fixedLight[x + y * _width]);
 }
 
 [numthreads(8,8,1)]

@@ -71,7 +71,9 @@ namespace Vocore
         private ComputeShader _computeShader;
         private RenderTexture _renderTexture;
         private int _kernelFloodFill;
+        private int3 _kenelThreadGroup_FloodFill;
         private int _kernelResetBuffer;
+        private int3 _kenelThreadGroup_ResetBuffer;
 
 
         private ComputeBuffer GPUBufferOrigin
@@ -97,35 +99,15 @@ namespace Vocore
 
         public unsafe TileLightMapGPU(Setting setting, ComputeShader computeShader)
         {
-            _width = setting.width;
-            _height = setting.height;
-            _iterationCount = setting.iterationCount;
-            _attenuation = setting.attenuation;
-
-            int size = _width * _height;
-
-            _renderBounds = new AABBInt(0, 0, _width, _height);
-            _fixedLights = new StructuredBuffer<float3>(size);
-            _transparencyMap = new StructuredBuffer<float>(size);
-
-            _GPUBuffer1 = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
-            _GPUBuffer2 = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
-            _GPUFixedLights = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
-
-            _GPUTransparencyMap = new ComputeBuffer(size, sizeof(float));
             _computeShader = computeShader;
 
-            _kernelFloodFill = _computeShader.FindKernel(Kernel_FloodFill);
-            _kernelResetBuffer = _computeShader.FindKernel(Kernel_ResetBuffer);
-
-            _renderTexture = new RenderTexture(_width, _height, 0, RenderTextureFormat.ARGB32);
-            _renderTexture.enableRandomWrite = true;
-
-            ResetTransparency();
+            UpdateSetting(setting);
         }
 
         ~TileLightMapGPU()
         {
+            _GPUFixedLights.Dispose();
+            _GPUTransparencyMap.Dispose();
             _GPUBuffer1.Dispose();
             _GPUBuffer2.Dispose();
         }
@@ -149,10 +131,7 @@ namespace Vocore
             return x >= 0 && x < _width && y >= 0 && y < _height;
         }
 
-        public void Resize(int width, int height)
-        {
-            
-        }
+
 
         public bool AddLight(int2 postion, float3 color)
         {
@@ -196,8 +175,6 @@ namespace Vocore
             _transparencyMap[renderPosition.x + renderPosition.y * _width] = transparency;
         }
 
-       
-
         public float2 GetRenderPlanePosition()
         {
             //center of aabb
@@ -215,10 +192,57 @@ namespace Vocore
             ResetFrame();
         }
 
+        public void UpdateSetting(Setting setting)
+        {
+            _iterationCount = setting.iterationCount;
+            _attenuation = setting.attenuation;
+            if (_width != setting.width || _height != setting.height)
+            {
+                Resize(setting.width, setting.height);
+            }
+        }
+
+        private void Resize(int width, int height)
+        {
+            _width = width;
+            _height = height;
+
+            int size = _width * _height;
+
+            _renderBounds = new AABBInt(0, 0, _width, _height);
+            _fixedLights = new StructuredBuffer<float3>(size);
+            _transparencyMap = new StructuredBuffer<float>(size);
+
+            _GPUBuffer1 = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
+            _GPUBuffer2 = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
+            _GPUFixedLights = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
+
+            _GPUTransparencyMap = new ComputeBuffer(size, sizeof(float));
+
+
+            _kernelFloodFill = _computeShader.FindKernel(Kernel_FloodFill);
+            _kernelResetBuffer = _computeShader.FindKernel(Kernel_ResetBuffer);
+            uint sizeX, sizeY, sizeZ;
+            _computeShader.GetKernelThreadGroupSizes(_kernelFloodFill, out sizeX, out sizeY, out sizeZ);
+            _kenelThreadGroup_FloodFill = GetThreadGroup(sizeX, sizeY, sizeZ);
+            _computeShader.GetKernelThreadGroupSizes(_kernelResetBuffer, out sizeX, out sizeY, out sizeZ);
+            _kenelThreadGroup_ResetBuffer = GetThreadGroup(sizeX, sizeY, sizeZ);
+
+            _renderTexture = new RenderTexture(_width, _height, 0, RenderTextureFormat.ARGB32);
+            _renderTexture.enableRandomWrite = true;
+
+            ResetTransparency();
+        }
+
         private unsafe void ResetFrame()
         {
             ResetTransparency();
             ResetLight();
+        }
+
+        private int3 GetThreadGroup(uint sizeX, uint sizeY, uint sizeZ)
+        {
+            return new int3((int)(_width / sizeX) + 1, (int)(_height / sizeY) + 1, (int)sizeZ);
         }
 
         private unsafe void ResetTransparency()
@@ -253,7 +277,7 @@ namespace Vocore
             _computeShader.SetBuffer(_kernelResetBuffer, ShaderId_bufferTarget, GPUBufferTarget);
             _computeShader.SetBuffer(_kernelFloodFill, ShaderId_transparencyMap, _GPUTransparencyMap);
 
-            _computeShader.Dispatch(_kernelResetBuffer, (_width / 8) + 1, (_height / 8) + 1, 1);
+            _computeShader.Dispatch(_kernelResetBuffer, _kenelThreadGroup_ResetBuffer.x, _kenelThreadGroup_ResetBuffer.y, _kenelThreadGroup_ResetBuffer.z);
 
             for (int loop = 0; loop < _iterationCount; loop++)
             {
@@ -262,7 +286,7 @@ namespace Vocore
                 _computeShader.SetBuffer(_kernelFloodFill, ShaderId_bufferOrigin, GPUBufferOrigin);
                 _computeShader.SetBuffer(_kernelFloodFill, ShaderId_bufferTarget, GPUBufferTarget);
 
-                _computeShader.Dispatch(_kernelFloodFill, (_width / 8) + 1, (_height / 8) + 1, 1);
+                _computeShader.Dispatch(_kernelFloodFill, _kenelThreadGroup_FloodFill.x, _kenelThreadGroup_FloodFill.y, _kenelThreadGroup_FloodFill.z);
             }
         }
 
