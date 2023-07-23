@@ -8,7 +8,7 @@ using Unity.Collections.LowLevel.Unsafe;
 
 using Vocore.Unsafe;
 
-public unsafe struct TileMap<T> : IDisposable where T : unmanaged
+public unsafe struct GridMap<T> : IDisposable where T : unmanaged
 {
     private NativeArray<T> _data;
     private int2 _size;
@@ -24,7 +24,7 @@ public unsafe struct TileMap<T> : IDisposable where T : unmanaged
         return _data.GetUnsafePtr();
     }
 
-    public TileMap(int width, int height, T defaultValue = default(T))
+    public GridMap(int width, int height, T defaultValue = default(T))
     {
         _size = new int2(width, height);
         _data = new NativeArray<T>(width * height, Allocator.Persistent);
