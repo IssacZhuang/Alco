@@ -5,8 +5,6 @@ using UnityEngine;
 using Unity.Mathematics;
 using Vocore.Unsafe;
 
-using System.Threading.Tasks;
-
 namespace Vocore
 {
     public class TileLightMapGPU
@@ -38,21 +36,6 @@ namespace Vocore
         public static readonly string Kernel_FloodFill = "FloodFill";
         public static readonly string Kernel_ResetBuffer = "ResetBuffer";
         public static readonly float3 DefaultColor = new float3(0, 0, 0);
-        public struct MatrixLightWeight
-        {
-            public float r1;
-            public float r2;
-            public float r3;
-            public float r4;
-            public float g1;
-            public float g2;
-            public float g3;
-            public float g4;
-            public float b1;
-            public float b2;
-            public float b3;
-            public float b4;
-        }
 
         private StructuredBuffer<float3> _fixedLights;
         private StructuredBuffer<float> _transparencyMap;
@@ -271,8 +254,8 @@ namespace Vocore
             _computeShader.SetFloat(ShaderId_attenuation, _attenuation);
 
             _computeShader.SetTexture(_kernelFloodFill, ShaderId_renderTexture, _renderTexture);
-            _computeShader.SetBuffer(_kernelFloodFill, ShaderId_fixedLight, _GPUFixedLights);
 
+            _computeShader.SetBuffer(_kernelFloodFill, ShaderId_fixedLight, _GPUFixedLights);
             _computeShader.SetBuffer(_kernelResetBuffer, ShaderId_bufferOrigin, GPUBufferOrigin);
             _computeShader.SetBuffer(_kernelResetBuffer, ShaderId_bufferTarget, GPUBufferTarget);
             _computeShader.SetBuffer(_kernelFloodFill, ShaderId_transparencyMap, _GPUTransparencyMap);
@@ -288,6 +271,7 @@ namespace Vocore
 
                 _computeShader.Dispatch(_kernelFloodFill, _kenelThreadGroup_FloodFill.x, _kenelThreadGroup_FloodFill.y, _kenelThreadGroup_FloodFill.z);
             }
+
         }
 
         public RenderTexture GetRenderTexture()
