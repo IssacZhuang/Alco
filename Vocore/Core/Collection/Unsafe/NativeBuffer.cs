@@ -19,6 +19,7 @@ namespace Vocore
         public int Size => _size;
         public int Stride => _stride;
         public int Count => Size;
+        public bool IsDisposed => _isDisposed;
 
         public T this[int index]
         {

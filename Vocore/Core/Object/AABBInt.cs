@@ -33,5 +33,14 @@ namespace Vocore
             return min.x <= other.max.x && max.x >= other.min.x && min.y <= other.max.y && max.y >= other.min.y;
         }
 
+        public AABBInt Intersection(AABBInt other)
+        {
+            int x1 = math.max(min.x, other.min.x);
+            int x2 = math.min(max.x, other.max.x);
+            int y1 = math.max(min.y, other.min.y);
+            int y2 = math.min(max.y, other.max.y);
+            return new AABBInt(x1, y1, x2 - x1, y2 - y1);
+        }
+
     }
 }
