@@ -2,103 +2,100 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
-using UnityEngine;
 
-using Vocore;
-
-
-public unsafe static class CrossReferenceResolver
+namespace Vocore
 {
-    private static readonly MethodInfo methodGeneric = typeof(CrossReferenceResolver).GetMethod("GetConfigGeneric", BindingFlags.NonPublic | BindingFlags.Static);
-    private static readonly Dictionary<Type, MethodInfo> methodTyped = new Dictionary<Type, MethodInfo>();
-    private static readonly List<CrossReferenceRecord> _records = new List<CrossReferenceRecord>();
-
-    private struct CrossReferenceRecord
+    public unsafe static class CrossReferenceResolver
     {
-        public BaseConfig config;
-        public FieldInfo field;
-        public string refConfigName;
-    }
+        private static readonly MethodInfo _methodGeneric = typeof(CrossReferenceResolver).GetMethod(nameof(GetConfigGeneric), BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly Dictionary<Type, MethodInfo> _methodTyped = new Dictionary<Type, MethodInfo>();
+        private static readonly List<CrossReferenceRecord> _records = new List<CrossReferenceRecord>();
 
-    public static void ResolveCrossReference(IList<BaseConfig> configs)
-    {
-        List<CrossReferenceRecord>[] records = new List<CrossReferenceRecord>[configs.Count];
-
-        for (int i = 0; i < configs.Count; i++)
+        private struct CrossReferenceRecord
         {
-            records[i] = new List<CrossReferenceRecord>();
+            public BaseConfig config;
+            public FieldInfo field;
+            public string refConfigName;
         }
 
-        Parallel.For(0, configs.Count, i =>
+        public static void ResolveCrossReference(IList<BaseConfig> configs)
         {
-            records[i].AddRange(GetRecord(configs[i]));
-        });
+            List<CrossReferenceRecord>[] records = new List<CrossReferenceRecord>[configs.Count];
 
-        foreach (var list in records)
-        {
-            _records.AddRange(list);
-        }
-
-        Resolve();
-    }
-
-    private static IEnumerable<CrossReferenceRecord> GetRecord(BaseConfig config)
-    {
-        foreach (FieldInfo field in config.GetType().GetFields())
-        {
-            Type type = field.FieldType;
-            if (type == typeof(BaseConfig) || type.IsSubclassOf(typeof(BaseConfig)))
+            for (int i = 0; i < configs.Count; i++)
             {
-                BaseConfig virtualConfig = (BaseConfig)field.GetValue(config);
+                records[i] = new List<CrossReferenceRecord>();
+            }
 
-                if (virtualConfig != null)
+            Parallel.For(0, configs.Count, i =>
+            {
+                records[i].AddRange(GetRecord(configs[i]));
+            });
+
+            foreach (var list in records)
+            {
+                _records.AddRange(list);
+            }
+
+            Resolve();
+        }
+
+        private static IEnumerable<CrossReferenceRecord> GetRecord(BaseConfig config)
+        {
+            foreach (FieldInfo field in config.GetType().GetFields())
+            {
+                Type type = field.FieldType;
+                if (type == typeof(BaseConfig) || type.IsSubclassOf(typeof(BaseConfig)))
                 {
-                    yield return new CrossReferenceRecord
+                    BaseConfig virtualConfig = (BaseConfig)field.GetValue(config);
+
+                    if (virtualConfig != null)
                     {
-                        config = config,
-                        field = field,
-                        refConfigName = virtualConfig.name
-                    };
+                        yield return new CrossReferenceRecord
+                        {
+                            config = config,
+                            field = field,
+                            refConfigName = virtualConfig.name
+                        };
+                    }
                 }
             }
         }
-    }
 
-    public static void Clear()
-    {
-        _records.Clear();
-    }
-
-    private static BaseConfig GetConfigGeneric<T>(string name) where T : BaseConfig
-    {
-        return Database<T>.Get(name, false);
-    }
-
-    private static BaseConfig GetConfig(Type type, string name)
-    {
-        if (!methodTyped.TryGetValue(type, out MethodInfo method))
+        public static void Clear()
         {
-            method = methodGeneric.MakeGenericMethod(type);
-            methodTyped.Add(type, method);
+            _records.Clear();
         }
 
-        
-
-        return (BaseConfig)method.Invoke(null, new object[] { name });
-    }
-
-    private static void Resolve()
-    {
-        foreach (CrossReferenceRecord record in _records)
+        private static BaseConfig GetConfigGeneric<T>(string name) where T : BaseConfig
         {
-            BaseConfig refConfig = GetConfig(record.field.FieldType, record.refConfigName);
-            if (refConfig == null)
+            return ConfigDB<T>.Get(name, false);
+        }
+
+        private static BaseConfig GetConfig(Type type, string name)
+        {
+            if (!_methodTyped.TryGetValue(type, out MethodInfo method))
             {
-                Log.Error(Text_Config.CrossRefConfigConfigNotFound(record.config.name, record.config.name, record.field.FieldType.Name, record.refConfigName));
-                continue;
+                method = _methodGeneric.MakeGenericMethod(type);
+                _methodTyped.Add(type, method);
             }
 
-            record.field.SetValue(record.config, refConfig);
+            return (BaseConfig)method.Invoke(null, new object[] { name });
+        }
+
+        private static void Resolve()
+        {
+            foreach (CrossReferenceRecord record in _records)
+            {
+                BaseConfig refConfig = GetConfig(record.field.FieldType, record.refConfigName);
+                if (refConfig == null)
+                {
+                    Log.Error(Text_Config.CrossRefConfigConfigNotFound(record.config.name, record.config.name, record.field.FieldType.Name, record.refConfigName));
+                    continue;
+                }
+
+                record.field.SetValue(record.config, refConfig);
+            }
         }
     }
 }

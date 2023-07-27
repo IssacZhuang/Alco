@@ -81,20 +81,21 @@ namespace Vocore
             return default(TileData);
         }
 
-        public void DrawTile(AABBInt aabb)
+        public void DrawTile(AABBInt aabb, int2 drawOffset)
         {
             AABBInt intersection = LocalAABB.Intersection(aabb);
             for (int y = intersection.min.y; y <= intersection.max.y; y++)
             {
                 for (int x = intersection.min.x; x <= intersection.max.x; x++)
                 {
-                    DrawTile(x, y, this[x, y]);
+                    DrawTileInternal(x, y, drawOffset.x, drawOffset.y);
                 }
             }
         }
 
-        public void DrawTile(int x, int y, TileData tile)
+        private void DrawTileInternal(int localPosX, int localPosY, int drawOffsetX,int drawOffsetY)
         {
+
             //todo
         }
     }

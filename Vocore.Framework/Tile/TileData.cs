@@ -5,7 +5,6 @@ namespace Vocore
 {
     public struct TileData
     {
-        public int instanceRendererId;
-        public float4 textureRect;
+        public int renderderId;
     }
 }
