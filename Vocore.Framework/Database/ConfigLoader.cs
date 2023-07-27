@@ -4,7 +4,7 @@ using System.Xml;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Reflection;
 
 namespace Vocore
 {
@@ -15,11 +15,13 @@ namespace Vocore
 
         private List<BaseConfig> _content = new List<BaseConfig>();
         private XmlParser _xmlParser;
+        private ParseHelper _parseHelper;
         public List<BaseConfig> Content => _content;
 
         public ConfigLoader(params string[] defaultNamespaces)
         {
-            _xmlParser = new XmlParser(defaultNamespaces);
+            _parseHelper = new ParseHelper(defaultNamespaces);
+            _xmlParser = new XmlParser(_parseHelper);
         }
 
         public void Load(string dicrectory)
@@ -91,6 +93,32 @@ namespace Vocore
             {
                 Log.Error(e.ToString());
             }
+        }
+
+        private void RegisterConfiParser()
+        {
+            Type[] types = typeof(BaseConfig).Assembly.GetTypes();
+            foreach (Type type in types)
+            {
+                if (type.IsSubclassOf(typeof(BaseConfig)))
+                {
+                    MethodInfo method = typeof(ConfigLoader).GetMethod(nameof(RegisterParser), BindingFlags.NonPublic | BindingFlags.Instance);
+                    MethodInfo methodGeneric = method.MakeGenericMethod(type);
+                    methodGeneric.Invoke(this, null);
+                }
+            }
+        }
+
+        private void RegisterParser<T>() where T : BaseConfig
+        {
+            _parseHelper.RegisterParser<T>(ConfigParserGeneric<T>);
+        }
+
+        private static T ConfigParserGeneric<T>(string str) where T : BaseConfig
+        {
+            T config = Activator.CreateInstance<T>();
+            config.name = str;
+            return config;
         }
 
     }
