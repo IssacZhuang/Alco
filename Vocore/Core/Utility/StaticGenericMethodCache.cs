@@ -14,7 +14,7 @@ namespace Vocore
             _method = method;
         }
 
-        public StaticGenericMethodCache(Type type, string methodName, BindingFlags bindingFlags = BindingFlags.Static)
+        public StaticGenericMethodCache(Type type, string methodName, BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
         {
             _method = type.GetMethod(methodName, bindingFlags);
         }

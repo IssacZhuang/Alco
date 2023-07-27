@@ -10,6 +10,14 @@ namespace Vocore
         private static Dictionary<string, T> _configs = new Dictionary<string, T>();
         private static readonly FieldInfo[] _fields = typeof(T).GetFields();
 
+        public static IEnumerable<T> AllConfigs
+        {
+            get
+            {
+                return _configs.Values;
+            }
+        }
+
         public static void Add(T config)
         {
             if (config == null)

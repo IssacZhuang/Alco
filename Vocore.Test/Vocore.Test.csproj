@@ -166,6 +166,10 @@
     <Folder Include="Algorithm\" />
     <Folder Include="Properties\CSharp\" />
     <Compile Include="LightMap\Test_LightMap.cs" />
+    <Compile Include="Config\Test_Config.cs" />
+    <EmbeddedResource Include="Config\Files\TestConfig.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
