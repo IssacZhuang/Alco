@@ -4,8 +4,7 @@ Shader "Game/TileSmoothEdgePixelized"
     {
         _MainTex ("Texture", 2D) = "white" {}
         [HDR] _Color ("Color", Color) = (1,1,1,1)
-        [ShowAsVector2] _PixelSize ("Pixel Size", Vector) = (16,16,0,0)
-        _Scale ("Scale", Float) = 1
+        _Extend ("Extend", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -19,6 +18,7 @@ Shader "Game/TileSmoothEdgePixelized"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma instancing_options assumeuniformscaling
 
             #include "UnityCG.cginc"
 
@@ -26,53 +26,65 @@ Shader "Game/TileSmoothEdgePixelized"
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2f
             {
                 float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             sampler2D _MainTex;
+            float4 _MainTex_TexelSize;
             float4 _MainTex_ST;
             
-            float4 _Color;
-            float _Scale;
-            float2 _PixelSize;
+            UNITY_INSTANCING_BUFFER_START(Props)
+                UNITY_DEFINE_INSTANCED_PROP(float, _Extend)
+                UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
+            UNITY_INSTANCING_BUFFER_END(Props)
 
             //round to nearest pixel
             fixed RoundX(float x)
             {
-                float stepX = 1/_PixelSize.x;
+                float stepX = _MainTex_TexelSize.x;
                 return round(x/stepX)*stepX;
             }
 
             fixed RoundY(float y)
             {
-                float stepY = 1/_PixelSize.y;
-                return round(y/stepY)*stepY;
+                float stepY = _MainTex_TexelSize.y;
+                return round(y/stepY)*stepY; 
             }
 
             v2f vert (appdata v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex*_Scale);
+                UNITY_SETUP_INSTANCE_ID(v); 
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
+
+                float scale = UNITY_ACCESS_INSTANCED_PROP(Props,_Extend) + 1;
+                o.vertex = UnityObjectToClipPos(v.vertex*scale);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                o.uv = v.vertex.xy*_Scale;
+                o.uv = v.vertex.xy*scale;
+
+                
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
+                UNITY_SETUP_INSTANCE_ID(i);
+                float extend = UNITY_ACCESS_INSTANCED_PROP(Props,_Extend);
                 fixed4 col = tex2D(_MainTex, i.uv);
-                float extend = (_Scale-1)/2;
+                float halfExtend = extend/2;
                 float excess = max(RoundX(saturate(abs(i.uv.x)-0.5)), RoundY( saturate(abs(i.uv.y)-0.5)));
                 if(extend>0)
                 {
-                    col.a = (extend-excess)/extend;
+                    col.a = (halfExtend-excess)/halfExtend;
                 }
-                return col*_Color;
+                return col*UNITY_ACCESS_INSTANCED_PROP(Props,_Color);
             }
             ENDCG
         }

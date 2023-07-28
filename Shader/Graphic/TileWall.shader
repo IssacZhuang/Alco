@@ -1,12 +1,10 @@
-Shader "Game/Lighting"
+Shader "Game/TileWall"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
         [HDR] _Color ("Color", Color) = (1,1,1,1)
-        [HDR] _EnvironmentLight ("Environment Light", Color) = (1,1,1,1)
-        _KawaseOffset ("Kawase Offset", Range(0, 0.3)) = 0.3
-
+        _SubRect ("SubRect", Vector) = (0,0,1,1)
     }
     SubShader
     {
@@ -16,7 +14,7 @@ Shader "Game/Lighting"
 
         Pass
         {
-            Blend DstColor SrcColor   
+            Blend SrcAlpha OneMinusSrcAlpha
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -37,27 +35,16 @@ Shader "Game/Lighting"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            float4 _MainTex_TexelSize;
-            float _KawaseOffset;
             
             float4 _Color;
-            float4 _EnvironmentLight;
+            float4 _SubRect;
+            float2 _PixelSize;
 
-            float4 kawaseBlur(sampler2D blurTexture, float2 uv, float offset, float2 res)
+            float2 GetUv(float2 uv)
             {
-                float i = offset;
-
-                float4 col;
-                col.rgb = tex2D(blurTexture, saturate(uv)).rgb;
-                col.rgb += tex2D(blurTexture, saturate(uv + float2(i, i) * res)).rgb;
-                col.rgb += tex2D(blurTexture, saturate(uv + float2(i, -i) * res)).rgb;
-                col.rgb += tex2D(blurTexture, saturate(uv + float2(-i, i) * res)).rgb;
-                col.rgb += tex2D(blurTexture, saturate(uv + float2(-i, -i) * res)).rgb;
-                col.rgb /= 5.0f;
-
-                col.a = 1;
-
-                return col;
+                //uv in subrect
+                uv = uv * _SubRect.zw + _SubRect.xy;
+                return uv;
             }
 
             v2f vert (appdata v)
@@ -65,14 +52,14 @@ Shader "Game/Lighting"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uv = GetUv(o.uv);
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                fixed4 col = kawaseBlur(_MainTex, i.uv, _KawaseOffset, _MainTex_TexelSize.xy);
-                //fixed4 col = tex2D(_MainTex, i.uv);
-                return col*_Color + _EnvironmentLight;
+                fixed4 col = tex2D(_MainTex, i.uv);
+                return col*_Color;
             }
             ENDCG
         }
