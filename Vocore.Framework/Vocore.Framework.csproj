@@ -54,6 +54,14 @@
       <HintPath>..\Packages\Unity.DOTS\Unity.Burst.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.Burst">
+      <HintPath>..\Packages\Unity.DOTS\Unity.RenderPipelines.Core.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Burst">
+      <HintPath>..\Packages\Unity.DOTS\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>..\Packages\UnityEngine\UnityEngine.dll</HintPath>
       <Private>False</Private>
