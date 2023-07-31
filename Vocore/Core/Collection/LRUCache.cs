@@ -25,6 +25,10 @@ namespace Vocore
         private readonly int _capacity;
         private int _sumWeight = 0;
 
+        public int Count => _index.Count;
+        public int Capacity => _capacity;
+        public int SumWeight => _sumWeight;
+
         public LRUCache(int capacity)
         {
             this._capacity = capacity;
