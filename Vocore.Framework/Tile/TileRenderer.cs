@@ -8,8 +8,6 @@ namespace Vocore
     {
         private TileMap _tileMap;
 
-        public bool CanDraw => throw new NotImplementedException();
-
         public TileRenderer(TileMap tileMap)
         {
             _tileMap = tileMap;
@@ -21,7 +19,7 @@ namespace Vocore
 
         public void Draw(CommandBuffer commandBuffer)
         {
-            throw new NotImplementedException();
+            
         }
 
 

@@ -6,6 +6,5 @@ namespace Vocore
     public interface ICommandRenderer
     {
         void Draw(CommandBuffer commandBuffer);
-        bool CanDraw{ get;}
     }
 }

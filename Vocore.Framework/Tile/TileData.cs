@@ -5,6 +5,6 @@ namespace Vocore
 {
     public struct TileData
     {
-        public int renderderId;
+        public int graphicId;
     }
 }
