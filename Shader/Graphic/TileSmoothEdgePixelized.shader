@@ -8,19 +8,19 @@ Shader "Game/TileSmoothEdgePixelized"
     }
     SubShader
     {
-        Tags {"Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType" = "Plane"}
+        Tags {"Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType" = "Plane" "DisableBatching" = "True"}
         ColorMask RGB
         Lighting Off ZWrite Off
 
         Pass
         {
             Blend SrcAlpha OneMinusSrcAlpha
-            CGPROGRAM
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma instancing_options assumeuniformscaling
+            #pragma multi_compile_instancing
 
-            #include "UnityCG.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct appdata
             {
@@ -46,13 +46,13 @@ Shader "Game/TileSmoothEdgePixelized"
             UNITY_INSTANCING_BUFFER_END(Props)
 
             //round to nearest pixel
-            fixed RoundX(float x)
+            float RoundX(float x)
             {
                 float stepX = _MainTex_TexelSize.x;
                 return round(x/stepX)*stepX;
             }
 
-            fixed RoundY(float y)
+            float RoundY(float y)
             {
                 float stepY = _MainTex_TexelSize.y;
                 return round(y/stepY)*stepY; 
@@ -65,7 +65,7 @@ Shader "Game/TileSmoothEdgePixelized"
                 UNITY_TRANSFER_INSTANCE_ID(v, o);
 
                 float scale = UNITY_ACCESS_INSTANCED_PROP(Props,_Extend) + 1;
-                o.vertex = UnityObjectToClipPos(v.vertex*scale);
+                o.vertex = TransformObjectToHClip(v.vertex.xyz*scale);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.uv = v.vertex.xy*scale;
 
@@ -73,11 +73,11 @@ Shader "Game/TileSmoothEdgePixelized"
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            float4 frag (v2f i) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(i);
                 float extend = UNITY_ACCESS_INSTANCED_PROP(Props,_Extend);
-                fixed4 col = tex2D(_MainTex, i.uv);
+                float4 col = tex2D(_MainTex, i.uv);
                 float halfExtend = extend/2;
                 float excess = max(RoundX(saturate(abs(i.uv.x)-0.5)), RoundY( saturate(abs(i.uv.y)-0.5)));
                 if(extend>0)
@@ -86,7 +86,7 @@ Shader "Game/TileSmoothEdgePixelized"
                 }
                 return col*UNITY_ACCESS_INSTANCED_PROP(Props,_Color);
             }
-            ENDCG
+            ENDHLSL
         }
     }
 }
