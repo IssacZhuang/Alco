@@ -27,7 +27,7 @@ namespace Vocore.Test
                 index++;
             }
 
-            TestHelper.Assert(!result);
+            TestHelper.AssertFalse(!result);
         }
 
         [Test("ChunkList remove")]
@@ -53,7 +53,7 @@ namespace Vocore.Test
                 index++;
             }
 
-            TestHelper.Assert(!result);
+            TestHelper.AssertFalse(!result);
         }
 
         [Test("ChunkList vs List add element")]

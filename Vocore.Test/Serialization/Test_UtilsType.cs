@@ -12,14 +12,14 @@ namespace Vocore.Test
         public void Test_IsList()
         {
             Type type = typeof(List<int>);
-            TestHelper.Assert(!_typeHelper.IsList(type), "Test_IsList failed. " + _typeHelper.IsList(type));
+            TestHelper.AssertFalse(!_typeHelper.IsList(type), "Test_IsList failed. " + _typeHelper.IsList(type));
         }
 
         [Test("Test_IsDictionary")]
         public void Test_IsDictionary()
         {
             Type type = typeof(Dictionary<int, string>);
-            TestHelper.Assert(!_typeHelper.IsDictionary(type), "Test_IsDictionary failed. " + _typeHelper.IsDictionary(type));
+            TestHelper.AssertFalse(!_typeHelper.IsDictionary(type), "Test_IsDictionary failed. " + _typeHelper.IsDictionary(type));
         }
 
     }

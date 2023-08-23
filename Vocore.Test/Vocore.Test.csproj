@@ -170,6 +170,7 @@
     <EmbeddedResource Include="Config\Files\TestConfig.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <Compile Include="IO\Test_ResourcePack.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

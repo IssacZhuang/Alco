@@ -44,13 +44,13 @@ namespace Vocore.Test
                 animation.Evaluate(i);
             }
 
-            TestHelper.Assert(flagEvent0, "event0 failed");
-            TestHelper.Assert(!flagEvent1, "event1 failed");
-            TestHelper.Assert(!flagEvent2, "event2 failed");
-            TestHelper.Assert(!flagEvent3, "event3 failed");
-            TestHelper.Assert(!flagEvent4, "event4 failed");
-            TestHelper.Assert(!flagEvent5, "event5 failed");
-            TestHelper.Assert(flagEvent6, "event6 failed");
+            TestHelper.AssertFalse(flagEvent0, "event0 failed");
+            TestHelper.AssertFalse(!flagEvent1, "event1 failed");
+            TestHelper.AssertFalse(!flagEvent2, "event2 failed");
+            TestHelper.AssertFalse(!flagEvent3, "event3 failed");
+            TestHelper.AssertFalse(!flagEvent4, "event4 failed");
+            TestHelper.AssertFalse(!flagEvent5, "event5 failed");
+            TestHelper.AssertFalse(flagEvent6, "event6 failed");
 
 
         }

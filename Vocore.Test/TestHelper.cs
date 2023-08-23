@@ -101,7 +101,7 @@ namespace Vocore.Test
             Console.ForegroundColor = ConsoleColor.White;
         }
 
-        public static void Assert(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
+        public static void AssertFalse(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
         {
             if (condition)
             {
@@ -113,6 +113,11 @@ namespace Vocore.Test
                 AddSuccess();
                 PrintGreen(success);
             }
+        }
+
+        public static void AssertTrue(bool condition, string failed = TEXT_FAILED, string success = TEXT_SUCCESS)
+        {
+            AssertFalse(!condition, failed, success);
         }
 
         public static void Benchmark(Action action, string name = TEXT_BENCHMARK)

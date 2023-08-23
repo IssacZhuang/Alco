@@ -31,7 +31,7 @@ namespace Vocore.Test
                 }
             }
 
-            TestHelper.Assert(pool.Get() != null, "Test_ArrayPool get failed");
+            TestHelper.AssertFalse(pool.Get() != null, "Test_ArrayPool get failed");
 
         }
     }

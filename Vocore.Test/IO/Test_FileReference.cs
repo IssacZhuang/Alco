@@ -13,7 +13,7 @@ namespace Vocore.Test
             string path = "TestFiles/TestIO_1.xml";
             FileReference file = new FileReference(path);
             //TestUtility.PrintBlue(file.GetString());
-            TestHelper.Assert(file.GetString() == null || file.GetString().Length == 0);
+            TestHelper.AssertFalse(file.GetString() == null || file.GetString().Length == 0);
         }
 
         [Test("test load async")]
@@ -24,7 +24,7 @@ namespace Vocore.Test
             var task = file.LoadStringAsync((str) =>
             {
                 //TestUtility.PrintBlue(str);
-                TestHelper.Assert(str == null || str.Length == 0);
+                TestHelper.AssertFalse(str == null || str.Length == 0);
             });
             TestHelper.PrintBlue("start load");
             Task.WaitAll(task);
@@ -38,7 +38,7 @@ namespace Vocore.Test
             var task = file.LoadXmlAsync((doc) =>
             {
                 //TestUtility.PrintBlue(doc.ToString());
-                TestHelper.Assert(doc == null || doc.ToString().Length == 0);
+                TestHelper.AssertFalse(doc == null || doc.ToString().Length == 0);
             });
             TestHelper.PrintBlue("start load");
             Task.WaitAll(task);

@@ -18,11 +18,11 @@ namespace Vocore.Test
         public unsafe void ValueGetSet()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);
-            TestHelper.Assert(bufferVec.Ptr == null);
-            TestHelper.Assert((byte*)bufferVec.Ptr == null);
+            TestHelper.AssertFalse(bufferVec.Ptr == null);
+            TestHelper.AssertFalse((byte*)bufferVec.Ptr == null);
 
             bufferVec[3] = Vector3.one;
-            TestHelper.Assert(bufferVec[3] != Vector3.one);
+            TestHelper.AssertFalse(bufferVec[3] != Vector3.one);
             bufferVec.Dispose();
         }
 
