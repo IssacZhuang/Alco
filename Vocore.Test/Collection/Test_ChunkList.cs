@@ -86,7 +86,7 @@ namespace Vocore.Test
         [Test("ChunkList vs List remove element")]
         public void TestVsListRemove()
         {
-            int count = 10000;
+            int count = 100000;
 
             List<int> list = new List<int>();
 

@@ -7,8 +7,7 @@ namespace Vocore
 {
     public class ChunkList<T> : ICollection<T>
     {
-        private Chunk _head;
-        private Chunk _tail;
+        private readonly List<Chunk> _chunks;
         private int _count;
         public int Count => _count;
         public int ChunkSize => Chunk.MaxCount;
@@ -16,60 +15,51 @@ namespace Vocore
 
         public ChunkList()
         {
-            _head = new Chunk();
-            _tail = _head;
+            _chunks = new List<Chunk>();
             _count = 0;
         }
 
         public void Add(T element)
         {
-            if (_tail.Count >= Chunk.MaxCount)
+            if (_count % Chunk.MaxCount == 0)
             {
-                Chunk newChunk = new Chunk();
-                _tail.Next = newChunk;
-                newChunk.Prev = _tail;
-                _tail = newChunk;
+                _chunks.Add(Chunk.Create());
             }
 
-            _tail.Add(element);
+            _chunks[_chunks.Count - 1].Add(element);
             _count++;
         }
 
         public bool Remove(T element)
         {
-            bool result = false;
-            Chunk chunk = _head;
-            while (chunk != null)
+            for (int i = 0; i < _chunks.Count; i++)
             {
-
-                for (int i = 0; i < chunk.Count; i++)
+                Chunk chunk = _chunks[i];
+                for (int j = 0; j < chunk.Count; j++)
                 {
-                    if (chunk[i].Equals(element))
+                    if (chunk[j].Equals(element))
                     {
-                        Remove(chunk, i);
+                        Remove(i, j);
                         return true;
                     }
                 }
-
-                chunk = chunk.Next;
             }
-            return result;
+
+            return false;
         }
 
         public bool Contains(T item)
         {
-            Chunk chunk = _head;
-            while (chunk != null)
+            for (int i = 0; i < _chunks.Count; i++)
             {
-                for (int i = 0; i < chunk.Count; i++)
+                Chunk chunk = _chunks[i];
+                for (int j = 0; j < chunk.Count; j++)
                 {
-                    if (chunk[i].Equals(item))
+                    if (chunk[j].Equals(item))
                     {
                         return true;
                     }
                 }
-
-                chunk = chunk.Next;
             }
 
             return false;
@@ -77,61 +67,47 @@ namespace Vocore
 
         public void Clear()
         {
-            _head = new Chunk();
-            _tail = _head;
+            _chunks.Clear();
             _count = 0;
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            Chunk chunk = _head;
-            while (chunk != null)
-            {
-                for (int i = 0; i < chunk.Count; i++)
-                {
-                    array[arrayIndex] = chunk[i];
-                    arrayIndex++;
-                }
 
-                chunk = chunk.Next;
-            }
         }
 
-        private void Remove(Chunk chunk, int index)
+        private void Remove(int index)
         {
-            if (_tail.Count == 0)
+            if (index >= _count)
             {
-                if (_tail.Next != null)
-                {
-                    _tail.Next.Prev = null;
-                    _tail.Next = null;
-                }
-
-                _tail = _tail.Prev;
+                throw ExceptionCollection.OutOfRange;
             }
 
-            if (chunk == _tail && index == _tail.Count - 1)
-            {
-                _tail.RemoveTail();
-                _count--;
-                return;
-            }
+            int chunkIndex = index / Chunk.MaxCount;
+            int elementIndex = index % Chunk.MaxCount;
+            Remove(chunkIndex, elementIndex);
+        }
 
-            chunk.Replace(index, _tail.RemoveTail());
+        private void Remove(int chunkIndex, int elementIndex)
+        {
+            _chunks[chunkIndex].Remove(elementIndex);
             _count--;
+
+            if (elementIndex == 0)
+            {
+                _chunks.RemoveAt(chunkIndex);
+            }
         }
 
         public IEnumerator<T> GetEnumerator()
         {
-            Chunk chunk = _head;
-            while (chunk != null)
+            for (int i = 0; i < _chunks.Count; i++)
             {
-                for (int i = 0; i < chunk.Count; i++)
+                Chunk chunk = _chunks[i];
+                for (int j = 0; j < chunk.Count; j++)
                 {
-                    yield return chunk[i];
+                    yield return chunk[j];
                 }
-
-                chunk = chunk.Next;
             }
         }
 
@@ -140,15 +116,13 @@ namespace Vocore
             return GetEnumerator();
         }
 
-        internal class Chunk
+        internal struct Chunk
         {
             public const int MemSize = 16 * 1024;
             public static readonly int MaxCount = GetMaxCount();
 
             private T[] _elements;
             private int _count;
-            private Chunk _next;
-            private Chunk _prev;
 
             public int Count => _count;
 
@@ -160,22 +134,13 @@ namespace Vocore
                 }
             }
 
-            public Chunk Next
+            public static Chunk Create()
             {
-                get => _next;
-                set => _next = value;
-            }
-
-            public Chunk Prev
-            {
-                get => _prev;
-                set => _prev = value;
-            }
-
-            public Chunk()
-            {
-                _elements = new T[MaxCount];
-                _count = 0;
+                return new Chunk
+                {
+                    _elements = new T[MaxCount],
+                    _count = 0
+                };
             }
 
             public void Add(T element)
@@ -200,6 +165,22 @@ namespace Vocore
                 _elements[_count - 1] = default(T);
                 _count--;
                 return reuslt;
+            }
+
+            public void Remove(int index)
+            {
+                if (index >= _count)
+                {
+                    throw ExceptionCollection.OutOfRange;
+                }
+
+                if (index == _count - 1)
+                {
+                    RemoveTail();
+                    return;
+                }
+
+                _elements[index] = RemoveTail();
             }
 
             public void Replace(int index, T element)
