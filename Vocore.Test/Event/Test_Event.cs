@@ -14,7 +14,7 @@ namespace Vocore.Test
 
         public EventTestObject()
         {
-            _tracker = new EventTracker(this);
+            _tracker = new EventTracker();
             _tracker.Subscribe<int>(TestEvent, OnEvent);
             _tracker.Subscribe<float>(TestEvent2, (float value) =>
             {
@@ -51,7 +51,7 @@ namespace Vocore.Test
         private EventTracker _tracker;
         public EventTestObject2()
         {
-            _tracker = new EventTracker(this);
+            _tracker = new EventTracker();
             _tracker.Subscribe<int>(TestEvent, OnEvent);
         }
         public void OnEvent(int data)

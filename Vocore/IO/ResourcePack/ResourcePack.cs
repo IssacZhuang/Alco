@@ -59,6 +59,28 @@ namespace Vocore
             return true;
         }
 
+        public unsafe bool TrySetFileByPointer(string path, void* ptr, int length)
+        {
+            if (ptr == null || length <= 0)
+            {
+                return false;
+            }
+
+            _archive.GetEntry(path)?.Delete();
+
+            ZipArchiveEntry entry = _archive.CreateEntry(path);
+
+            using (Stream stream = entry.Open())
+            {
+                byte* p = (byte*)ptr;
+                for (int i = 0; i < length; i++)
+                {
+                    stream.WriteByte(p[i]);
+                }
+            }
+            return true;
+        }
+
         public bool IsFileExist(string path)
         {
             return _archive.GetEntry(path) != null;
@@ -107,12 +129,13 @@ namespace Vocore
 
         public bool TryDeleteFile(string path)
         {
-            if (_archive.GetEntry(path) == null)
+            ZipArchiveEntry entry = _archive.GetEntry(path);
+            if ( entry == null)
             {
                 return false;
             }
 
-            _archive.GetEntry(path).Delete();
+            entry.Delete();
             return true;
         }
 

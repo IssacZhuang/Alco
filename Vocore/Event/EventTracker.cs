@@ -10,12 +10,10 @@ namespace Vocore
 
     public class EventTracker
     {
-        private object _target;
-        private Dictionary<EventId, object> _events = new Dictionary<EventId, object>();
+        private readonly Dictionary<EventId, object> _events = new Dictionary<EventId, object>();
 
-        public EventTracker(object target)
+        public EventTracker()
         {
-            _target = target;
         }
 
         public bool Subscribe<TData>(EventId evt, EventCallback<TData> callback)
@@ -43,7 +41,7 @@ namespace Vocore
 
         public bool Unsubscribe(EventId evt)
         {
-            if (!_events.TryGetValue(evt, out var ptr))
+            if (!_events.ContainsKey(evt))
             {
                 return false;
             }
