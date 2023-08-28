@@ -111,7 +111,7 @@ namespace Vocore
 
         private void RegisterParser<T>() where T : BaseConfig
         {
-            _parseHelper.RegisterParser<T>(ConfigParserGeneric<T>);
+            _parseHelper.RegisterStrParser<T>(ConfigParserGeneric<T>);
         }
 
         private static T ConfigParserGeneric<T>(string str) where T : BaseConfig

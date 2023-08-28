@@ -1,4 +1,5 @@
 using System.Globalization;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Vocore
@@ -43,12 +44,17 @@ namespace Vocore
 			return FromBytes(r, g, b, a);
 		}
 
-		/// <summary>
-		/// Convert Color to hex string. For example: (r:255, g:255, b:255, a:255) is #FFFFFF.
-		/// </summary>
-		public static string ToHex(this Color color)
+        /// <summary>
+        /// Convert Color to hex string. For example: (r:255, g:255, b:255, a:255) is #FFFFFFFF.
+        /// </summary>
+        public static string ToHexStr(this Color color)
 		{
-			return ColorUtility.ToHtmlStringRGBA(color);
+            int4 color32 = default;
+            color32.x = (int)math.round(color.r * 255f);
+            color32.y = (int)math.round(color.g * 255f);
+            color32.z = (int)math.round(color.b * 255f);
+            color32.w = (int)math.round(color.a * 255f);
+            return string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", color32.x, color32.y, color32.z, color32.w);
 		}
     }
 }

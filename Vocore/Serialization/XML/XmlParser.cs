@@ -110,7 +110,7 @@ namespace Vocore
 
             try
             {
-                if (_parseHelper.TryParse(xml.InnerText, type, out Object objParsed))
+                if (_parseHelper.TryParseStr(xml.InnerText, type, out Object objParsed))
                 {
                     return objParsed;
                 }
@@ -143,7 +143,7 @@ namespace Vocore
                 {
                     try
                     {
-                        if (_parseHelper.TryParse(child.Name, keyType, out Object key))
+                        if (_parseHelper.TryParseStr(child.Name, keyType, out Object key))
                         {
                             object value = ObjectFromXml(valueType, child, depth + 1);
                             dict.Add(key, value);
@@ -166,7 +166,7 @@ namespace Vocore
                 Type[] genericTypes = type.GetGenericArguments();
                 Type keyType = genericTypes[0];
                 Type valueType = genericTypes[1];
-                if (_parseHelper.TryParse(xml.Name, keyType, out Object key))
+                if (_parseHelper.TryParseStr(xml.Name, keyType, out Object key))
                 {
                     object value = ObjectFromXml(valueType, xml, depth + 1);
                     return _typeHelper.CreateKeyValuePair(keyType, valueType, key, value);
