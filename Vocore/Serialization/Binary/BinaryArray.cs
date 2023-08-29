@@ -6,20 +6,20 @@ using System.Text;
 
 namespace Vocore
 {
-    public class BinArray : BinValue, IEnumerable
+    public class BinArray : BinaryValue, IEnumerable
     {
 
-        private readonly List<BinValue> _content = new List<BinValue>();
+        private readonly List<BinaryValue> _content = new List<BinaryValue>();
 
         public BinArray()
-            : base(BinValue.ValueType.Array)
+            : base(BinaryValue.ValueType.Array)
         {
         }
 
         //
         // Indexer
         //
-        public override BinValue this[int index]
+        public override BinaryValue this[int index]
         {
             get { return _content[index]; }
             set { _content[index] = value; }
@@ -29,20 +29,20 @@ namespace Vocore
         //
         // Methods
         //
-        public override void Add(BinValue v)
+        public void Add(BinaryValue v)
         {
             _content.Add(v);
         }
 
-        public int IndexOf(BinValue item)
+        public int IndexOf(BinaryValue item)
         {
             return _content.IndexOf(item);
         }
-        public void Insert(int index, BinValue item)
+        public void Insert(int index, BinaryValue item)
         {
             _content.Insert(index, item);
         }
-        public bool Remove(BinValue v)
+        public bool Remove(BinaryValue v)
         {
             return _content.Remove(v);
         }
@@ -50,12 +50,12 @@ namespace Vocore
         {
             _content.RemoveAt(index);
         }
-        public override void Clear()
+        public void Clear()
         {
             _content.Clear();
         }
 
-        public override bool Contains(BinValue v)
+        public bool Contains(BinaryValue v)
         {
             return _content.Contains(v);
         }

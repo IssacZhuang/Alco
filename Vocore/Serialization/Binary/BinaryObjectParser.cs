@@ -6,26 +6,25 @@ using System.Text;
 
 namespace Vocore
 {
-    public class BinaryObjectParser
+    public class BinaryParser
     {
-        private MemoryStream _memoryStream;
-        private BinaryReader _binaryReader;
-        private BinaryWriter _binaryWriter;
+        private readonly MemoryStream _memoryStream;
+        private readonly BinaryReader _binaryReader;
+        private readonly BinaryWriter _binaryWriter;
 
-        public static BinObject Load(byte[] buf)
+        public static BinaryTable Decode(byte[] bytes)
         {
-            BinaryObjectParser parser = new BinaryObjectParser(buf);
-
-            return parser.DecodeObject();
+            BinaryParser parser = new BinaryParser(bytes);
+            return parser.DecodeTable();
         }
 
-        public static byte[] Dump(BinObject obj)
+        public static byte[] Encode(BinaryTable data)
         {
 
-            BinaryObjectParser parser = new BinaryObjectParser();
+            BinaryParser parser = new BinaryParser();
             MemoryStream ms = new MemoryStream();
 
-            parser.EncodeObject(ms, obj);
+            parser.EncodeObject(ms, data);
 
             byte[] buf = new byte[ms.Position];
             ms.Seek(0, SeekOrigin.Begin);
@@ -34,60 +33,57 @@ namespace Vocore
             return buf;
         }
 
-        private BinaryObjectParser(byte[] buf = null)
+        private BinaryParser(byte[] bytes = null)
         {
-            if (buf != null)
+            if (bytes != null)
             {
-                _memoryStream = new MemoryStream(buf);
-                _binaryReader = new BinaryReader(_memoryStream);
+                _memoryStream = new MemoryStream(bytes);
             }
             else
             {
                 _memoryStream = new MemoryStream();
-                _binaryWriter = new BinaryWriter(_memoryStream);
             }
+            _binaryReader = new BinaryReader(_memoryStream);
         }
 
-        private BinValue DecodeElement(out string name)
+        private BinaryValue DecodeElement(out string name)
         {
             byte elementType = _binaryReader.ReadByte();
             name = DecodeFieldName();
             if (elementType == 0x03)
             { // Document
-                return DecodeObject();
-
+                return DecodeTable();
             }
             else if (elementType == 0x04)
             { // Array
                 return DecodeArray();
-
             }
             else if (elementType == 0x05)
             { // Binary
                 int length = _binaryReader.ReadInt32();
-                byte binaryType = _binaryReader.ReadByte();
+                _binaryReader.ReadByte(); // zero
 
-                return new BinValue(_binaryReader.ReadBytes(length));
+                return new BinaryValue(_binaryReader.ReadBytes(length));
             }
             else if (elementType == 0x0A)
             { // None
-                return new BinValue();
+                return new BinaryValue();
             }
 
             throw new Exception(string.Format("Don't know elementType={0}", elementType));
         }
 
-        private BinObject DecodeObject()
+        private BinaryTable DecodeTable()
         {
             int length = _binaryReader.ReadInt32() - 4;
 
-            BinObject obj = new BinObject();
+            BinaryTable obj = new BinaryTable();
 
             int i = (int)_binaryReader.BaseStream.Position;
             while (_binaryReader.BaseStream.Position < i + length - 1)
             {
                 string name;
-                BinValue value = DecodeElement(out name);
+                BinaryValue value = DecodeElement(out name);
                 obj.Add(name, value);
 
             }
@@ -98,7 +94,7 @@ namespace Vocore
 
         private BinArray DecodeArray()
         {
-            BinObject obj = DecodeObject();
+            BinaryTable obj = DecodeTable();
 
             int i = 0;
             BinArray array = new BinArray();
@@ -114,11 +110,10 @@ namespace Vocore
 
         private string DecodeFieldName()
         {
-
             var ms = new MemoryStream();
             while (true)
             {
-                byte buf = (byte)_binaryReader.ReadByte();
+                byte buf = _binaryReader.ReadByte();
                 if (buf == 0)
                     break;
                 ms.WriteByte(buf);
@@ -128,33 +123,33 @@ namespace Vocore
         }
 
 
-        private void EncodeElement(MemoryStream ms, string name, BinValue v)
+        private void EncodeElement(MemoryStream ms, string name, BinaryValue v)
         {
             switch (v.Type)
             {
-                case BinValue.ValueType.Object:
+                case BinaryValue.ValueType.Object:
                     ms.WriteByte(0x03);
                     EncodeFieldName(ms, name);
-                    EncodeObject(ms, v as BinObject);
+                    EncodeObject(ms, v as BinaryTable);
                     return;
-                case BinValue.ValueType.Array:
+                case BinaryValue.ValueType.Array:
                     ms.WriteByte(0x04);
                     EncodeFieldName(ms, name);
                     EncodeArray(ms, v as BinArray);
                     return;
-                case BinValue.ValueType.Binary:
+                case BinaryValue.ValueType.Binary:
                     ms.WriteByte(0x05);
                     EncodeFieldName(ms, name);
-                    EncodeBinary(ms, v.BinaryValue);
+                    EncodeBinary(ms, v.Bytes);
                     return;
-                case BinValue.ValueType.Null:
+                case BinaryValue.ValueType.Null:
                     ms.WriteByte(0x0A);
                     EncodeFieldName(ms, name);
                     return;
             };
         }
 
-        private void EncodeObject(MemoryStream ms, BinObject obj)
+        private void EncodeObject(MemoryStream ms, BinaryTable obj)
         {
 
             MemoryStream dms = new MemoryStream();
@@ -164,7 +159,7 @@ namespace Vocore
             }
 
             BinaryWriter bw = new BinaryWriter(ms);
-            bw.Write((Int32)(dms.Position + 4 + 1));
+            bw.Write((int)(dms.Position + 4 + 1));
             bw.Write(dms.GetBuffer(), 0, (int)dms.Position);
             bw.Write((byte)0);
         }
@@ -172,7 +167,7 @@ namespace Vocore
         private void EncodeArray(MemoryStream ms, BinArray lst)
         {
 
-            var obj = new BinObject();
+            var obj = new BinaryTable();
             for (int i = 0; i < lst.Count; ++i)
             {
                 obj.Add(Convert.ToString(i), lst[i]);
