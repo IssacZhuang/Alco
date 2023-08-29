@@ -12,38 +12,74 @@ namespace Vocore.Test
             // some random data
             KeyValuePair<string, string>[] data = new KeyValuePair<string, string>[6]{
                 new KeyValuePair<string, string>("key1", "value1"),
-                new KeyValuePair<string, string>("key2", "value2"),
-                new KeyValuePair<string, string>("key3", "value3"),
+                new KeyValuePair<string, string>("key2", "valu````~~e2"),
+                new KeyValuePair<string, string>("key3", "val     ue3"),
                 new KeyValuePair<string, string>("key4", null),
-                new KeyValuePair<string, string>("key5", "value5"),
-                new KeyValuePair<string, string>("key6", "value6"),
+                new KeyValuePair<string, string>("key5", "valu......e5"),
+                new KeyValuePair<string, string>("key6", "val^^&&ue6"),
             };
 
-            BinaryTable binObject = new BinaryTable();
+            KeyValuePair<string, string>[] subData = new KeyValuePair<string, string>[3]{
+                new KeyValuePair<string, string>("key1", "asdasdasd"),
+                new KeyValuePair<string, string>("key2", "valasdasdue2"),
+                new KeyValuePair<string, string>("key3", "s90-09-9=090"),
+            };
+
+            
+            BinaryTable table = new BinaryTable();
+            
+
 
             foreach (var item in data)
             {
                 if (item.Value == null)
                 {
-                    binObject[item.Key] = BinaryValue.NullValue;
+                    table[item.Key] = BinaryValue.NullValue;
                     continue;
                 }
                 byte[] value = Encoding.UTF8.GetBytes(item.Value);
-                binObject[item.Key] = value;
+                table[item.Key] = value;
             }
 
-            byte[] raw = BinaryParser.Encode(binObject);
+            string keySubData = "subData";
+            BinaryTable subTable = new BinaryTable();
+            foreach (var item in subData)
+            {
+                if (item.Value == null)
+                {
+                    subTable[item.Key] = BinaryValue.NullValue;
+                    continue;
+                }
+                byte[] value = Encoding.UTF8.GetBytes(item.Value);
+                subTable[item.Key] = value;
+            }
+            table[keySubData] = subTable;
 
-            BinaryTable binObject2 = BinaryParser.Decode(raw);
+            byte[] raw = BinaryParser.Encode(table);
+
+            BinaryTable table2 = BinaryParser.Decode(raw);
 
             foreach (var item in data)
             {
                 if (item.Value == null)
                 {
-                    TestHelper.AssertFalse(binObject2[item.Key].Type != BinaryValue.ValueType.Null);
+                    TestHelper.AssertFalse(table2[item.Key].Type != BinaryValue.ValueType.Null);
                     continue;
                 }
-                byte[] value = binObject2[item.Key].Bytes;
+                byte[] value = table2[item.Key].Bytes;
+                string str = Encoding.UTF8.GetString(value);
+                TestHelper.AssertFalse(str != item.Value);
+            }
+
+            BinaryTable subTable2 = table2[keySubData] as BinaryTable;
+            foreach (var item in subData)
+            {
+                if (item.Value == null)
+                {
+                    TestHelper.AssertFalse(subTable2[item.Key].Type != BinaryValue.ValueType.Null);
+                    continue;
+                }
+                byte[] value = subTable2[item.Key].Bytes;
                 string str = Encoding.UTF8.GetString(value);
                 TestHelper.AssertFalse(str != item.Value);
             }
@@ -61,7 +97,7 @@ namespace Vocore.Test
                 "value5",
             };
 
-            BinArray binArray = new BinArray();
+            BinaryArray binArray = new BinaryArray();
 
             foreach (var item in data)
             {
@@ -79,7 +115,7 @@ namespace Vocore.Test
             byte[] raw = BinaryParser.Encode(binObject);
 
             BinaryTable binObject2 = BinaryParser.Decode(raw);
-            BinArray binArray2 = binObject2["list"] as BinArray;
+            BinaryArray binArray2 = binObject2["list"] as BinaryArray;
 
             for (int i = 0; i < data.Length; i++)
             {

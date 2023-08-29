@@ -6,12 +6,12 @@ using System.Text;
 
 namespace Vocore
 {
-    public class BinArray : BinaryValue, IEnumerable
+    public class BinaryArray : BinaryValue, IEnumerable
     {
 
         private readonly List<BinaryValue> _content = new List<BinaryValue>();
 
-        public BinArray()
+        public BinaryArray()
             : base(BinaryValue.ValueType.Array)
         {
         }
@@ -19,7 +19,7 @@ namespace Vocore
         //
         // Indexer
         //
-        public override BinaryValue this[int index]
+        public BinaryValue this[int index]
         {
             get { return _content[index]; }
             set { _content[index] = value; }

@@ -13,7 +13,7 @@ namespace Vocore
             Null = 0x00,
             Binary = 0x01,
             Array = 0x02,
-            Object = 0x03,
+            Table = 0x03,
         };
 
         private readonly ValueType _type;
@@ -42,17 +42,6 @@ namespace Vocore
         public bool IsNull
         {
             get { return _type == ValueType.Null; }
-        }
-
-        public virtual BinaryValue this[string key]
-        {
-            get { return null; }
-            set { }
-        }
-        public virtual BinaryValue this[int index]
-        {
-            get { return null; }
-            set { }
         }
 
         public static implicit operator BinaryValue(byte[] v)

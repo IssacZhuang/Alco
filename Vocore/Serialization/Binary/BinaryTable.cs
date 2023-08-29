@@ -11,7 +11,7 @@ namespace Vocore
         private readonly Dictionary<string, BinaryValue> _map = new Dictionary<string, BinaryValue>();
 
         public BinaryTable()
-            : base(BinaryValue.ValueType.Object)
+            : base(BinaryValue.ValueType.Table)
         {
         }
 
@@ -32,7 +32,7 @@ namespace Vocore
         //
         // Indexer
         //
-        public override BinaryValue this[string key]
+        public BinaryValue this[string key]
         {
             get { return _map[key]; }
             set { _map[key] = value; }
