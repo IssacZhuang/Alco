@@ -34,9 +34,26 @@ namespace Vocore
         //
         public BinaryValue this[string key]
         {
-            get { return _map[key]; }
-            set { _map[key] = value; }
+            get
+            {
+                if (_map.TryGetValue(key, out BinaryValue v))
+                {
+                    return v;
+                }
+                return null;
+            }
+            set
+            {
+                if (value == null)
+                {
+                    _map[key] = new BinaryValue();
+                    return;
+                }
+                _map[key] = value;
+            }
         }
+
+
         //
         // Methods
         //

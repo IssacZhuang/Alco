@@ -1,8 +1,5 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
@@ -22,10 +19,6 @@ namespace Vocore
         /// Properties
         public ValueType Type { get { return _type; } }
 
-        public static BinaryValue NullValue
-        {
-            get { return new BinaryValue(ValueType.Null); }
-        }
 
         public byte[] Bytes
         {
@@ -44,15 +37,7 @@ namespace Vocore
             get { return _type == ValueType.Null; }
         }
 
-        public static implicit operator BinaryValue(byte[] v)
-        {
-            return new BinaryValue(v);
-        }
 
-        public static implicit operator byte[](BinaryValue v)
-        {
-            return v.Bytes;
-        }
 
         protected BinaryValue(ValueType valueType)
         {
@@ -69,6 +54,74 @@ namespace Vocore
         {
             _type = ValueType.Binary;
             _binary = v;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(byte[] value)
+        {
+            return new BinaryValue(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator byte[](BinaryValue value)
+        {
+            if (value.IsNull)
+            {
+                return null;
+            }
+            return value.Bytes;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(string value)
+        {
+            if (value == null)
+            {
+                return new BinaryValue();
+            }
+            return new BinaryValue(UtilsBinary.EncodeString(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator string(BinaryValue value)
+        {
+            if (value.IsNull)
+            {
+                return null;
+            }
+            return UtilsBinary.DecodeToString(value.Bytes);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(BinaryValue value, string str)
+        {
+            Log.Info("BinaryValue == string");
+            if (str is null)
+            {
+                return value is null || value.IsNull;
+            }
+            if (value is null)
+            {
+                return str == null;
+            }
+            Log.Info(1);
+            if (value.Type == ValueType.Table || value.Type == ValueType.Array)
+            {
+                return false;
+            }
+            Log.Info(2, str == null);
+            if (value.IsNull)
+            {
+                return str == null;
+            }
+            Log.Info(3, UtilsBinary.DecodeToString(value.Bytes) == str);
+            return UtilsBinary.DecodeToString(value.Bytes).Equals(str);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(BinaryValue value, string str)
+        {
+            return !(value == str);
         }
     }
 

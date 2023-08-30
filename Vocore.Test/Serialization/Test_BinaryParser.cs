@@ -21,7 +21,7 @@ namespace Vocore.Test
 
             KeyValuePair<string, string>[] subData = new KeyValuePair<string, string>[3]{
                 new KeyValuePair<string, string>("key1", "asdasdasd"),
-                new KeyValuePair<string, string>("key2", "valasdasdue2"),
+                new KeyValuePair<string, string>("key2", ""),
                 new KeyValuePair<string, string>("key3", "s90-09-9=090"),
             };
 
@@ -34,7 +34,7 @@ namespace Vocore.Test
             {
                 if (item.Value == null)
                 {
-                    table[item.Key] = BinaryValue.NullValue;
+                    table[item.Key] = new BinaryValue();
                     continue;
                 }
                 byte[] value = Encoding.UTF8.GetBytes(item.Value);
@@ -47,7 +47,7 @@ namespace Vocore.Test
             {
                 if (item.Value == null)
                 {
-                    subTable[item.Key] = BinaryValue.NullValue;
+                    subTable[item.Key] = new BinaryValue();
                     continue;
                 }
                 byte[] value = Encoding.UTF8.GetBytes(item.Value);
@@ -103,7 +103,7 @@ namespace Vocore.Test
             {
                 if (item == null)
                 {
-                    binArray.Add(BinaryValue.NullValue);
+                    binArray.Add(new BinaryValue());
                     continue;
                 }
                 byte[] value = Encoding.UTF8.GetBytes(item);
@@ -128,6 +128,27 @@ namespace Vocore.Test
                 string str = Encoding.UTF8.GetString(value);
                 TestHelper.AssertFalse(str != data[i]);
             }
+        }
+
+        [Test("Test BinaryParser convert")]
+        public void Test_Convert()
+        {
+            BinaryTable table = new BinaryTable();
+            table["key1"] = "value1";
+            table["key2"] = "value2";
+            table["key3"] = null;
+            table["key4"] = "value4";
+
+            byte[] raw = BinaryParser.Encode(table);
+
+            BinaryTable table2 = BinaryParser.Decode(raw);
+
+            TestHelper.PrintArray(UtilsBinary.EncodeString(table2["key2"]));
+            TestHelper.PrintArray(UtilsBinary.EncodeString("value2"));
+            TestHelper.AssertFalse(table2["key1"].Equals("value1"));
+            TestHelper.AssertFalse(table2["key2"] == "value2");
+            TestHelper.AssertFalse(table2["key3"] == null);
+            TestHelper.AssertFalse(table2["key4"] == "value4");
         }
     }
 }
