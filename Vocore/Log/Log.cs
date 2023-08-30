@@ -47,19 +47,37 @@ public static class Log
         _logWarning = logWarning;
     }
 
-    public static void Info(string message)
+    public static void Info(params object[] messages)
     {
-        _logInfo?.Invoke(message);
+        _builder.Clear();
+        for (int i = 0; i < messages.Length; i++)
+        {
+            _builder.Append(messages[i]?.ToString());
+            _builder.Append(" ");
+        }
+        _logInfo?.Invoke(_builder.ToString());
     }
 
-    public static void Warning(string message)
+    public static void Warning(params object[] messages)
     {
-        _logWarning?.Invoke(message);
+        _builder.Clear();
+        for (int i = 0; i < messages.Length; i++)
+        {
+            _builder.Append(messages[i]?.ToString());
+            _builder.Append(" ");
+        }
+        _logWarning?.Invoke(_builder.ToString());
     }
 
-    public static void Error(string message)
+    public static void Error(params object[] messages)
     {
-        _logError?.Invoke(message);
+        _builder.Clear();
+        for (int i = 0; i < messages.Length; i++)
+        {
+            _builder.Append(messages[i]?.ToString());
+            _builder.Append(" ");
+        }
+        _logError?.Invoke(_builder.ToString());
     }
 
     public static void LoadPresetConsole()
@@ -73,46 +91,46 @@ public static class Log
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void UnityPrintInfo(object obj)
+    private static void UnityPrintInfo(string str)
     {
-        Debug.Log(obj);
+        Debug.Log(str);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void UnityPrintWarning(object obj)
+    private static void UnityPrintWarning(string str)
     {
-        Debug.LogWarning(obj);
+        Debug.LogWarning(str);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void UnityPrintError(object obj)
+    private static void UnityPrintError(string str)
     {
-        Debug.LogError(obj);
+        Debug.LogError(str);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ConsolePrint(object obj, ConsoleColor color)
+    private static void ConsolePrint(string str, ConsoleColor color)
     {
         Console.ForegroundColor = color;
-        Console.WriteLine(obj);
+        Console.WriteLine(str);
         Console.ForegroundColor = ConsoleColor.White;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ConsolePrintInfo(object obj)
+    private static void ConsolePrintInfo(string str)
     {
-        ConsolePrint(obj, ConsoleColor.White);
+        ConsolePrint(str, ConsoleColor.White);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ConsolePrintWarning(object obj)
+    private static void ConsolePrintWarning(string str)
     {
-        ConsolePrint(obj, ConsoleColor.Yellow);
+        ConsolePrint(str, ConsoleColor.Yellow);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ConsolePrintError(object obj)
+    private static void ConsolePrintError(string str)
     {
-        ConsolePrint(obj, ConsoleColor.Red);
+        ConsolePrint(str, ConsoleColor.Red);
     }
 }
