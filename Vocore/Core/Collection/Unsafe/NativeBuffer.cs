@@ -41,6 +41,13 @@ namespace Vocore
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T GetRef(int index)
+        {
+            if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+            return ref Ptr[index];
+        }
+
         public NativeBuffer(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
@@ -52,6 +59,7 @@ namespace Vocore
         public void Dispose()
         {
             if (_isDisposed) return;
+            _isDisposed = true;
             FreeMemory();
             GC.SuppressFinalize(this);
         }
