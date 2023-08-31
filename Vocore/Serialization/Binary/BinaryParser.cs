@@ -77,13 +77,18 @@ namespace Vocore
         private static void EncodeArray(MemoryStream stream, BinaryArray lst)
         {
 
-            var table = new BinaryTable();
-            for (int i = 0; i < lst.Count; ++i)
+            using (MemoryStream tmpStream = new MemoryStream())
             {
-                table.Add(Convert.ToString(i), lst[i]);
-            }
+                for(int i=0;i<lst.Count;i++)
+                {
+                    EncodeElement(tmpStream, Convert.ToString(i), lst[i]);
+                }
 
-            EncodeTable(stream, table);
+                BinaryWriter writer = new BinaryWriter(stream);
+                writer.Write((int)(tmpStream.Position + 4 + 1));
+                writer.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
+                writer.Write((byte)0);
+            }
         }
 
         private static void EncodeBinary(MemoryStream stream, byte[] buf)
@@ -96,7 +101,7 @@ namespace Vocore
 
         private static void EncodeFieldName(MemoryStream stream, string v)
         {
-            byte[] buf = new UTF8Encoding().GetBytes(v);
+            byte[] buf = Encoding.UTF8.GetBytes(v);
             stream.Write(buf, 0, buf.Length);
             stream.WriteByte(0);
         }
@@ -157,16 +162,18 @@ namespace Vocore
 
         private static BinaryArray DecodeArray(BinaryReader reader)
         {
-            BinaryTable table = DecodeTable(reader);
 
-            int i = 0;
             BinaryArray array = new BinaryArray();
-            while (table.ContainsKey(Convert.ToString(i)))
-            {
-                array.Add(table[Convert.ToString(i)]);
+            int length = reader.ReadInt32() - 4;
 
-                i += 1;
+            int i = (int)reader.BaseStream.Position;
+            while (reader.BaseStream.Position < i + length - 1)
+            {
+                BinaryValue value = DecodeElement(reader, out string _);
+                array.Add(value);
             }
+
+            reader.ReadByte(); // zero
 
             return array;
         }

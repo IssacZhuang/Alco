@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml;
 
 namespace Vocore.Test
 {
@@ -133,22 +134,150 @@ namespace Vocore.Test
         [Test("Test BinaryParser convert")]
         public void Test_Convert()
         {
-            BinaryTable table = new BinaryTable();
-            table["key1"] = "value1";
-            table["key2"] = "value2";
-            table["key3"] = null;
-            table["key4"] = "value4";
+            BinaryTable table = new BinaryTable
+            {
+                ["key1"] = "value1",
+                ["key2"] = "value2",
+                ["key3"] = null,
+                ["key4"] = "value4"
+            };
 
             byte[] raw = BinaryParser.Encode(table);
 
             BinaryTable table2 = BinaryParser.Decode(raw);
 
-            TestHelper.PrintArray(UtilsBinary.EncodeString(table2["key2"]));
-            TestHelper.PrintArray(UtilsBinary.EncodeString("value2"));
-            TestHelper.AssertFalse(table2["key1"].Equals("value1"));
-            TestHelper.AssertFalse(table2["key2"] == "value2");
-            TestHelper.AssertFalse(table2["key3"] == null);
-            TestHelper.AssertFalse(table2["key4"] == "value4");
+            TestHelper.AssertTrue(table2.TryGetString("key1", out string value1));
+            TestHelper.AssertTrue(value1 == "value1");
+            TestHelper.AssertTrue(table2.TryGetString("key2", out string value2));
+            TestHelper.AssertTrue(value2 == "value2");
+            TestHelper.AssertFalse(table2.TryGetString("key3", out string value3));
+            TestHelper.AssertTrue(value3 == null);
+            TestHelper.AssertTrue(table2.TryGetString("key4", out string value4));
+            TestHelper.AssertTrue(value4 == "value4");
+        }
+
+        struct StructForSerialize
+        {
+            public int intVal;
+            public string strVal;
+            public float floatVal;
+            public bool boolVal;
+        }
+
+        [Test("Test BinaryParser vs XML serialization")]
+        public void Test_Serialization()
+        {
+            StructForSerialize value = new StructForSerialize
+            {
+                intVal = 123,
+                strVal = "asdasdasd",
+                floatVal = 123.456f,
+                boolVal = true,
+            };
+
+            int count = 100000;
+
+            //xml
+            TestHelper.Benchmark("xml", () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    XmlDocument doc = new XmlDocument();
+                    XmlElement root = doc.CreateElement("root");
+                    doc.AppendChild(root);
+                    XmlElement element = doc.CreateElement("intVal");
+                    element.InnerText = value.intVal.ToString();
+                    root.AppendChild(element);
+                    element = doc.CreateElement("strVal");
+                    element.InnerText = value.strVal;
+                    root.AppendChild(element);
+                    element = doc.CreateElement("floatVal");
+                    element.InnerText = value.floatVal.ToString();
+                    root.AppendChild(element);
+                    element = doc.CreateElement("boolVal");
+                    element.InnerText = value.boolVal.ToString();
+                    //string xml = doc.OuterXml;
+                }
+            });
+
+            TestHelper.Benchmark("binary", () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    BinaryTable table = new BinaryTable();
+                    table["intVal"] = value.intVal;
+                    table["strVal"] = value.strVal;
+                    table["floatVal"] = value.floatVal;
+                    table["boolVal"] = value.boolVal;
+                    //byte[] bytes = BinaryParser.Encode(table);
+                }
+            });
+        }
+
+        [Test("Test BinaryParser vs XML deserialization")]
+        public void Test_Deserialization()
+        {
+            StructForSerialize value = new StructForSerialize
+            {
+                intVal = 123,
+                strVal = "asdasdasd",
+                floatVal = 123.456f,
+                boolVal = true,
+            };
+
+            XmlDocument doc = new XmlDocument();
+            XmlElement root = doc.CreateElement("root");
+            doc.AppendChild(root);
+            XmlElement element = doc.CreateElement("intVal");
+            element.InnerText = value.intVal.ToString();
+            root.AppendChild(element);
+            element = doc.CreateElement("strVal");
+            element.InnerText = value.strVal;
+            root.AppendChild(element);
+            element = doc.CreateElement("floatVal");
+            element.InnerText = value.floatVal.ToString();
+            root.AppendChild(element);
+            element = doc.CreateElement("boolVal");
+            element.InnerText = value.boolVal.ToString();
+            root.AppendChild(element);
+            string xml = doc.OuterXml;
+
+            BinaryTable table = new BinaryTable();
+            table["intVal"] = value.intVal;
+            table["strVal"] = value.strVal;
+            table["floatVal"] = value.floatVal;
+            table["boolVal"] = value.boolVal;
+            byte[] bytes = BinaryParser.Encode(table);
+
+            StructForSerialize reuslt = default;
+
+            
+
+            TestHelper.Benchmark("xml", () =>
+            {
+                for (int i = 0; i < 100000; i++)
+                {
+                    doc.LoadXml(xml);
+                    XmlElement root2 = doc.DocumentElement;
+
+                    reuslt.intVal = int.Parse(root2["intVal"].InnerText);
+                    reuslt.strVal = root2["strVal"].InnerText;
+                    reuslt.floatVal = float.Parse(root2["floatVal"].InnerText);
+                    reuslt.boolVal = bool.Parse(root2["boolVal"].InnerText);
+                }
+            });
+
+            TestHelper.Benchmark("binary", () =>
+            {
+                for (int i = 0; i < 100000; i++)
+                {
+                    BinaryTable table2 = BinaryParser.Decode(bytes);
+                    table2.TryGetValue("intVal", out reuslt.intVal);
+                    table2.TryGetString("strVal", out reuslt.strVal);
+                    table2.TryGetValue("floatVal", out reuslt.floatVal);
+                    table2.TryGetValue("boolVal", out reuslt.boolVal);
+                }
+            });
         }
     }
 }

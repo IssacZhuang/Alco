@@ -56,20 +56,33 @@ namespace Vocore
             _binary = v;
         }
 
+        public bool TryGetValue<T>(out T v) where T : unmanaged
+        {
+            if (_type == ValueType.Binary)
+            {
+                v = UtilsBinary.DecodeToValue<T>(_binary);
+                return true;
+            }
+            v = default;
+            return false;
+        }
+
+        public bool TryGetString(out string v)
+        {
+            if (_type == ValueType.Binary)
+            {
+                v = UtilsBinary.DecodeToString(_binary);
+                return true;
+            }
+            v = default;
+            return false;
+        }
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator BinaryValue(byte[] value)
         {
             return new BinaryValue(value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator byte[](BinaryValue value)
-        {
-            if (value.IsNull)
-            {
-                return null;
-            }
-            return value.Bytes;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -83,46 +96,71 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator string(BinaryValue value)
+        public static implicit operator BinaryValue(int value)
         {
-            if (value.IsNull)
-            {
-                return null;
-            }
-            return UtilsBinary.DecodeToString(value.Bytes);
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(BinaryValue value, string str)
+        public static implicit operator BinaryValue(uint value)
         {
-            Log.Info("BinaryValue == string");
-            if (str is null)
-            {
-                return value is null || value.IsNull;
-            }
-            if (value is null)
-            {
-                return str == null;
-            }
-            Log.Info(1);
-            if (value.Type == ValueType.Table || value.Type == ValueType.Array)
-            {
-                return false;
-            }
-            Log.Info(2, str == null);
-            if (value.IsNull)
-            {
-                return str == null;
-            }
-            Log.Info(3, UtilsBinary.DecodeToString(value.Bytes) == str);
-            return UtilsBinary.DecodeToString(value.Bytes).Equals(str);
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(BinaryValue value, string str)
+        public static implicit operator BinaryValue(long value)
         {
-            return !(value == str);
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(ulong value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(float value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(double value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(bool value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(byte value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(sbyte value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(short value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BinaryValue(ushort value)
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
     }
 
 }

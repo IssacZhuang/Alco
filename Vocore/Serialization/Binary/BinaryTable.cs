@@ -53,6 +53,54 @@ namespace Vocore
             }
         }
 
+        public bool TryGetString(string key, out string value)
+        {
+            if (_map.TryGetValue(key, out BinaryValue v))
+            {
+                return v.TryGetString(out value);
+            }
+            value = null;
+            return false;
+        }
+
+        public bool TryGetValue<T>(string key, out T value) where T : unmanaged
+        {
+            if (_map.TryGetValue(key, out BinaryValue v))
+            {
+                return v.TryGetValue(out value);
+            }
+            value = default;
+            return false;
+        }
+
+        public bool TryGetTable(string key, out BinaryTable value)
+        {
+            if (_map.TryGetValue(key, out BinaryValue v))
+            {
+                if (v.Type == ValueType.Table && v is BinaryTable table)
+                {
+                    value = table;
+                    return true;
+                }
+            }
+            value = null;
+            return false;
+        }
+
+        public bool TryGetArray(string key, out BinaryArray value)
+        {
+            if (_map.TryGetValue(key, out BinaryValue v))
+            {
+                if (v.Type == ValueType.Array && v is BinaryArray array)
+                {
+                    value = array;
+                    return true;
+                }
+            }
+            value = null;
+            return false;
+        }
+
 
         //
         // Methods
