@@ -7,16 +7,44 @@ namespace Vocore.Test
 {
     public class Test_BinaryParser
     {
+        [Test("Test BinaryParser Fast string bytes convert")]
+        public void Test_FastStringBytesConvert()
+        {
+            string str = "abslk\n\n\tdjfas-,./;'][1231]";
+            byte[] bytes = UtilsBinary.FastStringToBytes(str);
+            string str2 = UtilsBinary.FastBytesToString(bytes);
+            TestHelper.AssertFalse(str != str2);
+            TestHelper.PrintBlue(str2);
+
+            int count = 1000000;
+
+            TestHelper.Benchmark("utf8",()=>{
+                for (int i = 0; i < count; i++)
+                {
+                    byte[] bytes2 = Encoding.UTF8.GetBytes(str);
+                    string str3 = Encoding.UTF8.GetString(bytes2);
+                }
+            });
+            
+            TestHelper.Benchmark("fast",()=>{
+                for (int i = 0; i < count; i++)
+                {
+                    byte[] bytes2 = UtilsBinary.FastStringToBytes(str);
+                    string str3 = UtilsBinary.FastBytesToString(bytes2);
+                }
+            });
+        }
+
         [Test("Test BinaryParser object")]
         public void Test_ParseObject()
         {
             // some random data
             KeyValuePair<string, string>[] data = new KeyValuePair<string, string>[6]{
-                new KeyValuePair<string, string>("key1", "value1"),
+                new KeyValuePair<string, string>("ke\ty1", "value1"),
                 new KeyValuePair<string, string>("key2", "valu````~~e2"),
                 new KeyValuePair<string, string>("key3", "val     ue3"),
                 new KeyValuePair<string, string>("key4", null),
-                new KeyValuePair<string, string>("key5", "valu......e5"),
+                new KeyValuePair<string, string>("ke\ny5", "valu......e5"),
                 new KeyValuePair<string, string>("key6", "val^^&&ue6"),
             };
 
@@ -196,7 +224,7 @@ namespace Vocore.Test
                     root.AppendChild(element);
                     element = doc.CreateElement("boolVal");
                     element.InnerText = value.boolVal.ToString();
-                    //string xml = doc.OuterXml;
+                    string xml = doc.OuterXml;
                 }
             });
 
@@ -209,7 +237,7 @@ namespace Vocore.Test
                     table["strVal"] = value.strVal;
                     table["floatVal"] = value.floatVal;
                     table["boolVal"] = value.boolVal;
-                    //byte[] bytes = BinaryParser.Encode(table);
+                    byte[] bytes = BinaryParser.Encode(table);
                 }
             });
         }
