@@ -140,7 +140,9 @@ namespace Vocore.Test
             }
 
             BinaryTable binObject = new BinaryTable();
+            binObject["noise1"] = null;
             binObject["list"] = binArray;
+            binObject["noise2"] = "noise";
             byte[] raw = BinaryParser.Encode(binObject);
 
             BinaryTable binObject2 = BinaryParser.Decode(raw);

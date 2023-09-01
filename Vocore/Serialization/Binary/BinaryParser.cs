@@ -2,21 +2,20 @@ using System;
 using System.Runtime.CompilerServices;
 using System.IO;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace Vocore
 {
     public class BinaryParser
     {
+        public static int SizeInt32 = Marshal.SizeOf<int>();
+
         public static byte[] Encode(BinaryTable data)
         {
             MemoryStream stream = new MemoryStream();
             EncodeTable(stream, data);
 
-            byte[] buf = new byte[stream.Position];
-            stream.Seek(0, SeekOrigin.Begin);
-            stream.Read(buf, 0, buf.Length);
-
-            return buf;
+            return stream.GetBuffer();
         }
 
         public static BinaryTable Decode(byte[] bytes)
@@ -72,18 +71,31 @@ namespace Vocore
 
         private static void EncodeTable(MemoryStream stream, BinaryTable table)
         {
-            using (MemoryStream tmpStream = new MemoryStream())
-            {
-                foreach (string str in table.Keys)
-                {
-                    EncodeElement(tmpStream, str, table[str]);
-                }
+            // using (MemoryStream tmpStream = new MemoryStream())
+            // {
+            //     foreach (string str in table.Keys)
+            //     {
+            //         EncodeElement(tmpStream, str, table[str]);
+            //     }
+            //     int length = (int)tmpStream.Position;
 
-                WriteLength(stream, (int)tmpStream.Position);
-                stream.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
-                //writer.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
-                //writer.Write((byte)0);
+            //     WriteLength(stream, length);
+            //     stream.Write(tmpStream.GetBuffer(), 0, length);
+            // }
+
+            int positionLength = (int)stream.Position;
+            WriteLength(stream, 0);
+
+            foreach (string str in table.Keys)
+            {
+                EncodeElement(stream, str, table[str]);
             }
+
+            int positionEnd = (int)stream.Position;
+
+            stream.Position = positionLength;
+            WriteLength(stream, positionEnd - positionLength - SizeInt32);
+            stream.Position = positionEnd;
         }
 
         private static BinaryTable DecodeTable(BinaryReader reader)
@@ -115,7 +127,6 @@ namespace Vocore
 
                 WriteLength(stream, (int)tmpStream.Position);
                 stream.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
-                //writer.Write((byte)0);
             }
         }
 
