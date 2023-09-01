@@ -12,15 +12,19 @@ namespace Vocore
 
         public static byte[] Encode(BinaryTable data)
         {
-            MemoryStream stream = new MemoryStream();
-            EncodeTable(stream, data);
-            return stream.GetBuffer();
+            using (MemoryStream stream = new MemoryStream())
+            {
+                EncodeTable(stream, data);
+                return stream.GetBuffer();
+            }
         }
 
         public static BinaryTable Decode(byte[] bytes)
         {
-            MemoryStream stream = new MemoryStream(bytes);
-            return DecodeTable(stream);
+            using (MemoryStream stream = new MemoryStream(bytes))
+            {
+                return DecodeTable(stream);
+            }
         }
 
         private static void EncodeElement(MemoryStream stream, string name, BinaryValue value)
@@ -102,17 +106,18 @@ namespace Vocore
 
         private static void EncodeArray(MemoryStream stream, BinaryArray list)
         {
+            int positionLength = (int)stream.Position;
+            WriteLength(stream, 0);
 
-            using (MemoryStream tmpStream = new MemoryStream())
+            for (int i = 0; i < list.Count; i++)
             {
-                for(int i=0;i<list.Count;i++)
-                {
-                    EncodeElement(tmpStream, Convert.ToString(i), list[i]);
-                }
-
-                WriteLength(stream, (int)tmpStream.Position);
-                stream.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
+                EncodeElement(stream, Convert.ToString(i), list[i]);
             }
+
+            int positionEnd = (int)stream.Position;
+            stream.Position = positionLength;
+            WriteLength(stream, positionEnd - positionLength - SizeInt32);
+            stream.Position = positionEnd;
         }
 
         private static BinaryArray DecodeArray(MemoryStream stream)
