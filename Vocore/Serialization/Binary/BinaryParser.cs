@@ -87,9 +87,14 @@ namespace Vocore
             int positionLength = (int)stream.Position;
             WriteLength(stream, 0);
 
-            foreach (string str in table.Keys)
+            // foreach (string str in table.Keys)
+            // {
+            //     EncodeElement(stream, str, table[str]);
+            // }
+
+            foreach (var entry in table.Entries)
             {
-                EncodeElement(stream, str, table[str]);
+                EncodeElement(stream, entry.Key, entry.Value);
             }
 
             int positionEnd = (int)stream.Position;

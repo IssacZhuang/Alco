@@ -27,6 +27,12 @@ namespace Vocore
         {
             get { return _map.Values; }
         }
+
+        public ICollection<KeyValuePair<string, BinaryValue>> Entries
+        {
+            get { return _map; }
+        }
+
         public int Count { get { return _map.Count; } }
 
         //
