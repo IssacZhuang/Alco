@@ -12,7 +12,7 @@ namespace Vocore
         private readonly List<BinaryValue> _content = new List<BinaryValue>();
 
         public BinaryArray()
-            : base(BinaryValue.ValueType.Array)
+            : base(BinaryValueType.Array)
         {
         }
 

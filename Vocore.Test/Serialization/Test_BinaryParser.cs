@@ -92,7 +92,7 @@ namespace Vocore.Test
             {
                 if (item.Value == null)
                 {
-                    TestHelper.AssertFalse(table2[item.Key].Type != BinaryValue.ValueType.Null);
+                    TestHelper.AssertFalse(table2[item.Key].Type != BinaryValueType.Null);
                     continue;
                 }
                 byte[] value = table2[item.Key].Bytes;
@@ -105,7 +105,7 @@ namespace Vocore.Test
             {
                 if (item.Value == null)
                 {
-                    TestHelper.AssertFalse(subTable2[item.Key].Type != BinaryValue.ValueType.Null);
+                    TestHelper.AssertFalse(subTable2[item.Key].Type != BinaryValueType.Null);
                     continue;
                 }
                 byte[] value = subTable2[item.Key].Bytes;
@@ -150,7 +150,7 @@ namespace Vocore.Test
             {
                 if (data[i] == null)
                 {
-                    TestHelper.AssertFalse(binArray2[i].Type != BinaryValue.ValueType.Null);
+                    TestHelper.AssertFalse(binArray2[i].Type != BinaryValueType.Null);
                     continue;
                 }
                 byte[] value = binArray2[i].Bytes;

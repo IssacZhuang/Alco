@@ -7,11 +7,6 @@ namespace Vocore
 {
     public class BinaryParser
     {
-        public static byte TypeNull = (byte)BinaryValue.ValueType.Null;
-        public static byte TypeBinary = (byte)BinaryValue.ValueType.Binary;
-        public static byte TypeArray = (byte)BinaryValue.ValueType.Array;
-        public static byte TypeTable = (byte)BinaryValue.ValueType.Table;
-
         public static byte[] Encode(BinaryTable data)
         {
             MemoryStream stream = new MemoryStream();
@@ -35,22 +30,22 @@ namespace Vocore
         {
             switch (v.Type)
             {
-                case BinaryValue.ValueType.Null:
-                    stream.WriteByte(TypeNull);
+                case BinaryValueType.Null:
+                    WriteType(stream, BinaryValueType.Null);
                     EncodeFieldName(stream, name);
                     return;
-                case BinaryValue.ValueType.Binary:
-                    stream.WriteByte(TypeBinary);
+                case BinaryValueType.Binary:
+                    WriteType(stream, BinaryValueType.Binary);
                     EncodeFieldName(stream, name);
                     EncodeBinary(stream, v.Bytes);
                     return;
-                case BinaryValue.ValueType.Array:
-                    stream.WriteByte(TypeArray);
+                case BinaryValueType.Array:
+                    WriteType(stream, BinaryValueType.Array);
                     EncodeFieldName(stream, name);
                     EncodeArray(stream, v as BinaryArray);
                     return;
-                case BinaryValue.ValueType.Table:
-                    stream.WriteByte(TypeTable);
+                case BinaryValueType.Table:
+                    WriteType(stream, BinaryValueType.Table);
                     EncodeFieldName(stream, name);
                     EncodeTable(stream, v as BinaryTable);
                     return;
@@ -59,30 +54,20 @@ namespace Vocore
 
         private static BinaryValue DecodeElement(BinaryReader reader, out string name)
         {
-            byte elementType = reader.ReadByte();
+            BinaryValueType type = ReadType(reader);
             name = DecodeFieldName(reader);
-            if (elementType == TypeNull)
-            {
-                // None
-                return new BinaryValue();
-            }
-            else if (elementType == TypeBinary)
-            {
-                // Binary
-                return DecodeBinary(reader);
-            }
-            else if (elementType == TypeArray)
-            {
-                // Array
-                return DecodeArray(reader);
-            }
-            else if (elementType == TypeTable)
-            {
-                // Document
-                return DecodeTable(reader);
+            switch(type){
+                case BinaryValueType.Null:
+                    return new BinaryValue();
+                case BinaryValueType.Binary:
+                    return DecodeBinary(reader);
+                case BinaryValueType.Array:
+                    return DecodeArray(reader);
+                case BinaryValueType.Table:
+                    return DecodeTable(reader);
             }
 
-            throw new Exception(string.Format("Don't know elementType={0}", elementType));
+            throw new Exception(string.Format("Don't know elementType={0}", type));
         }
 
         private static void EncodeTable(MemoryStream stream, BinaryTable table)
@@ -94,16 +79,16 @@ namespace Vocore
                     EncodeElement(tmpStream, str, table[str]);
                 }
 
-                BinaryWriter writer = new BinaryWriter(stream);
-                writer.Write((int)(tmpStream.Position + 4 + 1));
-                writer.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
-                writer.Write((byte)0);
+                WriteLength(stream, (int)tmpStream.Position);
+                stream.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
+                //writer.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
+                //writer.Write((byte)0);
             }
         }
 
         private static BinaryTable DecodeTable(BinaryReader reader)
         {
-            int length = reader.ReadInt32() - 4;
+            int length = ReadLength(reader);
 
             BinaryTable table = new BinaryTable();
 
@@ -112,10 +97,9 @@ namespace Vocore
             {
                 BinaryValue value = DecodeElement(reader, out string name);
                 table.Add(name, value);
-
             }
 
-            reader.ReadByte(); // zero
+            //reader.ReadByte(); // zero
             return table;
         }
 
@@ -129,10 +113,9 @@ namespace Vocore
                     EncodeElement(tmpStream, Convert.ToString(i), lst[i]);
                 }
 
-                BinaryWriter writer = new BinaryWriter(stream);
-                writer.Write((int)(tmpStream.Position + 4 + 1));
-                writer.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
-                writer.Write((byte)0);
+                WriteLength(stream, (int)tmpStream.Position);
+                stream.Write(tmpStream.GetBuffer(), 0, (int)tmpStream.Position);
+                //writer.Write((byte)0);
             }
         }
 
@@ -140,7 +123,7 @@ namespace Vocore
         {
 
             BinaryArray array = new BinaryArray();
-            int length = reader.ReadInt32() - 4;
+            int length = ReadLength(reader);
 
             int i = (int)reader.BaseStream.Position;
             while (reader.BaseStream.Position < i + length - 1)
@@ -149,7 +132,7 @@ namespace Vocore
                 array.Add(value);
             }
 
-            reader.ReadByte(); // zero
+            //reader.ReadByte(); // zero
 
             return array;
         }
@@ -166,42 +149,37 @@ namespace Vocore
 
         private static void EncodeFieldName(MemoryStream stream, string v)
         {
-            // byte[] buf = Encoding.UTF8.GetBytes(v);
-            // stream.Write(buf, 0, buf.Length);
-            // stream.WriteByte(0);
             WriteString(stream, v);
         }
 
         private static string DecodeFieldName(BinaryReader reader)
         {
-            // using (MemoryStream stream = new MemoryStream())
-            // {
-            //     while (true)
-            //     {
-            //         byte buf = reader.ReadByte();
-            //         if (buf == 0)
-            //             break;
-            //         stream.WriteByte(buf);
-            //     }
-
-            //     return Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Position);
-            // }
             return ReadString(reader);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void WriteType(MemoryStream stream, BinaryValueType type)
+        {
+            stream.WriteByte((byte)type);
+        }
+
+        private static BinaryValueType ReadType(BinaryReader reader)
+        {
+            return (BinaryValueType)reader.ReadByte();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void WriteLength(MemoryStream stream, int length)
         {
-            byte[] buf = BitConverter.GetBytes(length);
-            stream.Write(buf, 0, buf.Length);
-            stream.WriteByte(0);
+            stream.WriteInt32(length);
+            //stream.WriteByte(0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ReadLength(BinaryReader reader)
         {
             int length = reader.ReadInt32();
-            reader.ReadByte();
+            //reader.ReadByte();
             return length;
         }
 

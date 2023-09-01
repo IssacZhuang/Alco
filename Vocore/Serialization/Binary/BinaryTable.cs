@@ -11,7 +11,7 @@ namespace Vocore
         private readonly Dictionary<string, BinaryValue> _map = new Dictionary<string, BinaryValue>();
 
         public BinaryTable()
-            : base(BinaryValue.ValueType.Table)
+            : base(BinaryValueType.Table)
         {
         }
 
@@ -77,7 +77,7 @@ namespace Vocore
         {
             if (_map.TryGetValue(key, out BinaryValue v))
             {
-                if (v.Type == ValueType.Table && v is BinaryTable table)
+                if (v.Type == BinaryValueType.Table && v is BinaryTable table)
                 {
                     value = table;
                     return true;
@@ -91,7 +91,7 @@ namespace Vocore
         {
             if (_map.TryGetValue(key, out BinaryValue v))
             {
-                if (v.Type == ValueType.Array && v is BinaryArray array)
+                if (v.Type == BinaryValueType.Array && v is BinaryArray array)
                 {
                     value = array;
                     return true;

@@ -3,28 +3,30 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
+    public enum BinaryValueType : byte
+    {
+        Null = 0x00,
+        Binary = 0x01,
+        Array = 0x02,
+        Table = 0x03,
+    };
+
     public class BinaryValue
     {
-        public enum ValueType : byte
-        {
-            Null = 0x00,
-            Binary = 0x01,
-            Array = 0x02,
-            Table = 0x03,
-        };
+        
 
-        private readonly ValueType _type;
+        private readonly BinaryValueType _type;
         private readonly byte[] _binary;
 
         /// Properties
-        public ValueType Type { get { return _type; } }
+        public BinaryValueType Type { get { return _type; } }
 
 
         public byte[] Bytes
         {
             get
             {
-                if (_type == ValueType.Binary)
+                if (_type == BinaryValueType.Binary)
                 {
                     return _binary;
                 }
@@ -34,31 +36,31 @@ namespace Vocore
 
         public bool IsNull
         {
-            get { return _type == ValueType.Null; }
+            get { return _type == BinaryValueType.Null; }
         }
 
 
 
-        protected BinaryValue(ValueType valueType)
+        protected BinaryValue(BinaryValueType valueType)
         {
             _type = valueType;
         }
 
         public BinaryValue()
         {
-            _type = ValueType.Null;
+            _type = BinaryValueType.Null;
         }
 
 
         public BinaryValue(byte[] v)
         {
-            _type = ValueType.Binary;
+            _type = BinaryValueType.Binary;
             _binary = v;
         }
 
         public bool TryGetValue<T>(out T v) where T : unmanaged
         {
-            if (_type == ValueType.Binary)
+            if (_type == BinaryValueType.Binary)
             {
                 v = UtilsBinary.DecodeToValue<T>(_binary);
                 return true;
@@ -69,7 +71,7 @@ namespace Vocore
 
         public bool TryGetString(out string v)
         {
-            if (_type == ValueType.Binary)
+            if (_type == BinaryValueType.Binary)
             {
                 v = UtilsBinary.DecodeToString(_binary);
                 return true;
