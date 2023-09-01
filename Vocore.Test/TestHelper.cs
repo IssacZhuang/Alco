@@ -49,6 +49,10 @@ namespace Vocore.Test
         private static int _counterFailed = 0;
         private static int _counterSuccess = 0;
 
+        private readonly static long SizeK = 1024;
+        private readonly static long SizeM = 1024 * 1024;
+        private readonly static long SizeG = 1024 * 1024 * 1024;
+
         public static void ResetCounter()
         {
             _counterFailed = 0;
@@ -144,7 +148,7 @@ namespace Vocore.Test
             long start = GC.GetTotalMemory(true);
             action();
             long end = GC.GetTotalMemory(false);
-            PrintBlue(name + ": " + (end - start) + " bytes");
+            PrintBlue(name + ": " + FormatSize(end - start));
         }
 
         public static void CheckGCAlloc(string name, Action action)
@@ -153,7 +157,25 @@ namespace Vocore.Test
             long start = GC.GetTotalMemory(true);
             action();
             long end = GC.GetTotalMemory(false);
-            PrintBlue(name + ": " + (end - start) + " bytes");
+            PrintBlue(name + ": " + FormatSize(end - start));
+        }
+
+        //size in bytes, to B, KB, MB, GB
+        public static string FormatSize(long size)
+        {
+            if (size < SizeK)
+            {
+                return size + " B";
+            }
+            if (size < SizeM)
+            {
+                return size / SizeK + " KB" + (size % SizeK > 0 ? " " + size % SizeK + " B" : "");
+            }
+            if (size < SizeG)
+            {
+                return size / SizeM + " MB" + (size % SizeM > 0 ? " " + size % SizeK + " KB" : "");
+            }
+            return size / SizeG + " GB" + (size % SizeG > 0 ? " " + size % SizeK + " MB" : "");
         }
 
         public static void PrintList<T>(IList<T> list)

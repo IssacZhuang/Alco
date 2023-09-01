@@ -7,6 +7,31 @@ namespace Vocore.Test
 {
     public class Test_BinaryParser
     {
+        public static BinaryArray NoiseArray()
+        {
+            string[] data = new string[5]{
+                "value1",
+                "value2",
+                null,
+                "value4",
+                "value5",
+            };
+
+            BinaryArray binArray = new BinaryArray();
+
+            foreach (var item in data)
+            {
+                if (item == null)
+                {
+                    binArray.Add(new BinaryValue());
+                    continue;
+                }
+                byte[] value = Encoding.UTF8.GetBytes(item);
+                binArray.Add(value);
+            }
+            return binArray;
+        }
+
         [Test("Test BinaryParser Fast string bytes convert")]
         public void Test_FastStringBytesConvert()
         {
@@ -38,6 +63,7 @@ namespace Vocore.Test
         [Test("Test BinaryParser object")]
         public void Test_ParseObject()
         {
+
             // some random data
             KeyValuePair<string, string>[] data = new KeyValuePair<string, string>[6]{
                 new KeyValuePair<string, string>("ke\ty1", "value1"),
@@ -56,8 +82,8 @@ namespace Vocore.Test
 
             
             BinaryTable table = new BinaryTable();
-            
 
+            table["noise"] = NoiseArray();
 
             foreach (var item in data)
             {
@@ -308,6 +334,47 @@ namespace Vocore.Test
                     table2.TryGetValue("boolVal", out reuslt.boolVal);
                 }
             });
+        }
+
+        [Test("Test BinaryParser vs XML size")]
+        public void Test_Size()
+        {
+            StructForSerialize value = new StructForSerialize
+            {
+                intVal = 123,
+                strVal = "asdasdasd",
+                floatVal = 123.456f,
+                boolVal = true,
+            };
+
+            XmlDocument doc = new XmlDocument();
+            XmlElement root = doc.CreateElement("root");
+            doc.AppendChild(root);
+            XmlElement element = doc.CreateElement("intVal");
+            element.InnerText = value.intVal.ToString();
+            root.AppendChild(element);
+            element = doc.CreateElement("strVal");
+            element.InnerText = value.strVal;
+            root.AppendChild(element);
+            element = doc.CreateElement("floatVal");
+            element.InnerText = value.floatVal.ToString();
+            root.AppendChild(element);
+            element = doc.CreateElement("boolVal");
+            element.InnerText = value.boolVal.ToString();
+            root.AppendChild(element);
+            string xml = doc.OuterXml;
+            long sizeXml = Encoding.UTF8.GetBytes(xml).Length;
+
+            BinaryTable table = new BinaryTable();
+            table["intVal"] = value.intVal;
+            table["strVal"] = value.strVal;
+            table["floatVal"] = value.floatVal;
+            table["boolVal"] = value.boolVal;
+            byte[] bytes = BinaryParser.Encode(table);
+            long sizeBinary = bytes.Length;
+
+            TestHelper.PrintBlue("xml: " + TestHelper.FormatSize(sizeXml));
+            TestHelper.PrintBlue("binary: " + TestHelper.FormatSize(sizeBinary));
         }
     }
 }

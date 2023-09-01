@@ -127,7 +127,25 @@ namespace UnityToolBox.UnitTest
             long start = GC.GetTotalMemory(true);
             action();
             long end = GC.GetTotalMemory(false);
-            PrintBlue(name + ": " + (end - start) + " bytes");
+            PrintBlue(name + ": " + FormatSize(end - start));
+        }
+
+        //size in bytes, to B, KB, MB, GB
+        private static string FormatSize(long size)
+        {
+            if (size < 1024)
+            {
+                return size + " B";
+            }
+            if (size < 1024 * 1024)
+            {
+                return (size / 1024) + " KB";
+            }
+            if (size < 1024 * 1024 * 1024)
+            {
+                return (size / 1024 / 1024) + " MB";
+            }
+            return (size / 1024 / 1024 / 1024) + " GB";
         }
 
         public static void PrintList<T>(IList<T> list)
