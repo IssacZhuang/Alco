@@ -341,7 +341,7 @@ namespace Vocore.Test
         {
             StructForSerialize value = new StructForSerialize
             {
-                intVal = 123,
+                intVal = 1222,
                 strVal = "asdasdasd",
                 floatVal = 123.456f,
                 boolVal = true,
@@ -370,8 +370,7 @@ namespace Vocore.Test
             table["strVal"] = value.strVal;
             table["floatVal"] = value.floatVal;
             table["boolVal"] = value.boolVal;
-            byte[] bytes = BinaryParser.Encode(table);
-            long sizeBinary = bytes.Length;
+            byte[] bytes = BinaryParser.Encode(table, out long sizeBinary);
 
             TestHelper.PrintBlue("xml: " + TestHelper.FormatSize(sizeXml));
             TestHelper.PrintBlue("binary: " + TestHelper.FormatSize(sizeBinary));

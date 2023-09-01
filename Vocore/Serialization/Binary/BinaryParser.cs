@@ -10,6 +10,17 @@ namespace Vocore
     {
         public static int SizeInt32 = Marshal.SizeOf<int>();
 
+        public static byte[] Encode(BinaryTable data, out long length)
+        {
+            using (MemoryStream stream = new MemoryStream())
+            {
+                EncodeTable(stream, data);
+                length = (int)stream.Position;
+                // the length of the buffer is the capacity of the MemoryStream but not real length
+                return stream.GetBuffer();
+            }
+        }
+
         public static byte[] Encode(BinaryTable data)
         {
             using (MemoryStream stream = new MemoryStream())
