@@ -14,20 +14,18 @@ namespace Vocore
         {
             MemoryStream stream = new MemoryStream();
             EncodeTable(stream, data);
-
             return stream.GetBuffer();
         }
 
         public static BinaryTable Decode(byte[] bytes)
         {
             MemoryStream stream = new MemoryStream(bytes);
-            BinaryReader reader = new BinaryReader(stream);
-            return DecodeTable(reader);
+            return DecodeTable(stream);
         }
 
-        private static void EncodeElement(MemoryStream stream, string name, BinaryValue v)
+        private static void EncodeElement(MemoryStream stream, string name, BinaryValue value)
         {
-            switch (v.Type)
+            switch (value.Type)
             {
                 case BinaryValueType.Null:
                     WriteType(stream, BinaryValueType.Null);
@@ -36,34 +34,34 @@ namespace Vocore
                 case BinaryValueType.Binary:
                     WriteType(stream, BinaryValueType.Binary);
                     EncodeFieldName(stream, name);
-                    EncodeBinary(stream, v.Bytes);
+                    EncodeBinary(stream, value.Bytes);
                     return;
                 case BinaryValueType.Array:
                     WriteType(stream, BinaryValueType.Array);
                     EncodeFieldName(stream, name);
-                    EncodeArray(stream, v as BinaryArray);
+                    EncodeArray(stream, value as BinaryArray);
                     return;
                 case BinaryValueType.Table:
                     WriteType(stream, BinaryValueType.Table);
                     EncodeFieldName(stream, name);
-                    EncodeTable(stream, v as BinaryTable);
+                    EncodeTable(stream, value as BinaryTable);
                     return;
             };
         }
 
-        private static BinaryValue DecodeElement(BinaryReader reader, out string name)
+        private static BinaryValue DecodeElement(MemoryStream stream, out string name)
         {
-            BinaryValueType type = ReadType(reader);
-            name = DecodeFieldName(reader);
+            BinaryValueType type = ReadType(stream);
+            name = DecodeFieldName(stream);
             switch(type){
                 case BinaryValueType.Null:
                     return new BinaryValue();
                 case BinaryValueType.Binary:
-                    return DecodeBinary(reader);
+                    return DecodeBinary(stream);
                 case BinaryValueType.Array:
-                    return DecodeArray(reader);
+                    return DecodeArray(stream);
                 case BinaryValueType.Table:
-                    return DecodeTable(reader);
+                    return DecodeTable(stream);
             }
 
             throw new Exception(string.Format("Don't know elementType={0}", type));
@@ -71,18 +69,6 @@ namespace Vocore
 
         private static void EncodeTable(MemoryStream stream, BinaryTable table)
         {
-            // using (MemoryStream tmpStream = new MemoryStream())
-            // {
-            //     foreach (string str in table.Keys)
-            //     {
-            //         EncodeElement(tmpStream, str, table[str]);
-            //     }
-            //     int length = (int)tmpStream.Position;
-
-            //     WriteLength(stream, length);
-            //     stream.Write(tmpStream.GetBuffer(), 0, length);
-            // }
-
             int positionLength = (int)stream.Position;
             WriteLength(stream, 0);
 
@@ -98,31 +84,30 @@ namespace Vocore
             stream.Position = positionEnd;
         }
 
-        private static BinaryTable DecodeTable(BinaryReader reader)
+        private static BinaryTable DecodeTable(MemoryStream stream)
         {
-            int length = ReadLength(reader);
+            int length = ReadLength(stream);
 
             BinaryTable table = new BinaryTable();
 
-            int i = (int)reader.BaseStream.Position;
-            while (reader.BaseStream.Position < i + length - 1)
+            int i = (int)stream.Position;
+            while (stream.Position < i + length - 1)
             {
-                BinaryValue value = DecodeElement(reader, out string name);
+                BinaryValue value = DecodeElement(stream, out string name);
                 table.Add(name, value);
             }
 
-            //reader.ReadByte(); // zero
             return table;
         }
 
-        private static void EncodeArray(MemoryStream stream, BinaryArray lst)
+        private static void EncodeArray(MemoryStream stream, BinaryArray list)
         {
 
             using (MemoryStream tmpStream = new MemoryStream())
             {
-                for(int i=0;i<lst.Count;i++)
+                for(int i=0;i<list.Count;i++)
                 {
-                    EncodeElement(tmpStream, Convert.ToString(i), lst[i]);
+                    EncodeElement(tmpStream, Convert.ToString(i), list[i]);
                 }
 
                 WriteLength(stream, (int)tmpStream.Position);
@@ -130,42 +115,40 @@ namespace Vocore
             }
         }
 
-        private static BinaryArray DecodeArray(BinaryReader reader)
+        private static BinaryArray DecodeArray(MemoryStream stream)
         {
 
             BinaryArray array = new BinaryArray();
-            int length = ReadLength(reader);
+            int length = ReadLength(stream);
 
-            int i = (int)reader.BaseStream.Position;
-            while (reader.BaseStream.Position < i + length - 1)
+            int i = (int)stream.Position;
+            while (stream.Position < i + length - 1)
             {
-                BinaryValue value = DecodeElement(reader, out string _);
+                BinaryValue value = DecodeElement(stream, out string _);
                 array.Add(value);
             }
-
-            //reader.ReadByte(); // zero
 
             return array;
         }
 
-        private static void EncodeBinary(MemoryStream stream, byte[] buf)
+        private static void EncodeBinary(MemoryStream stream, byte[] bytes)
         {
-            WriteBinary(stream, buf);
+            WriteBinary(stream, bytes);
         }
 
-        private static BinaryValue DecodeBinary(BinaryReader reader)
+        private static BinaryValue DecodeBinary(MemoryStream stream)
         {
-            return new BinaryValue(ReadBinary(reader));
+            return new BinaryValue(ReadBinary(stream));
         }
 
-        private static void EncodeFieldName(MemoryStream stream, string v)
+        private static void EncodeFieldName(MemoryStream stream, string value)
         {
-            WriteString(stream, v);
+            WriteString(stream, value);
         }
 
-        private static string DecodeFieldName(BinaryReader reader)
+        private static string DecodeFieldName(MemoryStream stream)
         {
-            return ReadString(reader);
+            return ReadString(stream);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -174,24 +157,21 @@ namespace Vocore
             stream.WriteByte((byte)type);
         }
 
-        private static BinaryValueType ReadType(BinaryReader reader)
+        private static BinaryValueType ReadType(MemoryStream stream)
         {
-            return (BinaryValueType)reader.ReadByte();
+            return (BinaryValueType)stream.ReadByte();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void WriteLength(MemoryStream stream, int length)
         {
             stream.WriteInt32(length);
-            //stream.WriteByte(0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int ReadLength(BinaryReader reader)
+        private static int ReadLength(MemoryStream stream)
         {
-            int length = reader.ReadInt32();
-            //reader.ReadByte();
-            return length;
+            return stream.ReadInt32();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -203,10 +183,10 @@ namespace Vocore
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static byte[] ReadBinary(BinaryReader reader)
+        private static byte[] ReadBinary(MemoryStream stream)
         {
-            int length = ReadLength(reader);
-            return reader.ReadBytes(length);
+            int length = ReadLength(stream);
+            return stream.ReadBytes(length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -217,9 +197,9 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static string ReadString(BinaryReader reader)
+        private static string ReadString(MemoryStream stream)
         {
-            byte[] bytes = ReadBinary(reader);
+            byte[] bytes = ReadBinary(stream);
             return UtilsBinary.FastBytesToString(bytes);
         }
     }
