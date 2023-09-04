@@ -25,13 +25,13 @@ namespace Vocore.Test
                 object item = pool.Get();
                 if (item != array[i])
                 {
-                    TestHelper.AddFailed();
-                    TestHelper.PrintRed("Test_ArrayPool return failed");
+                    UnitTest.AddFailed();
+                    UnitTest.PrintRed("Test_ArrayPool return failed");
                     return;
                 }
             }
 
-            TestHelper.AssertFalse(pool.Get() != null, "Test_ArrayPool get failed");
+            UnitTest.AssertFalse(pool.Get() != null, "Test_ArrayPool get failed");
 
         }
     }

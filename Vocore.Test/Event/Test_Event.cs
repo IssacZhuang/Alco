@@ -18,15 +18,15 @@ namespace Vocore.Test
             _tracker.Subscribe<int>(TestEvent, OnEvent);
             _tracker.Subscribe<float>(TestEvent2, (float value) =>
             {
-                TestHelper.PrintColor("Event data: " + value, ConsoleColor.Green);
-                TestHelper.AddSuccess();
+                UnitTest.PrintColor("Event data: " + value, ConsoleColor.Green);
+                UnitTest.AddSuccess();
             });
         }
 
         public void OnEvent(int data)
         {
-            TestHelper.PrintColor("Event data: " + data, ConsoleColor.Green);
-            TestHelper.AddSuccess();
+            UnitTest.PrintColor("Event data: " + data, ConsoleColor.Green);
+            UnitTest.AddSuccess();
         }
 
         public void ClearEvent()
@@ -88,7 +88,7 @@ namespace Vocore.Test
             EventId evt = EventGenerator.Generate("TestEvent");
             int count = 1000000;
 
-            TestHelper.Benchmark("Bechmark event", () =>
+            UnitTest.Benchmark("Bechmark event", () =>
             {
                 for (int i = 0; i < count; i++)
                 {

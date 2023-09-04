@@ -13,7 +13,7 @@ namespace Vocore.Test
             string path = "TestFiles/TestIO_1.xml";
             FileReference file = new FileReference(path);
             //TestUtility.PrintBlue(file.GetString());
-            TestHelper.AssertFalse(file.GetString() == null || file.GetString().Length == 0);
+            UnitTest.AssertFalse(file.GetString() == null || file.GetString().Length == 0);
         }
 
         [Test("test load async")]
@@ -24,9 +24,9 @@ namespace Vocore.Test
             var task = file.LoadStringAsync((str) =>
             {
                 //TestUtility.PrintBlue(str);
-                TestHelper.AssertFalse(str == null || str.Length == 0);
+                UnitTest.AssertFalse(str == null || str.Length == 0);
             });
-            TestHelper.PrintBlue("start load");
+            UnitTest.PrintBlue("start load");
             Task.WaitAll(task);
         }
 
@@ -38,9 +38,9 @@ namespace Vocore.Test
             var task = file.LoadXmlAsync((doc) =>
             {
                 //TestUtility.PrintBlue(doc.ToString());
-                TestHelper.AssertFalse(doc == null || doc.ToString().Length == 0);
+                UnitTest.AssertFalse(doc == null || doc.ToString().Length == 0);
             });
-            TestHelper.PrintBlue("start load");
+            UnitTest.PrintBlue("start load");
             Task.WaitAll(task);
         }
 
@@ -67,7 +67,7 @@ namespace Vocore.Test
                 file.LoadXml();
             }
             sw.Stop();
-            TestHelper.PrintBlue("sync: " + sw.ElapsedMilliseconds);
+            UnitTest.PrintBlue("sync: " + sw.ElapsedMilliseconds);
 
             Task[] tasks = new Task[count];
             sw.Restart();
@@ -77,7 +77,7 @@ namespace Vocore.Test
             }
             Task.WaitAll(tasks);
             sw.Stop();
-            TestHelper.PrintBlue("async: " + sw.ElapsedMilliseconds);
+            UnitTest.PrintBlue("async: " + sw.ElapsedMilliseconds);
         }
     }
 }

@@ -27,7 +27,7 @@ namespace Vocore.Test
                 reuslt = i / 3 / 3 / 3 / 7 / 7 / 7;
             }
             timer.Stop();
-            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": for |" + timer.ElapsedMilliseconds);
+            UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": for |" + timer.ElapsedMilliseconds);
 
             timer.Restart();
             Parallel.For(0, count, (i) =>
@@ -38,7 +38,7 @@ namespace Vocore.Test
                 }
             });
             timer.Stop();
-            TestHelper.PrintBlue(TestHelper.TEXT_TIME_COST + ": Parallel.For |" + timer.ElapsedMilliseconds);
+            UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": Parallel.For |" + timer.ElapsedMilliseconds);
         }
     }
 

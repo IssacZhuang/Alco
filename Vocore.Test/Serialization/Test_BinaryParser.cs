@@ -38,20 +38,22 @@ namespace Vocore.Test
             string str = "abslk\n\n\tdjfas-,./;'][1231]";
             byte[] bytes = UtilsBinary.FastStringToBytes(str);
             string str2 = UtilsBinary.FastBytesToString(bytes);
-            TestHelper.AssertFalse(str != str2);
-            TestHelper.PrintBlue(str2);
+            UnitTest.AssertFalse(str != str2);
+            UnitTest.PrintBlue(str2);
 
             int count = 1000000;
 
-            TestHelper.Benchmark("utf8",()=>{
+            UnitTest.Benchmark("utf8", () =>
+            {
                 for (int i = 0; i < count; i++)
                 {
                     byte[] bytes2 = Encoding.UTF8.GetBytes(str);
                     string str3 = Encoding.UTF8.GetString(bytes2);
                 }
             });
-            
-            TestHelper.Benchmark("fast",()=>{
+
+            UnitTest.Benchmark("fast", () =>
+            {
                 for (int i = 0; i < count; i++)
                 {
                     byte[] bytes2 = UtilsBinary.FastStringToBytes(str);
@@ -118,12 +120,12 @@ namespace Vocore.Test
             {
                 if (item.Value == null)
                 {
-                    TestHelper.AssertFalse(table2[item.Key].Type != BinaryValueType.Null);
+                    UnitTest.AssertFalse(table2[item.Key].Type != BinaryValueType.Null);
                     continue;
                 }
                 byte[] value = table2[item.Key].Bytes;
                 string str = Encoding.UTF8.GetString(value);
-                TestHelper.AssertFalse(str != item.Value);
+                UnitTest.AssertFalse(str != item.Value);
             }
 
             BinaryTable subTable2 = table2[keySubData] as BinaryTable;
@@ -131,12 +133,12 @@ namespace Vocore.Test
             {
                 if (item.Value == null)
                 {
-                    TestHelper.AssertFalse(subTable2[item.Key].Type != BinaryValueType.Null);
+                    UnitTest.AssertFalse(subTable2[item.Key].Type != BinaryValueType.Null);
                     continue;
                 }
                 byte[] value = subTable2[item.Key].Bytes;
                 string str = Encoding.UTF8.GetString(value);
-                TestHelper.AssertFalse(str != item.Value);
+                UnitTest.AssertFalse(str != item.Value);
             }
         }
 
@@ -178,12 +180,12 @@ namespace Vocore.Test
             {
                 if (data[i] == null)
                 {
-                    TestHelper.AssertFalse(binArray2[i].Type != BinaryValueType.Null);
+                    UnitTest.AssertFalse(binArray2[i].Type != BinaryValueType.Null);
                     continue;
                 }
                 byte[] value = binArray2[i].Bytes;
                 string str = Encoding.UTF8.GetString(value);
-                TestHelper.AssertFalse(str != data[i]);
+                UnitTest.AssertFalse(str != data[i]);
             }
         }
 
@@ -202,14 +204,14 @@ namespace Vocore.Test
 
             BinaryTable table2 = BinaryParser.Decode(raw);
 
-            TestHelper.AssertTrue(table2.TryGetString("key1", out string value1));
-            TestHelper.AssertTrue(value1 == "value1");
-            TestHelper.AssertTrue(table2.TryGetString("key2", out string value2));
-            TestHelper.AssertTrue(value2 == "value2");
-            TestHelper.AssertFalse(table2.TryGetString("key3", out string value3));
-            TestHelper.AssertTrue(value3 == null);
-            TestHelper.AssertTrue(table2.TryGetString("key4", out string value4));
-            TestHelper.AssertTrue(value4 == "value4");
+            UnitTest.AssertTrue(table2.TryGetString("key1", out string value1));
+            UnitTest.AssertTrue(value1 == "value1");
+            UnitTest.AssertTrue(table2.TryGetString("key2", out string value2));
+            UnitTest.AssertTrue(value2 == "value2");
+            UnitTest.AssertFalse(table2.TryGetString("key3", out string value3));
+            UnitTest.AssertTrue(value3 == null);
+            UnitTest.AssertTrue(table2.TryGetString("key4", out string value4));
+            UnitTest.AssertTrue(value4 == "value4");
         }
 
         struct StructForSerialize
@@ -234,7 +236,7 @@ namespace Vocore.Test
             int count = 100000;
 
             //xml
-            TestHelper.Benchmark("xml", () =>
+            UnitTest.Benchmark("xml", () =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -256,7 +258,7 @@ namespace Vocore.Test
                 }
             });
 
-            TestHelper.Benchmark("binary", () =>
+            UnitTest.Benchmark("binary", () =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -307,9 +309,9 @@ namespace Vocore.Test
 
             StructForSerialize reuslt = default;
 
-            
 
-            TestHelper.Benchmark("xml", () =>
+
+            UnitTest.Benchmark("xml", () =>
             {
                 for (int i = 0; i < 100000; i++)
                 {
@@ -323,7 +325,7 @@ namespace Vocore.Test
                 }
             });
 
-            TestHelper.Benchmark("binary", () =>
+            UnitTest.Benchmark("binary", () =>
             {
                 for (int i = 0; i < 100000; i++)
                 {
@@ -372,8 +374,8 @@ namespace Vocore.Test
             table["boolVal"] = value.boolVal;
             byte[] bytes = BinaryParser.Encode(table, out long sizeBinary);
 
-            TestHelper.PrintBlue("xml: " + TestHelper.FormatSize(sizeXml));
-            TestHelper.PrintBlue("binary: " + TestHelper.FormatSize(sizeBinary));
+            UnitTest.PrintBlue("xml: " + UnitTest.FormatSize(sizeXml));
+            UnitTest.PrintBlue("binary: " + UnitTest.FormatSize(sizeBinary));
         }
     }
 }

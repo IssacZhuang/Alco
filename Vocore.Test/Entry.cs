@@ -14,7 +14,7 @@ namespace Vocore.Test
             try
             {
                 Assembly assembly = Assembly.GetAssembly(typeof(Entry));
-                TestHelper.StartTest(assembly);
+                UnitTest.StartTest(assembly);
             }
             catch (ReflectionTypeLoadException ex)
             {
@@ -34,12 +34,12 @@ namespace Vocore.Test
                     sb.AppendLine();
                 }
                 string errorMessage = sb.ToString();
-                TestHelper.PrintRed(errorMessage);
+                UnitTest.PrintRed(errorMessage);
             }
             //PointerTracker.Instance.DisplayResult();
             foreach (var item in PointerTracker.GetAllocatedStackTrace())
             {
-                TestHelper.PrintRed(item);
+                UnitTest.PrintRed(item);
             }
 
             Console.ReadLine();

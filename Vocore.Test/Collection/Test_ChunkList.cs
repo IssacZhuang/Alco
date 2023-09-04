@@ -27,7 +27,7 @@ namespace Vocore.Test
                 index++;
             }
 
-            TestHelper.AssertFalse(!result);
+            UnitTest.AssertFalse(!result);
         }
 
         [Test("ChunkList remove")]
@@ -53,7 +53,7 @@ namespace Vocore.Test
                 index++;
             }
 
-            TestHelper.AssertFalse(!result);
+            UnitTest.AssertFalse(!result);
         }
 
         [Test("ChunkList vs List add element")]
@@ -65,7 +65,7 @@ namespace Vocore.Test
 
             ChunkList<int> chunkList = new ChunkList<int>();
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -73,7 +73,7 @@ namespace Vocore.Test
                 }
             }, "List add element");
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -98,7 +98,7 @@ namespace Vocore.Test
                 chunkList.Add(i);
             }
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -106,7 +106,7 @@ namespace Vocore.Test
                 }
             }, "List remove element");
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {

@@ -32,7 +32,7 @@ namespace Vocore.Test
             }
             Task.WaitAll(tasks);
             stopwatch.Stop();
-            TestHelper.PrintBlue("Task+Lock: " + stopwatch.ElapsedMilliseconds);
+            UnitTest.PrintBlue("Task+Lock: " + stopwatch.ElapsedMilliseconds);
             AsyncOperationBatch<string> batch = new AsyncOperationBatch<string>();
             stopwatch.Restart();
             for (int i = 0; i < count; i++)
@@ -47,7 +47,7 @@ namespace Vocore.Test
             }
             batch.Run();
             stopwatch.Stop();
-            TestHelper.PrintBlue("AsyncOperationBatch: " + stopwatch.ElapsedMilliseconds);
+            UnitTest.PrintBlue("AsyncOperationBatch: " + stopwatch.ElapsedMilliseconds);
 
         }
     }

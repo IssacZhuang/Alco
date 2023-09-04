@@ -26,8 +26,8 @@ namespace Vocore.Test
 
             if (list.Count != result.Length)
             {
-                TestHelper.AddFailed();
-                TestHelper.PrintRed("Test_PriorityList add failed");
+                UnitTest.AddFailed();
+                UnitTest.PrintRed("Test_PriorityList add failed");
                 return;
             }
 
@@ -35,8 +35,8 @@ namespace Vocore.Test
             {
                 if (list[i] != result[i])
                 {
-                    TestHelper.AddFailed();
-                    TestHelper.PrintRed("Test_PriorityList add failed");
+                    UnitTest.AddFailed();
+                    UnitTest.PrintRed("Test_PriorityList add failed");
                     return;
                 }
             }
@@ -66,8 +66,8 @@ namespace Vocore.Test
 
             if (list.Count != result.Length)
             {
-                TestHelper.AddFailed();
-                TestHelper.PrintRed("Test_PriorityList add failed");
+                UnitTest.AddFailed();
+                UnitTest.PrintRed("Test_PriorityList add failed");
                 return;
             }
 
@@ -75,8 +75,8 @@ namespace Vocore.Test
             {
                 if (list[i] != result[i])
                 {
-                    TestHelper.AddFailed();
-                    TestHelper.PrintRed("Test_PriorityList remove failed");
+                    UnitTest.AddFailed();
+                    UnitTest.PrintRed("Test_PriorityList remove failed");
                     return;
                 }
             }
@@ -90,7 +90,7 @@ namespace Vocore.Test
 
             int count = 1000000;
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -98,7 +98,7 @@ namespace Vocore.Test
                 }
             }, "PriorityList add");
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -121,7 +121,7 @@ namespace Vocore.Test
                 list2.Add(i);
             }
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -129,7 +129,7 @@ namespace Vocore.Test
                 }
             }, "PriorityList remove");
 
-            TestHelper.Benchmark(() =>
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {

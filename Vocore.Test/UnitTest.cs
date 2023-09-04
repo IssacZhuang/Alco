@@ -5,24 +5,24 @@ using System.Diagnostics;
 
 namespace Vocore.Test
 {
-    public class Test : Attribute
+    public class TestAttribute : Attribute
     {
         public string Name { get; private set; }
         public bool ExpectError { get; private set; }
 
-        public Test()
+        public TestAttribute()
         {
             this.Name = "Test";
             ExpectError = false;
         }
 
-        public Test(string testName)
+        public TestAttribute(string testName)
         {
             this.Name = testName;
             ExpectError = false;
         }
 
-        public Test(string testName, bool expectError)
+        public TestAttribute(string testName, bool expectError)
         {
             this.Name = testName;
             this.ExpectError = expectError;
@@ -36,7 +36,7 @@ namespace Vocore.Test
         }
     }
 
-    public static class TestHelper
+    public static class UnitTest
     {
         public const string TEXT_BENCHMARK = "Benchmark: ";
         public const string TEXT_TIME_COST = "Time cost: ";
@@ -178,7 +178,7 @@ namespace Vocore.Test
 
         public static void PrintList<T>(IList<T> list)
         {
-            for(int i = 0; i < list.Count; i++)
+            for (int i = 0; i < list.Count; i++)
             {
                 Print(i + ": " + list[i]);
             }
@@ -204,7 +204,7 @@ namespace Vocore.Test
 
         public static void StartTest(Assembly assembly)
         {
-            TestHelper.ResetCounter();
+            UnitTest.ResetCounter();
             foreach (TypeInfo typeInfo in assembly.DefinedTypes)
             {
                 object obj;
@@ -224,12 +224,12 @@ namespace Vocore.Test
             }
 
             Console.WriteLine(TEXT_TEST_FINISHED);
-            TestHelper.DisplayCounter();
+            UnitTest.DisplayCounter();
         }
 
         public static void StartTest(Type type)
         {
-            TestHelper.ResetCounter();
+            UnitTest.ResetCounter();
 
             object obj;
             try
@@ -248,7 +248,7 @@ namespace Vocore.Test
 
 
             Console.WriteLine(TEXT_TEST_FINISHED);
-            TestHelper.DisplayCounter();
+            UnitTest.DisplayCounter();
             Console.ReadLine();
         }
 
@@ -261,27 +261,27 @@ namespace Vocore.Test
 
             foreach (MethodInfo method in typeInfo.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             {
-                Test testAttr = method.GetCustomAttribute<Test>();
+                TestAttribute testAttr = method.GetCustomAttribute<TestAttribute>();
                 if (testAttr == null) continue;
                 try
                 {
-                    TestHelper.PrintGray("------" + testAttr.Name + " | started:");
+                    UnitTest.PrintGray("------" + testAttr.Name + " | started:");
                     method.Invoke(obj, null);
-                    TestHelper.PrintGray("----Test finished.\n");
+                    UnitTest.PrintGray("----Test finished.\n");
                 }
                 catch (Exception e)
                 {
                     if (testAttr.ExpectError)
                     {
-                        TestHelper.PrintGreen("An error is occurred as expected");
-                        TestHelper.AddSuccess();
-                        TestHelper.PrintGray("----Test finished.\n");
+                        UnitTest.PrintGreen("An error is occurred as expected");
+                        UnitTest.AddSuccess();
+                        UnitTest.PrintGray("----Test finished.\n");
                     }
                     else
                     {
-                        TestHelper.PrintRed(e.InnerException);
-                        TestHelper.AddFailed();
-                        TestHelper.PrintGray("----Test failed.\n");
+                        UnitTest.PrintRed(e.InnerException);
+                        UnitTest.AddFailed();
+                        UnitTest.PrintGray("----Test failed.\n");
                     }
                 }
             }

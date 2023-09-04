@@ -27,18 +27,18 @@ namespace Vocore.Test
             {
                 if (pack.TryGetFileBinary("test.bin", out byte[] result))
                 {
-                    TestHelper.AssertFalse(result == null);
-                    TestHelper.AssertFalse(result.Length == 0);
+                    UnitTest.AssertFalse(result == null);
+                    UnitTest.AssertFalse(result.Length == 0);
                     bool isCorrect = true;
                     for (int i = 0; i < data.Length; i++)
                     {
                         isCorrect = isCorrect && (data[i] == result[i]);
                     }
-                    TestHelper.AssertTrue(isCorrect);
+                    UnitTest.AssertTrue(isCorrect);
                 }
                 else
                 {
-                    TestHelper.AddFailed();
+                    UnitTest.AddFailed();
                 }
             }
         }
@@ -57,14 +57,14 @@ namespace Vocore.Test
             {
                 if (pack.TryGetFileText("test.txt", out string result))
                 {
-                    TestHelper.AssertFalse(result == null);
-                    TestHelper.AssertFalse(result.Length == 0);
-                    TestHelper.PrintBlue(result);
-                    TestHelper.AssertTrue(text == result);
+                    UnitTest.AssertFalse(result == null);
+                    UnitTest.AssertFalse(result.Length == 0);
+                    UnitTest.PrintBlue(result);
+                    UnitTest.AssertTrue(text == result);
                 }
                 else
                 {
-                    TestHelper.AddFailed();
+                    UnitTest.AddFailed();
                 }
             }
         }

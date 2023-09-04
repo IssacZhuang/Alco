@@ -85,12 +85,12 @@ namespace Vocore.Test
 
             TestEnum e = TestEnum.Primary | TestEnum.Secondary;
 
-            TestHelper.PrintBlue("TestEnum: " + (e | TestEnum.Tertiary));
+            UnitTest.PrintBlue("TestEnum: " + (e | TestEnum.Tertiary));
 
             //iterate all file in current assembly
             foreach (var fileName in currentAssembly.GetManifestResourceNames())
             {
-                TestHelper.PrintGray(fileName + " loaded");
+                UnitTest.PrintGray(fileName + " loaded");
             }
         }
 
@@ -122,12 +122,12 @@ namespace Vocore.Test
 
                     if (testClass == null)
                     {
-                        TestHelper.AddFailed();
-                        TestHelper.PrintRed("testClass is null");
+                        UnitTest.AddFailed();
+                        UnitTest.PrintRed("testClass is null");
                         return;
                     }
 
-                    TestHelper.AddSuccess();
+                    UnitTest.AddSuccess();
 
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
@@ -165,12 +165,12 @@ namespace Vocore.Test
 
                     if (testClass == null)
                     {
-                        TestHelper.AddFailed();
-                        TestHelper.PrintRed("testClass is null");
+                        UnitTest.AddFailed();
+                        UnitTest.PrintRed("testClass is null");
                         return;
                     }
 
-                    TestHelper.AddSuccess();
+                    UnitTest.AddSuccess();
 
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
@@ -206,12 +206,12 @@ namespace Vocore.Test
 
                     if (testClass == null)
                     {
-                        TestHelper.AddFailed();
-                        TestHelper.PrintRed("testClass is null");
+                        UnitTest.AddFailed();
+                        UnitTest.PrintRed("testClass is null");
                         return;
                     }
 
-                    TestHelper.AddSuccess();
+                    UnitTest.AddSuccess();
 
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }

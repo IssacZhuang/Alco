@@ -12,7 +12,7 @@ namespace Vocore.Test
         {
             int[] array = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             int index = UtilsAlgorithm.BinarySearch<int>(array, 5);
-            TestHelper.AssertFalse(index != 4, "binary search failed: expect 4, got " + index);
+            UnitTest.AssertFalse(index != 4, "binary search failed: expect 4, got " + index);
         }
 
         [Test("binary search floor")]
@@ -20,17 +20,17 @@ namespace Vocore.Test
         {
             int[] array = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             int index = UtilsAlgorithm.BinarySearchFloor<int>(array, 5);
-            TestHelper.AssertFalse(index != 4, "binary search failed: expect 4, got " + index);
+            UnitTest.AssertFalse(index != 4, "binary search failed: expect 4, got " + index);
 
             array = new int[] { 1, 1, 3, 5, 6, 7, 8, 9, 10 };
             index = UtilsAlgorithm.BinarySearchFloor<int>(array, 4);
-            TestHelper.AssertFalse(index != 2, "binary search failed: expect 2, got " + index);
+            UnitTest.AssertFalse(index != 2, "binary search failed: expect 2, got " + index);
 
             index = UtilsAlgorithm.BinarySearchFloor<int>(array, -1);
-            TestHelper.AssertFalse(index != -1, "binary search failed: expect -1, got " + index);
+            UnitTest.AssertFalse(index != -1, "binary search failed: expect -1, got " + index);
 
             index = UtilsAlgorithm.BinarySearchFloor<int>(array, 13);
-            TestHelper.AssertFalse(index != 8, "binary search failed: expect 8, got " + index);
+            UnitTest.AssertFalse(index != 8, "binary search failed: expect 8, got " + index);
         }
 
         [Test("binary search ceil")]
@@ -38,17 +38,17 @@ namespace Vocore.Test
         {
             int[] array = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             int index = UtilsAlgorithm.BinarySearchCeil<int>(array, 5);
-            TestHelper.AssertFalse(index != 4, "binary search failed: expect 4, got " + index);
+            UnitTest.AssertFalse(index != 4, "binary search failed: expect 4, got " + index);
 
             array = new int[] { 1, 1, 3, 5, 6, 7, 8, 9, 10 };
             index = UtilsAlgorithm.BinarySearchCeil<int>(array, 4);
-            TestHelper.AssertFalse(index != 3, "binary search failed: expect 3, got " + index);
+            UnitTest.AssertFalse(index != 3, "binary search failed: expect 3, got " + index);
 
             index = UtilsAlgorithm.BinarySearchFloor<int>(array, -1);
-            TestHelper.AssertFalse(index != -1, "binary search failed: expect -1, got " + index);
+            UnitTest.AssertFalse(index != -1, "binary search failed: expect -1, got " + index);
 
             index = UtilsAlgorithm.BinarySearchFloor<int>(array, 13);
-            TestHelper.AssertFalse(index != 8, "binary search failed: expect 8, got " + index);
+            UnitTest.AssertFalse(index != 8, "binary search failed: expect 8, got " + index);
         }
     }
 }

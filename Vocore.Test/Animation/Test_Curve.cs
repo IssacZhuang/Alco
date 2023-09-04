@@ -30,7 +30,7 @@ namespace Vocore.Test
                 curveLinear.Evaluate(i);
             }
             sw.Stop();
-            TestHelper.PrintBlue("Linear: " + sw.ElapsedMilliseconds);
+            UnitTest.PrintBlue("Linear: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
             for (int i = 0; i < pointCount; i++)
@@ -38,7 +38,7 @@ namespace Vocore.Test
                 curveHermite.Evaluate(i);
             }
             sw.Stop();
-            TestHelper.PrintBlue("Hermite: " + sw.ElapsedMilliseconds);
+            UnitTest.PrintBlue("Hermite: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
             for (int i = 0; i < pointCount; i++)
@@ -46,7 +46,7 @@ namespace Vocore.Test
                 curveCache.Evaluate(i);
             }
             sw.Stop();
-            TestHelper.PrintBlue("Cache: " + sw.ElapsedMilliseconds);
+            UnitTest.PrintBlue("Cache: " + sw.ElapsedMilliseconds);
         }
 
         //disabled

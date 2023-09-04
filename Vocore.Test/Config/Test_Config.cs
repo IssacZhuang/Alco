@@ -12,7 +12,7 @@ namespace Vocore.Test
         {
             ConfigManager.LoadFolder(path);
             ExampleConfig config = ConfigManager.GetConfig<ExampleConfig>("test1");
-            TestHelper.PrintBlue(config.fieldInt);
+            UnitTest.PrintBlue(config.fieldInt);
         }
     }
 }
