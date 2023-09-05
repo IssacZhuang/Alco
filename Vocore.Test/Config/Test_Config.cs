@@ -3,8 +3,18 @@ using System.Collections.Generic;
 
 namespace Vocore.Test
 {
+    public class ExampleConfig : BaseConfig
+    {
+        public int fieldInt;
+        public float fieldFloat;
+        public string fieldString;
+        public bool fieldBool;
+    }
+
     public class Test_Config
     {
+
+
         public static readonly string path = "Config/Files";
 
         [Test("Test config")]

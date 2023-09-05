@@ -95,23 +95,16 @@ namespace Vocore
             }
         }
 
-        private void RegisterConfiParser()
+        private void RegisterConfigParser()
         {
             Type[] types = typeof(BaseConfig).Assembly.GetTypes();
             foreach (Type type in types)
             {
                 if (type.IsSubclassOf(typeof(BaseConfig)))
                 {
-                    MethodInfo method = typeof(ConfigLoader).GetMethod(nameof(RegisterParser), BindingFlags.NonPublic | BindingFlags.Instance);
-                    MethodInfo methodGeneric = method.MakeGenericMethod(type);
-                    methodGeneric.Invoke(this, null);
+                    _parseHelper.RegisterStrParser(type, ConfigParserGeneric<BaseConfig>);
                 }
             }
-        }
-
-        private void RegisterParser<T>() where T : BaseConfig
-        {
-            _parseHelper.RegisterStrParser<T>(ConfigParserGeneric<T>);
         }
 
         private static T ConfigParserGeneric<T>(string str) where T : BaseConfig

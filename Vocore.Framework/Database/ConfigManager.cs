@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace Vocore
@@ -6,44 +7,57 @@ namespace Vocore
 
     public static class ConfigManager
     {
-        private static StaticGenericMethodCache _methodCachde_AddConfig = new StaticGenericMethodCache(typeof(ConfigManager), nameof(AddConfig));
-        private static StaticGenericMethodCache _methodCachde_UpdateConfig = new StaticGenericMethodCache(typeof(ConfigManager), nameof(UpdateConfig));
+        private static readonly Dictionary<Type, GenericDatabaseAcess> _databaseAccess = new Dictionary<Type, GenericDatabaseAcess>();
 
         public static void LoadFolder(string folderPath)
         {
             ConfigLoader loader = new ConfigLoader();
             loader.Load(folderPath);
-            foreach (var config in loader.Content)
+            AddConfigs(loader.Content);
+        }
+
+        public static void AddConfigs(IList<BaseConfig> configs)
+        {
+            foreach (var config in configs)
             {
-                AddConfigByType(config);
+                AddConfig(config);
             }
-        }
-
-        private static void AddConfigByType(BaseConfig config)
-        {
-            _methodCachde_AddConfig.GetMethod(config.GetType()).Invoke(null, new object[] { config });
-        }
-
-        private static void UpdateConfigByType(BaseConfig config)
-        {
-            _methodCachde_UpdateConfig.GetMethod(config.GetType()).Invoke(null, new object[] { config });
-        }
-
-        public static void UpdateConfig<T>(T config) where T : BaseConfig
-        {
-            ConfigDB<T>.HotUpdate(config);
         }
 
         public static void AddConfig<T>(T config) where T : BaseConfig
         {
-
             ConfigDB<T>.Add(config);
         }
 
         public static T GetConfig<T>(string name, bool exceptionOnNotFound = true) where T : BaseConfig
         {
-
             return ConfigDB<T>.Get(name, exceptionOnNotFound);
+        }
+
+        public static void HotUpdate<T>(T config) where T : BaseConfig
+        {
+            ConfigDB<T>.HotUpdate(config);
+        }
+
+
+        private static void AddConfig(BaseConfig config)
+        {
+            GetDatabaseAccess(config.GetType()).Add(config);
+        }
+
+        public static void HotUpdate(BaseConfig config)
+        {
+            GetDatabaseAccess(config.GetType()).HotUpdate(config);
+        }
+
+
+        private static GenericDatabaseAcess GetDatabaseAccess(Type type)
+        {
+            if (!_databaseAccess.ContainsKey(type))
+            {
+                _databaseAccess.Add(type, new GenericDatabaseAcess(type));
+            }
+            return _databaseAccess[type];
         }
     }
 }
