@@ -95,7 +95,7 @@ namespace Mond.Compiler
 
                 { "var", TokenType.Var },
                 { "const", TokenType.Const },
-                { "fun", TokenType.Fun },
+                { "function", TokenType.Fun },
                 { "return", TokenType.Return },
                 { "seq", TokenType.Seq },
                 { "yield", TokenType.Yield },
