@@ -491,6 +491,12 @@ namespace UniLua
 			return API.PCall( 0, LuaDef.LUA_MULTRET, 0 );
 		}
 
+		public ThreadStatus L_CallLoaded()
+		{
+			var status = API.PCall( 0, LuaDef.LUA_MULTRET, 0);
+			return status;
+		}
+
 		public ThreadStatus L_DoFile( string filename )
 		{
 			var status = L_LoadFile( filename );
@@ -567,7 +573,7 @@ namespace UniLua
 				new NameFuncPair( LuaBitLib.LIB_NAME, 	LuaBitLib.OpenLib   ),
 				new NameFuncPair( LuaMathLib.LIB_NAME, 	LuaMathLib.OpenLib  ),
 				new NameFuncPair( LuaDebugLib.LIB_NAME, LuaDebugLib.OpenLib ),
-				new NameFuncPair( LuaFFILib.LIB_NAME,	LuaFFILib.OpenLib	),
+				//new NameFuncPair( LuaFFILib.LIB_NAME,	LuaFFILib.OpenLib	),
 				new NameFuncPair( LuaEncLib.LIB_NAME,	LuaEncLib.OpenLib	),
 			};
 
