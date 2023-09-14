@@ -17,9 +17,11 @@ namespace Vocore
 
         private List<string> defaultNamespaces = new List<string>{
             "Vocore",
+            "Vocore.Framework",
+            "Vocore.Test",
             "System"
         };
-        private object _lockDefaultNamespaces = new object();
+        private readonly object _lockDefaultNamespaces = new object();
 
         /// <summary>
         /// Check if a type is a generic type of another type.
