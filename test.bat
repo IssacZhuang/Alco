@@ -15,6 +15,6 @@ if "%1"=="unity" (
 if "%1"=="debug" set "mode=Debug"
 
 dotnet build Vocore.Test/Vocore.Test.csproj  --configuration %mode%
-cd Vocore.Test/bin/%mode%/
+cd Vocore.Test/bin/%mode%/net6.0
 Vocore.Test.exe
 pause

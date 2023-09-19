@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Globalization;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Vocore
 {

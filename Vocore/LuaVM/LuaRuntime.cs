@@ -33,10 +33,6 @@ namespace Vocore.Lua
             (luaState as LuaState).L_CallLoaded();
         }
 
-        public LuaTable GetGlobalTable(string field){
-            luaState.GetGlobal(field);
-            luaState.ToInteger
-        }
 
 
         private void TryLogErrorText(ThreadStatus status)
