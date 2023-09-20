@@ -19,6 +19,13 @@ namespace Vocore.Test
 {
     delegate void TestDelegate();
 
+    public struct TestJob : IJobBatch
+    {
+        public void Execute(int i)
+        {
+        }
+    }
+
     public class Playground
     {
         //some temp code for testing
@@ -34,39 +41,22 @@ namespace Vocore.Test
             //     pack.TrySetTextFile("test.txt", "Hello World!");
             // }
 
-            string luaCode =@"
-for i=1, 10000000 do
-    local a = 1+2*3/4
-end
-            ";
-            LuaRuntime lua = new LuaRuntime();
-            lua.RunCode("");
+            // UnitTest.Benchmark("parallel for", () =>
+            // {
+            //     Parallel.For(0, 10000000, (i) =>
+            //     {
 
-            UnitTest.Benchmark("lua complie",()=>{
-                lua.LoadCode("path",luaCode);
-            });
+            //     });
+            // });
 
-            UnitTest.Benchmark("lua run",()=>{
-                lua.Call();
-            });
+            // TestJob job = new TestJob();
 
-            string mondOCde = @"
-for(var i=0;i<10000000;i++){
+            // UnitTest.Benchmark("fast parallel for", () =>
+            // {
+            //     FastParallel.For(0, 10000000, job);
+            // });
 
-}
-            ";
-
-            MondProgram program = null;
-            MondState mond = new MondState();
-
-            mond.Run("");
-            UnitTest.Benchmark("mond complie",()=>{
-                program = MondProgram.Compile(mondOCde);
-            });
-            
-            UnitTest.Benchmark("mond run",()=>{
-                mond.Load(program);
-            });
+            Memory<string> memory = new Memory<string>(new string[] { "Hello", "World" });
 
         }
 

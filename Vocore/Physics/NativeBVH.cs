@@ -1,11 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-
-using Unity.Jobs;
-using Unity.Burst;
 using Unity.Mathematics;
-using Unity.Collections.LowLevel.Unsafe;
 
 namespace Vocore
 {
@@ -60,7 +56,7 @@ namespace Vocore
                 rays = rays.Ptr,
                 results = _batchRayCastResult.Ptr
             };
-            job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
+            job.RunParallel(rays.Length);
 
             return _batchRayCastResult;
         }
@@ -74,7 +70,7 @@ namespace Vocore
                 rays = rays.Ptr,
                 results = _batchRayCastResult.Ptr
             };
-            job.Schedule(rays.Length, UtilsJob.GetOptimizedBatchCountByLength(rays.Length)).Complete();
+            job.RunParallel(rays.Length);
             return _batchRayCastResult;
         }
 
@@ -87,7 +83,7 @@ namespace Vocore
                 colliderBoxes = colliders.Ptr,
                 results = _batchColliderBoxCastResult.Ptr
             };
-            job.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length)).Complete();
+            job.RunParallel(colliders.Length);
             return _batchColliderBoxCastResult;
         }
 
@@ -100,7 +96,7 @@ namespace Vocore
                 colliderSpheres = colliders.Ptr,
                 results = _batchColliderSphereCastResult.Ptr
             };
-            job.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length)).Complete();
+            job.RunParallel(colliders.Length);
             return _batchColliderSphereCastResult;
         }
 
@@ -349,7 +345,7 @@ namespace Vocore
                 return;
             }
 
-            StartJobBuildLeaf(colliders).Complete();
+            StartJobBuildLeaf(colliders);
             BuildBranch();
         }
 
@@ -421,7 +417,7 @@ namespace Vocore
             };
         }
 
-        private JobHandle StartJobBuildLeaf(NativeArrayList<ColliderRef> colliders)
+        private void StartJobBuildLeaf(NativeArrayList<ColliderRef> colliders)
         {
             Node* ptr = _nodes.Ptr;
 
@@ -434,19 +430,13 @@ namespace Vocore
 
             _nodeSize = colliders.Length;
 
-            return new JobBuildLeaf
+            new JobBuildLeaf
             {
                 nodeList = _nodes.Ptr,
-            }.Schedule(colliders.Length, UtilsJob.GetOptimizedBatchCountByLength(colliders.Length));
+            }.Run(colliders.Length);
         }
 
-        private JobHandle StartJobBuildBranch()
-        {
-            return new JobBuildBranch
-            {
-                bvh = this
-            }.Schedule();
-        }
+
 
         public void Dispose()
         {
@@ -470,7 +460,6 @@ namespace Vocore
             _nodeSize++;
         }
 
-        [BurstCompile]
         private struct JobBuildBranch : IJob
         {
             public NativeBVH bvh;
@@ -480,10 +469,8 @@ namespace Vocore
             }
         }
 
-        [BurstCompile]
-        private struct JobBuildLeaf : IJobParallelFor
+        private struct JobBuildLeaf : IJobBatch
         {
-            [NativeDisableUnsafePtrRestriction]
             public Node* nodeList;
 
             public void Execute(int index)
@@ -492,28 +479,21 @@ namespace Vocore
             }
         }
 
-        [BurstCompile]
-        private struct JobCastRay : IJobParallelFor
+        private struct JobCastRay : IJobBatch
         {
             public NativeBVH bvh;
-            [NativeDisableUnsafePtrRestriction]
             public Ray* rays;
-            [NativeDisableUnsafePtrRestriction]
             public RayCastResult* results;
-
             public void Execute(int index)
             {
                 results[index] = bvh.CastRay(rays[index]);
             }
         }
 
-        [BurstCompile]
-        private struct JobCastRayFast : IJobParallelFor
+        private struct JobCastRayFast : IJobBatch
         {
             public NativeBVH bvh;
-            [NativeDisableUnsafePtrRestriction]
             public Ray* rays;
-            [NativeDisableUnsafePtrRestriction]
             public RayCastResult* results;
 
             public void Execute(int index)
@@ -522,13 +502,10 @@ namespace Vocore
             }
         }
 
-        [BurstCompile]
-        private struct JobCastColliderBox : IJobParallelFor
+        private struct JobCastColliderBox : IJobBatch
         {
             public NativeBVH bvh;
-            [NativeDisableUnsafePtrRestriction]
             public ColliderBox* colliderBoxes;
-            [NativeDisableUnsafePtrRestriction]
             public ColliderCastResult* results;
 
             public void Execute(int index)
@@ -537,13 +514,10 @@ namespace Vocore
             }
         }
 
-        [BurstCompile]
-        private struct JobCastColliderSphere : IJobParallelFor
+        private struct JobCastColliderSphere : IJobBatch
         {
             public NativeBVH bvh;
-            [NativeDisableUnsafePtrRestriction]
             public ColliderSphere* colliderSpheres;
-            [NativeDisableUnsafePtrRestriction]
             public ColliderCastResult* results;
 
             public void Execute(int index)

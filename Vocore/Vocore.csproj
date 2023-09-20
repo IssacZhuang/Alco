@@ -7,35 +7,18 @@
     <AssemblyName>Vocore</AssemblyName>
     <TargetFramework>netstandard2.1</TargetFramework>
     <DebugType>pdbonly</DebugType>
-    
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE;USE_UNITY_ENGINE_DLL;NO_DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!--FileAlignment>512</FileAlignment>
+    <Optimize>true</Optimize>
     <Deterministic>true</Deterministic>
-    <Optimize>true</Optimize-->
+    <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Unity.Collections">
-      <HintPath>..\Packages\Unity.DOTS\Unity.Collections.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Unity.Mathematics">
       <HintPath>..\Packages\Unity.DOTS\Unity.Mathematics.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.Burst">
-      <HintPath>..\Packages\Unity.DOTS\Unity.Burst.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>..\Packages\UnityEngine\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Packages\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

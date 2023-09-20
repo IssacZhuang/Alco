@@ -11,6 +11,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <Deterministic>true</Deterministic>
+    <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

@@ -1,16 +1,13 @@
 using System;
 using System.Runtime.CompilerServices;
 
-using UnityEngine;
 using Unity.Mathematics;
-using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
-
+using Vocore;
 using Vocore.Unsafe;
 
 public unsafe struct GridMap<T> : IDisposable where T : unmanaged
 {
-    private NativeArray<T> _data;
+    private NativeBuffer<T> _data;
     private int2 _size;
     public readonly T defaultValue;
 
@@ -21,13 +18,13 @@ public unsafe struct GridMap<T> : IDisposable where T : unmanaged
 
     public unsafe void* GetUnsafePtr()
     {
-        return _data.GetUnsafePtr();
+        return _data.Ptr;
     }
 
     public GridMap(int width, int height, T defaultValue = default(T))
     {
         _size = new int2(width, height);
-        _data = new NativeArray<T>(width * height, Allocator.Persistent);
+        _data = new NativeBuffer<T>(width * height);
         this.defaultValue = defaultValue;
     }
 
@@ -70,14 +67,8 @@ public unsafe struct GridMap<T> : IDisposable where T : unmanaged
     {
         _data.Dispose();
         _size = new int2(width, height);
-        _data = new NativeArray<T>(width * height, Allocator.Persistent);
+        _data = new NativeBuffer<T>(width * height);
     }
-
-    public void CopyToComputeBuffer(ComputeBuffer buffer)
-    {
-        buffer.SetData(_data);
-    }
-
 
     void IDisposable.Dispose()
     {

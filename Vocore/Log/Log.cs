@@ -2,8 +2,6 @@ using System;
 using System.Text;
 using System.Runtime.CompilerServices;
 
-using UnityEngine;
-
 namespace Vocore{
     public static class Log
     {
@@ -94,19 +92,19 @@ namespace Vocore{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void UnityPrintInfo(string str)
         {
-            Debug.Log(str);
+            //Debug.Log(str);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void UnityPrintWarning(string str)
         {
-            Debug.LogWarning(str);
+            //Debug.LogWarning(str);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void UnityPrintError(string str)
         {
-            Debug.LogError(str);
+            //Debug.LogError(str);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

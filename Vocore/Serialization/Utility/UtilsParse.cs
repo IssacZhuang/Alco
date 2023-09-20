@@ -5,7 +5,6 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-using UnityEngine;
 using Unity.Mathematics;
 
 namespace Vocore
@@ -189,12 +188,7 @@ namespace Vocore
             RegisterStrParser<float2>(StrToFloat2);
             RegisterStrParser<float3>(StrToFloat3);
             RegisterStrParser<float4>(StrToFloat4Adaptive);
-            RegisterStrParser<Vector2>(StrToVector2);
-            RegisterStrParser<Vector3>(StrToVector3);
-            RegisterStrParser<Vector4>(StrToVector4Adaptive);
             RegisterStrParser<quaternion>(StrToQuaternion);
-            RegisterStrParser<Color>(StrToColor);
-            RegisterStrParser<Rect>(StrToRect);
             RegisterStrParser<Type>(StrToType);
 
             RegisterValueParser<int>(IntToStr);
@@ -207,12 +201,7 @@ namespace Vocore
             RegisterValueParser<float2>(Float2ToStr);
             RegisterValueParser<float3>(Float3ToStr);
             RegisterValueParser<float4>(Float4ToStr);
-            RegisterValueParser<Vector2>(Vector2ToStr);
-            RegisterValueParser<Vector3>(Vector3ToStr);
-            RegisterValueParser<Vector4>(Vector4ToStr);
             RegisterValueParser<quaternion>(QuaternionToStr);
-            RegisterValueParser<Color>(ColorToHexStr);
-            RegisterValueParser<Rect>(RectToStr);
             RegisterValueParser<Type>(TypeToStr);
         }
 
@@ -503,210 +492,6 @@ namespace Vocore
             });
         }
 
-        /// <summary>
-        /// Parse a string to UnityEngine.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
-        /// </summary>
-        public Vector2 StrToVector2(string Str)
-        {
-            Str = Str.TrimStart(_trimStart);
-            Str = Str.TrimEnd(_trimEnd);
-            string[] array = Str.Split(_split);
-            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
-            float x;
-            float y;
-            if (array.Length == 1)
-            {
-                y = (x = Convert.ToSingle(array[0], invariantCulture));
-            }
-            else
-            {
-                if (array.Length != 2)
-                {
-                    throw new InvalidOperationException();
-                }
-                x = Convert.ToSingle(array[0], invariantCulture);
-                y = Convert.ToSingle(array[1], invariantCulture);
-            }
-            return new Vector2(x, y);
-        }
-
-        /// <summary>
-        /// Parse a UnityEngine.Vector2 to string. For example: Vector2(1,1) is "(1,1)"
-        /// </summary>
-        public string Vector2ToStr(Vector2 value)
-        {
-            return string.Concat(new string[]
-            {
-                "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
-                ")"
-            });
-        }
-
-        /// <summary>
-        /// Parse a string to UnityEngine.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
-        /// </summary>
-        public Vector3 StrToVector3(string Str)
-        {
-            Str = Str.TrimStart(_trimStart);
-            Str = Str.TrimEnd(_trimEnd);
-            string[] array = Str.Split(_split);
-            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
-            float x = Convert.ToSingle(array[0], invariantCulture);
-            float y = Convert.ToSingle(array[1], invariantCulture);
-            float z = Convert.ToSingle(array[2], invariantCulture);
-            return new Vector3(x, y, z);
-        }
-
-        /// <summary>
-        /// Parse a UnityEngine.Vector3 to string. For example: Vector3(1,1,1) is "(1,1,1)"
-        /// </summary>
-        public string Vector3ToStr(Vector3 value)
-        {
-            return string.Concat(new string[]
-            {
-                "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.z.ToString(CultureInfo.InvariantCulture),
-                ")"
-            });
-        }
-
-        /// <summary>
-        /// Parse a string to UnityEngine.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
-        /// </summary>
-        public Vector4 StrToVector4Adaptive(string Str)
-        {
-            Str = Str.TrimStart(_trimStart);
-            Str = Str.TrimEnd(_trimEnd);
-            string[] array = Str.Split(_split);
-            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
-            float x = 0f;
-            float y = 0f;
-            float z = 0f;
-            float w = 0f;
-            if (array.Length >= 1)
-            {
-                x = Convert.ToSingle(array[0], invariantCulture);
-            }
-            if (array.Length >= 2)
-            {
-                y = Convert.ToSingle(array[1], invariantCulture);
-            }
-            if (array.Length >= 3)
-            {
-                z = Convert.ToSingle(array[2], invariantCulture);
-            }
-            if (array.Length >= 4)
-            {
-                w = Convert.ToSingle(array[3], invariantCulture);
-            }
-            return new Vector4(x, y, z, w);
-        }
-
-        /// <summary>
-        /// Parse a UnityEngine.Vector4 to string. For example: Vector4(1,1,1,1) is "(1,1,1,1)"
-        /// </summary>
-        public string Vector4ToStr(Vector4 value)
-        {
-            return string.Concat(new string[]
-            {
-                "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.z.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.w.ToString(CultureInfo.InvariantCulture),
-                ")"
-            });
-        }
-
-        /// <summary>
-        /// Parse a string to UnityEngine.Rect. For example: string "(1,1,1,1)" is Rect(1,1,1,1)
-        /// </summary>
-        public Rect StrToRect(string str)
-        {
-            str = str.TrimStart(_trimStart);
-            str = str.TrimEnd(_trimEnd);
-            string[] array = str.Split(_split);
-            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
-            float x = Convert.ToSingle(array[0], invariantCulture);
-            float y = Convert.ToSingle(array[1], invariantCulture);
-            float width = Convert.ToSingle(array[2], invariantCulture);
-            float height = Convert.ToSingle(array[3], invariantCulture);
-            return new Rect(x, y, width, height);
-        }
-
-        /// <summary>
-        /// Parse a UnityEngine.Rect to string. For example: Rect(1,1,1,1) is "(1,1,1,1)"
-        /// </summary>
-        public string RectToStr(Rect value)
-        {
-            return string.Concat(new string[]
-            {
-                "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.width.ToString(CultureInfo.InvariantCulture),
-                ",",
-                value.height.ToString(CultureInfo.InvariantCulture),
-                ")"
-            });
-        }
-
-        /// <summary>
-        /// Parse a string to UnityEngine.Color
-        /// </summary>
-        public Color StrToColor(string str)
-        {
-            if (str.StartsWith("#"))
-            {
-                return str.ToColorHex();
-            }
-
-            str = str.TrimStart(_trimColorStart);
-            str = str.TrimEnd(_trimColorEnd);
-            string[] array = str.Split(_split);
-            float num = StrToFloat(array[0]);
-            float num2 = StrToFloat(array[1]);
-            float num3 = StrToFloat(array[2]);
-            bool flag = num > 1f || num3 > 1f || num2 > 1f;
-            float num4 = (float)(flag ? 255 : 1);
-            if (array.Length == 4)
-            {
-                num4 = StrToFloat(array[3]);
-            }
-            Color result;
-            if (!flag)
-            {
-                result.r = num;
-                result.g = num2;
-                result.b = num3;
-                result.a = num4;
-            }
-            else
-            {
-                result = UtilsColor.FromBytes(Mathf.RoundToInt(num), Mathf.RoundToInt(num2), Mathf.RoundToInt(num3), Mathf.RoundToInt(num4));
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Parse a UnityEngine.Color to string
-        /// </summary>
-        public string ColorToHexStr(Color color)
-        {
-            return color.ToHexStr();
-        }
 
         /// <summary>
         /// Parse a string to Enum

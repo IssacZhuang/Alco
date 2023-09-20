@@ -110,28 +110,6 @@ namespace Vocore.Test
             UnitTest.AssertFalse(str != _parseHelper.QuaternionToStr(q));
         }
 
-        [Test("test UtilsParse.ToColor")]
-        public void Test_ToColor()
-        {
-            string str = "(0,0,255,255)";
-            Color c = _parseHelper.StrToColor(str);
-            UnitTest.AssertFalse(c != Color.blue);
-
-            str = "#FFFFFFFF";
-            c = _parseHelper.StrToColor(str);
-            UnitTest.AssertFalse(c != Color.white);
-            UnitTest.AssertFalse(str != _parseHelper.ColorToHexStr(c));
-        }
-
-        [Test("test UtilsParse.ToRect")]
-        public void Test_ToRect()
-        {
-            string str = "(123.456,789.012,345.678,901.234)";
-            Rect r = _parseHelper.StrToRect(str);
-            UnitTest.AssertFalse(r != new Rect(123.456f, 789.012f, 345.678f, 901.234f));
-            UnitTest.AssertFalse(str != _parseHelper.RectToStr(r));
-        }
-
         [Test("test UtilsParse.ToType")]
         public void Test_ToType()
         {

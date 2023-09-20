@@ -1,29 +1,30 @@
 using System.Globalization;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Vocore
 {
     public static class UtilsColor
     {
+		public static readonly float4 White  = new float4(1f, 1f, 1f, 1f);
+
         /// <summary>
 		/// Convert bytes to Color. For example: (r:255, g:255, b:255, a:255) is white.
 		/// </summary>
-        public static Color FromBytes(int r, int g, int b, int a = 255)
+        public static float4 FromBytes(int r, int g, int b, int a = 255)
 		{
-			return new Color
+			return new float4
 			{
-				r = (float)r / 255f,
-				g = (float)g / 255f,
-				b = (float)b / 255f,
-				a = (float)a / 255f
+				x = (float)r / 255f,
+				y = (float)g / 255f,
+				z = (float)b / 255f,
+				w = (float)a / 255f
 			};
 		}
 
 		/// <summary>
 		/// Convert hex string to Color. For example: #FFFFFF is white.
 		/// </summary>
-        public static Color ToColorHex(this string hex)
+        public static float4 ToColorHex(this string hex)
 		{
 			if (hex.StartsWith("#"))
 			{
@@ -31,7 +32,7 @@ namespace Vocore
 			}
 			if (hex.Length != 6 && hex.Length != 8)
 			{
-				return Color.white;
+				return White;
 			}
 			int r = int.Parse(hex.Substring(0, 2), NumberStyles.HexNumber);
 			int g = int.Parse(hex.Substring(2, 2), NumberStyles.HexNumber);
@@ -47,13 +48,13 @@ namespace Vocore
         /// <summary>
         /// Convert Color to hex string. For example: (r:255, g:255, b:255, a:255) is #FFFFFFFF.
         /// </summary>
-        public static string ToHexStr(this Color color)
+        public static string ToHexStr(this float4 color)
 		{
             int4 color32 = default;
-            color32.x = (int)math.round(color.r * 255f);
-            color32.y = (int)math.round(color.g * 255f);
-            color32.z = (int)math.round(color.b * 255f);
-            color32.w = (int)math.round(color.a * 255f);
+            color32.x = (int)math.round(color.x * 255f);
+            color32.y = (int)math.round(color.y * 255f);
+            color32.z = (int)math.round(color.z * 255f);
+            color32.w = (int)math.round(color.w * 255f);
             return string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", color32.x, color32.y, color32.z, color32.w);
 		}
     }
