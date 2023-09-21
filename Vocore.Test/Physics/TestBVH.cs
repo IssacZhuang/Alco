@@ -101,6 +101,8 @@ namespace Vocore.Test
 
             UnitTest.PrintBlue(bvh.Size + "," + bvh.Capacity);
 
+            //warm up
+            bvh.CastBatchRay(rays);
             UnitTest.Benchmark("Ray cast bvh", () =>
             {
                 bvh.CastBatchRay(rays);
@@ -124,14 +126,24 @@ namespace Vocore.Test
             NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
             NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
             NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>();
-            Ray ray = Ray.CreateWithStartAndEnd(new float3(-2, 1.1f, 0), new float3(2, 1.1f, 0));
+            Ray ray = Ray.CreateWithStartAndEnd(new float3(-2, 1.1f, 0), new float3(200, 1.1f, 0));
 
 
+            boxs.Add(new ColliderBox
+            {
+                shape = new ShapeBox(new float3(10, 0, 0), new float3(1f), quaternion.identity)
+            });
 
             boxs.Add(new ColliderBox
             {
                 shape = new ShapeBox(float3.zero, new float3(1f), quaternion.identity)
             });
+
+            boxs.Add(new ColliderBox
+            {
+                shape = new ShapeBox(new float3(-10, 0, 0), new float3(1f), quaternion.identity)
+            });
+
 
             spheres.Add(new ColliderSphere
             {
@@ -150,7 +162,7 @@ namespace Vocore.Test
             UnitTest.AssertFalse(result.hit);
 
 
-            ray = Ray.CreateWithStartAndEnd(new float3(-1.2f, 0, 0), new float3(1.2f, 0, 0));
+            ray = Ray.CreateWithStartAndEnd(new float3(-1.2f, 0, 0), new float3(120f, 0, 0));
 
             result = bvh.CastRay(ray);
 

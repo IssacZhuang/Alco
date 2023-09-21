@@ -7,6 +7,8 @@ namespace Vocore
 {
     public unsafe struct NativeBVH : IDisposable
     {
+
+
         public struct Node
         {
             public int left;
@@ -34,7 +36,7 @@ namespace Vocore
                 return RayCastResult.none;
             }
 
-            return CastRay(ref ray, _root);
+            return CastRayOptimized(ref ray, _root);
         }
 
         public RayCastResult CastRayFast(Ray ray)
@@ -221,6 +223,59 @@ namespace Vocore
             }
 
             return RayCastResult.none;
+        }
+
+        private RayCastResult CastRayOptimized(ref Ray ray, Node node)
+        {
+            //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
+            Node* stack = stackalloc Node[_nodeSize];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            RayCastResult result = RayCastResult.none;
+
+
+            while (stackCount > 0)
+            {
+                //Node top = stack.Pop();
+                Node top = stack[stackCount--];
+
+                if (!UtilsCollision.RayAABB(ray, top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.IntersectRay(ray, out RaycastHit hitInfo))
+                    {
+                        // result = new RayCastResult
+                        // {
+                        //     hit = true,
+                        //     hitInfo = hitInfo,
+                        //     collider = top.collider
+                        // };
+                        if (!result.hit || hitInfo.fraction < result.hitInfo.fraction)
+                        {
+                            result.hit = true;
+                            result.hitInfo = hitInfo;
+                            result.collider = top.collider;
+                        }
+                    }
+
+                    continue;
+
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+
+            }
+
+            return result;
         }
 
         public ColliderCastResult CastColliderBox(ref ColliderBox colliderBox)
