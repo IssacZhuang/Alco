@@ -23,5 +23,10 @@ namespace Vocore
                 displacement = end - start
             };
         }
+
+        public override string ToString()
+        {
+            return $"origin: {origin}, displacement: {displacement}";
+        }
     }
 }

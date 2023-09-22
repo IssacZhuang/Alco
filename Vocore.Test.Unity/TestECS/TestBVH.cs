@@ -158,6 +158,7 @@ namespace Vocore.Test.Unity
             result = bvh.CastRay(ray);
 
             TestHelper.AssertTrue(!result.hit);
+            
             TestHelper.PrintBlue(result.hitInfo.point);
 
         }

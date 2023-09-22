@@ -228,7 +228,7 @@ namespace Vocore
         private RayCastResult CastRayOptimized(ref Ray ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
-            Node* stack = stackalloc Node[_nodeSize];
+            Node* stack = stackalloc Node[_nodeSize / 2 + 2];
             int stackCount = 0;
             stack[stackCount++] = node;
             RayCastResult result = RayCastResult.none;
@@ -237,7 +237,7 @@ namespace Vocore
             while (stackCount > 0)
             {
                 //Node top = stack.Pop();
-                Node top = stack[stackCount--];
+                Node top = stack[--stackCount];
 
                 if (!UtilsCollision.RayAABB(ray, top.boundingBox)) continue;
 
@@ -251,7 +251,8 @@ namespace Vocore
                         //     hitInfo = hitInfo,
                         //     collider = top.collider
                         // };
-                        if (!result.hit || hitInfo.fraction < result.hitInfo.fraction)
+        
+                        if (!result.hit ||result.hit && hitInfo.fraction < result.hitInfo.fraction)
                         {
                             result.hit = true;
                             result.hitInfo = hitInfo;
@@ -481,14 +482,15 @@ namespace Vocore
                 ptr[i].left = -1;
                 ptr[i].right = -1;
                 ptr[i].collider = colliders[i];
+                ptr[i].boundingBox = colliders[i].GetBoundingBox();
             }
 
             _nodeSize = colliders.Length;
 
-            new JobBuildLeaf
-            {
-                nodeList = _nodes.Ptr,
-            }.Run(colliders.Length);
+            // new JobBuildLeaf
+            // {
+            //     nodeList = _nodes.Ptr,
+            // }.Run(colliders.Length);
         }
 
 
@@ -513,25 +515,6 @@ namespace Vocore
             }
             _nodes.Ptr[_nodeSize] = node;
             _nodeSize++;
-        }
-
-        private struct JobBuildBranch : IJob
-        {
-            public NativeBVH bvh;
-            public void Execute()
-            {
-                bvh.BuildBranch();
-            }
-        }
-
-        private struct JobBuildLeaf : IJobBatch
-        {
-            public Node* nodeList;
-
-            public void Execute(int index)
-            {
-                nodeList[index].boundingBox = nodeList[index].collider.GetBoundingBox();
-            }
         }
 
         private struct JobCastRay : IJobBatch
