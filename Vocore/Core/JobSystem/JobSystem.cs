@@ -26,6 +26,7 @@ namespace Vocore
             // {
             //     job.Execute(i);
             // }
+            //FastParallel.For(0, count, job.Execute);
             Parallel.For(0, count, job.Execute);
         }
     }

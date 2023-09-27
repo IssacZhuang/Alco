@@ -41,22 +41,21 @@ namespace Vocore.Test
             //     pack.TrySetTextFile("test.txt", "Hello World!");
             // }
 
-            // UnitTest.Benchmark("parallel for", () =>
-            // {
-            //     Parallel.For(0, 10000000, (i) =>
-            //     {
+            UnitTest.Benchmark("parallel for", () =>
+            {
+                Parallel.For(0, 10000000, (i) =>
+                {
 
-            //     });
-            // });
+                });
+            });
 
-            // TestJob job = new TestJob();
 
-            // UnitTest.Benchmark("fast parallel for", () =>
-            // {
-            //     FastParallel.For(0, 10000000, job);
-            // });
+            UnitTest.Benchmark("fast parallel for", () =>
+            {
+                FastParallel.For(0, 10000000, (i)=>{
 
-            Memory<string> memory = new Memory<string>(new string[] { "Hello", "World" });
+                });
+            });
 
         }
 

@@ -7,45 +7,50 @@ namespace Vocore
 {
     public static class FastParallel
     {
-        private struct Partition
+        public static int Parallelism = 8;
+
+        public static void For(int fromInclusive, int toExclusive, Action<int> body)
         {
-            public int start;
-            public int end;
-        }
+            int length = toExclusive - fromInclusive;
+            int rangeSize = length / Parallelism;
+            int remaining = length % Parallelism;
+            ManualResetEvent[] resetEvents = new ManualResetEvent[Parallelism];
 
-        public static readonly int ThreadCount = Environment.ProcessorCount * 4;
-        private static readonly Partition[] _partition = new Partition[ThreadCount];
-        public static void For<T>(int fromInclusive, int toExclusive, T job) where T : unmanaged, IJobBatch
-        {
-            int count = toExclusive - fromInclusive;
+            int start = 0;
+            int end = 0;
 
-            if (count < ThreadCount)
+            for (int i = 0; i < Parallelism; i++)
             {
-                Parallel.For(0, count, job.Execute);
-                return;
-            }
+                resetEvents[i] = new ManualResetEvent(false);
 
-            int step = count / ThreadCount;
-            int remainder = count % ThreadCount;
+                start = end;
+                end += rangeSize;
 
-            _partition[0].start = fromInclusive;
-            _partition[0].end = fromInclusive + step + remainder;
-            for (int i = 1; i < ThreadCount; i++)
-            {
-                _partition[i].start = _partition[i - 1].end;
-                _partition[i].end = _partition[i].start + step;
-            }
-
-
-            Parallel.For(0, ThreadCount, (i) =>
-            {
-                int start = _partition[i].start;
-                int end = _partition[i].end;
-                for (int j = start; j < end; j++)
+                if (remaining > 0)
                 {
-                    job.Execute(j);
+                    end++;
+                    remaining--;
                 }
-            });
+
+                ThreadPool.QueueUserWorkItem<int>(state =>
+                {
+                    try
+                    {
+                        for (int j = start; j < end; j++)
+                        {
+                            body(j);
+                        }
+                    }
+                    finally
+                    {
+                        resetEvents[state].Set();
+                    }
+                }, i, true);
+
+                
+            }
+
+            WaitHandle.WaitAll(resetEvents);
         }
     }
 }
