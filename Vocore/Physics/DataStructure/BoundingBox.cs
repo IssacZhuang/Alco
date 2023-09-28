@@ -22,6 +22,13 @@ namespace Vocore
                    min.y <= other.max.y && max.y >= other.min.y &&
                    min.z <= other.max.z && max.z >= other.min.z;
         }
+        
+        public bool Contains(float3 point)
+        {
+            return min.x <= point.x && max.x >= point.x &&
+                   min.y <= point.y && max.y >= point.y &&
+                   min.z <= point.z && max.z >= point.z;
+        }
 
         public override string ToString()
         {
@@ -36,5 +43,6 @@ namespace Vocore
                 max = math.max(a.max, b.max),
             };
         }
+
     }
 }

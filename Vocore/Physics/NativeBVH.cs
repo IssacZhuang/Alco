@@ -122,107 +122,47 @@ namespace Vocore
 
         private RayCastResult CastRayFast(ref Ray ray, Node node)
         {
-            if (!UtilsCollision.RayAABB(ray, node.boundingBox)) return RayCastResult.none;
+            //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
+            Node* stack = stackalloc Node[_nodeSize / 2 + 2];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            RayCastResult result = RayCastResult.none;
 
-            if (node.IsLeaf)
+
+            while (stackCount > 0)
             {
-                if (node.collider.IntersectRay(ray, out RaycastHit hitInfo))
+                //Node top = stack.Pop();
+                Node top = stack[--stackCount];
+
+                if (!UtilsCollision.RayAABB(ray, top.boundingBox)) continue;
+
+                if (top.IsLeaf)
                 {
-                    return new RayCastResult
+                    if (top.collider.IntersectRay(ray, out RaycastHit hitInfo))
                     {
-                        hit = true,
-                        hitInfo = hitInfo,
-                        collider = node.collider
-                    };
+                        result.hit = true;
+                        result.hitInfo = hitInfo;
+                        result.collider = top.collider;
+                        return result;
+                    }
+
+                    continue;
+
                 }
-                else
+
+                if (top.left >= 0)
                 {
-                    return RayCastResult.none;
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
                 }
 
             }
 
-            if (node.left >= 0)
-            {
-                RayCastResult leftResult = CastRayFast(ref ray, GetNode(node.left));
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
-            }
-
-            if (node.right >= 0)
-            {
-                RayCastResult rightResult = CastRayFast(ref ray, GetNode(node.right));
-                if (rightResult.hit)
-                {
-                    return rightResult;
-                }
-            }
-
-            return RayCastResult.none;
-        }
-
-        private RayCastResult CastRay(ref Ray ray, Node node)
-        {
-            if (!UtilsCollision.RayAABB(ray, node.boundingBox)) return RayCastResult.none;
-
-            if (node.IsLeaf)
-            {
-                if (node.collider.IntersectRay(ray, out RaycastHit hitInfo))
-                {
-                    return new RayCastResult
-                    {
-                        hit = true,
-                        hitInfo = hitInfo,
-                        collider = node.collider
-                    };
-                }
-                else
-                {
-                    return RayCastResult.none;
-                }
-
-            }
-
-            RayCastResult leftResult = RayCastResult.Default;
-            RayCastResult rightResult = RayCastResult.Default;
-
-            if (node.left >= 0)
-            {
-                leftResult = CastRayFast(ref ray, GetNode(node.left));
-            }
-
-            if (node.right >= 0)
-            {
-                rightResult = CastRayFast(ref ray, GetNode(node.right));
-            }
-
-            if (leftResult.hit == true && rightResult.hit == true)
-            {
-                if (leftResult.hitInfo.fraction < rightResult.hitInfo.fraction)
-                {
-                    return leftResult;
-                }
-                else
-                {
-                    return rightResult;
-                }
-            }
-
-            if (leftResult.hit != rightResult.hit)
-            {
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
-                else
-                {
-                    return rightResult;
-                }
-            }
-
-            return RayCastResult.none;
+            return result;
         }
 
         private RayCastResult CastRayOptimized(ref Ray ray, Node node)
@@ -244,14 +184,7 @@ namespace Vocore
                 if (top.IsLeaf)
                 {
                     if (top.collider.IntersectRay(ray, out RaycastHit hitInfo))
-                    {
-                        // result = new RayCastResult
-                        // {
-                        //     hit = true,
-                        //     hitInfo = hitInfo,
-                        //     collider = top.collider
-                        // };
-        
+                    {  
                         if (!result.hit ||result.hit && hitInfo.fraction < result.hitInfo.fraction)
                         {
                             result.hit = true;

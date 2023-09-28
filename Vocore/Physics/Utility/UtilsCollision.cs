@@ -226,15 +226,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray ray, BoundingBox boundingBox)
         {
-            float3 rayOrigin = ray.origin;
-            float3 rayDisplacement = ray.displacement;
-            float3 min = boundingBox.min;
-            float3 max = boundingBox.max;
-
-            float3 invRayDisplacement = 1f / rayDisplacement;
-
-            float3 originToMin = min - rayOrigin;
-            float3 originToMax = max - rayOrigin;
+            float3 invRayDisplacement = 1f / ray.displacement;
+            float3 originToMin = boundingBox.min - ray.origin;
+            float3 originToMax = boundingBox.max - ray.origin;
 
             float txmin = originToMin.x * invRayDisplacement.x;
             float txmax = originToMax.x * invRayDisplacement.x;

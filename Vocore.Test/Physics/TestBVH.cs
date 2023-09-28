@@ -58,7 +58,8 @@ namespace Vocore.Test
             for (int i = 0; i < rayCount; i++)
             {
                 float3 start = random.NextFloat3(-125, 125);
-                float3 end = random.NextFloat3(-125, 125);
+                float3 direction = random.NextFloat3(-6, 6);
+                float3 end =  start +direction;// random.NextFloat3(-125, 125);
                 rays.Add(Ray.CreateWithStartAndEnd(start, end));
             }
 
@@ -108,6 +109,7 @@ namespace Vocore.Test
                 bvh.CastBatchRay(rays);
             });
 
+            bvh.CastBatchRayFast(rays);
             UnitTest.Benchmark("Ray cast bvh fast", () =>
             {
                 bvh.CastBatchRayFast(rays);
