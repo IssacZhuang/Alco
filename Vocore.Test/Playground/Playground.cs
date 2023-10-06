@@ -5,8 +5,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using System.Threading;
-
-using UnityEngine;
 using System.Threading.Tasks;
 
 using Unity.Mathematics;
@@ -14,6 +12,7 @@ using System.IO;
 
 using Vocore.Lua;
 using Mond;
+using System.Numerics;
 
 namespace Vocore.Test
 {
@@ -41,20 +40,31 @@ namespace Vocore.Test
             //     pack.TrySetTextFile("test.txt", "Hello World!");
             // }
 
-            UnitTest.Benchmark("parallel for", () =>
-            {
-                Parallel.For(0, 10000000, (i) =>
-                {
+            int size = 100000000;
+            //float3 vs vector
+            float3 a = new float3(1, 2, 3);
+            float3 b = new float3(4, 5, 6);
+            float3 result = float3.zero;
 
-                });
+            Vector3 va = new Vector3(1, 2, 3);
+            Vector3 vb = new Vector3(4, 5, 6);
+            Vector3 vresult = Vector3.Zero;
+
+            UnitTest.Benchmark("float3", () =>
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    result = a * b;
+                }
             });
 
 
-            UnitTest.Benchmark("fast parallel for", () =>
+            UnitTest.Benchmark("simd", () =>
             {
-                FastParallel.For(0, 10000000, (i)=>{
-
-                });
+                for (int i = 0; i < size; i++)
+                {
+                    vresult = Vector3.Multiply(va, vb);
+                }
             });
 
         }

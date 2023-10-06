@@ -2,13 +2,12 @@
   <PropertyGroup>
     <ProjectGuid>{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Vocore</RootNamespace>
     <AssemblyName>Vocore</AssemblyName>
     <TargetFramework>netstandard2.1</TargetFramework>
     <DebugType>pdbonly</DebugType>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;USE_UNITY_ENGINE_DLL;NO_DEBUG</DefineConstants>
+    <DefineConstants>TRACE;NO_DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
