@@ -25,9 +25,6 @@
     <Reference Include="Unity.Collections">
       <HintPath>..\Packages\Unity.DOTS\Unity.Collections.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.Mathematics">
-      <HintPath>..\Packages\Unity.DOTS\Unity.Mathematics.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore.Framework\Vocore.Framework.csproj">

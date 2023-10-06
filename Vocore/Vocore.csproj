@@ -15,10 +15,4 @@
     <Deterministic>true</Deterministic>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="Unity.Mathematics">
-      <HintPath>..\Packages\Unity.DOTS\Unity.Mathematics.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
 </Project>

@@ -22,10 +22,6 @@
       <HintPath>..\Packages\Unity.DOTS\Unity.Collections.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.Mathematics">
-      <HintPath>..\Packages\Unity.DOTS\Unity.Mathematics.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Unity.Burst">
       <HintPath>..\Packages\Unity.DOTS\Unity.Burst.dll</HintPath>
       <Private>False</Private>
