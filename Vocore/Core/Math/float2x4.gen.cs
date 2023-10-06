@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 
 #pragma warning disable 0660, 0661
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>A 2x4 matrix of floats.</summary>
     [System.Serializable]

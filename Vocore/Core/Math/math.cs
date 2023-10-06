@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>
     /// A static class to contain various math functions and constants.
@@ -4590,7 +4590,7 @@ namespace Unity.Mathematics
         /// <remarks>
         /// Some finite vectors a and b could generate a non-finite result. This is most likely when a's components
         /// are very large (close to Single.MaxValue) or when b's components are very small (close to FLT_MIN_NORMAL).
-        /// In these cases, you can call <see cref="projectsafe(Unity.Mathematics.float2,Unity.Mathematics.float2,Unity.Mathematics.float2)"/>
+        /// In these cases, you can call <see cref="projectsafe(Vocore.float2,Vocore.float2,Vocore.float2)"/>
         /// which will use a given default value if the result is not finite.
         /// </remarks>
         /// <param name="a">Vector to project.</param>
@@ -4608,7 +4608,7 @@ namespace Unity.Mathematics
         /// <remarks>
         /// Some finite vectors a and b could generate a non-finite result. This is most likely when a's components
         /// are very large (close to Single.MaxValue) or when b's components are very small (close to FLT_MIN_NORMAL).
-        /// In these cases, you can call <see cref="projectsafe(Unity.Mathematics.float3,Unity.Mathematics.float3,Unity.Mathematics.float3)"/>
+        /// In these cases, you can call <see cref="projectsafe(Vocore.float3,Vocore.float3,Vocore.float3)"/>
         /// which will use a given default value if the result is not finite.
         /// </remarks>
         /// <param name="a">Vector to project.</param>
@@ -4626,7 +4626,7 @@ namespace Unity.Mathematics
         /// <remarks>
         /// Some finite vectors a and b could generate a non-finite result. This is most likely when a's components
         /// are very large (close to Single.MaxValue) or when b's components are very small (close to FLT_MIN_NORMAL).
-        /// In these cases, you can call <see cref="projectsafe(Unity.Mathematics.float4,Unity.Mathematics.float4,Unity.Mathematics.float4)"/>
+        /// In these cases, you can call <see cref="projectsafe(Vocore.float4,Vocore.float4,Vocore.float4)"/>
         /// which will use a given default value if the result is not finite.
         /// </remarks>
         /// <param name="a">Vector to project.</param>
@@ -4644,7 +4644,7 @@ namespace Unity.Mathematics
         /// <remarks>
         /// This function performs extra checks to see if the result of projecting a onto b is finite. If you know that
         /// your inputs will generate a finite result or you don't care if the result is finite, then you can call
-        /// <see cref="project(Unity.Mathematics.float2,Unity.Mathematics.float2)"/> instead which is faster than this
+        /// <see cref="project(Vocore.float2,Vocore.float2)"/> instead which is faster than this
         /// function.
         /// </remarks>
         /// <param name="a">Vector to project.</param>
@@ -4665,7 +4665,7 @@ namespace Unity.Mathematics
         /// <remarks>
         /// This function performs extra checks to see if the result of projecting a onto b is finite. If you know that
         /// your inputs will generate a finite result or you don't care if the result is finite, then you can call
-        /// <see cref="project(Unity.Mathematics.float3,Unity.Mathematics.float3)"/> instead which is faster than this
+        /// <see cref="project(Vocore.float3,Vocore.float3)"/> instead which is faster than this
         /// function.
         /// </remarks>
         /// <param name="a">Vector to project.</param>
@@ -4686,7 +4686,7 @@ namespace Unity.Mathematics
         /// <remarks>
         /// This function performs extra checks to see if the result of projecting a onto b is finite. If you know that
         /// your inputs will generate a finite result or you don't care if the result is finite, then you can call
-        /// <see cref="project(Unity.Mathematics.float4,Unity.Mathematics.float4)"/> instead which is faster than this
+        /// <see cref="project(Vocore.float4,Vocore.float4)"/> instead which is faster than this
         /// function.
         /// </remarks>
         /// <param name="a">Vector to project.</param>
@@ -6904,7 +6904,7 @@ namespace Unity.Mathematics
             var d1 = qv * qv.wwww * float4(2f); //xw, yw, zw, ww
             var d2 = qv * qv.yzxw * float4(2f); //xy, yz, zx, ww
             var d3 = qv * qv;
-            var euler = Unity.Mathematics.float3.zero;
+            var euler = Vocore.float3.zero;
 
             var y1 = d2.z - d1.y;
             if (y1 * y1 < cutoff)
@@ -6944,7 +6944,7 @@ namespace Unity.Mathematics
             var d1 = qv * qv.wwww * float4(2f); //xw, yw, zw, ww
             var d2 = qv * qv.yzxw * float4(2f); //xy, yz, zx, ww
             var d3 = qv * qv;
-            var euler = Unity.Mathematics.float3.zero;
+            var euler = Vocore.float3.zero;
 
             var y1 = d2.x + d1.z;
             if (y1 * y1 < cutoff)
@@ -6984,7 +6984,7 @@ namespace Unity.Mathematics
             var d1 = qv * qv.wwww * float4(2f); //xw, yw, zw, ww
             var d2 = qv * qv.yzxw * float4(2f); //xy, yz, zx, ww
             var d3 = qv * qv;
-            var euler = Unity.Mathematics.float3.zero;
+            var euler = Vocore.float3.zero;
 
             var y1 = d2.y + d1.x;
             if (y1 * y1 < cutoff)
@@ -7024,7 +7024,7 @@ namespace Unity.Mathematics
             var d1 = qv * qv.wwww * float4(2f); //xw, yw, zw, ww
             var d2 = qv * qv.yzxw * float4(2f); //xy, yz, zx, ww
             var d3 = qv * qv;
-            var euler = Unity.Mathematics.float3.zero;
+            var euler = Vocore.float3.zero;
 
             var y1 = d2.x - d1.z;
             if (y1 * y1 < cutoff)
@@ -7064,7 +7064,7 @@ namespace Unity.Mathematics
             var d1 = qv * qv.wwww * float4(2f); //xw, yw, zw, ww
             var d2 = qv * qv.yzxw * float4(2f); //xy, yz, zx, ww
             var d3 = qv * qv;
-            var euler = Unity.Mathematics.float3.zero;
+            var euler = Vocore.float3.zero;
 
             var y1 = d2.y - d1.x;
             if (y1 * y1 < cutoff)
@@ -7103,7 +7103,7 @@ namespace Unity.Mathematics
             var d1 = qv * qv.wwww * float4(2f); //xw, yw, zw, ww
             var d2 = qv * qv.yzxw * float4(2f); //xy, yz, zx, ww
             var d3 = qv * qv;
-            var euler = Unity.Mathematics.float3.zero;
+            var euler = Vocore.float3.zero;
 
             var y1 = d2.z + d1.y;
             if (y1 * y1 < cutoff)
@@ -7154,7 +7154,7 @@ namespace Unity.Mathematics
                 case math.RotationOrder.ZYX:
                     return EulerZYX(q);
                 default:
-                    return Unity.Mathematics.float3.zero;
+                    return Vocore.float3.zero;
             }
         }
 

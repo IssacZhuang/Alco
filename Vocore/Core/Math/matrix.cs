@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     public partial struct float2x2
     {
@@ -1100,7 +1100,7 @@ namespace Unity.Mathematics
         {
             float scaleSq = 0.333333f * (math.lengthsq(m.c0) + math.lengthsq(m.c1) + math.lengthsq(m.c2));
             if (scaleSq < svd.k_EpsilonNormal)
-                return Mathematics.float3x3.zero;
+                return Vocore.float3x3.zero;
 
             float3 scaleInv = math.rsqrt(scaleSq);
             float3x3 ms = mulScale(m, scaleInv);

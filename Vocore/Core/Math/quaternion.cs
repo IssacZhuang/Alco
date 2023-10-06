@@ -1,9 +1,9 @@
 using System;
 using System.Runtime.CompilerServices;
 
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>
     /// A quaternion type for representing rotations.
@@ -554,7 +554,7 @@ namespace Unity.Mathematics
         {
             float4 x = q.value;
             float len = math.dot(x, x);
-            return quaternion(math.select(Mathematics.quaternion.identity.value, x * math.rsqrt(len), len > FLT_MIN_NORMAL));
+            return quaternion(math.select(Vocore.quaternion.identity.value, x * math.rsqrt(len), len > FLT_MIN_NORMAL));
         }
 
         /// <summary>

@@ -1,9 +1,9 @@
 using System;
 using System.Runtime.CompilerServices;
 
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>
     /// An affine transformation type.

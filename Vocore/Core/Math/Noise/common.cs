@@ -1,7 +1,7 @@
 
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>
     /// A static class containing noise functions.

@@ -9,9 +9,9 @@
 //               https://github.com/stegu/webgl-noise
 //
 
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     public static partial class noise
     {

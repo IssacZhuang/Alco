@@ -1,10 +1,10 @@
 using System;
 using System.Runtime.CompilerServices;
-using static Unity.Mathematics.math;
+using static Vocore.math;
 using System.Diagnostics;
 
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>
     /// Random Number Generator based on xorshift.

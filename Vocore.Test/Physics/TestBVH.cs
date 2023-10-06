@@ -2,8 +2,8 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 
-using Unity.Mathematics;
-using Random = Unity.Mathematics.Random;
+
+using Random = Vocore.Random;
 using System.Runtime;
 
 namespace Vocore.Test

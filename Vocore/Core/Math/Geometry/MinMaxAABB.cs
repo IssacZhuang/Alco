@@ -1,9 +1,9 @@
 using System;
 using System.Runtime.CompilerServices;
 
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics.Geometry
+namespace Vocore.Geometry
 {
     /// <summary>
     /// Axis aligned bounding box (AABB) stored in min and max form.
@@ -191,7 +191,7 @@ namespace Unity.Mathematics.Geometry
         /// Modifies this AABB so that it contains the given point. If the given point is already contained by this AABB,
         /// then this AABB doesn't change.
         /// </remarks>
-        /// <seealso cref="Contains(Unity.Mathematics.float3)"/>
+        /// <seealso cref="Contains(Vocore.float3)"/>
         /// <param name="point">Point to encapsulate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Encapsulate(float3 point)

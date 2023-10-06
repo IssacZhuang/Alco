@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>
     /// A half precision float that uses 16 bits instead of 32 bits.

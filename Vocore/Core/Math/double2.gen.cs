@@ -13,7 +13,7 @@ using System.Diagnostics;
 
 #pragma warning disable 0660, 0661
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     /// <summary>A 2 component vector of doubles.</summary>
     [DebuggerTypeProxy(typeof(double2.DebuggerProxy))]

@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 
-namespace Unity.Mathematics.Geometry
+namespace Vocore.Geometry
 {
     /// <summary>
     /// A plane represented by a normal vector and a distance along the normal from the origin.

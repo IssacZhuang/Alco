@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     // SVD algorithm as described in:
     // Computing the singular value decomposition of 3x3 matrices with minimal branching and elementary floating point operations,

@@ -67,9 +67,9 @@
 // (If you run into problems with this, please let me know.)
 //
 
-using static Unity.Mathematics.math;
+using static Vocore.math;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     public static partial class noise
     {

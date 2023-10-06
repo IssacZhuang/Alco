@@ -9,7 +9,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Unity.Mathematics
+namespace Vocore
 {
     partial class math
     {

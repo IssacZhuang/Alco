@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Unity.Mathematics;
+
 using System.IO;
 
 using Vocore.Lua;

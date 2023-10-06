@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
-using Unity.Mathematics;
+
 using Vocore.Unsafe;
 
 namespace Vocore

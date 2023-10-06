@@ -5,7 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Diagnostics;
 
-using Unity.Mathematics;
+
 using Vocore;
 
 namespace Vocore.Test
