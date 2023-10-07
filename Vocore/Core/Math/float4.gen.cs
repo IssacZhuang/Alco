@@ -80,9 +80,9 @@ namespace Vocore
         public float4(float x, float3 yzw)
         {
             this.x = x;
-            this.y = yzw.x;
+            this.y = yzw.X;
             this.z = yzw.y;
-            this.w = yzw.z;
+            this.w = yzw.Z;
         }
 
         /// <summary>Constructs a float4 vector from a float2 vector and two float values.</summary>
@@ -116,9 +116,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float4(float3 xyz, float w)
         {
-            this.x = xyz.x;
+            this.x = xyz.X;
             this.y = xyz.y;
-            this.z = xyz.z;
+            this.z = xyz.Z;
             this.w = w;
         }
 
@@ -3007,7 +3007,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(x, y, z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; y = value.y; z = value.z; }
+            set { x = value.X; y = value.y; z = value.Z; }
         }
 
 
@@ -3018,7 +3018,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(x, y, w); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; y = value.y; w = value.z; }
+            set { x = value.X; y = value.y; w = value.Z; }
         }
 
 
@@ -3038,7 +3038,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(x, z, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; z = value.y; y = value.z; }
+            set { x = value.X; z = value.y; y = value.Z; }
         }
 
 
@@ -3058,7 +3058,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(x, z, w); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; z = value.y; w = value.z; }
+            set { x = value.X; z = value.y; w = value.Z; }
         }
 
 
@@ -3078,7 +3078,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(x, w, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; w = value.y; y = value.z; }
+            set { x = value.X; w = value.y; y = value.Z; }
         }
 
 
@@ -3089,7 +3089,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(x, w, z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; w = value.y; z = value.z; }
+            set { x = value.X; w = value.y; z = value.Z; }
         }
 
 
@@ -3127,7 +3127,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(y, x, z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; x = value.y; z = value.z; }
+            set { y = value.X; x = value.y; z = value.Z; }
         }
 
 
@@ -3138,7 +3138,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(y, x, w); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; x = value.y; w = value.z; }
+            set { y = value.X; x = value.y; w = value.Z; }
         }
 
 
@@ -3185,7 +3185,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(y, z, x); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; z = value.y; x = value.z; }
+            set { y = value.X; z = value.y; x = value.Z; }
         }
 
 
@@ -3214,7 +3214,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(y, z, w); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; z = value.y; w = value.z; }
+            set { y = value.X; z = value.y; w = value.Z; }
         }
 
 
@@ -3225,7 +3225,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(y, w, x); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; w = value.y; x = value.z; }
+            set { y = value.X; w = value.y; x = value.Z; }
         }
 
 
@@ -3245,7 +3245,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(y, w, z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; w = value.y; z = value.z; }
+            set { y = value.X; w = value.y; z = value.Z; }
         }
 
 
@@ -3274,7 +3274,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(z, x, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; x = value.y; y = value.z; }
+            set { z = value.X; x = value.y; y = value.Z; }
         }
 
 
@@ -3294,7 +3294,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(z, x, w); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; x = value.y; w = value.z; }
+            set { z = value.X; x = value.y; w = value.Z; }
         }
 
 
@@ -3305,7 +3305,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(z, y, x); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; y = value.y; x = value.z; }
+            set { z = value.X; y = value.y; x = value.Z; }
         }
 
 
@@ -3334,7 +3334,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(z, y, w); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; y = value.y; w = value.z; }
+            set { z = value.X; y = value.y; w = value.Z; }
         }
 
 
@@ -3381,7 +3381,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(z, w, x); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; w = value.y; x = value.z; }
+            set { z = value.X; w = value.y; x = value.Z; }
         }
 
 
@@ -3392,7 +3392,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(z, w, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; w = value.y; y = value.z; }
+            set { z = value.X; w = value.y; y = value.Z; }
         }
 
 
@@ -3430,7 +3430,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(w, x, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { w = value.x; x = value.y; y = value.z; }
+            set { w = value.X; x = value.y; y = value.Z; }
         }
 
 
@@ -3441,7 +3441,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(w, x, z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { w = value.x; x = value.y; z = value.z; }
+            set { w = value.X; x = value.y; z = value.Z; }
         }
 
 
@@ -3461,7 +3461,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(w, y, x); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { w = value.x; y = value.y; x = value.z; }
+            set { w = value.X; y = value.y; x = value.Z; }
         }
 
 
@@ -3481,7 +3481,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(w, y, z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { w = value.x; y = value.y; z = value.z; }
+            set { w = value.X; y = value.y; z = value.Z; }
         }
 
 
@@ -3501,7 +3501,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(w, z, x); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { w = value.x; z = value.y; x = value.z; }
+            set { w = value.X; z = value.y; x = value.Z; }
         }
 
 
@@ -3512,7 +3512,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new float3(w, z, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { w = value.x; z = value.y; y = value.z; }
+            set { w = value.X; z = value.y; y = value.Z; }
         }
 
 

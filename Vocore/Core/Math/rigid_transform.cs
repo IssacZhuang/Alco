@@ -296,7 +296,7 @@ namespace Vocore
         public override string ToString()
         {
             return string.Format("RigidTransform(({0}f, {1}f, {2}f, {3}f),  ({4}f, {5}f, {6}f))",
-                rot.value.x, rot.value.y, rot.value.z, rot.value.w, pos.x, pos.y, pos.z);
+                rot.value.x, rot.value.y, rot.value.z, rot.value.w, pos.X, pos.y, pos.Z);
         }
 
         /// <summary>Returns a string representation of the RigidTransform using a specified format and culture-specific format information.</summary>
@@ -311,9 +311,9 @@ namespace Vocore
                 rot.value.y.ToString(format, formatProvider),
                 rot.value.z.ToString(format, formatProvider),
                 rot.value.w.ToString(format, formatProvider),
-                pos.x.ToString(format, formatProvider),
+                pos.X.ToString(format, formatProvider),
                 pos.y.ToString(format, formatProvider),
-                pos.z.ToString(format, formatProvider));
+                pos.Z.ToString(format, formatProvider));
         }
     }
 

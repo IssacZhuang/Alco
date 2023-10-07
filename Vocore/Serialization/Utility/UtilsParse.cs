@@ -397,11 +397,11 @@ namespace Vocore
             return string.Concat(new string[]
             {
                 "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
+                value.X.ToString(CultureInfo.InvariantCulture),
                 ",",
                 value.y.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.z.ToString(CultureInfo.InvariantCulture),
+                value.Z.ToString(CultureInfo.InvariantCulture),
                 ")"
             });
         }

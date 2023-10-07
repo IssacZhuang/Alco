@@ -31,7 +31,7 @@ namespace Vocore
             Pi1 = mod289(Pi1);
             float3 Pf0 = frac(P); // Fractional part for interpolation
             float3 Pf1 = Pf0 - float3(1.0f); // Fractional part - 1.0
-            float4 ix = float4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
+            float4 ix = float4(Pi0.X, Pi1.X, Pi0.X, Pi1.X);
             float4 iy = float4(Pi0.yy, Pi1.yy);
             float4 iz0 = Pi0.zzzz;
             float4 iz1 = Pi1.zzzz;
@@ -77,18 +77,18 @@ namespace Vocore
             g111 *= norm1.w;
 
             float n000 = dot(g000, Pf0);
-            float n100 = dot(g100, float3(Pf1.x, Pf0.yz));
-            float n010 = dot(g010, float3(Pf0.x, Pf1.y, Pf0.z));
-            float n110 = dot(g110, float3(Pf1.xy, Pf0.z));
-            float n001 = dot(g001, float3(Pf0.xy, Pf1.z));
-            float n101 = dot(g101, float3(Pf1.x, Pf0.y, Pf1.z));
-            float n011 = dot(g011, float3(Pf0.x, Pf1.yz));
+            float n100 = dot(g100, float3(Pf1.X, Pf0.yz));
+            float n010 = dot(g010, float3(Pf0.X, Pf1.y, Pf0.Z));
+            float n110 = dot(g110, float3(Pf1.xy, Pf0.Z));
+            float n001 = dot(g001, float3(Pf0.xy, Pf1.Z));
+            float n101 = dot(g101, float3(Pf1.X, Pf0.y, Pf1.Z));
+            float n011 = dot(g011, float3(Pf0.X, Pf1.yz));
             float n111 = dot(g111, Pf1);
 
             float3 fade_xyz = fade(Pf0);
-            float4 n_z = lerp(float4(n000, n100, n010, n110), float4(n001, n101, n011, n111), fade_xyz.z);
+            float4 n_z = lerp(float4(n000, n100, n010, n110), float4(n001, n101, n011, n111), fade_xyz.Z);
             float2 n_yz = lerp(n_z.xy, n_z.zw, fade_xyz.y);
-            float n_xyz = lerp(n_yz.x, n_yz.y, fade_xyz.x);
+            float n_xyz = lerp(n_yz.x, n_yz.y, fade_xyz.X);
             return 2.2f * n_xyz;
         }
 
@@ -106,7 +106,7 @@ namespace Vocore
             Pi1 = mod289(Pi1);
             float3 Pf0 = frac(P); // Fractional part for interpolation
             float3 Pf1 = Pf0 - float3(1.0f); // Fractional part - 1.0
-            float4 ix = float4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
+            float4 ix = float4(Pi0.X, Pi1.X, Pi0.X, Pi1.X);
             float4 iy = float4(Pi0.yy, Pi1.yy);
             float4 iz0 = Pi0.zzzz;
             float4 iz1 = Pi1.zzzz;
@@ -152,18 +152,18 @@ namespace Vocore
             g111 *= norm1.w;
 
             float n000 = dot(g000, Pf0);
-            float n100 = dot(g100, float3(Pf1.x, Pf0.yz));
-            float n010 = dot(g010, float3(Pf0.x, Pf1.y, Pf0.z));
-            float n110 = dot(g110, float3(Pf1.xy, Pf0.z));
-            float n001 = dot(g001, float3(Pf0.xy, Pf1.z));
-            float n101 = dot(g101, float3(Pf1.x, Pf0.y, Pf1.z));
-            float n011 = dot(g011, float3(Pf0.x, Pf1.yz));
+            float n100 = dot(g100, float3(Pf1.X, Pf0.yz));
+            float n010 = dot(g010, float3(Pf0.X, Pf1.y, Pf0.Z));
+            float n110 = dot(g110, float3(Pf1.xy, Pf0.Z));
+            float n001 = dot(g001, float3(Pf0.xy, Pf1.Z));
+            float n101 = dot(g101, float3(Pf1.X, Pf0.y, Pf1.Z));
+            float n011 = dot(g011, float3(Pf0.X, Pf1.yz));
             float n111 = dot(g111, Pf1);
 
             float3 fade_xyz = fade(Pf0);
-            float4 n_z = lerp(float4(n000, n100, n010, n110), float4(n001, n101, n011, n111), fade_xyz.z);
+            float4 n_z = lerp(float4(n000, n100, n010, n110), float4(n001, n101, n011, n111), fade_xyz.Z);
             float2 n_yz = lerp(n_z.xy, n_z.zw, fade_xyz.y);
-            float n_xyz = lerp(n_yz.x, n_yz.y, fade_xyz.x);
+            float n_xyz = lerp(n_yz.x, n_yz.y, fade_xyz.X);
             return 2.2f * n_xyz;
         }
     }

@@ -48,22 +48,22 @@ namespace Vocore
             // Permutations
             i = mod289(i);
             float4 p = permute(permute(permute(
-                                           i.z + float4(0.0f, i1.z, i2.z, 1.0f))
+                                           i.Z + float4(0.0f, i1.Z, i2.Z, 1.0f))
                                        + i.y + float4(0.0f, i1.y, i2.y, 1.0f))
-                               + i.x + float4(0.0f, i1.x, i2.x, 1.0f));
+                               + i.X + float4(0.0f, i1.X, i2.X, 1.0f));
 
             // Gradients: 7x7 points over a square, mapped onto an octahedron.
             // The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
             float n_ = 0.142857142857f; // 1.0/7.0
             float3 ns = n_ * D.wyz - D.xzx;
 
-            float4 j = p - 49.0f * floor(p * ns.z * ns.z); //  math.mod(p,7*7)
+            float4 j = p - 49.0f * floor(p * ns.Z * ns.Z); //  math.mod(p,7*7)
 
-            float4 x_ = floor(j * ns.z);
+            float4 x_ = floor(j * ns.Z);
             float4 y_ = floor(j - 7.0f * x_); // math.mod(j,N)
 
-            float4 x = x_ * ns.x + ns.yyyy;
-            float4 y = y_ * ns.x + ns.yyyy;
+            float4 x = x_ * ns.X + ns.yyyy;
+            float4 y = y_ * ns.X + ns.yyyy;
             float4 h = 1.0f - abs(x) - abs(y);
 
             float4 b0 = float4(x.xy, y.xy);

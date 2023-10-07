@@ -497,7 +497,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("float3x2({0}f, {1}f,  {2}f, {3}f,  {4}f, {5}f)", c0.x, c1.x, c0.y, c1.y, c0.z, c1.z);
+            return string.Format("float3x2({0}f, {1}f,  {2}f, {3}f,  {4}f, {5}f)", c0.X, c1.X, c0.y, c1.y, c0.Z, c1.Z);
         }
 
         /// <summary>Returns a string representation of the float3x2 using a specified format and culture-specific format information.</summary>
@@ -507,7 +507,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("float3x2({0}f, {1}f,  {2}f, {3}f,  {4}f, {5}f)", c0.x.ToString(format, formatProvider), c1.x.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c0.z.ToString(format, formatProvider), c1.z.ToString(format, formatProvider));
+            return string.Format("float3x2({0}f, {1}f,  {2}f, {3}f,  {4}f, {5}f)", c0.X.ToString(format, formatProvider), c1.X.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c0.Z.ToString(format, formatProvider), c1.Z.ToString(format, formatProvider));
         }
 
     }
@@ -600,8 +600,8 @@ namespace Vocore
         public static float2x3 transpose(float3x2 v)
         {
             return float2x3(
-                v.c0.x, v.c0.y, v.c0.z,
-                v.c1.x, v.c1.y, v.c1.z);
+                v.c0.X, v.c0.y, v.c0.Z,
+                v.c1.X, v.c1.y, v.c1.Z);
         }
 
         /// <summary>Returns a uint hash code of a float3x2 matrix.</summary>

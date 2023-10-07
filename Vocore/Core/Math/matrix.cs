@@ -106,9 +106,9 @@ namespace Vocore
             uint3 pnp = uint3(0x00000000, 0x80000000, 0x00000000);
 
             return float3x3(
-                u.x * u_inv_cosa + asfloat(asuint(t.wzy) ^ ppn),
+                u.X * u_inv_cosa + asfloat(asuint(t.wzy) ^ ppn),
                 u.y * u_inv_cosa + asfloat(asuint(t.zwx) ^ npp),
-                u.z * u_inv_cosa + asfloat(asuint(t.yxw) ^ pnp)
+                u.Z * u_inv_cosa + asfloat(asuint(t.yxw) ^ pnp)
                 );
             /*
             return float3x3(
@@ -132,9 +132,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float3x3(
-                c.y * c.z,  c.z * s.x * s.y - c.x * s.z,    c.x * c.z * s.y + s.x * s.z,
-                c.y * s.z,  c.x * c.z + s.x * s.y * s.z,    c.x * s.y * s.z - c.z * s.x,
-                -s.y,       c.y * s.x,                      c.x * c.y
+                c.y * c.Z, c.Z * s.X * s.y - c.X * s.Z, c.X * c.Z * s.y + s.X * s.Z,
+                c.y * s.Z, c.X * c.Z + s.X * s.y * s.Z, c.X * s.y * s.Z - c.Z * s.X,
+                -s.y, c.y * s.X, c.X * c.y
                 );
         }
 
@@ -151,9 +151,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float3x3(
-                c.y * c.z,  s.x * s.y - c.x * c.y * s.z,    c.x * s.y + c.y * s.x * s.z,
-                s.z,        c.x * c.z,                      -c.z * s.x,
-                -c.z * s.y, c.y * s.x + c.x * s.y * s.z,    c.x * c.y - s.x * s.y * s.z
+                c.y * c.Z, s.X * s.y - c.X * c.y * s.Z, c.X * s.y + c.y * s.X * s.Z,
+                s.Z, c.X * c.Z, -c.Z * s.X,
+                -c.Z * s.y, c.y * s.X + c.X * s.y * s.Z, c.X * c.y - s.X * s.y * s.Z
                 );
         }
 
@@ -170,9 +170,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float3x3(
-                c.y * c.z - s.x * s.y * s.z,    -c.x * s.z, c.z * s.y + c.y * s.x * s.z,
-                c.z * s.x * s.y + c.y * s.z,    c.x * c.z,  s.y * s.z - c.y * c.z * s.x,
-                -c.x * s.y,                     s.x,        c.x * c.y
+                c.y * c.Z - s.X * s.y * s.Z, -c.X * s.Z, c.Z * s.y + c.y * s.X * s.Z,
+                c.Z * s.X * s.y + c.y * s.Z, c.X * c.Z, s.y * s.Z - c.y * c.Z * s.X,
+                -c.X * s.y, s.X, c.X * c.y
                 );
         }
 
@@ -189,9 +189,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float3x3(
-                c.y * c.z,                      -s.z,       c.z * s.y,
-                s.x * s.y + c.x * c.y * s.z,    c.x * c.z,  c.x * s.y * s.z - c.y * s.x,
-                c.y * s.x * s.z - c.x * s.y,    c.z * s.x,  c.x * c.y + s.x * s.y * s.z
+                c.y * c.Z, -s.Z, c.Z * s.y,
+                s.X * s.y + c.X * c.y * s.Z, c.X * c.Z, c.X * s.y * s.Z - c.y * s.X,
+                c.y * s.X * s.Z - c.X * s.y, c.Z * s.X, c.X * c.y + s.X * s.y * s.Z
                 );
         }
 
@@ -209,9 +209,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float3x3(
-                c.y * c.z + s.x * s.y * s.z,    c.z * s.x * s.y - c.y * s.z,    c.x * s.y,
-                c.x * s.z,                      c.x * c.z,                      -s.x,
-                c.y * s.x * s.z - c.z * s.y,    c.y * c.z * s.x + s.y * s.z,    c.x * c.y
+                c.y * c.Z + s.X * s.y * s.Z, c.Z * s.X * s.y - c.y * s.Z, c.X * s.y,
+                c.X * s.Z, c.X * c.Z, -s.X,
+                c.y * s.X * s.Z - c.Z * s.y, c.y * c.Z * s.X + s.y * s.Z, c.X * c.y
                 );
         }
 
@@ -228,9 +228,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float3x3(
-                c.y * c.z,                      -c.y * s.z,                     s.y,
-                c.z * s.x * s.y + c.x * s.z,    c.x * c.z - s.x * s.y * s.z,    -c.y * s.x,
-                s.x * s.z - c.x * c.z * s.y,    c.z * s.x + c.x * s.y * s.z,    c.x * c.y
+                c.y * c.Z, -c.y * s.Z, s.y,
+                c.Z * s.X * s.y + c.X * s.Z, c.X * c.Z - s.X * s.y * s.Z, -c.y * s.X,
+                s.X * s.Z - c.X * c.Z * s.y, c.Z * s.X + c.X * s.y * s.Z, c.X * c.y
                 );
         }
 
@@ -421,7 +421,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3x3 Scale(float3 v)
         {
-            return Scale(v.x, v.y, v.z);
+            return Scale(v.X, v.y, v.Z);
         }
 
         /// <summary>
@@ -561,9 +561,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float4x4(
-                c.y * c.z,  c.z * s.x * s.y - c.x * s.z,    c.x * c.z * s.y + s.x * s.z,    0.0f,
-                c.y * s.z,  c.x * c.z + s.x * s.y * s.z,    c.x * s.y * s.z - c.z * s.x,    0.0f,
-                -s.y,       c.y * s.x,                      c.x * c.y,                      0.0f,
+                c.y * c.Z, c.Z * s.X * s.y - c.X * s.Z, c.X * c.Z * s.y + s.X * s.Z, 0.0f,
+                c.y * s.Z, c.X * c.Z + s.X * s.y * s.Z, c.X * s.y * s.Z - c.Z * s.X, 0.0f,
+                -s.y, c.y * s.X, c.X * c.y, 0.0f,
                 0.0f,       0.0f,                           0.0f,                           1.0f
                 );
         }
@@ -581,9 +581,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float4x4(
-                c.y * c.z,  s.x * s.y - c.x * c.y * s.z,    c.x * s.y + c.y * s.x * s.z,    0.0f,
-                s.z,        c.x * c.z,                      -c.z * s.x,                     0.0f,
-                -c.z * s.y, c.y * s.x + c.x * s.y * s.z,    c.x * c.y - s.x * s.y * s.z,    0.0f,
+                c.y * c.Z, s.X * s.y - c.X * c.y * s.Z, c.X * s.y + c.y * s.X * s.Z, 0.0f,
+                s.Z, c.X * c.Z, -c.Z * s.X, 0.0f,
+                -c.Z * s.y, c.y * s.X + c.X * s.y * s.Z, c.X * c.y - s.X * s.y * s.Z, 0.0f,
                 0.0f,       0.0f,                           0.0f,                           1.0f
                 );
         }
@@ -601,9 +601,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float4x4(
-                c.y * c.z - s.x * s.y * s.z,    -c.x * s.z, c.z * s.y + c.y * s.x * s.z,    0.0f,
-                c.z * s.x * s.y + c.y * s.z,    c.x * c.z,  s.y * s.z - c.y * c.z * s.x,    0.0f,
-                -c.x * s.y,                     s.x,        c.x * c.y,                      0.0f,
+                c.y * c.Z - s.X * s.y * s.Z, -c.X * s.Z, c.Z * s.y + c.y * s.X * s.Z, 0.0f,
+                c.Z * s.X * s.y + c.y * s.Z, c.X * c.Z, s.y * s.Z - c.y * c.Z * s.X, 0.0f,
+                -c.X * s.y, s.X, c.X * c.y, 0.0f,
                 0.0f,                           0.0f,       0.0f,                           1.0f
                 );
         }
@@ -621,9 +621,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float4x4(
-                c.y * c.z,                      -s.z,       c.z * s.y,                      0.0f,
-                s.x * s.y + c.x * c.y * s.z,    c.x * c.z,  c.x * s.y * s.z - c.y * s.x,    0.0f,
-                c.y * s.x * s.z - c.x * s.y,    c.z * s.x,  c.x * c.y + s.x * s.y * s.z,    0.0f,
+                c.y * c.Z, -s.Z, c.Z * s.y, 0.0f,
+                s.X * s.y + c.X * c.y * s.Z, c.X * c.Z, c.X * s.y * s.Z - c.y * s.X, 0.0f,
+                c.y * s.X * s.Z - c.X * s.y, c.Z * s.X, c.X * c.y + s.X * s.y * s.Z, 0.0f,
                 0.0f,                           0.0f,       0.0f,                           1.0f
                 );
         }
@@ -642,9 +642,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float4x4(
-                c.y * c.z + s.x * s.y * s.z,    c.z * s.x * s.y - c.y * s.z,    c.x * s.y,  0.0f,
-                c.x * s.z,                      c.x * c.z,                      -s.x,       0.0f,
-                c.y * s.x * s.z - c.z * s.y,    c.y * c.z * s.x + s.y * s.z,    c.x * c.y,  0.0f,
+                c.y * c.Z + s.X * s.y * s.Z, c.Z * s.X * s.y - c.y * s.Z, c.X * s.y, 0.0f,
+                c.X * s.Z, c.X * c.Z, -s.X, 0.0f,
+                c.y * s.X * s.Z - c.Z * s.y, c.y * c.Z * s.X + s.y * s.Z, c.X * c.y, 0.0f,
                 0.0f,                           0.0f,                           0.0f,       1.0f
                 );
         }
@@ -662,9 +662,9 @@ namespace Vocore
             float3 s, c;
             sincos(xyz, out s, out c);
             return float4x4(
-                c.y * c.z,                      -c.y * s.z,                     s.y,        0.0f,
-                c.z * s.x * s.y + c.x * s.z,    c.x * c.z - s.x * s.y * s.z,    -c.y * s.x, 0.0f,
-                s.x * s.z - c.x * c.z * s.y,    c.z * s.x + c.x * s.y * s.z,    c.x * c.y,  0.0f,
+                c.y * c.Z, -c.y * s.Z, s.y, 0.0f,
+                c.Z * s.X * s.y + c.X * s.Z, c.X * c.Z - s.X * s.y * s.Z, -c.y * s.X, 0.0f,
+                s.X * s.Z - c.X * c.Z * s.y, c.Z * s.X + c.X * s.y * s.Z, c.X * c.y, 0.0f,
                 0.0f,                           0.0f,                           0.0f,       1.0f
                 );
         }
@@ -864,7 +864,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float4x4 Scale(float3 scales)
         {
-            return Scale(scales.x, scales.y, scales.z);
+            return Scale(scales.X, scales.y, scales.Z);
         }
 
         /// <summary>Returns a float4x4 translation matrix given a float3 translation vector.</summary>
@@ -876,7 +876,7 @@ namespace Vocore
             return float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f),
                             float4(0.0f, 1.0f, 0.0f, 0.0f),
                             float4(0.0f, 0.0f, 1.0f, 0.0f),
-                            float4(vector.x, vector.y, vector.z, 1.0f));
+                            float4(vector.X, vector.y, vector.Z, 1.0f));
         }
 
         /// <summary>
@@ -1009,9 +1009,9 @@ namespace Vocore
         public static float4x4 TRS(float3 translation, quaternion rotation, float3 scale)
         {
             float3x3 r = float3x3(rotation);
-            return float4x4(  float4(r.c0 * scale.x, 0.0f),
+            return float4x4(float4(r.c0 * scale.X, 0.0f),
                               float4(r.c1 * scale.y, 0.0f),
-                              float4(r.c2 * scale.z, 0.0f),
+                              float4(r.c2 * scale.Z, 0.0f),
                               float4(translation, 1.0f));
         }
     }

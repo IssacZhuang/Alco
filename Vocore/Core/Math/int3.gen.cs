@@ -140,9 +140,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int3(float3 v)
         {
-            this.x = (int)v.x;
+            this.x = (int)v.X;
             this.y = (int)v.y;
-            this.z = (int)v.z;
+            this.z = (int)v.Z;
         }
 
         /// <summary>Constructs a int3 vector from a single double value by converting it to int and assigning it to every component.</summary>

@@ -652,7 +652,7 @@ namespace Vocore
         public quaternion NextQuaternionRotation()
         {
             float3 rnd = NextFloat3(float3(2.0f * PI, 2.0f * PI, 1.0f));
-            float u1 = rnd.z;
+            float u1 = rnd.Z;
             float2 theta_rho = rnd.xy;
 
             float i = sqrt(1.0f - u1);

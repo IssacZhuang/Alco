@@ -517,7 +517,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("float3x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f)", c0.x, c1.x, c2.x, c0.y, c1.y, c2.y, c0.z, c1.z, c2.z);
+            return string.Format("float3x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f)", c0.X, c1.X, c2.X, c0.y, c1.y, c2.y, c0.Z, c1.Z, c2.Z);
         }
 
         /// <summary>Returns a string representation of the float3x3 using a specified format and culture-specific format information.</summary>
@@ -527,7 +527,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("float3x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f)", c0.x.ToString(format, formatProvider), c1.x.ToString(format, formatProvider), c2.x.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c2.y.ToString(format, formatProvider), c0.z.ToString(format, formatProvider), c1.z.ToString(format, formatProvider), c2.z.ToString(format, formatProvider));
+            return string.Format("float3x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f)", c0.X.ToString(format, formatProvider), c1.X.ToString(format, formatProvider), c2.X.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c2.y.ToString(format, formatProvider), c0.Z.ToString(format, formatProvider), c1.Z.ToString(format, formatProvider), c2.Z.ToString(format, formatProvider));
         }
 
     }
@@ -624,9 +624,9 @@ namespace Vocore
         public static float3x3 transpose(float3x3 v)
         {
             return float3x3(
-                v.c0.x, v.c0.y, v.c0.z,
-                v.c1.x, v.c1.y, v.c1.z,
-                v.c2.x, v.c2.y, v.c2.z);
+                v.c0.X, v.c0.y, v.c0.Z,
+                v.c1.X, v.c1.y, v.c1.Z,
+                v.c2.X, v.c2.y, v.c2.Z);
         }
 
         /// <summary>Returns the float3x3 full inverse of a float3x3 matrix.</summary>
@@ -638,9 +638,9 @@ namespace Vocore
             float3 c1 = m.c1;
             float3 c2 = m.c2;
 
-            float3 t0 = float3(c1.x, c2.x, c0.x);
+            float3 t0 = float3(c1.X, c2.X, c0.X);
             float3 t1 = float3(c1.y, c2.y, c0.y);
-            float3 t2 = float3(c1.z, c2.z, c0.z);
+            float3 t2 = float3(c1.Z, c2.Z, c0.Z);
 
             float3 m0 = t1 * t2.yzx - t1.yzx * t2;
             float3 m1 = t0.yzx * t2 - t0 * t2.yzx;
@@ -660,11 +660,11 @@ namespace Vocore
             float3 c1 = m.c1;
             float3 c2 = m.c2;
 
-            float m00 = c1.y * c2.z - c1.z * c2.y;
-            float m01 = c0.y * c2.z - c0.z * c2.y;
-            float m02 = c0.y * c1.z - c0.z * c1.y;
+            float m00 = c1.y * c2.Z - c1.Z * c2.y;
+            float m01 = c0.y * c2.Z - c0.Z * c2.y;
+            float m02 = c0.y * c1.Z - c0.Z * c1.y;
 
-            return c0.x * m00 - c1.x * m01 + c2.x * m02;
+            return c0.X * m00 - c1.X * m01 + c2.X * m02;
         }
 
         /// <summary>Returns a uint hash code of a float3x3 matrix.</summary>

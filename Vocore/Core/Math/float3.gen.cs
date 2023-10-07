@@ -22,11 +22,11 @@ namespace Vocore
     public partial struct float3 : System.IEquatable<float3>, IFormattable
     {
         /// <summary>x component of the vector.</summary>
-        public float x;
+        public float X;
         /// <summary>y component of the vector.</summary>
         public float y;
         /// <summary>z component of the vector.</summary>
-        public float z;
+        public float Z;
 
         /// <summary>float3 zero value.</summary>
         public static readonly float3 zero;
@@ -38,9 +38,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(float x, float y, float z)
         {
-            this.x = x;
+            this.X = x;
             this.y = y;
-            this.z = z;
+            this.Z = z;
         }
 
         /// <summary>Constructs a float3 vector from a float value and a float2 vector.</summary>
@@ -49,9 +49,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(float x, float2 yz)
         {
-            this.x = x;
+            this.X = x;
             this.y = yz.x;
-            this.z = yz.y;
+            this.Z = yz.y;
         }
 
         /// <summary>Constructs a float3 vector from a float2 vector and a float value.</summary>
@@ -60,9 +60,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(float2 xy, float z)
         {
-            this.x = xy.x;
+            this.X = xy.x;
             this.y = xy.y;
-            this.z = z;
+            this.Z = z;
         }
 
         /// <summary>Constructs a float3 vector from a float3 vector.</summary>
@@ -70,9 +70,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(float3 xyz)
         {
-            this.x = xyz.x;
+            this.X = xyz.X;
             this.y = xyz.y;
-            this.z = xyz.z;
+            this.Z = xyz.Z;
         }
 
         /// <summary>Constructs a float3 vector from a single float value by assigning it to every component.</summary>
@@ -80,9 +80,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(float v)
         {
-            this.x = v;
+            this.X = v;
             this.y = v;
-            this.z = v;
+            this.Z = v;
         }
 
         /// <summary>Constructs a float3 vector from a single bool value by converting it to float and assigning it to every component.</summary>
@@ -90,9 +90,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(bool v)
         {
-            this.x = v ? 1.0f : 0.0f;
+            this.X = v ? 1.0f : 0.0f;
             this.y = v ? 1.0f : 0.0f;
-            this.z = v ? 1.0f : 0.0f;
+            this.Z = v ? 1.0f : 0.0f;
         }
 
         /// <summary>Constructs a float3 vector from a bool3 vector by componentwise conversion.</summary>
@@ -100,9 +100,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(bool3 v)
         {
-            this.x = v.x ? 1.0f : 0.0f;
+            this.X = v.x ? 1.0f : 0.0f;
             this.y = v.y ? 1.0f : 0.0f;
-            this.z = v.z ? 1.0f : 0.0f;
+            this.Z = v.z ? 1.0f : 0.0f;
         }
 
         /// <summary>Constructs a float3 vector from a single int value by converting it to float and assigning it to every component.</summary>
@@ -110,9 +110,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(int v)
         {
-            this.x = v;
+            this.X = v;
             this.y = v;
-            this.z = v;
+            this.Z = v;
         }
 
         /// <summary>Constructs a float3 vector from a int3 vector by componentwise conversion.</summary>
@@ -120,9 +120,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(int3 v)
         {
-            this.x = v.x;
+            this.X = v.x;
             this.y = v.y;
-            this.z = v.z;
+            this.Z = v.z;
         }
 
         /// <summary>Constructs a float3 vector from a single uint value by converting it to float and assigning it to every component.</summary>
@@ -130,9 +130,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(uint v)
         {
-            this.x = v;
+            this.X = v;
             this.y = v;
-            this.z = v;
+            this.Z = v;
         }
 
         /// <summary>Constructs a float3 vector from a uint3 vector by componentwise conversion.</summary>
@@ -140,9 +140,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(uint3 v)
         {
-            this.x = v.x;
+            this.X = v.x;
             this.y = v.y;
-            this.z = v.z;
+            this.Z = v.z;
         }
 
         /// <summary>Constructs a float3 vector from a single half value by converting it to float and assigning it to every component.</summary>
@@ -150,9 +150,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(half v)
         {
-            this.x = v;
+            this.X = v;
             this.y = v;
-            this.z = v;
+            this.Z = v;
         }
 
         /// <summary>Constructs a float3 vector from a half3 vector by componentwise conversion.</summary>
@@ -160,9 +160,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(half3 v)
         {
-            this.x = v.x;
+            this.X = v.x;
             this.y = v.y;
-            this.z = v.z;
+            this.Z = v.z;
         }
 
         /// <summary>Constructs a float3 vector from a single double value by converting it to float and assigning it to every component.</summary>
@@ -170,9 +170,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(double v)
         {
-            this.x = (float)v;
+            this.X = (float)v;
             this.y = (float)v;
-            this.z = (float)v;
+            this.Z = (float)v;
         }
 
         /// <summary>Constructs a float3 vector from a double3 vector by componentwise conversion.</summary>
@@ -180,9 +180,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float3(double3 v)
         {
-            this.x = (float)v.x;
+            this.X = (float)v.x;
             this.y = (float)v.y;
-            this.z = (float)v.z;
+            this.Z = (float)v.z;
         }
 
 
@@ -258,21 +258,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise multiplication.</param>
         /// <returns>float3 result of the componentwise multiplication.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator *(float3 lhs, float3 rhs) { return new float3(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z); }
+        public static float3 operator *(float3 lhs, float3 rhs) { return new float3(lhs.X * rhs.X, lhs.y * rhs.y, lhs.Z * rhs.Z); }
 
         /// <summary>Returns the result of a componentwise multiplication operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise multiplication.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise multiplication.</param>
         /// <returns>float3 result of the componentwise multiplication.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator *(float3 lhs, float rhs) { return new float3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs); }
+        public static float3 operator *(float3 lhs, float rhs) { return new float3(lhs.X * rhs, lhs.y * rhs, lhs.Z * rhs); }
 
         /// <summary>Returns the result of a componentwise multiplication operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise multiplication.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise multiplication.</param>
         /// <returns>float3 result of the componentwise multiplication.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator *(float lhs, float3 rhs) { return new float3(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z); }
+        public static float3 operator *(float lhs, float3 rhs) { return new float3(lhs * rhs.X, lhs * rhs.y, lhs * rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise addition operation on two float3 vectors.</summary>
@@ -280,21 +280,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise addition.</param>
         /// <returns>float3 result of the componentwise addition.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator +(float3 lhs, float3 rhs) { return new float3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z); }
+        public static float3 operator +(float3 lhs, float3 rhs) { return new float3(lhs.X + rhs.X, lhs.y + rhs.y, lhs.Z + rhs.Z); }
 
         /// <summary>Returns the result of a componentwise addition operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise addition.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise addition.</param>
         /// <returns>float3 result of the componentwise addition.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator +(float3 lhs, float rhs) { return new float3(lhs.x + rhs, lhs.y + rhs, lhs.z + rhs); }
+        public static float3 operator +(float3 lhs, float rhs) { return new float3(lhs.X + rhs, lhs.y + rhs, lhs.Z + rhs); }
 
         /// <summary>Returns the result of a componentwise addition operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise addition.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise addition.</param>
         /// <returns>float3 result of the componentwise addition.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator +(float lhs, float3 rhs) { return new float3(lhs + rhs.x, lhs + rhs.y, lhs + rhs.z); }
+        public static float3 operator +(float lhs, float3 rhs) { return new float3(lhs + rhs.X, lhs + rhs.y, lhs + rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise subtraction operation on two float3 vectors.</summary>
@@ -302,21 +302,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise subtraction.</param>
         /// <returns>float3 result of the componentwise subtraction.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator -(float3 lhs, float3 rhs) { return new float3(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z); }
+        public static float3 operator -(float3 lhs, float3 rhs) { return new float3(lhs.X - rhs.X, lhs.y - rhs.y, lhs.Z - rhs.Z); }
 
         /// <summary>Returns the result of a componentwise subtraction operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise subtraction.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise subtraction.</param>
         /// <returns>float3 result of the componentwise subtraction.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator -(float3 lhs, float rhs) { return new float3(lhs.x - rhs, lhs.y - rhs, lhs.z - rhs); }
+        public static float3 operator -(float3 lhs, float rhs) { return new float3(lhs.X - rhs, lhs.y - rhs, lhs.Z - rhs); }
 
         /// <summary>Returns the result of a componentwise subtraction operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise subtraction.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise subtraction.</param>
         /// <returns>float3 result of the componentwise subtraction.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator -(float lhs, float3 rhs) { return new float3(lhs - rhs.x, lhs - rhs.y, lhs - rhs.z); }
+        public static float3 operator -(float lhs, float3 rhs) { return new float3(lhs - rhs.X, lhs - rhs.y, lhs - rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise division operation on two float3 vectors.</summary>
@@ -324,21 +324,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise division.</param>
         /// <returns>float3 result of the componentwise division.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator /(float3 lhs, float3 rhs) { return new float3(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z); }
+        public static float3 operator /(float3 lhs, float3 rhs) { return new float3(lhs.X / rhs.X, lhs.y / rhs.y, lhs.Z / rhs.Z); }
 
         /// <summary>Returns the result of a componentwise division operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise division.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise division.</param>
         /// <returns>float3 result of the componentwise division.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator /(float3 lhs, float rhs) { return new float3(lhs.x / rhs, lhs.y / rhs, lhs.z / rhs); }
+        public static float3 operator /(float3 lhs, float rhs) { return new float3(lhs.X / rhs, lhs.y / rhs, lhs.Z / rhs); }
 
         /// <summary>Returns the result of a componentwise division operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise division.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise division.</param>
         /// <returns>float3 result of the componentwise division.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator /(float lhs, float3 rhs) { return new float3(lhs / rhs.x, lhs / rhs.y, lhs / rhs.z); }
+        public static float3 operator /(float lhs, float3 rhs) { return new float3(lhs / rhs.X, lhs / rhs.y, lhs / rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise modulus operation on two float3 vectors.</summary>
@@ -346,35 +346,35 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise modulus.</param>
         /// <returns>float3 result of the componentwise modulus.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator %(float3 lhs, float3 rhs) { return new float3(lhs.x % rhs.x, lhs.y % rhs.y, lhs.z % rhs.z); }
+        public static float3 operator %(float3 lhs, float3 rhs) { return new float3(lhs.X % rhs.X, lhs.y % rhs.y, lhs.Z % rhs.Z); }
 
         /// <summary>Returns the result of a componentwise modulus operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise modulus.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise modulus.</param>
         /// <returns>float3 result of the componentwise modulus.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator %(float3 lhs, float rhs) { return new float3(lhs.x % rhs, lhs.y % rhs, lhs.z % rhs); }
+        public static float3 operator %(float3 lhs, float rhs) { return new float3(lhs.X % rhs, lhs.y % rhs, lhs.Z % rhs); }
 
         /// <summary>Returns the result of a componentwise modulus operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise modulus.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise modulus.</param>
         /// <returns>float3 result of the componentwise modulus.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator %(float lhs, float3 rhs) { return new float3(lhs % rhs.x, lhs % rhs.y, lhs % rhs.z); }
+        public static float3 operator %(float lhs, float3 rhs) { return new float3(lhs % rhs.X, lhs % rhs.y, lhs % rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise increment operation on a float3 vector.</summary>
         /// <param name="val">Value to use when computing the componentwise increment.</param>
         /// <returns>float3 result of the componentwise increment.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator ++(float3 val) { return new float3(++val.x, ++val.y, ++val.z); }
+        public static float3 operator ++(float3 val) { return new float3(++val.X, ++val.y, ++val.Z); }
 
 
         /// <summary>Returns the result of a componentwise decrement operation on a float3 vector.</summary>
         /// <param name="val">Value to use when computing the componentwise decrement.</param>
         /// <returns>float3 result of the componentwise decrement.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator --(float3 val) { return new float3(--val.x, --val.y, --val.z); }
+        public static float3 operator --(float3 val) { return new float3(--val.X, --val.y, --val.Z); }
 
 
         /// <summary>Returns the result of a componentwise less than operation on two float3 vectors.</summary>
@@ -382,21 +382,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise less than.</param>
         /// <returns>bool3 result of the componentwise less than.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator <(float3 lhs, float3 rhs) { return new bool3(lhs.x < rhs.x, lhs.y < rhs.y, lhs.z < rhs.z); }
+        public static bool3 operator <(float3 lhs, float3 rhs) { return new bool3(lhs.X < rhs.X, lhs.y < rhs.y, lhs.Z < rhs.Z); }
 
         /// <summary>Returns the result of a componentwise less than operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise less than.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise less than.</param>
         /// <returns>bool3 result of the componentwise less than.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator <(float3 lhs, float rhs) { return new bool3(lhs.x < rhs, lhs.y < rhs, lhs.z < rhs); }
+        public static bool3 operator <(float3 lhs, float rhs) { return new bool3(lhs.X < rhs, lhs.y < rhs, lhs.Z < rhs); }
 
         /// <summary>Returns the result of a componentwise less than operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise less than.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise less than.</param>
         /// <returns>bool3 result of the componentwise less than.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator <(float lhs, float3 rhs) { return new bool3(lhs < rhs.x, lhs < rhs.y, lhs < rhs.z); }
+        public static bool3 operator <(float lhs, float3 rhs) { return new bool3(lhs < rhs.X, lhs < rhs.y, lhs < rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise less or equal operation on two float3 vectors.</summary>
@@ -404,21 +404,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise less or equal.</param>
         /// <returns>bool3 result of the componentwise less or equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator <=(float3 lhs, float3 rhs) { return new bool3(lhs.x <= rhs.x, lhs.y <= rhs.y, lhs.z <= rhs.z); }
+        public static bool3 operator <=(float3 lhs, float3 rhs) { return new bool3(lhs.X <= rhs.X, lhs.y <= rhs.y, lhs.Z <= rhs.Z); }
 
         /// <summary>Returns the result of a componentwise less or equal operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise less or equal.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise less or equal.</param>
         /// <returns>bool3 result of the componentwise less or equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator <=(float3 lhs, float rhs) { return new bool3(lhs.x <= rhs, lhs.y <= rhs, lhs.z <= rhs); }
+        public static bool3 operator <=(float3 lhs, float rhs) { return new bool3(lhs.X <= rhs, lhs.y <= rhs, lhs.Z <= rhs); }
 
         /// <summary>Returns the result of a componentwise less or equal operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise less or equal.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise less or equal.</param>
         /// <returns>bool3 result of the componentwise less or equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator <=(float lhs, float3 rhs) { return new bool3(lhs <= rhs.x, lhs <= rhs.y, lhs <= rhs.z); }
+        public static bool3 operator <=(float lhs, float3 rhs) { return new bool3(lhs <= rhs.X, lhs <= rhs.y, lhs <= rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise greater than operation on two float3 vectors.</summary>
@@ -426,21 +426,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise greater than.</param>
         /// <returns>bool3 result of the componentwise greater than.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator >(float3 lhs, float3 rhs) { return new bool3(lhs.x > rhs.x, lhs.y > rhs.y, lhs.z > rhs.z); }
+        public static bool3 operator >(float3 lhs, float3 rhs) { return new bool3(lhs.X > rhs.X, lhs.y > rhs.y, lhs.Z > rhs.Z); }
 
         /// <summary>Returns the result of a componentwise greater than operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise greater than.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise greater than.</param>
         /// <returns>bool3 result of the componentwise greater than.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator >(float3 lhs, float rhs) { return new bool3(lhs.x > rhs, lhs.y > rhs, lhs.z > rhs); }
+        public static bool3 operator >(float3 lhs, float rhs) { return new bool3(lhs.X > rhs, lhs.y > rhs, lhs.Z > rhs); }
 
         /// <summary>Returns the result of a componentwise greater than operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise greater than.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise greater than.</param>
         /// <returns>bool3 result of the componentwise greater than.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator >(float lhs, float3 rhs) { return new bool3(lhs > rhs.x, lhs > rhs.y, lhs > rhs.z); }
+        public static bool3 operator >(float lhs, float3 rhs) { return new bool3(lhs > rhs.X, lhs > rhs.y, lhs > rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise greater or equal operation on two float3 vectors.</summary>
@@ -448,35 +448,35 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise greater or equal.</param>
         /// <returns>bool3 result of the componentwise greater or equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator >=(float3 lhs, float3 rhs) { return new bool3(lhs.x >= rhs.x, lhs.y >= rhs.y, lhs.z >= rhs.z); }
+        public static bool3 operator >=(float3 lhs, float3 rhs) { return new bool3(lhs.X >= rhs.X, lhs.y >= rhs.y, lhs.Z >= rhs.Z); }
 
         /// <summary>Returns the result of a componentwise greater or equal operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise greater or equal.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise greater or equal.</param>
         /// <returns>bool3 result of the componentwise greater or equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator >=(float3 lhs, float rhs) { return new bool3(lhs.x >= rhs, lhs.y >= rhs, lhs.z >= rhs); }
+        public static bool3 operator >=(float3 lhs, float rhs) { return new bool3(lhs.X >= rhs, lhs.y >= rhs, lhs.Z >= rhs); }
 
         /// <summary>Returns the result of a componentwise greater or equal operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise greater or equal.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise greater or equal.</param>
         /// <returns>bool3 result of the componentwise greater or equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator >=(float lhs, float3 rhs) { return new bool3(lhs >= rhs.x, lhs >= rhs.y, lhs >= rhs.z); }
+        public static bool3 operator >=(float lhs, float3 rhs) { return new bool3(lhs >= rhs.X, lhs >= rhs.y, lhs >= rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise unary minus operation on a float3 vector.</summary>
         /// <param name="val">Value to use when computing the componentwise unary minus.</param>
         /// <returns>float3 result of the componentwise unary minus.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator -(float3 val) { return new float3(-val.x, -val.y, -val.z); }
+        public static float3 operator -(float3 val) { return new float3(-val.X, -val.y, -val.Z); }
 
 
         /// <summary>Returns the result of a componentwise unary plus operation on a float3 vector.</summary>
         /// <param name="val">Value to use when computing the componentwise unary plus.</param>
         /// <returns>float3 result of the componentwise unary plus.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 operator +(float3 val) { return new float3(+val.x, +val.y, +val.z); }
+        public static float3 operator +(float3 val) { return new float3(+val.X, +val.y, +val.Z); }
 
 
         /// <summary>Returns the result of a componentwise equality operation on two float3 vectors.</summary>
@@ -484,21 +484,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise equality.</param>
         /// <returns>bool3 result of the componentwise equality.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator ==(float3 lhs, float3 rhs) { return new bool3(lhs.x == rhs.x, lhs.y == rhs.y, lhs.z == rhs.z); }
+        public static bool3 operator ==(float3 lhs, float3 rhs) { return new bool3(lhs.X == rhs.X, lhs.y == rhs.y, lhs.Z == rhs.Z); }
 
         /// <summary>Returns the result of a componentwise equality operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise equality.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise equality.</param>
         /// <returns>bool3 result of the componentwise equality.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator ==(float3 lhs, float rhs) { return new bool3(lhs.x == rhs, lhs.y == rhs, lhs.z == rhs); }
+        public static bool3 operator ==(float3 lhs, float rhs) { return new bool3(lhs.X == rhs, lhs.y == rhs, lhs.Z == rhs); }
 
         /// <summary>Returns the result of a componentwise equality operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise equality.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise equality.</param>
         /// <returns>bool3 result of the componentwise equality.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator ==(float lhs, float3 rhs) { return new bool3(lhs == rhs.x, lhs == rhs.y, lhs == rhs.z); }
+        public static bool3 operator ==(float lhs, float3 rhs) { return new bool3(lhs == rhs.X, lhs == rhs.y, lhs == rhs.Z); }
 
 
         /// <summary>Returns the result of a componentwise not equal operation on two float3 vectors.</summary>
@@ -506,21 +506,21 @@ namespace Vocore
         /// <param name="rhs">Right hand side float3 to use to compute componentwise not equal.</param>
         /// <returns>bool3 result of the componentwise not equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator !=(float3 lhs, float3 rhs) { return new bool3(lhs.x != rhs.x, lhs.y != rhs.y, lhs.z != rhs.z); }
+        public static bool3 operator !=(float3 lhs, float3 rhs) { return new bool3(lhs.X != rhs.X, lhs.y != rhs.y, lhs.Z != rhs.Z); }
 
         /// <summary>Returns the result of a componentwise not equal operation on a float3 vector and a float value.</summary>
         /// <param name="lhs">Left hand side float3 to use to compute componentwise not equal.</param>
         /// <param name="rhs">Right hand side float to use to compute componentwise not equal.</param>
         /// <returns>bool3 result of the componentwise not equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator !=(float3 lhs, float rhs) { return new bool3(lhs.x != rhs, lhs.y != rhs, lhs.z != rhs); }
+        public static bool3 operator !=(float3 lhs, float rhs) { return new bool3(lhs.X != rhs, lhs.y != rhs, lhs.Z != rhs); }
 
         /// <summary>Returns the result of a componentwise not equal operation on a float value and a float3 vector.</summary>
         /// <param name="lhs">Left hand side float to use to compute componentwise not equal.</param>
         /// <param name="rhs">Right hand side float3 to use to compute componentwise not equal.</param>
         /// <returns>bool3 result of the componentwise not equal.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool3 operator !=(float lhs, float3 rhs) { return new bool3(lhs != rhs.x, lhs != rhs.y, lhs != rhs.z); }
+        public static bool3 operator !=(float lhs, float3 rhs) { return new bool3(lhs != rhs.X, lhs != rhs.y, lhs != rhs.Z); }
 
 
 
@@ -530,7 +530,7 @@ namespace Vocore
         public float4 xxxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, x, x); }
+            get { return new float4(X, X, X, X); }
         }
 
 
@@ -539,7 +539,7 @@ namespace Vocore
         public float4 xxxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, x, y); }
+            get { return new float4(X, X, X, y); }
         }
 
 
@@ -548,7 +548,7 @@ namespace Vocore
         public float4 xxxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, x, z); }
+            get { return new float4(X, X, X, Z); }
         }
 
 
@@ -557,7 +557,7 @@ namespace Vocore
         public float4 xxyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, y, x); }
+            get { return new float4(X, X, y, X); }
         }
 
 
@@ -566,7 +566,7 @@ namespace Vocore
         public float4 xxyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, y, y); }
+            get { return new float4(X, X, y, y); }
         }
 
 
@@ -575,7 +575,7 @@ namespace Vocore
         public float4 xxyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, y, z); }
+            get { return new float4(X, X, y, Z); }
         }
 
 
@@ -584,7 +584,7 @@ namespace Vocore
         public float4 xxzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, z, x); }
+            get { return new float4(X, X, Z, X); }
         }
 
 
@@ -593,7 +593,7 @@ namespace Vocore
         public float4 xxzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, z, y); }
+            get { return new float4(X, X, Z, y); }
         }
 
 
@@ -602,7 +602,7 @@ namespace Vocore
         public float4 xxzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, x, z, z); }
+            get { return new float4(X, X, Z, Z); }
         }
 
 
@@ -611,7 +611,7 @@ namespace Vocore
         public float4 xyxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, x, x); }
+            get { return new float4(X, y, X, X); }
         }
 
 
@@ -620,7 +620,7 @@ namespace Vocore
         public float4 xyxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, x, y); }
+            get { return new float4(X, y, X, y); }
         }
 
 
@@ -629,7 +629,7 @@ namespace Vocore
         public float4 xyxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, x, z); }
+            get { return new float4(X, y, X, Z); }
         }
 
 
@@ -638,7 +638,7 @@ namespace Vocore
         public float4 xyyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, y, x); }
+            get { return new float4(X, y, y, X); }
         }
 
 
@@ -647,7 +647,7 @@ namespace Vocore
         public float4 xyyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, y, y); }
+            get { return new float4(X, y, y, y); }
         }
 
 
@@ -656,7 +656,7 @@ namespace Vocore
         public float4 xyyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, y, z); }
+            get { return new float4(X, y, y, Z); }
         }
 
 
@@ -665,7 +665,7 @@ namespace Vocore
         public float4 xyzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, z, x); }
+            get { return new float4(X, y, Z, X); }
         }
 
 
@@ -674,7 +674,7 @@ namespace Vocore
         public float4 xyzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, z, y); }
+            get { return new float4(X, y, Z, y); }
         }
 
 
@@ -683,7 +683,7 @@ namespace Vocore
         public float4 xyzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, y, z, z); }
+            get { return new float4(X, y, Z, Z); }
         }
 
 
@@ -692,7 +692,7 @@ namespace Vocore
         public float4 xzxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, x, x); }
+            get { return new float4(X, Z, X, X); }
         }
 
 
@@ -701,7 +701,7 @@ namespace Vocore
         public float4 xzxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, x, y); }
+            get { return new float4(X, Z, X, y); }
         }
 
 
@@ -710,7 +710,7 @@ namespace Vocore
         public float4 xzxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, x, z); }
+            get { return new float4(X, Z, X, Z); }
         }
 
 
@@ -719,7 +719,7 @@ namespace Vocore
         public float4 xzyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, y, x); }
+            get { return new float4(X, Z, y, X); }
         }
 
 
@@ -728,7 +728,7 @@ namespace Vocore
         public float4 xzyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, y, y); }
+            get { return new float4(X, Z, y, y); }
         }
 
 
@@ -737,7 +737,7 @@ namespace Vocore
         public float4 xzyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, y, z); }
+            get { return new float4(X, Z, y, Z); }
         }
 
 
@@ -746,7 +746,7 @@ namespace Vocore
         public float4 xzzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, z, x); }
+            get { return new float4(X, Z, Z, X); }
         }
 
 
@@ -755,7 +755,7 @@ namespace Vocore
         public float4 xzzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, z, y); }
+            get { return new float4(X, Z, Z, y); }
         }
 
 
@@ -764,7 +764,7 @@ namespace Vocore
         public float4 xzzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(x, z, z, z); }
+            get { return new float4(X, Z, Z, Z); }
         }
 
 
@@ -773,7 +773,7 @@ namespace Vocore
         public float4 yxxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, x, x); }
+            get { return new float4(y, X, X, X); }
         }
 
 
@@ -782,7 +782,7 @@ namespace Vocore
         public float4 yxxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, x, y); }
+            get { return new float4(y, X, X, y); }
         }
 
 
@@ -791,7 +791,7 @@ namespace Vocore
         public float4 yxxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, x, z); }
+            get { return new float4(y, X, X, Z); }
         }
 
 
@@ -800,7 +800,7 @@ namespace Vocore
         public float4 yxyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, y, x); }
+            get { return new float4(y, X, y, X); }
         }
 
 
@@ -809,7 +809,7 @@ namespace Vocore
         public float4 yxyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, y, y); }
+            get { return new float4(y, X, y, y); }
         }
 
 
@@ -818,7 +818,7 @@ namespace Vocore
         public float4 yxyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, y, z); }
+            get { return new float4(y, X, y, Z); }
         }
 
 
@@ -827,7 +827,7 @@ namespace Vocore
         public float4 yxzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, z, x); }
+            get { return new float4(y, X, Z, X); }
         }
 
 
@@ -836,7 +836,7 @@ namespace Vocore
         public float4 yxzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, z, y); }
+            get { return new float4(y, X, Z, y); }
         }
 
 
@@ -845,7 +845,7 @@ namespace Vocore
         public float4 yxzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, x, z, z); }
+            get { return new float4(y, X, Z, Z); }
         }
 
 
@@ -854,7 +854,7 @@ namespace Vocore
         public float4 yyxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, x, x); }
+            get { return new float4(y, y, X, X); }
         }
 
 
@@ -863,7 +863,7 @@ namespace Vocore
         public float4 yyxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, x, y); }
+            get { return new float4(y, y, X, y); }
         }
 
 
@@ -872,7 +872,7 @@ namespace Vocore
         public float4 yyxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, x, z); }
+            get { return new float4(y, y, X, Z); }
         }
 
 
@@ -881,7 +881,7 @@ namespace Vocore
         public float4 yyyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, y, x); }
+            get { return new float4(y, y, y, X); }
         }
 
 
@@ -899,7 +899,7 @@ namespace Vocore
         public float4 yyyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, y, z); }
+            get { return new float4(y, y, y, Z); }
         }
 
 
@@ -908,7 +908,7 @@ namespace Vocore
         public float4 yyzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, z, x); }
+            get { return new float4(y, y, Z, X); }
         }
 
 
@@ -917,7 +917,7 @@ namespace Vocore
         public float4 yyzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, z, y); }
+            get { return new float4(y, y, Z, y); }
         }
 
 
@@ -926,7 +926,7 @@ namespace Vocore
         public float4 yyzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, y, z, z); }
+            get { return new float4(y, y, Z, Z); }
         }
 
 
@@ -935,7 +935,7 @@ namespace Vocore
         public float4 yzxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, x, x); }
+            get { return new float4(y, Z, X, X); }
         }
 
 
@@ -944,7 +944,7 @@ namespace Vocore
         public float4 yzxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, x, y); }
+            get { return new float4(y, Z, X, y); }
         }
 
 
@@ -953,7 +953,7 @@ namespace Vocore
         public float4 yzxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, x, z); }
+            get { return new float4(y, Z, X, Z); }
         }
 
 
@@ -962,7 +962,7 @@ namespace Vocore
         public float4 yzyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, y, x); }
+            get { return new float4(y, Z, y, X); }
         }
 
 
@@ -971,7 +971,7 @@ namespace Vocore
         public float4 yzyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, y, y); }
+            get { return new float4(y, Z, y, y); }
         }
 
 
@@ -980,7 +980,7 @@ namespace Vocore
         public float4 yzyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, y, z); }
+            get { return new float4(y, Z, y, Z); }
         }
 
 
@@ -989,7 +989,7 @@ namespace Vocore
         public float4 yzzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, z, x); }
+            get { return new float4(y, Z, Z, X); }
         }
 
 
@@ -998,7 +998,7 @@ namespace Vocore
         public float4 yzzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, z, y); }
+            get { return new float4(y, Z, Z, y); }
         }
 
 
@@ -1007,7 +1007,7 @@ namespace Vocore
         public float4 yzzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(y, z, z, z); }
+            get { return new float4(y, Z, Z, Z); }
         }
 
 
@@ -1016,7 +1016,7 @@ namespace Vocore
         public float4 zxxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, x, x); }
+            get { return new float4(Z, X, X, X); }
         }
 
 
@@ -1025,7 +1025,7 @@ namespace Vocore
         public float4 zxxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, x, y); }
+            get { return new float4(Z, X, X, y); }
         }
 
 
@@ -1034,7 +1034,7 @@ namespace Vocore
         public float4 zxxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, x, z); }
+            get { return new float4(Z, X, X, Z); }
         }
 
 
@@ -1043,7 +1043,7 @@ namespace Vocore
         public float4 zxyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, y, x); }
+            get { return new float4(Z, X, y, X); }
         }
 
 
@@ -1052,7 +1052,7 @@ namespace Vocore
         public float4 zxyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, y, y); }
+            get { return new float4(Z, X, y, y); }
         }
 
 
@@ -1061,7 +1061,7 @@ namespace Vocore
         public float4 zxyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, y, z); }
+            get { return new float4(Z, X, y, Z); }
         }
 
 
@@ -1070,7 +1070,7 @@ namespace Vocore
         public float4 zxzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, z, x); }
+            get { return new float4(Z, X, Z, X); }
         }
 
 
@@ -1079,7 +1079,7 @@ namespace Vocore
         public float4 zxzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, z, y); }
+            get { return new float4(Z, X, Z, y); }
         }
 
 
@@ -1088,7 +1088,7 @@ namespace Vocore
         public float4 zxzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, x, z, z); }
+            get { return new float4(Z, X, Z, Z); }
         }
 
 
@@ -1097,7 +1097,7 @@ namespace Vocore
         public float4 zyxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, x, x); }
+            get { return new float4(Z, y, X, X); }
         }
 
 
@@ -1106,7 +1106,7 @@ namespace Vocore
         public float4 zyxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, x, y); }
+            get { return new float4(Z, y, X, y); }
         }
 
 
@@ -1115,7 +1115,7 @@ namespace Vocore
         public float4 zyxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, x, z); }
+            get { return new float4(Z, y, X, Z); }
         }
 
 
@@ -1124,7 +1124,7 @@ namespace Vocore
         public float4 zyyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, y, x); }
+            get { return new float4(Z, y, y, X); }
         }
 
 
@@ -1133,7 +1133,7 @@ namespace Vocore
         public float4 zyyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, y, y); }
+            get { return new float4(Z, y, y, y); }
         }
 
 
@@ -1142,7 +1142,7 @@ namespace Vocore
         public float4 zyyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, y, z); }
+            get { return new float4(Z, y, y, Z); }
         }
 
 
@@ -1151,7 +1151,7 @@ namespace Vocore
         public float4 zyzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, z, x); }
+            get { return new float4(Z, y, Z, X); }
         }
 
 
@@ -1160,7 +1160,7 @@ namespace Vocore
         public float4 zyzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, z, y); }
+            get { return new float4(Z, y, Z, y); }
         }
 
 
@@ -1169,7 +1169,7 @@ namespace Vocore
         public float4 zyzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, y, z, z); }
+            get { return new float4(Z, y, Z, Z); }
         }
 
 
@@ -1178,7 +1178,7 @@ namespace Vocore
         public float4 zzxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, x, x); }
+            get { return new float4(Z, Z, X, X); }
         }
 
 
@@ -1187,7 +1187,7 @@ namespace Vocore
         public float4 zzxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, x, y); }
+            get { return new float4(Z, Z, X, y); }
         }
 
 
@@ -1196,7 +1196,7 @@ namespace Vocore
         public float4 zzxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, x, z); }
+            get { return new float4(Z, Z, X, Z); }
         }
 
 
@@ -1205,7 +1205,7 @@ namespace Vocore
         public float4 zzyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, y, x); }
+            get { return new float4(Z, Z, y, X); }
         }
 
 
@@ -1214,7 +1214,7 @@ namespace Vocore
         public float4 zzyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, y, y); }
+            get { return new float4(Z, Z, y, y); }
         }
 
 
@@ -1223,7 +1223,7 @@ namespace Vocore
         public float4 zzyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, y, z); }
+            get { return new float4(Z, Z, y, Z); }
         }
 
 
@@ -1232,7 +1232,7 @@ namespace Vocore
         public float4 zzzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, z, x); }
+            get { return new float4(Z, Z, Z, X); }
         }
 
 
@@ -1241,7 +1241,7 @@ namespace Vocore
         public float4 zzzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, z, y); }
+            get { return new float4(Z, Z, Z, y); }
         }
 
 
@@ -1250,7 +1250,7 @@ namespace Vocore
         public float4 zzzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float4(z, z, z, z); }
+            get { return new float4(Z, Z, Z, Z); }
         }
 
 
@@ -1259,7 +1259,7 @@ namespace Vocore
         public float3 xxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, x, x); }
+            get { return new float3(X, X, X); }
         }
 
 
@@ -1268,7 +1268,7 @@ namespace Vocore
         public float3 xxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, x, y); }
+            get { return new float3(X, X, y); }
         }
 
 
@@ -1277,7 +1277,7 @@ namespace Vocore
         public float3 xxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, x, z); }
+            get { return new float3(X, X, Z); }
         }
 
 
@@ -1286,7 +1286,7 @@ namespace Vocore
         public float3 xyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, y, x); }
+            get { return new float3(X, y, X); }
         }
 
 
@@ -1295,7 +1295,7 @@ namespace Vocore
         public float3 xyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, y, y); }
+            get { return new float3(X, y, y); }
         }
 
 
@@ -1304,9 +1304,9 @@ namespace Vocore
         public float3 xyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, y, z); }
+            get { return new float3(X, y, Z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; y = value.y; z = value.z; }
+            set { X = value.X; y = value.y; Z = value.Z; }
         }
 
 
@@ -1315,7 +1315,7 @@ namespace Vocore
         public float3 xzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, z, x); }
+            get { return new float3(X, Z, X); }
         }
 
 
@@ -1324,9 +1324,9 @@ namespace Vocore
         public float3 xzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, z, y); }
+            get { return new float3(X, Z, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; z = value.y; y = value.z; }
+            set { X = value.X; Z = value.y; y = value.Z; }
         }
 
 
@@ -1335,7 +1335,7 @@ namespace Vocore
         public float3 xzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(x, z, z); }
+            get { return new float3(X, Z, Z); }
         }
 
 
@@ -1344,7 +1344,7 @@ namespace Vocore
         public float3 yxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, x, x); }
+            get { return new float3(y, X, X); }
         }
 
 
@@ -1353,7 +1353,7 @@ namespace Vocore
         public float3 yxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, x, y); }
+            get { return new float3(y, X, y); }
         }
 
 
@@ -1362,9 +1362,9 @@ namespace Vocore
         public float3 yxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, x, z); }
+            get { return new float3(y, X, Z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; x = value.y; z = value.z; }
+            set { y = value.X; X = value.y; Z = value.Z; }
         }
 
 
@@ -1373,7 +1373,7 @@ namespace Vocore
         public float3 yyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, y, x); }
+            get { return new float3(y, y, X); }
         }
 
 
@@ -1391,7 +1391,7 @@ namespace Vocore
         public float3 yyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, y, z); }
+            get { return new float3(y, y, Z); }
         }
 
 
@@ -1400,9 +1400,9 @@ namespace Vocore
         public float3 yzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, z, x); }
+            get { return new float3(y, Z, X); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; z = value.y; x = value.z; }
+            set { y = value.X; Z = value.y; X = value.Z; }
         }
 
 
@@ -1411,7 +1411,7 @@ namespace Vocore
         public float3 yzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, z, y); }
+            get { return new float3(y, Z, y); }
         }
 
 
@@ -1420,7 +1420,7 @@ namespace Vocore
         public float3 yzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(y, z, z); }
+            get { return new float3(y, Z, Z); }
         }
 
 
@@ -1429,7 +1429,7 @@ namespace Vocore
         public float3 zxx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, x, x); }
+            get { return new float3(Z, X, X); }
         }
 
 
@@ -1438,9 +1438,9 @@ namespace Vocore
         public float3 zxy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, x, y); }
+            get { return new float3(Z, X, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; x = value.y; y = value.z; }
+            set { Z = value.X; X = value.y; y = value.Z; }
         }
 
 
@@ -1449,7 +1449,7 @@ namespace Vocore
         public float3 zxz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, x, z); }
+            get { return new float3(Z, X, Z); }
         }
 
 
@@ -1458,9 +1458,9 @@ namespace Vocore
         public float3 zyx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, y, x); }
+            get { return new float3(Z, y, X); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; y = value.y; x = value.z; }
+            set { Z = value.X; y = value.y; X = value.Z; }
         }
 
 
@@ -1469,7 +1469,7 @@ namespace Vocore
         public float3 zyy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, y, y); }
+            get { return new float3(Z, y, y); }
         }
 
 
@@ -1478,7 +1478,7 @@ namespace Vocore
         public float3 zyz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, y, z); }
+            get { return new float3(Z, y, Z); }
         }
 
 
@@ -1487,7 +1487,7 @@ namespace Vocore
         public float3 zzx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, z, x); }
+            get { return new float3(Z, Z, X); }
         }
 
 
@@ -1496,7 +1496,7 @@ namespace Vocore
         public float3 zzy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, z, y); }
+            get { return new float3(Z, Z, y); }
         }
 
 
@@ -1505,7 +1505,7 @@ namespace Vocore
         public float3 zzz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float3(z, z, z); }
+            get { return new float3(Z, Z, Z); }
         }
 
 
@@ -1514,7 +1514,7 @@ namespace Vocore
         public float2 xx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(x, x); }
+            get { return new float2(X, X); }
         }
 
 
@@ -1523,9 +1523,9 @@ namespace Vocore
         public float2 xy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(x, y); }
+            get { return new float2(X, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; y = value.y; }
+            set { X = value.x; y = value.y; }
         }
 
 
@@ -1534,9 +1534,9 @@ namespace Vocore
         public float2 xz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(x, z); }
+            get { return new float2(X, Z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { x = value.x; z = value.y; }
+            set { X = value.x; Z = value.y; }
         }
 
 
@@ -1545,9 +1545,9 @@ namespace Vocore
         public float2 yx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(y, x); }
+            get { return new float2(y, X); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; x = value.y; }
+            set { y = value.x; X = value.y; }
         }
 
 
@@ -1565,9 +1565,9 @@ namespace Vocore
         public float2 yz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(y, z); }
+            get { return new float2(y, Z); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { y = value.x; z = value.y; }
+            set { y = value.x; Z = value.y; }
         }
 
 
@@ -1576,9 +1576,9 @@ namespace Vocore
         public float2 zx
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(z, x); }
+            get { return new float2(Z, X); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; x = value.y; }
+            set { Z = value.x; X = value.y; }
         }
 
 
@@ -1587,9 +1587,9 @@ namespace Vocore
         public float2 zy
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(z, y); }
+            get { return new float2(Z, y); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { z = value.x; y = value.y; }
+            set { Z = value.x; y = value.y; }
         }
 
 
@@ -1598,7 +1598,7 @@ namespace Vocore
         public float2 zz
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new float2(z, z); }
+            get { return new float2(Z, Z); }
         }
 
 
@@ -1620,7 +1620,7 @@ namespace Vocore
                 if ((uint)index >= 3)
                     throw new System.ArgumentException("index must be between[0...2]");
 #endif
-                fixed (float* array = &x) { array[index] = value; }
+                fixed (float* array = &X) { array[index] = value; }
             }
         }
 
@@ -1628,7 +1628,7 @@ namespace Vocore
         /// <param name="rhs">Right hand side argument to compare equality with.</param>
         /// <returns>The result of the equality comparison.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(float3 rhs) { return x == rhs.x && y == rhs.y && z == rhs.z; }
+        public bool Equals(float3 rhs) { return X == rhs.X && y == rhs.y && Z == rhs.Z; }
 
         /// <summary>Returns true if the float3 is equal to a given float3, false otherwise.</summary>
         /// <param name="o">Right hand side argument to compare equality with.</param>
@@ -1647,7 +1647,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("float3({0}f, {1}f, {2}f)", x, y, z);
+            return string.Format("float3({0}f, {1}f, {2}f)", X, y, Z);
         }
 
         /// <summary>Returns a string representation of the float3 using a specified format and culture-specific format information.</summary>
@@ -1657,7 +1657,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("float3({0}f, {1}f, {2}f)", x.ToString(format, formatProvider), y.ToString(format, formatProvider), z.ToString(format, formatProvider));
+            return string.Format("float3({0}f, {1}f, {2}f)", X.ToString(format, formatProvider), y.ToString(format, formatProvider), Z.ToString(format, formatProvider));
         }
 
         internal sealed class DebuggerProxy
@@ -1667,9 +1667,9 @@ namespace Vocore
             public float z;
             public DebuggerProxy(float3 v)
             {
-                x = v.x;
+                x = v.X;
                 y = v.y;
-                z = v.z;
+                z = v.Z;
             }
         }
 
@@ -1858,17 +1858,17 @@ namespace Vocore
             switch (component)
             {
                 case ShuffleComponent.LeftX:
-                    return a.x;
+                    return a.X;
                 case ShuffleComponent.LeftY:
                     return a.y;
                 case ShuffleComponent.LeftZ:
-                    return a.z;
+                    return a.Z;
                 case ShuffleComponent.RightX:
-                    return b.x;
+                    return b.X;
                 case ShuffleComponent.RightY:
                     return b.y;
                 case ShuffleComponent.RightZ:
-                    return b.z;
+                    return b.Z;
                 default:
                     throw new System.ArgumentException("Invalid shuffle component: " + component);
             }

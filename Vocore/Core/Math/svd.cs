@@ -61,8 +61,8 @@ namespace Vocore
             const float s8 = 0.38268343236509f; // sin(pi/8)
             const float g = 5.82842712474619f; // 3 + 2 * sqrt(2)
 
-            var ch = 2f * (pq.x - pq.y); // approx cos(a/2)
-            var sh = pq.z; // approx sin(a/2)
+            var ch = 2f * (pq.X - pq.y); // approx cos(a/2)
+            var sh = pq.Z; // approx sin(a/2)
             var r = math.select(math.float4(s8, s8, s8, c8), math.float4(sh, sh, sh, ch), g * sh * sh < ch * ch) * mask;
             return math.normalize(r);
         }
@@ -81,16 +81,16 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static quaternion givensQRFactorization(float3x3 b, out float3x3 r)
         {
-            var u = qrGivensQuat(math.float2(b.c0.x, b.c0.y), math.float4(0f, 0f, 1f, 1f));
+            var u = qrGivensQuat(math.float2(b.c0.X, b.c0.y), math.float4(0f, 0f, 1f, 1f));
             var qmt = math.float3x3(math.conjugate(u));
             r = math.mul(qmt, b);
 
-            var q = qrGivensQuat(math.float2(r.c0.x, r.c0.z), math.float4(0f, -1f, 0f, 1f));
+            var q = qrGivensQuat(math.float2(r.c0.X, r.c0.Z), math.float4(0f, -1f, 0f, 1f));
             u = math.mul(u, q);
             qmt = math.float3x3(math.conjugate(q));
             r = math.mul(qmt, r);
 
-            q = qrGivensQuat(math.float2(r.c1.y, r.c1.z), math.float4(1f, 0f, 0f, 1f));
+            q = qrGivensQuat(math.float2(r.c1.y, r.c1.Z), math.float4(1f, 0f, 0f, 1f));
             u = math.mul(u, q);
             qmt = math.float3x3(math.conjugate(q));
             r = math.mul(qmt, r);
@@ -106,17 +106,17 @@ namespace Vocore
 
             for (int i = 0; i < iterations; ++i)
             {
-                q = approxGivensQuat(math.float3(s.c0.x, s.c1.y, s.c0.y), math.float4(0f, 0f, 1f, 1f));
+                q = approxGivensQuat(math.float3(s.c0.X, s.c1.y, s.c0.y), math.float4(0f, 0f, 1f, 1f));
                 v = math.mul(v, q);
                 qm = math.float3x3(q);
                 s = math.mul(math.mul(math.transpose(qm), s), qm);
 
-                q = approxGivensQuat(math.float3(s.c1.y, s.c2.z, s.c1.z), math.float4(1f, 0f, 0f, 1f));
+                q = approxGivensQuat(math.float3(s.c1.y, s.c2.Z, s.c1.Z), math.float4(1f, 0f, 0f, 1f));
                 v = math.mul(v, q);
                 qm = math.float3x3(q);
                 s = math.mul(math.mul(math.transpose(qm), s), qm);
 
-                q = approxGivensQuat(math.float3(s.c2.z, s.c0.x, s.c2.x), math.float4(0f, 1f, 0f, 1f));
+                q = approxGivensQuat(math.float3(s.c2.Z, s.c0.X, s.c2.X), math.float4(0f, 1f, 0f, 1f));
                 v = math.mul(v, q);
                 qm = math.float3x3(q);
                 s = math.mul(math.mul(math.transpose(qm), s), qm);
@@ -138,7 +138,7 @@ namespace Vocore
             sortSingularValues(ref b, ref v);
             u = givensQRFactorization(b, out var e);
 
-            return math.float3(e.c0.x, e.c1.y, e.c2.z);
+            return math.float3(e.c0.X, e.c1.y, e.c2.Z);
         }
 
         public const float k_EpsilonDeterminant = 1e-6f;

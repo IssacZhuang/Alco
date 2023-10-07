@@ -230,9 +230,9 @@ namespace Vocore.Geometry
             float3 halfExtentsInA = aabb.HalfExtents;
 
             // Rotate each axis individually and find their new positions in the rotated space.
-            float3 x = math.rotate(transform.rot, new float3(halfExtentsInA.x, 0, 0));
+            float3 x = math.rotate(transform.rot, new float3(halfExtentsInA.X, 0, 0));
             float3 y = math.rotate(transform.rot, new float3(0, halfExtentsInA.y, 0));
-            float3 z = math.rotate(transform.rot, new float3(0, 0, halfExtentsInA.z));
+            float3 z = math.rotate(transform.rot, new float3(0, 0, halfExtentsInA.Z));
 
             // Find the new max corner by summing the rotated axes.  Absolute value of each axis
             // since we are trying to find the max corner.

@@ -32,26 +32,26 @@ namespace Vocore
             float3 Pi = mod289(floor(P));
             float3 Pf = frac(P) - 0.5f;
 
-            float3 Pfx = Pf.x + float3(1.0f, 0.0f, -1.0f);
+            float3 Pfx = Pf.X + float3(1.0f, 0.0f, -1.0f);
             float3 Pfy = Pf.y + float3(1.0f, 0.0f, -1.0f);
-            float3 Pfz = Pf.z + float3(1.0f, 0.0f, -1.0f);
+            float3 Pfz = Pf.Z + float3(1.0f, 0.0f, -1.0f);
 
-            float3 p = permute(Pi.x + float3(-1.0f, 0.0f, 1.0f));
+            float3 p = permute(Pi.X + float3(-1.0f, 0.0f, 1.0f));
             float3 p1 = permute(p + Pi.y - 1.0f);
             float3 p2 = permute(p + Pi.y);
             float3 p3 = permute(p + Pi.y + 1.0f);
 
-            float3 p11 = permute(p1 + Pi.z - 1.0f);
-            float3 p12 = permute(p1 + Pi.z);
-            float3 p13 = permute(p1 + Pi.z + 1.0f);
+            float3 p11 = permute(p1 + Pi.Z - 1.0f);
+            float3 p12 = permute(p1 + Pi.Z);
+            float3 p13 = permute(p1 + Pi.Z + 1.0f);
 
-            float3 p21 = permute(p2 + Pi.z - 1.0f);
-            float3 p22 = permute(p2 + Pi.z);
-            float3 p23 = permute(p2 + Pi.z + 1.0f);
+            float3 p21 = permute(p2 + Pi.Z - 1.0f);
+            float3 p22 = permute(p2 + Pi.Z);
+            float3 p23 = permute(p2 + Pi.Z + 1.0f);
 
-            float3 p31 = permute(p3 + Pi.z - 1.0f);
-            float3 p32 = permute(p3 + Pi.z);
-            float3 p33 = permute(p3 + Pi.z + 1.0f);
+            float3 p31 = permute(p3 + Pi.Z - 1.0f);
+            float3 p32 = permute(p3 + Pi.Z);
+            float3 p33 = permute(p3 + Pi.Z + 1.0f);
 
             float3 ox11 = frac(p11 * K) - Ko;
             float3 oy11 = mod7(floor(p11 * K)) * K - Ko;
@@ -90,20 +90,20 @@ namespace Vocore
             float3 oz33 = floor(p33 * K2) * Kz - Kzo;
 
             float3 dx11 = Pfx + jitter * ox11;
-            float3 dy11 = Pfy.x + jitter * oy11;
-            float3 dz11 = Pfz.x + jitter * oz11;
+            float3 dy11 = Pfy.X + jitter * oy11;
+            float3 dz11 = Pfz.X + jitter * oz11;
 
             float3 dx12 = Pfx + jitter * ox12;
-            float3 dy12 = Pfy.x + jitter * oy12;
+            float3 dy12 = Pfy.X + jitter * oy12;
             float3 dz12 = Pfz.y + jitter * oz12;
 
             float3 dx13 = Pfx + jitter * ox13;
-            float3 dy13 = Pfy.x + jitter * oy13;
-            float3 dz13 = Pfz.z + jitter * oz13;
+            float3 dy13 = Pfy.X + jitter * oy13;
+            float3 dz13 = Pfz.Z + jitter * oz13;
 
             float3 dx21 = Pfx + jitter * ox21;
             float3 dy21 = Pfy.y + jitter * oy21;
-            float3 dz21 = Pfz.x + jitter * oz21;
+            float3 dz21 = Pfz.X + jitter * oz21;
 
             float3 dx22 = Pfx + jitter * ox22;
             float3 dy22 = Pfy.y + jitter * oy22;
@@ -111,19 +111,19 @@ namespace Vocore
 
             float3 dx23 = Pfx + jitter * ox23;
             float3 dy23 = Pfy.y + jitter * oy23;
-            float3 dz23 = Pfz.z + jitter * oz23;
+            float3 dz23 = Pfz.Z + jitter * oz23;
 
             float3 dx31 = Pfx + jitter * ox31;
-            float3 dy31 = Pfy.z + jitter * oy31;
-            float3 dz31 = Pfz.x + jitter * oz31;
+            float3 dy31 = Pfy.Z + jitter * oy31;
+            float3 dz31 = Pfz.X + jitter * oz31;
 
             float3 dx32 = Pfx + jitter * ox32;
-            float3 dy32 = Pfy.z + jitter * oy32;
+            float3 dy32 = Pfy.Z + jitter * oy32;
             float3 dz32 = Pfz.y + jitter * oz32;
 
             float3 dx33 = Pfx + jitter * ox33;
-            float3 dy33 = Pfy.z + jitter * oy33;
-            float3 dz33 = Pfz.z + jitter * oz33;
+            float3 dy33 = Pfy.Z + jitter * oy33;
+            float3 dz33 = Pfz.Z + jitter * oz33;
 
             float3 d11 = dx11 * dx11 + dy11 * dy11 + dz11 * dz11;
             float3 d12 = dx12 * dx12 + dy12 * dy12 + dz12 * dz12;
@@ -156,15 +156,15 @@ namespace Vocore
             d21 = max(d11, d21);
             d11 = min(da, d31); // Smallest now in d11
             d31 = max(da, d31); // 2nd smallest now not in d31
-            d11.xy = (d11.x < d11.y) ? d11.xy : d11.yx;
-            d11.xz = (d11.x < d11.z) ? d11.xz : d11.zx; // d11.x now smallest
+            d11.xy = (d11.X < d11.y) ? d11.xy : d11.yx;
+            d11.xz = (d11.X < d11.Z) ? d11.xz : d11.zx; // d11.x now smallest
             d12 = min(d12, d21); // 2nd smallest now not in d21
             d12 = min(d12, d22); // nor in d22
             d12 = min(d12, d31); // nor in d31
             d12 = min(d12, d32); // nor in d32
             d11.yz = min(d11.yz, d12.xy); // nor in d12.yz
-            d11.y = min(d11.y, d12.z); // Only two more to go
-            d11.y = min(d11.y, d11.z); // Done! (Phew!)
+            d11.y = min(d11.y, d12.Z); // Only two more to go
+            d11.y = min(d11.y, d11.Z); // Done! (Phew!)
             return sqrt(d11.xy); // F1, F2
         }
     }

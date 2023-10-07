@@ -47,16 +47,16 @@ namespace Vocore
             float3 v = m.c1;
             float3 w = m.c2;
 
-            uint u_sign = (asuint(u.x) & 0x80000000);
-            float t = v.y + asfloat(asuint(w.z) ^ u_sign);
+            uint u_sign = (asuint(u.X) & 0x80000000);
+            float t = v.y + asfloat(asuint(w.Z) ^ u_sign);
             uint4 u_mask = uint4((int)u_sign >> 31);
             uint4 t_mask = uint4(asint(t) >> 31);
 
-            float tr = 1.0f + abs(u.x);
+            float tr = 1.0f + abs(u.X);
 
             uint4 sign_flips = uint4(0x00000000, 0x80000000, 0x80000000, 0x80000000) ^ (u_mask & uint4(0x00000000, 0x80000000, 0x00000000, 0x80000000)) ^ (t_mask & uint4(0x80000000, 0x80000000, 0x80000000, 0x00000000));
 
-            value = float4(tr, u.y, w.x, v.z) + asfloat(asuint(float4(t, v.x, u.z, w.y)) ^ sign_flips);   // +---, +++-, ++-+, +-++
+            value = float4(tr, u.y, w.X, v.Z) + asfloat(asuint(float4(t, v.X, u.Z, w.y)) ^ sign_flips);   // +---, +++-, ++-+, +-++
 
             value = asfloat((asuint(value) & ~u_mask) | (asuint(value.zwxy) & u_mask));
             value = asfloat((asuint(value.wzyx) & ~t_mask) | (asuint(value) & t_mask));
@@ -120,7 +120,7 @@ namespace Vocore
                 // s.y * c.x * c.z + s.x * s.z * c.y,
                 // s.z * c.x * c.y - s.x * s.y * c.z,
                 // c.x * c.y * c.z + s.y * s.z * s.x
-                float4(s.xyz, c.x) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.x) * float4(-1.0f, 1.0f, -1.0f, 1.0f)
+                float4(s.xyz, c.X) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.X) * float4(-1.0f, 1.0f, -1.0f, 1.0f)
                 );
         }
 
@@ -141,7 +141,7 @@ namespace Vocore
                 // s.y * c.x * c.z + s.x * s.z * c.y,
                 // s.z * c.x * c.y - s.x * s.y * c.z,
                 // c.x * c.y * c.z - s.y * s.z * s.x
-                float4(s.xyz, c.x) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.x) * float4(1.0f, 1.0f, -1.0f, -1.0f)
+                float4(s.xyz, c.X) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.X) * float4(1.0f, 1.0f, -1.0f, -1.0f)
                 );
         }
 
@@ -162,7 +162,7 @@ namespace Vocore
                 // s.y * c.x * c.z + s.x * s.z * c.y,
                 // s.z * c.x * c.y + s.x * s.y * c.z,
                 // c.x * c.y * c.z - s.y * s.z * s.x
-                float4(s.xyz, c.x) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.x) * float4(-1.0f, 1.0f, 1.0f, -1.0f)
+                float4(s.xyz, c.X) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.X) * float4(-1.0f, 1.0f, 1.0f, -1.0f)
                 );
         }
 
@@ -183,7 +183,7 @@ namespace Vocore
                 // s.y * c.x * c.z - s.x * s.z * c.y,
                 // s.z * c.x * c.y + s.x * s.y * c.z,
                 // c.x * c.y * c.z + s.y * s.z * s.x
-                float4(s.xyz, c.x) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.x) * float4(-1.0f, -1.0f, 1.0f, 1.0f)
+                float4(s.xyz, c.X) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.X) * float4(-1.0f, -1.0f, 1.0f, 1.0f)
                 );
         }
 
@@ -205,7 +205,7 @@ namespace Vocore
                 // s.y * c.x * c.z - s.x * s.z * c.y,
                 // s.z * c.x * c.y - s.x * s.y * c.z,
                 // c.x * c.y * c.z + s.y * s.z * s.x
-                float4(s.xyz, c.x) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.x) * float4(1.0f, -1.0f, -1.0f, 1.0f)
+                float4(s.xyz, c.X) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.X) * float4(1.0f, -1.0f, -1.0f, 1.0f)
                 );
         }
 
@@ -226,7 +226,7 @@ namespace Vocore
                 // s.y * c.x * c.z - s.x * s.z * c.y,
                 // s.z * c.x * c.y + s.x * s.y * c.z,
                 // c.x * c.y * c.z - s.y * s.x * s.z
-                float4(s.xyz, c.x) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.x) * float4(1.0f, -1.0f, 1.0f, -1.0f)
+                float4(s.xyz, c.X) * c.yxxy * c.zzyz + s.yxxy * s.zzyz * float4(c.xyz, s.X) * float4(1.0f, -1.0f, 1.0f, -1.0f)
                 );
         }
 

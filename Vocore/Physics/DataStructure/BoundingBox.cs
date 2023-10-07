@@ -18,16 +18,16 @@ namespace Vocore
         
         public bool Intersects(BoundingBox other)
         {
-            return min.x <= other.max.x && max.x >= other.min.x &&
+            return min.X <= other.max.X && max.X >= other.min.X &&
                    min.y <= other.max.y && max.y >= other.min.y &&
-                   min.z <= other.max.z && max.z >= other.min.z;
+                   min.Z <= other.max.Z && max.Z >= other.min.Z;
         }
         
         public bool Contains(float3 point)
         {
-            return min.x <= point.x && max.x >= point.x &&
+            return min.X <= point.X && max.X >= point.X &&
                    min.y <= point.y && max.y >= point.y &&
-                   min.z <= point.z && max.z >= point.z;
+                   min.Z <= point.Z && max.Z >= point.Z;
         }
 
         public override string ToString()

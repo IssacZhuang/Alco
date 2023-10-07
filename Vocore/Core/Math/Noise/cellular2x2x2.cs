@@ -29,12 +29,12 @@ namespace Vocore
 
             float3 Pi = mod289(floor(P));
             float3 Pf = frac(P);
-            float4 Pfx = Pf.x + float4(0.0f, -1.0f, 0.0f, -1.0f);
+            float4 Pfx = Pf.X + float4(0.0f, -1.0f, 0.0f, -1.0f);
             float4 Pfy = Pf.y + float4(0.0f, 0.0f, -1.0f, -1.0f);
-            float4 p = permute(Pi.x + float4(0.0f, 1.0f, 0.0f, 1.0f));
+            float4 p = permute(Pi.X + float4(0.0f, 1.0f, 0.0f, 1.0f));
             p = permute(p + Pi.y + float4(0.0f, 0.0f, 1.0f, 1.0f));
-            float4 p1 = permute(p + Pi.z); // z+0
-            float4 p2 = permute(p + Pi.z + float4(1.0f,1.0f,1.0f,1.0f)); // z+1
+            float4 p1 = permute(p + Pi.Z); // z+0
+            float4 p2 = permute(p + Pi.Z + float4(1.0f, 1.0f, 1.0f, 1.0f)); // z+1
             float4 ox1 = frac(p1 * K) - Ko;
             float4 oy1 = mod7(floor(p1 * K)) * K - Ko;
             float4 oz1 = floor(p1 * K2) * Kz - Kzo; // p1 < 289 guaranteed
@@ -43,10 +43,10 @@ namespace Vocore
             float4 oz2 = floor(p2 * K2) * Kz - Kzo;
             float4 dx1 = Pfx + jitter * ox1;
             float4 dy1 = Pfy + jitter * oy1;
-            float4 dz1 = Pf.z + jitter * oz1;
+            float4 dz1 = Pf.Z + jitter * oz1;
             float4 dx2 = Pfx + jitter * ox2;
             float4 dy2 = Pfy + jitter * oy2;
-            float4 dz2 = Pf.z - 1.0f + jitter * oz2;
+            float4 dz2 = Pf.Z - 1.0f + jitter * oz2;
             float4 d1 = dx1 * dx1 + dy1 * dy1 + dz1 * dz1; // z+0
             float4 d2 = dx2 * dx2 + dy2 * dy2 + dz2 * dz2; // z+1
 

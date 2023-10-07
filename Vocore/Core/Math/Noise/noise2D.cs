@@ -63,7 +63,7 @@ namespace Vocore
 
             // Compute final noise value at P
 
-            float  gx = a0.x * x0.x + h.x * x0.y;
+            float gx = a0.X * x0.x + h.X * x0.y;
             float2 gyz = a0.yz * x12.xz + h.yz * x12.yw;
             float3 g = float3(gx,gyz);
 

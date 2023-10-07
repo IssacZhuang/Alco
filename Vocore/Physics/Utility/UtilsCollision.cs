@@ -48,9 +48,9 @@ namespace Vocore
             float3 min2 = box2.center - box2.extends;
             float3 max2 = box2.center + box2.extends;
 
-            return min1.x <= max2.x && max1.x >= min2.x &&
+            return min1.X <= max2.X && max1.X >= min2.X &&
                    min1.y <= max2.y && max1.y >= min2.y &&
-                   min1.z <= max2.z && max1.z >= min2.z;
+                   min1.Z <= max2.Z && max1.Z >= min2.Z;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -123,8 +123,8 @@ namespace Vocore
 
             float3 invRayDisplacement = 1f / rayDisplacement;
 
-            float txmin = (min.x - rayOrigin.x) * invRayDisplacement.x;
-            float txmax = (max.x - rayOrigin.x) * invRayDisplacement.x;
+            float txmin = (min.X - rayOrigin.X) * invRayDisplacement.X;
+            float txmax = (max.X - rayOrigin.X) * invRayDisplacement.X;
             float inverseX = 1f;
 
             if (txmin > txmax)
@@ -165,8 +165,8 @@ namespace Vocore
                 tmax = tymax;
             }
 
-            float tzmin = (min.z - rayOrigin.z) * invRayDisplacement.z;
-            float tzmax = (max.z - rayOrigin.z) * invRayDisplacement.z;
+            float tzmin = (min.Z - rayOrigin.Z) * invRayDisplacement.Z;
+            float tzmax = (max.Z - rayOrigin.Z) * invRayDisplacement.Z;
             float inverseZ = 1f;
 
             if (tzmin > tzmax)
@@ -230,8 +230,8 @@ namespace Vocore
             float3 originToMin = boundingBox.min - ray.origin;
             float3 originToMax = boundingBox.max - ray.origin;
 
-            float txmin = originToMin.x * invRayDisplacement.x;
-            float txmax = originToMax.x * invRayDisplacement.x;
+            float txmin = originToMin.X * invRayDisplacement.X;
+            float txmax = originToMax.X * invRayDisplacement.X;
 
             float temp;
 
@@ -270,8 +270,8 @@ namespace Vocore
                 tmax = tymax;
             }
 
-            float tzmin = originToMin.z * invRayDisplacement.z;
-            float tzmax = originToMax.z * invRayDisplacement.z;
+            float tzmin = originToMin.Z * invRayDisplacement.Z;
+            float tzmax = originToMax.Z * invRayDisplacement.Z;
 
             if (tzmin > tzmax)
             {

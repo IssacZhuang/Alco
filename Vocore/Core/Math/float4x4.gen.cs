@@ -656,7 +656,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 rotate(float4x4 a, float3 b)
         {
-            return (a.c0 * b.x + a.c1 * b.y + a.c2 * b.z).xyz;
+            return (a.c0 * b.X + a.c1 * b.y + a.c2 * b.Z).xyz;
         }
 
         /// <summary>Return the result of transforming a float3 point by a float4x4 matrix</summary>
@@ -666,7 +666,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 transform(float4x4 a, float3 b)
         {
-            return (a.c0 * b.x + a.c1 * b.y + a.c2 * b.z + a.c3).xyz;
+            return (a.c0 * b.X + a.c1 * b.y + a.c2 * b.Z + a.c3).xyz;
         }
 
         /// <summary>Return the float4x4 transpose of a float4x4 matrix.</summary>

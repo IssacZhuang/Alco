@@ -140,9 +140,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint3(float3 v)
         {
-            this.x = (uint)v.x;
+            this.x = (uint)v.X;
             this.y = (uint)v.y;
-            this.z = (uint)v.z;
+            this.z = (uint)v.Z;
         }
 
         /// <summary>Constructs a uint3 vector from a single double value by converting it to uint and assigning it to every component.</summary>

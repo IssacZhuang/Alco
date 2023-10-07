@@ -41,13 +41,13 @@ namespace Vocore
             float3 isX = step( x0.yzw, x0.xxx );
             float3 isYZ = step( x0.zww, x0.yyz );
             //  i0.x = math.dot( isX, float3( 1.0 ) );
-            i0.x = isX.x + isX.y + isX.z;
+            i0.x = isX.X + isX.y + isX.Z;
             i0.yzw = 1.0f - isX;
             //  i0.y += math.dot( isYZ.xy, float2( 1.0 ) );
-            i0.y += isYZ.x + isYZ.y;
+            i0.y += isYZ.X + isYZ.y;
             i0.zw += 1.0f - isYZ.xy;
-            i0.z += isYZ.z;
-            i0.w += 1.0f - isYZ.z;
+            i0.z += isYZ.Z;
+            i0.w += 1.0f - isYZ.Z;
 
             // i0 now contains the unique values 0,1,2,3 in each channel
             float4 i3 = clamp( i0, 0.0f, 1.0f );

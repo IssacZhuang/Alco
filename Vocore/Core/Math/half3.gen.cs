@@ -100,9 +100,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public half3(float3 v)
         {
-            this.x = (half)v.x;
+            this.x = (half)v.X;
             this.y = (half)v.y;
-            this.z = (half)v.z;
+            this.z = (half)v.Z;
         }
 
         /// <summary>Constructs a half3 vector from a single double value by converting it to half and assigning it to every component.</summary>

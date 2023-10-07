@@ -180,9 +180,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public double3(float3 v)
         {
-            this.x = v.x;
+            this.x = v.X;
             this.y = v.y;
-            this.z = v.z;
+            this.z = v.Z;
         }
 
 

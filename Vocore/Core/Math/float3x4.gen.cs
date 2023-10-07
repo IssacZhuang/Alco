@@ -531,7 +531,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("float3x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f)", c0.x, c1.x, c2.x, c3.x, c0.y, c1.y, c2.y, c3.y, c0.z, c1.z, c2.z, c3.z);
+            return string.Format("float3x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f)", c0.X, c1.X, c2.X, c3.X, c0.y, c1.y, c2.y, c3.y, c0.Z, c1.Z, c2.Z, c3.Z);
         }
 
         /// <summary>Returns a string representation of the float3x4 using a specified format and culture-specific format information.</summary>
@@ -541,7 +541,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("float3x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f)", c0.x.ToString(format, formatProvider), c1.x.ToString(format, formatProvider), c2.x.ToString(format, formatProvider), c3.x.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c2.y.ToString(format, formatProvider), c3.y.ToString(format, formatProvider), c0.z.ToString(format, formatProvider), c1.z.ToString(format, formatProvider), c2.z.ToString(format, formatProvider), c3.z.ToString(format, formatProvider));
+            return string.Format("float3x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f)", c0.X.ToString(format, formatProvider), c1.X.ToString(format, formatProvider), c2.X.ToString(format, formatProvider), c3.X.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c2.y.ToString(format, formatProvider), c3.y.ToString(format, formatProvider), c0.Z.ToString(format, formatProvider), c1.Z.ToString(format, formatProvider), c2.Z.ToString(format, formatProvider), c3.Z.ToString(format, formatProvider));
         }
 
     }
@@ -642,10 +642,10 @@ namespace Vocore
         public static float4x3 transpose(float3x4 v)
         {
             return float4x3(
-                v.c0.x, v.c0.y, v.c0.z,
-                v.c1.x, v.c1.y, v.c1.z,
-                v.c2.x, v.c2.y, v.c2.z,
-                v.c3.x, v.c3.y, v.c3.z);
+                v.c0.X, v.c0.y, v.c0.Z,
+                v.c1.X, v.c1.y, v.c1.Z,
+                v.c2.X, v.c2.y, v.c2.Z,
+                v.c3.X, v.c3.y, v.c3.Z);
         }
 
         /// <summary>Fast matrix inverse for rigid transforms (orthonormal basis and translation)</summary>
@@ -658,11 +658,11 @@ namespace Vocore
             float3 c2 = m.c2;
             float3 pos = m.c3;
 
-            float3 r0 = float3(c0.x, c1.x, c2.x);
+            float3 r0 = float3(c0.X, c1.X, c2.X);
             float3 r1 = float3(c0.y, c1.y, c2.y);
-            float3 r2 = float3(c0.z, c1.z, c2.z);
+            float3 r2 = float3(c0.Z, c1.Z, c2.Z);
 
-            pos = -(r0 * pos.x + r1 * pos.y + r2 * pos.z);
+            pos = -(r0 * pos.X + r1 * pos.y + r2 * pos.Z);
 
             return float3x4(r0, r1, r2, pos);
         }

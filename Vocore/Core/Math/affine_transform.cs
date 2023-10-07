@@ -131,7 +131,7 @@ namespace Vocore
         public override string ToString()
         {
             return string.Format("AffineTransform(({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f), ({9}f, {10}f, {11}f))",
-                rs.c0.x, rs.c1.x, rs.c2.x, rs.c0.y, rs.c1.y, rs.c2.y, rs.c0.z, rs.c1.z, rs.c2.z, t.x, t.y, t.z
+                rs.c0.X, rs.c1.X, rs.c2.X, rs.c0.y, rs.c1.y, rs.c2.y, rs.c0.Z, rs.c1.Z, rs.c2.Z, t.X, t.y, t.Z
             );
         }
 
@@ -143,10 +143,10 @@ namespace Vocore
         public string ToString(string format, IFormatProvider formatProvider)
         {
             return string.Format("AffineTransform(({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f), ({9}f, {10}f, {11}f))",
-                rs.c0.x.ToString(format, formatProvider), rs.c1.x.ToString(format, formatProvider), rs.c2.x.ToString(format, formatProvider),
+                rs.c0.X.ToString(format, formatProvider), rs.c1.X.ToString(format, formatProvider), rs.c2.X.ToString(format, formatProvider),
                 rs.c0.y.ToString(format, formatProvider), rs.c1.y.ToString(format, formatProvider), rs.c2.y.ToString(format, formatProvider),
-                rs.c0.z.ToString(format, formatProvider), rs.c1.z.ToString(format, formatProvider), rs.c2.z.ToString(format, formatProvider),
-                t.x.ToString(format, formatProvider), t.y.ToString(format, formatProvider), t.z.ToString(format, formatProvider)
+                rs.c0.Z.ToString(format, formatProvider), rs.c1.Z.ToString(format, formatProvider), rs.c2.Z.ToString(format, formatProvider),
+                t.X.ToString(format, formatProvider), t.y.ToString(format, formatProvider), t.Z.ToString(format, formatProvider)
             );
         }
     }
@@ -294,7 +294,7 @@ namespace Vocore
             translation = a.t;
             rotation = math.rotation(a.rs);
             var sm = mul(float3x3(conjugate(rotation)), a.rs);
-            scale = float3(sm.c0.x, sm.c1.y, sm.c2.z);
+            scale = float3(sm.c0.X, sm.c1.y, sm.c2.Z);
         }
 
         /// <summary>Returns a uint hash code of an AffineTransform.</summary>

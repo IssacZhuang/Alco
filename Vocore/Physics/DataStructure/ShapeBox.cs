@@ -26,9 +26,9 @@ namespace Vocore
                 return new BoundingBox(center - extends, center + extends);
             }
 
-            float3 x = math.rotate(rotation, new float3(extends.x, 0, 0));
+            float3 x = math.rotate(rotation, new float3(extends.X, 0, 0));
             float3 y = math.rotate(rotation, new float3(0, extends.y, 0));
-            float3 z = math.rotate(rotation, new float3(0, 0, extends.z));
+            float3 z = math.rotate(rotation, new float3(0, 0, extends.Z));
 
             float3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 
@@ -45,9 +45,9 @@ namespace Vocore
                 return new BoundingBox(centerInWorld - extends, centerInWorld + extends);
             }
 
-            float3 x = math.rotate(rotationInWorld, new float3(extends.x, 0, 0));
+            float3 x = math.rotate(rotationInWorld, new float3(extends.X, 0, 0));
             float3 y = math.rotate(rotationInWorld, new float3(0, extends.y, 0));
-            float3 z = math.rotate(rotationInWorld, new float3(0, 0, extends.z));
+            float3 z = math.rotate(rotationInWorld, new float3(0, 0, extends.Z));
 
             float3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 

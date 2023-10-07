@@ -13,7 +13,7 @@ namespace Vocore.Test
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Compare(ColliderRef x, ColliderRef y)
         {
-            return x.GetBoundingBox().min.x.CompareTo(y.GetBoundingBox().min.x);
+            return x.GetBoundingBox().min.X.CompareTo(y.GetBoundingBox().min.X);
         }
     }
 

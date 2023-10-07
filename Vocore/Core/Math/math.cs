@@ -941,7 +941,7 @@ namespace Vocore
         /// <param name="y">The second input value.</param>
         /// <returns>The componentwise minimum of the two input values.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 min(float3 x, float3 y) { return new float3(min(x.x, y.x), min(x.y, y.y), min(x.z, y.z)); }
+        public static float3 min(float3 x, float3 y) { return new float3(min(x.X, y.X), min(x.y, y.y), min(x.Z, y.Z)); }
 
         /// <summary>Returns the componentwise minimum of two float4 vectors.</summary>
         /// <param name="x">The first input value.</param>
@@ -1073,7 +1073,7 @@ namespace Vocore
         /// <param name="y">The second input value.</param>
         /// <returns>The componentwise maximum of the two input values.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 max(float3 x, float3 y) { return new float3(max(x.x, y.x), max(x.y, y.y), max(x.z, y.z)); }
+        public static float3 max(float3 x, float3 y) { return new float3(max(x.X, y.X), max(x.y, y.y), max(x.Z, y.Z)); }
 
         /// <summary>Returns the componentwise maximum of two float4 vectors.</summary>
         /// <param name="x">The first input value.</param>
@@ -1965,7 +1965,7 @@ namespace Vocore
         /// <param name="y">The second vector.</param>
         /// <returns>The dot product of two vectors.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float dot(float3 x, float3 y) { return x.x * y.x + x.y * y.y + x.z * y.z; }
+        public static float dot(float3 x, float3 y) { return x.X * y.X + x.y * y.y + x.Z * y.Z; }
 
         /// <summary>Returns the dot product of two float4 vectors.</summary>
         /// <param name="x">The first vector.</param>
@@ -2020,7 +2020,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise tangent of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 tan(float3 x) { return new float3(tan(x.x), tan(x.y), tan(x.z)); }
+        public static float3 tan(float3 x) { return new float3(tan(x.X), tan(x.y), tan(x.Z)); }
 
         /// <summary>Returns the componentwise tangent of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2070,7 +2070,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise hyperbolic tangent of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 tanh(float3 x) { return new float3(tanh(x.x), tanh(x.y), tanh(x.z)); }
+        public static float3 tanh(float3 x) { return new float3(tanh(x.X), tanh(x.y), tanh(x.Z)); }
 
         /// <summary>Returns the componentwise hyperbolic tangent of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2120,7 +2120,7 @@ namespace Vocore
         /// <param name="x">A tangent value, usually the ratio y/x on the unit circle.</param>
         /// <returns>The componentwise arctangent of the input, in radians.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 atan(float3 x) { return new float3(atan(x.x), atan(x.y), atan(x.z)); }
+        public static float3 atan(float3 x) { return new float3(atan(x.X), atan(x.y), atan(x.Z)); }
 
         /// <summary>Returns the componentwise arctangent of a float4 vector.</summary>
         /// <param name="x">A tangent value, usually the ratio y/x on the unit circle.</param>
@@ -2173,7 +2173,7 @@ namespace Vocore
         /// <param name="x">Denominator of the ratio y/x, usually the x component on the unit circle.</param>
         /// <returns>The componentwise arctangent of the ratio y/x, in radians.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 atan2(float3 y, float3 x) { return new float3(atan2(y.x, x.x), atan2(y.y, x.y), atan2(y.z, x.z)); }
+        public static float3 atan2(float3 y, float3 x) { return new float3(atan2(y.X, x.X), atan2(y.y, x.y), atan2(y.Z, x.Z)); }
 
         /// <summary>Returns the componentwise 2-argument arctangent of a pair of floats4 vectors.</summary>
         /// <param name="y">Numerator of the ratio y/x, usually the y component on the unit circle.</param>
@@ -2228,7 +2228,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise cosine cosine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 cos(float3 x) { return new float3(cos(x.x), cos(x.y), cos(x.z)); }
+        public static float3 cos(float3 x) { return new float3(cos(x.X), cos(x.y), cos(x.Z)); }
 
         /// <summary>Returns the componentwise cosine of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2278,7 +2278,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise hyperbolic cosine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 cosh(float3 x) { return new float3(cosh(x.x), cosh(x.y), cosh(x.z)); }
+        public static float3 cosh(float3 x) { return new float3(cosh(x.X), cosh(x.y), cosh(x.Z)); }
 
         /// <summary>Returns the componentwise hyperbolic cosine of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2328,7 +2328,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise arccosine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 acos(float3 x) { return new float3(acos(x.x), acos(x.y), acos(x.z)); }
+        public static float3 acos(float3 x) { return new float3(acos(x.X), acos(x.y), acos(x.Z)); }
 
         /// <summary>Returns the componentwise arccosine of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2378,7 +2378,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise sine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 sin(float3 x) { return new float3(sin(x.x), sin(x.y), sin(x.z)); }
+        public static float3 sin(float3 x) { return new float3(sin(x.X), sin(x.y), sin(x.Z)); }
 
         /// <summary>Returns the componentwise sine of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2428,7 +2428,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise hyperbolic sine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 sinh(float3 x) { return new float3(sinh(x.x), sinh(x.y), sinh(x.z)); }
+        public static float3 sinh(float3 x) { return new float3(sinh(x.X), sinh(x.y), sinh(x.Z)); }
 
         /// <summary>Returns the componentwise hyperbolic sine of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2478,7 +2478,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise arcsine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 asin(float3 x) { return new float3(asin(x.x), asin(x.y), asin(x.z)); }
+        public static float3 asin(float3 x) { return new float3(asin(x.X), asin(x.y), asin(x.Z)); }
 
         /// <summary>Returns the componentwise arcsine of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -2528,7 +2528,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise round down to nearest integral value of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 floor(float3 x) { return new float3(floor(x.x), floor(x.y), floor(x.z)); }
+        public static float3 floor(float3 x) { return new float3(floor(x.X), floor(x.y), floor(x.Z)); }
 
         /// <summary>Returns the result of rounding each component of a float4 vector value down to the nearest value less or equal to the original value.</summary>
         /// <param name="x">Input value.</param>
@@ -2578,7 +2578,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise round up to nearest integral value of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 ceil(float3 x) { return new float3(ceil(x.x), ceil(x.y), ceil(x.z)); }
+        public static float3 ceil(float3 x) { return new float3(ceil(x.X), ceil(x.y), ceil(x.Z)); }
 
         /// <summary>Returns the result of rounding each component of a float4 vector value up to the nearest value greater or equal to the original value.</summary>
         /// <param name="x">Input value.</param>
@@ -2628,7 +2628,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise round to nearest integral value of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 round(float3 x) { return new float3(round(x.x), round(x.y), round(x.z)); }
+        public static float3 round(float3 x) { return new float3(round(x.X), round(x.y), round(x.Z)); }
 
         /// <summary>Returns the result of rounding each component of a float4 vector value to the nearest integral value.</summary>
         /// <param name="x">Input value.</param>
@@ -2678,7 +2678,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise truncation of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 trunc(float3 x) { return new float3(trunc(x.x), trunc(x.y), trunc(x.z)); }
+        public static float3 trunc(float3 x) { return new float3(trunc(x.X), trunc(x.y), trunc(x.Z)); }
 
         /// <summary>Returns the result of a componentwise truncation of a float4 value to an integral float4 value.</summary>
         /// <param name="x">Input value.</param>
@@ -2851,7 +2851,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise sign of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 sign(float3 x) { return new float3(sign(x.x), sign(x.y), sign(x.z)); }
+        public static float3 sign(float3 x) { return new float3(sign(x.X), sign(x.y), sign(x.Z)); }
 
         /// <summary>Returns the componentwise sign of a float4 value. 1.0f for positive components, 0.0f for zero components and -1.0f for negative components.</summary>
         /// <param name="x">Input value.</param>
@@ -2904,7 +2904,7 @@ namespace Vocore
         /// <param name="y">The exponent power.</param>
         /// <returns>The componentwise result of raising x to the power y.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 pow(float3 x, float3 y) { return new float3(pow(x.x, y.x), pow(x.y, y.y), pow(x.z, y.z)); }
+        public static float3 pow(float3 x, float3 y) { return new float3(pow(x.X, y.X), pow(x.y, y.y), pow(x.Z, y.Z)); }
 
         /// <summary>Returns the componentwise result of raising x to the power y.</summary>
         /// <param name="x">The exponent base.</param>
@@ -2959,7 +2959,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-e exponential of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 exp(float3 x) { return new float3(exp(x.x), exp(x.y), exp(x.z)); }
+        public static float3 exp(float3 x) { return new float3(exp(x.X), exp(x.y), exp(x.Z)); }
 
         /// <summary>Returns the componentwise base-e exponential of x.</summary>
         /// <param name="x">Input value.</param>
@@ -3009,7 +3009,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-2 exponential of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 exp2(float3 x) { return new float3(exp2(x.x), exp2(x.y), exp2(x.z)); }
+        public static float3 exp2(float3 x) { return new float3(exp2(x.X), exp2(x.y), exp2(x.Z)); }
 
         /// <summary>Returns the componentwise base-2 exponential of x.</summary>
         /// <param name="x">Input value.</param>
@@ -3059,7 +3059,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-10 exponential of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 exp10(float3 x) { return new float3(exp10(x.x), exp10(x.y), exp10(x.z)); }
+        public static float3 exp10(float3 x) { return new float3(exp10(x.X), exp10(x.y), exp10(x.Z)); }
 
         /// <summary>Returns the componentwise base-10 exponential of x.</summary>
         /// <param name="x">Input value.</param>
@@ -3109,7 +3109,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise natural logarithm of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 log(float3 x) { return new float3(log(x.x), log(x.y), log(x.z)); }
+        public static float3 log(float3 x) { return new float3(log(x.X), log(x.y), log(x.Z)); }
 
         /// <summary>Returns the componentwise natural logarithm of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -3159,7 +3159,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-2 logarithm of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 log2(float3 x) { return new float3(log2(x.x), log2(x.y), log2(x.z)); }
+        public static float3 log2(float3 x) { return new float3(log2(x.X), log2(x.y), log2(x.Z)); }
 
         /// <summary>Returns the componentwise base-2 logarithm of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -3208,7 +3208,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-10 logarithm of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 log10(float3 x) { return new float3(log10(x.x), log10(x.y), log10(x.z)); }
+        public static float3 log10(float3 x) { return new float3(log10(x.X), log10(x.y), log10(x.Z)); }
 
         /// <summary>Returns the componentwise base-10 logarithm of a float4 vector.</summary>
         /// <param name="x">Input value.</param>
@@ -3261,7 +3261,7 @@ namespace Vocore
         /// <param name="y">The divisor in x/y.</param>
         /// <returns>The componentwise remainder of x/y.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 fmod(float3 x, float3 y) { return new float3(x.x % y.x, x.y % y.y, x.z % y.z); }
+        public static float3 fmod(float3 x, float3 y) { return new float3(x.X % y.X, x.y % y.y, x.Z % y.Z); }
 
         /// <summary>Returns the componentwise floating point remainder of x/y.</summary>
         /// <param name="x">The dividend in x/y.</param>
@@ -3392,7 +3392,7 @@ namespace Vocore
         /// <param name="x">Value to use when computing square root.</param>
         /// <returns>The componentwise square root.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 sqrt(float3 x) { return new float3(sqrt(x.x), sqrt(x.y), sqrt(x.z)); }
+        public static float3 sqrt(float3 x) { return new float3(sqrt(x.X), sqrt(x.y), sqrt(x.Z)); }
 
         /// <summary>Returns the componentwise square root of a float4 vector.</summary>
         /// <param name="x">Value to use when computing square root.</param>
@@ -3996,7 +3996,7 @@ namespace Vocore
         /// <param name="x">Vector of values to compare.</param>
         /// <returns>True if any the components of x are non-zero, false otherwise.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool any(float3 x) { return x.x != 0.0f || x.y != 0.0f || x.z != 0.0f; }
+        public static bool any(float3 x) { return x.X != 0.0f || x.y != 0.0f || x.Z != 0.0f; }
 
         /// <summary>Returns true if any component of the input float4 vector is non-zero, false otherwise.</summary>
         /// <param name="x">Vector of values to compare.</param>
@@ -4091,7 +4091,7 @@ namespace Vocore
         /// <param name="x">Vector of values to compare.</param>
         /// <returns>True if all the components of x are non-zero, false otherwise.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool all(float3 x) { return x.x != 0.0f && x.y != 0.0f && x.z != 0.0f; }
+        public static bool all(float3 x) { return x.X != 0.0f && x.y != 0.0f && x.Z != 0.0f; }
 
         /// <summary>Returns true if all components of the input float4 vector are non-zero, false otherwise.</summary>
         /// <param name="x">Vector of values to compare.</param>
@@ -4323,7 +4323,7 @@ namespace Vocore
         /// <param name="test">Selection mask to choose between falseValue and trueValue.</param>
         /// <returns>The componentwise selection between falseValue and trueValue according to selection mask test.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 select(float3 falseValue, float3 trueValue, bool3 test) { return new float3(test.x ? trueValue.x : falseValue.x, test.y ? trueValue.y : falseValue.y, test.z ? trueValue.z : falseValue.z); }
+        public static float3 select(float3 falseValue, float3 trueValue, bool3 test) { return new float3(test.x ? trueValue.X : falseValue.X, test.y ? trueValue.y : falseValue.y, test.z ? trueValue.Z : falseValue.Z); }
 
         /// <summary>
         /// Returns a componentwise selection between two double4 vectors falseValue and trueValue based on a bool4 selection mask test.
@@ -6036,7 +6036,7 @@ namespace Vocore
         /// <param name="x">The vector to use when computing the minimum component.</param>
         /// <returns>The value of the minimum component of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float cmin(float3 x) { return min(min(x.x, x.y), x.z); }
+        public static float cmin(float3 x) { return min(min(x.X, x.y), x.Z); }
 
         /// <summary>Returns the minimum component of a float4 vector.</summary>
         /// <param name="x">The vector to use when computing the minimum component.</param>
@@ -6112,7 +6112,7 @@ namespace Vocore
         /// <param name="x">The vector to use when computing the maximum component.</param>
         /// <returns>The value of the maximum component of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float cmax(float3 x) { return max(max(x.x, x.y), x.z); }
+        public static float cmax(float3 x) { return max(max(x.X, x.y), x.Z); }
 
         /// <summary>Returns the maximum component of a float4 vector.</summary>
         /// <param name="x">The vector to use when computing the maximum component.</param>
@@ -6188,7 +6188,7 @@ namespace Vocore
         /// <param name="x">The vector to use when computing the horizontal sum.</param>
         /// <returns>The horizontal sum of of components of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float csum(float3 x) { return x.x + x.y + x.z; }
+        public static float csum(float3 x) { return x.X + x.y + x.Z; }
 
         /// <summary>Returns the horizontal sum of components of a float4 vector.</summary>
         /// <param name="x">The vector to use when computing the horizontal sum.</param>
@@ -6632,15 +6632,15 @@ namespace Vocore
         /// <param name="basis2">Output unit length vector, orthogonal to normal vector and basis1.</param>
         public static void orthonormal_basis(float3 normal, out float3 basis1, out float3 basis2)
         {
-            var sign = normal.z >= 0.0f ? 1.0f : -1.0f;
-            var a = -1.0f / (sign + normal.z);
-            var b = normal.x * normal.y * a;
-            basis1.x = 1.0f + sign * normal.x * normal.x * a;
+            var sign = normal.Z >= 0.0f ? 1.0f : -1.0f;
+            var a = -1.0f / (sign + normal.Z);
+            var b = normal.X * normal.y * a;
+            basis1.X = 1.0f + sign * normal.X * normal.X * a;
             basis1.y = sign * b;
-            basis1.z = -sign * normal.x;
-            basis2.x = b;
+            basis1.Z = -sign * normal.X;
+            basis2.X = b;
             basis2.y = sign + normal.y * normal.y * a;
-            basis2.z = -normal.y;
+            basis2.Z = -normal.y;
         }
 
         /// <summary>
@@ -7168,7 +7168,7 @@ namespace Vocore
         /// <param name="s">Scaling coefficients for each column.</param>
         /// <returns>The scaled matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3x3 mulScale(float3x3 m, float3 s) => new float3x3(m.c0 * s.x, m.c1 * s.y, m.c2 * s.z);
+        public static float3x3 mulScale(float3x3 m, float3 s) => new float3x3(m.c0 * s.X, m.c1 * s.y, m.c2 * s.Z);
 
         /// <summary>
         /// Matrix rows multiplied by scale components

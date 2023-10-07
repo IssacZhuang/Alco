@@ -26,7 +26,7 @@ namespace Vocore
             float3 oi = float3(-1.0f, 0.0f, 1.0f);
             float3 of = float3(-0.5f, 0.5f, 1.5f);
             float3 px = permute(Pi.x + oi);
-            float3 p = permute(px.x + Pi.y + oi); // p11, p12, p13
+            float3 p = permute(px.X + Pi.y + oi); // p11, p12, p13
             float3 ox = frac(p * K) - Ko;
             float3 oy = mod7(floor(p * K)) * K - Ko;
             float3 dx = Pf.x + 0.5f + jitter * ox;
@@ -38,7 +38,7 @@ namespace Vocore
             dx = Pf.x - 0.5f + jitter * ox;
             dy = Pf.y - of + jitter * oy;
             float3 d2 = dx * dx + dy * dy; // d21, d22 and d23, squared
-            p = permute(px.z + Pi.y + oi); // p31, p32, p33
+            p = permute(px.Z + Pi.y + oi); // p31, p32, p33
             ox = frac(p * K) - Ko;
             oy = mod7(floor(p * K)) * K - Ko;
             dx = Pf.x - 1.5f + jitter * ox;
@@ -50,11 +50,11 @@ namespace Vocore
             d2 = min(d2, d3); // neither F1 nor F2 are now in d3
             d1 = min(d1a, d2); // F1 is now in d1
             d2 = max(d1a, d2); // Swap to keep candidates for F2
-            d1.xy = (d1.x < d1.y) ? d1.xy : d1.yx; // Swap if smaller
-            d1.xz = (d1.x < d1.z) ? d1.xz : d1.zx; // F1 is in d1.x
+            d1.xy = (d1.X < d1.y) ? d1.xy : d1.yx; // Swap if smaller
+            d1.xz = (d1.X < d1.Z) ? d1.xz : d1.zx; // F1 is in d1.x
             d1.yz = min(d1.yz, d2.yz); // F2 is now not in d2.yz
-            d1.y = min(d1.y, d1.z); // nor in  d1.z
-            d1.y = min(d1.y, d2.x); // F2 is in d1.y, we're done.
+            d1.y = min(d1.y, d1.Z); // nor in  d1.z
+            d1.y = min(d1.y, d2.X); // F2 is in d1.y, we're done.
             return sqrt(d1.xy);
         }
     }

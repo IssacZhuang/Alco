@@ -111,9 +111,9 @@ namespace Vocore
             float3 ivw = yw;
 
             // Create gradients from indices
-            float2 g0 = rgrad2(float2(iuw.x, ivw.x), rot);
+            float2 g0 = rgrad2(float2(iuw.X, ivw.X), rot);
             float2 g1 = rgrad2(float2(iuw.y, ivw.y), rot);
-            float2 g2 = rgrad2(float2(iuw.z, ivw.z), rot);
+            float2 g2 = rgrad2(float2(iuw.Z, ivw.Z), rot);
 
             // Gradients math.dot vectors to corresponding corners
             // (The derivatives of this are simply the gradients)
@@ -129,11 +129,11 @@ namespace Vocore
             float3 dtdy = -2.0f * float3(d0.y, d1.y, d2.y);
 
             // Set influence of each surflet to zero outside radius math.sqrt(0.8)
-            if (t.x < 0.0f)
+            if (t.X < 0.0f)
             {
-                dtdx.x = 0.0f;
-                dtdy.x = 0.0f;
-                t.x = 0.0f;
+                dtdx.X = 0.0f;
+                dtdy.X = 0.0f;
+                t.X = 0.0f;
             }
             if (t.y < 0.0f)
             {
@@ -141,11 +141,11 @@ namespace Vocore
                 dtdy.y = 0.0f;
                 t.y = 0.0f;
             }
-            if (t.z < 0.0f)
+            if (t.Z < 0.0f)
             {
-                dtdx.z = 0.0f;
-                dtdy.z = 0.0f;
-                t.z = 0.0f;
+                dtdx.Z = 0.0f;
+                dtdy.Z = 0.0f;
+                t.Z = 0.0f;
             }
 
             // Fourth power of t (and third power for derivative)
@@ -158,12 +158,12 @@ namespace Vocore
             float n = dot(t4, w);
 
             // Final analytical derivative (gradient of a sum of scalar products)
-            float2 dt0 = float2(dtdx.x, dtdy.x) * 4.0f * t3.x;
-            float2 dn0 = t4.x * g0 + dt0 * w.x;
+            float2 dt0 = float2(dtdx.X, dtdy.X) * 4.0f * t3.X;
+            float2 dn0 = t4.X * g0 + dt0 * w.X;
             float2 dt1 = float2(dtdx.y, dtdy.y) * 4.0f * t3.y;
             float2 dn1 = t4.y * g1 + dt1 * w.y;
-            float2 dt2 = float2(dtdx.z, dtdy.z) * 4.0f * t3.z;
-            float2 dn2 = t4.z * g2 + dt2 * w.z;
+            float2 dt2 = float2(dtdx.Z, dtdy.Z) * 4.0f * t3.Z;
+            float2 dn2 = t4.Z * g2 + dt2 * w.Z;
 
             return 11.0f * float3(n, dn0 + dn1 + dn2);
         }
@@ -217,9 +217,9 @@ namespace Vocore
             float3 ivw = yw;
 
             // Create gradients from indices
-            float2 g0 = rgrad2(float2(iuw.x, ivw.x), rot);
+            float2 g0 = rgrad2(float2(iuw.X, ivw.X), rot);
             float2 g1 = rgrad2(float2(iuw.y, ivw.y), rot);
-            float2 g2 = rgrad2(float2(iuw.z, ivw.z), rot);
+            float2 g2 = rgrad2(float2(iuw.Z, ivw.Z), rot);
 
             // Gradients math.dot vectors to corresponding corners
             // (The derivatives of this are simply the gradients)
@@ -295,9 +295,9 @@ namespace Vocore
             ivw = mod289(ivw);
 
             // Create gradients from indices
-            float2 g0 = rgrad2(float2(iuw.x, ivw.x), rot);
+            float2 g0 = rgrad2(float2(iuw.X, ivw.X), rot);
             float2 g1 = rgrad2(float2(iuw.y, ivw.y), rot);
-            float2 g2 = rgrad2(float2(iuw.z, ivw.z), rot);
+            float2 g2 = rgrad2(float2(iuw.Z, ivw.Z), rot);
 
             // Gradients math.dot vectors to corresponding corners
             // (The derivatives of this are simply the gradients)
@@ -313,11 +313,11 @@ namespace Vocore
             float3 dtdy = -2.0f * float3(d0.y, d1.y, d2.y);
 
             // Set influence of each surflet to zero outside radius math.sqrt(0.8)
-            if (t.x < 0.0f)
+            if (t.X < 0.0f)
             {
-                dtdx.x = 0.0f;
-                dtdy.x = 0.0f;
-                t.x = 0.0f;
+                dtdx.X = 0.0f;
+                dtdy.X = 0.0f;
+                t.X = 0.0f;
             }
             if (t.y < 0.0f)
             {
@@ -325,11 +325,11 @@ namespace Vocore
                 dtdy.y = 0.0f;
                 t.y = 0.0f;
             }
-            if (t.z < 0.0f)
+            if (t.Z < 0.0f)
             {
-                dtdx.z = 0.0f;
-                dtdy.z = 0.0f;
-                t.z = 0.0f;
+                dtdx.Z = 0.0f;
+                dtdy.Z = 0.0f;
+                t.Z = 0.0f;
             }
 
             // Fourth power of t (and third power for derivative)
@@ -342,12 +342,12 @@ namespace Vocore
             float n = dot(t4, w);
 
             // Final analytical derivative (gradient of a sum of scalar products)
-            float2 dt0 = float2(dtdx.x, dtdy.x) * 4.0f * t3.x;
-            float2 dn0 = t4.x * g0 + dt0 * w.x;
+            float2 dt0 = float2(dtdx.X, dtdy.X) * 4.0f * t3.X;
+            float2 dn0 = t4.X * g0 + dt0 * w.X;
             float2 dt1 = float2(dtdx.y, dtdy.y) * 4.0f * t3.y;
             float2 dn1 = t4.y * g1 + dt1 * w.y;
-            float2 dt2 = float2(dtdx.z, dtdy.z) * 4.0f * t3.z;
-            float2 dn2 = t4.z * g2 + dt2 * w.z;
+            float2 dt2 = float2(dtdx.Z, dtdy.Z) * 4.0f * t3.Z;
+            float2 dn2 = t4.Z * g2 + dt2 * w.Z;
 
             return 11.0f * float3(n, dn0 + dn1 + dn2);
         }
@@ -401,9 +401,9 @@ namespace Vocore
             ivw = mod289(ivw);
 
             // Create gradients from indices
-            float2 g0 = rgrad2(float2(iuw.x, ivw.x), rot);
+            float2 g0 = rgrad2(float2(iuw.X, ivw.X), rot);
             float2 g1 = rgrad2(float2(iuw.y, ivw.y), rot);
-            float2 g2 = rgrad2(float2(iuw.z, ivw.z), rot);
+            float2 g2 = rgrad2(float2(iuw.Z, ivw.Z), rot);
 
             // Gradients math.dot vectors to corresponding corners
             // (The derivatives of this are simply the gradients)
