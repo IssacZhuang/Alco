@@ -78,17 +78,17 @@ namespace Vocore
             float4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
             float4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
 
-            float3 p0 = float3(a0.xy, h.x);
-            float3 p1 = float3(a0.zw, h.y);
-            float3 p2 = float3(a1.xy, h.z);
-            float3 p3 = float3(a1.zw, h.w);
+            float3 p0 = float3(a0.xy, h.X);
+            float3 p1 = float3(a0.zw, h.Y);
+            float3 p2 = float3(a1.xy, h.Z);
+            float3 p3 = float3(a1.zw, h.W);
 
             //Normalise gradients
             float4 norm = taylorInvSqrt(float4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
-            p0 *= norm.x;
-            p1 *= norm.y;
-            p2 *= norm.z;
-            p3 *= norm.w;
+            p0 *= norm.X;
+            p1 *= norm.Y;
+            p2 *= norm.Z;
+            p3 *= norm.W;
 
             // Mix final noise value
             float4 m = max(0.6f - float4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0f);
@@ -98,8 +98,8 @@ namespace Vocore
 
             // Determath.mine noise gradient
             float4 temp = m2 * m * pdotx;
-            gradient = -8.0f * (temp.x * x0 + temp.y * x1 + temp.z * x2 + temp.w * x3);
-            gradient += m4.x * p0 + m4.y * p1 + m4.z * p2 + m4.w * p3;
+            gradient = -8.0f * (temp.X * x0 + temp.Y * x1 + temp.Z * x2 + temp.W * x3);
+            gradient += m4.X * p0 + m4.Y * p1 + m4.Z * p2 + m4.W * p3;
             gradient *= 42.0f;
 
             return 42.0f * dot(m4, pdotx);

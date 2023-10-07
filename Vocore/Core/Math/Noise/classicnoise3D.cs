@@ -56,25 +56,25 @@ namespace Vocore
             gx1 -= sz1 * (step(0.0f, gx1) - 0.5f);
             gy1 -= sz1 * (step(0.0f, gy1) - 0.5f);
 
-            float3 g000 = float3(gx0.x, gy0.x, gz0.x);
-            float3 g100 = float3(gx0.y, gy0.y, gz0.y);
-            float3 g010 = float3(gx0.z, gy0.z, gz0.z);
-            float3 g110 = float3(gx0.w, gy0.w, gz0.w);
-            float3 g001 = float3(gx1.x, gy1.x, gz1.x);
-            float3 g101 = float3(gx1.y, gy1.y, gz1.y);
-            float3 g011 = float3(gx1.z, gy1.z, gz1.z);
-            float3 g111 = float3(gx1.w, gy1.w, gz1.w);
+            float3 g000 = float3(gx0.X, gy0.X, gz0.X);
+            float3 g100 = float3(gx0.Y, gy0.Y, gz0.Y);
+            float3 g010 = float3(gx0.Z, gy0.Z, gz0.Z);
+            float3 g110 = float3(gx0.W, gy0.W, gz0.W);
+            float3 g001 = float3(gx1.X, gy1.X, gz1.X);
+            float3 g101 = float3(gx1.Y, gy1.Y, gz1.Y);
+            float3 g011 = float3(gx1.Z, gy1.Z, gz1.Z);
+            float3 g111 = float3(gx1.W, gy1.W, gz1.W);
 
             float4 norm0 = taylorInvSqrt(float4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-            g000 *= norm0.x;
-            g010 *= norm0.y;
-            g100 *= norm0.z;
-            g110 *= norm0.w;
+            g000 *= norm0.X;
+            g010 *= norm0.Y;
+            g100 *= norm0.Z;
+            g110 *= norm0.W;
             float4 norm1 = taylorInvSqrt(float4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-            g001 *= norm1.x;
-            g011 *= norm1.y;
-            g101 *= norm1.z;
-            g111 *= norm1.w;
+            g001 *= norm1.X;
+            g011 *= norm1.Y;
+            g101 *= norm1.Z;
+            g111 *= norm1.W;
 
             float n000 = dot(g000, Pf0);
             float n100 = dot(g100, float3(Pf1.X, Pf0.yz));
@@ -131,25 +131,25 @@ namespace Vocore
             gx1 -= sz1 * (step(0.0f, gx1) - 0.5f);
             gy1 -= sz1 * (step(0.0f, gy1) - 0.5f);
 
-            float3 g000 = float3(gx0.x, gy0.x, gz0.x);
-            float3 g100 = float3(gx0.y, gy0.y, gz0.y);
-            float3 g010 = float3(gx0.z, gy0.z, gz0.z);
-            float3 g110 = float3(gx0.w, gy0.w, gz0.w);
-            float3 g001 = float3(gx1.x, gy1.x, gz1.x);
-            float3 g101 = float3(gx1.y, gy1.y, gz1.y);
-            float3 g011 = float3(gx1.z, gy1.z, gz1.z);
-            float3 g111 = float3(gx1.w, gy1.w, gz1.w);
+            float3 g000 = float3(gx0.X, gy0.X, gz0.X);
+            float3 g100 = float3(gx0.Y, gy0.Y, gz0.Y);
+            float3 g010 = float3(gx0.Z, gy0.Z, gz0.Z);
+            float3 g110 = float3(gx0.W, gy0.W, gz0.W);
+            float3 g001 = float3(gx1.X, gy1.X, gz1.X);
+            float3 g101 = float3(gx1.Y, gy1.Y, gz1.Y);
+            float3 g011 = float3(gx1.Z, gy1.Z, gz1.Z);
+            float3 g111 = float3(gx1.W, gy1.W, gz1.W);
 
             float4 norm0 = taylorInvSqrt(float4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-            g000 *= norm0.x;
-            g010 *= norm0.y;
-            g100 *= norm0.z;
-            g110 *= norm0.w;
+            g000 *= norm0.X;
+            g010 *= norm0.Y;
+            g100 *= norm0.Z;
+            g110 *= norm0.W;
             float4 norm1 = taylorInvSqrt(float4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-            g001 *= norm1.x;
-            g011 *= norm1.y;
-            g101 *= norm1.z;
-            g111 *= norm1.w;
+            g001 *= norm1.X;
+            g011 *= norm1.Y;
+            g101 *= norm1.Z;
+            g111 *= norm1.W;
 
             float n000 = dot(g000, Pf0);
             float n100 = dot(g100, float3(Pf1.X, Pf0.yz));

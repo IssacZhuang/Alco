@@ -518,7 +518,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("float4x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f,  {9}f, {10}f, {11}f)", c0.x, c1.x, c2.x, c0.y, c1.y, c2.y, c0.z, c1.z, c2.z, c0.w, c1.w, c2.w);
+            return string.Format("float4x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f,  {9}f, {10}f, {11}f)", c0.X, c1.X, c2.X, c0.Y, c1.Y, c2.Y, c0.Z, c1.Z, c2.Z, c0.W, c1.W, c2.W);
         }
 
         /// <summary>Returns a string representation of the float4x3 using a specified format and culture-specific format information.</summary>
@@ -528,7 +528,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("float4x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f,  {9}f, {10}f, {11}f)", c0.x.ToString(format, formatProvider), c1.x.ToString(format, formatProvider), c2.x.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c2.y.ToString(format, formatProvider), c0.z.ToString(format, formatProvider), c1.z.ToString(format, formatProvider), c2.z.ToString(format, formatProvider), c0.w.ToString(format, formatProvider), c1.w.ToString(format, formatProvider), c2.w.ToString(format, formatProvider));
+            return string.Format("float4x3({0}f, {1}f, {2}f,  {3}f, {4}f, {5}f,  {6}f, {7}f, {8}f,  {9}f, {10}f, {11}f)", c0.X.ToString(format, formatProvider), c1.X.ToString(format, formatProvider), c2.X.ToString(format, formatProvider), c0.Y.ToString(format, formatProvider), c1.Y.ToString(format, formatProvider), c2.Y.ToString(format, formatProvider), c0.Z.ToString(format, formatProvider), c1.Z.ToString(format, formatProvider), c2.Z.ToString(format, formatProvider), c0.W.ToString(format, formatProvider), c1.W.ToString(format, formatProvider), c2.W.ToString(format, formatProvider));
         }
 
     }
@@ -630,9 +630,9 @@ namespace Vocore
         public static float3x4 transpose(float4x3 v)
         {
             return float3x4(
-                v.c0.x, v.c0.y, v.c0.z, v.c0.w,
-                v.c1.x, v.c1.y, v.c1.z, v.c1.w,
-                v.c2.x, v.c2.y, v.c2.z, v.c2.w);
+                v.c0.X, v.c0.Y, v.c0.Z, v.c0.W,
+                v.c1.X, v.c1.Y, v.c1.Z, v.c1.W,
+                v.c2.X, v.c2.Y, v.c2.Z, v.c2.W);
         }
 
         /// <summary>Returns a uint hash code of a float4x3 matrix.</summary>

@@ -663,7 +663,7 @@ namespace Vocore
             sincos(theta_rho, out sin_theta_rho, out cos_theta_rho);
 
             quaternion q = quaternion(i * sin_theta_rho.x, i * cos_theta_rho.x, j * sin_theta_rho.y, j * cos_theta_rho.y);
-            return quaternion(select(q.value, -q.value, q.value.w < 0.0f));
+            return quaternion(select(q.value, -q.value, q.value.W < 0.0f));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

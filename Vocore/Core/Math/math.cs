@@ -948,7 +948,7 @@ namespace Vocore
         /// <param name="y">The second input value.</param>
         /// <returns>The componentwise minimum of the two input values.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 min(float4 x, float4 y) { return new float4(min(x.x, y.x), min(x.y, y.y), min(x.z, y.z), min(x.w, y.w)); }
+        public static float4 min(float4 x, float4 y) { return new float4(min(x.X, y.X), min(x.Y, y.Y), min(x.Z, y.Z), min(x.W, y.W)); }
 
 
         /// <summary>Returns the minimum of two double values.</summary>
@@ -1080,7 +1080,7 @@ namespace Vocore
         /// <param name="y">The second input value.</param>
         /// <returns>The componentwise maximum of the two input values.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 max(float4 x, float4 y) { return new float4(max(x.x, y.x), max(x.y, y.y), max(x.z, y.z), max(x.w, y.w)); }
+        public static float4 max(float4 x, float4 y) { return new float4(max(x.X, y.X), max(x.Y, y.Y), max(x.Z, y.Z), max(x.W, y.W)); }
 
 
         /// <summary>Returns the maximum of two double values.</summary>
@@ -1972,7 +1972,7 @@ namespace Vocore
         /// <param name="y">The second vector.</param>
         /// <returns>The dot product of two vectors.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float dot(float4 x, float4 y) { return x.x * y.x + x.y * y.y + x.z * y.z + x.w * y.w; }
+        public static float dot(float4 x, float4 y) { return x.X * y.X + x.Y * y.Y + x.Z * y.Z + x.W * y.W; }
 
 
         /// <summary>Returns the dot product of two double values. Equivalent to multiplication.</summary>
@@ -2026,7 +2026,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise tangent of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 tan(float4 x) { return new float4(tan(x.x), tan(x.y), tan(x.z), tan(x.w)); }
+        public static float4 tan(float4 x) { return new float4(tan(x.X), tan(x.Y), tan(x.Z), tan(x.W)); }
 
 
         /// <summary>Returns the tangent of a double value.</summary>
@@ -2076,7 +2076,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise hyperbolic tangent of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 tanh(float4 x) { return new float4(tanh(x.x), tanh(x.y), tanh(x.z), tanh(x.w)); }
+        public static float4 tanh(float4 x) { return new float4(tanh(x.X), tanh(x.Y), tanh(x.Z), tanh(x.W)); }
 
 
         /// <summary>Returns the hyperbolic tangent of a double value.</summary>
@@ -2126,7 +2126,7 @@ namespace Vocore
         /// <param name="x">A tangent value, usually the ratio y/x on the unit circle.</param>
         /// <returns>The componentwise arctangent of the input, in radians.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 atan(float4 x) { return new float4(atan(x.x), atan(x.y), atan(x.z), atan(x.w)); }
+        public static float4 atan(float4 x) { return new float4(atan(x.X), atan(x.Y), atan(x.Z), atan(x.W)); }
 
 
         /// <summary>Returns the arctangent of a double value.</summary>
@@ -2180,7 +2180,7 @@ namespace Vocore
         /// <param name="x">Denominator of the ratio y/x, usually the x component on the unit circle.</param>
         /// <returns>The componentwise arctangent of the ratio y/x, in radians.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 atan2(float4 y, float4 x) { return new float4(atan2(y.x, x.x), atan2(y.y, x.y), atan2(y.z, x.z), atan2(y.w, x.w)); }
+        public static float4 atan2(float4 y, float4 x) { return new float4(atan2(y.X, x.X), atan2(y.Y, x.Y), atan2(y.Z, x.Z), atan2(y.W, x.W)); }
 
 
         /// <summary>Returns the 2-argument arctangent of a pair of double values.</summary>
@@ -2234,7 +2234,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise cosine cosine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 cos(float4 x) { return new float4(cos(x.x), cos(x.y), cos(x.z), cos(x.w)); }
+        public static float4 cos(float4 x) { return new float4(cos(x.X), cos(x.Y), cos(x.Z), cos(x.W)); }
 
 
         /// <summary>Returns the cosine of a double value.</summary>
@@ -2284,7 +2284,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise hyperbolic cosine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 cosh(float4 x) { return new float4(cosh(x.x), cosh(x.y), cosh(x.z), cosh(x.w)); }
+        public static float4 cosh(float4 x) { return new float4(cosh(x.X), cosh(x.Y), cosh(x.Z), cosh(x.W)); }
 
 
         /// <summary>Returns the hyperbolic cosine of a double value.</summary>
@@ -2334,7 +2334,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise arccosine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 acos(float4 x) { return new float4(acos(x.x), acos(x.y), acos(x.z), acos(x.w)); }
+        public static float4 acos(float4 x) { return new float4(acos(x.X), acos(x.Y), acos(x.Z), acos(x.W)); }
 
 
         /// <summary>Returns the arccosine of a double value.</summary>
@@ -2384,7 +2384,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise sine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 sin(float4 x) { return new float4(sin(x.x), sin(x.y), sin(x.z), sin(x.w)); }
+        public static float4 sin(float4 x) { return new float4(sin(x.X), sin(x.Y), sin(x.Z), sin(x.W)); }
 
 
         /// <summary>Returns the sine of a double value.</summary>
@@ -2434,7 +2434,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise hyperbolic sine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 sinh(float4 x) { return new float4(sinh(x.x), sinh(x.y), sinh(x.z), sinh(x.w)); }
+        public static float4 sinh(float4 x) { return new float4(sinh(x.X), sinh(x.Y), sinh(x.Z), sinh(x.W)); }
 
 
         /// <summary>Returns the hyperbolic sine of a double value.</summary>
@@ -2484,7 +2484,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise arcsine of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 asin(float4 x) { return new float4(asin(x.x), asin(x.y), asin(x.z), asin(x.w)); }
+        public static float4 asin(float4 x) { return new float4(asin(x.X), asin(x.Y), asin(x.Z), asin(x.W)); }
 
 
         /// <summary>Returns the arcsine of a double value.</summary>
@@ -2534,7 +2534,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise round down to nearest integral value of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 floor(float4 x) { return new float4(floor(x.x), floor(x.y), floor(x.z), floor(x.w)); }
+        public static float4 floor(float4 x) { return new float4(floor(x.X), floor(x.Y), floor(x.Z), floor(x.W)); }
 
 
         /// <summary>Returns the result of rounding a double value up to the nearest integral value less or equal to the original value.</summary>
@@ -2584,7 +2584,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise round up to nearest integral value of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 ceil(float4 x) { return new float4(ceil(x.x), ceil(x.y), ceil(x.z), ceil(x.w)); }
+        public static float4 ceil(float4 x) { return new float4(ceil(x.X), ceil(x.Y), ceil(x.Z), ceil(x.W)); }
 
 
         /// <summary>Returns the result of rounding a double value up to the nearest greater integral value greater or equal to the original value.</summary>
@@ -2634,7 +2634,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise round to nearest integral value of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 round(float4 x) { return new float4(round(x.x), round(x.y), round(x.z), round(x.w)); }
+        public static float4 round(float4 x) { return new float4(round(x.X), round(x.Y), round(x.Z), round(x.W)); }
 
 
         /// <summary>Returns the result of rounding a double value to the nearest integral value.</summary>
@@ -2684,7 +2684,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise truncation of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 trunc(float4 x) { return new float4(trunc(x.x), trunc(x.y), trunc(x.z), trunc(x.w)); }
+        public static float4 trunc(float4 x) { return new float4(trunc(x.X), trunc(x.Y), trunc(x.Z), trunc(x.W)); }
 
 
         /// <summary>Returns the result of truncating a double value to an integral double value.</summary>
@@ -2857,7 +2857,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise sign of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 sign(float4 x) { return new float4(sign(x.x), sign(x.y), sign(x.z), sign(x.w)); }
+        public static float4 sign(float4 x) { return new float4(sign(x.X), sign(x.Y), sign(x.Z), sign(x.W)); }
 
 
         /// <summary>Returns the sign of a double value. -1.0 if it is less than zero, 0.0 if it is zero and 1.0 if it greater than zero.</summary>
@@ -2911,7 +2911,7 @@ namespace Vocore
         /// <param name="y">The exponent power.</param>
         /// <returns>The componentwise result of raising x to the power y.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 pow(float4 x, float4 y) { return new float4(pow(x.x, y.x), pow(x.y, y.y), pow(x.z, y.z), pow(x.w, y.w)); }
+        public static float4 pow(float4 x, float4 y) { return new float4(pow(x.X, y.X), pow(x.Y, y.Y), pow(x.Z, y.Z), pow(x.W, y.W)); }
 
 
         /// <summary>Returns x raised to the power y.</summary>
@@ -2965,7 +2965,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-e exponential of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 exp(float4 x) { return new float4(exp(x.x), exp(x.y), exp(x.z), exp(x.w)); }
+        public static float4 exp(float4 x) { return new float4(exp(x.X), exp(x.Y), exp(x.Z), exp(x.W)); }
 
 
         /// <summary>Returns the base-e exponential of x.</summary>
@@ -3015,7 +3015,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-2 exponential of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 exp2(float4 x) { return new float4(exp2(x.x), exp2(x.y), exp2(x.z), exp2(x.w)); }
+        public static float4 exp2(float4 x) { return new float4(exp2(x.X), exp2(x.Y), exp2(x.Z), exp2(x.W)); }
 
 
         /// <summary>Returns the base-2 exponential of x.</summary>
@@ -3065,7 +3065,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-10 exponential of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 exp10(float4 x) { return new float4(exp10(x.x), exp10(x.y), exp10(x.z), exp10(x.w)); }
+        public static float4 exp10(float4 x) { return new float4(exp10(x.X), exp10(x.Y), exp10(x.Z), exp10(x.W)); }
 
 
         /// <summary>Returns the base-10 exponential of x.</summary>
@@ -3115,7 +3115,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise natural logarithm of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 log(float4 x) { return new float4(log(x.x), log(x.y), log(x.z), log(x.w)); }
+        public static float4 log(float4 x) { return new float4(log(x.X), log(x.Y), log(x.Z), log(x.W)); }
 
 
         /// <summary>Returns the natural logarithm of a double value.</summary>
@@ -3165,7 +3165,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-2 logarithm of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 log2(float4 x) { return new float4(log2(x.x), log2(x.y), log2(x.z), log2(x.w)); }
+        public static float4 log2(float4 x) { return new float4(log2(x.X), log2(x.Y), log2(x.Z), log2(x.W)); }
 
 
         /// <summary>Returns the base-2 logarithm of a double value.</summary>
@@ -3214,7 +3214,7 @@ namespace Vocore
         /// <param name="x">Input value.</param>
         /// <returns>The componentwise base-10 logarithm of the input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 log10(float4 x) { return new float4(log10(x.x), log10(x.y), log10(x.z), log10(x.w)); }
+        public static float4 log10(float4 x) { return new float4(log10(x.X), log10(x.Y), log10(x.Z), log10(x.W)); }
 
 
         /// <summary>Returns the base-10 logarithm of a double value.</summary>
@@ -3268,7 +3268,7 @@ namespace Vocore
         /// <param name="y">The divisor in x/y.</param>
         /// <returns>The componentwise remainder of x/y.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 fmod(float4 x, float4 y) { return new float4(x.x % y.x, x.y % y.y, x.z % y.z, x.w % y.w); }
+        public static float4 fmod(float4 x, float4 y) { return new float4(x.X % y.X, x.Y % y.Y, x.Z % y.Z, x.W % y.W); }
 
 
         /// <summary>Returns the double precision floating point remainder of x/y.</summary>
@@ -3398,7 +3398,7 @@ namespace Vocore
         /// <param name="x">Value to use when computing square root.</param>
         /// <returns>The componentwise square root.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 sqrt(float4 x) { return new float4(sqrt(x.x), sqrt(x.y), sqrt(x.z), sqrt(x.w)); }
+        public static float4 sqrt(float4 x) { return new float4(sqrt(x.X), sqrt(x.Y), sqrt(x.Z), sqrt(x.W)); }
 
 
         /// <summary>Returns the square root of a double value.</summary>
@@ -4002,7 +4002,7 @@ namespace Vocore
         /// <param name="x">Vector of values to compare.</param>
         /// <returns>True if any the components of x are non-zero, false otherwise.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool any(float4 x) { return x.x != 0.0f || x.y != 0.0f || x.z != 0.0f || x.w != 0.0f; }
+        public static bool any(float4 x) { return x.X != 0.0f || x.Y != 0.0f || x.Z != 0.0f || x.W != 0.0f; }
 
 
         /// <summary>Returns true if any component of the input double2 vector is non-zero, false otherwise.</summary>
@@ -4097,7 +4097,7 @@ namespace Vocore
         /// <param name="x">Vector of values to compare.</param>
         /// <returns>True if all the components of x are non-zero, false otherwise.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool all(float4 x) { return x.x != 0.0f && x.y != 0.0f && x.z != 0.0f && x.w != 0.0f; }
+        public static bool all(float4 x) { return x.X != 0.0f && x.Y != 0.0f && x.Z != 0.0f && x.W != 0.0f; }
 
 
         /// <summary>Returns true if all components of the input double2 vector are non-zero, false otherwise.</summary>
@@ -4334,7 +4334,7 @@ namespace Vocore
         /// <param name="test">Selection mask to choose between falseValue and trueValue.</param>
         /// <returns>The componentwise selection between falseValue and trueValue according to selection mask test.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float4 select(float4 falseValue, float4 trueValue, bool4 test) { return new float4(test.x ? trueValue.x : falseValue.x, test.y ? trueValue.y : falseValue.y, test.z ? trueValue.z : falseValue.z, test.w ? trueValue.w : falseValue.w); }
+        public static float4 select(float4 falseValue, float4 trueValue, bool4 test) { return new float4(test.x ? trueValue.X : falseValue.X, test.y ? trueValue.Y : falseValue.Y, test.z ? trueValue.Z : falseValue.Z, test.w ? trueValue.W : falseValue.W); }
 
 
         /// <summary>Returns trueValue if test is true, falseValue otherwise.</summary>
@@ -6042,7 +6042,7 @@ namespace Vocore
         /// <param name="x">The vector to use when computing the minimum component.</param>
         /// <returns>The value of the minimum component of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float cmin(float4 x) { return min(min(x.x, x.y), min(x.z, x.w)); }
+        public static float cmin(float4 x) { return min(min(x.X, x.Y), min(x.Z, x.W)); }
 
 
         /// <summary>Returns the minimum component of a double2 vector.</summary>
@@ -6118,7 +6118,7 @@ namespace Vocore
         /// <param name="x">The vector to use when computing the maximum component.</param>
         /// <returns>The value of the maximum component of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float cmax(float4 x) { return max(max(x.x, x.y), max(x.z, x.w)); }
+        public static float cmax(float4 x) { return max(max(x.X, x.Y), max(x.Z, x.W)); }
 
 
         /// <summary>Returns the maximum component of a double2 vector.</summary>
@@ -6194,7 +6194,7 @@ namespace Vocore
         /// <param name="x">The vector to use when computing the horizontal sum.</param>
         /// <returns>The horizontal sum of of components of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float csum(float4 x) { return (x.x + x.y) + (x.z + x.w); }
+        public static float csum(float4 x) { return (x.X + x.Y) + (x.Z + x.W); }
 
 
         /// <summary>Returns the horizontal sum of components of a double2 vector.</summary>
@@ -6906,20 +6906,20 @@ namespace Vocore
             var d3 = qv * qv;
             var euler = Vocore.float3.zero;
 
-            var y1 = d2.z - d1.y;
+            var y1 = d2.Z - d1.Y;
             if (y1 * y1 < cutoff)
             {
-                var x1 = d2.y + d1.x;
-                var x2 = d3.z + d3.w - d3.y - d3.x;
-                var z1 = d2.x + d1.z;
-                var z2 = d3.x + d3.w - d3.y - d3.z;
+                var x1 = d2.Y + d1.X;
+                var x2 = d3.Z + d3.W - d3.Y - d3.X;
+                var z1 = d2.X + d1.Z;
+                var z2 = d3.X + d3.W - d3.Y - d3.Z;
                 euler = float3(atan2(x1, x2), -asin(y1), atan2(z1, z2));
             }
             else //xzx
             {
                 y1 = clamp(y1, -1f, 1f);
-                var abcd = float4(d2.z, d1.y, d2.x, d1.z);
-                var x1 = 2f * (abcd.x * abcd.w + abcd.y * abcd.z); //2(ad+bc)
+                var abcd = float4(d2.Z, d1.Y, d2.X, d1.Z);
+                var x1 = 2f * (abcd.X * abcd.W + abcd.Y * abcd.Z); //2(ad+bc)
                 var x2 = csum(abcd * abcd * float4(-1f, 1f, -1f, 1f));
                 euler = float3(atan2(x1, x2), -asin(y1), 0f);
             }
@@ -6946,20 +6946,20 @@ namespace Vocore
             var d3 = qv * qv;
             var euler = Vocore.float3.zero;
 
-            var y1 = d2.x + d1.z;
+            var y1 = d2.X + d1.Z;
             if (y1 * y1 < cutoff)
             {
-                var x1 = -d2.y + d1.x;
-                var x2 = d3.y + d3.w - d3.z - d3.x;
-                var z1 = -d2.z + d1.y;
-                var z2 = d3.x + d3.w - d3.y - d3.z;
+                var x1 = -d2.Y + d1.X;
+                var x2 = d3.Y + d3.W - d3.Z - d3.X;
+                var z1 = -d2.Z + d1.Y;
+                var z2 = d3.X + d3.W - d3.Y - d3.Z;
                 euler = float3(atan2(x1, x2), asin(y1), atan2(z1, z2));
             }
             else //xyx
             {
                 y1 = clamp(y1, -1f, 1f);
-                var abcd = float4(d2.x, d1.z, d2.z, d1.y);
-                var x1 = 2f * (abcd.x * abcd.w + abcd.y * abcd.z); //2(ad+bc)
+                var abcd = float4(d2.X, d1.Z, d2.Z, d1.Y);
+                var x1 = 2f * (abcd.X * abcd.W + abcd.Y * abcd.Z); //2(ad+bc)
                 var x2 = csum(abcd * abcd * float4(-1f, 1f, -1f, 1f));
                 euler = float3(atan2(x1, x2), asin(y1), 0f);
             }
@@ -6986,20 +6986,20 @@ namespace Vocore
             var d3 = qv * qv;
             var euler = Vocore.float3.zero;
 
-            var y1 = d2.y + d1.x;
+            var y1 = d2.Y + d1.X;
             if (y1 * y1 < cutoff)
             {
-                var x1 = -d2.z + d1.y;
-                var x2 = d3.z + d3.w - d3.x - d3.y;
-                var z1 = -d2.x + d1.z;
-                var z2 = d3.y + d3.w - d3.z - d3.x;
+                var x1 = -d2.Z + d1.Y;
+                var x2 = d3.Z + d3.W - d3.X - d3.Y;
+                var z1 = -d2.X + d1.Z;
+                var z2 = d3.Y + d3.W - d3.Z - d3.X;
                 euler = float3(atan2(x1, x2), asin(y1), atan2(z1, z2));
             }
             else //yzy
             {
                 y1 = clamp(y1, -1f, 1f);
-                var abcd = float4(d2.x, d1.z, d2.y, d1.x);
-                var x1 = 2f * (abcd.x * abcd.w + abcd.y * abcd.z); //2(ad+bc)
+                var abcd = float4(d2.X, d1.Z, d2.Y, d1.X);
+                var x1 = 2f * (abcd.X * abcd.W + abcd.Y * abcd.Z); //2(ad+bc)
                 var x2 = csum(abcd * abcd * float4(-1f, 1f, -1f, 1f));
                 euler = float3(atan2(x1, x2), asin(y1), 0f);
             }
@@ -7026,20 +7026,20 @@ namespace Vocore
             var d3 = qv * qv;
             var euler = Vocore.float3.zero;
 
-            var y1 = d2.x - d1.z;
+            var y1 = d2.X - d1.Z;
             if (y1 * y1 < cutoff)
             {
-                var x1 = d2.z + d1.y;
-                var x2 = d3.x + d3.w - d3.z - d3.y;
-                var z1 = d2.y + d1.x;
-                var z2 = d3.y + d3.w - d3.x - d3.z;
+                var x1 = d2.Z + d1.Y;
+                var x2 = d3.X + d3.W - d3.Z - d3.Y;
+                var z1 = d2.Y + d1.X;
+                var z2 = d3.Y + d3.W - d3.X - d3.Z;
                 euler = float3(atan2(x1, x2), -asin(y1), atan2(z1, z2));
             }
             else //yxy
             {
                 y1 = clamp(y1, -1f, 1f);
-                var abcd = float4(d2.x, d1.z, d2.y, d1.x);
-                var x1 = 2f * (abcd.x * abcd.w + abcd.y * abcd.z); //2(ad+bc)
+                var abcd = float4(d2.X, d1.Z, d2.Y, d1.X);
+                var x1 = 2f * (abcd.X * abcd.W + abcd.Y * abcd.Z); //2(ad+bc)
                 var x2 = csum(abcd * abcd * float4(-1f, 1f, -1f, 1f));
                 euler = float3(atan2(x1, x2), -asin(y1), 0f);
             }
@@ -7066,20 +7066,20 @@ namespace Vocore
             var d3 = qv * qv;
             var euler = Vocore.float3.zero;
 
-            var y1 = d2.y - d1.x;
+            var y1 = d2.Y - d1.X;
             if (y1 * y1 < cutoff)
             {
-                var x1 = d2.x + d1.z;
-                var x2 = d3.y + d3.w - d3.x - d3.z;
-                var z1 = d2.z + d1.y;
-                var z2 = d3.z + d3.w - d3.x - d3.y;
+                var x1 = d2.X + d1.Z;
+                var x2 = d3.Y + d3.W - d3.X - d3.Z;
+                var z1 = d2.Z + d1.Y;
+                var z2 = d3.Z + d3.W - d3.X - d3.Y;
                 euler = float3(atan2(x1, x2), -asin(y1), atan2(z1, z2));
             }
             else //zxz
             {
                 y1 = clamp(y1, -1f, 1f);
-                var abcd = float4(d2.z, d1.y, d2.y, d1.x);
-                var x1 = 2f * (abcd.x * abcd.w + abcd.y * abcd.z); //2(ad+bc)
+                var abcd = float4(d2.Z, d1.Y, d2.Y, d1.X);
+                var x1 = 2f * (abcd.X * abcd.W + abcd.Y * abcd.Z); //2(ad+bc)
                 var x2 = csum(abcd * abcd * float4(-1f, 1f, -1f, 1f));
                 euler = float3(atan2(x1, x2), -asin(y1), 0f);
             }
@@ -7105,20 +7105,20 @@ namespace Vocore
             var d3 = qv * qv;
             var euler = Vocore.float3.zero;
 
-            var y1 = d2.z + d1.y;
+            var y1 = d2.Z + d1.Y;
             if (y1 * y1 < cutoff)
             {
-                var x1 = -d2.x + d1.z;
-                var x2 = d3.x + d3.w - d3.y - d3.z;
-                var z1 = -d2.y + d1.x;
-                var z2 = d3.z + d3.w - d3.y - d3.x;
+                var x1 = -d2.X + d1.Z;
+                var x2 = d3.X + d3.W - d3.Y - d3.Z;
+                var z1 = -d2.Y + d1.X;
+                var z2 = d3.Z + d3.W - d3.Y - d3.X;
                 euler = float3(atan2(x1, x2), asin(y1), atan2(z1, z2));
             }
             else //zxz
             {
                 y1 = clamp(y1, -1f, 1f);
-                var abcd = float4(d2.z, d1.y, d2.y, d1.x);
-                var x1 = 2f * (abcd.x * abcd.w + abcd.y * abcd.z); //2(ad+bc)
+                var abcd = float4(d2.Z, d1.Y, d2.Y, d1.X);
+                var x1 = 2f * (abcd.X * abcd.W + abcd.Y * abcd.Z); //2(ad+bc)
                 var x2 = csum(abcd * abcd * float4(-1f, 1f, -1f, 1f));
                 euler = float3(atan2(x1, x2), asin(y1), 0f);
             }

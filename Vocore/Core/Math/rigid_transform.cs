@@ -296,7 +296,7 @@ namespace Vocore
         public override string ToString()
         {
             return string.Format("RigidTransform(({0}f, {1}f, {2}f, {3}f),  ({4}f, {5}f, {6}f))",
-                rot.value.x, rot.value.y, rot.value.z, rot.value.w, pos.X, pos.y, pos.Z);
+                rot.value.X, rot.value.Y, rot.value.Z, rot.value.W, pos.X, pos.y, pos.Z);
         }
 
         /// <summary>Returns a string representation of the RigidTransform using a specified format and culture-specific format information.</summary>
@@ -307,10 +307,10 @@ namespace Vocore
         public string ToString(string format, IFormatProvider formatProvider)
         {
             return string.Format("float4x4(({0}f, {1}f, {2}f, {3}f),  ({4}f, {5}f, {6}f))",
-                rot.value.x.ToString(format, formatProvider),
-                rot.value.y.ToString(format, formatProvider),
-                rot.value.z.ToString(format, formatProvider),
-                rot.value.w.ToString(format, formatProvider),
+                rot.value.X.ToString(format, formatProvider),
+                rot.value.Y.ToString(format, formatProvider),
+                rot.value.Z.ToString(format, formatProvider),
+                rot.value.W.ToString(format, formatProvider),
                 pos.X.ToString(format, formatProvider),
                 pos.y.ToString(format, formatProvider),
                 pos.Z.ToString(format, formatProvider));
@@ -367,7 +367,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float4 mul(RigidTransform a, float4 pos)
         {
-            return float4(mul(a.rot, pos.xyz) + a.pos * pos.w, pos.w);
+            return float4(mul(a.rot, pos.xyz) + a.pos * pos.W, pos.W);
         }
 
         /// <summary>Returns the result of rotating a float3 vector by a RigidTransform.</summary>

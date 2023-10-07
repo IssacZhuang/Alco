@@ -14,10 +14,10 @@ namespace Vocore
 		{
 			return new float4
 			{
-				x = (float)r / 255f,
-				y = (float)g / 255f,
-				z = (float)b / 255f,
-				w = (float)a / 255f
+                X = (float)r / 255f,
+                Y = (float)g / 255f,
+                Z = (float)b / 255f,
+                W = (float)a / 255f
 			};
 		}
 
@@ -51,10 +51,10 @@ namespace Vocore
         public static string ToHexStr(this float4 color)
 		{
             int4 color32 = default;
-            color32.x = (int)math.round(color.x * 255f);
-            color32.y = (int)math.round(color.y * 255f);
-            color32.z = (int)math.round(color.z * 255f);
-            color32.w = (int)math.round(color.w * 255f);
+            color32.x = (int)math.round(color.X * 255f);
+            color32.y = (int)math.round(color.Y * 255f);
+            color32.z = (int)math.round(color.Z * 255f);
+            color32.w = (int)math.round(color.W * 255f);
             return string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", color32.x, color32.y, color32.z, color32.w);
 		}
     }

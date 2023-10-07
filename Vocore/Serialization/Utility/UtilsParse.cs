@@ -430,13 +430,13 @@ namespace Vocore
             return string.Concat(new string[]
             {
                 "(",
-                value.value.x.ToString(CultureInfo.InvariantCulture),
+                value.value.X.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.value.y.ToString(CultureInfo.InvariantCulture),
+                value.value.Y.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.value.z.ToString(CultureInfo.InvariantCulture),
+                value.value.Z.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.value.w.ToString(CultureInfo.InvariantCulture),
+                value.value.W.ToString(CultureInfo.InvariantCulture),
                 ")"
             });
         }
@@ -481,13 +481,13 @@ namespace Vocore
             return string.Concat(new string[]
             {
                 "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
+                value.X.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
+                value.Y.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.z.ToString(CultureInfo.InvariantCulture),
+                value.Z.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.w.ToString(CultureInfo.InvariantCulture),
+                value.W.ToString(CultureInfo.InvariantCulture),
                 ")"
             });
         }

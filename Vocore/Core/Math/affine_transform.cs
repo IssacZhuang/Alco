@@ -248,7 +248,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float4 mul(AffineTransform a, float4 pos)
         {
-            return float4(mul(a.rs, pos.xyz) + a.t * pos.w, pos.w);
+            return float4(mul(a.rs, pos.xyz) + a.t * pos.W, pos.W);
         }
 
         /// <summary>Returns the result of rotating a float3 vector by an AffineTransform.</summary>

@@ -128,7 +128,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float mul(float4 a, float4 b)
         {
-            return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+            return a.X * b.X + a.Y * b.Y + a.Z * b.Z + a.W * b.W;
         }
 
         /// <summary>Returns the float2 row vector result of a matrix multiplication between a float4 row vector and a float4x2 matrix.</summary>
@@ -139,8 +139,8 @@ namespace Vocore
         public static float2 mul(float4 a, float4x2 b)
         {
             return float2(
-                a.x * b.c0.x + a.y * b.c0.y + a.z * b.c0.z + a.w * b.c0.w,
-                a.x * b.c1.x + a.y * b.c1.y + a.z * b.c1.z + a.w * b.c1.w);
+                a.X * b.c0.X + a.Y * b.c0.Y + a.Z * b.c0.Z + a.W * b.c0.W,
+                a.X * b.c1.X + a.Y * b.c1.Y + a.Z * b.c1.Z + a.W * b.c1.W);
         }
 
         /// <summary>Returns the float3 row vector result of a matrix multiplication between a float4 row vector and a float4x3 matrix.</summary>
@@ -151,9 +151,9 @@ namespace Vocore
         public static float3 mul(float4 a, float4x3 b)
         {
             return float3(
-                a.x * b.c0.x + a.y * b.c0.y + a.z * b.c0.z + a.w * b.c0.w,
-                a.x * b.c1.x + a.y * b.c1.y + a.z * b.c1.z + a.w * b.c1.w,
-                a.x * b.c2.x + a.y * b.c2.y + a.z * b.c2.z + a.w * b.c2.w);
+                a.X * b.c0.X + a.Y * b.c0.Y + a.Z * b.c0.Z + a.W * b.c0.W,
+                a.X * b.c1.X + a.Y * b.c1.Y + a.Z * b.c1.Z + a.W * b.c1.W,
+                a.X * b.c2.X + a.Y * b.c2.Y + a.Z * b.c2.Z + a.W * b.c2.W);
         }
 
         /// <summary>Returns the float4 row vector result of a matrix multiplication between a float4 row vector and a float4x4 matrix.</summary>
@@ -164,10 +164,10 @@ namespace Vocore
         public static float4 mul(float4 a, float4x4 b)
         {
             return float4(
-                a.x * b.c0.x + a.y * b.c0.y + a.z * b.c0.z + a.w * b.c0.w,
-                a.x * b.c1.x + a.y * b.c1.y + a.z * b.c1.z + a.w * b.c1.w,
-                a.x * b.c2.x + a.y * b.c2.y + a.z * b.c2.z + a.w * b.c2.w,
-                a.x * b.c3.x + a.y * b.c3.y + a.z * b.c3.z + a.w * b.c3.w);
+                a.X * b.c0.X + a.Y * b.c0.Y + a.Z * b.c0.Z + a.W * b.c0.W,
+                a.X * b.c1.X + a.Y * b.c1.Y + a.Z * b.c1.Z + a.W * b.c1.W,
+                a.X * b.c2.X + a.Y * b.c2.Y + a.Z * b.c2.Z + a.W * b.c2.W,
+                a.X * b.c3.X + a.Y * b.c3.Y + a.Z * b.c3.Z + a.W * b.c3.W);
         }
 
         /// <summary>Returns the float2 column vector result of a matrix multiplication between a float2x2 matrix and a float2 column vector.</summary>
@@ -275,7 +275,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float2 mul(float2x4 a, float4 b)
         {
-            return a.c0 * b.x + a.c1 * b.y + a.c2 * b.z + a.c3 * b.w;
+            return a.c0 * b.X + a.c1 * b.Y + a.c2 * b.Z + a.c3 * b.W;
         }
 
         /// <summary>Returns the float2x2 matrix result of a matrix multiplication between a float2x4 matrix and a float4x2 matrix.</summary>
@@ -286,8 +286,8 @@ namespace Vocore
         public static float2x2 mul(float2x4 a, float4x2 b)
         {
             return float2x2(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W);
         }
 
         /// <summary>Returns the float2x3 matrix result of a matrix multiplication between a float2x4 matrix and a float4x3 matrix.</summary>
@@ -298,9 +298,9 @@ namespace Vocore
         public static float2x3 mul(float2x4 a, float4x3 b)
         {
             return float2x3(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w,
-                a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z + a.c3 * b.c2.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W,
+                a.c0 * b.c2.X + a.c1 * b.c2.Y + a.c2 * b.c2.Z + a.c3 * b.c2.W);
         }
 
         /// <summary>Returns the float2x4 matrix result of a matrix multiplication between a float2x4 matrix and a float4x4 matrix.</summary>
@@ -311,10 +311,10 @@ namespace Vocore
         public static float2x4 mul(float2x4 a, float4x4 b)
         {
             return float2x4(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w,
-                a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z + a.c3 * b.c2.w,
-                a.c0 * b.c3.x + a.c1 * b.c3.y + a.c2 * b.c3.z + a.c3 * b.c3.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W,
+                a.c0 * b.c2.X + a.c1 * b.c2.Y + a.c2 * b.c2.Z + a.c3 * b.c2.W,
+                a.c0 * b.c3.X + a.c1 * b.c3.Y + a.c2 * b.c3.Z + a.c3 * b.c3.W);
         }
 
         /// <summary>Returns the float3 column vector result of a matrix multiplication between a float3x2 matrix and a float2 column vector.</summary>
@@ -422,7 +422,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 mul(float3x4 a, float4 b)
         {
-            return a.c0 * b.x + a.c1 * b.y + a.c2 * b.z + a.c3 * b.w;
+            return a.c0 * b.X + a.c1 * b.Y + a.c2 * b.Z + a.c3 * b.W;
         }
 
         /// <summary>Returns the float3x2 matrix result of a matrix multiplication between a float3x4 matrix and a float4x2 matrix.</summary>
@@ -433,8 +433,8 @@ namespace Vocore
         public static float3x2 mul(float3x4 a, float4x2 b)
         {
             return float3x2(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W);
         }
 
         /// <summary>Returns the float3x3 matrix result of a matrix multiplication between a float3x4 matrix and a float4x3 matrix.</summary>
@@ -445,9 +445,9 @@ namespace Vocore
         public static float3x3 mul(float3x4 a, float4x3 b)
         {
             return float3x3(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w,
-                a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z + a.c3 * b.c2.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W,
+                a.c0 * b.c2.X + a.c1 * b.c2.Y + a.c2 * b.c2.Z + a.c3 * b.c2.W);
         }
 
         /// <summary>Returns the float3x4 matrix result of a matrix multiplication between a float3x4 matrix and a float4x4 matrix.</summary>
@@ -458,10 +458,10 @@ namespace Vocore
         public static float3x4 mul(float3x4 a, float4x4 b)
         {
             return float3x4(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w,
-                a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z + a.c3 * b.c2.w,
-                a.c0 * b.c3.x + a.c1 * b.c3.y + a.c2 * b.c3.z + a.c3 * b.c3.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W,
+                a.c0 * b.c2.X + a.c1 * b.c2.Y + a.c2 * b.c2.Z + a.c3 * b.c2.W,
+                a.c0 * b.c3.X + a.c1 * b.c3.Y + a.c2 * b.c3.Z + a.c3 * b.c3.W);
         }
 
         /// <summary>Returns the float4 column vector result of a matrix multiplication between a float4x2 matrix and a float2 column vector.</summary>
@@ -569,7 +569,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float4 mul(float4x4 a, float4 b)
         {
-            return a.c0 * b.x + a.c1 * b.y + a.c2 * b.z + a.c3 * b.w;
+            return a.c0 * b.X + a.c1 * b.Y + a.c2 * b.Z + a.c3 * b.W;
         }
 
         /// <summary>Returns the float4x2 matrix result of a matrix multiplication between a float4x4 matrix and a float4x2 matrix.</summary>
@@ -580,8 +580,8 @@ namespace Vocore
         public static float4x2 mul(float4x4 a, float4x2 b)
         {
             return float4x2(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W);
         }
 
         /// <summary>Returns the float4x3 matrix result of a matrix multiplication between a float4x4 matrix and a float4x3 matrix.</summary>
@@ -592,9 +592,9 @@ namespace Vocore
         public static float4x3 mul(float4x4 a, float4x3 b)
         {
             return float4x3(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w,
-                a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z + a.c3 * b.c2.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W,
+                a.c0 * b.c2.X + a.c1 * b.c2.Y + a.c2 * b.c2.Z + a.c3 * b.c2.W);
         }
 
         /// <summary>Returns the float4x4 matrix result of a matrix multiplication between a float4x4 matrix and a float4x4 matrix.</summary>
@@ -605,10 +605,10 @@ namespace Vocore
         public static float4x4 mul(float4x4 a, float4x4 b)
         {
             return float4x4(
-                a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z + a.c3 * b.c0.w,
-                a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z + a.c3 * b.c1.w,
-                a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z + a.c3 * b.c2.w,
-                a.c0 * b.c3.x + a.c1 * b.c3.y + a.c2 * b.c3.z + a.c3 * b.c3.w);
+                a.c0 * b.c0.X + a.c1 * b.c0.Y + a.c2 * b.c0.Z + a.c3 * b.c0.W,
+                a.c0 * b.c1.X + a.c1 * b.c1.Y + a.c2 * b.c1.Z + a.c3 * b.c1.W,
+                a.c0 * b.c2.X + a.c1 * b.c2.Y + a.c2 * b.c2.Z + a.c3 * b.c2.W,
+                a.c0 * b.c3.X + a.c1 * b.c3.Y + a.c2 * b.c3.Z + a.c3 * b.c3.W);
         }
 
         /// <summary>Returns the double value result of a matrix multiplication between a double value and a double value.</summary>

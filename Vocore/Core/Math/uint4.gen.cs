@@ -204,10 +204,10 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint4(float4 v)
         {
-            this.x = (uint)v.x;
-            this.y = (uint)v.y;
-            this.z = (uint)v.z;
-            this.w = (uint)v.w;
+            this.x = (uint)v.X;
+            this.y = (uint)v.Y;
+            this.z = (uint)v.Z;
+            this.w = (uint)v.W;
         }
 
         /// <summary>Constructs a uint4 vector from a single double value by converting it to uint and assigning it to every component.</summary>

@@ -59,10 +59,10 @@ namespace Vocore
 
             for (int i = 0; i < points.Count; i++)
             {
-                xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.x));
-                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.y));
-                zPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.z));
-                wPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.w));
+                xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.X));
+                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Y));
+                zPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Z));
+                wPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.W));
             }
 
             _curveX.SetPoints(xPoints);
@@ -74,10 +74,10 @@ namespace Vocore
         public float4 Evaluate(float t)
         {
             float4 result;
-            result.x = _curveX.Evaluate(t);
-            result.y = _curveY.Evaluate(t);
-            result.z = _curveZ.Evaluate(t);
-            result.w = _curveW.Evaluate(t);
+            result.X = _curveX.Evaluate(t);
+            result.Y = _curveY.Evaluate(t);
+            result.Z = _curveZ.Evaluate(t);
+            result.W = _curveW.Evaluate(t);
             return result;
         }
     }

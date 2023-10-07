@@ -248,10 +248,10 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public double4(float4 v)
         {
-            this.x = v.x;
-            this.y = v.y;
-            this.z = v.z;
-            this.w = v.w;
+            this.x = v.X;
+            this.y = v.Y;
+            this.z = v.Z;
+            this.w = v.W;
         }
 
 

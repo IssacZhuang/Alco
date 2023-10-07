@@ -77,9 +77,9 @@ namespace Vocore
             uint3 npn = uint3(0x80000000, 0x00000000, 0x80000000);
             uint3 nnp = uint3(0x80000000, 0x80000000, 0x00000000);
             uint3 pnn = uint3(0x00000000, 0x80000000, 0x80000000);
-            c0 = v2.y * asfloat(asuint(v.yxw) ^ npn) - v2.z * asfloat(asuint(v.zwx) ^ pnn) + float3(1, 0, 0);
-            c1 = v2.z * asfloat(asuint(v.wzy) ^ nnp) - v2.x * asfloat(asuint(v.yxw) ^ npn) + float3(0, 1, 0);
-            c2 = v2.x * asfloat(asuint(v.zwx) ^ pnn) - v2.y * asfloat(asuint(v.wzy) ^ nnp) + float3(0, 0, 1);
+            c0 = v2.Y * asfloat(asuint(v.yxw) ^ npn) - v2.Z * asfloat(asuint(v.zwx) ^ pnn) + float3(1, 0, 0);
+            c1 = v2.Z * asfloat(asuint(v.wzy) ^ nnp) - v2.X * asfloat(asuint(v.yxw) ^ npn) + float3(0, 1, 0);
+            c2 = v2.X * asfloat(asuint(v.zwx) ^ pnn) - v2.Y * asfloat(asuint(v.wzy) ^ nnp) + float3(0, 0, 1);
         }
 
         /// <summary>
@@ -540,9 +540,9 @@ namespace Vocore
             uint4 mask = uint4(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000);
 
             return float4x4(
-                u.x * u_inv_cosa + asfloat((asuint(t.wzyx) ^ ppnp) & mask),
-                u.y * u_inv_cosa + asfloat((asuint(t.zwxx) ^ nppp) & mask),
-                u.z * u_inv_cosa + asfloat((asuint(t.yxwx) ^ pnpp) & mask),
+                u.X * u_inv_cosa + asfloat((asuint(t.wzyx) ^ ppnp) & mask),
+                u.Y * u_inv_cosa + asfloat((asuint(t.zwxx) ^ nppp) & mask),
+                u.Z * u_inv_cosa + asfloat((asuint(t.yxwx) ^ pnpp) & mask),
                 float4(0.0f, 0.0f, 0.0f, 1.0f)
                 );
 

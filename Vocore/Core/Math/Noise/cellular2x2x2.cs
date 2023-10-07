@@ -55,13 +55,13 @@ namespace Vocore
             // Do it right and sort out both F1 and F2
             float4 d = min(d1,d2); // F1 is now in d
             d2 = max(d1,d2); // Make sure we keep all candidates for F2
-            d.xy = (d.x < d.y) ? d.xy : d.yx; // Swap smallest to d.x
-            d.xz = (d.x < d.z) ? d.xz : d.zx;
-            d.xw = (d.x < d.w) ? d.xw : d.wx; // F1 is now in d.x
+            d.xy = (d.X < d.Y) ? d.xy : d.yx; // Swap smallest to d.x
+            d.xz = (d.X < d.Z) ? d.xz : d.zx;
+            d.xw = (d.X < d.W) ? d.xw : d.wx; // F1 is now in d.x
             d.yzw = min(d.yzw, d2.yzw); // F2 now not in d2.yzw
-            d.y = min(d.y, d.z); // nor in d.z
-            d.y = min(d.y, d.w); // nor in d.w
-            d.y = min(d.y, d2.x); // F2 is now in d.y
+            d.Y = min(d.Y, d.Z); // nor in d.z
+            d.Y = min(d.Y, d.W); // nor in d.w
+            d.Y = min(d.Y, d2.X); // F2 is now in d.y
             return sqrt(d.xy); // F1 and F2
         }
     }

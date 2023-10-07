@@ -539,7 +539,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("float4x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f,  {12}f, {13}f, {14}f, {15}f)", c0.x, c1.x, c2.x, c3.x, c0.y, c1.y, c2.y, c3.y, c0.z, c1.z, c2.z, c3.z, c0.w, c1.w, c2.w, c3.w);
+            return string.Format("float4x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f,  {12}f, {13}f, {14}f, {15}f)", c0.X, c1.X, c2.X, c3.X, c0.Y, c1.Y, c2.Y, c3.Y, c0.Z, c1.Z, c2.Z, c3.Z, c0.W, c1.W, c2.W, c3.W);
         }
 
         /// <summary>Returns a string representation of the float4x4 using a specified format and culture-specific format information.</summary>
@@ -549,7 +549,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("float4x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f,  {12}f, {13}f, {14}f, {15}f)", c0.x.ToString(format, formatProvider), c1.x.ToString(format, formatProvider), c2.x.ToString(format, formatProvider), c3.x.ToString(format, formatProvider), c0.y.ToString(format, formatProvider), c1.y.ToString(format, formatProvider), c2.y.ToString(format, formatProvider), c3.y.ToString(format, formatProvider), c0.z.ToString(format, formatProvider), c1.z.ToString(format, formatProvider), c2.z.ToString(format, formatProvider), c3.z.ToString(format, formatProvider), c0.w.ToString(format, formatProvider), c1.w.ToString(format, formatProvider), c2.w.ToString(format, formatProvider), c3.w.ToString(format, formatProvider));
+            return string.Format("float4x4({0}f, {1}f, {2}f, {3}f,  {4}f, {5}f, {6}f, {7}f,  {8}f, {9}f, {10}f, {11}f,  {12}f, {13}f, {14}f, {15}f)", c0.X.ToString(format, formatProvider), c1.X.ToString(format, formatProvider), c2.X.ToString(format, formatProvider), c3.X.ToString(format, formatProvider), c0.Y.ToString(format, formatProvider), c1.Y.ToString(format, formatProvider), c2.Y.ToString(format, formatProvider), c3.Y.ToString(format, formatProvider), c0.Z.ToString(format, formatProvider), c1.Z.ToString(format, formatProvider), c2.Z.ToString(format, formatProvider), c3.Z.ToString(format, formatProvider), c0.W.ToString(format, formatProvider), c1.W.ToString(format, formatProvider), c2.W.ToString(format, formatProvider), c3.W.ToString(format, formatProvider));
         }
 
     }
@@ -676,10 +676,10 @@ namespace Vocore
         public static float4x4 transpose(float4x4 v)
         {
             return float4x4(
-                v.c0.x, v.c0.y, v.c0.z, v.c0.w,
-                v.c1.x, v.c1.y, v.c1.z, v.c1.w,
-                v.c2.x, v.c2.y, v.c2.z, v.c2.w,
-                v.c3.x, v.c3.y, v.c3.z, v.c3.w);
+                v.c0.X, v.c0.Y, v.c0.Z, v.c0.W,
+                v.c1.X, v.c1.Y, v.c1.Z, v.c1.W,
+                v.c2.X, v.c2.Y, v.c2.Z, v.c2.W,
+                v.c3.X, v.c3.Y, v.c3.Z, v.c3.W);
         }
 
         /// <summary>Returns the float4x4 full inverse of a float4x4 matrix.</summary>
@@ -768,8 +768,8 @@ namespace Vocore
             float4 r1 = unpackhi(t0, t1);
             float4 r2 = unpacklo(t2, t3);
 
-            pos = -(r0 * pos.x + r1 * pos.y + r2 * pos.z);
-            pos.w = 1.0f;
+            pos = -(r0 * pos.X + r1 * pos.Y + r2 * pos.Z);
+            pos.W = 1.0f;
 
             return float4x4(r0, r1, r2, pos);
         }
@@ -784,12 +784,12 @@ namespace Vocore
             float4 c2 = m.c2;
             float4 c3 = m.c3;
 
-            float m00 = c1.y * (c2.z * c3.w - c2.w * c3.z) - c2.y * (c1.z * c3.w - c1.w * c3.z) + c3.y * (c1.z * c2.w - c1.w * c2.z);
-            float m01 = c0.y * (c2.z * c3.w - c2.w * c3.z) - c2.y * (c0.z * c3.w - c0.w * c3.z) + c3.y * (c0.z * c2.w - c0.w * c2.z);
-            float m02 = c0.y * (c1.z * c3.w - c1.w * c3.z) - c1.y * (c0.z * c3.w - c0.w * c3.z) + c3.y * (c0.z * c1.w - c0.w * c1.z);
-            float m03 = c0.y * (c1.z * c2.w - c1.w * c2.z) - c1.y * (c0.z * c2.w - c0.w * c2.z) + c2.y * (c0.z * c1.w - c0.w * c1.z);
+            float m00 = c1.Y * (c2.Z * c3.W - c2.W * c3.Z) - c2.Y * (c1.Z * c3.W - c1.W * c3.Z) + c3.Y * (c1.Z * c2.W - c1.W * c2.Z);
+            float m01 = c0.Y * (c2.Z * c3.W - c2.W * c3.Z) - c2.Y * (c0.Z * c3.W - c0.W * c3.Z) + c3.Y * (c0.Z * c2.W - c0.W * c2.Z);
+            float m02 = c0.Y * (c1.Z * c3.W - c1.W * c3.Z) - c1.Y * (c0.Z * c3.W - c0.W * c3.Z) + c3.Y * (c0.Z * c1.W - c0.W * c1.Z);
+            float m03 = c0.Y * (c1.Z * c2.W - c1.W * c2.Z) - c1.Y * (c0.Z * c2.W - c0.W * c2.Z) + c2.Y * (c0.Z * c1.W - c0.W * c1.Z);
 
-            return c0.x * m00 - c1.x * m01 + c2.x * m02 - c3.x * m03;
+            return c0.X * m00 - c1.X * m01 + c2.X * m02 - c3.X * m03;
         }
 
         /// <summary>Returns a uint hash code of a float4x4 matrix.</summary>

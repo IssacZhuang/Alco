@@ -34,7 +34,7 @@ namespace Vocore
         static float4 grad4(float j, float4 ip)
         {
             float4 ones = float4(1.0f, 1.0f, 1.0f, -1.0f);
-            float3 pxyz = floor(frac(float3(j) * ip.xyz) * 7.0f) * ip.z - 1.0f;
+            float3 pxyz = floor(frac(float3(j) * ip.xyz) * 7.0f) * ip.Z - 1.0f;
             float pw = 1.5f - dot(abs(pxyz), ones.xyz);
             float4 p = float4(pxyz, pw);
             float4 s = float4(p < 0.0f);

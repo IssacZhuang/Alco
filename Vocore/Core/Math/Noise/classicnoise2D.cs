@@ -40,21 +40,21 @@ namespace Vocore
             float4 tx = floor(gx + 0.5f);
             gx = gx - tx;
 
-            float2 g00 = float2(gx.x, gy.x);
-            float2 g10 = float2(gx.y, gy.y);
-            float2 g01 = float2(gx.z, gy.z);
-            float2 g11 = float2(gx.w, gy.w);
+            float2 g00 = float2(gx.X, gy.X);
+            float2 g10 = float2(gx.Y, gy.Y);
+            float2 g01 = float2(gx.Z, gy.Z);
+            float2 g11 = float2(gx.W, gy.W);
 
             float4 norm = taylorInvSqrt(float4(dot(g00, g00), dot(g01, g01), dot(g10, g10), dot(g11, g11)));
-            g00 *= norm.x;
-            g01 *= norm.y;
-            g10 *= norm.z;
-            g11 *= norm.w;
+            g00 *= norm.X;
+            g01 *= norm.Y;
+            g10 *= norm.Z;
+            g11 *= norm.W;
 
-            float n00 = dot(g00, float2(fx.x, fy.x));
-            float n10 = dot(g10, float2(fx.y, fy.y));
-            float n01 = dot(g01, float2(fx.z, fy.z));
-            float n11 = dot(g11, float2(fx.w, fy.w));
+            float n00 = dot(g00, float2(fx.X, fy.X));
+            float n10 = dot(g10, float2(fx.Y, fy.Y));
+            float n01 = dot(g01, float2(fx.Z, fy.Z));
+            float n11 = dot(g11, float2(fx.W, fy.W));
 
             float2 fade_xy = fade(Pf.xy);
             float2 n_x = lerp(float2(n00, n01), float2(n10, n11), fade_xy.x);
@@ -86,21 +86,21 @@ namespace Vocore
             float4 tx = floor(gx + 0.5f);
             gx = gx - tx;
 
-            float2 g00 = float2(gx.x, gy.x);
-            float2 g10 = float2(gx.y, gy.y);
-            float2 g01 = float2(gx.z, gy.z);
-            float2 g11 = float2(gx.w, gy.w);
+            float2 g00 = float2(gx.X, gy.X);
+            float2 g10 = float2(gx.Y, gy.Y);
+            float2 g01 = float2(gx.Z, gy.Z);
+            float2 g11 = float2(gx.W, gy.W);
 
             float4 norm = taylorInvSqrt(float4(dot(g00, g00), dot(g01, g01), dot(g10, g10), dot(g11, g11)));
-            g00 *= norm.x;
-            g01 *= norm.y;
-            g10 *= norm.z;
-            g11 *= norm.w;
+            g00 *= norm.X;
+            g01 *= norm.Y;
+            g10 *= norm.Z;
+            g11 *= norm.W;
 
-            float n00 = dot(g00, float2(fx.x, fy.x));
-            float n10 = dot(g10, float2(fx.y, fy.y));
-            float n01 = dot(g01, float2(fx.z, fy.z));
-            float n11 = dot(g11, float2(fx.w, fy.w));
+            float n00 = dot(g00, float2(fx.X, fy.X));
+            float n10 = dot(g10, float2(fx.Y, fy.Y));
+            float n01 = dot(g01, float2(fx.Z, fy.Z));
+            float n11 = dot(g11, float2(fx.W, fy.W));
 
             float2 fade_xy = fade(Pf.xy);
             float2 n_x = lerp(float2(n00, n01), float2(n10, n11), fade_xy.x);

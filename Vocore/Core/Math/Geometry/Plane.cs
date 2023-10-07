@@ -141,8 +141,8 @@ namespace Vocore.Geometry
         /// </remarks>
         public float Distance
         {
-            get => NormalAndDistance.w;
-            set => NormalAndDistance.w = value;
+            get => NormalAndDistance.W;
+            set => NormalAndDistance.W = value;
         }
 
         /// <summary>

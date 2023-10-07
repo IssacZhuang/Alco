@@ -37,11 +37,11 @@ namespace Vocore
             float4 d = dx * dx + dy * dy; // d11, d12, d21 and d22, squared
             // Sort out the two smallest distances
             // Do it right and find both F1 and F2
-            d.xy = (d.x < d.y) ? d.xy : d.yx; // Swap if smaller
-            d.xz = (d.x < d.z) ? d.xz : d.zx;
-            d.xw = (d.x < d.w) ? d.xw : d.wx;
-            d.y = min(d.y, d.z);
-            d.y = min(d.y, d.w);
+            d.xy = (d.X < d.Y) ? d.xy : d.yx; // Swap if smaller
+            d.xz = (d.X < d.Z) ? d.xz : d.zx;
+            d.xw = (d.X < d.W) ? d.xw : d.wx;
+            d.Y = min(d.Y, d.Z);
+            d.Y = min(d.Y, d.W);
             return sqrt(d.xy);
         }
     }

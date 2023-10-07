@@ -160,10 +160,10 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public half4(float4 v)
         {
-            this.x = (half)v.x;
-            this.y = (half)v.y;
-            this.z = (half)v.z;
-            this.w = (half)v.w;
+            this.x = (half)v.X;
+            this.y = (half)v.Y;
+            this.z = (half)v.Z;
+            this.w = (half)v.W;
         }
 
         /// <summary>Constructs a half4 vector from a single double value by converting it to half and assigning it to every component.</summary>

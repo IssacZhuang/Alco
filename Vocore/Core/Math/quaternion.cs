@@ -26,7 +26,7 @@ namespace Vocore
         /// <param name="z">The quaternion z component.</param>
         /// <param name="w">The quaternion w component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public quaternion(float x, float y, float z, float w) { value.x = x; value.y = y; value.z = z; value.w = w; }
+        public quaternion(float x, float y, float z, float w) { value.X = x; value.Y = y; value.Z = z; value.W = w; }
 
         /// <summary>Constructs a quaternion from float4 vector.</summary>
         /// <param name="value">The quaternion xyzw component values.</param>
@@ -71,16 +71,16 @@ namespace Vocore
             float4 v = m.c1;
             float4 w = m.c2;
 
-            uint u_sign = (asuint(u.x) & 0x80000000);
-            float t = v.y + asfloat(asuint(w.z) ^ u_sign);
+            uint u_sign = (asuint(u.X) & 0x80000000);
+            float t = v.Y + asfloat(asuint(w.Z) ^ u_sign);
             uint4 u_mask = uint4((int)u_sign >> 31);
             uint4 t_mask = uint4(asint(t) >> 31);
 
-            float tr = 1.0f + abs(u.x);
+            float tr = 1.0f + abs(u.X);
 
             uint4 sign_flips = uint4(0x00000000, 0x80000000, 0x80000000, 0x80000000) ^ (u_mask & uint4(0x00000000, 0x80000000, 0x00000000, 0x80000000)) ^ (t_mask & uint4(0x80000000, 0x80000000, 0x80000000, 0x00000000));
 
-            value = float4(tr, u.y, w.x, v.z) + asfloat(asuint(float4(t, v.x, u.z, w.y)) ^ sign_flips);   // +---, +++-, ++-+, +-++
+            value = float4(tr, u.Y, w.X, v.Z) + asfloat(asuint(float4(t, v.X, u.Z, w.Y)) ^ sign_flips);   // +---, +++-, ++-+, +-++
 
             value = asfloat((asuint(value) & ~u_mask) | (asuint(value.zwxy) & u_mask));
             value = asfloat((asuint(value.wzyx) & ~t_mask) | (asuint(value) & t_mask));
@@ -425,7 +425,7 @@ namespace Vocore
         /// <param name="x">The quaternion to compare with.</param>
         /// <returns>True if the quaternion is equal to the input, false otherwise.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(quaternion x) { return value.x == x.value.x && value.y == x.value.y && value.z == x.value.z && value.w == x.value.w; }
+        public bool Equals(quaternion x) { return value.X == x.value.X && value.Y == x.value.Y && value.Z == x.value.Z && value.W == x.value.W; }
 
         /// <summary>Returns whether true if the quaternion is equal to a given quaternion, false otherwise.</summary>
         /// <param name="x">The object to compare with.</param>
@@ -443,7 +443,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
-            return string.Format("quaternion({0}f, {1}f, {2}f, {3}f)", value.x, value.y, value.z, value.w);
+            return string.Format("quaternion({0}f, {1}f, {2}f, {3}f)", value.X, value.Y, value.Z, value.W);
         }
 
         /// <summary>Returns a string representation of the quaternion using a specified format and culture-specific format information.</summary>
@@ -453,7 +453,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return string.Format("quaternion({0}f, {1}f, {2}f, {3}f)", value.x.ToString(format, formatProvider), value.y.ToString(format, formatProvider), value.z.ToString(format, formatProvider), value.w.ToString(format, formatProvider));
+            return string.Format("quaternion({0}f, {1}f, {2}f, {3}f)", value.X.ToString(format, formatProvider), value.Y.ToString(format, formatProvider), value.Z.ToString(format, formatProvider), value.W.ToString(format, formatProvider));
         }
     }
 
@@ -595,7 +595,7 @@ namespace Vocore
             float v_len = rcp(v_rcp_len);
             float sin_v_len, cos_v_len;
             sincos(v_len, out sin_v_len, out cos_v_len);
-            return quaternion(float4(q.value.xyz * v_rcp_len * sin_v_len, cos_v_len) * exp(q.value.w));
+            return quaternion(float4(q.value.xyz * v_rcp_len * sin_v_len, cos_v_len) * exp(q.value.W));
         }
 
         /// <summary>Returns the natural logarithm of a unit length quaternion.</summary>
@@ -604,7 +604,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static quaternion unitlog(quaternion q)
         {
-            float w = clamp(q.value.w, -1.0f, 1.0f);
+            float w = clamp(q.value.W, -1.0f, 1.0f);
             float s = acos(w) * rsqrt(1.0f - w * w);
             return quaternion(float4(q.value.xyz * s, 0.0f));
         }
@@ -616,9 +616,9 @@ namespace Vocore
         public static quaternion log(quaternion q)
         {
             float v_len_sq = dot(q.value.xyz, q.value.xyz);
-            float q_len_sq = v_len_sq + q.value.w * q.value.w;
+            float q_len_sq = v_len_sq + q.value.W * q.value.W;
 
-            float s = acos(clamp(q.value.w * rsqrt(q_len_sq), -1.0f, 1.0f)) * rsqrt(v_len_sq);
+            float s = acos(clamp(q.value.W * rsqrt(q_len_sq), -1.0f, 1.0f)) * rsqrt(v_len_sq);
             return quaternion(float4(q.value.xyz * s, 0.5f * log(q_len_sq)));
         }
 
@@ -640,7 +640,7 @@ namespace Vocore
         public static float3 mul(quaternion q, float3 v)
         {
             float3 t = 2 * cross(q.value.xyz, v);
-            return v + q.value.w * t + cross(q.value.xyz, t);
+            return v + q.value.W * t + cross(q.value.xyz, t);
         }
 
         /// <summary>Returns the result of rotating a vector by a unit quaternion.</summary>
@@ -651,7 +651,7 @@ namespace Vocore
         public static float3 rotate(quaternion q, float3 v)
         {
             float3 t = 2 * cross(q.value.xyz, v);
-            return v + q.value.w * t + cross(q.value.xyz, t);
+            return v + q.value.W * t + cross(q.value.xyz, t);
         }
 
         /// <summary>Returns the result of a normalized linear interpolation between two quaternions q1 and a2 using an interpolation parameter t.</summary>
