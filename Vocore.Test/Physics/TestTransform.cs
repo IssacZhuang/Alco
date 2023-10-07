@@ -18,6 +18,17 @@ namespace Vocore.Test
             // UnitTest.PrintBlue(UtilsTranform.Angle(parent.rot, child.rot));
             // UnitTest.PrintBlue(local.pos);
         }
+
+        [Test("test box to local")]
+        public void TestBoxToLocal()
+        {
+            ShapeBox box = new ShapeBox(new Vector3(0, 0, 0), new Vector3(1, 1, 1), math.EulerXYZ(math.radians(new Vector3(0, 0, 0))));
+            RigidTransform transform = new RigidTransform(math.EulerXYZ(math.radians(new Vector3(45, 0, 0))), new Vector3(0, 0, 0));
+            BoundingBox boxInWorld = box.GetBoundingBox(transform);
+            BoundingBox boxInLocal = box.GetBoundingBox();
+            UnitTest.PrintBlue(boxInWorld);
+            UnitTest.PrintBlue(boxInLocal);
+        }
     }
 }
 
