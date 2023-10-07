@@ -1,8 +1,7 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 using Vocore;
-
-using UnityEngine;
 
 
 namespace Vocore.Test
@@ -78,8 +77,8 @@ namespace Vocore.Test
         public void Test_ToVector2()
         {
             string str = "(123.456,789.012)";
-            float2 v = _parseHelper.StrToFloat2(str);
-            UnitTest.AssertFalse(!v.Equals(new float2(123.456f, 789.012f)));
+            Vector2 v = _parseHelper.StrToFloat2(str);
+            UnitTest.AssertFalse(!v.Equals(new Vector2(123.456f, 789.012f)));
             UnitTest.AssertFalse(str != _parseHelper.Float2ToStr(v));
         }
 
@@ -87,17 +86,17 @@ namespace Vocore.Test
         public void Test_ToVector3()
         {
             string str = "(123.456,789.012,345.678)";
-            float3 v = _parseHelper.StrToFloat3(str);
-            UnitTest.AssertFalse(!v.Equals(new float3(123.456f, 789.012f, 345.678f)));
-            UnitTest.AssertFalse(str != _parseHelper.Float3ToStr(v));
+            Vector3 v = _parseHelper.StrToVector3(str);
+            UnitTest.AssertFalse(!v.Equals(new Vector3(123.456f, 789.012f, 345.678f)));
+            UnitTest.AssertFalse(str != _parseHelper.Vector3ToStr(v));
         }
 
         [Test("test UtilsParse.ToVector4Adaptive")]
         public void Test_ToVector4Adaptive()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            float4 v = _parseHelper.StrToFloat4Adaptive(str);
-            UnitTest.AssertFalse(!v.Equals(new float4(123.456f, 789.012f, 345.678f, 901.234f)));
+            Vector4 v = _parseHelper.StrToFloat4Adaptive(str);
+            UnitTest.AssertFalse(!v.Equals(new Vector4(123.456f, 789.012f, 345.678f, 901.234f)));
             UnitTest.AssertFalse(str != _parseHelper.Float4ToStr(v));
         }
 
@@ -105,8 +104,8 @@ namespace Vocore.Test
         public void Test_ToQuaternion()
         {
             string str = "(123.456,789.012,345.678,901.234)";
-            quaternion q = _parseHelper.StrToQuaternion(str);
-            UnitTest.AssertFalse(!q.Equals(new quaternion(123.456f, 789.012f, 345.678f, 901.234f)));
+            Quaternion q = _parseHelper.StrToQuaternion(str);
+            UnitTest.AssertFalse(!q.Equals(new Quaternion(123.456f, 789.012f, 345.678f, 901.234f)));
             UnitTest.AssertFalse(str != _parseHelper.QuaternionToStr(q));
         }
 

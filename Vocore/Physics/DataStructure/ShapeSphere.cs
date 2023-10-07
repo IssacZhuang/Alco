@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 
 
@@ -7,10 +8,10 @@ namespace Vocore
 {
     public struct ShapeSphere : IShape
     {
-        public float3 center;
+        public Vector3 center;
         public float radius;
 
-        public ShapeSphere(float3 center, float radius)
+        public ShapeSphere(Vector3 center, float radius)
         {
             this.center = center;
             this.radius = radius;
@@ -18,17 +19,17 @@ namespace Vocore
 
         public BoundingBox GetBoundingBox()
         {
-            float3 extends = new float3(radius);
+            Vector3 extends = new Vector3(radius);
             return new BoundingBox(center - extends, center + extends);
         }
 
         public BoundingBox GetBoundingBox(RigidTransform transform)
         {
-            float3 centerInWorld = math.transform(transform, center);
+            Vector3 centerInWorld = math.transform(transform, center);
             return new BoundingBox
             {
-                min = centerInWorld - new float3(radius),
-                max = centerInWorld + new float3(radius)
+                min = centerInWorld - new Vector3(radius),
+                max = centerInWorld + new Vector3(radius)
             };
         }
     }

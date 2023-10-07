@@ -35,9 +35,9 @@ namespace Vocore
         public static readonly int ShaderId_renderTexture = Shader.PropertyToID("_output");
         public static readonly string Kernel_FloodFill = "FloodFill";
         public static readonly string Kernel_ResetBuffer = "ResetBuffer";
-        public static readonly float3 DefaultColor = new float3(0, 0, 0);
+        public static readonly Vector3 DefaultColor = new Vector3(0, 0, 0);
 
-        private StructuredBuffer<float3> _fixedLights;
+        private StructuredBuffer<Vector3> _fixedLights;
         private StructuredBuffer<float> _transparencyMap;
         private int _width;
         private int _height;
@@ -116,7 +116,7 @@ namespace Vocore
 
 
 
-        public bool AddLight(int2 postion, float3 color)
+        public bool AddLight(int2 postion, Vector3 color)
         {
             if (_renderBounds.Contains(postion))
             {
@@ -130,13 +130,13 @@ namespace Vocore
         {
             if (_renderBounds.Contains(postion))
             {
-                AddLightNoBoundCheck(postion, new float3(color.r, color.g, color.b));
+                AddLightNoBoundCheck(postion, new Vector3(color.r, color.g, color.b));
                 return true;
             }
             return false;
         }
 
-        public void AddLightNoBoundCheck(int2 postion, float3 color)
+        public void AddLightNoBoundCheck(int2 postion, Vector3 color)
         {
             int2 renderPosition = postion - _renderBounds.min;
             _fixedLights[renderPosition.x + renderPosition.y * _width] = color;
@@ -158,15 +158,15 @@ namespace Vocore
             _transparencyMap[renderPosition.x + renderPosition.y * _width] = transparency;
         }
 
-        public float2 GetRenderPlanePosition()
+        public Vector2 GetRenderPlanePosition()
         {
             //center of aabb
-            return new float2(_renderBounds.min.x + (float)_renderBounds.Width / 2f, _renderBounds.min.y + (float)_renderBounds.Height / 2f);
+            return new Vector2(_renderBounds.min.x + (float)_renderBounds.Width / 2f, _renderBounds.min.y + (float)_renderBounds.Height / 2f);
         }
 
-        public float3 GetRenderPlaneScale()
+        public Vector3 GetRenderPlaneScale()
         {
-            return new float3(_renderBounds.Width, _renderBounds.Height, 1);
+            return new Vector3(_renderBounds.Width, _renderBounds.Height, 1);
         }
 
         public void OnFrame()
@@ -193,12 +193,12 @@ namespace Vocore
             int size = _width * _height;
 
             _renderBounds = new AABBInt(0, 0, _width, _height);
-            _fixedLights = new StructuredBuffer<float3>(size);
+            _fixedLights = new StructuredBuffer<Vector3>(size);
             _transparencyMap = new StructuredBuffer<float>(size);
 
-            _GPUBuffer1 = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
-            _GPUBuffer2 = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
-            _GPUFixedLights = new ComputeBuffer(size, UtilsMemory.SizeOf<float3>());
+            _GPUBuffer1 = new ComputeBuffer(size, UtilsMemory.SizeOf<Vector3>());
+            _GPUBuffer2 = new ComputeBuffer(size, UtilsMemory.SizeOf<Vector3>());
+            _GPUFixedLights = new ComputeBuffer(size, UtilsMemory.SizeOf<Vector3>());
 
             _GPUTransparencyMap = new ComputeBuffer(size, sizeof(float));
 

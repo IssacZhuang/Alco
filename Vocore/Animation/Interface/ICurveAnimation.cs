@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 
 
@@ -16,15 +17,15 @@ namespace Vocore
     {
     }
 
-    public interface ICurveAnimation2D : ICurveAnimationBase<float2>
+    public interface ICurveAnimation2D : ICurveAnimationBase<Vector2>
     {
     }
 
-    public interface ICurveAnimation3D : ICurveAnimationBase<float3>
+    public interface ICurveAnimation3D : ICurveAnimationBase<Vector3>
     {
     }
 
-    public interface ICurveAnimation4D : ICurveAnimationBase<float4>
+    public interface ICurveAnimation4D : ICurveAnimationBase<Vector4>
     {
     }
 }

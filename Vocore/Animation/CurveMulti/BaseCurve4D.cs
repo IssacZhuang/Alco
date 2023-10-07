@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 
 
@@ -7,7 +8,7 @@ namespace Vocore
 {
     public class BaseCurve4D<T>:ICurve4D where T: ICurve
     {
-        private List<CurvePoint<float4>> _points = new List<CurvePoint<float4>>();
+        private List<CurvePoint<Vector4>> _points = new List<CurvePoint<Vector4>>();
 
         private T _curveX;
         private T _curveY;
@@ -22,7 +23,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<CurvePoint<float4>> Points
+        public IReadOnlyList<CurvePoint<Vector4>> Points
         {
             get
             {
@@ -38,12 +39,12 @@ namespace Vocore
             _curveW = (T)Activator.CreateInstance(typeof(T));
         }
 
-        public BaseCurve4D(IList<CurvePoint<float4>> points)
+        public BaseCurve4D(IList<CurvePoint<Vector4>> points)
         {
             SetPoints(points);
         }
 
-        public void SetPoints(IList<CurvePoint<float4>> points)
+        public void SetPoints(IList<CurvePoint<Vector4>> points)
         {
             if (points == null)
             {
@@ -71,9 +72,9 @@ namespace Vocore
             _curveW.SetPoints(wPoints);
         }
 
-        public float4 Evaluate(float t)
+        public Vector4 Evaluate(float t)
         {
-            float4 result;
+            Vector4 result;
             result.X = _curveX.Evaluate(t);
             result.Y = _curveY.Evaluate(t);
             result.Z = _curveZ.Evaluate(t);

@@ -1,21 +1,21 @@
 using System;
-
+using System.Numerics;
 
 
 namespace Vocore
 {
     public struct Ray
     {
-        public float3 origin;
-        public float3 displacement;
+        public Vector3 origin;
+        public Vector3 displacement;
 
-        public Ray(float3 origin, float3 displacement)
+        public Ray(Vector3 origin, Vector3 displacement)
         {
             this.origin = origin;
             this.displacement = displacement;
         }
 
-        public static Ray CreateWithStartAndEnd(float3 start, float3 end)
+        public static Ray CreateWithStartAndEnd(Vector3 start, Vector3 end)
         {
             return new Ray
             {

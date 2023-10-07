@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 
@@ -11,7 +12,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SphereSphere(ShapeSphere sphere1, ShapeSphere sphere2)
         {
-            float3 difference = sphere1.center - sphere2.center;
+            Vector3 difference = sphere1.center - sphere2.center;
             float distanceSquared = math.dot(difference, difference);
             float sumRadius = sphere1.radius + sphere2.radius;
             return distanceSquared < sumRadius * sumRadius;
@@ -20,11 +21,11 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxSphere(ShapeBox box, ShapeSphere sphere)
         {
-            float3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
+            Vector3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
 
-            float3 closestPoint = math.clamp(sphereCenter, -box.extends, box.extends);
+            Vector3 closestPoint = math.clamp(sphereCenter, -box.extends, box.extends);
 
-            float3 difference = closestPoint - sphereCenter;
+            Vector3 difference = closestPoint - sphereCenter;
             float distanceSquared = math.dot(difference, difference);
             return distanceSquared < sphere.radius * sphere.radius;
         }
@@ -32,7 +33,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBox(ShapeBox box1, ShapeBox box2)
         {
-            if (box1.rotation.Equals(quaternion.identity) && box2.rotation.Equals(quaternion.identity))
+            if (box1.rotation.Equals(Quaternion.Identity) && box2.rotation.Equals(Quaternion.Identity))
             {
                 return BoxBoxAxisAligned(box1, box2);
             }
@@ -43,13 +44,13 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBoxAxisAligned(ShapeBox box1, ShapeBox box2)
         {
-            float3 min1 = box1.center - box1.extends;
-            float3 max1 = box1.center + box1.extends;
-            float3 min2 = box2.center - box2.extends;
-            float3 max2 = box2.center + box2.extends;
+            Vector3 min1 = box1.center - box1.extends;
+            Vector3 max1 = box1.center + box1.extends;
+            Vector3 min2 = box2.center - box2.extends;
+            Vector3 max2 = box2.center + box2.extends;
 
             return min1.X <= max2.X && max1.X >= min2.X &&
-                   min1.y <= max2.y && max1.y >= min2.y &&
+                   min1.Y <= max2.Y && max1.Y >= min2.Y &&
                    min1.Z <= max2.Z && max1.Z >= min2.Z;
         }
 
@@ -62,10 +63,10 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool RaySphere(float3 rayOrigin, float3 rayDisplacement, float3 sphereCenter, float sphereRadius, ref float fraction, out float3 normal)
+        public static bool RaySphere(Vector3 rayOrigin, Vector3 rayDisplacement, Vector3 sphereCenter, float sphereRadius, ref float fraction, out Vector3 normal)
         {
-            normal = float3.zero;
-            float3 diff = rayOrigin - sphereCenter;
+            normal = Vector3.Zero;
+            Vector3 diff = rayOrigin - sphereCenter;
             float a = math.dot(rayDisplacement, rayDisplacement);
             float b = 2f * math.dot(rayDisplacement, diff);
             float c = math.dot(diff, diff) - sphereRadius * sphereRadius;
@@ -99,7 +100,7 @@ namespace Vocore
         {
             hit = new RaycastHit();
             float fraction = float.MaxValue;
-            float3 normal = float3.zero;
+            Vector3 normal = Vector3.Zero;
             hit = default;
 
             if (RaySphere(ray.origin, ray.displacement, sphere.center, sphere.radius, ref fraction, out normal))
@@ -113,15 +114,15 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool RayAABB(Ray ray, BoundingBox boundingBox, ref float fraction, out float3 normal)
+        public static bool RayAABB(Ray ray, BoundingBox boundingBox, ref float fraction, out Vector3 normal)
         {
-            normal = float3.zero;
-            float3 rayOrigin = ray.origin;
-            float3 rayDisplacement = ray.displacement;
-            float3 min = boundingBox.min;
-            float3 max = boundingBox.max;
+            normal = Vector3.Zero;
+            Vector3 rayOrigin = ray.origin;
+            Vector3 rayDisplacement = ray.displacement;
+            Vector3 min = boundingBox.min;
+            Vector3 max = boundingBox.max;
 
-            float3 invRayDisplacement = 1f / rayDisplacement;
+            Vector3 invRayDisplacement = math.inverse(rayDisplacement);//1f / rayDisplacement;
 
             float txmin = (min.X - rayOrigin.X) * invRayDisplacement.X;
             float txmax = (max.X - rayOrigin.X) * invRayDisplacement.X;
@@ -138,8 +139,8 @@ namespace Vocore
             float tmin = txmin;
             float tmax = txmax;
 
-            float tymin = (min.y - rayOrigin.y) * invRayDisplacement.y;
-            float tymax = (max.y - rayOrigin.y) * invRayDisplacement.y;
+            float tymin = (min.Y - rayOrigin.Y) * invRayDisplacement.Y;
+            float tymax = (max.Y - rayOrigin.Y) * invRayDisplacement.Y;
             float inverseY = 1f;
 
             if (tymin > tymax)
@@ -196,27 +197,27 @@ namespace Vocore
             //todo: calculate normal of hit face
             if (txmin == tmin)
             {
-                normal = new float3(-1.0f, 0.0f, 0.0f) * inverseX;
+                normal = new Vector3(-1.0f, 0.0f, 0.0f) * inverseX;
             }
             else if (txmax == tmin)
             {
-                normal = new float3(1.0f, 0.0f, 0.0f) * inverseX;
+                normal = new Vector3(1.0f, 0.0f, 0.0f) * inverseX;
             }
             else if (tymin == tmin)
             {
-                normal = new float3(0.0f, -1.0f, 0.0f) * inverseY;
+                normal = new Vector3(0.0f, -1.0f, 0.0f) * inverseY;
             }
             else if (tymax == tmin)
             {
-                normal = new float3(0.0f, 1.0f, 0.0f) * inverseY;
+                normal = new Vector3(0.0f, 1.0f, 0.0f) * inverseY;
             }
             else if (tzmin == tmin)
             {
-                normal = new float3(0.0f, 0.0f, -1.0f) * inverseZ;
+                normal = new Vector3(0.0f, 0.0f, -1.0f) * inverseZ;
             }
             else if (tzmax == tmin)
             {
-                normal = new float3(0.0f, 0.0f, 1.0f) *inverseZ;
+                normal = new Vector3(0.0f, 0.0f, 1.0f) * inverseZ;
             }
 
 
@@ -226,9 +227,9 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray ray, BoundingBox boundingBox)
         {
-            float3 invRayDisplacement = 1f / ray.displacement;
-            float3 originToMin = boundingBox.min - ray.origin;
-            float3 originToMax = boundingBox.max - ray.origin;
+            Vector3 invRayDisplacement = math.inverse(ray.displacement);//1f / ray.displacement;
+            Vector3 originToMin = boundingBox.min - ray.origin;
+            Vector3 originToMax = boundingBox.max - ray.origin;
 
             float txmin = originToMin.X * invRayDisplacement.X;
             float txmax = originToMax.X * invRayDisplacement.X;
@@ -245,8 +246,8 @@ namespace Vocore
             float tmin = txmin;
             float tmax = txmax;
 
-            float tymin = originToMin.y * invRayDisplacement.y;
-            float tymax = originToMax.y * invRayDisplacement.y;
+            float tymin = originToMin.Y * invRayDisplacement.Y;
+            float tymax = originToMax.Y * invRayDisplacement.Y;
 
             if (tymin > tymax)
             {
@@ -294,14 +295,14 @@ namespace Vocore
             hit = default;
             BoundingBox localAABB = new BoundingBox(-box.extends, box.extends);
 
-            float3 rayOriginLocal = math.transform(math.inverse(new RigidTransform(box.rotation, box.center)), ray.origin);
-            float3 rayDisplacementLocal = math.rotate(math.inverse(box.rotation), ray.displacement);
+            Vector3 rayOriginLocal = math.transform(math.inverse(new RigidTransform(box.rotation, box.center)), ray.origin);
+            Vector3 rayDisplacementLocal = math.rotate(math.inverse(box.rotation), ray.displacement);
 
             Ray localRay = new Ray(rayOriginLocal, rayDisplacementLocal);
 
             float fraction = float.MaxValue;
 
-            if (RayAABB(localRay, localAABB, ref fraction, out float3 normal))
+            if (RayAABB(localRay, localAABB, ref fraction, out Vector3 normal))
             {
                 hit.point = ray.origin + ray.displacement * fraction;
                 hit.normal = math.rotate(box.rotation, normal);

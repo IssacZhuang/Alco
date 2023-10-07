@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
-
+using System.Numerics;
 
 
 namespace Vocore
 {
     public struct BoundingBox
     {
-        public float3 min;
-        public float3 max;
+        public Vector3 min;
+        public Vector3 max;
 
-        public BoundingBox(float3 min, float3 max)
+        public BoundingBox(Vector3 min, Vector3 max)
         {
             this.min = min;
             this.max = max;
@@ -19,14 +19,14 @@ namespace Vocore
         public bool Intersects(BoundingBox other)
         {
             return min.X <= other.max.X && max.X >= other.min.X &&
-                   min.y <= other.max.y && max.y >= other.min.y &&
+                   min.Y <= other.max.Y && max.Y >= other.min.Y &&
                    min.Z <= other.max.Z && max.Z >= other.min.Z;
         }
-        
-        public bool Contains(float3 point)
+
+        public bool Contains(Vector3 point)
         {
             return min.X <= point.X && max.X >= point.X &&
-                   min.y <= point.y && max.y >= point.y &&
+                   min.Y <= point.Y && max.Y >= point.Y &&
                    min.Z <= point.Z && max.Z >= point.Z;
         }
 

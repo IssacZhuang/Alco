@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -185,10 +186,10 @@ namespace Vocore
             RegisterStrParser<double>(StrToDouble);
             RegisterStrParser<sbyte>(StrToSByte);
             RegisterStrParser<byte>(StrToByte);
-            RegisterStrParser<float2>(StrToFloat2);
-            RegisterStrParser<float3>(StrToFloat3);
-            RegisterStrParser<float4>(StrToFloat4Adaptive);
-            RegisterStrParser<quaternion>(StrToQuaternion);
+            RegisterStrParser<Vector2>(StrToFloat2);
+            RegisterStrParser<Vector3>(StrToVector3);
+            RegisterStrParser<Vector4>(StrToFloat4Adaptive);
+            RegisterStrParser<Quaternion>(StrToQuaternion);
             RegisterStrParser<Type>(StrToType);
 
             RegisterValueParser<int>(IntToStr);
@@ -198,10 +199,10 @@ namespace Vocore
             RegisterValueParser<double>(DoubleToStr);
             RegisterValueParser<sbyte>(SByteToStr);
             RegisterValueParser<byte>(ByteToStr);
-            RegisterValueParser<float2>(Float2ToStr);
-            RegisterValueParser<float3>(Float3ToStr);
-            RegisterValueParser<float4>(Float4ToStr);
-            RegisterValueParser<quaternion>(QuaternionToStr);
+            RegisterValueParser<Vector2>(Float2ToStr);
+            RegisterValueParser<Vector3>(Vector3ToStr);
+            RegisterValueParser<Vector4>(Float4ToStr);
+            RegisterValueParser<Quaternion>(QuaternionToStr);
             RegisterValueParser<Type>(TypeToStr);
         }
 
@@ -333,9 +334,9 @@ namespace Vocore
         }
 
         /// <summary>
-        /// Parse a string to Unity.Mathmatics.float2. For example: string "(1,1)" or "(1)" is float2(1,1)
+        /// Parse a string to Unity.Mathmatics.Vector2. For example: string "(1,1)" or "(1)" is Vector2(1,1)
         /// </summary>
-        public float2 StrToFloat2(string Str)
+        public Vector2 StrToFloat2(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -356,28 +357,28 @@ namespace Vocore
                 x = Convert.ToSingle(array[0], invariantCulture);
                 y = Convert.ToSingle(array[1], invariantCulture);
             }
-            return new float2(x, y);
+            return new Vector2(x, y);
         }
 
         /// <summary>
-        /// Parse a Unity.Mathmatics.float2 to string. For example: float2(1,1) is "(1,1)"
+        /// Parse a Unity.Mathmatics.Vector2 to string. For example: Vector2(1,1) is "(1,1)"
         /// </summary>
-        public string Float2ToStr(float2 value)
+        public string Float2ToStr(Vector2 value)
         {
             return string.Concat(new string[]
             {
                 "(",
-                value.x.ToString(CultureInfo.InvariantCulture),
+                value.X.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
+                value.Y.ToString(CultureInfo.InvariantCulture),
                 ")"
             });
         }
 
         /// <summary>
-        /// Parse a string to Unity.Mathmatics.float3. For example: string "(1,1,1)" is float3(1,1,1)
+        /// Parse a string to Unity.Mathmatics.Vector3. For example: string "(1,1,1)" is Vector3(1,1,1)
         /// </summary>
-        public float3 StrToFloat3(string Str)
+        public Vector3 StrToVector3(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -386,20 +387,20 @@ namespace Vocore
             float x = Convert.ToSingle(array[0], invariantCulture);
             float y = Convert.ToSingle(array[1], invariantCulture);
             float z = Convert.ToSingle(array[2], invariantCulture);
-            return new float3(x, y, z);
+            return new Vector3(x, y, z);
         }
 
         /// <summary>
-        /// Parse a Unity.Mathmatics.float3 to string. For example: float3(1,1,1) is "(1,1,1)"
+        /// Parse a Unity.Mathmatics.Vector3 to string. For example: Vector3(1,1,1) is "(1,1,1)"
         /// </summary>
-        public string Float3ToStr(float3 value)
+        public string Vector3ToStr(Vector3 value)
         {
             return string.Concat(new string[]
             {
                 "(",
                 value.X.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.y.ToString(CultureInfo.InvariantCulture),
+                value.Y.ToString(CultureInfo.InvariantCulture),
                 ",",
                 value.Z.ToString(CultureInfo.InvariantCulture),
                 ")"
@@ -407,9 +408,9 @@ namespace Vocore
         }
 
         /// <summary>
-        /// Parse a string to Unity.Mathmatics.quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
+        /// Parse a string to Unity.Mathmatics.Quaternion. For example: string "(1,1,1,1)" is Quaternion(1,1,1,1)
         /// </summary>
-        public quaternion StrToQuaternion(string Str)
+        public Quaternion StrToQuaternion(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -419,32 +420,32 @@ namespace Vocore
             float y = Convert.ToSingle(array[1], invariantCulture);
             float z = Convert.ToSingle(array[2], invariantCulture);
             float w = Convert.ToSingle(array[3], invariantCulture);
-            return new quaternion(x, y, z, w);
+            return new Quaternion(x, y, z, w);
         }
 
         /// <summary>
-        /// Parse a Unity.Mathmatics.quaternion to string. For example: Quaternion(1,1,1,1) is "(1,1,1,1)"
+        /// Parse a Unity.Mathmatics.Quaternion to string. For example: Quaternion(1,1,1,1) is "(1,1,1,1)"
         /// </summary>
-        public string QuaternionToStr(quaternion value)
+        public string QuaternionToStr(Quaternion value)
         {
             return string.Concat(new string[]
             {
                 "(",
-                value.value.X.ToString(CultureInfo.InvariantCulture),
+                value.X.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.value.Y.ToString(CultureInfo.InvariantCulture),
+                value.Y.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.value.Z.ToString(CultureInfo.InvariantCulture),
+                value.Z.ToString(CultureInfo.InvariantCulture),
                 ",",
-                value.value.W.ToString(CultureInfo.InvariantCulture),
+                value.W.ToString(CultureInfo.InvariantCulture),
                 ")"
             });
         }
 
         /// <summary>
-        /// Parse a string to Unity.Mathmatics.float4. For example: string "(1,1,1,1)" is float4(1,1,1,1)  
+        /// Parse a string to Unity.Mathmatics.Vector4. For example: string "(1,1,1,1)" is Vector4(1,1,1,1)  
         /// </summary>
-        public float4 StrToFloat4Adaptive(string Str)
+        public Vector4 StrToFloat4Adaptive(string Str)
         {
             Str = Str.TrimStart(_trimStart);
             Str = Str.TrimEnd(_trimEnd);
@@ -470,13 +471,13 @@ namespace Vocore
             {
                 w = Convert.ToSingle(array[3], invariantCulture);
             }
-            return new float4(x, y, z, w);
+            return new Vector4(x, y, z, w);
         }
 
         /// <summary>
-        /// Parse a Unity.Mathmatics.float4 to string. For example: float4(1,1,1,1) is "(1,1,1,1)"
+        /// Parse a Unity.Mathmatics.Vector4 to string. For example: Vector4(1,1,1,1) is "(1,1,1,1)"
         /// </summary>
-        public string Float4ToStr(float4 value)
+        public string Float4ToStr(Vector4 value)
         {
             return string.Concat(new string[]
             {

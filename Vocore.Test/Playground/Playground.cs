@@ -41,16 +41,16 @@ namespace Vocore.Test
             // }
 
             int size = 100000000;
-            //float3 vs vector
-            float3 a = new float3(1, 2, 3);
-            float3 b = new float3(4, 5, 6);
-            float3 result = float3.zero;
+            //Vector3 vs vector
+            Vector3 a = new Vector3(1, 2, 3);
+            Vector3 b = new Vector3(4, 5, 6);
+            Vector3 result = Vector3.Zero;
 
             Vector3 va = new Vector3(1, 2, 3);
             Vector3 vb = new Vector3(4, 5, 6);
             Vector3 vresult = Vector3.Zero;
 
-            UnitTest.Benchmark("float3", () =>
+            UnitTest.Benchmark("Vector3", () =>
             {
                 for (int i = 0; i < size; i++)
                 {

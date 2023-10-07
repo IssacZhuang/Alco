@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 
 
@@ -7,11 +8,11 @@ namespace Vocore
 {
     public struct ShapeBox: IShape
     {
-        public float3 center;
-        public float3 extends;
-        public quaternion rotation;
+        public Vector3 center;
+        public Vector3 extends;
+        public Quaternion rotation;
 
-        public ShapeBox(float3 center, float3 size, quaternion rotation)
+        public ShapeBox(Vector3 center, Vector3 size, Quaternion rotation)
         {
             this.center = center;
             this.extends = size * 0.5f;
@@ -21,35 +22,35 @@ namespace Vocore
 
         public BoundingBox GetBoundingBox()
         {
-            if (rotation.Equals(quaternion.identity))
+            if (rotation.Equals(Quaternion.Identity))
             {
                 return new BoundingBox(center - extends, center + extends);
             }
 
-            float3 x = math.rotate(rotation, new float3(extends.X, 0, 0));
-            float3 y = math.rotate(rotation, new float3(0, extends.y, 0));
-            float3 z = math.rotate(rotation, new float3(0, 0, extends.Z));
+            Vector3 x = math.rotate(rotation, new Vector3(extends.X, 0, 0));
+            Vector3 y = math.rotate(rotation, new Vector3(0, extends.Y, 0));
+            Vector3 z = math.rotate(rotation, new Vector3(0, 0, extends.Z));
 
-            float3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
+            Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 
             return new BoundingBox(center - halfExtentsInB, center + halfExtentsInB);
         }
 
         public BoundingBox GetBoundingBox(RigidTransform transform)
         {
-            float3 centerInWorld = math.transform(transform, center);
-            quaternion rotationInWorld = math.mul(transform.rot, rotation);
-            
-            if (rotationInWorld.Equals(quaternion.identity))
+            Vector3 centerInWorld = math.transform(transform, center);
+            Quaternion rotationInWorld = math.mul(transform.rot, rotation);
+
+            if (rotationInWorld.Equals(Quaternion.Identity))
             {
                 return new BoundingBox(centerInWorld - extends, centerInWorld + extends);
             }
 
-            float3 x = math.rotate(rotationInWorld, new float3(extends.X, 0, 0));
-            float3 y = math.rotate(rotationInWorld, new float3(0, extends.y, 0));
-            float3 z = math.rotate(rotationInWorld, new float3(0, 0, extends.Z));
+            Vector3 x = math.rotate(rotationInWorld, new Vector3(extends.X, 0, 0));
+            Vector3 y = math.rotate(rotationInWorld, new Vector3(0, extends.Y, 0));
+            Vector3 z = math.rotate(rotationInWorld, new Vector3(0, 0, extends.Z));
 
-            float3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
+            Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 
             return new BoundingBox(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
         }

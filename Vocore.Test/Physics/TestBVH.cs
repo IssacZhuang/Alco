@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using System.Numerics;
 
 
 using Random = Vocore.Random;
@@ -34,9 +35,9 @@ namespace Vocore.Test
             for (int i = 0; i < colliderCount / 2; i++)
             {
 
-                float3 pos = random.NextFloat3(-100, 100);
-                float3 size = random.NextFloat3(1, 10);
-                quaternion rot = random.NextQuaternionRotation();
+                Vector3 pos = random.NextVector3(-100, 100);
+                Vector3 size = random.NextVector3(1, 10);
+                Quaternion rot = random.NextQuaternionRotation();
                 boxs.Add(new ColliderBox
                 {
                     shape = new ShapeBox(pos, size, rot)
@@ -46,7 +47,7 @@ namespace Vocore.Test
             for (int i = 0; i < colliderCount / 2; i++)
             {
 
-                float3 pos = random.NextFloat3(-100, 100);
+                Vector3 pos = random.NextVector3(-100, 100);
                 float radius = random.NextFloat(1, 10);
                 spheres.Add(new ColliderSphere
                 {
@@ -57,9 +58,9 @@ namespace Vocore.Test
             //random ray
             for (int i = 0; i < rayCount; i++)
             {
-                float3 start = random.NextFloat3(-125, 125);
-                float3 direction = random.NextFloat3(-6, 6);
-                float3 end =  start +direction;// random.NextFloat3(-125, 125);
+                Vector3 start = random.NextVector3(-125, 125);
+                Vector3 direction = random.NextVector3(-6, 6);
+                Vector3 end = start + direction;// random.NextVector3(-125, 125);
                 rays.Add(Ray.CreateWithStartAndEnd(start, end));
             }
 
@@ -133,33 +134,33 @@ namespace Vocore.Test
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(new float3(20, 0, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(20, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(new float3(10, 0, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(10, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
             spheres.Add(new ColliderSphere
             {
-                shape = new ShapeSphere(new float3(-10, 0, 0), 1f)
+                shape = new ShapeSphere(new Vector3(-10, 0, 0), 1f)
             });
 
             spheres.Add(new ColliderSphere
             {
-                shape = new ShapeSphere(float3.zero, 0.8f)
+                shape = new ShapeSphere(Vector3.Zero, 0.8f)
             });
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(float3.zero, new float3(1f), quaternion.identity)
+                shape = new ShapeBox(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
             });
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(new float3(-10, 0, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(-10, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
 
@@ -180,7 +181,7 @@ namespace Vocore.Test
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
             NativeBVH bvh = new NativeBVH();
-            Ray ray = Ray.CreateWithStartAndEnd(new float3(-2, 1.1f, 0), new float3(200, 1.1f, 0));
+            Ray ray = Ray.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
 
             bvh.BuildTree(colliders);
 
@@ -189,7 +190,7 @@ namespace Vocore.Test
             //UnitTest.AssertFalse(result.hit);
 
 
-            ray = Ray.CreateWithStartAndEnd(new float3(-1.2f, 0, 0), new float3(120f, 0, 0));
+            ray = Ray.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
 
             RayCastResult result = bvh.CastRay(ray);
 
@@ -208,22 +209,22 @@ namespace Vocore.Test
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(float3.zero, new float3(1f), quaternion.identity)
+                shape = new ShapeBox(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
             });
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(new float3(5, 0, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(5, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
             boxs.Add(new ColliderBox
             {
-                shape = new ShapeBox(new float3(5, 5, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(5, 5, 0), new Vector3(1f), Quaternion.Identity)
             });
 
             spheres.Add(new ColliderSphere
             {
-                shape = new ShapeSphere(float3.zero, 1f)
+                shape = new ShapeSphere(Vector3.Zero, 1f)
             });
 
             for (int i = 0; i < boxs.Length; i++)
@@ -242,22 +243,22 @@ namespace Vocore.Test
 
             ColliderBox boxCast1 = new ColliderBox
             {
-                shape = new ShapeBox(new float3(-2, 1.1f, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(-2, 1.1f, 0), new Vector3(1f), Quaternion.Identity)
             };
 
             ColliderBox boxCast2 = new ColliderBox
             {
-                shape = new ShapeBox(new float3(-1.2f, 0, 0), new float3(1f), quaternion.identity)
+                shape = new ShapeBox(new Vector3(-1.2f, 0, 0), new Vector3(1f), Quaternion.Identity)
             };
 
             ColliderSphere sphereCast1 = new ColliderSphere
             {
-                shape = new ShapeSphere(new float3(-2, 1.1f, 0), 1f)
+                shape = new ShapeSphere(new Vector3(-2, 1.1f, 0), 1f)
             };
 
             ColliderSphere sphereCast2 = new ColliderSphere
             {
-                shape = new ShapeSphere(new float3(-1.2f, 0, 0), 1f)
+                shape = new ShapeSphere(new Vector3(-1.2f, 0, 0), 1f)
             };
 
             UnitTest.AssertFalse(bvh.CastColliderBox(ref boxCast1).hit);

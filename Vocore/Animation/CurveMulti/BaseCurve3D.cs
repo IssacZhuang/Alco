@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 
 
@@ -7,7 +8,7 @@ namespace Vocore
 {
     public class BaseCurve3D<T>:ICurve3D where T: ICurve
     {
-        private List<CurvePoint<float3>> _points = new List<CurvePoint<float3>>();
+        private List<CurvePoint<Vector3>> _points = new List<CurvePoint<Vector3>>();
 
         private T _curveX;
         private T _curveY;
@@ -21,7 +22,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<CurvePoint<float3>> Points
+        public IReadOnlyList<CurvePoint<Vector3>> Points
         {
             get
             {
@@ -37,13 +38,13 @@ namespace Vocore
         }
 
 
-        public BaseCurve3D(IList<CurvePoint<float3>> points)
+        public BaseCurve3D(IList<CurvePoint<Vector3>> points)
         {
             SetPoints(points);
         }
 
 
-        public void SetPoints(IList<CurvePoint<float3>> points)
+        public void SetPoints(IList<CurvePoint<Vector3>> points)
         {
             if (points == null)
             {
@@ -60,7 +61,7 @@ namespace Vocore
             {
                 _points.Add(points[i]);
                 xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.X));
-                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.y));
+                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Y));
                 zPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Z));
             }
 
@@ -73,11 +74,11 @@ namespace Vocore
             _curveZ.SetPoints(zPoints);
         }
 
-        public float3 Evaluate(float t)
+        public Vector3 Evaluate(float t)
         {
-            float3 result;
+            Vector3 result;
             result.X = _curveX.Evaluate(t);
-            result.y = _curveY.Evaluate(t);
+            result.Y = _curveY.Evaluate(t);
             result.Z = _curveZ.Evaluate(t);
             return result;
         }

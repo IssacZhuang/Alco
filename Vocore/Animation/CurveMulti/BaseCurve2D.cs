@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 
 
@@ -6,7 +7,7 @@ namespace Vocore
 {
     public class BaseCurve2D<T> : ICurve2D where T : ICurve
     {
-        private List<CurvePoint<float2>> _points = new List<CurvePoint<float2>>();
+        private List<CurvePoint<Vector2>> _points = new List<CurvePoint<Vector2>>();
 
         private T _curveX;
         private T _curveY;
@@ -19,7 +20,7 @@ namespace Vocore
             }
         }
 
-        public IReadOnlyList<CurvePoint<float2>> Points
+        public IReadOnlyList<CurvePoint<Vector2>> Points
         {
             get
             {
@@ -33,12 +34,12 @@ namespace Vocore
             _curveY = (T)Activator.CreateInstance(typeof(T));
         }
 
-        public BaseCurve2D(IList<CurvePoint<float2>> points)
+        public BaseCurve2D(IList<CurvePoint<Vector2>> points)
         {
             SetPoints(points);
         }
 
-        public void SetPoints(IList<CurvePoint<float2>> points)
+        public void SetPoints(IList<CurvePoint<Vector2>> points)
         {
             if (points == null)
             {
@@ -53,8 +54,8 @@ namespace Vocore
             for (int i = 0; i < points.Count; i++)
             {
                 _points.Add(points[i]);
-                xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.x));
-                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.y));
+                xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.X));
+                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Y));
             }
 
             _curveX = (T)Activator.CreateInstance(typeof(T));
@@ -64,11 +65,11 @@ namespace Vocore
             _curveY.SetPoints(yPoints);
         }
 
-        public float2 Evaluate(float t)
+        public Vector2 Evaluate(float t)
         {
-            float2 result;
-            result.x = _curveX.Evaluate(t);
-            result.y = _curveY.Evaluate(t);
+            Vector2 result;
+            result.X = _curveX.Evaluate(t);
+            result.Y = _curveY.Evaluate(t);
             return result;
         }
     }
