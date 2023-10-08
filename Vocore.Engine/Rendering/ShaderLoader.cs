@@ -81,6 +81,11 @@ namespace Vocore.Engine
             return graphicsDevice.ResourceFactory.CreateGraphicsPipeline(pipelineDescription);
         }
 
+        public static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, byte[] text)
+        {
+            return CreateShaderPipline(graphicsDevice, LoadShaders(graphicsDevice, text));
+        }
+
 
 
     }

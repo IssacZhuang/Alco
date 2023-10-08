@@ -13,6 +13,20 @@ namespace Vocore.Engine
         private uint _indexBufferSize;
         private uint _indexCount;
         private bool _disposed;
+        private IntPtr _vertexPtr;
+        private IntPtr _indexPtr;
+
+        public unsafe IntPtr VertexPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _vertexPtr;
+        }
+
+        public unsafe IntPtr IndexPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _indexPtr;
+        }
 
         public uint VertexBufferSize
         {
@@ -57,6 +71,7 @@ namespace Vocore.Engine
                     ptrBuffer[i] = ptr[i];
                 }
             }
+            _vertexPtr = (IntPtr)_vertices.Ptr;
         }
 
         public unsafe void UpdateIndices(ushort[] indices)
@@ -73,6 +88,7 @@ namespace Vocore.Engine
                 }
             }
             _indexCount = (uint)indices.Length;
+            _indexPtr = (IntPtr)_indices.Ptr;
         }
 
         private void InternalDispose()

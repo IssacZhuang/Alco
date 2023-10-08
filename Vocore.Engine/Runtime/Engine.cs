@@ -48,6 +48,8 @@ namespace Vocore.Engine
                 OnWindowResize(_window.Width, _window.Height);
             };
             Global.Window = _window;
+            Global.GraphicsDevice = _graphicsDevice;
+            Global.ResourceFactory = _graphicsDevice.ResourceFactory;
         }
 
         public void Run()
