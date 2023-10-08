@@ -1,13 +1,23 @@
 using Veldrid;
 using Veldrid.SPIRV;
 
-public class RenderPipeline
+namespace Vocore.Rendering
 {
-    private GraphicsDevice _device;
-    private ResourceFactory _factory;
-    public RenderPipeline(GraphicsDevice _graphicsDevice)
+
+    public class RenderPipeline
     {
-        _device = _graphicsDevice;
-        _factory = _device.ResourceFactory;
+        private GraphicsDevice _device;
+        private ResourceFactory _factory;
+        private CommandList _commandList;
+        private DeviceBuffer _vertexBuffer;
+        private DeviceBuffer _indexBuffer;
+        public RenderPipeline(GraphicsDevice _graphicsDevice)
+        {
+            _device = _graphicsDevice;
+            _factory = _device.ResourceFactory;
+            _commandList = _factory.CreateCommandList();
+
+        }
+
     }
 }
