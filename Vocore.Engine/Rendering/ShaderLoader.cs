@@ -7,8 +7,8 @@ namespace Vocore.Engine
 
     public static class ShaderLoader
     {
-        public const string EntryPointVertex = "vertex";
-        public const string EntryPointFragment = "fragment";
+        public const string EntryPointVertex = "main";
+        public const string EntryPointFragment = "main";
 
 
         public static ShaderDescription PreprocessShader(byte[] shaderText, ShaderStages stage, string entryPoint = "main")
@@ -46,20 +46,24 @@ namespace Vocore.Engine
             return graphicsDevice.ResourceFactory.CreateFromSpirv(vert, frag);
         }
 
-        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, byte[] text)
+        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
         {
-            return LoadShaders(graphicsDevice, PreprocessVertexShader(text), PreprocessFragmentShader(text));
+            return LoadShaders(graphicsDevice, PreprocessVertexShader(vert), PreprocessFragmentShader(frag));
+        }
+        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, string vert, string frag)
+        {
+            return LoadShaders(graphicsDevice, PreprocessVertexShader(vert), PreprocessFragmentShader(frag));
         }
 
-        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, string text)
+        public static Shader LoadHLSLShader(GraphicsDevice graphicsDevice, byte[] text)
         {
-            return LoadShaders(graphicsDevice, PreprocessVertexShader(text), PreprocessFragmentShader(text));
+            return graphicsDevice.ResourceFactory.CreateShader(PreprocessVertexShader(text));
         }
 
         public static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, Shader[] shaders)
         {
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
-
+            pipelineDescription.BlendState = BlendStateDescription.SingleOverrideBlend;
             pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
                 depthTestEnabled: true,
                 depthWriteEnabled: true,
@@ -81,9 +85,9 @@ namespace Vocore.Engine
             return graphicsDevice.ResourceFactory.CreateGraphicsPipeline(pipelineDescription);
         }
 
-        public static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, byte[] text)
+        public static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
         {
-            return CreateShaderPipline(graphicsDevice, LoadShaders(graphicsDevice, text));
+            return CreateShaderPipline(graphicsDevice, LoadShaders(graphicsDevice, vert, frag));
         }
 
 

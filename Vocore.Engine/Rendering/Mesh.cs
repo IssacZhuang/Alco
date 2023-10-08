@@ -87,6 +87,7 @@ namespace Vocore.Engine
                     ptrBuffer[i] = ptr[i];
                 }
             }
+            
             _indexCount = (uint)indices.Length;
             _indexPtr = (IntPtr)_indices.Ptr;
         }

@@ -44,6 +44,7 @@ namespace Vocore.Engine
             _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
             _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
             _commandList.Begin();
+            _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.SetVertexBuffer(0, _vertexBuffer);
             _commandList.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             _commandList.SetPipeline(shaderPipeline);
@@ -57,13 +58,19 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
-        public void ClearFrameAndSwap()
+        public void ClearFrame()
         {
             _commandList.Begin();
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.ClearColorTarget(0, RgbaFloat.Black);
+            //_commandList.ClearDepthStencil(1f);
             _commandList.End();
             _device.SubmitCommands(_commandList);
+
+        }
+
+        public void SwapBuffer()
+        {
             _device.SwapBuffers();
         }
 

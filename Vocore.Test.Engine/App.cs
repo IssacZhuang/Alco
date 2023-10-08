@@ -1,11 +1,25 @@
 using System;
+using System.IO;
+using System.Text;
 using Veldrid;
 using Vocore;
 using Vocore.Engine;
 
-public class App:Engine{
-    public App(string name):base(name){
+public class App : Engine
+{
+    private Pipeline _shaderPipeline;
+
+    public App(string name) : base(name)
+    {
         
+    }
+
+    protected override void OnStart()
+    {
+        base.OnStart();
+        var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.glsl"));
+        var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.glsl"));
+        _shaderPipeline = ShaderLoader.CreateShaderPipline(GraphicsDevice, vertShader, fragShader);
     }
 
     protected override void OnUpdate(float delta)
@@ -30,10 +44,16 @@ public class App:Engine{
         {
             Log.Info("W key pressing");
         }
+
+        GraphicsCommand.ClearFrame();
+        GraphicsCommand.DrawMesh(MeshPool.Quad, _shaderPipeline);
+        GraphicsCommand.SwapBuffer();
     }
 
     protected override void OnWindowResize(int width, int height)
     {
         Log.Info($"Window resized to {width}x{height}");
     }
+
+
 }

@@ -10,12 +10,37 @@ namespace Vocore.Engine
     {
         private static readonly long frequency = Stopwatch.Frequency;
         private readonly Stopwatch _stopwatch = new Stopwatch();
-        private int _physicsFps = 30;
-        private long physicsTickInterval;
-        private float physicsDeltaTime;
+        
         private WindowCreateInfo _windowCreateInfo;
         private Sdl2Window _window;
         private GraphicsDevice _graphicsDevice;
+        private GraphicsCommand _graphicsCommand;
+        private int _physicsFps = 30;
+        private long physicsTickInterval;
+        private float physicsDeltaTime;
+        protected GraphicsCommand GraphicsCommand
+        {
+            get
+            {
+                return _graphicsCommand;
+            }
+        }
+
+        protected Sdl2Window Window
+        {
+            get
+            {
+                return _window;
+            }
+        }
+
+        protected GraphicsDevice GraphicsDevice
+        {
+            get
+            {
+                return _graphicsDevice;
+            }
+        }
 
         public int PhysicsTickRate
         {
@@ -42,6 +67,7 @@ namespace Vocore.Engine
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
             _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window);
+            _graphicsCommand = new GraphicsCommand(_graphicsDevice);
             _window.Resized += () =>
             {
                 _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
@@ -60,7 +86,7 @@ namespace Vocore.Engine
             }
             catch (Exception e)
             {
-                Log.Error("Startup Error: ", e.Message);
+                Log.Error("Startup Error: ", e);
                 OnQuit();
                 return;
             }
@@ -90,7 +116,7 @@ namespace Vocore.Engine
                     }
                     catch (Exception e)
                     {
-                        Log.Error("Tick Error: ", e.Message);
+                        Log.Error("Tick Error: ", e);
                     }
                 }
 
@@ -100,7 +126,7 @@ namespace Vocore.Engine
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Update Error: ", e.Message);
+                    Log.Error("Update Error: ", e);
                 }
             }
 
