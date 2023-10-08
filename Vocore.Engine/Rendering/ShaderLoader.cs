@@ -2,7 +2,7 @@
 using Veldrid;
 using Veldrid.SPIRV;
 
-namespace Vocore.Rendering
+namespace Vocore.Engine
 {
 
     public static class ShaderLoader

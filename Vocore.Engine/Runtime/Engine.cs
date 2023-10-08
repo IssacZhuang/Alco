@@ -4,7 +4,7 @@ using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
 
-namespace Vocore.Rendering
+namespace Vocore.Engine
 {
     public class Engine
     {
@@ -47,6 +47,7 @@ namespace Vocore.Rendering
                 _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
                 OnWindowResize(_window.Width, _window.Height);
             };
+            Global.Window = _window;
         }
 
         public void Run()
@@ -76,7 +77,7 @@ namespace Vocore.Rendering
                 lastTime = _stopwatch.ElapsedTicks;
                 _timer += delta;
 
-                _window.PumpEvents();
+                PumpInput();
 
                 if (_timer >= physicsTickInterval)
                 {
@@ -127,6 +128,12 @@ namespace Vocore.Rendering
         protected virtual void OnQuit()
         {
 
+        }
+
+        private void PumpInput()
+        {
+            Global.InputSnapshot = _window.PumpEvents();
+            Input.UpdateKeyStates();
         }
 
         private void UpdatePhysicsTickRate(int rate)

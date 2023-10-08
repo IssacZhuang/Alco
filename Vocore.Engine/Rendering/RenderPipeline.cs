@@ -1,7 +1,7 @@
 using Veldrid;
 using Veldrid.SPIRV;
 
-namespace Vocore.Rendering
+namespace Vocore.Engine
 {
 
     public class RenderPipeline

@@ -3,7 +3,7 @@ using System.Numerics;
 using Vocore.Unsafe;
 using Veldrid;
 
-namespace Vocore.Rendering
+namespace Vocore.Engine
 {
     public struct Vertex
     {

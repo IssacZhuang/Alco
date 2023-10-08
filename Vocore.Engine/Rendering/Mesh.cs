@@ -2,7 +2,7 @@ using System;
 using Veldrid;
 using System.Runtime.CompilerServices;
 
-namespace Vocore.Rendering
+namespace Vocore.Engine
 {
     public class Mesh : IDisposable
     {

@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Vocore.Test", "Vocore.Test\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Vocore.Framework", "Vocore.Framework\Vocore.Framework.csproj", "{80A58F52-E22F-4C9A-B277-149117BCAD18}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Rendering", "Vocore.Rendering\Vocore.Rendering.csproj", "{610D3D6D-9D29-4952-BF2E-969602855093}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Engine", "Vocore.Engine\Vocore.Engine.csproj", "{610D3D6D-9D29-4952-BF2E-969602855093}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Test.Engine", "Vocore.Test.Engine\Vocore.Test.Engine.csproj", "{5BC92F58-9072-4DB9-8F2E-EA78333193D3}"
 EndProject
