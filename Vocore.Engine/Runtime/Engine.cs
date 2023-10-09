@@ -68,7 +68,7 @@ namespace Vocore.Engine
             };
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
-            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, GraphicsBackend.Direct3D11);
+            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window);
             _graphicsCommand = new GraphicsCommand(_graphicsDevice);
             _window.Resized += () =>
             {
