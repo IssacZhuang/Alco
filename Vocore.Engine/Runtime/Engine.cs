@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Diagnostics;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -18,6 +19,7 @@ namespace Vocore.Engine
         private int _physicsFps = 30;
         private long physicsTickInterval;
         private float physicsDeltaTime;
+
         protected GraphicsCommand GraphicsCommand
         {
             get
@@ -60,13 +62,13 @@ namespace Vocore.Engine
             {
                 X = 100,
                 Y = 100,
-                WindowWidth = 1280,
-                WindowHeight = 720,
+                WindowWidth = 640,
+                WindowHeight = 360,
                 WindowTitle = name
             };
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
-            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window);
+            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, GraphicsBackend.Direct3D11);
             _graphicsCommand = new GraphicsCommand(_graphicsDevice);
             _window.Resized += () =>
             {

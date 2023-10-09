@@ -78,7 +78,7 @@ namespace Vocore.Engine
         {
             _indices.FastEnsureSize(indices.Length);
             _indices = new NativeBuffer<ushort>(indices.Length);
-            _indexBufferSize = (uint)indices.Length;
+            _indexBufferSize = (uint)indices.Length * sizeof(ushort);
             fixed (ushort* ptr = indices)
             {
                 ushort* ptrBuffer = _indices.Ptr;

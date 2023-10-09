@@ -1,3 +1,4 @@
+using System.Numerics;
 using Veldrid;
 using Veldrid.SPIRV;
 
@@ -41,8 +42,9 @@ namespace Vocore.Engine
 
         public void DrawMesh(Mesh mesh, Pipeline shaderPipeline)
         {
-            _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
-            _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+             _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+             _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+
             _commandList.Begin();
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.SetVertexBuffer(0, _vertexBuffer);
