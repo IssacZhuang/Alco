@@ -68,7 +68,7 @@ namespace Vocore.Engine
             };
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
-            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window);
+            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, GraphicsBackend.Vulkan);
             _graphicsCommand = new GraphicsCommand(_graphicsDevice);
             _window.Resized += () =>
             {
@@ -158,6 +158,12 @@ namespace Vocore.Engine
         protected virtual void OnQuit()
         {
 
+        }
+
+        private void InternalQuit()
+        {
+            _graphicsDevice.Dispose();
+            _graphicsCommand.Dispose();
         }
 
         private void PumpInput()
