@@ -19,6 +19,7 @@ namespace Vocore.Engine
         private int _physicsFps = 30;
         private long physicsTickInterval;
         private float physicsDeltaTime;
+        private bool _isRunning = true;
 
         protected GraphicsCommand GraphicsCommand
         {
@@ -75,6 +76,10 @@ namespace Vocore.Engine
                 _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
                 OnWindowResize(_window.Width, _window.Height);
             };
+            _window.Closing += () =>
+            {
+                _isRunning = false;
+            };
             RuntimeGlobal.Window = _window;
             RuntimeGlobal.GraphicsDevice = _graphicsDevice;
             RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
@@ -114,7 +119,8 @@ namespace Vocore.Engine
                     _timer -= physicsTickInterval;
                     try
                     {
-                        OnTick(physicsDeltaTime);
+                        if (_isRunning) OnTick(physicsDeltaTime);
+
                     }
                     catch (Exception e)
                     {
@@ -124,7 +130,7 @@ namespace Vocore.Engine
 
                 try
                 {
-                    OnUpdate((float)delta / frequency);
+                    if (_isRunning) OnUpdate((float)delta / frequency);
                 }
                 catch (Exception e)
                 {
