@@ -18,7 +18,7 @@ namespace Vocore.Engine
 
         public static ShaderDescription PreprocessShader(string shaderText, ShaderStages stage, string entryPoint = "main")
         {
-            return new ShaderDescription(stage, Encoding.UTF8.GetBytes(shaderText), entryPoint);
+            return PreprocessShader(Encoding.UTF8.GetBytes(shaderText), stage, entryPoint);
         }
 
         public static ShaderDescription PreprocessVertexShader(byte[] shaderText, string entryPoint = EntryPointVertex)
@@ -41,25 +41,6 @@ namespace Vocore.Engine
             return PreprocessShader(shaderText, ShaderStages.Fragment, entryPoint);
         }
 
-        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, ShaderDescription vert, ShaderDescription frag)
-        {
-            return graphicsDevice.ResourceFactory.CreateFromSpirv(vert, frag);
-        }
-
-        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
-        {
-            return LoadShaders(graphicsDevice, PreprocessVertexShader(vert), PreprocessFragmentShader(frag));
-        }
-        public static Shader[] LoadShaders(GraphicsDevice graphicsDevice, string vert, string frag)
-        {
-            return LoadShaders(graphicsDevice, PreprocessVertexShader(vert), PreprocessFragmentShader(frag));
-        }
-
-        public static Shader LoadHLSLShader(GraphicsDevice graphicsDevice, byte[] text)
-        {
-            return graphicsDevice.ResourceFactory.CreateShader(PreprocessVertexShader(text));
-        }
-
         public static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, Shader[] shaders)
         {
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
@@ -80,18 +61,49 @@ namespace Vocore.Engine
             pipelineDescription.ResourceLayouts = Array.Empty<ResourceLayout>();
             pipelineDescription.ShaderSet = new ShaderSetDescription(
                 vertexLayouts: new VertexLayoutDescription[] { Vertex.Layout },
-                shaders: shaders);
+                shaders: shaders
+                );
             pipelineDescription.Outputs = graphicsDevice.SwapchainFramebuffer.OutputDescription;
             return graphicsDevice.ResourceFactory.CreateGraphicsPipeline(pipelineDescription);
         }
 
-        public static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
+        public static Shader[] LoadGLSL(GraphicsDevice graphicsDevice, ShaderDescription vert, ShaderDescription frag)
         {
-            return CreateShaderPipline(graphicsDevice, LoadShaders(graphicsDevice, vert, frag));
+            return graphicsDevice.ResourceFactory.CreateFromSpirv(vert, frag);
         }
 
+        public static Shader[] LoadGLSL(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
+        {
+            return LoadGLSL(graphicsDevice, PreprocessVertexShader(vert), PreprocessFragmentShader(frag));
+        }
+        public static Shader[] LoadGLSL(GraphicsDevice graphicsDevice, string vert, string frag)
+        {
+            return LoadGLSL(graphicsDevice, PreprocessVertexShader(vert), PreprocessFragmentShader(frag));
+        }
 
+        public static Pipeline CreateShaderPiplineFromGLSL(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
+        {
+            return CreateShaderPipline(graphicsDevice, LoadGLSL(graphicsDevice, vert, frag));
+        }
 
+        public static Shader[] LoadHLSL(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
+        {
+            Shader vertexShader = graphicsDevice.ResourceFactory.CreateShader(PreprocessVertexShader(vert));
+            Shader fragmentShader = graphicsDevice.ResourceFactory.CreateShader(PreprocessFragmentShader(frag));
+            return new Shader[2] { vertexShader, fragmentShader };
+        }
+
+        public static Shader[] LoadHLSL(GraphicsDevice graphicsDevice, string vert, string frag)
+        {
+            Shader vertexShader = graphicsDevice.ResourceFactory.CreateShader(PreprocessVertexShader(vert));
+            Shader fragmentShader = graphicsDevice.ResourceFactory.CreateShader(PreprocessFragmentShader(frag));
+            return new Shader[2] { vertexShader, fragmentShader };
+        }
+
+        public static Pipeline CreateShaderPiplineFromHLSL(GraphicsDevice graphicsDevice, byte[] vert, byte[] frag)
+        {
+            return CreateShaderPipline(graphicsDevice, LoadHLSL(graphicsDevice, vert, frag));
+        }
     }
 }
 
