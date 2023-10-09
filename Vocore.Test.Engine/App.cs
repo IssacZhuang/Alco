@@ -19,13 +19,13 @@ public class App : Engine
     {
         base.OnStart();
         //GLSL
-        // var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.glsl"));
-        // var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.glsl"));
-        // _shaderPipeline = ShaderLoader.CreateShaderPiplineFromGLSL(GraphicsDevice, vertShader, fragShader);
+        var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.glsl"));
+        var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.glsl"));
+        _shaderPipeline = ShaderLoader.CreateShaderPiplineFromGLSL(GraphicsDevice, vertShader, fragShader);
         // HLSL
-        var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.hlsl"));
-        var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.hlsl"));
-        _shaderPipeline = ShaderLoader.CreateShaderPiplineFromHLSL(GraphicsDevice, vertShader, fragShader);
+        // var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.hlsl"));
+        // var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.hlsl"));
+        // _shaderPipeline = ShaderLoader.CreateShaderPiplineFromHLSL(GraphicsDevice, vertShader, fragShader);
     }
 
     protected override void OnUpdate(float delta)
