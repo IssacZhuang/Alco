@@ -6,7 +6,7 @@ using Veldrid.Sdl2;
 
 namespace Vocore.Engine
 {
-    internal static class Global
+    internal static class RuntimeGlobal
     {
         public static Sdl2Window Window;
         public static InputSnapshot InputSnapshot;

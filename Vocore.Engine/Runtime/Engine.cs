@@ -75,9 +75,9 @@ namespace Vocore.Engine
                 _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
                 OnWindowResize(_window.Width, _window.Height);
             };
-            Global.Window = _window;
-            Global.GraphicsDevice = _graphicsDevice;
-            Global.ResourceFactory = _graphicsDevice.ResourceFactory;
+            RuntimeGlobal.Window = _window;
+            RuntimeGlobal.GraphicsDevice = _graphicsDevice;
+            RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
         }
 
         public void Run()
@@ -168,7 +168,7 @@ namespace Vocore.Engine
 
         private void PumpInput()
         {
-            Global.InputSnapshot = _window.PumpEvents();
+            RuntimeGlobal.InputSnapshot = _window.PumpEvents();
             Input.UpdateKeyStates();
         }
 
