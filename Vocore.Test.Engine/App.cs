@@ -10,7 +10,8 @@ public class App : Engine
 {
     private Pipeline _shaderPipeline;
     private Camera _camera;
-    private float timer;
+    private float _timer;
+    private int _frameCount;
 
     public App(string name) : base(name)
     {
@@ -20,19 +21,12 @@ public class App : Engine
     protected override void OnStart()
     {
         base.OnStart();
-        //GLSL
-        var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.glsl"));
-        var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.glsl"));
-        _shaderPipeline = ShaderLoader.CreateShaderPiplineFromGLSL(GraphicsDevice, vertShader, fragShader);
-        // HLSL
-        // var vertShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.vert.hlsl"));
-        // var fragShader = File.ReadAllBytes(Path.Combine(Application.Path, "Assets/Basic.frag.hlsl"));
-        // _shaderPipeline = ShaderLoader.CreateShaderPiplineFromHLSL(GraphicsDevice, vertShader, fragShader);
         _camera = new Camera();
-        // _camera.Position = new Vector3(-3, 0, 0);
-        // _camera.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY,0.2f);
         _camera.ViewMatrix = Matrix4x4.CreateLookAt(Vector3.UnitZ * 2.5f, Vector3.Zero, Vector3.UnitY);
         GraphicsCommand.CurrentCamera = _camera;
+
+        var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
+        _shaderPipeline = ShaderComplier.CreateShaderPiplineFromGLSL(GraphicsDevice, shaderAllInOne, "BasicAIO");
     }
 
     protected override void OnUpdate(float delta)
@@ -58,13 +52,24 @@ public class App : Engine
             Log.Info("W key pressing");
         }
 
-        timer += delta;
+        _timer += delta;
 
         GraphicsCommand.ClearFrame();
-        GraphicsCommand.UpdateCameraBuffer();   
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(timer));
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(timer+1)*Matrix4x4.CreateTranslation(1, 0, 0));
+        GraphicsCommand.UpdateCameraBuffer();
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer+1)*Matrix4x4.CreateTranslation(1, 0, 0));
         GraphicsCommand.SwapBuffer();
+        _frameCount++;
+    }
+
+    protected override void OnTick(float delta)
+    {
+        if (_timer >= 1)
+        {
+            Log.Info($"FPS: {_frameCount}");
+            _timer -= 1;
+            _frameCount = 0;
+        }
     }
 
     protected override void OnWindowResize(int width, int height)
