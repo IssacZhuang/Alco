@@ -1,5 +1,7 @@
 #version 450
 
+#pragma vertext main
+
 layout(set = 0, binding = 0) uniform ViewProjectionBuffer
 {
     mat4 viewProj;
