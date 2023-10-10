@@ -24,7 +24,6 @@ void main()
     vec4 pos = transform * vec4(position, 1.0);
     pos = viewProj * pos;
     gl_Position = pos;
-    //gl_Position = vec4(position, 1.0);
     fsin_color = color;
 }
 

@@ -15,8 +15,13 @@ namespace Vocore.Engine
         public const string GLSL_True = "1";
         public const string GLSL_False = "0";
         public const string DefaultEntryPoint = "main";
-        public const string PragmaKey_Vertex = "vertex";
-        public const string PragmaKey_Fragment = "fragment";
+        public const string PragmaKey_BlendState = "blend_state";
+        public const string PragmaKey_DepthTest = "depth_test";
+        public const string PragmaKey_DepthWrite = "depth_write";
+        public const string PragmaKey_CullMode = "cull_mode";
+        public const string PragmaKey_FillMode = "fill_mode";
+        public const string PragmaKey_DepthClip = "depth_clip";
+        public const string PragmaKey_ScissorTest = "scissor_test";
         public static readonly MacroDefinition MacroVertex = new MacroDefinition(MacroStageVertex, GLSL_True);
         public static readonly MacroDefinition MacroFragment = new MacroDefinition(MacroStageFragment, GLSL_True);
         public static readonly GlslCompileOptions OptionVertex = new GlslCompileOptions(true, MacroVertex);
