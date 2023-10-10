@@ -51,14 +51,19 @@ namespace Vocore.Engine
                 comparisonKind: ComparisonKind.LessEqual);
 
             pipelineDescription.RasterizerState = new RasterizerStateDescription(
-                cullMode: FaceCullMode.None,
+                cullMode: FaceCullMode.Back,
                 fillMode: PolygonFillMode.Solid,
-                frontFace: FrontFace.Clockwise,
+                frontFace: FrontFace.CounterClockwise,
                 depthClipEnabled: true,
                 scissorTestEnabled: false);
 
             pipelineDescription.PrimitiveTopology = PrimitiveTopology.TriangleList;
-            pipelineDescription.ResourceLayouts = Array.Empty<ResourceLayout>();
+            var resourceLayoutCamera = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Camera);
+            var resourceLayoutTransform = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Transform);
+            pipelineDescription.ResourceLayouts = new ResourceLayout[] {
+                resourceLayoutCamera,
+                resourceLayoutTransform
+              };
             pipelineDescription.ShaderSet = new ShaderSetDescription(
                 vertexLayouts: new VertexLayoutDescription[] { Vertex.Layout },
                 shaders: shaders

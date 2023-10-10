@@ -69,7 +69,11 @@ namespace Vocore.Engine
             };
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
-            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, GraphicsBackend.Vulkan);
+            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window,
+            new GraphicsDeviceOptions{
+                SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt
+            },
+             GraphicsBackend.Vulkan);
             _graphicsCommand = new GraphicsCommand(_graphicsDevice);
             _window.Resized += () =>
             {

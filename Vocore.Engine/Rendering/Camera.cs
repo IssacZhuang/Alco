@@ -1,6 +1,8 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Veldrid;
+using Vocore.Unsafe;
 
 namespace Vocore.Engine
 {
@@ -22,6 +24,10 @@ namespace Vocore.Engine
 
         private bool _isViewMatrixDirty;
         private bool _isProjectionMatrixDirty;
+
+        
+
+        public static readonly uint BufferSize = (uint)UtilsMemory.SizeOf<Matrix4x4>();
 
         public float FieldOfView
         {
@@ -95,6 +101,11 @@ namespace Vocore.Engine
                 }
                 return _viewMatrix;
             }
+            set
+            {
+                _viewMatrix = value;
+                _isViewMatrixDirty = false;
+            }
         }
 
         public Matrix4x4 ProjectionMatrix
@@ -108,6 +119,16 @@ namespace Vocore.Engine
                     _isProjectionMatrixDirty = false;
                 }
                 return _projectionMatrix;
+            }
+            
+        }
+
+        public Matrix4x4 ViewProjectionMatrix
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return ViewMatrix * ProjectionMatrix;
             }
         }
 
@@ -145,6 +166,11 @@ namespace Vocore.Engine
         private void UpdateProjectionMatrix()
         {
             _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, Window.AspectRatio, _near, _far);
+        }
+
+        public void UpdateBuffer(GraphicsDevice device, DeviceBuffer buffer)
+        {
+            device.UpdateBuffer(buffer, 0, ViewProjectionMatrix);
         }
     }
 }
