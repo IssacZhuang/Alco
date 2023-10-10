@@ -1,9 +1,11 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
+
 
 namespace Vocore.Engine
 {
@@ -16,6 +18,7 @@ namespace Vocore.Engine
         private Sdl2Window _window;
         private GraphicsDevice _graphicsDevice;
         private GraphicsCommand _graphicsCommand;
+        private Profiler _profiler;
         private int _physicsFps = 30;
         private long physicsTickInterval;
         private float physicsDeltaTime;
@@ -23,6 +26,7 @@ namespace Vocore.Engine
 
         protected GraphicsCommand GraphicsCommand
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 return _graphicsCommand;
@@ -31,6 +35,7 @@ namespace Vocore.Engine
 
         protected Sdl2Window Window
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 return _window;
@@ -39,9 +44,19 @@ namespace Vocore.Engine
 
         protected GraphicsDevice GraphicsDevice
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 return _graphicsDevice;
+            }
+        }
+
+        public Profiler Profiler
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _profiler;
             }
         }
 
@@ -59,6 +74,8 @@ namespace Vocore.Engine
 
         public Engine(string name = "Vocore")
         {
+            _profiler = new Profiler();
+
             _windowCreateInfo = new WindowCreateInfo
             {
                 X = 100,
@@ -89,6 +106,7 @@ namespace Vocore.Engine
             RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
         }
 
+        [STAThread]
         public void Run()
         {
             try
@@ -107,6 +125,7 @@ namespace Vocore.Engine
             long _timer = 0;
             long lastTime = 0;
             long delta = 0;
+            float deltaTime = 0;
 
             _stopwatch.Start();
 
@@ -115,6 +134,7 @@ namespace Vocore.Engine
                 delta = _stopwatch.ElapsedTicks - lastTime;
                 lastTime = _stopwatch.ElapsedTicks;
                 _timer += delta;
+                deltaTime = (float)delta / frequency;
 
                 PumpInput();
 
@@ -134,12 +154,13 @@ namespace Vocore.Engine
 
                 try
                 {
-                    if (_isRunning) OnUpdate((float)delta / frequency);
+                    if (_isRunning) OnUpdate(deltaTime);
                 }
                 catch (Exception e)
                 {
                     Log.Error("Update Error: ", e);
                 }
+                Profiler.Update(deltaTime);
             }
 
             OnQuit();
@@ -176,6 +197,7 @@ namespace Vocore.Engine
             _graphicsCommand.Dispose();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PumpInput()
         {
             RuntimeGlobal.InputSnapshot = _window.PumpEvents();
@@ -188,7 +210,5 @@ namespace Vocore.Engine
             physicsTickInterval = Stopwatch.Frequency / _physicsFps;
             physicsDeltaTime = 1f / _physicsFps;
         }
-
-
     }
 }

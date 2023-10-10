@@ -11,7 +11,7 @@ public class App : Engine
     private Pipeline _shaderPipeline;
     private Camera _camera;
     private float _timer;
-    private int _frameCount;
+    private int _fps;
 
     public App(string name) : base(name)
     {
@@ -59,17 +59,16 @@ public class App : Engine
         GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
         GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer+1)*Matrix4x4.CreateTranslation(1, 0, 0));
         GraphicsCommand.SwapBuffer();
-        _frameCount++;
     }
 
     protected override void OnTick(float delta)
     {
-        if (_timer >= 1)
+        if (_fps != Profiler.FPS)
         {
-            Log.Info($"FPS: {_frameCount}");
-            _timer -= 1;
-            _frameCount = 0;
+            _fps = Profiler.FPS;
+            Log.Info(String.Concat("FPS: ", _fps));
         }
+
     }
 
     protected override void OnWindowResize(int width, int height)

@@ -17,7 +17,6 @@ namespace Vocore.Engine
         private DeviceBuffer _transformBuffer;
         private ResourceSet _resourceSetCamera;
         private ResourceSet _resourceSetTransform;
-        private Camera _currentCamera;
         private static readonly uint VertexBufferSize = 1024*1024*4;
         private static readonly uint IndexBufferSize = 1024*1024*4;
 
@@ -37,17 +36,7 @@ namespace Vocore.Engine
             }
         }
 
-        public Camera CurrentCamera
-        {
-            get
-            {
-                return _currentCamera;
-            }
-            set
-            {
-                _currentCamera = value;
-            }
-        }
+        public Camera? CurrentCamera { get; set; }
 
         public GraphicsCommand(GraphicsDevice _graphicsDevice)
         {
@@ -66,12 +55,12 @@ namespace Vocore.Engine
 
         public void UpdateCameraBuffer()
         {
-            if (_currentCamera == null)
+            if (CurrentCamera == null)
             {
                 return;
             }
             _commandList.Begin();
-            _currentCamera.UpdateBuffer(_device, _cameraBuffer);
+            CurrentCamera.UpdateBuffer(_device, _cameraBuffer);
             _commandList.End();
             _device.SubmitCommands(_commandList);
         }

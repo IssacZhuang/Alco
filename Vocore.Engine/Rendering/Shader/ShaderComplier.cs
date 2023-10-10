@@ -40,7 +40,7 @@ namespace Vocore.Engine
 
         public static Pipeline CreateShaderPiplineFromGLSL(GraphicsDevice graphicsDevice, string shaderText, string filename = "unknown_shader")
         {
-            return CreateShaderPipline(graphicsDevice, ComplieGlsl(graphicsDevice.ResourceFactory, shaderText, filename));
+            return CreateShaderPipline(graphicsDevice, shaderText, filename);
         }
 
 
@@ -59,18 +59,15 @@ namespace Vocore.Engine
             return result;
         }
 
-        private static Shader[] ComplieGlsl(this ResourceFactory factory, string shaderText, string filename)
+        private static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, string shaderText, string filename)
         {
+            ResourceFactory factory = graphicsDevice.ResourceFactory;
             ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
             ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename);
             ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
             ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
             Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
-            return shaders;
-        }
-
-        private static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, Shader[] shaders)
-        {
+            
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = BlendStateDescription.SingleOverrideBlend;
             pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
