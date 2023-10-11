@@ -36,7 +36,7 @@ namespace Vocore
             return new BoundingBox(center - halfExtentsInB, center + halfExtentsInB);
         }
 
-        public BoundingBox GetBoundingBox(RigidTransform transform)
+        public BoundingBox GetBoundingBox(Tranform transform)
         {
             // Vector3 centerInWorld = math.transform(transform, center);
             // Quaternion rotationInWorld = math.mul(transform.rot, rotation);
@@ -53,7 +53,7 @@ namespace Vocore
             // Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 
             // return new BoundingBox(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
-            Quaternion rotationInWorld = math.mul(rotation, transform.rot);
+            Quaternion rotationInWorld = math.mul(rotation, transform.rotation);
 
             Vector3 x = Vector3.Transform(new Vector3(extends.X, 0, 0), rotationInWorld);
             Vector3 y = Vector3.Transform(new Vector3(0, extends.Y, 0), rotationInWorld);

@@ -350,20 +350,20 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static RigidTransform inverse(RigidTransform a)
+        public static Tranform inverse(Tranform a)
         {
-            Quaternion invRot = inverse(a.rot);
-            return new RigidTransform
+            Quaternion invRot = inverse(a.rotation);
+            return new Tranform
             {
-                pos = mul(invRot, -a.pos),
-                rot = invRot
+                position = mul(invRot, -a.position),
+                rotation = invRot
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 transform(RigidTransform a, Vector3 b)
+        public static Vector3 transform(Tranform a, Vector3 b)
         {
-            return mul(a.rot, b) + a.pos;
+            return mul(a.rotation, b) + a.position;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

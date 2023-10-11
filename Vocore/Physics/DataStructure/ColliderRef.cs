@@ -48,7 +48,7 @@ namespace Vocore
             return new BoundingBox();
         }
 
-        public BoundingBox GetBoundingBox(RigidTransform transform)
+        public BoundingBox GetBoundingBox(Tranform transform)
         {
             switch (_type)
             {
