@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+
 
 using Veldrid;
 using Veldrid.SPIRV;
@@ -9,19 +9,12 @@ namespace Vocore.Engine
 {
     public static class ShaderComplier
     {
-        public const string RegexPragma = @"#pragma\s+(\w+)\s+(\w+)";
         public const string MacroStageVertex = "VERTEX_SHADER";
         public const string MacroStageFragment = "FRAGMENT_SHADER";
-        public const string GLSL_True = "1";
-        public const string GLSL_False = "0";
+        public const string GLSL_True = "true";
+        public const string GLSL_False = "false";
         public const string DefaultEntryPoint = "main";
-        public const string PragmaKey_BlendState = "blend_state";
-        public const string PragmaKey_DepthTest = "depth_test";
-        public const string PragmaKey_DepthWrite = "depth_write";
-        public const string PragmaKey_CullMode = "cull_mode";
-        public const string PragmaKey_FillMode = "fill_mode";
-        public const string PragmaKey_DepthClip = "depth_clip";
-        public const string PragmaKey_ScissorTest = "scissor_test";
+        
         public static readonly MacroDefinition MacroVertex = new MacroDefinition(MacroStageVertex, GLSL_True);
         public static readonly MacroDefinition MacroFragment = new MacroDefinition(MacroStageFragment, GLSL_True);
         public static readonly GlslCompileOptions OptionVertex = new GlslCompileOptions(true, MacroVertex);
@@ -49,23 +42,11 @@ namespace Vocore.Engine
         }
 
 
-        public static Dictionary<string, string> GetPragma(string shader)
-        {
-            Dictionary<string, string> result = new Dictionary<string, string>();
-            string[] lines = shader.Split('\n');
-            foreach (string line in lines)
-            {
-                Match match = Regex.Match(line, RegexPragma);
-                if (match.Success)
-                {
-                    result.Add(match.Groups[1].Value, match.Groups[2].Value);
-                }
-            }
-            return result;
-        }
+        
 
         private static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, string shaderText, string filename)
         {
+            ShaderAnalyseResult analyseResult = new ShaderAnalyseResult(shaderText);
             ResourceFactory factory = graphicsDevice.ResourceFactory;
             ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
             ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename);
@@ -76,16 +57,16 @@ namespace Vocore.Engine
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = BlendStateDescription.SingleOverrideBlend;
             pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
-                depthTestEnabled: true,
-                depthWriteEnabled: true,
+                depthTestEnabled: analyseResult.GetDepthTestEnable(),
+                depthWriteEnabled: analyseResult.GetDepthWriteEnable(),
                 comparisonKind: ComparisonKind.LessEqual);
 
             pipelineDescription.RasterizerState = new RasterizerStateDescription(
-                cullMode: FaceCullMode.Back,
-                fillMode: PolygonFillMode.Solid,
+                cullMode: analyseResult.GetCullMode(),
+                fillMode: analyseResult.GetFillMode(),
                 frontFace: FrontFace.CounterClockwise,
-                depthClipEnabled: true,
-                scissorTestEnabled: false);
+                depthClipEnabled: analyseResult.GetDepthClipEnable(),
+                scissorTestEnabled: analyseResult.GetScissorTestEnable());
 
             pipelineDescription.PrimitiveTopology = PrimitiveTopology.TriangleList;
             var resourceLayoutCamera = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Camera);
