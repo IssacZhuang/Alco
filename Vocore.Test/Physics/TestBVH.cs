@@ -198,6 +198,11 @@ namespace Vocore.Test
             UnitTest.PrintBlue(result.hitInfo.fraction);
             UnitTest.PrintBlue(result.hitInfo.point);
 
+            boxs.Dispose();
+            spheres.Dispose();
+            colliders.Dispose();
+            bvh.Dispose();
+
         }
 
         [Test("Test BVH collider collision")]
@@ -266,6 +271,11 @@ namespace Vocore.Test
 
             UnitTest.AssertFalse(bvh.CastColliderSphere(ref sphereCast1).hit);
             UnitTest.AssertFalse(!bvh.CastColliderSphere(ref sphereCast2).hit);
+
+            boxs.Dispose();
+            spheres.Dispose();
+            colliders.Dispose();
+            bvh.Dispose();
 
         }
     }
