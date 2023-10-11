@@ -31,10 +31,41 @@ namespace Vocore
             this.scale = scale;
         }
 
+        public Vector3 Direction
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return Vector3.Transform(Vector3.UnitZ, rotation);
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                SetDirection(value);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector3 translation)
         {
             position += translation;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void LookAt(Vector3 point)
+        {
+            SetDirection(point - position);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetDirection(Vector3 direction)
+        {
+            Vector3 forward = Vector3.Normalize(direction);
+            Vector3 right = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, forward));
+            Vector3 up = Vector3.Normalize(Vector3.Cross(forward, right));
+            //rotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, forward.X, forward.Y, forward.Z, 0, 0, 0, 0, 1));
+            rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(Vector3.Zero, forward, up));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
