@@ -59,10 +59,7 @@ namespace Vocore.Engine
             {
                 return;
             }
-            _commandList.Begin();
             CurrentCamera.UpdateBuffer(_device, _cameraBuffer);
-            _commandList.End();
-            _device.SubmitCommands(_commandList);
         }
 
         public void DrawMesh(Mesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
