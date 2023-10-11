@@ -40,30 +40,16 @@ namespace Vocore.Test
             //     pack.TrySetTextFile("test.txt", "Hello World!");
             // }
 
-            int size = 100000000;
+            int size = 40000;
             //Vector3 vs vector
-            Vector3 a = new Vector3(1, 2, 3);
-            Vector3 b = new Vector3(4, 5, 6);
-            Vector3 result = Vector3.Zero;
-
-            Vector3 va = new Vector3(1, 2, 3);
-            Vector3 vb = new Vector3(4, 5, 6);
-            Vector3 vresult = Vector3.Zero;
-
-            UnitTest.Benchmark("Vector3", () =>
+            Vector3 pos = new Vector3(4, 5, 6);
+            Quaternion rot = Quaternion.CreateFromYawPitchRoll(1, 2, 3);
+            Vector3 scale = new Vector3(7, 8, 9);
+            UnitTest.Benchmark("matrix 4x4", () =>
             {
                 for (int i = 0; i < size; i++)
                 {
-                    result = a * b;
-                }
-            });
-
-
-            UnitTest.Benchmark("simd", () =>
-            {
-                for (int i = 0; i < size; i++)
-                {
-                    vresult = Vector3.Multiply(va, vb);
+                    Matrix4x4 m = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rot) * Matrix4x4.CreateTranslation(pos);
                 }
             });
 
