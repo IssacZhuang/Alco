@@ -9,7 +9,7 @@ using Vocore.Engine;
 public class App : Engine
 {
     private Pipeline _shaderPipeline;
-    private Camera _camera;
+    private CameraPerspective _camera;
     private float _timer;
     private int _fps;
 
@@ -21,8 +21,9 @@ public class App : Engine
     protected override void OnStart()
     {
         base.OnStart();
-        _camera = new Camera();
-        _camera.ViewMatrix = Matrix4x4.CreateLookAt(Vector3.UnitZ * 2.5f, Vector3.Zero, Vector3.UnitY);
+        _camera = new CameraPerspective();
+        _camera.tranform.position = new Vector3(0, 0, -5);
+        _camera.tranform.LookAt(Vector3.Zero);
         GraphicsCommand.CurrentCamera = _camera;
 
         var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
@@ -54,11 +55,9 @@ public class App : Engine
 
         _timer += delta;
 
-        GraphicsCommand.ClearFrame();
         GraphicsCommand.UpdateCameraBuffer();
         GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer+1)*Matrix4x4.CreateTranslation(1, 0, 0));
-        GraphicsCommand.SwapBuffer();
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(1, 0, 0));
     }
 
     protected override void OnTick(float delta)

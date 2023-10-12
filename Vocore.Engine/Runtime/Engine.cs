@@ -154,11 +154,17 @@ namespace Vocore.Engine
 
                 try
                 {
-                    if (_isRunning) OnUpdate(deltaTime);
+                    if (_isRunning)
+                    {
+                        GraphicsCommand.BeginFrame();
+                        OnUpdate(deltaTime);
+                        GraphicsCommand.EndFrame();
+                    }
                 }
                 catch (Exception e)
                 {
                     Log.Error("Update Error: ", e);
+                    return;
                 }
                 Profiler.Update(deltaTime);
             }

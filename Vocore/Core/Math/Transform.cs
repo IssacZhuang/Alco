@@ -45,6 +45,24 @@ namespace Vocore
             }
         }
 
+        public Matrix4x4 MatrixSRT
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return UtilsTranform.CreateTransform(position, rotation, scale);
+            }
+        }
+
+        public Matrix4x4 MatrixRT
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return UtilsTranform.CreateTransform(position, rotation);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector3 translation)
         {
@@ -80,13 +98,6 @@ namespace Vocore
             Rotate(Quaternion.CreateFromAxisAngle(axis, angle));
         }
 
-        public Matrix4x4 Matrix
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return UtilsTranform.CreateTransform(position, rotation, scale);
-            }
-        }
+        
     }
 }

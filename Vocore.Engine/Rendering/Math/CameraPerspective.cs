@@ -6,9 +6,9 @@ using Vocore.Unsafe;
 
 namespace Vocore.Engine
 {
-    public class Camera
+    public class CameraPerspective : ICamera
     {
-        public const float DefaultFov = 1.0472f;
+        public const float DefaultFov = 1.03f;
         public const float DefaultNear = 0.1f;
         public const float DefaultFar = 1000f;
 
@@ -16,16 +16,10 @@ namespace Vocore.Engine
         private float _near;
         private float _far;
 
-        private Matrix4x4 _viewMatrix;
         private Matrix4x4 _projectionMatrix;
-
-        private Vector3 _position;
-        private Quaternion _rotation;
-
-        private bool _isViewMatrixDirty;
         private bool _isProjectionMatrixDirty;
 
-        
+        public Tranform tranform;
 
         public static readonly uint BufferSize = (uint)UtilsMemory.SizeOf<Matrix4x4>();
 
@@ -65,46 +59,12 @@ namespace Vocore.Engine
             }
         }
 
-        public Vector3 Position
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _position;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                _position = value;
-                _isViewMatrixDirty = true;
-            }
-        }
-
-        public Quaternion Rotation
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rotation;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                _rotation = value;
-                _isViewMatrixDirty = true;
-            }
-        }
-
         public Matrix4x4 ViewMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_isViewMatrixDirty)
-                {
-                    UpdateViewMatrix();
-                    _isViewMatrixDirty = false;
-                }
-                return _viewMatrix;
-            }
-            set
-            {
-                _viewMatrix = value;
-                _isViewMatrixDirty = false;
+                return tranform.MatrixRT;
             }
         }
 
@@ -120,7 +80,7 @@ namespace Vocore.Engine
                 }
                 return _projectionMatrix;
             }
-            
+
         }
 
         public Matrix4x4 ViewProjectionMatrix
@@ -132,45 +92,20 @@ namespace Vocore.Engine
             }
         }
 
-        public Camera(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar) :
-            this(Vector3.Zero, fov, near, far)
+
+        public CameraPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar)
         {
-
-        }
-
-        public Camera(Vector3 position, float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar) :
-            this(position, Quaternion.Identity, fov, near, far)
-        {
-
-        }
-
-        public Camera(Vector3 position, Quaternion rotation, float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar)
-        {
-            _position = position;
-            _rotation = rotation;
             _fov = fov;
             _near = near;
             _far = far;
 
-            _isViewMatrixDirty = true;
             _isProjectionMatrixDirty = true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateViewMatrix()
-        {
-            _viewMatrix = Matrix4x4.CreateFromQuaternion(_rotation) * Matrix4x4.CreateTranslation(_position);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateProjectionMatrix()
         {
             _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, Window.AspectRatio, _near, _far);
-        }
-
-        public void UpdateBuffer(GraphicsDevice device, DeviceBuffer buffer)
-        {
-            device.UpdateBuffer(buffer, 0, ViewProjectionMatrix);
         }
     }
 }

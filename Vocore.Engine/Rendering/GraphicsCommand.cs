@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Veldrid;
 using Veldrid.SPIRV;
 using Vocore.Unsafe;
@@ -36,7 +37,7 @@ namespace Vocore.Engine
             }
         }
 
-        public Camera? CurrentCamera { get; set; }
+        public ICamera? CurrentCamera { get; set; }
 
         public GraphicsCommand(GraphicsDevice _graphicsDevice)
         {
@@ -45,7 +46,7 @@ namespace Vocore.Engine
             _commandList = _factory.CreateCommandList();
             _vertexBuffer = _factory.CreateBuffer(new BufferDescription(VertexBufferSize, BufferUsage.VertexBuffer));
             _indexBuffer = _factory.CreateBuffer(new BufferDescription(IndexBufferSize, BufferUsage.IndexBuffer));
-            _cameraBuffer = _factory.CreateBuffer(new BufferDescription(Camera.BufferSize, BufferUsage.UniformBuffer));
+            _cameraBuffer = _factory.CreateBuffer(new BufferDescription(CameraPerspective.BufferSize, BufferUsage.UniformBuffer));
             _transformBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
             var bufferLayoutCamera = _factory.CreateResourceLayout(BufferLayout.Camera);
             _resourceSetCamera = _factory.CreateResourceSet(new ResourceSetDescription(bufferLayoutCamera, _cameraBuffer));
@@ -59,7 +60,14 @@ namespace Vocore.Engine
             {
                 return;
             }
-            CurrentCamera.UpdateBuffer(_device, _cameraBuffer);
+
+            _device.UpdateBuffer(_cameraBuffer, 0, CurrentCamera.ViewProjectionMatrix);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrawMesh(Mesh mesh, Pipeline shaderPipeline, Tranform transform)
+        {
+            DrawMesh(mesh, shaderPipeline, transform.MatrixSRT);
         }
 
         public void DrawMesh(Mesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
@@ -86,7 +94,7 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
-        public void ClearFrame()
+        public void BeginFrame()
         {
             _commandList.Begin();
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
@@ -97,7 +105,7 @@ namespace Vocore.Engine
 
         }
 
-        public void SwapBuffer()
+        public void EndFrame()
         {
             _device.SwapBuffers();
         }
