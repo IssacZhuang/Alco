@@ -46,12 +46,24 @@ namespace Vocore.Engine
 
         private static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, string shaderText, string filename)
         {
-            ShaderAnalyseResult analyseResult = new ShaderAnalyseResult(shaderText);
             ResourceFactory factory = graphicsDevice.ResourceFactory;
+
+            CrossCompileTarget compilationTarget = GetCompilationTarget(factory.BackendType);
+            
+
+            ShaderAnalyseResult analyseResult = new ShaderAnalyseResult(shaderText);
+            
             ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
             ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename);
             ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
             ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
+
+            VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexShaderDescription.ShaderBytes, fragmentShaderDescription.ShaderBytes, compilationTarget, new CrossCompileOptions{
+                NormalizeResourceNames = false,
+            });
+            Log.Info($"Vertex Shader: {vertexFragmentCompilationResult.VertexShader}");
+            Log.Info($"Fragment Shader: {vertexFragmentCompilationResult.FragmentShader}");
+
             Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
             
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
@@ -81,6 +93,18 @@ namespace Vocore.Engine
                 );
             pipelineDescription.Outputs = graphicsDevice.SwapchainFramebuffer.OutputDescription;
             return graphicsDevice.ResourceFactory.CreateGraphicsPipeline(pipelineDescription);
+        }
+
+        public static CrossCompileTarget GetCompilationTarget(GraphicsBackend backend)
+        {
+            return backend switch
+            {
+                GraphicsBackend.Direct3D11 => CrossCompileTarget.HLSL,
+                GraphicsBackend.OpenGL => CrossCompileTarget.GLSL,
+                GraphicsBackend.Metal => CrossCompileTarget.MSL,
+                GraphicsBackend.OpenGLES => CrossCompileTarget.ESSL,
+                _ => throw new SpirvCompilationException($"Invalid GraphicsBackend: {backend}"),
+            };
         }
     }
 }
