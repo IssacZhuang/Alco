@@ -175,6 +175,7 @@ namespace Vocore.Engine
             }
 
             OnQuit();
+            InternalQuit();
         }
 
         protected virtual void OnStart()

@@ -120,7 +120,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LookAt(Vector3 point)
         {
-            rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(position, point, Vector3.UnitY));
+            rotation = math.FromDirection(point - position);
         }
 
         

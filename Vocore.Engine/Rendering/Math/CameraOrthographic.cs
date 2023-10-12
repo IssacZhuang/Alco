@@ -60,7 +60,7 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return tranform.MatrixRT;
+                return UtilsTranform.CreateTransformTR(tranform.position.InverseY(), tranform.rotation);
             }
         }
 

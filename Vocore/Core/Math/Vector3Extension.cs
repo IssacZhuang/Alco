@@ -7,6 +7,24 @@ namespace Vocore
     public static class Vector3Extension
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 InverseX(this Vector3 v)
+        {
+            return new Vector3(-v.X, v.Y, v.Z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 InverseY(this Vector3 v)
+        {
+            return new Vector3(v.X, -v.Y, v.Z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 InverseZ(this Vector3 v)
+        {
+            return new Vector3(v.X, v.Y, -v.Z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 YZX(this Vector3 v)
         {
             return new Vector3(v.Y, v.Z, v.X);

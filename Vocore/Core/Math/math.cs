@@ -806,6 +806,12 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion FromDirection(Vector3 dir)
+        {
+            return Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(Vector3.Zero, dir, Vector3.UnitY));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static float asfloat(uint a)
         {
             return *(float*)&a;
