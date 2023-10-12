@@ -44,6 +44,12 @@ namespace Vocore.Engine
             get => _indexCount;
         }
 
+        public IndexFormat IndexFormat
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => IndexFormat.UInt16;
+        }
+
         public unsafe Mesh(Vertex[] vertices, ushort[] indices)
         {
             UpdateVertices(vertices);

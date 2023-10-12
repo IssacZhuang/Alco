@@ -80,7 +80,7 @@ namespace Vocore.Engine
             _commandList.SetPipeline(shaderPipeline);
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.SetVertexBuffer(0, _vertexBuffer);
-            _commandList.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            _commandList.SetIndexBuffer(_indexBuffer, mesh.IndexFormat);
 
             _commandList.SetGraphicsResourceSet(0, _resourceSetCamera);
             _commandList.SetGraphicsResourceSet(1, _resourceSetTransform);

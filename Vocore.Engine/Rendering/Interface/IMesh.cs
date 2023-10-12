@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Veldrid;
 
 namespace Vocore.Engine
 {
@@ -10,6 +11,7 @@ namespace Vocore.Engine
         public uint VertexBufferSize { get; }
         public uint IndexBufferSize { get; }
         public uint IndexCount { get; }
+        public IndexFormat IndexFormat { get; }
     }
 }
 
