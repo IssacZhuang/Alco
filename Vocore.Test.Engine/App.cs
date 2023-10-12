@@ -21,8 +21,8 @@ public class App : Engine
     protected override void OnStart()
     {
         _cameraP = new CameraPerspective();
-        _cameraP.tranform.position = new Vector3(1, 0, -5);
-        _cameraP.tranform.LookAt(Vector3.Zero);
+        _cameraP.tranform.position = new Vector3(-1, 0, 5);
+        
         _cameraP.tranform.position.Y = 1;
 
         GraphicsCommand.CurrentCamera = _cameraP;
@@ -48,6 +48,26 @@ public class App : Engine
             Application.Quit();
         }
 
+        if (Input.IsKeyPressing(Key.W))
+        {
+            _cameraP.tranform.Translate(Tranform.Forward * delta);
+        }
+
+        if (Input.IsKeyPressing(Key.S))
+        {
+            _cameraP.tranform.Translate(Tranform.Back * delta);
+        }
+
+        if (Input.IsKeyPressing(Key.A))
+        {
+            _cameraP.tranform.Translate(Tranform.Left * delta);
+        }
+
+        if (Input.IsKeyPressing(Key.D))
+        {
+            _cameraP.tranform.Translate(Tranform.Right * delta);
+        }
+
         if (Input.IsKeyPressing(Key.Plus))
         {
             _cameraP.FieldOfView += delta;
@@ -68,11 +88,14 @@ public class App : Engine
             _cameraP.tranform.position.Y -= delta;
         }
 
+        Vector3 coloredCubePosition = new Vector3(1, 0.5f * math.sin(_timer), 0);
+
         _timer += delta;
+        //_cameraP.tranform.LookAt(coloredCubePosition);
 
         GraphicsCommand.UpdateCameraBuffer();
         GraphicsCommand.DrawMesh(MeshPool.Cube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(1, 0.5f * math.sin(_timer), 0));
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(coloredCubePosition));
     }
 
     protected override void OnTick(float delta)

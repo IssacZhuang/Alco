@@ -11,6 +11,12 @@ namespace Vocore
         public Vector3 scale;
 
         public static readonly Tranform Standard = new Tranform(Vector3.Zero, Quaternion.Identity, Vector3.One);
+        public static readonly Vector3 Forward = -Vector3.UnitZ;
+        public static readonly Vector3 Back = Vector3.UnitZ;
+        public static readonly Vector3 Up = Vector3.UnitY;
+        public static readonly Vector3 Down = -Vector3.UnitY;
+        public static readonly Vector3 Right = Vector3.UnitX;
+        public static readonly Vector3 Left = -Vector3.UnitX;
 
         public Tranform(Vector3 pos, Quaternion rot)
         {
@@ -113,7 +119,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector3 translation)
         {
-            position += translation;
+            position += Vector3.Transform(translation, rotation);
         }
 
 
