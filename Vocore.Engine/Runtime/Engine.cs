@@ -6,6 +6,7 @@ using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
 
+#pragma warning disable CS8618
 
 namespace Vocore.Engine
 {
@@ -72,43 +73,14 @@ namespace Vocore.Engine
             }
         }
 
+        public Engine(GraphicsBackend backend, string name = "Vocore")
+        {
+            Init(backend, name);
+        }
+
         public Engine(string name = "Vocore")
         {
-            _profiler = new Profiler();
-
-            _windowCreateInfo = new WindowCreateInfo
-            {
-                X = 100,
-                Y = 100,
-                WindowWidth = 640,
-                WindowHeight = 360,
-                WindowTitle = name
-            };
-
-            _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
-            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window,
-            new GraphicsDeviceOptions{
-                SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt,
-                PreferDepthRangeZeroToOne = true,
-                PreferStandardClipSpaceYDirection = true,
-            },
-             GraphicsBackend.Direct3D11);
-            Log.Info("Graphics Backend: \t" + _graphicsDevice.BackendType);
-            Log.Info("IsDepthRangeZeroToOne: \t" + _graphicsDevice.IsDepthRangeZeroToOne);
-            Log.Info("IsClipSpaceYInverted: \t" + _graphicsDevice.IsClipSpaceYInverted);
-            _graphicsCommand = new GraphicsCommand(_graphicsDevice);
-            _window.Resized += () =>
-            {
-                _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
-                OnWindowResize(_window.Width, _window.Height);
-            };
-            _window.Closing += () =>
-            {
-                _isRunning = false;
-            };
-            RuntimeGlobal.Window = _window;
-            RuntimeGlobal.GraphicsDevice = _graphicsDevice;
-            RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
+            Init(VeldridStartup.GetPlatformDefaultBackend(), name);
         }
 
         [STAThread]
@@ -201,6 +173,46 @@ namespace Vocore.Engine
         protected virtual void OnQuit()
         {
 
+        }
+
+        private void Init(GraphicsBackend backend, string name)
+        {
+            _profiler = new Profiler();
+
+            _windowCreateInfo = new WindowCreateInfo
+            {
+                X = 100,
+                Y = 100,
+                WindowWidth = 640,
+                WindowHeight = 360,
+                WindowTitle = name
+            };
+
+            _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
+            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window,
+            new GraphicsDeviceOptions
+            {
+                SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt,
+                PreferDepthRangeZeroToOne = true,
+                PreferStandardClipSpaceYDirection = true,
+            },
+            backend);
+            Log.Info("Graphics Backend: \t" + _graphicsDevice.BackendType);
+            Log.Info("IsDepthRangeZeroToOne: \t" + _graphicsDevice.IsDepthRangeZeroToOne);
+            Log.Info("IsClipSpaceYInverted: \t" + _graphicsDevice.IsClipSpaceYInverted);
+            _graphicsCommand = new GraphicsCommand(_graphicsDevice);
+            _window.Resized += () =>
+            {
+                _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
+                OnWindowResize(_window.Width, _window.Height);
+            };
+            _window.Closing += () =>
+            {
+                _isRunning = false;
+            };
+            RuntimeGlobal.Window = _window;
+            RuntimeGlobal.GraphicsDevice = _graphicsDevice;
+            RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
         }
 
         private void InternalQuit()
