@@ -94,6 +94,11 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
+        public Framebuffer GetFrameBuffer()
+        {
+            return _device.SwapchainFramebuffer;
+        }
+
         public void BeginFrame()
         {
             _commandList.Begin();

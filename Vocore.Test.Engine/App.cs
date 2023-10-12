@@ -81,7 +81,7 @@ public class App : Engine
 
         GraphicsCommand.UpdateCameraBuffer();
         GraphicsCommand.DrawMesh(MeshPool.Cube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(2, 0.5f * math.sin(_timer), 0));
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(1, 0.5f * math.sin(_timer), 0));
 
     }
 
