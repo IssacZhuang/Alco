@@ -8,14 +8,6 @@ namespace Vocore.Engine
 {
 
 
-    public struct VertexLayout
-    {
-        public string name;
-        public int index;
-        public ShaderDataType type;
-    }
-
-
 
     public struct ShaderAnalyseResult
     {
@@ -32,11 +24,20 @@ namespace Vocore.Engine
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
         //example: #pragma instance_buffer_start
         public const string RegexPragmaInstruction = @"#pragma\s+(\w+)";
+        //exmaple: layout(location = 0) in vec3 position
+        public const string RegexVertexLayout = @"layout\s*(\s*location\s*=\s*(\d+)\)\s*in\s+(\w+)\s+(\w+)";
+        public const string InstructionInstanceBufferStart = "instance_buffer_start";
+        public const string InstructionInstanceBufferEnd = "instance_buffer_end";
         public Dictionary<string, string> pragmaKeyValue;
+        public List<VertexElementDescription> vertexLayouts;
+        public List<VertexElementDescription> instanceLayouts;
 
         public ShaderAnalyseResult(string shaderText)
         {
-            pragmaKeyValue = GetPragma(shaderText);
+            pragmaKeyValue = new Dictionary<string, string>();
+            vertexLayouts = new List<VertexElementDescription>();
+            instanceLayouts = new List<VertexElementDescription>();
+            AnalyseShaderText(shaderText);
         }
 
         private static readonly Dictionary<string, ShaderDataType> DataTypeCast = new Dictionary<string, ShaderDataType>{
@@ -63,6 +64,19 @@ namespace Vocore.Engine
             {"sampler2D", ShaderDataType.Texture2D},
             {"sampler3D", ShaderDataType.Texture3D},
             {"samplerCube", ShaderDataType.TextureCube},
+        };
+
+        private static readonly Dictionary<ShaderDataType, VertexElementFormat> DataTypeVertexElementCast = new Dictionary<ShaderDataType, VertexElementFormat>{
+            {ShaderDataType.Float, VertexElementFormat.Float1},
+            {ShaderDataType.Float2, VertexElementFormat.Float2},
+            {ShaderDataType.Float3, VertexElementFormat.Float3},
+            {ShaderDataType.Float4, VertexElementFormat.Float4},
+            {ShaderDataType.Int, VertexElementFormat.Int1},
+            {ShaderDataType.Int2, VertexElementFormat.Int2},
+            {ShaderDataType.Int3, VertexElementFormat.Int3},
+            {ShaderDataType.Int4, VertexElementFormat.Int4},
+            {ShaderDataType.Bool2, VertexElementFormat.Byte2},
+            {ShaderDataType.Bool4, VertexElementFormat.Byte4},
         };
 
         private static readonly Dictionary<string, BlendStateDescription> BlendStateCast = new Dictionary<string, BlendStateDescription>{
@@ -174,19 +188,45 @@ namespace Vocore.Engine
             return ShaderDataType.None;
         }
 
-        public static Dictionary<string, string> GetPragma(string shader)
+        private void AnalyseShaderText(string shader)
         {
-            Dictionary<string, string> result = new Dictionary<string, string>();
+            Dictionary<string, string> pragma = pragmaKeyValue;
             string[] lines = shader.Split('\n');
+            List<VertexElementDescription> _vertexLayouts = this.vertexLayouts;
+            List<VertexElementDescription> _instanceLayouts = this.instanceLayouts;
+            List<VertexElementDescription> currentLayout = _vertexLayouts;
             foreach (string line in lines)
             {
-                Match match = Regex.Match(line, RegexPragmaKeyValuePair);
-                if (match.Success)
+                MatchLine(line, RegexPragmaKeyValuePair, (match) =>
                 {
-                    result.Add(match.Groups[1].Value, match.Groups[2].Value);
-                }
+                    string key = match.Groups[1].Value;
+                    string value = match.Groups[2].Value;
+                    pragma.Add(key, value);
+                });
+
+            
             }
-            return result;
+
+        }
+
+
+        private VertexElementDescription CreateVertexLayoutDescription(string name, ShaderDataType type)
+        {
+            if (DataTypeVertexElementCast.TryGetValue(type, out VertexElementFormat format))
+            {
+                return new VertexElementDescription(name, format, VertexElementSemantic.TextureCoordinate);
+            }
+
+            throw new Exception("Invalid shader data type for vertex : " + type);
+        }
+
+        private void MatchLine(string line, string regex, Action<Match> action)
+        {
+            Match match = Regex.Match(line, regex);
+            if (match.Success)
+            {
+                action(match);
+            }
         }
     }
 }

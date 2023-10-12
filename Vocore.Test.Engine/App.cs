@@ -10,7 +10,6 @@ public class App : Engine
 {
     private Pipeline _shaderPipeline;
     private CameraPerspective _cameraP;
-    private CameraOrthographic _cameraO;
     private float _timer;
     private int _fps;
 
@@ -21,17 +20,10 @@ public class App : Engine
 
     protected override void OnStart()
     {
-        base.OnStart();
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(1, 0, -5);
         _cameraP.tranform.LookAt(Vector3.Zero);
         _cameraP.tranform.position.Y = 1;
-
-        float size = 5;
-        float ratio = 16f / 9f;
-        _cameraO = new CameraOrthographic(size * ratio, size);
-        _cameraO.tranform.position = new Vector3(0, 1, -5);
-        _cameraO.tranform.LookAt(Vector3.Zero);
 
         GraphicsCommand.CurrentCamera = _cameraP;
 
@@ -41,7 +33,6 @@ public class App : Engine
 
     protected override void OnUpdate(float delta)
     {
-        base.OnUpdate(delta);
         if (Input.IsMouseKeyDown(MouseButton.Left))
         {
             Log.Info("Left mouse button pressed");
@@ -82,7 +73,6 @@ public class App : Engine
         GraphicsCommand.UpdateCameraBuffer();
         GraphicsCommand.DrawMesh(MeshPool.Cube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
         GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(1, 0.5f * math.sin(_timer), 0));
-
     }
 
     protected override void OnTick(float delta)
