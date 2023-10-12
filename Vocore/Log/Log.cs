@@ -10,13 +10,13 @@ namespace Vocore{
         private static Action<string> _logInfo;
         private static Action<string> _logError;
         private static Action<string> _logWarning;
-        private static string ColorWhite = "#ffffff";
-        private static string ColorRed = "#ff0000";
-        private static string ColorGreen = "#00ff00";
-        private static string ColorBlue = "#0000ff";
-        private static string ColorYellow = "#ffff00";
-        private static string ColorCyan = "#00ffff";
-        private static string ColorMagenta = "#ff00ff";
+        public const string ColorWhite = "#ffffff";
+        public const string ColorRed = "#ff0000";
+        public const string ColorGreen = "#00ff00";
+        public const string ColorBlue = "#0000ff";
+        public const string ColorYellow = "#ffff00";
+        public const string ColorCyan = "#00ffff";
+        public const string ColorMagenta = "#ff00ff";
 
         static Log()
         {

@@ -45,12 +45,12 @@ namespace Vocore
             }
         }
 
-        public Matrix4x4 MatrixSRT
+        public Matrix4x4 Matrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return UtilsTranform.CreateTransform(position, rotation, scale);
+                return UtilsTranform.CreateTransformTRS(position, rotation, scale);
             }
         }
 
@@ -59,7 +59,52 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return UtilsTranform.CreateTransform(position, rotation);
+                return UtilsTranform.CreateTransformTR(position, rotation);
+            }
+        }
+
+        public Matrix4x4 MatrixSR
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return UtilsTranform.CreateTransformRS(rotation, scale);
+            }
+        }
+
+        public Matrix4x4 MatrixST
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return UtilsTranform.CreateTransformTS(position, scale);
+            }
+        }
+
+        public Matrix4x4 MatrixTranslation
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return Matrix4x4.CreateTranslation(position);
+            }
+        }
+
+        public Matrix4x4 MatrixRotation
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return Matrix4x4.CreateFromQuaternion(rotation);
+            }
+        }
+
+        public Matrix4x4 MatrixScale
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return Matrix4x4.CreateScale(scale);
             }
         }
 
