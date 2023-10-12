@@ -64,7 +64,7 @@ namespace Vocore.Engine
             pipelineDescription.RasterizerState = new RasterizerStateDescription(
                 cullMode: analyseResult.GetCullMode(),
                 fillMode: analyseResult.GetFillMode(),
-                frontFace: FrontFace.CounterClockwise,
+                frontFace: FrontFace.Clockwise,
                 depthClipEnabled: analyseResult.GetDepthClipEnable(),
                 scissorTestEnabled: analyseResult.GetScissorTestEnable());
 

@@ -88,9 +88,14 @@ namespace Vocore.Engine
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
             _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window,
             new GraphicsDeviceOptions{
-                SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt
+                SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt,
+                PreferDepthRangeZeroToOne = true,
+                PreferStandardClipSpaceYDirection = true,
             },
-             GraphicsBackend.Vulkan);
+             GraphicsBackend.Direct3D11);
+            Log.Info("Graphics Backend: \t" + _graphicsDevice.BackendType);
+            Log.Info("IsDepthRangeZeroToOne: \t" + _graphicsDevice.IsDepthRangeZeroToOne);
+            Log.Info("IsClipSpaceYInverted: \t" + _graphicsDevice.IsClipSpaceYInverted);
             _graphicsCommand = new GraphicsCommand(_graphicsDevice);
             _window.Resized += () =>
             {
