@@ -41,15 +41,21 @@ namespace Vocore.Engine
             return CreateShaderPipline(graphicsDevice, shaderText, filename);
         }
 
-
+        public static SpirvReflection GetShaderReflection(GraphicsDevice graphicsDevice, string shaderText, string filename)
+        {
+            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
+            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename);
+            VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexByteCode.Bytes, fragmentByteCode.Bytes, GetCompilationTarget(graphicsDevice.BackendType), new CrossCompileOptions
+            {
+                NormalizeResourceNames = false,
+            });
+            return vertexFragmentCompilationResult.Reflection;
+        }
         
 
         private static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, string shaderText, string filename)
         {
             ResourceFactory factory = graphicsDevice.ResourceFactory;
-
-            CrossCompileTarget compilationTarget = GetCompilationTarget(factory.BackendType);
-            
 
             ShaderAnalyseResult analyseResult = new ShaderAnalyseResult(shaderText);
             
@@ -58,13 +64,42 @@ namespace Vocore.Engine
             ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
             ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
 
-            VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexShaderDescription.ShaderBytes, fragmentShaderDescription.ShaderBytes, compilationTarget, new CrossCompileOptions{
-                NormalizeResourceNames = false,
-            });
-            Log.Info($"Vertex Shader: {vertexFragmentCompilationResult.VertexShader}");
-            Log.Info($"Fragment Shader: {vertexFragmentCompilationResult.FragmentShader}");
+            SpirvReflection reflection = GetShaderReflection(graphicsDevice, shaderText, filename);
 
-            Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
+            VertexLayoutDescription[] vertexDesc;
+
+            if (analyseResult.HasInstanceBuffer)
+            {
+                VertexElementDescription[] instanceElements = new VertexElementDescription[analyseResult.IntancedElementCount];
+                for (int i = 0; i < analyseResult.IntancedElementCount; i++)
+                {
+                    instanceElements[i] = reflection.VertexElements[analyseResult.instanceBufferStartIndex + i];
+                }
+                VertexLayoutDescription instanceLayout = new VertexLayoutDescription(instanceElements)
+                {
+                    InstanceStepRate = 1
+                };
+                int vertexElementCount = reflection.VertexElements.Length - analyseResult.IntancedElementCount;
+                VertexElementDescription[] vertexElements = new VertexElementDescription[vertexElementCount];
+                for (int i = 0; i < analyseResult.instanceBufferStartIndex; i++)
+                {
+                    vertexElements[i] = reflection.VertexElements[i];
+                }
+                for (int i = analyseResult.instanceBufferEndIndex + 1; i < reflection.VertexElements.Length; i++)
+                {
+                    vertexElements[i - analyseResult.IntancedElementCount] = reflection.VertexElements[i];
+                }
+                VertexLayoutDescription vertexLayout = new VertexLayoutDescription(vertexElements);
+                vertexDesc = new VertexLayoutDescription[] { vertexLayout, instanceLayout };
+            }
+            else
+            {
+                VertexLayoutDescription vertexLayout = new VertexLayoutDescription(reflection.VertexElements);
+                vertexDesc = new VertexLayoutDescription[] { vertexLayout };
+            }
+
+
+            Veldrid.Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
             
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = BlendStateDescription.SingleOverrideBlend;
@@ -88,7 +123,7 @@ namespace Vocore.Engine
                 resourceLayoutTransform
               };
             pipelineDescription.ShaderSet = new ShaderSetDescription(
-                vertexLayouts: new VertexLayoutDescription[] { Vertex.Layout },
+                vertexLayouts: vertexDesc,
                 shaders: shaders
                 );
             pipelineDescription.Outputs = graphicsDevice.SwapchainFramebuffer.OutputDescription;

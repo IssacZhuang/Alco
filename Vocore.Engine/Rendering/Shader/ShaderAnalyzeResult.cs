@@ -24,19 +24,21 @@ namespace Vocore.Engine
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
         //example: #pragma instance_buffer_start
         public const string RegexPragmaInstruction = @"#pragma\s+(\w+)";
-        //exmaple: layout(location = 0) in vec3 position
-        public const string RegexVertexLayout = @"layout\s*(\s*location\s*=\s*(\d+)\)\s*in\s+(\w+)\s+(\w+)";
+        //exmaple: layout(location = 0) in vec3 position,
+        public const string RegexVertexLayout = @"layout\s*\(\s*location\s*=\s*(\d+)\s*\)\s*in\s*(\w+)\s*(\w+)";
         public const string InstructionInstanceBufferStart = "instance_buffer_start";
         public const string InstructionInstanceBufferEnd = "instance_buffer_end";
         public Dictionary<string, string> pragmaKeyValue;
-        public List<VertexElementDescription> vertexLayouts;
-        public List<VertexElementDescription> instanceLayouts;
+        public int instanceBufferStartIndex;
+        public int instanceBufferEndIndex;
+        public bool HasInstanceBuffer => instanceBufferStartIndex <= instanceBufferEndIndex;
+        public int IntancedElementCount => instanceBufferEndIndex - instanceBufferStartIndex + 1;
 
         public ShaderAnalyseResult(string shaderText)
         {
             pragmaKeyValue = new Dictionary<string, string>();
-            vertexLayouts = new List<VertexElementDescription>();
-            instanceLayouts = new List<VertexElementDescription>();
+            instanceBufferStartIndex = int.MaxValue;
+            instanceBufferEndIndex = -1;
             AnalyseShaderText(shaderText);
         }
 
@@ -192,42 +194,44 @@ namespace Vocore.Engine
         {
             Dictionary<string, string> pragma = pragmaKeyValue;
             string[] lines = shader.Split('\n');
-            List<VertexElementDescription> _vertexLayouts = this.vertexLayouts;
-            List<VertexElementDescription> _instanceLayouts = this.instanceLayouts;
-            List<VertexElementDescription> currentLayout = _vertexLayouts;
+            bool isInstanceBuffer = false;
             foreach (string line in lines)
             {
-                MatchLine(line, RegexPragmaKeyValuePair, (match) =>
+                Match match = Regex.Match(line, RegexPragmaKeyValuePair);
+                if (match.Success)
                 {
                     string key = match.Groups[1].Value;
                     string value = match.Groups[2].Value;
                     pragma.Add(key, value);
-                });
+                }
 
-            
+                match = Regex.Match(line, RegexPragmaInstruction);
+                if (match.Success)
+                {
+                    string instruction = match.Groups[1].Value;
+                    if (instruction == InstructionInstanceBufferStart)
+                    {
+                        isInstanceBuffer = true;
+                    }
+                    else if (instruction == InstructionInstanceBufferEnd)
+                    {
+                        isInstanceBuffer = false;
+                    }
+                }
+
+                if (isInstanceBuffer)
+                {
+                    match = Regex.Match(line, RegexVertexLayout);
+                    int location = int.Parse(match.Groups[1].Value);
+                    instanceBufferStartIndex = Math.Min(instanceBufferStartIndex, location);
+                    instanceBufferEndIndex = Math.Max(instanceBufferEndIndex, location);
+                }
+
             }
 
         }
 
 
-        private VertexElementDescription CreateVertexLayoutDescription(string name, ShaderDataType type)
-        {
-            if (DataTypeVertexElementCast.TryGetValue(type, out VertexElementFormat format))
-            {
-                return new VertexElementDescription(name, format, VertexElementSemantic.TextureCoordinate);
-            }
-
-            throw new Exception("Invalid shader data type for vertex : " + type);
-        }
-
-        private void MatchLine(string line, string regex, Action<Match> action)
-        {
-            Match match = Regex.Match(line, regex);
-            if (match.Success)
-            {
-                action(match);
-            }
-        }
     }
 }
 
