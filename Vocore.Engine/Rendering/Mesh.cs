@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine
 {
-    public class Mesh : IDisposable
+    public class Mesh : IMesh, IDisposable
     {
 
         private NativeBuffer<Vertex> _vertices;

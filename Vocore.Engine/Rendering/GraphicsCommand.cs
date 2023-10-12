@@ -70,7 +70,7 @@ namespace Vocore.Engine
             DrawMesh(mesh, shaderPipeline, transform.Matrix);
         }
 
-        public void DrawMesh(Mesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
+        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
         {
             _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
             _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
