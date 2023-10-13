@@ -13,8 +13,8 @@ public class App : Engine
     private float _timer;
     private int _fps;
     private ActorFreeLook3D _actorFreeLook3D;
-    private Tranform _cubeTranform1 = Tranform.Default;
-    private Tranform _cubeTranform2 = Tranform.Default;
+    private Transform _cubeTranform1 = Transform.Default;
+    private Transform _cubeTranform2 = Transform.Default;
 
     public App(GraphicsBackend backend, string name) : base(backend, name)
     {
@@ -31,9 +31,11 @@ public class App : Engine
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 1, -5);
 
+        Current.Camera = _cameraP;
+        this.Fullscreen = true;
+
         _cubeTranform2.rotation = math.EulerXYZ(new Vector3(0, 1, 0));
 
-        Current.Camera = _cameraP;
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
 
@@ -62,22 +64,22 @@ public class App : Engine
 
         if (Input.IsKeyPressing(Key.W))
         {
-            _cameraP.tranform.Translate(Tranform.Forward * delta);
+            _cameraP.tranform.Translate(Transform.Forward * delta);
         }
 
         if (Input.IsKeyPressing(Key.S))
         {
-            _cameraP.tranform.Translate(Tranform.Back * delta);
+            _cameraP.tranform.Translate(Transform.Back * delta);
         }
 
         if (Input.IsKeyPressing(Key.A))
         {
-            _cameraP.tranform.Translate(Tranform.Left * delta);
+            _cameraP.tranform.Translate(Transform.Left * delta);
         }
 
         if (Input.IsKeyPressing(Key.D))
         {
-            _cameraP.tranform.Translate(Tranform.Right * delta);
+            _cameraP.tranform.Translate(Transform.Right * delta);
         }
 
         if (Input.IsKeyPressing(Key.Plus))
@@ -104,9 +106,9 @@ public class App : Engine
 
 
         _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
-        _cubeTranform1.Rotate(Tranform.Up, delta);
+        _cubeTranform1.Rotate(Transform.Up, delta);
 
-        _cubeTranform2.Rotate(Tranform.Up, delta);
+        _cubeTranform2.Rotate(Transform.Up, delta);
         //Vector3 coloredCubePosition = new Vector3(1, 1, 0);
 
         _timer += delta;

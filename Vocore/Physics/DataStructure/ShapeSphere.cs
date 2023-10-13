@@ -23,7 +23,7 @@ namespace Vocore
             return new BoundingBox(center - extends, center + extends);
         }
 
-        public BoundingBox GetBoundingBox(Tranform transform)
+        public BoundingBox GetBoundingBox(Transform transform)
         {
             Vector3 centerInWorld = math.transform(transform, center);
             return new BoundingBox

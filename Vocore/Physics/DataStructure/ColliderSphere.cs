@@ -36,7 +36,7 @@ namespace Vocore
             return shape.GetBoundingBox();
         }
 
-        public BoundingBox GetBoundingBox(Tranform transform)
+        public BoundingBox GetBoundingBox(Transform transform)
         {
             return shape.GetBoundingBox(transform);
         }

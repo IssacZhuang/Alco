@@ -10,12 +10,12 @@ namespace Vocore
     public static class UtilsTranform
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Tranform ToLocal(Tranform transform, Tranform parent)
+        public static Transform ToLocal(Transform transform, Transform parent)
         {
-            Tranform parentInverse = math.inverse(parent);
+            Transform parentInverse = math.inverse(parent);
             Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position);
             Quaternion localRotation = math.mul(parentInverse.rotation, transform.rotation);
-            return new Tranform(localRotation, localPosition);
+            return new Transform(localRotation, localPosition);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

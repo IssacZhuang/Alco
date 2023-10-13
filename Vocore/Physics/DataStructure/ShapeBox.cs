@@ -36,7 +36,7 @@ namespace Vocore
             return new BoundingBox(center - halfExtentsInB, center + halfExtentsInB);
         }
 
-        public BoundingBox GetBoundingBox(Tranform transform)
+        public BoundingBox GetBoundingBox(Transform transform)
         {
             // Vector3 centerInWorld = math.transform(transform, center);
             // Quaternion rotationInWorld = math.mul(transform.rot, rotation);

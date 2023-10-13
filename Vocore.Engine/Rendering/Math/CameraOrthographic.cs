@@ -17,7 +17,7 @@ namespace Vocore.Engine
         private float _far;
         private Matrix4x4 _projectionMatrix;
         private bool _isProjectionMatrixDirty;
-        public Tranform tranform;
+        public Transform tranform;
 
 
         public float Width
@@ -114,7 +114,7 @@ namespace Vocore.Engine
             _near = near;
             _far = far;
             _isProjectionMatrixDirty = true;
-            tranform = Tranform.Default;
+            tranform = Transform.Default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

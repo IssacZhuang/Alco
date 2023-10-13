@@ -18,7 +18,7 @@ namespace Vocore.Engine
         private Matrix4x4 _projectionMatrix;
         private bool _isProjectionMatrixDirty;
 
-        public Tranform tranform;
+        public Transform tranform;
 
         public static readonly uint BufferSize = (uint)UtilsMemory.SizeOf<Matrix4x4>();
 
@@ -117,7 +117,7 @@ namespace Vocore.Engine
             _near = near;
             _far = far;
 
-            tranform = Tranform.Default;
+            tranform = Transform.Default;
 
             _isProjectionMatrixDirty = true;
         }

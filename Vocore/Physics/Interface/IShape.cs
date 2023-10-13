@@ -8,7 +8,7 @@ namespace Vocore
     public interface IShape
     {
         BoundingBox GetBoundingBox();
-        BoundingBox GetBoundingBox(Tranform transform);
+        BoundingBox GetBoundingBox(Transform transform);
     }
 }
 
