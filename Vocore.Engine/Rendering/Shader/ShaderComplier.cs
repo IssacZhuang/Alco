@@ -138,6 +138,7 @@ namespace Vocore.Engine
                 GraphicsBackend.OpenGL => CrossCompileTarget.GLSL,
                 GraphicsBackend.Metal => CrossCompileTarget.MSL,
                 GraphicsBackend.OpenGLES => CrossCompileTarget.ESSL,
+                GraphicsBackend.Vulkan => CrossCompileTarget.GLSL,
                 _ => throw new SpirvCompilationException($"Invalid GraphicsBackend: {backend}"),
             };
         }

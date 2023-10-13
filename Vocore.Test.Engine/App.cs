@@ -14,6 +14,11 @@ public class App : Engine
     private int _fps;
     ActorFreeLook3D _actorFreeLook3D;
 
+    public App(GraphicsBackend backend, string name) : base(backend, name)
+    {
+
+    }
+
     public App(string name) : base(name)
     {
         
