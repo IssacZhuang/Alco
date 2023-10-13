@@ -24,20 +24,20 @@ namespace Vocore.Engine
         //x,y,z cordinate
         private static Vertex[] Vertices = new Vertex[] {
             //x
-            new Vertex(new Vector3(0, 0, 0), new Vector4(1, 0, 0, 1)),
-            new Vertex(new Vector3(CordLength, 0, 0), new Vector4(1, 0, 0, 1)),
+            new Vertex(new Vector3(0, 0, 0), new Vector4(1, 0.3f, 0.3f, 1)),
+            new Vertex(new Vector3(CordLength, 0, 0), new Vector4(1, 0.3f, 0.3f, 1)),
             //inverse x
             new Vertex(new Vector3(0, 0, 0), new Vector4(1, 1, 1, 1)),
             new Vertex(new Vector3(-CordLength, 0, 0), new Vector4(1, 1, 1, 1)),
             //y
-            new Vertex(new Vector3(0, 0, 0), new Vector4(0, 1, 0, 1)),
-            new Vertex(new Vector3(0, CordLength, 0), new Vector4(0, 1, 0, 1)),
+            new Vertex(new Vector3(0, 0, 0), new Vector4(0.3f, 1, 0.3f, 1)),
+            new Vertex(new Vector3(0, CordLength, 0), new Vector4(0.3f, 1, 0.3f, 1)),
             //inverse y
             new Vertex(new Vector3(0, 0, 0), new Vector4(1, 1, 1, 1)),
             new Vertex(new Vector3(0, -CordLength, 0), new Vector4(1, 1, 1, 1)),
             //z
-            new Vertex(new Vector3(0, 0, 0), new Vector4(0, 0, 1, 1)),
-            new Vertex(new Vector3(0, 0, CordLength), new Vector4(0, 0, 1, 1)),
+            new Vertex(new Vector3(0, 0, 0), new Vector4(0.3f, 0.3f, 1, 1)),
+            new Vertex(new Vector3(0, 0, CordLength), new Vector4(0.3f, 0.3f, 1, 1)),
             //inverse z
             new Vertex(new Vector3(0, 0, 0), new Vector4(1, 1, 1, 1)),
             new Vertex(new Vector3(0, 0, -CordLength), new Vector4(1, 1, 1, 1)),
@@ -126,6 +126,7 @@ namespace Vocore.Engine
 #pragma topology_primitive line_list
 #pragma fill_mode wireframe
 #pragma cull_mode none
+#pragma blend_state alpha_blend
 
 layout(set = 0, binding = 0) uniform ModelViewProjectionBuffer
 {
