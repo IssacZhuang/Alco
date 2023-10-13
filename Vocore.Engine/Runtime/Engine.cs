@@ -213,6 +213,7 @@ namespace Vocore.Engine
             RuntimeGlobal.Window = _window;
             RuntimeGlobal.GraphicsDevice = _graphicsDevice;
             RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
+            RuntimeGlobal.Engine = this;
         }
 
         private void InternalQuit()

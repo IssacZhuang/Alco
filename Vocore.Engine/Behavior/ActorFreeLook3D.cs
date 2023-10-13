@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.NetworkInformation;
 using System.Numerics;
 using Vocore;
 
@@ -10,12 +11,20 @@ namespace Vocore.Engine
         public float rotationY = 0;
         public float rotationX = 0;
         public float maxRotationX = math.radians(90);
-        public float sensitivity = 0.0002f;
+        public float sensitivity = 0.02f;
         private bool _mouseInCenter;
         private Vector2 ScreenCenter {
             get
             {
                 return new Vector2(RuntimeGlobal.Window.Width / 2, RuntimeGlobal.Window.Height / 2);
+            }
+        }
+
+        private Vector2 WindowSize
+        {
+            get
+            {
+                return new Vector2(RuntimeGlobal.Window.Width, RuntimeGlobal.Window.Height);
             }
         }
 
@@ -35,8 +44,8 @@ namespace Vocore.Engine
             }
             var delta = Input.MousePosition - ScreenCenter;
             Input.MousePosition = ScreenCenter;
-            rotationY += delta.X * sensitivity;
-            rotationX += delta.Y * sensitivity;
+            rotationY += delta.X * sensitivity / WindowSize.Y;
+            rotationX += delta.Y * sensitivity / WindowSize.X;
 
             rotationX = math.clamp(rotationX, -maxRotationX, maxRotationX);
         }

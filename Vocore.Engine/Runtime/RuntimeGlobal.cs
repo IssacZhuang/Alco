@@ -12,5 +12,6 @@ namespace Vocore.Engine
         public static InputSnapshot InputSnapshot;
         public static GraphicsDevice GraphicsDevice;
         public static ResourceFactory ResourceFactory;
+        public static Engine Engine;
     }
 }

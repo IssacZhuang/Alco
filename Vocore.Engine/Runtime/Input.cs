@@ -10,6 +10,8 @@ namespace Vocore.Engine
 {
     public static class Input
     {
+        
+
         private static InputSnapshot Snapshot
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
