@@ -102,7 +102,7 @@ namespace Vocore.Engine
             Veldrid.Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
             
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
-            pipelineDescription.BlendState = BlendStateDescription.SingleOverrideBlend;
+            pipelineDescription.BlendState = analyseResult.GetBlendState();
             pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
                 depthTestEnabled: analyseResult.GetDepthTestEnable(),
                 depthWriteEnabled: analyseResult.GetDepthWriteEnable(),
