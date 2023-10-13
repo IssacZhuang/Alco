@@ -38,6 +38,8 @@ public class App : Engine
 
     protected override void OnUpdate(float delta)
     {
+        _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
+        
         if (Input.IsMouseKeyDown(MouseButton.Left))
         {
             Log.Info("Left mouse button pressed");
@@ -94,7 +96,7 @@ public class App : Engine
         }
 
         _actorFreeLook3D.Update();
-        _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
+        
 
         Vector3 coloredCubePosition = new Vector3(1, 0.5f * math.sin(_timer), 0);
 

@@ -11,8 +11,8 @@ namespace Vocore
         public Vector3 scale;
 
         public static readonly Tranform Standard = new Tranform(Vector3.Zero, Quaternion.Identity, Vector3.One);
-        public static readonly Vector3 Forward = Vector3.UnitZ;
-        public static readonly Vector3 Back = -Vector3.UnitZ;
+        public static readonly Vector3 Forward = -Vector3.UnitZ;
+        public static readonly Vector3 Back = Vector3.UnitZ;
         public static readonly Vector3 Up = Vector3.UnitY;
         public static readonly Vector3 Down = -Vector3.UnitY;
         public static readonly Vector3 Right = Vector3.UnitX;
@@ -127,9 +127,7 @@ namespace Vocore
         public void LookAt(Vector3 point)
         {
             rotation = math.FromDirection(point - position);
-        }
-
-        
+        } 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Quaternion rotation)

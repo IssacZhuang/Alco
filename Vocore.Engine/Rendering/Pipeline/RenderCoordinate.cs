@@ -7,7 +7,7 @@ using Vocore.Unsafe;
 
 namespace Vocore.Engine
 {
-    public class RenderCoordinate:IRenderPipline
+    public class RenderCoordinate : BaseRenderPipeline
     {
         private struct Vertex
         {
@@ -54,15 +54,11 @@ namespace Vocore.Engine
 
         private static readonly uint VertexSizeInBytes = (uint)UtilsMemory.SizeOf<Vertex>();
         private static readonly IndexFormat IndexFormat = IndexFormat.UInt16;
-
-        public bool IsEnable => true;
         private Pipeline _pipeline;
-
         private DeviceBuffer _vertexBuffer;
         private DeviceBuffer _indexBuffer;
         private DeviceBuffer _matrixBuffer;
         private ResourceSet _matrixResourceSet;
-        private GraphicsDevice _device;
         private CameraOrthographic _camera;
 
         public Matrix4x4 Matrix
@@ -79,16 +75,17 @@ namespace Vocore.Engine
             }
         }
 
-        public void OnCreate(GraphicsDevice device)
+        public override void OnCreate(GraphicsDevice device)
         {
+            base.OnCreate(device);
             _camera = new CameraOrthographic();
             _device = device;
             _pipeline = ShaderComplier.CreateShaderPiplineFromGLSL(device, ShaderCode, "Debug Coordinate Shader");
-            _vertexBuffer = device.ResourceFactory.CreateBuffer(new BufferDescription((uint)Vertices.Length * VertexSizeInBytes, BufferUsage.VertexBuffer));
-            _indexBuffer = device.ResourceFactory.CreateBuffer(new BufferDescription((uint)Indices.Length * sizeof(ushort), BufferUsage.IndexBuffer));
-            _matrixBuffer = device.ResourceFactory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
-            _matrixResourceSet = device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(
-                device.ResourceFactory.CreateResourceLayout(new ResourceLayoutDescription(
+            _vertexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Vertices.Length * VertexSizeInBytes, BufferUsage.VertexBuffer));
+            _indexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Indices.Length * sizeof(ushort), BufferUsage.IndexBuffer));
+            _matrixBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
+            _matrixResourceSet = _factory.CreateResourceSet(new ResourceSetDescription(
+                _factory.CreateResourceLayout(new ResourceLayoutDescription(
                     new ResourceLayoutElementDescription("ModelViewProjectionBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex))),
                 _matrixBuffer));
 
@@ -97,7 +94,7 @@ namespace Vocore.Engine
 
         }
 
-        public void OnDraw(CommandList commandList)
+        public override void OnDraw(CommandList commandList)
         {
             _device.UpdateBuffer(_matrixBuffer, 0, Matrix);
             commandList.Begin();
@@ -111,7 +108,7 @@ namespace Vocore.Engine
             _device.SubmitCommands(commandList);
         }
 
-        public void OnDestroy()
+        public override void OnDestroy()
         {
             _pipeline.Dispose();
             _vertexBuffer.Dispose();
