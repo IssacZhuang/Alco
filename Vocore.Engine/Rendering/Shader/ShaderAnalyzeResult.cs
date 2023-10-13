@@ -16,6 +16,7 @@ namespace Vocore.Engine
         public const string PragmaKey_DepthWrite = "depth_write";
         public const string PragmaKey_CullMode = "cull_mode";
         public const string PragmaKey_FillMode = "fill_mode";
+        public const string PragmaKey_TopologyPrimitive = "topology_primitive";
         public const string PragmaKey_DepthClip = "depth_clip";
         public const string PragmaKey_ScissorTest = "scissor_test";
         public const string GLSL_True = "true";
@@ -100,6 +101,14 @@ namespace Vocore.Engine
             {"wireframe", PolygonFillMode.Wireframe},
         };
 
+        private static readonly Dictionary<string, PrimitiveTopology> TopologyPrimitiveCast = new Dictionary<string, PrimitiveTopology>{
+            {"point_list", PrimitiveTopology.PointList},
+            {"line_list", PrimitiveTopology.LineList},
+            {"line_strip", PrimitiveTopology.LineStrip},
+            {"triangle_list", PrimitiveTopology.TriangleList},
+            {"triangle_strip", PrimitiveTopology.TriangleStrip},
+        };
+
         public BlendStateDescription GetBlendState()
         {
             if (pragmaKeyValue.TryGetValue(PragmaKey_BlendState, out string? value))
@@ -177,6 +186,19 @@ namespace Vocore.Engine
             }
             //default value
             return PolygonFillMode.Solid;
+        }
+
+        public PrimitiveTopology GetTopologyPrimitive()
+        {
+            if (pragmaKeyValue.TryGetValue(PragmaKey_TopologyPrimitive, out string? value))
+            {
+                if (TopologyPrimitiveCast.TryGetValue(value, out PrimitiveTopology result))
+                {
+                    return result;
+                }
+            }
+            //default value
+            return PrimitiveTopology.TriangleList;
         }
 
 
