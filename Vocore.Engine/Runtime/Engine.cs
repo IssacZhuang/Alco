@@ -83,6 +83,25 @@ namespace Vocore.Engine
             }
         }
 
+        public bool Fullscreen
+        {
+            get
+            {
+                return _window.WindowState == WindowState.BorderlessFullScreen;
+            }
+            set
+            {
+                if (value)
+                {
+                    _window.WindowState = WindowState.BorderlessFullScreen;
+                }
+                else
+                {
+                    _window.WindowState = WindowState.Normal;
+                }
+            }
+        }
+
         public Engine(GraphicsBackend backend, string name = "Vocore")
         {
             Init(backend, name);
