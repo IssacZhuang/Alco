@@ -17,7 +17,7 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return RuntimeGlobal.InputSnapshot;
+                return Current.InputSnapshot;
             }
         }
         public static Vector2 MousePosition
@@ -30,7 +30,7 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                RuntimeGlobal.Window.SetMousePosition(value);
+                Current.Window.SetMousePosition(value);
             }
         }
 

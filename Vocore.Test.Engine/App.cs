@@ -22,11 +22,9 @@ public class App : Engine
     protected override void OnStart()
     {
         _cameraP = new CameraPerspective();
-        _cameraP.tranform.position = new Vector3(-1, 0, 5);
-        
-        _cameraP.tranform.position.Y = 1;
+        _cameraP.tranform.position = new Vector3(0, 1, 5);
 
-        GraphicsCommand.CurrentCamera = _cameraP;
+        Current.Camera = _cameraP;
         _actorFreeLook3D = new ActorFreeLook3D();
 
         var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));

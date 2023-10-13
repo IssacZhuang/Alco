@@ -87,6 +87,24 @@ namespace Vocore.Engine
             }
         }
 
+        public Vector3 Position
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return tranform.position;
+            }
+        }
+
+        public Quaternion Rotation
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return tranform.rotation;
+            }
+        }
+
 
 
         public CameraOrthographic(float width = DefaultWidth, float height = DefaultHeight, float near = DefaultNear, float far = DefaultFar)
@@ -102,12 +120,12 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private float GetWindowAspectRatio()
         {
-            if(RuntimeGlobal.Window == null)
+            if (Current.Window == null)
             {
                 return 16f/9f;
             }
 
-            return (float)RuntimeGlobal.Window.Width / RuntimeGlobal.Window.Height;
+            return (float)Current.Window.Width / Current.Window.Height;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

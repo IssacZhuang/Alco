@@ -37,7 +37,13 @@ namespace Vocore.Engine
             }
         }
 
-        public ICamera? CurrentCamera { get; set; }
+        public CommandList CommandList
+        {
+            get
+            {
+                return _commandList;
+            }
+        }
 
         public GraphicsCommand(GraphicsDevice _graphicsDevice)
         {
@@ -56,12 +62,12 @@ namespace Vocore.Engine
 
         public void UpdateCameraBuffer()
         {
-            if (CurrentCamera == null)
+            if (Current.Camera == null)
             {
                 return;
             }
 
-            _device.UpdateBuffer(_cameraBuffer, 0, CurrentCamera.ViewProjectionMatrix);
+            _device.UpdateBuffer(_cameraBuffer, 0, Current.Camera.ViewProjectionMatrix);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -19,11 +19,21 @@ namespace Vocore.Engine
         private Sdl2Window _window;
         private GraphicsDevice _graphicsDevice;
         private GraphicsCommand _graphicsCommand;
+        private RenderPipelineManager _renderPipelineManager;
         private Profiler _profiler;
         private int _physicsFps = 30;
         private long physicsTickInterval;
         private float physicsDeltaTime;
         private bool _isRunning = true;
+
+        protected RenderPipelineManager RenderPipelineManager
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _renderPipelineManager;
+            }
+        }
 
         protected GraphicsCommand GraphicsCommand
         {
@@ -135,6 +145,7 @@ namespace Vocore.Engine
                     {
                         GraphicsCommand.BeginFrame();
                         OnUpdate(deltaTime);
+                        _renderPipelineManager.OnDraw(_graphicsCommand.CommandList);
                         GraphicsCommand.EndFrame();
                     }
                 }
@@ -189,6 +200,7 @@ namespace Vocore.Engine
             };
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
+
             _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window,
             new GraphicsDeviceOptions
             {
@@ -197,23 +209,31 @@ namespace Vocore.Engine
                 PreferStandardClipSpaceYDirection = true,
             },
             backend);
+
             Log.Info("Graphics Backend: \t" + _graphicsDevice.BackendType);
             Log.Info("IsDepthRangeZeroToOne: \t" + _graphicsDevice.IsDepthRangeZeroToOne);
             Log.Info("IsClipSpaceYInverted: \t" + _graphicsDevice.IsClipSpaceYInverted);
+
             _graphicsCommand = new GraphicsCommand(_graphicsDevice);
+
             _window.Resized += () =>
             {
                 _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
                 OnWindowResize(_window.Width, _window.Height);
             };
+
             _window.Closing += () =>
             {
                 _isRunning = false;
             };
-            RuntimeGlobal.Window = _window;
-            RuntimeGlobal.GraphicsDevice = _graphicsDevice;
-            RuntimeGlobal.ResourceFactory = _graphicsDevice.ResourceFactory;
-            RuntimeGlobal.Engine = this;
+
+            _renderPipelineManager = new RenderPipelineManager(_graphicsDevice);
+            AddBuiltInRenderPipeline();
+
+            Current.Window = _window;
+            Current.GraphicsDevice = _graphicsDevice;
+            Current.ResourceFactory = _graphicsDevice.ResourceFactory;
+            Current.Engine = this;
         }
 
         private void InternalQuit()
@@ -225,8 +245,14 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PumpInput()
         {
-            RuntimeGlobal.InputSnapshot = _window.PumpEvents();
+            Current.InputSnapshot = _window.PumpEvents();
             Input.UpdateKeyStates();
+        }
+
+        private void AddBuiltInRenderPipeline()
+        {
+            RenderCoordinate renderCoordinate = new RenderCoordinate();
+            _renderPipelineManager.AddRenderPipeline(renderCoordinate);
         }
 
         private void UpdatePhysicsTickRate(int rate)

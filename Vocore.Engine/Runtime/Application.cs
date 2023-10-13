@@ -9,7 +9,7 @@ namespace Vocore.Engine
 
         public static void Quit()
         {
-            RuntimeGlobal.Window.Close();
+            Current.Window.Close();
         }
 
     }

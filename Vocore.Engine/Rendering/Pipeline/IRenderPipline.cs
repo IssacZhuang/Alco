@@ -5,7 +5,8 @@ namespace Vocore.Engine
 {
     public interface IRenderPipline
     {
-        void OnCreate(ResourceFactory factory);
+        bool IsEnable { get;}
+        void OnCreate(GraphicsDevice device);
         void OnDraw(CommandList commandList);
         void OnDestroy();
     }

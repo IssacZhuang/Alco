@@ -16,7 +16,7 @@ namespace Vocore.Engine
         private Vector2 ScreenCenter {
             get
             {
-                return new Vector2(RuntimeGlobal.Window.Width / 2, RuntimeGlobal.Window.Height / 2);
+                return new Vector2(Current.Window.Width / 2, Current.Window.Height / 2);
             }
         }
 
@@ -24,7 +24,7 @@ namespace Vocore.Engine
         {
             get
             {
-                return new Vector2(RuntimeGlobal.Window.Width, RuntimeGlobal.Window.Height);
+                return new Vector2(Current.Window.Width, Current.Window.Height);
             }
         }
 

@@ -115,7 +115,7 @@ namespace Vocore.Engine
                 depthClipEnabled: analyseResult.GetDepthClipEnable(),
                 scissorTestEnabled: analyseResult.GetScissorTestEnable());
 
-            pipelineDescription.PrimitiveTopology = PrimitiveTopology.TriangleList;
+            pipelineDescription.PrimitiveTopology = analyseResult.GetTopologyPrimitive();
             var resourceLayoutCamera = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Camera);
             var resourceLayoutTransform = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Transform);
             pipelineDescription.ResourceLayouts = new ResourceLayout[] {

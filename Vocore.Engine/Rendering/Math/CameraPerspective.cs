@@ -91,6 +91,24 @@ namespace Vocore.Engine
             }
         }
 
+        public Vector3 Position
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return tranform.position;
+            }
+        }
+
+        public Quaternion Rotation
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return tranform.rotation;
+            }
+        }
+
 
         public CameraPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar)
         {
