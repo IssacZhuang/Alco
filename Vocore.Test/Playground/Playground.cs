@@ -40,18 +40,10 @@ namespace Vocore.Test
             //     pack.TrySetTextFile("test.txt", "Hello World!");
             // }
 
-            int size = 40000;
-            //Vector3 vs vector
-            Vector3 pos = new Vector3(4, 5, 6);
-            Quaternion rot = Quaternion.CreateFromYawPitchRoll(1, 2, 3);
-            Vector3 scale = new Vector3(7, 8, 9);
-            UnitTest.Benchmark("matrix 4x4", () =>
-            {
-                for (int i = 0; i < size; i++)
-                {
-                    Matrix4x4 m = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rot) * Matrix4x4.CreateTranslation(pos);
-                }
-            });
+            Vector3 v = new Vector3(0, 0, 3);
+            Quaternion q = math.EulerXYZ(math.radians(new Vector3(0, 90f, 0)));
+            Vector3 v2 = Vector3.Transform(v, q);
+            Log.Info("v2: " + v2);
 
         }
 

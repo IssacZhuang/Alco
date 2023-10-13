@@ -25,6 +25,7 @@ void main()
     pos = viewProj * pos;
     gl_Position = pos;
     fsin_color = color;
+    //gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;
 }
 
 #endif

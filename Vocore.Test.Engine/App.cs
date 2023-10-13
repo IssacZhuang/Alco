@@ -27,10 +27,11 @@ public class App : Engine
     protected override void OnStart()
     {
         _cameraP = new CameraPerspective();
-        _cameraP.tranform.position = new Vector3(0, 1, 5);
+        _cameraP.tranform.position = new Vector3(0, 1, -5);
 
         Current.Camera = _cameraP;
         _actorFreeLook3D = new ActorFreeLook3D();
+        _actorFreeLook3D.sensitivity = 10f;
 
         var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
         _shaderPipeline = ShaderComplier.CreateShaderPiplineFromGLSL(GraphicsDevice, shaderAllInOne, "BasicAIO");
@@ -99,6 +100,7 @@ public class App : Engine
         
 
         Vector3 coloredCubePosition = new Vector3(1, 0.5f * math.sin(_timer), 0);
+        //Vector3 coloredCubePosition = new Vector3(1, 1, 0);
 
         _timer += delta;
         //_cameraP.tranform.LookAt(coloredCubePosition);
@@ -115,7 +117,6 @@ public class App : Engine
             _fps = Profiler.FPS;
             Log.Info(String.Concat("FPS: ", _fps));
         }
-
     }
 
     protected override void OnWindowResize(int width, int height)

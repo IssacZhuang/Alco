@@ -22,7 +22,7 @@ namespace Vocore.Engine
         }
         private const float CordLength = 0.1f;
         //x,y,z cordinate
-        private static Vertex[] Vertices = new Vertex[] {
+        private static readonly Vertex[] Vertices = new Vertex[] {
             //x
             new Vertex(new Vector3(0, 0, 0), new Vector4(1, 0.3f, 0.3f, 1)),
             new Vertex(new Vector3(CordLength, 0, 0), new Vector4(1, 0.3f, 0.3f, 1)),
@@ -42,7 +42,7 @@ namespace Vocore.Engine
             new Vertex(new Vector3(0, 0, 0), new Vector4(1, 1, 1, 1)),
             new Vertex(new Vector3(0, 0, -CordLength), new Vector4(1, 1, 1, 1)),
         };
-        private static ushort[] Indices = new ushort[] {
+        private static readonly ushort[] Indices = new ushort[] {
             0, 1,
             2, 3,
             4, 5,

@@ -200,6 +200,7 @@ namespace Vocore.Engine
             };
 
             _window = VeldridStartup.CreateWindow(ref _windowCreateInfo);
+            //_window.WindowState = WindowState.Maximized;
 
             _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window,
             new GraphicsDeviceOptions

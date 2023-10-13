@@ -10,7 +10,7 @@ namespace Vocore.Engine
     {
         public float rotationY = 0;
         public float rotationX = 0;
-        public float maxRotationX = math.radians(90);
+        public float maxRotationX = 60;
         public float sensitivity = 0.02f;
         private bool _mouseInCenter;
         private Vector2 ScreenCenter {
@@ -32,7 +32,7 @@ namespace Vocore.Engine
         {
             get
             {
-                return Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, 0);
+                return Quaternion.CreateFromYawPitchRoll(math.radians(rotationY), math.radians(rotationX), 0);
             }
         }
 
@@ -44,7 +44,7 @@ namespace Vocore.Engine
             }
             var delta = Input.MousePosition - ScreenCenter;
             Input.MousePosition = ScreenCenter;
-            rotationY += delta.X * sensitivity / WindowSize.Y;
+            rotationY -= delta.X * sensitivity / WindowSize.Y;
             rotationX += delta.Y * sensitivity / WindowSize.X;
 
             rotationX = math.clamp(rotationX, -maxRotationX, maxRotationX);

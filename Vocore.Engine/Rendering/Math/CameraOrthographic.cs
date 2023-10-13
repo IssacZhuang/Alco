@@ -60,7 +60,7 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix4x4.CreateTranslation(-tranform.position) * Matrix4x4.CreateFromQuaternion(tranform.rotation);
+                return Matrix4x4.CreateLookAt(tranform.position, tranform.position + Vector3.Transform(Vector3.UnitZ, tranform.rotation), Vector3.UnitY);
             }
         }
 
