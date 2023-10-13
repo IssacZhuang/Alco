@@ -12,7 +12,9 @@ public class App : Engine
     private CameraPerspective _cameraP;
     private float _timer;
     private int _fps;
-    ActorFreeLook3D _actorFreeLook3D;
+    private ActorFreeLook3D _actorFreeLook3D;
+    private Tranform _cubeTranform1 = Tranform.Default;
+    private Tranform _cubeTranform2 = Tranform.Default;
 
     public App(GraphicsBackend backend, string name) : base(backend, name)
     {
@@ -28,6 +30,8 @@ public class App : Engine
     {
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 1, -5);
+
+        _cubeTranform2.rotation = math.EulerXYZ(new Vector3(0, 1, 0));
 
         Current.Camera = _cameraP;
         _actorFreeLook3D = new ActorFreeLook3D();
@@ -97,17 +101,20 @@ public class App : Engine
         }
 
         _actorFreeLook3D.Update();
-        
 
-        Vector3 coloredCubePosition = new Vector3(1, 0.5f * math.sin(_timer), 0);
+
+        _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
+        _cubeTranform1.Rotate(Tranform.Up, delta);
+
+        _cubeTranform2.Rotate(Tranform.Up, delta);
         //Vector3 coloredCubePosition = new Vector3(1, 1, 0);
 
         _timer += delta;
         //_cameraP.tranform.LookAt(coloredCubePosition);
 
         GraphicsCommand.UpdateCameraBuffer();
-        GraphicsCommand.DrawMesh(MeshPool.Cube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer));
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, Matrix4x4.CreateRotationY(_timer + 1) * Matrix4x4.CreateTranslation(coloredCubePosition));
+        GraphicsCommand.DrawMesh(MeshPool.Cube, _shaderPipeline, _cubeTranform1);
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, _cubeTranform2);
     }
 
     protected override void OnTick(float delta)

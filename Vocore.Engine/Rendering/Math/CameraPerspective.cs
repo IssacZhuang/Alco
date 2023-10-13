@@ -117,7 +117,7 @@ namespace Vocore.Engine
             _near = near;
             _far = far;
 
-            tranform = Tranform.Standard;
+            tranform = Tranform.Default;
 
             _isProjectionMatrixDirty = true;
         }

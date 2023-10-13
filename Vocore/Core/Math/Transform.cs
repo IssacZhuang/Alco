@@ -10,13 +10,20 @@ namespace Vocore
         public Quaternion rotation;
         public Vector3 scale;
 
-        public static readonly Tranform Standard = new Tranform(Vector3.Zero, Quaternion.Identity, Vector3.One);
+        public static readonly Tranform Default = new Tranform(Vector3.Zero, Quaternion.Identity, Vector3.One);
         public static readonly Vector3 Forward = Vector3.UnitZ;
         public static readonly Vector3 Back = -Vector3.UnitZ;
         public static readonly Vector3 Up = Vector3.UnitY;
         public static readonly Vector3 Down = -Vector3.UnitY;
         public static readonly Vector3 Right = -Vector3.UnitX;
         public static readonly Vector3 Left = Vector3.UnitX;
+
+        public Tranform(Vector3 pos)
+        {
+            this.position = pos;
+            this.rotation = Quaternion.Identity;
+            this.scale = Vector3.One;
+        }
 
         public Tranform(Vector3 pos, Quaternion rot)
         {

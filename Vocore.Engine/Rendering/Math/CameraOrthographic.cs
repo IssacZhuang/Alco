@@ -114,7 +114,7 @@ namespace Vocore.Engine
             _near = near;
             _far = far;
             _isProjectionMatrixDirty = true;
-            tranform = Tranform.Standard;
+            tranform = Tranform.Default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
