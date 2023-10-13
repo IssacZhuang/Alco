@@ -12,6 +12,7 @@ public class App : Engine
     private CameraPerspective _cameraP;
     private float _timer;
     private int _fps;
+    ActorFreeLook3D _actorFreeLook3D;
 
     public App(string name) : base(name)
     {
@@ -26,6 +27,7 @@ public class App : Engine
         _cameraP.tranform.position.Y = 1;
 
         GraphicsCommand.CurrentCamera = _cameraP;
+        _actorFreeLook3D = new ActorFreeLook3D();
 
         var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
         _shaderPipeline = ShaderComplier.CreateShaderPiplineFromGLSL(GraphicsDevice, shaderAllInOne, "BasicAIO");
@@ -87,6 +89,9 @@ public class App : Engine
         {
             _cameraP.tranform.position.Y -= delta;
         }
+
+        _actorFreeLook3D.Update();
+        _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
 
         Vector3 coloredCubePosition = new Vector3(1, 0.5f * math.sin(_timer), 0);
 

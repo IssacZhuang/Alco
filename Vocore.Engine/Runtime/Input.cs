@@ -25,6 +25,11 @@ namespace Vocore.Engine
             {
                 return Snapshot.MousePosition;
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                RuntimeGlobal.Window.SetMousePosition(value);
+            }
         }
 
         private static readonly HashSet<Key> KeyStates = new HashSet<Key>();

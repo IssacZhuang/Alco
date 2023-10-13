@@ -7,7 +7,7 @@ namespace Vocore.Engine
 {
     public class CameraPerspective : ICamera
     {
-        public const float DefaultFov = 1.03f;
+        public const float DefaultFov = 0.83f;
         public const float DefaultNear = 0.1f;
         public const float DefaultFar = 1000f;
 
@@ -63,7 +63,7 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return UtilsTranform.CreateTransformTR(-tranform.position, Quaternion.Inverse(tranform.rotation));
+                return Matrix4x4.CreateTranslation(-tranform.position) * Matrix4x4.CreateFromQuaternion(tranform.rotation);
             }
         }
 
