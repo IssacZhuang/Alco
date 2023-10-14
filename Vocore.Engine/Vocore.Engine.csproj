@@ -23,4 +23,7 @@
     <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0" />
     <PackageReference Include="Veldrid.SPIRV" Version="1.0.15" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\**" />
+  </ItemGroup>
 </Project>

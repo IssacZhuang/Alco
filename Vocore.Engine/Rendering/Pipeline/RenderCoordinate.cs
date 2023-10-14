@@ -125,6 +125,7 @@ namespace Vocore.Engine
 #pragma fill_mode wireframe
 #pragma cull_mode none
 #pragma blend_state alpha_blend
+#pragma depth_test false
 
 layout(set = 0, binding = 0) uniform ModelViewProjectionBuffer
 {
