@@ -10,6 +10,9 @@ namespace Vocore.Engine
     {
         
         public virtual bool IsEnable => true;
+
+        public virtual int Order => 1000;
+
         protected GraphicsDevice _device;
         protected ResourceFactory _factory;
 

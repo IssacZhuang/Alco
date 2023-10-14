@@ -7,8 +7,8 @@ namespace Vocore.Engine
 {
     public class RenderPipelineManager
     {
-        private List<IRenderPipline> _renderPiplines = new List<IRenderPipline>();
-        private GraphicsDevice _device;
+        private readonly PriorityList<IRenderPipline> _renderPiplines = new PriorityList<IRenderPipline>((x, y) => x.Order.CompareTo(y.Order));
+        private readonly GraphicsDevice _device;
         public RenderPipelineManager(GraphicsDevice device)
         {
             _device = device;
@@ -28,7 +28,7 @@ namespace Vocore.Engine
 
         public void OnDraw(CommandList commandList)
         {
-            IRenderPipline? renderPipline = null;
+            IRenderPipline? renderPipline;
             for (int i = 0; i < _renderPiplines.Count; i++)
             {
                 renderPipline = _renderPiplines[i];

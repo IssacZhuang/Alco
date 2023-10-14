@@ -9,6 +9,7 @@ namespace Vocore.Engine
 {
     public class RenderCoordinate : BaseRenderPipeline
     {
+        public override int Order => 2000;
         private struct Vertex
         {
             public Vector3 Position;
