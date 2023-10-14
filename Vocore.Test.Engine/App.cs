@@ -5,10 +5,11 @@ using System.Text;
 using Veldrid;
 using Vocore;
 using Vocore.Engine;
+using Shader = Vocore.Engine.Shader;
 
 public class App : Engine
 {
-    private Pipeline _shaderPipeline;
+    private Shader _shader;
     private CameraPerspective _cameraP;
     private float _timer;
     private int _fps;
@@ -40,7 +41,7 @@ public class App : Engine
         _actorFreeLook3D.sensitivity = 10f;
 
         var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
-        _shaderPipeline = ShaderComplier.CreateShaderPiplineFromGLSL(GraphicsDevice, shaderAllInOne, "BasicAIO");
+        _shader = new Shader(GraphicsDevice, shaderAllInOne, "BasicAIO");
     }
 
     protected override void OnUpdate(float delta)
@@ -115,8 +116,8 @@ public class App : Engine
         //_cameraP.tranform.LookAt(coloredCubePosition);
 
         GraphicsCommand.UpdateCameraBuffer();
-        GraphicsCommand.DrawMesh(MeshPool.Cube, _shaderPipeline, _cubeTranform1);
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shaderPipeline, _cubeTranform2);
+        GraphicsCommand.DrawMesh(MeshPool.Cube, _shader, _cubeTranform1);
+        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shader, _cubeTranform2);
     }
 
     protected override void OnTick(float delta)

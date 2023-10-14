@@ -36,11 +36,6 @@ namespace Vocore.Engine
             return new ShaderByteCode(result, filename);
         }
 
-        public static Pipeline CreateShaderPiplineFromGLSL(GraphicsDevice graphicsDevice, string shaderText, string filename = "unknown_shader")
-        {
-            return CreateShaderPipline(graphicsDevice, shaderText, filename);
-        }
-
         public static SpirvReflection GetShaderReflection(GraphicsDevice graphicsDevice, string shaderText, string filename)
         {
             ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
@@ -50,84 +45,6 @@ namespace Vocore.Engine
                 NormalizeResourceNames = false,
             });
             return vertexFragmentCompilationResult.Reflection;
-        }
-        
-
-        private static Pipeline CreateShaderPipline(GraphicsDevice graphicsDevice, string shaderText, string filename)
-        {
-            ResourceFactory factory = graphicsDevice.ResourceFactory;
-
-            ShaderAnalyseResult analyseResult = new ShaderAnalyseResult(shaderText);
-            
-            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
-            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename);
-            ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
-            ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
-
-            SpirvReflection reflection = GetShaderReflection(graphicsDevice, shaderText, filename);
-
-            VertexLayoutDescription[] vertexDesc;
-
-            if (analyseResult.HasInstanceBuffer)
-            {
-                VertexElementDescription[] instanceElements = new VertexElementDescription[analyseResult.IntancedElementCount];
-                for (int i = 0; i < analyseResult.IntancedElementCount; i++)
-                {
-                    instanceElements[i] = reflection.VertexElements[analyseResult.instanceBufferStartIndex + i];
-                }
-                VertexLayoutDescription instanceLayout = new VertexLayoutDescription(instanceElements)
-                {
-                    InstanceStepRate = 1
-                };
-                int vertexElementCount = reflection.VertexElements.Length - analyseResult.IntancedElementCount;
-                VertexElementDescription[] vertexElements = new VertexElementDescription[vertexElementCount];
-                for (int i = 0; i < analyseResult.instanceBufferStartIndex; i++)
-                {
-                    vertexElements[i] = reflection.VertexElements[i];
-                }
-                for (int i = analyseResult.instanceBufferEndIndex + 1; i < reflection.VertexElements.Length; i++)
-                {
-                    vertexElements[i - analyseResult.IntancedElementCount] = reflection.VertexElements[i];
-                }
-                VertexLayoutDescription vertexLayout = new VertexLayoutDescription(vertexElements);
-                vertexDesc = new VertexLayoutDescription[] { vertexLayout, instanceLayout };
-            }
-            else
-            {
-                VertexLayoutDescription vertexLayout = new VertexLayoutDescription(reflection.VertexElements);
-                vertexDesc = new VertexLayoutDescription[] { vertexLayout };
-            }
-
-
-            Veldrid.Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
-            
-            GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
-            pipelineDescription.BlendState = analyseResult.GetBlendState();
-            pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
-                depthTestEnabled: analyseResult.GetDepthTestEnable(),
-                depthWriteEnabled: analyseResult.GetDepthWriteEnable(),
-                comparisonKind: ComparisonKind.LessEqual);
-
-            pipelineDescription.RasterizerState = new RasterizerStateDescription(
-                cullMode: analyseResult.GetCullMode(),
-                fillMode: analyseResult.GetFillMode(),
-                frontFace: FrontFace.Clockwise,
-                depthClipEnabled: analyseResult.GetDepthClipEnable(),
-                scissorTestEnabled: analyseResult.GetScissorTestEnable());
-
-            pipelineDescription.PrimitiveTopology = analyseResult.GetTopologyPrimitive();
-            var resourceLayoutCamera = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Camera);
-            var resourceLayoutTransform = graphicsDevice.ResourceFactory.CreateResourceLayout(BufferLayout.Transform);
-            pipelineDescription.ResourceLayouts = new ResourceLayout[] {
-                resourceLayoutCamera,
-                resourceLayoutTransform
-              };
-            pipelineDescription.ShaderSet = new ShaderSetDescription(
-                vertexLayouts: vertexDesc,
-                shaders: shaders
-                );
-            pipelineDescription.Outputs = graphicsDevice.SwapchainFramebuffer.OutputDescription;
-            return graphicsDevice.ResourceFactory.CreateGraphicsPipeline(pipelineDescription);
         }
 
         public static CrossCompileTarget GetCompilationTarget(GraphicsBackend backend)

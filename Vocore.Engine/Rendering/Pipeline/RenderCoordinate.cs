@@ -55,7 +55,7 @@ namespace Vocore.Engine
 
         private static readonly uint VertexSizeInBytes = (uint)UtilsMemory.SizeOf<Vertex>();
         private static readonly IndexFormat IndexFormat = IndexFormat.UInt16;
-        private Pipeline _pipeline;
+        private Shader _shader;
         private DeviceBuffer _vertexBuffer;
         private DeviceBuffer _indexBuffer;
         private DeviceBuffer _matrixBuffer;
@@ -81,7 +81,7 @@ namespace Vocore.Engine
             base.OnCreate(device);
             _camera = new CameraOrthographic();
             _device = device;
-            _pipeline = ShaderComplier.CreateShaderPiplineFromGLSL(device, ShaderCode, "Debug Coordinate Shader");
+            _shader = new Shader(device, ShaderCode, "Debug Coordinate Shader");
             _vertexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Vertices.Length * VertexSizeInBytes, BufferUsage.VertexBuffer));
             _indexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Indices.Length * sizeof(ushort), BufferUsage.IndexBuffer));
             _matrixBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
@@ -99,7 +99,7 @@ namespace Vocore.Engine
         {
             _device.UpdateBuffer(_matrixBuffer, 0, Matrix);
             commandList.Begin();
-            commandList.SetPipeline(_pipeline);
+            commandList.SetPipeline(_shader.Pipeline);
             commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             commandList.SetVertexBuffer(0, _vertexBuffer);
             commandList.SetIndexBuffer(_indexBuffer, IndexFormat);
@@ -111,7 +111,7 @@ namespace Vocore.Engine
 
         public override void OnDestroy()
         {
-            _pipeline.Dispose();
+            _shader.Dispose();
             _vertexBuffer.Dispose();
             _indexBuffer.Dispose();
             _matrixBuffer.Dispose();
