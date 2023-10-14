@@ -7,9 +7,6 @@ namespace Vocore{
     {
         [ThreadStatic]
         private static StringBuilder _builder = new StringBuilder();
-        private static Action<string> _logInfo;
-        private static Action<string> _logError;
-        private static Action<string> _logWarning;
         public const string ColorWhite = "#ffffff";
         public const string ColorRed = "#ff0000";
         public const string ColorGreen = "#00ff00";
@@ -17,34 +14,6 @@ namespace Vocore{
         public const string ColorYellow = "#ffff00";
         public const string ColorCyan = "#00ffff";
         public const string ColorMagenta = "#ff00ff";
-
-        static Log()
-        {
-            LoadPresetConsole();
-        }
-
-
-        public static void SetLogCallback(Action<string> logInfo, Action<string> logError, Action<string> logWarning)
-        {
-            _logError = logError;
-            _logWarning = logWarning;
-            _logInfo = logInfo;
-        }
-
-        public static void SetLogInfoCallback(Action<string> logInfo)
-        {
-            _logInfo = logInfo;
-        }
-
-        public static void SetLogErrorCallback(Action<string> logError)
-        {
-            _logError = logError;
-        }
-
-        public static void SetLogWarningCallback(Action<string> logWarning)
-        {
-            _logWarning = logWarning;
-        }
 
         public static void Info(params object[] messages)
         {
@@ -54,7 +23,7 @@ namespace Vocore{
                 _builder.Append(messages[i]?.ToString());
                 _builder.Append(" ");
             }
-            _logInfo?.Invoke(_builder.ToString());
+            ConsolePrint(_builder.ToString(), ConsoleColor.White);
         }
 
         public static void Warning(params object[] messages)
@@ -65,7 +34,7 @@ namespace Vocore{
                 _builder.Append(messages[i]?.ToString());
                 _builder.Append(" ");
             }
-            _logWarning?.Invoke(_builder.ToString());
+            ConsolePrint(_builder.ToString(), ConsoleColor.Yellow);
         }
 
         public static void Error(params object[] messages)
@@ -76,35 +45,18 @@ namespace Vocore{
                 _builder.Append(messages[i]?.ToString());
                 _builder.Append(" ");
             }
-            _logError?.Invoke(_builder.ToString());
+            ConsolePrint(_builder.ToString(), ConsoleColor.Red);
         }
 
-        public static void LoadPresetConsole()
+        public static void Success(params object[] messages)
         {
-            SetLogCallback(ConsolePrintInfo, ConsolePrintError, ConsolePrintWarning);
-        }
-
-        public static void LoadPresetUnity()
-        {
-            SetLogCallback(UnityPrintInfo, UnityPrintError, UnityPrintWarning);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UnityPrintInfo(string str)
-        {
-            //Debug.Log(str);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UnityPrintWarning(string str)
-        {
-            //Debug.LogWarning(str);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UnityPrintError(string str)
-        {
-            //Debug.LogError(str);
+            _builder.Clear();
+            for (int i = 0; i < messages.Length; i++)
+            {
+                _builder.Append(messages[i]?.ToString());
+                _builder.Append(" ");
+            }
+            ConsolePrint(_builder.ToString(), ConsoleColor.Green);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -113,24 +65,6 @@ namespace Vocore{
             Console.ForegroundColor = color;
             Console.WriteLine(str);
             Console.ForegroundColor = ConsoleColor.White;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ConsolePrintInfo(string str)
-        {
-            ConsolePrint(str, ConsoleColor.White);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ConsolePrintWarning(string str)
-        {
-            ConsolePrint(str, ConsoleColor.Yellow);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ConsolePrintError(string str)
-        {
-            ConsolePrint(str, ConsoleColor.Red);
         }
     }
 }
