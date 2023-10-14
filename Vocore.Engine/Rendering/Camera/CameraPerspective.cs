@@ -1,0 +1,69 @@
+using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using Vocore.Unsafe;
+
+namespace Vocore.Engine
+{
+    public class CameraPerspective : BaseCamera
+    {
+        public const float DefaultFov = 0.83f;
+        private float _fov;
+
+        private Matrix4x4 _projectionMatrix;
+        public static readonly uint BufferSize = (uint)UtilsMemory.SizeOf<Matrix4x4>();
+
+        public float FieldOfView
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _fov;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                _fov = value;
+                _isProjectionMatrixDirty = true;
+            }
+        }
+
+        public override Matrix4x4 ProjectionMatrix
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_isProjectionMatrixDirty)
+                {
+                    UpdateProjectionMatrix();
+                    _isProjectionMatrixDirty = false;
+                }
+                return _projectionMatrix;
+            }
+
+        }
+
+        public override Matrix4x4 ViewProjectionMatrix
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return ViewMatrix * ProjectionMatrix;
+            }
+        }
+
+        public CameraPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar)
+        {
+            _fov = fov;
+            _near = near;
+            _far = far;
+
+            tranform = Transform.Default;
+
+            _isProjectionMatrixDirty = true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateProjectionMatrix()
+        {
+            _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, Window.AspectRatio, _near, _far);
+        }
+    }
+}

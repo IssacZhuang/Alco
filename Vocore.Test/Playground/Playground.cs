@@ -13,6 +13,7 @@ using System.IO;
 using Vocore.Lua;
 using Mond;
 using System.Numerics;
+using Unity.Collections;
 
 namespace Vocore.Test
 {
@@ -43,8 +44,6 @@ namespace Vocore.Test
             Vector3 v = new Vector3(0, 0, 3);
             Quaternion q = math.EulerXYZ(math.radians(new Vector3(0, 90f, 0)));
             Vector3 v2 = Vector3.Transform(v, q);
-            Log.Info("v2: " + v2);
-
         }
 
         public void TestGeneric<T>(T data)
