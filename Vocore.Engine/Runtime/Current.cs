@@ -8,7 +8,7 @@ namespace Vocore.Engine
 {
     public static class Current
     {
-        public static Sdl2Window Window { get; internal set; }
+        internal static Sdl2Window Window { get; set; }
         public static InputSnapshot InputSnapshot { get; internal set; }
         public static GraphicsDevice GraphicsDevice { get; internal set; }
         public static ResourceFactory ResourceFactory { get; internal set; }

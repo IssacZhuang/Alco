@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Vocore.Engine
 {
-    public static class Window
+    public static class Screen
     {
         public static int Width => Current.Window.Width;
         public static int Height => Current.Window.Height;

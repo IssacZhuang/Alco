@@ -41,6 +41,7 @@ namespace Vocore.Engine
             if(!_mouseInCenter)
             {
                 Input.MousePosition = ScreenCenter;
+                _mouseInCenter = true;
             }
             var delta = Input.MousePosition - ScreenCenter;
             Input.MousePosition = ScreenCenter;
