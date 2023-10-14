@@ -6,10 +6,9 @@ namespace Vocore.Engine
     public static class Application
     {
         public static readonly string Path = AppDomain.CurrentDomain.BaseDirectory;
-
         public static void Quit()
         {
-            Current.Window.Close();
+            Current.Engine?.Stop();
         }
 
     }

@@ -73,6 +73,7 @@ namespace Vocore.Engine
 
         public int PhysicsTickRate
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 return _physicsFps;
@@ -80,6 +81,15 @@ namespace Vocore.Engine
             set
             {
                 UpdatePhysicsTickRate(value);
+            }
+        }
+
+        public bool IsRunning
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _isRunning;
             }
         }
 
@@ -149,7 +159,7 @@ namespace Vocore.Engine
                     _timer -= physicsTickInterval;
                     try
                     {
-                        if (_isRunning) OnTick(physicsDeltaTime);
+                        OnTick(physicsDeltaTime);
 
                     }
                     catch (Exception e)
@@ -160,13 +170,11 @@ namespace Vocore.Engine
 
                 try
                 {
-                    if (_isRunning)
-                    {
-                        GraphicsCommand.BeginFrame();
-                        OnUpdate(deltaTime);
-                        _renderPipelineManager.OnDraw(_graphicsCommand.CommandList);
-                        GraphicsCommand.EndFrame();
-                    }
+
+                    GraphicsCommand.BeginFrame();
+                    OnUpdate(deltaTime);
+                    _renderPipelineManager.OnDraw(_graphicsCommand.CommandList);
+                    GraphicsCommand.EndFrame();
                 }
                 catch (Exception e)
                 {
@@ -174,10 +182,19 @@ namespace Vocore.Engine
                     return;
                 }
                 Profiler.Update(deltaTime);
+
+                if (!_isRunning)
+                {
+                    _window.Close();
+                }
             }
+
+
+            // while (_window.clos);
 
             OnQuit();
             InternalQuit();
+            _window.Close();
         }
 
         protected virtual void OnStart()
@@ -207,6 +224,11 @@ namespace Vocore.Engine
 
         private void Init(GraphicsBackend backend, string name)
         {
+            if (Current.Engine != null)
+            {
+                throw new Exception("You can only have one engine instance");
+            }
+
             _profiler = new Profiler();
 
             _windowCreateInfo = new WindowCreateInfo
@@ -242,13 +264,9 @@ namespace Vocore.Engine
                 OnWindowResize(_window.Width, _window.Height);
             };
 
-            _window.Closing += () =>
-            {
-                _isRunning = false;
-            };
-
             _renderPipelineManager = new RenderPipelineManager(_graphicsDevice);
             AddBuiltInRenderPipeline();
+            LoadAllBuiltInShader();
 
             Current.Window = _window;
             Current.GraphicsDevice = _graphicsDevice;
@@ -258,8 +276,8 @@ namespace Vocore.Engine
 
         private void InternalQuit()
         {
-            _graphicsDevice.Dispose();
             _graphicsCommand.Dispose();
+            _graphicsDevice.Dispose();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -275,11 +293,28 @@ namespace Vocore.Engine
             _renderPipelineManager.AddRenderPipeline(renderCoordinate);
         }
 
+        private void LoadAllBuiltInShader()
+        {
+            IEnumerable<string> shaderNames = EmbbedResources.GetAllFileNamesWithExtension("glsl");
+            foreach (var shaderName in shaderNames)
+            {
+                string shaderSource = EmbbedResources.GetText(shaderName);
+                Shader shader = new Shader(_graphicsDevice, shaderSource, shaderName);
+                ShaderPool.Add(shaderName, shader);
+                Log.Success($"Shader {shaderName} loaded");
+            }
+        }
+
         private void UpdatePhysicsTickRate(int rate)
         {
             _physicsFps = rate;
             physicsTickInterval = Stopwatch.Frequency / _physicsFps;
             physicsDeltaTime = 1f / _physicsFps;
+        }
+
+        public void Stop()
+        {
+            _isRunning = false;
         }
     }
 }
