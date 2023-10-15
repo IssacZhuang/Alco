@@ -265,8 +265,8 @@ namespace Vocore.Engine
             };
 
             _renderPipelineManager = new RenderPipelineManager(_graphicsDevice);
-            AddBuiltInRenderPipeline();
             LoadAllBuiltInShader();
+            AddBuiltInRenderPipeline();   
 
             Current.Window = _window;
             Current.GraphicsDevice = _graphicsDevice;
@@ -300,8 +300,10 @@ namespace Vocore.Engine
             {
                 string shaderSource = EmbbedResources.GetText(shaderName);
                 Shader shader = new Shader(_graphicsDevice, shaderSource, shaderName);
-                ShaderPool.Add(shaderName, shader);
-                Log.Success($"Shader {shaderName} loaded");
+                //remove prefix
+                string localName = shaderName.Substring(EmbbedResources.Prefix.Length);
+                ShaderPool.Add(localName, shader);
+                Log.Success($"Shader {localName} loaded");
             }
         }
 

@@ -33,7 +33,7 @@ public class App : Engine
         _cameraP.tranform.position = new Vector3(0, 1, -5);
 
         Current.Camera = _cameraP;
-        this.Fullscreen = true;
+        //this.Fullscreen = true;
 
         _cubeTranform2.rotation = math.EulerXYZ(new Vector3(0, 1, 0));
 

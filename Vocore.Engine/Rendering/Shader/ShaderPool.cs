@@ -9,7 +9,7 @@ namespace Vocore.Engine
     {
         private readonly static Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
 
-        public static Shader? Get(string name)
+        public static Shader Get(string name)
         {
             if (_shaders.TryGetValue(name, out var shader))
             {
@@ -18,7 +18,7 @@ namespace Vocore.Engine
             Log.Error($"Shader {name} not found in pool");
             return null;
         }
-
+    
         public static bool TryGet(string name, out Shader shader)
         {
             if (_shaders.TryGetValue(name, out shader))

@@ -81,7 +81,7 @@ namespace Vocore.Engine
             base.OnCreate(device);
             _camera = new CameraOrthographic();
             _device = device;
-            _shader = new Shader(device, ShaderCode, "Debug Coordinate Shader");
+            _shader = ShaderPool.Get("Line.glsl");
             _vertexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Vertices.Length * VertexSizeInBytes, BufferUsage.VertexBuffer));
             _indexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Indices.Length * sizeof(ushort), BufferUsage.IndexBuffer));
             _matrixBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
@@ -117,49 +117,6 @@ namespace Vocore.Engine
             _matrixBuffer.Dispose();
             _matrixResourceSet.Dispose();
         }
-
-        private static readonly string ShaderCode = @"
-#version 450
-
-#pragma topology_primitive line_list
-#pragma fill_mode wireframe
-#pragma cull_mode none
-#pragma blend_state alpha_blend
-#pragma depth_test false
-
-layout(set = 0, binding = 0) uniform ModelViewProjectionBuffer
-{
-    mat4 matrixMVP;
-};
-
-
-#ifdef VERTEX_SHADER
-
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec4 color;
-
-layout(location = 0) out vec4 fsin_color;
-
-void main()
-{
-    gl_Position = matrixMVP * vec4(position, 1.0);
-    fsin_color = color;
-}
-
-#endif
-
-#ifdef FRAGMENT_SHADER
-
-layout(location = 0) in vec4 fsin_color;
-layout(location = 0) out vec4 fsout_color;
-
-void main()
-{
-    fsout_color = fsin_color;
-}
-
-#endif
-        ";
     }
 }
 
