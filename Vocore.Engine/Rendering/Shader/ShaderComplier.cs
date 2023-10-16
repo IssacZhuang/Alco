@@ -1,4 +1,6 @@
 using System;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 
 
@@ -14,12 +16,36 @@ namespace Vocore.Engine
         public const string GLSL_True = "true";
         public const string GLSL_False = "false";
         public const string DefaultEntryPoint = "main";
+        public const string Regex_Includes = @"#include\s+""(?<filename>[^""]+)""";
+        public const string Format_LineInculde = "#line {0} \"{1}\"";
         
         public static readonly MacroDefinition MacroVertex = new MacroDefinition(MacroStageVertex, GLSL_True);
         public static readonly MacroDefinition MacroFragment = new MacroDefinition(MacroStageFragment, GLSL_True);
         public static readonly GlslCompileOptions OptionVertex = new GlslCompileOptions(true, MacroVertex);
         public static readonly GlslCompileOptions OptionFragment = new GlslCompileOptions(true, MacroFragment);
 
+        public static string ProcessInclude(string shaderText, string filename, IVirtualDirectory shaderTextSource)
+        {
+            StringBuilder builder = new StringBuilder();
+            int line = 1;
+            foreach (Match match in Regex.Matches(shaderText, Regex_Includes))
+            {
+                string includeFilename = match.Groups["filename"].Value;
+                if (shaderTextSource.TryGetData(includeFilename, out byte[] data))
+                {
+                    builder.AppendLine(string.Format(Format_LineInculde, line, filename));
+                    builder.AppendLine(ProcessInclude(Encoding.UTF8.GetString(data), includeFilename, shaderTextSource));
+                }
+                else
+                {
+                    throw new Exception($"Can't find include file: {includeFilename} in {filename} line {line}");
+                }
+                line++;
+            }
+            builder.AppendLine(string.Format(Format_LineInculde, line, filename));
+            builder.Append(shaderText);
+            return builder.ToString();
+        }
 
         public static ShaderByteCode ComplieVertexShaderToSpirv(string shaderText, string filename)
         {
