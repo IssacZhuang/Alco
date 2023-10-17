@@ -5,7 +5,7 @@ using Veldrid.SPIRV;
 
 namespace Vocore.Engine
 {
-    public class Shader:IDisposable
+    public class Shader : IDisposable
     {
         private const string DefaultEntryPoint = "main";
         private Pipeline _pipeline;
@@ -27,82 +27,82 @@ namespace Vocore.Engine
         {
             try
             {
-            ResourceFactory factory = device.ResourceFactory;
+                ResourceFactory factory = device.ResourceFactory;
 
-            _analyseResult = new ShaderAnalyseResult(shaderText);
+                _analyseResult = new ShaderAnalyseResult(shaderText);
 
-            ShaderByteCode vertexByteCode = ShaderComplier.ComplieVertexShaderToSpirv(shaderText, filename);
-            ShaderByteCode fragmentByteCode = ShaderComplier.ComplieFragmentShaderToSpirv(shaderText, filename);
-            ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
-            ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
+                ShaderByteCode vertexByteCode = ShaderComplier.ComplieVertexShaderToSpirv(shaderText, filename);
+                ShaderByteCode fragmentByteCode = ShaderComplier.ComplieFragmentShaderToSpirv(shaderText, filename);
+                ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
+                ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
 
-            _reflection = ShaderComplier.GetShaderReflection(device, shaderText, filename);
+                _reflection = ShaderComplier.GetShaderReflection(device, shaderText, filename);
 
 
-            if (_analyseResult.HasInstanceBuffer)
-            {
-                VertexElementDescription[] instanceElements = new VertexElementDescription[_analyseResult.IntancedElementCount];
-                for (int i = 0; i < _analyseResult.IntancedElementCount; i++)
+                if (_analyseResult.HasInstanceBuffer)
                 {
-                    instanceElements[i] = _reflection.VertexElements[_analyseResult.instanceBufferStartIndex + i];
+                    VertexElementDescription[] instanceElements = new VertexElementDescription[_analyseResult.IntancedElementCount];
+                    for (int i = 0; i < _analyseResult.IntancedElementCount; i++)
+                    {
+                        instanceElements[i] = _reflection.VertexElements[_analyseResult.instanceBufferStartIndex + i];
+                    }
+                    VertexLayoutDescription instanceLayout = new VertexLayoutDescription(instanceElements)
+                    {
+                        InstanceStepRate = 1
+                    };
+                    int vertexElementCount = _reflection.VertexElements.Length - _analyseResult.IntancedElementCount;
+                    VertexElementDescription[] vertexElements = new VertexElementDescription[vertexElementCount];
+                    for (int i = 0; i < _analyseResult.instanceBufferStartIndex; i++)
+                    {
+                        vertexElements[i] = _reflection.VertexElements[i];
+                    }
+                    for (int i = _analyseResult.instanceBufferEndIndex + 1; i < _reflection.VertexElements.Length; i++)
+                    {
+                        vertexElements[i - _analyseResult.IntancedElementCount] = _reflection.VertexElements[i];
+                    }
+                    VertexLayoutDescription vertexLayout = new VertexLayoutDescription(vertexElements);
+                    _vertexLayouts = new VertexLayoutDescription[] { vertexLayout, instanceLayout };
                 }
-                VertexLayoutDescription instanceLayout = new VertexLayoutDescription(instanceElements)
+                else
                 {
-                    InstanceStepRate = 1
-                };
-                int vertexElementCount = _reflection.VertexElements.Length - _analyseResult.IntancedElementCount;
-                VertexElementDescription[] vertexElements = new VertexElementDescription[vertexElementCount];
-                for (int i = 0; i < _analyseResult.instanceBufferStartIndex; i++)
-                {
-                    vertexElements[i] = _reflection.VertexElements[i];
+                    VertexLayoutDescription vertexLayout = new VertexLayoutDescription(_reflection.VertexElements);
+                    _vertexLayouts = new VertexLayoutDescription[] { vertexLayout };
                 }
-                for (int i = _analyseResult.instanceBufferEndIndex + 1; i < _reflection.VertexElements.Length; i++)
+
+
+                Veldrid.Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
+
+                _pipelineDescription = new GraphicsPipelineDescription();
+                _pipelineDescription.BlendState = _analyseResult.GetBlendState();
+                _pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
+                    depthTestEnabled: _analyseResult.GetDepthTestEnable(),
+                    depthWriteEnabled: _analyseResult.GetDepthWriteEnable(),
+                    comparisonKind: ComparisonKind.LessEqual);
+
+                _pipelineDescription.RasterizerState = new RasterizerStateDescription(
+                    cullMode: _analyseResult.GetCullMode(),
+                    fillMode: _analyseResult.GetFillMode(),
+                    frontFace: FrontFace.Clockwise,
+                    depthClipEnabled: _analyseResult.GetDepthClipEnable(),
+                    scissorTestEnabled: _analyseResult.GetScissorTestEnable());
+
+                _pipelineDescription.PrimitiveTopology = _analyseResult.GetTopologyPrimitive();
+                _resourceLayouts = new ResourceLayout[_reflection.ResourceLayouts.Length];
+                for (int i = 0; i < _reflection.ResourceLayouts.Length; i++)
                 {
-                    vertexElements[i - _analyseResult.IntancedElementCount] = _reflection.VertexElements[i];
+                    _resourceLayouts[i] = factory.CreateResourceLayout(_reflection.ResourceLayouts[i]);
                 }
-                VertexLayoutDescription vertexLayout = new VertexLayoutDescription(vertexElements);
-                _vertexLayouts = new VertexLayoutDescription[] { vertexLayout, instanceLayout };
-            }
-            else
-            {
-                VertexLayoutDescription vertexLayout = new VertexLayoutDescription(_reflection.VertexElements);
-                _vertexLayouts = new VertexLayoutDescription[] { vertexLayout };
-            }
-
-
-            Veldrid.Shader[] shaders = factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
-
-            _pipelineDescription = new GraphicsPipelineDescription();
-            _pipelineDescription.BlendState = _analyseResult.GetBlendState();
-            _pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
-                depthTestEnabled: _analyseResult.GetDepthTestEnable(),
-                depthWriteEnabled: _analyseResult.GetDepthWriteEnable(),
-                comparisonKind: ComparisonKind.LessEqual);
-
-            _pipelineDescription.RasterizerState = new RasterizerStateDescription(
-                cullMode: _analyseResult.GetCullMode(),
-                fillMode: _analyseResult.GetFillMode(),
-                frontFace: FrontFace.Clockwise,
-                depthClipEnabled: _analyseResult.GetDepthClipEnable(),
-                scissorTestEnabled: _analyseResult.GetScissorTestEnable());
-
-            _pipelineDescription.PrimitiveTopology = _analyseResult.GetTopologyPrimitive();
-            _resourceLayouts = new ResourceLayout[_reflection.ResourceLayouts.Length];
-            for (int i = 0; i < _reflection.ResourceLayouts.Length; i++)
-            {
-                _resourceLayouts[i] = factory.CreateResourceLayout(_reflection.ResourceLayouts[i]);
-            }
-            _pipelineDescription.ResourceLayouts = _resourceLayouts;
-            _pipelineDescription.ShaderSet = new ShaderSetDescription(
-                vertexLayouts: _vertexLayouts,
-                shaders: shaders
-                );
-            _pipelineDescription.Outputs = device.SwapchainFramebuffer.OutputDescription;
-            _pipeline = factory.CreateGraphicsPipeline(_pipelineDescription);
+                _pipelineDescription.ResourceLayouts = _resourceLayouts;
+                _pipelineDescription.ShaderSet = new ShaderSetDescription(
+                    vertexLayouts: _vertexLayouts,
+                    shaders: shaders
+                    );
+                _pipelineDescription.Outputs = device.SwapchainFramebuffer.OutputDescription;
+                _pipeline = factory.CreateGraphicsPipeline(_pipelineDescription);
             }
             catch (Exception e)
             {
-                throw new Exception($"{e.Message} \nCode: \n{shaderText}");
+                throw new Exception($"{e.Message} \nCode: \n{shaderText} \n{e.StackTrace}");
             }
         }
 

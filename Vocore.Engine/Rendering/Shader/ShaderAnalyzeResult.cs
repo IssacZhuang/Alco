@@ -23,12 +23,10 @@ namespace Vocore.Engine
         public const string GLSL_False = "false";
         //example: #pragma blend_state override_blend
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
-        //example: #pragma instance_buffer_start
-        public const string RegexPragmaInstruction = @"#pragma\s+(\w+)";
         //exmaple: layout(location = 0) in vec3 position,
         public const string RegexVertexLayout = @"layout\s*\(\s*location\s*=\s*(\d+)\s*\)\s*in\s*(\w+)\s*(\w+)";
-        public const string InstructionInstanceBufferStart = "instance_buffer_start";
-        public const string InstructionInstanceBufferEnd = "instance_buffer_end";
+        public const string RegexPragmaInstructionInstanceBufferStart = "#pragma instance_buffer_start";
+        public const string RegexPragmaInstructionInstanceBufferEnd = "#pragma instance_buffer_end";
         public Dictionary<string, string> pragmaKeyValue;
         public int instanceBufferStartIndex;
         public int instanceBufferEndIndex;
@@ -219,26 +217,27 @@ namespace Vocore.Engine
             bool isInstanceBuffer = false;
             foreach (string line in lines)
             {
-                Match match = Regex.Match(line, RegexPragmaKeyValuePair);
+                Match match = Regex.Match(line, RegexPragmaInstructionInstanceBufferStart);
+                if (match.Success)
+                {
+
+                    isInstanceBuffer = true;
+                    continue;
+                }
+
+                match = Regex.Match(line, RegexPragmaInstructionInstanceBufferEnd);
+                if (match.Success)
+                {
+                    isInstanceBuffer = false;
+                    continue;
+                }
+
+                match = Regex.Match(line, RegexPragmaKeyValuePair);
                 if (match.Success)
                 {
                     string key = match.Groups[1].Value;
                     string value = match.Groups[2].Value;
                     pragma.Add(key, value);
-                }
-
-                match = Regex.Match(line, RegexPragmaInstruction);
-                if (match.Success)
-                {
-                    string instruction = match.Groups[1].Value;
-                    if (instruction == InstructionInstanceBufferStart)
-                    {
-                        isInstanceBuffer = true;
-                    }
-                    else if (instruction == InstructionInstanceBufferEnd)
-                    {
-                        isInstanceBuffer = false;
-                    }
                 }
 
                 if (isInstanceBuffer)
@@ -248,12 +247,8 @@ namespace Vocore.Engine
                     instanceBufferStartIndex = Math.Min(instanceBufferStartIndex, location);
                     instanceBufferEndIndex = Math.Max(instanceBufferEndIndex, location);
                 }
-
             }
-
         }
-
-
     }
 }
 
