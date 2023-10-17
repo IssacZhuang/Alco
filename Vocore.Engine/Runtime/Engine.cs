@@ -298,12 +298,39 @@ namespace Vocore.Engine
             IEnumerable<string> shaderNames = EmbbedResources.GetAllFileNamesWithExtension("glsl");
             foreach (var shaderName in shaderNames)
             {
-                string shaderSource = EmbbedResources.GetText(shaderName);
-                Shader shader = new Shader(_graphicsDevice, shaderSource, shaderName);
-                //remove prefix
-                string localName = shaderName.Substring(EmbbedResources.Prefix.Length);
-                ShaderPool.Add(localName, shader);
-                Log.Success($"Shader {localName} loaded");
+                // \ to /
+                string parsedShaderName = shaderName.Replace('\\', '/');
+                Log.Info($"Loading Shader {parsedShaderName}");
+                if (EmbbedResources.IsShaderLib(parsedShaderName, out var filename))
+                {
+                    ShaderPool.SourceLibs.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
+                }
+                else if (EmbbedResources.IsGraphicsShader(parsedShaderName, out filename))
+                {
+                    ShaderPool.SourceGraphics.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
+                }
+                else if (EmbbedResources.IsComputeShader(parsedShaderName, out filename))
+                {
+                    ShaderPool.SourceCompute.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
+                }
+            }
+
+            //complie graphics shader
+            foreach (var shader in ShaderPool.SourceGraphics.AllFiles)
+            {
+                try{
+                    string filename = shader.Key;
+                    string shaderText = System.Text.Encoding.UTF8.GetString(shader.Value);
+                    string processedShaderText = ShaderComplier.ProcessInclude(shaderText, filename, ShaderPool.SourceLibs);
+
+                    Shader shaderInstance = new Shader(_graphicsDevice, processedShaderText, filename);
+                    ShaderPool.Add(filename, shaderInstance);
+                    Log.Success($"Graphic Shader {filename} loaded");
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Graphic Shader {shader.Key} load failed\n{e}");
+                }
             }
         }
 

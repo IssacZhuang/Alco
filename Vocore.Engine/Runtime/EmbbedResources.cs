@@ -20,7 +20,9 @@ namespace Vocore.Engine
             }
         }
 
-        public static readonly string Prefix = "Vocore.Engine.Assets.";
+        public static readonly string PathShaderLib = "Assets/Shader/Lib/";
+        public static readonly string PathGraphicsShader = "Assets/Shader/Graphics/";
+        public static readonly string PathComputeShader = "Assets/Shader/Compute/";
 
         public static string[] AllFileNames
         {
@@ -30,6 +32,24 @@ namespace Vocore.Engine
             }
         }
 
+        public static bool IsShaderLib(string path, out string filename)
+        {
+            filename = path.Replace(PathShaderLib, "");
+            return path.StartsWith(PathShaderLib);
+        }
+
+        public static bool IsGraphicsShader(string path, out string filename)
+        {
+            filename = path.Replace(PathGraphicsShader, "");
+            return path.StartsWith(PathGraphicsShader);
+        }
+
+        public static bool IsComputeShader(string path, out string filename)
+        {
+            filename = path.Replace(PathComputeShader, "");
+            return path.StartsWith(PathComputeShader);
+        }   
+
         public static byte[] GetBytes(string path)
         {
             //get embbed asset in dll
@@ -37,7 +57,7 @@ namespace Vocore.Engine
             if (stream == null)
             {
                 Log.Error($"Embbed Resource {path} not found");
-                return new byte[0];
+                return Array.Empty<byte>();
             }
             var bytes = new byte[stream.Length];
             stream.Read(bytes, 0, bytes.Length);

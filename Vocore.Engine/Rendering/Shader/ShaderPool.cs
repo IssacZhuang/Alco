@@ -7,6 +7,9 @@ namespace Vocore.Engine
 {
     public static class ShaderPool
     {
+        public readonly static BaseVirtualDirectory SourceLibs = new BaseVirtualDirectory();
+        public readonly static BaseVirtualDirectory SourceGraphics = new BaseVirtualDirectory();
+        public readonly static BaseVirtualDirectory SourceCompute = new BaseVirtualDirectory();
         private readonly static Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
 
         public static Shader Get(string name)

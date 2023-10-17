@@ -24,27 +24,41 @@ namespace Vocore.Engine
         public static readonly GlslCompileOptions OptionVertex = new GlslCompileOptions(true, MacroVertex);
         public static readonly GlslCompileOptions OptionFragment = new GlslCompileOptions(true, MacroFragment);
 
+        public static string ProcessInclude(string shaderText, string filename)
+        {
+            return ProcessInclude(shaderText, filename, ShaderPool.SourceLibs);
+        }
+
         public static string ProcessInclude(string shaderText, string filename, IVirtualDirectory shaderTextSource)
         {
-            StringBuilder builder = new StringBuilder();
-            int line = 1;
-            foreach (Match match in Regex.Matches(shaderText, Regex_Includes))
+            //insert including content and #line in the #include position
+            StringBuilder sb = new StringBuilder();
+            string[] lines = shaderText.Split('\n');
+            int lineIndex = 0;
+            foreach (var line in lines)
             {
-                string includeFilename = match.Groups["filename"].Value;
-                if (shaderTextSource.TryGetData(includeFilename, out byte[] data))
+                Match match = Regex.Match(line, Regex_Includes);
+                if (match.Success)
                 {
-                    builder.AppendLine(string.Format(Format_LineInculde, line, filename));
-                    builder.AppendLine(ProcessInclude(Encoding.UTF8.GetString(data), includeFilename, shaderTextSource));
+                    string includeFilename = match.Groups["filename"].Value;
+                    if (shaderTextSource.TryGetData(includeFilename, out var includeData))
+                    {
+                        sb.AppendLine(string.Format(Format_LineInculde, 1, includeFilename));
+                        sb.AppendLine(ProcessInclude(Encoding.UTF8.GetString(includeData), includeFilename, shaderTextSource));
+                        sb.AppendLine(string.Format(Format_LineInculde, lineIndex + 2, filename));
+                    }
+                    else
+                    {
+                        Log.Error($"Include file {includeFilename} not found");
+                    }
                 }
                 else
                 {
-                    throw new Exception($"Can't find include file: {includeFilename} in {filename} line {line}");
+                    sb.AppendLine(line);
                 }
-                line++;
+                lineIndex++;
             }
-            builder.AppendLine(string.Format(Format_LineInculde, line, filename));
-            builder.Append(shaderText);
-            return builder.ToString();
+            return sb.ToString();
         }
 
         public static ShaderByteCode ComplieVertexShaderToSpirv(string shaderText, string filename)

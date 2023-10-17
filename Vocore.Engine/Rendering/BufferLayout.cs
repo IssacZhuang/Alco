@@ -13,6 +13,8 @@ namespace Vocore.Engine
         public static readonly ResourceLayoutDescription Transform = new ResourceLayoutDescription(
                     new ResourceLayoutElementDescription("ModelBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex)
                 );
+
+                
     }
 }
 

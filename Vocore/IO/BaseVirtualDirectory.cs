@@ -7,6 +7,16 @@ namespace Vocore
     {
         private readonly Dictionary<string, byte[]> _data = new Dictionary<string, byte[]>();
 
+        public int FileCount => _data.Count;
+
+        public IEnumerable<KeyValuePair<string, byte[]>> AllFiles
+        {
+            get
+            {
+                return _data;
+            }
+        }
+
         public bool TryAddData(string path, byte[] data)
         {
             if (data == null)
@@ -17,6 +27,7 @@ namespace Vocore
             {
                 return false;
             }
+            _data.Add(path, data);
             return true;
         }
 

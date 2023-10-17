@@ -41,6 +41,7 @@ public class App : Engine
         _actorFreeLook3D.sensitivity = 10f;
 
         var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
+        shaderAllInOne = ShaderComplier.ProcessInclude(shaderAllInOne, "BasicAIO.glsl");
         _shader = new Shader(GraphicsDevice, shaderAllInOne, "BasicAIO");
     }
 

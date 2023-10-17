@@ -25,6 +25,8 @@ namespace Vocore.Engine
 
         public Shader(GraphicsDevice device, string shaderText, string filename = "Unknow")
         {
+            try
+            {
             ResourceFactory factory = device.ResourceFactory;
 
             _analyseResult = new ShaderAnalyseResult(shaderText);
@@ -97,6 +99,11 @@ namespace Vocore.Engine
                 );
             _pipelineDescription.Outputs = device.SwapchainFramebuffer.OutputDescription;
             _pipeline = factory.CreateGraphicsPipeline(_pipelineDescription);
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"{e.Message} \nCode: \n{shaderText}");
+            }
         }
 
         public void Dispose()

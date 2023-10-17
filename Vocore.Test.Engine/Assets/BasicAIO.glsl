@@ -1,15 +1,7 @@
 #version 450
 
 
-layout(set = 0, binding = 0) uniform ViewProjectionBuffer
-{
-    mat4 viewProj;
-};
-
-layout(set = 1, binding = 0) uniform TransformBuffer
-{
-    mat4 transform;
-};
+#include "basic-matrices.glsl"
 
 /// Vertex Shader ///
 #ifdef VERTEX_SHADER
@@ -20,13 +12,12 @@ layout(location = 2) in vec4 color;
 
 layout(location = 0) out vec4 fsin_color;
 
+
+
 void main()
 {
-    vec4 pos = transform * vec4(position, 1.0);
-    pos = viewProj * pos;
-    gl_Position = pos;
+    gl_Position = VertexToClipSpace(position);
     fsin_color = color;
-    //gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;
 }
 
 #endif

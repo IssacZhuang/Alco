@@ -11,7 +11,6 @@ layout(set = 0, binding = 0) uniform ModelViewProjectionBuffer
     mat4 matrixMVP;
 };
 
-
 #ifdef VERTEX_SHADER
 
 layout(location = 0) in vec3 position;
@@ -36,5 +35,6 @@ void main()
 {
     fsout_color = fsin_color;
 }
+
 
 #endif
