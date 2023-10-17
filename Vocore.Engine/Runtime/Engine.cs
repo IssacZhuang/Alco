@@ -18,7 +18,8 @@ namespace Vocore.Engine
         private WindowCreateInfo _windowCreateInfo;
         private Sdl2Window _window;
         private GraphicsDevice _graphicsDevice;
-        private GraphicsCommand _graphicsCommand;
+        private GlobalGraphicsCommand _graphicsCommand;
+        private CommandBuffer _commandBuffer;
         private RenderPipelineManager _renderPipelineManager;
         private Profiler _profiler;
         private int _physicsFps = 30;
@@ -32,15 +33,6 @@ namespace Vocore.Engine
             get
             {
                 return _renderPipelineManager;
-            }
-        }
-
-        protected GraphicsCommand GraphicsCommand
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _graphicsCommand;
             }
         }
 
@@ -59,6 +51,15 @@ namespace Vocore.Engine
             get
             {
                 return _graphicsDevice;
+            }
+        }
+
+        protected CommandBuffer Graphics
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _commandBuffer;
             }
         }
 
@@ -171,10 +172,11 @@ namespace Vocore.Engine
                 try
                 {
 
-                    GraphicsCommand.BeginFrame();
+                    _graphicsCommand.BeginFrame();
+                    _graphicsCommand.Update(deltaTime);
                     OnUpdate(deltaTime);
                     _renderPipelineManager.OnDraw(_graphicsCommand.CommandList);
-                    GraphicsCommand.EndFrame();
+                    _graphicsCommand.EndFrame();
                 }
                 catch (Exception e)
                 {
@@ -252,11 +254,10 @@ namespace Vocore.Engine
             },
             backend);
 
-            Log.Info("Graphics Backend: \t" + _graphicsDevice.BackendType);
-            Log.Info("IsDepthRangeZeroToOne: \t" + _graphicsDevice.IsDepthRangeZeroToOne);
-            Log.Info("IsClipSpaceYInverted: \t" + _graphicsDevice.IsClipSpaceYInverted);
+            PrintGraphicDeviceDetail();
 
-            _graphicsCommand = new GraphicsCommand(_graphicsDevice);
+            _graphicsCommand = new GlobalGraphicsCommand(_graphicsDevice);
+            _commandBuffer = new CommandBuffer(_graphicsDevice, _graphicsCommand.ResourceGlobalData);
 
             _window.Resized += () =>
             {
@@ -339,6 +340,13 @@ namespace Vocore.Engine
             _physicsFps = rate;
             physicsTickInterval = Stopwatch.Frequency / _physicsFps;
             physicsDeltaTime = 1f / _physicsFps;
+        }
+
+        private void PrintGraphicDeviceDetail()
+        {
+            Log.Info("Graphics Backend: \t" + _graphicsDevice.BackendType);
+            Log.Info("IsDepthRangeZeroToOne: \t" + _graphicsDevice.IsDepthRangeZeroToOne);
+            Log.Info("IsClipSpaceYInverted: \t" + _graphicsDevice.IsClipSpaceYInverted);
         }
 
         public void Stop()

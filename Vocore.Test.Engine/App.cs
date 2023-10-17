@@ -116,9 +116,9 @@ public class App : Engine
         _timer += delta;
         //_cameraP.tranform.LookAt(coloredCubePosition);
 
-        GraphicsCommand.UpdateCameraBuffer();
-        GraphicsCommand.DrawMesh(MeshPool.Cube, _shader, _cubeTranform1);
-        GraphicsCommand.DrawMesh(MeshPool.TestCube, _shader, _cubeTranform2);
+        // GraphicsCommand.UpdateGlobalData();
+        Graphics.DrawMesh(MeshPool.Cube, _shader, _cubeTranform1);
+        Graphics.DrawMesh(MeshPool.TestCube, _shader, _cubeTranform2);
     }
 
     protected override void OnTick(float delta)
