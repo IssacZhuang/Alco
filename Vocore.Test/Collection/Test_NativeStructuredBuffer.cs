@@ -18,8 +18,8 @@ namespace Vocore.Test
         public unsafe void ValueGetSet()
         {
             NativeBuffer<Vector3> bufferVec = new NativeBuffer<Vector3>(5);
-            UnitTest.AssertFalse(bufferVec.Ptr == null);
-            UnitTest.AssertFalse((byte*)bufferVec.Ptr == null);
+            UnitTest.AssertFalse(bufferVec.DataPtr == null);
+            UnitTest.AssertFalse((byte*)bufferVec.DataPtr == null);
 
             bufferVec[3] = Vector3.one;
             UnitTest.AssertFalse(bufferVec[3] != Vector3.one);
@@ -100,7 +100,7 @@ namespace Vocore.Test
             timer.Restart();
             for (int i = 0; i < count; i++)
             {
-                nativeBuffer.Ptr[i].y = 10;
+                nativeBuffer.DataPtr[i].y = 10;
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);

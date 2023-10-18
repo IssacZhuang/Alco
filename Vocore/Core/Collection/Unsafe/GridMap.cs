@@ -16,10 +16,25 @@ public unsafe struct GridMap<T> : IDisposable where T : unmanaged
     public int Height => _size.y;
     public int DataLength => _data.Length;
 
-    public unsafe void* GetUnsafePtr()
+    public unsafe T* DataPtr
     {
-        return _data.Ptr;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _data.DataPtr;
     }
+
+    public unsafe void* VoidPtr
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _data.VoidPtr;
+    }
+
+    public unsafe IntPtr IntPtr
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _data.IntPtr;
+    }
+
+
 
     public GridMap(int width, int height, T defaultValue = default(T))
     {

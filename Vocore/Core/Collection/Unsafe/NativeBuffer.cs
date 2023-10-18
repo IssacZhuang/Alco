@@ -15,7 +15,22 @@ namespace Vocore
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
         public int Length => _size;
-        public T* Ptr => (T*)_ptrBuffer;
+        public unsafe T* DataPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (T*)_ptrBuffer;
+        }
+        public unsafe void* VoidPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ptrBuffer;
+        }
+        public unsafe IntPtr IntPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (IntPtr)_ptrBuffer;
+        }
+
         public int Size => _size;
         public int Stride => _stride;
         public int Count => Size;
@@ -45,7 +60,7 @@ namespace Vocore
         public ref T GetRef(int index)
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
-            return ref Ptr[index];
+            return ref DataPtr[index];
         }
 
         public NativeBuffer(int size)

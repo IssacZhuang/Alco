@@ -50,7 +50,7 @@ namespace Vocore.Engine
             {
                 _instanceIds[i] = (uint)i;
             }
-            _device.UpdateBuffer(_instanceIdBuffer, 0, (IntPtr)_instanceIds.Ptr, (uint)_instanceIds.Size * sizeof(uint));
+            _device.UpdateBuffer(_instanceIdBuffer, 0, (IntPtr)_instanceIds.DataPtr, (uint)_instanceIds.Size * sizeof(uint));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -20,7 +20,24 @@ namespace Vocore
         public bool AutoCompress { get => _autoCompress; set => _autoCompress = value; }
         public int Length => _size;
 
-        public T* Ptr => (T*)_ptrBuffer;
+        public unsafe T* DataPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (T*)_ptrBuffer;
+        }
+
+        public unsafe void* VoidPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ptrBuffer;
+        }
+
+        public unsafe IntPtr IntPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (IntPtr)_ptrBuffer;
+        }
+
         public int Size => _size;
         public int Stride => _stride;
         public int Count => Size;
@@ -105,7 +122,7 @@ namespace Vocore
         {
             EnsureSize(_size + 1);
             _size++;
-            Ptr[_size - 1] = value;
+            DataPtr[_size - 1] = value;
         }
 
 

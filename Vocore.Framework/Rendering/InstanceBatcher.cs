@@ -31,7 +31,7 @@ namespace Vocore
         protected unsafe override void UpdateData(int count, Matrix4x4[] matrices, MaterialPropertyBlock propertyBlock)
         {
             JobCalcMatrices job = new JobCalcMatrices();
-            job._transformData = (TransformData*)_transformBuffer.Ptr;
+            job._transformData = (TransformData*)_transformBuffer.DataPtr;
             fixed (Matrix4x4* ptr = matrices)
             {
                 job._matrices = ptr;

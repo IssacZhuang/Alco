@@ -68,8 +68,8 @@ namespace Vocore.Test
 
             NativeBVH bvh = new NativeBVH();
 
-            ColliderBox* ptrBox = boxs.Ptr;
-            ColliderSphere* ptrSphere = spheres.Ptr;
+            ColliderBox* ptrBox = boxs.DataPtr;
+            ColliderSphere* ptrSphere = spheres.DataPtr;
 
             colliders.Clear();
 
@@ -169,12 +169,12 @@ namespace Vocore.Test
 
             for (int i = 0; i < boxs.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(boxs.Ptr + i));
+                colliders.Add(ColliderRef.Create(boxs.DataPtr + i));
             }
 
             for (int i = 0; i < spheres.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(spheres.Ptr + i));
+                colliders.Add(ColliderRef.Create(spheres.DataPtr + i));
             }
 
             // colliders.Add(ColliderRef.Create(boxs.Ptr));
@@ -234,12 +234,12 @@ namespace Vocore.Test
 
             for (int i = 0; i < boxs.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(boxs.Ptr + i));
+                colliders.Add(ColliderRef.Create(boxs.DataPtr + i));
             }
 
             for (int i = 0; i < spheres.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(spheres.Ptr + i));
+                colliders.Add(ColliderRef.Create(spheres.DataPtr + i));
             }
 
             NativeBVH bvh = new NativeBVH();

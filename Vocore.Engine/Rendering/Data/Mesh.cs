@@ -71,13 +71,13 @@ namespace Vocore.Engine
             _vertexBufferSize = (uint)vertices.Length * Vertex.SizeInBytes;
             fixed (Vertex* ptr = vertices)
             {
-                Vertex* ptrBuffer = _vertices.Ptr;
+                Vertex* ptrBuffer = _vertices.DataPtr;
                 for (int i = 0; i < vertices.Length; i++)
                 {
                     ptrBuffer[i] = ptr[i];
                 }
             }
-            _vertexPtr = (IntPtr)_vertices.Ptr;
+            _vertexPtr = (IntPtr)_vertices.DataPtr;
         }
 
         public unsafe void UpdateIndices(ushort[] indices)
@@ -87,7 +87,7 @@ namespace Vocore.Engine
             _indexBufferSize = (uint)indices.Length * sizeof(ushort);
             fixed (ushort* ptr = indices)
             {
-                ushort* ptrBuffer = _indices.Ptr;
+                ushort* ptrBuffer = _indices.DataPtr;
                 for (int i = 0; i < indices.Length; i++)
                 {
                     ptrBuffer[i] = ptr[i];
@@ -95,7 +95,7 @@ namespace Vocore.Engine
             }
             
             _indexCount = (uint)indices.Length;
-            _indexPtr = (IntPtr)_indices.Ptr;
+            _indexPtr = (IntPtr)_indices.DataPtr;
         }
 
         private void InternalDispose()
