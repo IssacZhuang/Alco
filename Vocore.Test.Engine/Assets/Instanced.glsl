@@ -34,7 +34,7 @@ void fragment(){
 	state.lacunarity = 2.f;
 	state.gain = .5f;
     
-    float noise = fnlGetNoise3D(state, _WorldPosition.x, _Time * 20.f, _WorldPosition.y) / 2.f + 0.5f;
+    float noise = fnlGetNoise3D(state, _WorldPosition.x*2, _Time * 10.f, _WorldPosition.y*2) / 2.f + 0.5f;
     noise = noise * 2;
     _OutColor = vec4(0,noise,noise,1.0);
 }
