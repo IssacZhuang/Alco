@@ -31,7 +31,7 @@ public class App : Engine
     protected override void OnStart()
     {
         _cameraP = new CameraPerspective();
-        _cameraP.tranform.position = new Vector3(0, 1, -5);
+        _cameraP.tranform.position = new Vector3(100, 100, -300);
 
         Current.Camera = _cameraP;
         //this.Fullscreen = true;
@@ -125,7 +125,7 @@ public class App : Engine
         // GraphicsCommand.UpdateGlobalData();
         // Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
         // Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
-        Graphics.DrawMeshIntanced(MeshPool.TestCube, _shaderInstanced, Transform.Default, 40000);
+        Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
     }
 
     protected override void OnTick(float delta)
