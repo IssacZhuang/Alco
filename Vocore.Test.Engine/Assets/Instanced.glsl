@@ -5,7 +5,9 @@
 #ifdef VERTEX_SHADER
 
 void vertex(){
-    vec3 offset = vec3(_InstanceId%200, _InstanceId/200, 0);
+    float x = _InstanceId%200;
+    float y = _InstanceId/200;
+    vec3 offset = vec3(x, y, sin(_Time+x+y));
     gl_Position = VertexToClipSpace(_VertexPosition+offset);
 }
 
