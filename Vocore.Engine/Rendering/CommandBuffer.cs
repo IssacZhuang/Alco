@@ -7,10 +7,12 @@ using Vocore.Unsafe;
 namespace Vocore.Engine
 {
     // command list and buffer
-    public class CommandBuffer
+    public class CommandBuffer : IDisposable
     {
         private static readonly uint VertexBufferSize = 1024 * 1024 * 4;
         private static readonly uint IndexBufferSize = 1024 * 1024 * 4;
+        private static readonly uint InstanceIdBufferSize = 1024 * 1024 * 4;
+        public static readonly int MaxInstanceCount = 40000;
         private readonly GraphicsDevice _device;
         private ResourceFactory _factory;
         private readonly CommandList _commandList;
@@ -18,6 +20,8 @@ namespace Vocore.Engine
         private readonly DeviceBuffer _indexBuffer;
         private ResourceSet _resourceSetTransform;
         private DeviceBuffer _transformBuffer;
+        private DeviceBuffer _instanceIdBuffer;
+        private NativeBuffer<uint> _instanceIds;
         // from global
         private ResourceSet _resourceSetGlobalData;
         public unsafe CommandList CommandList
@@ -29,7 +33,7 @@ namespace Vocore.Engine
             }
         }
 
-        public CommandBuffer(GraphicsDevice _graphicsDevice, ResourceSet globalResource)
+        public unsafe CommandBuffer(GraphicsDevice _graphicsDevice, ResourceSet globalResource)
         {
             _device = _graphicsDevice;
             _resourceSetGlobalData = globalResource;
@@ -40,6 +44,13 @@ namespace Vocore.Engine
             _transformBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
             var bufferLayoutTransform = _factory.CreateResourceLayout(BufferLayout.Transform);
             _resourceSetTransform = _factory.CreateResourceSet(new ResourceSetDescription(bufferLayoutTransform, _transformBuffer));
+            _instanceIdBuffer = _factory.CreateBuffer(new BufferDescription(InstanceIdBufferSize, BufferUsage.VertexBuffer));
+            _instanceIds = new NativeBuffer<uint>(MaxInstanceCount);
+            for (int i = 0; i < MaxInstanceCount; i++)
+            {
+                _instanceIds[i] = (uint)i;
+            }
+            _device.UpdateBuffer(_instanceIdBuffer, 0, (IntPtr)_instanceIds.Ptr, (uint)_instanceIds.Size * sizeof(uint));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,6 +101,50 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
+        public void DrawMeshIntanced(IMesh mesh, Shader shader, Transform transform, uint instanceCount)
+        {
+            DrawMeshIntanced(mesh, shader.Pipeline, transform.Matrix, instanceCount);
+        }
+
+        public void DrawMeshIntanced(IMesh mesh, Shader shader, Matrix4x4 transform, uint instanceCount)
+        {
+            DrawMeshIntanced(mesh, shader.Pipeline, transform, instanceCount);
+        }
+
+        public void DrawMeshIntanced(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform, uint instanceCount)
+        {
+            _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            _device.UpdateBuffer(_transformBuffer, 0, transform);
+
+            _commandList.Begin();
+            _commandList.SetPipeline(shaderPipeline);
+            _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
+            _commandList.SetVertexBuffer(0, _vertexBuffer);
+            _commandList.SetIndexBuffer(_indexBuffer, mesh.IndexFormat);
+            _commandList.SetVertexBuffer(1, _instanceIdBuffer);
+
+            _commandList.SetGraphicsResourceSet(0, _resourceSetGlobalData);
+            _commandList.SetGraphicsResourceSet(1, _resourceSetTransform);
+            _commandList.DrawIndexed(
+                indexCount: mesh.IndexCount,
+                instanceCount: instanceCount,
+                indexStart: 0,
+                vertexOffset: 0,
+                instanceStart: 0);
+            _commandList.End();
+            _device.SubmitCommands(_commandList);
+        }
+
+        public void Dispose()
+        {
+            _vertexBuffer.Dispose();
+            _indexBuffer.Dispose();
+            _transformBuffer.Dispose();
+            _instanceIdBuffer.Dispose();
+            _instanceIds.Dispose();
+            _commandList.Dispose();
+        }
     }
 }
 

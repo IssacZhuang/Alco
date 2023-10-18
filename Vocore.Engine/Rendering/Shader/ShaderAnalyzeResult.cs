@@ -25,8 +25,8 @@ namespace Vocore.Engine
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
         //exmaple: layout(location = 0) in vec3 position,
         public const string RegexVertexLayout = @"layout\s*\(\s*location\s*=\s*(\d+)\s*\)\s*in\s*(\w+)\s*(\w+)";
-        public const string RegexPragmaInstructionInstanceBufferStart = "#pragma instance_buffer_start";
-        public const string RegexPragmaInstructionInstanceBufferEnd = "#pragma instance_buffer_end";
+        public const string RegexPragmaInstructionInstanceBufferStart = "#pragma instance_start";
+        public const string RegexPragmaInstructionInstanceBufferEnd = "#pragma instance_end";
         public Dictionary<string, string> pragmaKeyValue;
         public int instanceBufferStartIndex;
         public int instanceBufferEndIndex;

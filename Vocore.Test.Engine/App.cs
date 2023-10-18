@@ -9,7 +9,8 @@ using Shader = Vocore.Engine.Shader;
 
 public class App : Engine
 {
-    private Shader _shader;
+    private Shader _shaderBasic;
+    private Shader _shaderInstanced;
     private CameraPerspective _cameraP;
     private float _timer;
     private int _fps;
@@ -40,9 +41,14 @@ public class App : Engine
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
 
-        var shaderAllInOne = File.ReadAllText(Path.Combine(Application.Path, "Assets/BasicAIO.glsl"));
-        shaderAllInOne = ShaderComplier.ProcessInclude(shaderAllInOne, "BasicAIO.glsl");
-        _shader = new Shader(GraphicsDevice, shaderAllInOne, "BasicAIO");
+        var shaderBasic = File.ReadAllText(Path.Combine(Application.Path, "Assets/Basic.glsl"));
+        shaderBasic = ShaderComplier.ProcessInclude(shaderBasic, "Basic.glsl");
+        _shaderBasic = new Shader(GraphicsDevice, shaderBasic, "Basic");
+
+        var shaderInstanced = File.ReadAllText(Path.Combine(Application.Path, "Assets/Instanced.glsl"));
+        shaderInstanced = ShaderComplier.ProcessInclude(shaderInstanced, "Instanced.glsl");
+        _shaderInstanced = new Shader(GraphicsDevice, shaderInstanced, "Instanced");
+        Log.Info(_shaderInstanced.GetReflectionInfo());
     }
 
     protected override void OnUpdate(float delta)
@@ -117,8 +123,9 @@ public class App : Engine
         //_cameraP.tranform.LookAt(coloredCubePosition);
 
         // GraphicsCommand.UpdateGlobalData();
-        Graphics.DrawMesh(MeshPool.Cube, _shader, _cubeTranform1);
-        Graphics.DrawMesh(MeshPool.TestCube, _shader, _cubeTranform2);
+        // Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
+        // Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
+        Graphics.DrawMeshIntanced(MeshPool.TestCube, _shaderInstanced, Transform.Default, 40000);
     }
 
     protected override void OnTick(float delta)

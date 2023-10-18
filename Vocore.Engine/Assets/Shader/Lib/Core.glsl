@@ -49,15 +49,9 @@ void vertex();
 layout(location = 0) in vec3 _VertexPosition;
 layout(location = 1) in vec2 _VertexUV;
 layout(location = 2) in vec4 _VertexColor;
-
-#ifdef INSTANCE_SHADER
-
 #pragma instance_start
-layout(location = 3) in vec3 _InstanceId;
-layout(location = 4) in vec3 _TextureId;
+layout(location = 3) in int _InstanceId;
 #pragma instance_end
-
-#endif
 
 layout(location = 0) out vec4 _PixelColor;
 layout(location = 1) out vec2 _PixelUV;

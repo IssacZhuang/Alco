@@ -14,8 +14,7 @@ namespace Vocore.Engine
         private ResourceLayout[] _resourceLayouts;
         private GraphicsPipelineDescription _pipelineDescription;
         private ShaderAnalyseResult _analyseResult;
-
-
+        private string _name;
 
         public Pipeline Pipeline
         {
@@ -25,6 +24,7 @@ namespace Vocore.Engine
 
         public Shader(GraphicsDevice device, string shaderText, string filename = "Unknow")
         {
+            _name = filename;
             try
             {
                 ResourceFactory factory = device.ResourceFactory;
@@ -37,7 +37,6 @@ namespace Vocore.Engine
                 ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
 
                 _reflection = ShaderComplier.GetShaderReflection(device, shaderText, filename);
-
 
                 if (_analyseResult.HasInstanceBuffer)
                 {
@@ -109,6 +108,33 @@ namespace Vocore.Engine
         public void Dispose()
         {
             _pipeline.Dispose();
+        }
+
+        public string GetReflectionInfo()
+        {
+            string result = $"Shader [{_name}]\n";
+            result += "Vertex Elements:\n";
+            for(int i = 0; i < _vertexLayouts[0].Elements.Length; i++)
+            {
+                result += $"{i} {_vertexLayouts[0].Elements[i].Name}\n";
+            }
+            result += "Instance Elements:\n";
+            if (_analyseResult.HasInstanceBuffer)
+            {
+                for (int i = 0; i < _vertexLayouts[1].Elements.Length; i++)
+                {
+                    result += $"{i} {_vertexLayouts[1].Elements[i].Name}\n";
+                }
+            }
+            result += "Resource Layouts:\n";
+            for(int i = 0; i < _reflection.ResourceLayouts.Length; i++)
+            {
+                for(int j = 0; j < _reflection.ResourceLayouts[i].Elements.Length; j++)
+                {
+                    result += $"{i} {j} {_reflection.ResourceLayouts[i].Elements[j].Name}\n";
+                }
+            }
+            return result;
         }
     }
 }
