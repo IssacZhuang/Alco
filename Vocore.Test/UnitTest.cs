@@ -150,6 +150,8 @@ namespace Vocore.Test
         public static void CheckGCAlloc(string name, Action action)
         {
             GC.Collect();
+            GC.WaitForFullGCComplete();
+            GC.WaitForPendingFinalizers();
             long start = GC.GetTotalMemory(true);
             GC.TryStartNoGCRegion(1024 * 1024);
             action();
