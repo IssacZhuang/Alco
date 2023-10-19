@@ -12,7 +12,7 @@ namespace Vocore.Engine
         public readonly static BaseVirtualDirectory SourceCompute = new BaseVirtualDirectory();
         private readonly static Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
 
-        public static Shader Get(string name)
+        public static Shader? Get(string name)
         {
             if (_shaders.TryGetValue(name, out var shader))
             {

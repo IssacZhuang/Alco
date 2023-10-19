@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using Veldrid;
@@ -20,8 +21,11 @@ namespace Vocore.Engine
         private GraphicsDevice _graphicsDevice;
         private GlobalGraphicsCommand _graphicsCommand;
         private CommandBuffer _commandBuffer;
-        private RenderPipelineManager _renderPipelineManager;
         private Profiler _profiler;
+
+        private RenderPipelineManager _renderPipelineManager;
+        private ThreadManager _threadManager;
+
         private int _physicsFps = 30;
         private long physicsTickInterval;
         private float physicsDeltaTime;
@@ -69,6 +73,15 @@ namespace Vocore.Engine
             get
             {
                 return _profiler;
+            }
+        }
+
+        public ThreadManager ThreadManager
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _threadManager;
             }
         }
 
@@ -126,6 +139,8 @@ namespace Vocore.Engine
         [STAThread]
         public void Run()
         {
+            Application.MainThread = Environment.CurrentManagedThreadId;
+
             try
             {
                 OnStart();
@@ -176,6 +191,7 @@ namespace Vocore.Engine
                     _graphicsCommand.Update(deltaTime);
                     OnUpdate(deltaTime);
                     _renderPipelineManager.OnDraw(_graphicsCommand.CommandList);
+                    _threadManager.Update();
                     _graphicsCommand.EndFrame();
                 }
                 catch (Exception e)
@@ -268,6 +284,8 @@ namespace Vocore.Engine
             _renderPipelineManager = new RenderPipelineManager(_graphicsDevice);
             LoadAllBuiltInShader();
             AddBuiltInRenderPipeline();   
+
+            _threadManager = new ThreadManager();
 
             Current.Window = _window;
             Current.GraphicsDevice = _graphicsDevice;

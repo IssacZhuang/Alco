@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Diagnostics;
+using System.Threading.Tasks.Dataflow;
 
 namespace Vocore.Test
 {
@@ -153,10 +154,10 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
             long start = GC.GetTotalMemory(true);
-            GC.TryStartNoGCRegion(1024 * 1024);
+            //GC.TryStartNoGCRegion(1024 * 1024);
             action();
             long end = GC.GetTotalMemory(false);
-            GC.EndNoGCRegion();
+            //GC.EndNoGCRegion();
             PrintBlue(name + ": " + FormatSize(end - start));
         }
 

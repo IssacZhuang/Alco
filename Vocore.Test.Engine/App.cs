@@ -49,6 +49,13 @@ public class App : Engine
         shaderInstanced = ShaderComplier.ProcessInclude(shaderInstanced, "Instanced.glsl");
         _shaderInstanced = new Shader(GraphicsDevice, shaderInstanced, "Instanced");
         Log.Info(_shaderInstanced.GetReflectionInfo());
+        ThreadManager.AddAsyncTask(() =>
+        {
+            Log.Info("Async task");
+        }, () =>
+        {
+            Log.Info("Async task finished");
+        });
     }
 
     protected override void OnUpdate(float delta)

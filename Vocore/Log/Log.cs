@@ -1,12 +1,20 @@
 using System;
 using System.Text;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Vocore{
     public static class Log
     {
-        [ThreadStatic]
-        private static StringBuilder _builder = new StringBuilder();
+        private static ThreadLocal<StringBuilder> _builder = new ThreadLocal<StringBuilder>(()=> new StringBuilder());
+        private static StringBuilder Builder
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _builder.Value;
+            }
+        }
         public const string ColorWhite = "#ffffff";
         public const string ColorRed = "#ff0000";
         public const string ColorGreen = "#00ff00";
@@ -17,46 +25,46 @@ namespace Vocore{
 
         public static void Info(params object[] messages)
         {
-            _builder.Clear();
+            Builder.Clear();
             for (int i = 0; i < messages.Length; i++)
             {
-                _builder.Append(messages[i]?.ToString());
-                _builder.Append(" ");
+                Builder.Append(messages[i]?.ToString());
+                Builder.Append(" ");
             }
-            ConsolePrint(_builder.ToString(), ConsoleColor.White);
+            ConsolePrint(Builder.ToString(), ConsoleColor.White);
         }
 
         public static void Warning(params object[] messages)
         {
-            _builder.Clear();
+            Builder.Clear();
             for (int i = 0; i < messages.Length; i++)
             {
-                _builder.Append(messages[i]?.ToString());
-                _builder.Append(" ");
+                Builder.Append(messages[i]?.ToString());
+                Builder.Append(" ");
             }
-            ConsolePrint(_builder.ToString(), ConsoleColor.Yellow);
+            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
         }
 
         public static void Error(params object[] messages)
         {
-            _builder.Clear();
+            Builder.Clear();
             for (int i = 0; i < messages.Length; i++)
             {
-                _builder.Append(messages[i]?.ToString());
-                _builder.Append(" ");
+                Builder.Append(messages[i]?.ToString());
+                Builder.Append(" ");
             }
-            ConsolePrint(_builder.ToString(), ConsoleColor.Red);
+            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
         }
 
         public static void Success(params object[] messages)
         {
-            _builder.Clear();
+            Builder.Clear();
             for (int i = 0; i < messages.Length; i++)
             {
-                _builder.Append(messages[i]?.ToString());
-                _builder.Append(" ");
+                Builder.Append(messages[i]?.ToString());
+                Builder.Append(" ");
             }
-            ConsolePrint(_builder.ToString(), ConsoleColor.Green);
+            ConsolePrint(Builder.ToString(), ConsoleColor.Green);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

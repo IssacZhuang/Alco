@@ -32,18 +32,36 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            // string filename = "test.zip";
-            // string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, filename);
-            // Log.Info("Path: " + path);
-            // using (ResourcePack pack = new ResourcePack(path))
-            // {
-            //     pack.TrySetFile("test.bin", new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
-            //     pack.TrySetTextFile("test.txt", "Hello World!");
-            // }
+            int count = 10000000;
+            int[] array = new int[count];
+            for (int i = 0; i < count; i++)
+            {
+                array[i] = i;
+            }
 
-            Vector3 v = new Vector3(0, 0, 3);
-            Quaternion q = math.EulerXYZ(math.radians(new Vector3(0, 90f, 0)));
-            Vector3 v2 = Vector3.Transform(v, q);
+            UnitTest.CheckGCAlloc(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    int temp = array[i];
+                }
+            }, "for");
+
+            UnitTest.CheckGCAlloc(() =>
+            {
+                Parallel.For(0, count, (i) =>
+                {
+                    int temp = array[i];
+                });
+            }, "parallel for");
+
+            UnitTest.CheckGCAlloc(() =>
+            {
+                Parallel.ForEach(array, (i) =>
+                {
+                    int temp = i;
+                });
+            }, "parallel foreach");
         }
 
         public void TestGeneric<T>(T data)
