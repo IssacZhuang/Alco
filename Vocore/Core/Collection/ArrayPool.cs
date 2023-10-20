@@ -1,19 +1,34 @@
+using System;
+using System.Threading.Tasks;
+
 namespace Vocore
 {
     public class ArrayPool<T> where T : class
     {
         private readonly T[] _stack;
         private int _index = -1;
+        private readonly Func<T> _create;
         public int Count => _index + 1;
+
         public ArrayPool(int size)
         {
             _stack = new T[size];
+        }
+
+        public ArrayPool(int size, Func<T> create)
+        {
+            _stack = new T[size];
+            _create = create;
         }
 
         public T Get()
         {
             if (_index < 0)
             {
+                if (_create != null)
+                {
+                    return _create();
+                }
                 return null;
             }
             T result = _stack[_index];

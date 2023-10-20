@@ -74,7 +74,7 @@ namespace Vocore
         protected void UpdateData(int start, int length, StructuredBuffer<Matrix4x4> matrices, MaterialPropertyBlock propertyBlock)
         {
             if (start > 0) return; // TODO: warning
-            JobHandle handle = _jobMatrices.Schedule(length, 1);
+            Unity.Jobs.JobHandle handle = _jobMatrices.Schedule(length, 1);
             UpdateMaterialProperty(propertyBlock);
             handle.Complete();
             ResetBuffer();
