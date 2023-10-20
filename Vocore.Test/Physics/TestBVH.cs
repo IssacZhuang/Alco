@@ -99,8 +99,6 @@ namespace Vocore.Test
                 bvh.BuildTree(colliders);
             });
 
-
-
             UnitTest.PrintBlue(bvh.Size + "," + bvh.Capacity);
 
             //warm up
@@ -111,7 +109,7 @@ namespace Vocore.Test
             });
 
             bvh.CastBatchRayFast(rays);
-            UnitTest.Benchmark("Ray cast bvh fast", () =>
+            UnitTest.CheckGCAlloc("Ray cast bvh fast", () =>
             {
                 bvh.CastBatchRayFast(rays);
             });

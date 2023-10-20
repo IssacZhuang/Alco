@@ -4,38 +4,50 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Vocore{
-    public readonly struct JobHandle
+    internal class InternalJobHandle
     {
-        internal static ThreadSafePool<ManualResetEvent> ManualResetEventPool = new ThreadSafePool<ManualResetEvent>(Environment.ProcessorCount * 2, () => new ManualResetEvent(false));
-        internal readonly ManualResetEvent _event;
-        internal readonly bool _poolOnComplete;
-
-        public JobHandle(ManualResetEvent @event, bool @poolOnComplete)
+        internal static readonly ThreadSafePool<InternalJobHandle> Pool = new ThreadSafePool<InternalJobHandle>(10000, ()=>{return new InternalJobHandle(false);});
+        private bool _compelted;
+        public InternalJobHandle(bool initalSate)
         {
-            _event = @event;
-            _poolOnComplete = @poolOnComplete;
+            _compelted = initalSate;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetState(bool state)
+        {
+            Volatile.Write(ref _compelted, state);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WaitComplete()
+        {
+            while (!Volatile.Read(ref _compelted))
+            {
+            }
+        }
+    }
+    public struct JobHandle
+    {
+        private InternalJobHandle _internalJobHandle;
+
+        public JobHandle(bool initalSate)
+        {
+            _internalJobHandle = InternalJobHandle.Pool.Get();
+            _internalJobHandle.SetState(initalSate);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Notify()
         {
-            _event.Set();
+            _internalJobHandle.SetState(true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Complete()
         {
-
-            if (_poolOnComplete) throw new Exception("PoolOnComplete was set on JobHandle, therefore it returns automatically to the pool and you can not wait for its completion anymore since its handle might have been already reused.");
-            _event.WaitOne();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Return()
-        {
-
-            if (_poolOnComplete) throw new Exception("PoolOnComplete was set on JobHandle, therefore it returns automatically to the pool. Do not call Return on such a handle !");
-            if (_event != null) ManualResetEventPool.Return(_event);
+            _internalJobHandle.WaitComplete();
+            InternalJobHandle.Pool.Return(_internalJobHandle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,28 +69,6 @@ namespace Vocore{
             {
                 var handle = handles[index];
                 handle.Complete();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Return(JobHandle[] handles)
-        {
-
-            for (var index = 0; index < handles.Length; index++)
-            {
-                ref var handle = ref handles[index];
-                handle.Return();
-            }
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Return(IList<JobHandle> handles)
-        {
-
-            for (var index = 0; index < handles.Count; index++)
-            {
-                var handle = handles[index];
-                handle.Return();
             }
         }
     }

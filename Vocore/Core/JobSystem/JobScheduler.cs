@@ -40,7 +40,7 @@ namespace Vocore
             while (!token.IsCancellationRequested)
             {
                 _event.WaitOne();
-                _event.Reset();
+
 
                 while (_jobs.TryDequeue(out var meta))
                 {
@@ -56,27 +56,20 @@ namespace Vocore
                     finally
                     {
                         meta.jobHandle.Notify();
-
-                        if (meta.jobHandle._poolOnComplete)
-                        {
-                            JobHandle.ManualResetEventPool.Return(meta.jobHandle._event);
-                        }
                     }
                 }
+                _event.Reset();
             }
         }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public JobHandle Schedule(TJob job, bool poolOnComplete = false)
+        public JobHandle Schedule(TJob job)
         {
-
-            var handle = new JobHandle(JobHandle.ManualResetEventPool.Get(), poolOnComplete);
-            handle._event.Reset();
-
+            var handle = new JobHandle(false);
             var jobMeta = new JobMeta<TJob>(handle, job);
             _queuedJobs.Enqueue(jobMeta);
-            return handle;
+            return jobMeta.jobHandle;
         }
 
         /// <summary>
@@ -85,7 +78,6 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Flush()
         {
-
             while (_queuedJobs.TryDequeue(out var jobMeta))
             {
                 _jobs.Enqueue(jobMeta);

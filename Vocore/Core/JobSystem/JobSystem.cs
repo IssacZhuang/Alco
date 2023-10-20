@@ -42,6 +42,7 @@ namespace Vocore
                 JobBatchElement jobElement = new JobBatchElement() { index = i, jobBatch = job };
                 jobHandles[i] = JobScheduler<JobBatchElement>.Instance.Schedule(jobElement);
             }
+            JobScheduler<JobBatchElement>.Instance.Flush();
             JobHandle.Complete(jobHandles);
         }
     }

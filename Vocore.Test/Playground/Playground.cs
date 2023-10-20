@@ -57,10 +57,7 @@ namespace Vocore.Test
 
             UnitTest.CheckGCAlloc(() =>
             {
-                Parallel.ForEach(array, (i) =>
-                {
-                    int temp = i;
-                });
+                NativeBuffer<int> buffer = new NativeBuffer<int>(count);
             }, "parallel foreach");
         }
 
