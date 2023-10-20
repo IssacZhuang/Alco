@@ -8,7 +8,7 @@ namespace Vocore
 {
     public class JobScheduler<TJob> : IDisposable where TJob : IJob
     {
-        public static JobScheduler<TJob> Instance = new JobScheduler<TJob>(Environment.ProcessorCount * 2, "JobThread");
+        public static JobScheduler<TJob> Instance = new JobScheduler<TJob>(Environment.ProcessorCount, "JobThread");
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
