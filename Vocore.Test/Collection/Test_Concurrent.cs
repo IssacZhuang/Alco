@@ -116,6 +116,57 @@ namespace Vocore.Test
             UnitTest.PrintBlue("success: " + success);
             UnitTest.AssertTrue(success == count);
         }
+
+        [Test("Test Circular Working Stealing Deque vs .Net concurrent queue")]
+        public void Test_WorkStealingDequeVsConcurrentQueue()
+        {
+            int count = 1000000;
+            CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
+            ConcurrentQueue<int> queue = new ConcurrentQueue<int>();
+
+            UnitTest.CheckGCAlloc("CircularWorkStealingDeque<int>.Push", () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    deque.Push(i);
+                }
+            });
+
+            UnitTest.CheckGCAlloc("ConcurrentQueue<int>.Enqueue", () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    queue.Enqueue(i);
+                }
+            });
+
+            UnitTest.Benchmark("CircularWorkStealingDeque<int>.TrySteal", () =>
+            {
+                Parallel.For(0, count, (i) =>
+                {
+                    while (deque.HasContent)
+                    {
+                        if (deque.TrySteal(out int value))
+                        {
+                            
+                        }
+                    }
+                });
+            });
+
+            UnitTest.Benchmark("ConcurrentQueue<int>.TryDequeue", () =>
+            {
+                Parallel.For(0, count, (i) =>
+                {
+                    while (queue.TryDequeue(out int value))
+                    {
+
+                    }
+                });
+            });
+
+
+        }
     }
 }
 
