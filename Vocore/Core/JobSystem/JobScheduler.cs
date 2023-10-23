@@ -15,6 +15,7 @@ namespace Vocore
         private readonly Queue<JobMeta<TJob>> _queuedJobs = new Queue<JobMeta<TJob>>();
         private readonly ConcurrentQueue<JobMeta<TJob>> _jobs = new ConcurrentQueue<JobMeta<TJob>>();
 
+        private bool _isDisposed = false;
         public JobScheduler(int threadCount, string threadPrefix = "JobThread")
         {
             _cancellationTokenSource = new CancellationTokenSource();
@@ -25,6 +26,11 @@ namespace Vocore
                 _threads[i].Name = $"{threadPrefix} {i}";
                 _threads[i].Start();
             }
+        }
+
+        ~JobScheduler()
+        {
+            Dispose();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,8 +93,13 @@ namespace Vocore
 
         public void Dispose()
         {
+            if (_isDisposed)
+            {
+                return;
+            }
             _cancellationTokenSource.Cancel(false);
-
+            _event.Set();
+            _isDisposed = true;
         }
     }
 }

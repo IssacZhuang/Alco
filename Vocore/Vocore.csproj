@@ -14,5 +14,9 @@
     <Optimize>true</Optimize>
     <Deterministic>true</Deterministic>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
+    
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(AssemblyName).Test" />
+  </ItemGroup>
 </Project>

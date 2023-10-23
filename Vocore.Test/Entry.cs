@@ -41,7 +41,7 @@ namespace Vocore.Test
             {
                 UnitTest.PrintRed(item);
             }
-
+            GC.Collect();
             Console.ReadLine();
 
         }
