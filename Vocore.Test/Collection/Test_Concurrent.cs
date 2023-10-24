@@ -25,7 +25,8 @@ namespace Vocore.Test
             int poped = 0;
             for (int i = 0; i < count; i++)
             {
-                if (deque.TryPop(out int value))
+                StealingResult status = deque.TryPop(out int value);
+                if (status == StealingResult.Success)
                 {
                     poped++;
                     result.Add(value);
@@ -60,7 +61,8 @@ namespace Vocore.Test
             int poped = 0;
             for (int i = 0; i < count; i++)
             {
-                if (deque.TrySteal(out int value))
+                StealingResult status = deque.TrySteal(out int value);
+                if (status == StealingResult.Success)
                 {
                     poped++;
                     result.TryAdd(value, true);
@@ -93,11 +95,18 @@ namespace Vocore.Test
             UnitTest.PrintBlue("Pushed: " + count);
             ConcurrentDictionary<int, bool> result = new ConcurrentDictionary<int, bool>();
             int poped = 0;
+            int stealCount = 0;
             Parallel.For(0, count, (i) =>
             {
-                while (deque.HasContent)
+                while (true)
                 {
-                    if (deque.TrySteal(out int value))
+                    StealingResult status = deque.TrySteal(out int value);
+                    Interlocked.Increment(ref stealCount);
+                    if (status == StealingResult.Empty)
+                    {
+                        break;
+                    }
+                    if (status == StealingResult.Success)
                     {
                         Interlocked.Increment(ref poped);
                         result.TryAdd(value, true);
@@ -105,6 +114,7 @@ namespace Vocore.Test
                 }
             });
             UnitTest.PrintBlue("Poped: " + poped);
+            UnitTest.PrintBlue("Steal hit rate: " + ((float)poped)/stealCount);
             int success = 0;
             for (int i = 0; i < count; i++)
             {
@@ -144,11 +154,12 @@ namespace Vocore.Test
             {
                 Parallel.For(0, count, (i) =>
                 {
-                    while (deque.HasContent)
+                    while (true)
                     {
-                        if (deque.TrySteal(out int value))
+                        StealingResult result = deque.TrySteal(out int value);
+                        if (result == StealingResult.Empty)
                         {
-                            
+                            break;
                         }
                     }
                 });

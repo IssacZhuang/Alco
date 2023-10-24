@@ -4,6 +4,12 @@ using System.Threading;
 
 namespace Vocore
 {
+    public enum StealingResult
+    {
+        Success,
+        Empty,
+        Abort
+    }
     internal class CircularWorkStealingDeque<T>
     {
         private long _bottom = 0;
@@ -30,12 +36,12 @@ namespace Vocore
             }
         }
 
-        private long InterlockTop
+        private long VolatileTop
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Interlocked.Read(ref _top);
+                return Volatile.Read(ref _top);
             }
         }
 
@@ -44,7 +50,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return VolatileBottom - InterlockTop;
+                return VolatileBottom - VolatileTop;
             }
         }
 
@@ -53,7 +59,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return VolatileBottom > InterlockTop;
+                return VolatileBottom > VolatileTop;
             }
         }
 
@@ -70,7 +76,7 @@ namespace Vocore
         public void Push(T item)
         {
             long b = VolatileBottom;
-            long t = InterlockTop;
+            long t = VolatileTop;
             CircularArray<T> a = _array;
             long size = b - t;
             if (size >= a.Capacity - 1)
@@ -86,56 +92,56 @@ namespace Vocore
         /// Pop an item from the bottom of the deque
         /// not concurrent with itself or Push, only concurrent with TrySteal
         /// </summary>
-        public bool TryPop(out T item)
+        public StealingResult TryPop(out T item)
         {
             long b = VolatileBottom;
             CircularArray<T> a = _array;
             b--;
             VolatileBottom = b;
-            long t = InterlockTop;
+            long t = VolatileTop;
             long size = b - t;
             if (size < 0)
             {
                 VolatileBottom = t;
                 item = DefaultValue;
-                return false;
+                return StealingResult.Empty;
             }
             item = a[b];
             if (size > 0)
             {
-                return true;
+                return StealingResult.Success;
             }
             if (!CASTop(t, t + 1))
             {
                 item = DefaultValue;
-                return false;
+                return StealingResult.Abort;
             }
             VolatileBottom = t + 1;
-            return true;
+            return StealingResult.Success;
         }
 
         /// <summary>
         /// Pop an item from the top of the deque
         /// Can be concurrent with itself, push, and TryPop
         /// </summary>
-        public bool TrySteal(out T item)
+        public StealingResult TrySteal(out T item)
         {
-            long t = InterlockTop;
+            long t = VolatileTop;
             long b = VolatileBottom;
             CircularArray<T> a = _array;
             long size = b - t;
             if (size <= 0)
             {
                 item = DefaultValue;
-                return false;
+                return StealingResult.Empty;
             }
             item = a[t];
             if (!CASTop(t, t + 1))
             {
                 item = DefaultValue;
-                return false;
+                return StealingResult.Abort;
             }
-            return true;
+            return StealingResult.Success;
         }
     }
 }

@@ -13,7 +13,7 @@ namespace Vocore
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
         private readonly Queue<JobMeta<TJob>> _queuedJobs = new Queue<JobMeta<TJob>>();
-        private readonly ConcurrentQueue<JobMeta<TJob>> _jobs = new ConcurrentQueue<JobMeta<TJob>>();
+        private readonly CircularWorkStealingDeque<JobMeta<TJob>> _jobs = new CircularWorkStealingDeque<JobMeta<TJob>>(64);
 
         private bool _isDisposed = false;
         public JobScheduler(int threadCount, string threadPrefix = "JobThread")
@@ -47,21 +47,28 @@ namespace Vocore
             {
                 _event.WaitOne();
 
-
-                while (_jobs.TryDequeue(out var meta))
+                while (true)
                 {
-
-                    try
+                    StealingResult status = _jobs.TrySteal(out var meta);
+                    if (status == StealingResult.Success)
                     {
-                        meta.job.Execute();
+                        try
+                        {
+                            meta.job.Execute();
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error(e);
+                        }
+                        finally
+                        {
+                            meta.jobHandle.Notify();
+                        }
+                        continue;
                     }
-                    catch (Exception e)
+                    if (status == StealingResult.Empty)
                     {
-                        Log.Error(e);
-                    }
-                    finally
-                    {
-                        meta.jobHandle.Notify();
+                        break;
                     }
                 }
                 _event.Reset();
@@ -86,7 +93,7 @@ namespace Vocore
         {
             while (_queuedJobs.TryDequeue(out var jobMeta))
             {
-                _jobs.Enqueue(jobMeta);
+                _jobs.Push(jobMeta);
             }
             _event.Set();
         }
