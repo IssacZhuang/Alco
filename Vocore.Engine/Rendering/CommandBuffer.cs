@@ -71,19 +71,16 @@ namespace Vocore.Engine
             DrawMesh(mesh, shaderPipeline, transform.Matrix);
         }
 
-        public void UpdateMesh(IMesh mesh)
-        {
-            _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
-            _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
-        }
-
         public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
         {
-            _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
-            _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
-            _device.UpdateBuffer(_transformBuffer, 0, transform);
+            // _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            // _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            // _device.UpdateBuffer(_transformBuffer, 0, transform);
 
             _commandList.Begin();
+            _commandList.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            _commandList.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            _commandList.UpdateBuffer(_transformBuffer, 0, transform);
             _commandList.SetPipeline(shaderPipeline);
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.SetVertexBuffer(0, _vertexBuffer);
@@ -113,11 +110,16 @@ namespace Vocore.Engine
 
         public void DrawMeshIntanced(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform, uint instanceCount)
         {
-            _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
-            _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
-            _device.UpdateBuffer(_transformBuffer, 0, transform);
+            // _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            // _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            // _device.UpdateBuffer(_transformBuffer, 0, transform);
 
             _commandList.Begin();
+            _commandList.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            _commandList.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            _commandList.UpdateBuffer(_transformBuffer, 0, transform);
+
+
             _commandList.SetPipeline(shaderPipeline);
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.SetVertexBuffer(0, _vertexBuffer);

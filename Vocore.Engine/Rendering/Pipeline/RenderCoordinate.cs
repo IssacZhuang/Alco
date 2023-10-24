@@ -97,8 +97,9 @@ namespace Vocore.Engine
 
         public override void OnDraw(CommandList commandList)
         {
-            _device.UpdateBuffer(_matrixBuffer, 0, Matrix);
+            //_device.UpdateBuffer(_matrixBuffer, 0, Matrix);
             commandList.Begin();
+            commandList.UpdateBuffer(_matrixBuffer, 0, Matrix);
             commandList.SetPipeline(_shader.Pipeline);
             commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             commandList.SetVertexBuffer(0, _vertexBuffer);
