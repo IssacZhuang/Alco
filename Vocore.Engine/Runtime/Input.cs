@@ -38,15 +38,26 @@ namespace Vocore.Engine
 
         public static void UpdateKeyStates()
         {
-            foreach (var keyEvent in Snapshot.KeyEvents)
+            // foreach (var keyEvent in Snapshot.KeyEvents)
+            // {
+            //     if (keyEvent.Down)
+            //     {
+            //         KeyStates.Add(keyEvent.Key);
+            //     }
+            //     else
+            //     {
+            //         KeyStates.Remove(keyEvent.Key);
+            //     }
+            // }
+            for(int i = 0; i < Snapshot.KeyEvents.Count; i++)
             {
-                if (keyEvent.Down)
+                if (Snapshot.KeyEvents[i].Down)
                 {
-                    KeyStates.Add(keyEvent.Key);
+                    KeyStates.Add(Snapshot.KeyEvents[i].Key);
                 }
                 else
                 {
-                    KeyStates.Remove(keyEvent.Key);
+                    KeyStates.Remove(Snapshot.KeyEvents[i].Key);
                 }
             }
         }
@@ -60,25 +71,61 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsMouseKeyDown(MouseButton button)
         {
-            return Snapshot.MouseEvents.Any(m => m.MouseButton == button && m.Down);
+            // return Snapshot.MouseEvents.Any(m => m.MouseButton == button && m.Down);
+            for (int i = 0; i < Snapshot.MouseEvents.Count; i++)
+            {
+                MouseEvent mouseEvent = Snapshot.MouseEvents[i];
+                if (mouseEvent.MouseButton == button && mouseEvent.Down)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsMouseKeyUp(MouseButton button)
         {
-            return Snapshot.MouseEvents.Any(m => m.MouseButton == button && !m.Down);
+            //return Snapshot.MouseEvents.Any(m => m.MouseButton == button && !m.Down);
+            for (int i = 0; i < Snapshot.MouseEvents.Count; i++)
+            {
+                MouseEvent mouseEvent = Snapshot.MouseEvents[i];
+                if (mouseEvent.MouseButton == button && !mouseEvent.Down)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsKeyDown(Key key)
         {
-            return Snapshot.KeyEvents.Any(k => k.Key == key && k.Down);
+            //return Snapshot.KeyEvents.Any(k => k.Key == key && k.Down);
+            for (int i = 0; i < Snapshot.KeyEvents.Count; i++)
+            {
+                KeyEvent keyEvent = Snapshot.KeyEvents[i];
+                if (keyEvent.Key == key && keyEvent.Down)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsKeyUp(Key key)
         {
-            return Snapshot.KeyEvents.Any(k => k.Key == key && !k.Down);
+            //return Snapshot.KeyEvents.Any(k => k.Key == key && !k.Down);
+            for (int i = 0; i < Snapshot.KeyEvents.Count; i++)
+            {
+                KeyEvent keyEvent = Snapshot.KeyEvents[i];
+                if (keyEvent.Key == key && !keyEvent.Down)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
