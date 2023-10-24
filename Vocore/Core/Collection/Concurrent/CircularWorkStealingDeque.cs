@@ -43,6 +43,11 @@ namespace Vocore
             {
                 return Volatile.Read(ref _top);
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                Volatile.Write(ref _top, value);
+            }
         }
 
         public long Count
@@ -67,6 +72,17 @@ namespace Vocore
         private bool CASTop(long oldTop, long newTop)
         {
             return Interlocked.CompareExchange(ref _top, newTop, oldTop) == oldTop;
+        }
+
+
+        /// <summary>
+        /// Clear the deque, also reset the index in circular array
+        /// not concurrent with any other operations
+        /// </summary>
+        public void Clear()
+        {
+            VolatileBottom = 0;
+            VolatileTop = 0;
         }
 
         /// <summary>

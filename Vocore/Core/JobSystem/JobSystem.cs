@@ -1,13 +1,14 @@
 using System;
+using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
     public static class JobSystem
     {
-        private struct JobBatchElement:IJob{
+        private struct JobBatchElement<T>:IJob where T:unmanaged,IJobBatch{
             public int index;
-            public IJobBatch jobBatch;
+            public T jobBatch;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Execute()
             {
@@ -39,10 +40,10 @@ namespace Vocore
             JobHandle[] jobHandles = new JobHandle[count];
             for (int i = 0; i < count; i++)
             {
-                JobBatchElement jobElement = new JobBatchElement() { index = i, jobBatch = job };
-                jobHandles[i] = JobScheduler<JobBatchElement>.Instance.Schedule(jobElement);
+                JobBatchElement<T> jobElement = new JobBatchElement<T>() { index = i, jobBatch = job };
+                jobHandles[i] = JobScheduler<JobBatchElement<T>>.Instance.Schedule(jobElement);
             }
-            JobScheduler<JobBatchElement>.Instance.Flush();
+            JobScheduler<JobBatchElement<T>>.Instance.Flush();
             JobHandle.Complete(jobHandles);
         }
     }
