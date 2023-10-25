@@ -17,6 +17,13 @@ public class App : Engine
     private ActorFreeLook3D _actorFreeLook3D;
     private Transform _cubeTranform1 = Transform.Default;
     private Transform _cubeTranform2 = Transform.Default;
+    public struct TestJob : IJobBatch
+    {
+        public void Execute(int i)
+        {
+            int tmp = i;
+        }
+    }
 
     public App(GraphicsBackend backend, string name) : base(backend, name)
     {
@@ -133,10 +140,8 @@ public class App : Engine
         // Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
         // Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
         Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
-        ParallelScheduler.Instance.For(100000, (i) =>
-        {
-            int tmp = i;
-        });
+        TestJob job = new TestJob();
+        job.RunParallel(100000);
     }
 
     protected override void OnTick(float delta)
