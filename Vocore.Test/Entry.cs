@@ -41,7 +41,8 @@ namespace Vocore.Test
             {
                 UnitTest.PrintRed(item);
             }
-            GC.Collect();
+            JobScheduler.Instance.Dispose();
+            //GC.Collect();
             Console.ReadLine();
 
         }

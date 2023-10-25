@@ -27,6 +27,7 @@ namespace Vocore
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
         private readonly WorkerData[] _threadData;
         private readonly int _threadCount;
+        private readonly int _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
 
         private bool _isDisposed = false;
         public JobScheduler(int threadCount, string threadPrefix = "JobThread")
@@ -136,6 +137,10 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ScheduleParallel(int count, ParallelForDelegate action)
         {
+            if (Thread.CurrentThread.ManagedThreadId != _ownerThreadId)
+            {
+                throw new Exception("ScheduleParallel can only be called by the thread constructed this scheduler");
+            }
             int chunkSize = count / _threadCount;
             int remainder = count % _threadCount;
             int start = 0;
@@ -149,9 +154,12 @@ namespace Vocore
                     end++;
                     remainder--;
                 }
+                WorkerData workerData = _threadData[i];
+                workerData.tasks.Clear();
                 for (int j = start; j < end; j++)
                 {
-                    _threadData[i].tasks.Push(new Task()
+                    
+                    workerData.tasks.Push(new Task()
                     {
                         index = j,
                         job = action
@@ -173,8 +181,16 @@ namespace Vocore
             {
                 return;
             }
+            for (int i = 0; i < _threadCount; i++)
+            {
+                _threadData[i].tasks.Clear();
+            }
             _cancellationTokenSource.Cancel(false);
             _event.Set();
+            // for (int i = 0; i < _threadCount; i++)
+            // {
+            //     _threads[i].Join();
+            // }
             _isDisposed = true;
         }
     }
