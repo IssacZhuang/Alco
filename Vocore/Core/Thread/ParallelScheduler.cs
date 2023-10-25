@@ -121,8 +121,8 @@ namespace Vocore
                     }
 
                 }
-                Volatile.Write(ref selfData.isRunning, false);
                 _event.Reset();
+                Volatile.Write(ref selfData.isRunning, false);
             }
 
         }
@@ -165,6 +165,7 @@ namespace Vocore
             {
                 while (Volatile.Read(ref _threadData[i].isRunning)) ;
             }
+            //Log.Info("Parallel for finished");
         }
 
         public void Dispose()

@@ -9,6 +9,7 @@ namespace Vocore.Test
 {
     internal class Entry
     {
+        [STAThread]
         static void Main(string[] _)
         {
             try
@@ -42,6 +43,7 @@ namespace Vocore.Test
                 UnitTest.PrintRed(item);
             }
             JobScheduler.Instance.Dispose();
+            ParallelScheduler.Instance.Dispose();
             //GC.Collect();
             Console.ReadLine();
 

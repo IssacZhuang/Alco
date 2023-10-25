@@ -39,22 +39,18 @@ namespace Vocore.Test
                 array[i] = i;
             }
 
-            UnitTest.Benchmark(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    int temp = array[i];
-                }
-            }, "for");
-
-            // Parallel.For(0, count, (i) =>
+            // UnitTest.Benchmark(() =>
+            // {
+            //     for (int i = 0; i < count; i++)
             //     {
             //         int temp = array[i];
-            //     });
+            //     }
+            // }, "for");
+
             ParallelScheduler.Instance.For(count, (i) =>
-            {
-                int temp = array[i];
-            });
+                {
+                    int temp = array[i];
+                });
             UnitTest.Benchmark(() =>
             {
                 ParallelScheduler.Instance.For(count, (i) =>

@@ -142,6 +142,7 @@ public class App : Engine
         Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
         TestJob job = new TestJob();
         job.RunParallel(100000);
+        job.RunParallel(100000);
     }
 
     protected override void OnTick(float delta)
