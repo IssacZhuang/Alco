@@ -235,16 +235,16 @@ namespace Vocore.Test
             {
                 while (true)
                 {
-                    if (deque.TrySteal(out int value2) == StealingResult.Empty)
+                    StealingResult stealResult = deque.TrySteal(out int value);
+                    if (stealResult == StealingResult.Empty)
                     {
                         break;
                     }
-                    if (deque.TrySteal(out int value) == StealingResult.Success)
+                    if (stealResult == StealingResult.Success)
                     {
                         Interlocked.Increment(ref stealCount);
                         result.TryAdd(value, true);
                     }
-                    
                 }
             });
             success = 0;
