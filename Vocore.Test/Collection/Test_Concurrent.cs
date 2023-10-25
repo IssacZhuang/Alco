@@ -229,19 +229,22 @@ namespace Vocore.Test
             //multi thread steal
             deque.Set(0, count);
             result.Clear();
+            int stealCount = 0;
 
             Parallel.For(0, count, (i) =>
             {
                 while (true)
                 {
-                    if (deque.TrySteal(out int value) == StealingResult.Success)
-                    {
-                        result.TryAdd(value, true);
-                    }
                     if (deque.TrySteal(out int value2) == StealingResult.Empty)
                     {
                         break;
                     }
+                    if (deque.TrySteal(out int value) == StealingResult.Success)
+                    {
+                        Interlocked.Increment(ref stealCount);
+                        result.TryAdd(value, true);
+                    }
+                    
                 }
             });
             success = 0;
@@ -252,6 +255,7 @@ namespace Vocore.Test
                     success++;
                 }
             }
+            UnitTest.PrintBlue("steal: " + stealCount);
             UnitTest.PrintBlue("success: " + success);
             UnitTest.AssertTrue(success == count);
         }

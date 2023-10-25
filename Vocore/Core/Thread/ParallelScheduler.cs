@@ -12,7 +12,7 @@ namespace Vocore
         {
             public int index;
             public bool isRunning;
-            public CircularWorkStealingDeque<int> tasks;
+            public IndexWorkStealingDeque tasks;
         }
         public static ParallelScheduler Instance = new ParallelScheduler(Environment.ProcessorCount * 2, "JobThread");
         private readonly Thread[] _threads;
@@ -34,7 +34,7 @@ namespace Vocore
                 {
                     index = i,
                     isRunning = false,
-                    tasks = new CircularWorkStealingDeque<int>(1024)
+                    tasks = new IndexWorkStealingDeque()
                 };
             }
             _threadCount = threadCount;
@@ -150,11 +150,12 @@ namespace Vocore
                 }
                 WorkerData workerData = _threadData[i];
                 workerData.tasks.Clear();
-                for (int j = start; j < end; j++)
-                {
+                // for (int j = start; j < end; j++)
+                // {
 
-                    workerData.tasks.Push(j);
-                }
+                //     workerData.tasks.Push(j);
+                // }
+                workerData.tasks.Set(start, end - start);
                 Volatile.Write(ref _threadData[i].isRunning, true);
             }
             _currentJob = action;
