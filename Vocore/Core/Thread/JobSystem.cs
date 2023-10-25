@@ -9,7 +9,6 @@ namespace Vocore
     {
         internal static class JobCache<T> where T : unmanaged, IJobBatch
         {
-            [ThreadStatic]
             public static T Job;
         }
 
