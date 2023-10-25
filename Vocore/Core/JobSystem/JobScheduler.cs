@@ -2,27 +2,51 @@ using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
+
 
 namespace Vocore
 {
-    public class JobScheduler<TJob> : IDisposable where TJob : IJob
+    public class JobScheduler
     {
-        public static JobScheduler<TJob> Instance = new JobScheduler<TJob>(Environment.ProcessorCount * 2, "JobThread");
+        public delegate void ParallelForDelegate(int index);
+        private struct Task
+        {
+            public int index;
+            public ParallelForDelegate job;
+        }
+
+        private struct WorkerData
+        {
+            public int index;
+            public bool isRunning;
+            public CircularWorkStealingDeque<Task> tasks;
+        }
+        public static JobScheduler Instance = new JobScheduler(Environment.ProcessorCount * 2, "JobThread");
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
-        private readonly Queue<JobMeta<TJob>> _queuedJobs = new Queue<JobMeta<TJob>>();
-        private readonly CircularWorkStealingDeque<JobMeta<TJob>> _jobs = new CircularWorkStealingDeque<JobMeta<TJob>>(64);
+        private readonly WorkerData[] _threadData;
+        private readonly int _threadCount;
 
         private bool _isDisposed = false;
         public JobScheduler(int threadCount, string threadPrefix = "JobThread")
         {
             _cancellationTokenSource = new CancellationTokenSource();
+            _threadData = new WorkerData[threadCount];
+            for (int i = 0; i < threadCount; i++)
+            {
+                _threadData[i] = new WorkerData()
+                {
+                    index = i,
+                    isRunning = false,
+                    tasks = new CircularWorkStealingDeque<Task>(1024)
+                };
+            }
+            _threadCount = threadCount;
             _threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                _threads[i] = new Thread(ThreadWorker);
+                _threads[i] = new Thread(ThreadWorker(i));
                 _threads[i].Name = $"{threadPrefix} {i}";
                 _threads[i].Start();
             }
@@ -34,27 +58,27 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ThreadWorker()
+        private ThreadStart ThreadWorker(int index)
         {
-            ThreadLoop(_cancellationTokenSource.Token);
+            return () => ThreadLoop(_cancellationTokenSource.Token, index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ThreadLoop(CancellationToken token)
+        private void ThreadLoop(CancellationToken token, int index)
         {
-
+            ref WorkerData selfData = ref _threadData[index];
             while (!token.IsCancellationRequested)
             {
                 _event.WaitOne();
-
+                //exploit local queue
                 while (true)
                 {
-                    StealingResult status = _jobs.TrySteal(out var meta);
+                    StealingResult status = selfData.tasks.TryPop(out var meta);
                     if (status == StealingResult.Success)
                     {
                         try
                         {
-                            meta.job.Execute();
+                            meta.job(meta.index);
                         }
                         catch (Exception e)
                         {
@@ -62,7 +86,7 @@ namespace Vocore
                         }
                         finally
                         {
-                            meta.jobHandle.Notify();
+
                         }
                         continue;
                     }
@@ -71,31 +95,76 @@ namespace Vocore
                         break;
                     }
                 }
+                //steal from other queues
+                for (int i = index + 1; i < index + _threadCount; i++)
+                {
+                    int stealIndex = i % _threadCount;
+                    WorkerData stealData = _threadData[stealIndex];
+                    while (true)
+                    {
+                        StealingResult status = stealData.tasks.TrySteal(out var meta);
+                        if (status == StealingResult.Empty)
+                        {
+                            break;
+                        }
+                        if (status == StealingResult.Success)
+                        {
+                            try
+                            {
+                                meta.job(meta.index);
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Error(e);
+                            }
+                            finally
+                            {
+
+                            }
+                            continue;
+                        }
+                    }
+
+                }
+                Volatile.Write(ref selfData.isRunning, false);
                 _event.Reset();
             }
+
         }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public JobHandle Schedule(TJob job)
+        public void ScheduleParallel(int count, ParallelForDelegate action)
         {
-            var handle = new JobHandle(false);
-            var jobMeta = new JobMeta<TJob>(handle, job);
-            _queuedJobs.Enqueue(jobMeta);
-            return jobMeta.jobHandle;
-        }
-
-        /// <summary>
-        /// Flushes all queued <see cref="IJob"/>'s to the worker threads. 
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Flush()
-        {
-            while (_queuedJobs.TryDequeue(out var jobMeta))
+            int chunkSize = count / _threadCount;
+            int remainder = count % _threadCount;
+            int start = 0;
+            int end = 0;
+            for (int i = 0; i < _threadCount; i++)
             {
-                _jobs.Push(jobMeta);
+                start = end;
+                end = start + chunkSize;
+                if (remainder > 0)
+                {
+                    end++;
+                    remainder--;
+                }
+                for (int j = start; j < end; j++)
+                {
+                    _threadData[i].tasks.Push(new Task()
+                    {
+                        index = j,
+                        job = action
+                    });
+                }
+                Volatile.Write(ref _threadData[i].isRunning, true);
             }
             _event.Set();
+            //wait for all threads to finish
+            for (int i = 0; i < _threadCount; i++)
+            {
+                while (Volatile.Read(ref _threadData[i].isRunning));
+            }
         }
 
         public void Dispose()

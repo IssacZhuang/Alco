@@ -37,14 +37,18 @@ namespace Vocore
             // }
             //FastParallel.For(0, count, job.Execute);
             //Parallel.For(0, count, job.Execute);
-            JobHandle[] jobHandles = new JobHandle[count];
-            for (int i = 0; i < count; i++)
+            // JobHandle[] jobHandles = new JobHandle[count];
+            // for (int i = 0; i < count; i++)
+            // {
+            //     JobBatchElement<T> jobElement = new JobBatchElement<T>() { index = i, jobBatch = job };
+            //     jobHandles[i] = JobScheduler<JobBatchElement<T>>.Instance.Schedule(jobElement);
+            // }
+            // JobScheduler<JobBatchElement<T>>.Instance.Flush();
+            // JobHandle.Complete(jobHandles);
+            JobScheduler.Instance.ScheduleParallel(count, (i) =>
             {
-                JobBatchElement<T> jobElement = new JobBatchElement<T>() { index = i, jobBatch = job };
-                jobHandles[i] = JobScheduler<JobBatchElement<T>>.Instance.Schedule(jobElement);
-            }
-            JobScheduler<JobBatchElement<T>>.Instance.Flush();
-            JobHandle.Complete(jobHandles);
+                job.Execute(i);
+            });
         }
     }
 }

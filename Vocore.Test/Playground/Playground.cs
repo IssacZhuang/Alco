@@ -32,14 +32,23 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            int count = 10000000;
+            int count = 1000000;
             int[] array = new int[count];
             for (int i = 0; i < count; i++)
             {
                 array[i] = i;
             }
 
-            UnitTest.CheckGCAlloc(() =>
+            JobScheduler.Instance.ScheduleParallel(count, (i) =>
+            {
+                int temp = array[i];
+            });
+            Parallel.For(0, count, (i) =>
+                {
+                    int temp = array[i];
+                });
+
+            UnitTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -47,7 +56,7 @@ namespace Vocore.Test
                 }
             }, "for");
 
-            UnitTest.CheckGCAlloc(() =>
+            UnitTest.Benchmark(() =>
             {
                 Parallel.For(0, count, (i) =>
                 {
@@ -55,10 +64,13 @@ namespace Vocore.Test
                 });
             }, "parallel for");
 
-            UnitTest.CheckGCAlloc(() =>
+            UnitTest.Benchmark(() =>
             {
-                NativeBuffer<int> buffer = new NativeBuffer<int>(count);
-            }, "parallel foreach");
+                JobScheduler.Instance.ScheduleParallel(count, (i) =>
+                {
+                    int temp = array[i];
+                });
+            }, "job scheduler");
         }
 
         public void TestGeneric<T>(T data)
