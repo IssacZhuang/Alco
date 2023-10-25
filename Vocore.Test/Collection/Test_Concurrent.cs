@@ -178,6 +178,83 @@ namespace Vocore.Test
 
 
         }
+
+        [Test("Test Index Working Stealing Deque Pop&Steal")]
+        public void Test_IndexWorkStealing()
+        {
+            int count = 1000000;
+            IndexWorkStealingDeque deque = new IndexWorkStealingDeque();
+            deque.Set(0, count);
+            ConcurrentDictionary<int, bool> result = new ConcurrentDictionary<int, bool>();
+            //single thread steal
+            for (int i = 0; i < count; i++)
+            {
+                if(deque.TrySteal(out int value) == StealingResult.Success)
+                {
+                    result.TryAdd(value, true);
+                }
+            }
+            int success = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (result.ContainsKey(i))
+                {
+                    success++;
+                }
+            }
+            UnitTest.PrintBlue("success: " + success);
+            UnitTest.AssertTrue(success == count);
+
+            deque.Set(0, count);
+            result.Clear();
+            //single thread pop
+            for (int i = 0; i < count; i++)
+            {
+                if (deque.TryPop(out int value) == StealingResult.Success)
+                {
+                    result.TryAdd(value, true);
+                }
+            }
+            success = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (result.ContainsKey(i))
+                {
+                    success++;
+                }
+            }
+            UnitTest.PrintBlue("success: " + success);
+            UnitTest.AssertTrue(success == count);
+
+            //multi thread steal
+            deque.Set(0, count);
+            result.Clear();
+
+            Parallel.For(0, count, (i) =>
+            {
+                while (true)
+                {
+                    if (deque.TrySteal(out int value) == StealingResult.Success)
+                    {
+                        result.TryAdd(value, true);
+                    }
+                    if (deque.TrySteal(out int value2) == StealingResult.Empty)
+                    {
+                        break;
+                    }
+                }
+            });
+            success = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (result.ContainsKey(i))
+                {
+                    success++;
+                }
+            }
+            UnitTest.PrintBlue("success: " + success);
+            UnitTest.AssertTrue(success == count);
+        }
     }
 }
 

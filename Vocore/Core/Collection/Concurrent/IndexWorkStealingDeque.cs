@@ -4,17 +4,28 @@ using System.Threading;
 
 namespace Vocore
 {
-    
-    internal class CircularWorkStealingDeque<T>
+    internal class IndexWorkStealingDeque
     {
-        private int _bottom = 0;
-        private int _top = 0;
-        private volatile CircularArray<T> _array;
-        private static readonly T DefaultValue = default(T);
+        // inclusive
+        private int _top;
+        // exclusive
+        private int _bottom;
 
-        public CircularWorkStealingDeque(int capacity)
+        private int _start;
+        private int _end;
+
+        public IndexWorkStealingDeque()
         {
-            _array = new CircularArray<T>((int)Math.Ceiling(Math.Log(capacity, 2)));
+            _top = 0;
+            _bottom = 0;
+        }
+
+        public void Set(int start, int count)
+        {
+            _top = 0;
+            _bottom = count;
+            _start = start;
+            _end = start + count;
         }
 
         private int VolatileBottom
@@ -80,33 +91,14 @@ namespace Vocore
             VolatileTop = 0;
         }
 
-        /// <summary>
-        /// Push an item to the bottom of the deque
-        /// not concurrent with itself or TryPop, only concurrent with TrySteal
-        /// </summary>
-        public void Push(T item)
-        {
-            int b = VolatileBottom;
-            int t = VolatileTop;
-            CircularArray<T> a = _array;
-            long size = b - t;
-            if (size >= a.Capacity - 1)
-            {
-                a = a.EnsureCapacity(b, t);
-                _array = a;
-            }
-            a[b] = item;
-            VolatileBottom = b + 1;
-        }
 
         /// <summary>
         /// Pop an item from the bottom of the deque
         /// not concurrent with itself or Push, only concurrent with TrySteal
         /// </summary>
-        public StealingResult TryPop(out T item)
+        public StealingResult TryPop(out int item)
         {
             int b = VolatileBottom;
-            CircularArray<T> a = _array;
             b--;
             VolatileBottom = b;
             int t = VolatileTop;
@@ -114,17 +106,17 @@ namespace Vocore
             if (size < 0)
             {
                 VolatileBottom = t;
-                item = DefaultValue;
+                item = -1;
                 return StealingResult.Empty;
             }
-            item = a[b];
+            item = b + _start;
             if (size > 0)
             {
                 return StealingResult.Success;
             }
             if (!CASTop(t, t + 1))
             {
-                item = DefaultValue;
+                item = -1;
                 return StealingResult.Abort;
             }
             VolatileBottom = t + 1;
@@ -135,21 +127,20 @@ namespace Vocore
         /// Pop an item from the top of the deque
         /// Can be concurrent with itself, push, and TryPop
         /// </summary>
-        public StealingResult TrySteal(out T item)
+        public StealingResult TrySteal(out int item)
         {
             int t = VolatileTop;
             int b = VolatileBottom;
-            CircularArray<T> a = _array;
             int size = b - t;
             if (size <= 0)
             {
-                item = DefaultValue;
+                item = -1;
                 return StealingResult.Empty;
             }
-            item = a[t];
+            item = t + _start;
             if (!CASTop(t, t + 1))
             {
-                item = DefaultValue;
+                item = -1;
                 return StealingResult.Abort;
             }
             return StealingResult.Success;
