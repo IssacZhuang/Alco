@@ -117,7 +117,7 @@ public class App : Engine
             _cameraP.tranform.position.Y -= delta;
         }
 
-        _actorFreeLook3D.Update();
+       // _actorFreeLook3D.Update();
 
 
         _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
@@ -133,6 +133,10 @@ public class App : Engine
         // Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
         // Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
         Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
+        ParallelScheduler.Instance.For(100000, (i) =>
+        {
+            int tmp = i;
+        });
     }
 
     protected override void OnTick(float delta)
@@ -140,7 +144,7 @@ public class App : Engine
         if (_fps != Profiler.FPS)
         {
             _fps = Profiler.FPS;
-            Log.Info(String.Concat("FPS: ", _fps));
+            //Log.Info(_fps.ToString());
         }
     }
 

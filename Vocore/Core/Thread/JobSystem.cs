@@ -45,7 +45,7 @@ namespace Vocore
             // }
             // JobScheduler<JobBatchElement<T>>.Instance.Flush();
             // JobHandle.Complete(jobHandles);
-            JobScheduler.Instance.ScheduleParallel(count, (i) =>
+            ParallelScheduler.Instance.For(count, (i) =>
             {
                 job.Execute(i);
             });

@@ -32,21 +32,12 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            int count = 1000000;
+            int count = 10000000;
             int[] array = new int[count];
             for (int i = 0; i < count; i++)
             {
                 array[i] = i;
             }
-
-            JobScheduler.Instance.ScheduleParallel(count, (i) =>
-            {
-                int temp = array[i];
-            });
-            Parallel.For(0, count, (i) =>
-                {
-                    int temp = array[i];
-                });
 
             UnitTest.Benchmark(() =>
             {
@@ -56,21 +47,34 @@ namespace Vocore.Test
                 }
             }, "for");
 
+            // Parallel.For(0, count, (i) =>
+            //     {
+            //         int temp = array[i];
+            //     });
+            ParallelScheduler.Instance.For(count, (i) =>
+            {
+                int temp = array[i];
+            });
             UnitTest.Benchmark(() =>
             {
-                Parallel.For(0, count, (i) =>
+                ParallelScheduler.Instance.For(count, (i) =>
+                {
+                    int temp = array[i];
+                });
+            }, "parallel scheduler");
+            Parallel.For(0, count, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 }, (i) =>
+            {
+                int temp = array[i];
+            });
+            UnitTest.Benchmark(() =>
+            {
+                Parallel.For(0, count, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 }, (i) =>
                 {
                     int temp = array[i];
                 });
             }, "parallel for");
 
-            UnitTest.Benchmark(() =>
-            {
-                JobScheduler.Instance.ScheduleParallel(count, (i) =>
-                {
-                    int temp = array[i];
-                });
-            }, "job scheduler");
+
         }
 
         public void TestGeneric<T>(T data)

@@ -6,31 +6,25 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class JobScheduler
+    public class ParallelScheduler : IDisposable
     {
-        public delegate void ParallelForDelegate(int index);
-        private struct Task
-        {
-            public int index;
-            public ParallelForDelegate job;
-        }
-
         private struct WorkerData
         {
             public int index;
             public bool isRunning;
-            public CircularWorkStealingDeque<Task> tasks;
+            public CircularWorkStealingDeque<int> tasks;
         }
-        public static JobScheduler Instance = new JobScheduler(Environment.ProcessorCount * 2, "JobThread");
+        public static ParallelScheduler Instance = new ParallelScheduler(Environment.ProcessorCount * 2, "JobThread");
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
         private readonly WorkerData[] _threadData;
         private readonly int _threadCount;
         private readonly int _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
+        private ParallelForDelegate _currentJob;
 
         private bool _isDisposed = false;
-        public JobScheduler(int threadCount, string threadPrefix = "JobThread")
+        public ParallelScheduler(int threadCount, string threadPrefix = "JobThread")
         {
             _cancellationTokenSource = new CancellationTokenSource();
             _threadData = new WorkerData[threadCount];
@@ -40,7 +34,7 @@ namespace Vocore
                 {
                     index = i,
                     isRunning = false,
-                    tasks = new CircularWorkStealingDeque<Task>(1024)
+                    tasks = new CircularWorkStealingDeque<int>(1024)
                 };
             }
             _threadCount = threadCount;
@@ -53,7 +47,7 @@ namespace Vocore
             }
         }
 
-        ~JobScheduler()
+        ~ParallelScheduler()
         {
             Dispose();
         }
@@ -74,12 +68,12 @@ namespace Vocore
                 //exploit local queue
                 while (true)
                 {
-                    StealingResult status = selfData.tasks.TryPop(out var meta);
+                    StealingResult status = selfData.tasks.TryPop(out var jobIndex);
                     if (status == StealingResult.Success)
                     {
                         try
                         {
-                            meta.job(meta.index);
+                            _currentJob(jobIndex);
                         }
                         catch (Exception e)
                         {
@@ -103,7 +97,7 @@ namespace Vocore
                     WorkerData stealData = _threadData[stealIndex];
                     while (true)
                     {
-                        StealingResult status = stealData.tasks.TrySteal(out var meta);
+                        StealingResult status = stealData.tasks.TrySteal(out var jobIndex);
                         if (status == StealingResult.Empty)
                         {
                             break;
@@ -112,7 +106,7 @@ namespace Vocore
                         {
                             try
                             {
-                                meta.job(meta.index);
+                                _currentJob(jobIndex);
                             }
                             catch (Exception e)
                             {
@@ -135,7 +129,7 @@ namespace Vocore
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ScheduleParallel(int count, ParallelForDelegate action)
+        public void For(int count, ParallelForDelegate action)
         {
             if (Thread.CurrentThread.ManagedThreadId != _ownerThreadId)
             {
@@ -158,20 +152,17 @@ namespace Vocore
                 workerData.tasks.Clear();
                 for (int j = start; j < end; j++)
                 {
-                    
-                    workerData.tasks.Push(new Task()
-                    {
-                        index = j,
-                        job = action
-                    });
+
+                    workerData.tasks.Push(j);
                 }
                 Volatile.Write(ref _threadData[i].isRunning, true);
             }
+            _currentJob = action;
             _event.Set();
             //wait for all threads to finish
             for (int i = 0; i < _threadCount; i++)
             {
-                while (Volatile.Read(ref _threadData[i].isRunning));
+                while (Volatile.Read(ref _threadData[i].isRunning)) ;
             }
         }
 

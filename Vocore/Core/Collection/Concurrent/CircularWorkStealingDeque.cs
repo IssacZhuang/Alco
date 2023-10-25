@@ -12,8 +12,8 @@ namespace Vocore
     }
     internal class CircularWorkStealingDeque<T>
     {
-        private long _bottom = 0;
-        private long _top = 0;
+        private int _bottom = 0;
+        private int _top = 0;
         private volatile CircularArray<T> _array;
         private static readonly T DefaultValue = default(T);
 
@@ -22,7 +22,7 @@ namespace Vocore
             _array = new CircularArray<T>((int)Math.Ceiling(Math.Log(capacity, 2)));
         }
 
-        private long VolatileBottom
+        private int VolatileBottom
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -36,7 +36,7 @@ namespace Vocore
             }
         }
 
-        private long VolatileTop
+        private int VolatileTop
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -69,7 +69,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CASTop(long oldTop, long newTop)
+        private bool CASTop(int oldTop, int newTop)
         {
             return Interlocked.CompareExchange(ref _top, newTop, oldTop) == oldTop;
         }
@@ -91,8 +91,8 @@ namespace Vocore
         /// </summary>
         public void Push(T item)
         {
-            long b = VolatileBottom;
-            long t = VolatileTop;
+            int b = VolatileBottom;
+            int t = VolatileTop;
             CircularArray<T> a = _array;
             long size = b - t;
             if (size >= a.Capacity - 1)
@@ -110,12 +110,12 @@ namespace Vocore
         /// </summary>
         public StealingResult TryPop(out T item)
         {
-            long b = VolatileBottom;
+            int b = VolatileBottom;
             CircularArray<T> a = _array;
             b--;
             VolatileBottom = b;
-            long t = VolatileTop;
-            long size = b - t;
+            int t = VolatileTop;
+            int size = b - t;
             if (size < 0)
             {
                 VolatileBottom = t;
@@ -142,10 +142,10 @@ namespace Vocore
         /// </summary>
         public StealingResult TrySteal(out T item)
         {
-            long t = VolatileTop;
-            long b = VolatileBottom;
+            int t = VolatileTop;
+            int b = VolatileBottom;
             CircularArray<T> a = _array;
-            long size = b - t;
+            int size = b - t;
             if (size <= 0)
             {
                 item = DefaultValue;
