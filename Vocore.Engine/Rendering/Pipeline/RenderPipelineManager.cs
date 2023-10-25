@@ -16,8 +16,17 @@ namespace Vocore.Engine
 
         public void AddRenderPipeline(IRenderPipline renderPipline)
         {
-            _renderPiplines.Add(renderPipline);
-            renderPipline.OnCreate(_device);
+            try
+            {
+                renderPipline.OnCreate(_device);
+                _renderPiplines.Add(renderPipline);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"RenderPipline {renderPipline.GetType().Name} failed to create");
+                Log.Error(e.ToString());
+                return;
+            }
         }
 
         public void RemoveRenderPipeline(IRenderPipline renderPipline)

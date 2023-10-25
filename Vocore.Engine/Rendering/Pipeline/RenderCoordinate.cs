@@ -81,7 +81,14 @@ namespace Vocore.Engine
             base.OnCreate(device);
             _camera = new CameraOrthographic();
             _device = device;
-            _shader = ShaderPool.Get("Line.glsl");
+            if (ShaderPool.TryGet("Line.glsl", out var shader))
+            {
+                _shader = shader;
+            }
+            else
+            {
+                throw new Exception("Shader Line.glsl not found");
+            }
             _vertexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Vertices.Length * VertexSizeInBytes, BufferUsage.VertexBuffer));
             _indexBuffer = _factory.CreateBuffer(new BufferDescription((uint)Indices.Length * sizeof(ushort), BufferUsage.IndexBuffer));
             _matrixBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
