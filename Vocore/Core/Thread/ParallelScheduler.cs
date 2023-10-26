@@ -69,6 +69,7 @@ namespace Vocore
             while (!token.IsCancellationRequested)
             {
                 _event.WaitOne();
+                Volatile.Write(ref selfData.isRunning, true);
                 //exploit local queue
                 while (true)
                 {
@@ -166,7 +167,7 @@ namespace Vocore
                 //     workerData.tasks.Push(j);
                 // }
                 workerData.tasks.Set(start, end - start);
-                Volatile.Write(ref _threadData[i].isRunning, true);
+                
             }
             _currentJob = action;
             _event.Set();

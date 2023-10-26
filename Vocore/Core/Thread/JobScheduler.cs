@@ -70,6 +70,7 @@ namespace Vocore
             while (!token.IsCancellationRequested)
             {
                 _event.WaitOne();
+                Volatile.Write(ref selfData.isRunning, true);
                 //exploit local queue
                 while (true)
                 {
@@ -126,8 +127,8 @@ namespace Vocore
                     }
 
                 }
-                Volatile.Write(ref selfData.isRunning, false);
                 _event.Reset();
+                Volatile.Write(ref selfData.isRunning, false);
             }
 
         }
@@ -148,10 +149,6 @@ namespace Vocore
 
         public void Execute()
         {
-            for (int i = 0; i < _threadCount; i++)
-            {
-                Volatile.Write(ref _threadData[i].isRunning, true);
-            }
             _event.Set();
         }
 
