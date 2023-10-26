@@ -156,7 +156,7 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsCallFromMainThread()
         {
-            return Thread.CurrentThread.ManagedThreadId == Application.MainThread;
+            return Environment.CurrentManagedThreadId == Application.MainThread;
         }
     }
 }
