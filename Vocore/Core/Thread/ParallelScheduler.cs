@@ -21,7 +21,9 @@ namespace Vocore
         private readonly WorkerData[] _threadData;
         private readonly int _threadCount;
         private readonly int _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
+        private readonly int _maxStealFailCount;
         private ParallelForDelegate _currentJob;
+
 
         private bool _isDisposed = false;
         public ParallelScheduler(int threadCount, string threadPrefix = "JobThread")
@@ -38,6 +40,7 @@ namespace Vocore
                 };
             }
             _threadCount = threadCount;
+            _maxStealFailCount = (threadCount - 1) * 2;
             _threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
@@ -45,6 +48,7 @@ namespace Vocore
                 _threads[i].Name = $"{threadPrefix} {i}";
                 _threads[i].Start();
             }
+
         }
 
         ~ParallelScheduler()
@@ -90,6 +94,7 @@ namespace Vocore
                         break;
                     }
                 }
+                int failedCount = 0;
                 //steal from other queues
                 for (int i = index + 1; i < index + _threadCount; i++)
                 {
@@ -117,6 +122,11 @@ namespace Vocore
 
                             }
                             continue;
+                        }
+                        failedCount++;
+                        if (failedCount > _maxStealFailCount)
+                        {
+                            break;
                         }
                     }
 
