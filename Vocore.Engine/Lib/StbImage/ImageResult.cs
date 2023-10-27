@@ -4,6 +4,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Hebron.Runtime;
 
+#pragma warning disable CS8618
+#pragma warning disable CS8625
+
 namespace StbImageSharp
 {
 #if !STBSHARP_INTERNAL

@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
+using Vocore;
+using Vocore.Unsafe;
+
 namespace Hebron.Runtime
 {
 	internal static unsafe class CRuntime
@@ -14,11 +17,7 @@ namespace Hebron.Runtime
 
 		public static void* malloc(long size)
 		{
-			var ptr = Marshal.AllocHGlobal((int)size);
-
-			MemoryStats.Allocated();
-
-			return ptr.ToPointer();
+			return UtilsMemory.Alloc((int)size);
 		}
 
 		public static void free(void* a)
@@ -26,9 +25,7 @@ namespace Hebron.Runtime
 			if (a == null)
 				return;
 
-			var ptr = new IntPtr(a);
-			Marshal.FreeHGlobal(ptr);
-			MemoryStats.Freed();
+			UtilsMemory.Free(a);
 		}
 
 		public static void memcpy(void* a, void* b, long size)
