@@ -9,60 +9,60 @@ namespace Vocore.Engine
 {
     public class ThreadManager
     {
-        private class AsyncTask
+        private class AsyncTask : IThreadPoolWorkItem
         {
             //on thread
-            private Action task;
+            private Action _onAsync;
             //on main thread
-            private Action success;
-            private bool isDone;
-            private Exception? exception;
+            private Action _onSync;
+            private bool _isDone;
+            private Exception? _exception;
             public bool IsDone
             {
                 get
                 {
-                    return Volatile.Read(ref isDone);
+                    return Volatile.Read(ref _isDone);
                 }
             }
             public AsyncTask(Action task, Action success)
             {
-                this.task = task;
-                this.success = success;
-                isDone = false;
-                exception = null;
+                this._onAsync = task;
+                this._onSync = success;
+                _isDone = false;
+                _exception = null;
             }
 
             //for reuse
             public void Reset(Action task, Action success)
             {
-                this.task = task;
-                this.success = success;
-                isDone = false;
-                exception = null;
+                this._onAsync = task;
+                this._onSync = success;
+                _isDone = false;
+                _exception = null;
             }
 
             public void SetException(Exception exception)
             {
-                this.exception = exception;
+                this._exception = exception;
             }
 
             public bool TryGetException(out Exception? exception)
             {
-                exception = this.exception;
+                exception = this._exception;
                 return exception != null;
             }
 
             public void SetDone()
             {
-                Volatile.Write(ref isDone, true);
+                Volatile.Write(ref _isDone, true);
             }
 
             //on thread
-            public void DoTask()
+            public void Execute()
             {
                 try
                 {
-                    task();
+                    _onAsync?.Invoke();
                 }
                 catch (Exception e)
                 {
@@ -79,13 +79,15 @@ namespace Vocore.Engine
             {
                 try
                 {
-                    success();
+                    _onSync?.Invoke();
                 }
                 catch (Exception e)
                 {
                     Log.Error(e);
                 }
             }
+
+
         }
         private List<AsyncTask> _tasks = new List<AsyncTask>();
         private List<AsyncTask> _pendingRemove = new List<AsyncTask>();
@@ -117,7 +119,7 @@ namespace Vocore.Engine
             _pendingRemove.Clear();
         }
 
-        public void AddAsyncTask(Action task, Action success)
+        public void AddAsyncTask(Action onAsync, Action onSync)
         {
             if (!IsCallFromMainThread())
             {
@@ -125,13 +127,13 @@ namespace Vocore.Engine
                 return;
             }
 
-            if (task == null)
+            if (onAsync == null)
             {
                 Log.Error("function task should not be null");
                 return;
             }
 
-            if (success == null)
+            if (onSync == null)
             {
                 Log.Error("function success should not be null");
                 return;
@@ -140,17 +142,14 @@ namespace Vocore.Engine
             AsyncTask asyncTask = _pool.Get();
             if (asyncTask == null)
             {
-                asyncTask = new AsyncTask(task, success);
+                asyncTask = new AsyncTask(onAsync, onSync);
             }
             else
             {
-                asyncTask.Reset(task, success);
+                asyncTask.Reset(onAsync, onSync);
             }
             _tasks.Add(asyncTask);
-            ThreadPool.QueueUserWorkItem((state) =>
-            {
-                asyncTask.DoTask();
-            });
+            ThreadPool.UnsafeQueueUserWorkItem(asyncTask, false);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
