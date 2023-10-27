@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using Vocore;
 
-using UnityEngine;
+using System.Numerics;
 using System.Diagnostics;
 
 namespace Vocore.Test
@@ -21,8 +21,8 @@ namespace Vocore.Test
             UnitTest.AssertFalse(bufferVec.DataPtr == null);
             UnitTest.AssertFalse((byte*)bufferVec.DataPtr == null);
 
-            bufferVec[3] = Vector3.one;
-            UnitTest.AssertFalse(bufferVec[3] != Vector3.one);
+            bufferVec[3] = Vector3.One;
+            UnitTest.AssertFalse(bufferVec[3] != Vector3.One);
             bufferVec.Dispose();
         }
 
@@ -47,7 +47,7 @@ namespace Vocore.Test
             timer.Start();
             for (int i = 0; i < count; i++)
             {
-                array[i] = Vector3.one;
+                array[i] = Vector3.One;
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": array |" + timer.ElapsedMilliseconds);
@@ -55,7 +55,7 @@ namespace Vocore.Test
             timer.Restart();
             for (int i = 0; i < count; i++)
             {
-                buffer[i] = Vector3.one;
+                buffer[i] = Vector3.One;
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": StructuredBuffer |" + timer.ElapsedMilliseconds);
@@ -63,7 +63,7 @@ namespace Vocore.Test
             timer.Restart();
             for (int i = 0; i < count; i++)
             {
-                nativeBuffer[i] = Vector3.one;
+                nativeBuffer[i] = Vector3.One;
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);
@@ -83,7 +83,7 @@ namespace Vocore.Test
             timer.Start();
             for (int i = 0; i < count; i++)
             {
-                array[i].y = 10;
+                array[i].Y = 10;
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": array |" + timer.ElapsedMilliseconds);
@@ -92,7 +92,7 @@ namespace Vocore.Test
             timer.Restart();
             for (int i = 0; i < count; i++)
             {
-                buffer[i].Set(buffer[i].x, 10, buffer[i].z);
+                buffer[i] = new Vector3(buffer[i].X, 10, buffer[i].Z);
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": StructuredBuffer |" + timer.ElapsedMilliseconds);
@@ -100,7 +100,7 @@ namespace Vocore.Test
             timer.Restart();
             for (int i = 0; i < count; i++)
             {
-                nativeBuffer.DataPtr[i].y = 10;
+                nativeBuffer.DataPtr[i].Y = 10;
             }
             timer.Stop();
             UnitTest.PrintBlue(UnitTest.TEXT_TIME_COST + ": NativeStructuredBuffer |" + timer.ElapsedMilliseconds);

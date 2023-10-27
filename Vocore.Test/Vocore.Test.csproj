@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <ProjectGuid>{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}</ProjectGuid>
     <OutputType>Exe</OutputType>
@@ -18,7 +18,7 @@
     <TieredPGO>true</TieredPGO>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="UnityEngine">
+    <!-- <Reference Include="UnityEngine">
       <HintPath>..\Packages\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
@@ -26,13 +26,13 @@
     </Reference>
     <Reference Include="Unity.Collections">
       <HintPath>..\Packages\Unity.DOTS\Unity.Collections.dll</HintPath>
-    </Reference>
+    </Reference> -->
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Vocore.Framework\Vocore.Framework.csproj">
+    <!-- <ProjectReference Include="..\Vocore.Framework\Vocore.Framework.csproj">
       <Project>{80a58f52-e22f-4c9a-b277-149117bcad18}</Project>
       <Name>Vocore.Framework</Name>
-    </ProjectReference>
+    </ProjectReference> -->
     <ProjectReference Include="..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
