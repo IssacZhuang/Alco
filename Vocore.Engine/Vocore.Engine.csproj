@@ -3,6 +3,8 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vocore.Engine</RootNamespace>
+    <AssemblyName>Vocore.Engine</AssemblyName>
     <Nullable>enable</Nullable>
     <DebugType>pdbonly</DebugType>
     <ErrorReport>prompt</ErrorReport>
