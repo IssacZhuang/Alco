@@ -58,16 +58,12 @@ namespace Vocore.Engine
 
         ~Mesh()
         {
-            if (!_disposed)
-            {
-                InternalDispose();
-            }
+            InternalDispose();
         }
 
         public unsafe void UpdateVertices(Vertex[] vertices)
         {
             _vertices.FastEnsureSize(vertices.Length);
-            _vertices = new NativeBuffer<Vertex>(vertices.Length);
             _vertexBufferSize = (uint)vertices.Length * Vertex.SizeInBytes;
             fixed (Vertex* ptr = vertices)
             {
@@ -83,7 +79,6 @@ namespace Vocore.Engine
         public unsafe void UpdateIndices(ushort[] indices)
         {
             _indices.FastEnsureSize(indices.Length);
-            _indices = new NativeBuffer<ushort>(indices.Length);
             _indexBufferSize = (uint)indices.Length * sizeof(ushort);
             fixed (ushort* ptr = indices)
             {
