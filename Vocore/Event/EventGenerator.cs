@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Vocore
 {
@@ -15,7 +16,7 @@ namespace Vocore
 
         private static int GetIndex()
         {
-            return _index++;
+            return Interlocked.Increment(ref _index);
         }
     }
 }
