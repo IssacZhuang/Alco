@@ -10,8 +10,6 @@ using System.Threading.Tasks;
 
 using System.IO;
 
-using Vocore.Lua;
-using Mond;
 using System.Numerics;
 
 namespace Vocore.Test

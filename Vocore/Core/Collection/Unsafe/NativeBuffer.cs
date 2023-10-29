@@ -92,13 +92,20 @@ namespace Vocore
             return GetEnumerator();
         }
 
-        public void FastEnsureSize(int size)
+        public void EnsureSizeNoCopy(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             if (size <= _size) return;
             FreeMemory();
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
             _size = size;
+        }
+
+        public void EnsureSize(int size)
+        {
+            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= _size) return;
+            Resize(size);
         }
 
         public void Resize(int size)
@@ -111,6 +118,12 @@ namespace Vocore
             FreeMemory();
             _ptrBuffer = ptr;
             _size = size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<T> GetReadOnlySpan()
+        {
+            return new ReadOnlySpan<T>(DataPtr, _size);
         }
 
         private void FreeMemory()

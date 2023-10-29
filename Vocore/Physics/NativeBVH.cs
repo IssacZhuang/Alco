@@ -51,7 +51,7 @@ namespace Vocore
 
         public NativeBuffer<RayCastResult> CastBatchRayFast(NativeArrayList<Ray> rays)
         {
-            _batchRayCastResult.FastEnsureSize(rays.Length);
+            _batchRayCastResult.EnsureSizeNoCopy(rays.Length);
             JobCastRayFast job = new JobCastRayFast
             {
                 bvh = this,
@@ -65,7 +65,7 @@ namespace Vocore
 
         public NativeBuffer<RayCastResult> CastBatchRay(NativeArrayList<Ray> rays)
         {
-            _batchRayCastResult.FastEnsureSize(rays.Length);
+            _batchRayCastResult.EnsureSizeNoCopy(rays.Length);
             JobCastRay job = new JobCastRay
             {
                 bvh = this,
@@ -78,7 +78,7 @@ namespace Vocore
 
         public NativeBuffer<ColliderCastResult> CastBatchColliderBox(NativeArrayList<ColliderBox> colliders)
         {
-            _batchColliderBoxCastResult.FastEnsureSize(colliders.Length);
+            _batchColliderBoxCastResult.EnsureSizeNoCopy(colliders.Length);
             JobCastColliderBox job = new JobCastColliderBox
             {
                 bvh = this,
@@ -91,7 +91,7 @@ namespace Vocore
 
         public NativeBuffer<ColliderCastResult> CastBatchColliderSphere(NativeArrayList<ColliderSphere> colliders)
         {
-            _batchColliderSphereCastResult.FastEnsureSize(colliders.Length);
+            _batchColliderSphereCastResult.EnsureSizeNoCopy(colliders.Length);
             JobCastColliderSphere job = new JobCastColliderSphere
             {
                 bvh = this,
@@ -104,7 +104,7 @@ namespace Vocore
 
         public void BuildTree(NativeArrayList<ColliderRef> colliders)
         {
-            _nodes.FastEnsureSize(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
+            _nodes.EnsureSizeNoCopy(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
             BuildBottomTop(colliders);
         }
 

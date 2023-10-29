@@ -212,12 +212,6 @@ namespace Vocore
             GC.SuppressFinalize(this);
         }
 
-        public void EnsureCapacityAndDiableAutoCompress(int size)
-        {
-            Resize(size);
-            _autoCompress = false;
-        }
-
         private void Resize(int size)
         {
             if (size < DefaultCapacity) size = DefaultCapacity;
