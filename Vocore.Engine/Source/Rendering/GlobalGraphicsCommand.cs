@@ -67,6 +67,17 @@ namespace Vocore.Engine
 
         public void Update(float delta)
         {
+            
+           
+        }
+
+        public Framebuffer GetFrameBuffer()
+        {
+            return _device.SwapchainFramebuffer;
+        }
+
+        public void BeginFrame(float delta)
+        {
             _timer += delta;
             if (Current.Camera != null)
             {
@@ -85,20 +96,11 @@ namespace Vocore.Engine
             _globalData.screenSize.X = Screen.Height;
             _globalData.screenSize.Y = Screen.Width;
 
-            _device.UpdateBuffer(_globalBuffer, 0, _globalData);
-        }
-
-        public Framebuffer GetFrameBuffer()
-        {
-            return _device.SwapchainFramebuffer;
-        }
-
-        public void BeginFrame()
-        {
             _commandList.Begin();
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             _commandList.ClearColorTarget(0, RgbaFloat.Black);
             _commandList.ClearDepthStencil(1f);
+            _commandList.UpdateBuffer(_globalBuffer, 0, _globalData);
             _commandList.End();
             _device.SubmitCommands(_commandList);
 
