@@ -1,6 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using SixLabors.ImageSharp;
+using System.Runtime.InteropServices;
 using Veldrid;
-using SystemUnsafe = System.Runtime.CompilerServices.Unsafe;
 
 namespace Vocore.ImageSharp
 {

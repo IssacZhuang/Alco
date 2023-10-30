@@ -187,7 +187,7 @@ namespace Vocore.Engine
                 try
                 {
 
-                    _graphicsCommand.BeginFrame();
+                    _graphicsCommand.BeginFrame(deltaTime);
                     _graphicsCommand.Update(deltaTime);
                     OnUpdate(deltaTime);
                     _renderPipelineManager.OnDraw(_graphicsCommand.CommandList);
