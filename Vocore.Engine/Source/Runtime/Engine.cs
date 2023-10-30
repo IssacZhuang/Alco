@@ -350,6 +350,7 @@ namespace Vocore.Engine
                 {
                     Log.Error($"Graphic Shader {shader.Key} load failed\n{e}");
                 }
+                
             }
         }
 
