@@ -11,12 +11,14 @@ public class App : Engine
 {
     private Shader _shaderBasic;
     private Shader _shaderInstanced;
+    private Shader _shaderTexture;
     private CameraPerspective _cameraP;
     private float _timer;
     private int _fps;
     private ActorFreeLook3D _actorFreeLook3D;
     private Transform _cubeTranform1 = Transform.Default;
     private Transform _cubeTranform2 = Transform.Default;
+    private Texture2D _texture;
     public struct TestJob : IJobBatch
     {
         public void Execute(int i)
@@ -32,14 +34,14 @@ public class App : Engine
 
     public App(string name) : base(name)
     {
-        
+        NativeBuffer<int> buffer = new NativeBuffer<int>(1000);
     }
 
     protected override void OnStart()
     {
         _cameraP = new CameraPerspective();
-        _cameraP.tranform.position = new Vector3(100, 100, -300);
-
+        // _cameraP.tranform.position = new Vector3(100, 100, -300);
+        _cameraP.tranform.position = new Vector3(0, 0, -5);
         Current.Camera = _cameraP;
         //this.Fullscreen = true;
 
@@ -56,6 +58,13 @@ public class App : Engine
         shaderInstanced = ShaderComplier.ProcessInclude(shaderInstanced, "Instanced.glsl");
         _shaderInstanced = new Shader(GraphicsDevice, shaderInstanced, "Instanced");
         Log.Info(_shaderInstanced.GetReflectionInfo());
+
+        Stream textureFS = File.OpenRead(Path.Combine(Application.Path, "Assets/Rectangle.png"));
+        _texture =Texture2D.FromStream(GraphicsDevice, textureFS);
+        var shaderTexture = File.ReadAllText(Path.Combine(Application.Path, "Assets/Texture.glsl"));
+        shaderTexture = ShaderComplier.ProcessInclude(shaderTexture, "Texture.glsl");
+        _shaderTexture = new Shader(GraphicsDevice, shaderTexture, "Texture");
+
         ThreadManager.AddAsyncTask(() =>
         {
             Log.Info("Async task");
@@ -124,7 +133,7 @@ public class App : Engine
             _cameraP.tranform.position.Y -= delta;
         }
 
-       // _actorFreeLook3D.Update();
+       _actorFreeLook3D.Update();
 
 
         _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
@@ -138,11 +147,20 @@ public class App : Engine
 
         // GraphicsCommand.UpdateGlobalData();
         // Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
-        // Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
-        Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
+        //Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
+        //Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
+        Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform1, _texture.ResourceSet);
+        Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform2, _texture.ResourceSet);
         TestJob job = new TestJob();
-        job.RunParallel(100000);
-        job.RunParallel(100000);
+        // job.RunParallel(100000);
+        // job.RunParallel(100000);
+        ThreadManager.AddAsyncTask(() =>
+        {
+            
+        }, () =>
+        {
+            int tmp = 1;
+        });
     }
 
     protected override void OnTick(float delta)

@@ -98,6 +98,44 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
+        public void DrawMeshWithTexture(IMesh mesh, Shader shader, Transform transform, ResourceSet texture)
+        {
+            DrawMeshWithTexture(mesh, shader.Pipeline, transform.Matrix, texture);
+        }
+
+        public void DrawMeshWithTexture(IMesh mesh, Shader shader, Matrix4x4 transform, ResourceSet texture)
+        {
+            DrawMeshWithTexture(mesh, shader.Pipeline, transform, texture);
+        }
+
+        public void DrawMeshWithTexture(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform, ResourceSet texture)
+        {
+            // _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            // _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            // _device.UpdateBuffer(_transformBuffer, 0, transform);
+
+            _commandList.Begin();
+            _commandList.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
+            _commandList.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
+            _commandList.UpdateBuffer(_transformBuffer, 0, transform);
+            _commandList.SetPipeline(shaderPipeline);
+            _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
+            _commandList.SetVertexBuffer(0, _vertexBuffer);
+            _commandList.SetIndexBuffer(_indexBuffer, mesh.IndexFormat);
+
+            _commandList.SetGraphicsResourceSet(0, _resourceSetGlobalData);
+            _commandList.SetGraphicsResourceSet(1, _resourceSetTransform);
+            _commandList.SetGraphicsResourceSet(2, texture);
+            _commandList.DrawIndexed(
+                indexCount: mesh.IndexCount,
+                instanceCount: 1,
+                indexStart: 0,
+                vertexOffset: 0,
+                instanceStart: 0);
+            _commandList.End();
+            _device.SubmitCommands(_commandList);
+        }
+
         public void DrawMeshIntanced(IMesh mesh, Shader shader, Transform transform, uint instanceCount)
         {
             DrawMeshIntanced(mesh, shader.Pipeline, transform.Matrix, instanceCount);

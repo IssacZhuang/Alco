@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Veldrid;
 using Vocore.Unsafe;
 
 namespace Vocore.Engine
@@ -8,12 +9,33 @@ namespace Vocore.Engine
     {
         public static uint GetUniformBufferSize<T>(T type) where T : unmanaged
         {
-            uint size = (uint)UtilsMemory.SizeOf<T>();
-            uint remainder = size % 16;
-            //Uniform buffer size must be a multiple of 16 bytes.
-            size += remainder == 0 ? 0 : 16 - remainder;
-            return size;
+            return GetUniformBufferSize(UtilsMemory.SizeOf<T>());
         }
+
+        public static uint GetUniformBufferSize(int size)
+        {
+            uint sizeInBytes = (uint)size;
+            uint remainder = sizeInBytes % 16;
+            //Uniform buffer size must be a multiple of 16 bytes.
+            sizeInBytes += remainder == 0 ? 0 : 16 - remainder;
+            return sizeInBytes;
+        }
+
+        public static ResourceLayout CreateTextureLayout(this GraphicsDevice device, ShaderStages usage = ShaderStages.Fragment)
+        {
+            return device.ResourceFactory.CreateTextureLayout(usage);
+        }
+
+        public static ResourceLayout CreateTextureLayout(this ResourceFactory factory, ShaderStages usage = ShaderStages.Fragment)
+        {
+            return factory.CreateResourceLayout(
+                new ResourceLayoutDescription(
+                    new ResourceLayoutElementDescription("Texture", ResourceKind.TextureReadOnly, usage),
+                    new ResourceLayoutElementDescription("Sampler", ResourceKind.Sampler, usage)
+                )
+            );
+        }
+
 
     }
 }

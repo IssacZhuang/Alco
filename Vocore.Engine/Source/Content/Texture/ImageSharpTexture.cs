@@ -58,6 +58,11 @@ namespace Vocore.ImageSharp
             }
         }
 
+        public unsafe Texture CreateDeviceTexture(GraphicsDevice gd)
+        {
+            return CreateTextureViaUpdate(gd, gd.ResourceFactory);
+        }
+
         public unsafe Texture CreateDeviceTexture(GraphicsDevice gd, ResourceFactory factory)
         {
             return CreateTextureViaUpdate(gd, factory);
