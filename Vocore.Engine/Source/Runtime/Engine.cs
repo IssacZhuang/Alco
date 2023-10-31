@@ -265,8 +265,6 @@ namespace Vocore.Engine
             new GraphicsDeviceOptions
             {
                 SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt,
-                PreferDepthRangeZeroToOne = true,
-                PreferStandardClipSpaceYDirection = true,
             },
             backend);
 

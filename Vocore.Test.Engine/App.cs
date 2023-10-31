@@ -40,8 +40,8 @@ public class App : Engine
     protected override void OnStart()
     {
         _cameraP = new CameraPerspective();
-        // _cameraP.tranform.position = new Vector3(100, 100, -300);
-        _cameraP.tranform.position = new Vector3(0, 0, -5);
+         _cameraP.tranform.position = new Vector3(100, 100, -300);
+        //_cameraP.tranform.position = new Vector3(0, 0, -5);
         Current.Camera = _cameraP;
         //this.Fullscreen = true;
 
@@ -148,9 +148,9 @@ public class App : Engine
         // GraphicsCommand.UpdateGlobalData();
         // Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
         //Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
-        //Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
-        Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform1, _texture.ResourceSet);
-        Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform2, _texture.ResourceSet);
+        Graphics.DrawMeshIntanced(MeshPool.Cube, _shaderInstanced, Transform.Default, 40000);
+        //Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform1, _texture.ResourceSet);
+        //Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform2, _texture.ResourceSet);
         TestJob job = new TestJob();
         // job.RunParallel(100000);
         // job.RunParallel(100000);

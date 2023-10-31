@@ -31,8 +31,8 @@ namespace Vocore.Engine
 
                 _analyseResult = new ShaderAnalyseResult(shaderText);
 
-                ShaderByteCode vertexByteCode = ShaderComplier.ComplieVertexShaderToSpirv(shaderText, filename);
-                ShaderByteCode fragmentByteCode = ShaderComplier.ComplieFragmentShaderToSpirv(shaderText, filename);
+                ShaderByteCode vertexByteCode = ShaderComplier.ComplieVertexShaderToSpirv(shaderText, filename, device.BackendType);
+                ShaderByteCode fragmentByteCode = ShaderComplier.ComplieFragmentShaderToSpirv(shaderText, filename, device.BackendType);
                 ShaderDescription vertexShaderDescription = new ShaderDescription(ShaderStages.Vertex, vertexByteCode.Bytes, DefaultEntryPoint);
                 ShaderDescription fragmentShaderDescription = new ShaderDescription(ShaderStages.Fragment, fragmentByteCode.Bytes, DefaultEntryPoint);
 

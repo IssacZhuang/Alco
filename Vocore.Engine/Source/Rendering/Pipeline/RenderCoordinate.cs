@@ -111,7 +111,7 @@ namespace Vocore.Engine
             commandList.SetFramebuffer(_device.SwapchainFramebuffer);
             commandList.SetVertexBuffer(0, _vertexBuffer);
             commandList.SetIndexBuffer(_indexBuffer, IndexFormat);
-            commandList.SetGraphicsResourceSet(0, _matrixResourceSet);
+            commandList.SetGraphicsResourceSet(2, _matrixResourceSet);
             commandList.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
             commandList.End();
             _device.SubmitCommands(commandList);

@@ -6,7 +6,9 @@
 #pragma blend_state alpha_blend
 #pragma depth_test false
 
-layout(set = 0, binding = 0) uniform ModelViewProjectionBuffer
+#include "Compatiblity.glsl"
+
+layout(set = 2, binding = 0) uniform ModelViewProjectionBuffer
 {
     mat4 matrixMVP;
 };
@@ -20,7 +22,8 @@ layout(location = 0) out vec4 fsin_color;
 
 void main()
 {
-    gl_Position = matrixMVP * vec4(position, 1.0);
+    gl_Position = MakeClipSpaceConsistent(matrixMVP * vec4(position, 1.0));
+
     fsin_color = color;
 }
 

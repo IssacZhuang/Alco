@@ -13,6 +13,11 @@ namespace Vocore.Engine
     {
         public const string MacroStageVertex = "VERTEX_SHADER";
         public const string MacroStageFragment = "FRAGMENT_SHADER";
+        public const string MacroPlatformVulkan = "BACKEND_VULKAN";
+        public const string MacroPlatformMetal = "BACKEND_METAL";
+        public const string MacroPlatformDirect3D11 = "BACKEND_DIRECT3D11";
+        public const string MacroPlatformOpenGL = "BACKEND_OPENGL";
+        public const string MacroPlatformOpenGLES = "BACKEND_OPENGLES";
         public const string GLSL_True = "true";
         public const string GLSL_False = "false";
         public const string DefaultEntryPoint = "main";
@@ -21,8 +26,13 @@ namespace Vocore.Engine
         
         public static readonly MacroDefinition MacroVertex = new MacroDefinition(MacroStageVertex, GLSL_True);
         public static readonly MacroDefinition MacroFragment = new MacroDefinition(MacroStageFragment, GLSL_True);
-        public static readonly GlslCompileOptions OptionVertex = new GlslCompileOptions(true, MacroVertex);
-        public static readonly GlslCompileOptions OptionFragment = new GlslCompileOptions(true, MacroFragment);
+        public static readonly MacroDefinition MacroPlatformVulkanDef = new MacroDefinition(MacroPlatformVulkan, GLSL_True);
+        public static readonly MacroDefinition MacroPlatformMetalDef = new MacroDefinition(MacroPlatformMetal, GLSL_True);
+        public static readonly MacroDefinition MacroPlatformDirect3D11Def = new MacroDefinition(MacroPlatformDirect3D11, GLSL_True);
+        public static readonly MacroDefinition MacroPlatformOpenGLDef = new MacroDefinition(MacroPlatformOpenGL, GLSL_True);
+        public static readonly MacroDefinition MacroPlatformOpenGLESDef = new MacroDefinition(MacroPlatformOpenGLES, GLSL_True);
+        //public static readonly GlslCompileOptions OptionVertex = new GlslCompileOptions(true, MacroVertex);
+        //public static readonly GlslCompileOptions OptionFragment = new GlslCompileOptions(true, MacroFragment);
 
         public static string ProcessInclude(string shaderText, string filename)
         {
@@ -61,14 +71,16 @@ namespace Vocore.Engine
             return sb.ToString();
         }
 
-        public static ShaderByteCode ComplieVertexShaderToSpirv(string shaderText, string filename)
+        public static ShaderByteCode ComplieVertexShaderToSpirv(string shaderText, string filename, GraphicsBackend backend)
         {
-            return ComplieGlslToSpirv(shaderText, filename, ShaderStages.Vertex, OptionVertex);
+            GlslCompileOptions option = new GlslCompileOptions(true, MacroVertex, GetBackendMacro(backend));
+            return ComplieGlslToSpirv(shaderText, filename, ShaderStages.Vertex, option);
         }
 
-        public static ShaderByteCode ComplieFragmentShaderToSpirv(string shaderText, string filename)
+        public static ShaderByteCode ComplieFragmentShaderToSpirv(string shaderText, string filename, GraphicsBackend backend)
         {
-            return ComplieGlslToSpirv(shaderText, filename, ShaderStages.Fragment, OptionFragment);
+            GlslCompileOptions option = new GlslCompileOptions(true, MacroFragment, GetBackendMacro(backend));
+            return ComplieGlslToSpirv(shaderText, filename, ShaderStages.Fragment, option);
         }
         public static ShaderByteCode ComplieGlslToSpirv(string shaderText, string filename, ShaderStages stage, GlslCompileOptions option)
         {
@@ -78,8 +90,8 @@ namespace Vocore.Engine
 
         public static SpirvReflection GetShaderReflection(GraphicsDevice graphicsDevice, string shaderText, string filename)
         {
-            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename);
-            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename);
+            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename, graphicsDevice.BackendType);
+            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename, graphicsDevice.BackendType);
             VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexByteCode.Bytes, fragmentByteCode.Bytes, GetCompilationTarget(graphicsDevice.BackendType), new CrossCompileOptions
             {
                 NormalizeResourceNames = false,
@@ -98,6 +110,25 @@ namespace Vocore.Engine
                 GraphicsBackend.Vulkan => CrossCompileTarget.GLSL,
                 _ => throw new SpirvCompilationException($"Invalid GraphicsBackend: {backend}"),
             };
+        }
+
+        public static MacroDefinition GetBackendMacro(GraphicsBackend backend)
+        {
+            switch (backend)
+            {
+                case GraphicsBackend.Direct3D11:
+                    return MacroPlatformDirect3D11Def;
+                case GraphicsBackend.OpenGL:
+                    return MacroPlatformOpenGLDef;
+                case GraphicsBackend.Metal:
+                    return MacroPlatformMetalDef;
+                case GraphicsBackend.OpenGLES:
+                    return MacroPlatformOpenGLESDef;
+                case GraphicsBackend.Vulkan:
+                    return MacroPlatformVulkanDef;
+                default:
+                    throw new SpirvCompilationException($"Invalid GraphicsBackend: {backend}");
+            }
         }
     }
 }

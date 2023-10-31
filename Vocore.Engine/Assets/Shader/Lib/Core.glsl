@@ -13,6 +13,8 @@ layout(set = 1, binding = 0) uniform TransformBuffer
     mat4 _TransformMatrix;
 };
 
+#include "Compatiblity.glsl"
+
 vec4 VertexToClipSpace(vec4 vertex)
 {
     vec4 pos = _TransformMatrix * vertex;
@@ -24,6 +26,8 @@ vec4 VertexToClipSpace(vec3 vertex)
     vec4 pos = _TransformMatrix * vec4(vertex, 1.0);
     return _ViewProjMatrix * pos;
 }
+
+
 
 struct VertexInput
 {
@@ -61,6 +65,7 @@ void main()
     _PixelColor = _VertexColor;
     _PixelUV = _VertexUV;
     vertex();
+    gl_Position = MakeClipSpaceConsistent(gl_Position);
 }
 
 #endif

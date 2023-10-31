@@ -109,6 +109,7 @@ namespace Vocore.Engine
         public void EndFrame()
         {
             _device.SwapBuffers();
+            _device.WaitForIdle();
         }
 
         public void Dispose()
