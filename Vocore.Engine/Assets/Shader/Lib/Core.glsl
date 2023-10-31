@@ -27,6 +27,11 @@ vec4 VertexToClipSpace(vec3 vertex)
     return _ViewProjMatrix * pos;
 }
 
+vec4 Tex2D(texture2D tex, sampler texSampler, vec2 uv)
+{
+    uv = MakeUVCosistent(uv);
+    return texture(sampler2D(tex, texSampler), uv);;
+}
 
 
 struct VertexInput

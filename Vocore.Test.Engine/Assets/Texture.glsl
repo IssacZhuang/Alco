@@ -16,7 +16,7 @@ layout(set = 2, binding = 0) uniform texture2D Texture;
 layout(set = 2, binding = 1) uniform sampler Sampler;
 
 void fragment(){
-    _OutColor = texture(sampler2D(Texture, Sampler), _PixelUV);
+    _OutColor = Tex2D(Texture, Sampler, _PixelUV);
 }
 
 #endif
