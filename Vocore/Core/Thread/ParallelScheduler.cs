@@ -13,11 +13,13 @@ namespace Vocore
             public int index;
             public bool isRunning;
             public IndexWorkStealingDeque tasks;
+            public ManualResetEvent signal;
         }
         public static ParallelScheduler Instance = new ParallelScheduler(Environment.ProcessorCount * 2, "JobThread");
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
-        private readonly ManualResetEvent _event = new ManualResetEvent(false);
+        //private readonly ManualResetEvent _event = new ManualResetEvent(false);
+        private readonly CountdownEvent _countdownEvent;
         private readonly WorkerData[] _threadData;
         private readonly int _threadCount;
         private readonly int _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
@@ -29,6 +31,7 @@ namespace Vocore
         public ParallelScheduler(int threadCount, string threadPrefix = "JobThread")
         {
             _cancellationTokenSource = new CancellationTokenSource();
+            _countdownEvent = new CountdownEvent(threadCount);
             _threadData = new WorkerData[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
@@ -36,11 +39,12 @@ namespace Vocore
                 {
                     index = i,
                     isRunning = false,
-                    tasks = new IndexWorkStealingDeque()
+                    tasks = new IndexWorkStealingDeque(),
+                    signal = new ManualResetEvent(false)
                 };
             }
             _threadCount = threadCount;
-            _maxStealFailCount = (threadCount - 1) * 2;
+            _maxStealFailCount = (threadCount - 1);
             _threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
@@ -68,8 +72,8 @@ namespace Vocore
             ref WorkerData selfData = ref _threadData[index];
             while (!token.IsCancellationRequested)
             {
-                _event.WaitOne();
-                Volatile.Write(ref selfData.isRunning, true);
+                selfData.signal.WaitOne();
+                //Volatile.Write(ref selfData.isRunning, true);
                 //exploit local queue
                 while (true)
                 {
@@ -100,12 +104,13 @@ namespace Vocore
                 for (int i = index + 1; i < index + _threadCount; i++)
                 {
                     int stealIndex = i % _threadCount;
-                    WorkerData stealData = _threadData[stealIndex];
+                    ref WorkerData stealData = ref _threadData[stealIndex];
                     while (true)
                     {
                         StealingResult status = stealData.tasks.TrySteal(out var jobIndex);
                         if (status == StealingResult.Empty)
                         {
+                            failedCount++;
                             break;
                         }
                         if (status == StealingResult.Success)
@@ -125,14 +130,14 @@ namespace Vocore
                             continue;
                         }
                         failedCount++;
-                        if (failedCount > _maxStealFailCount)
-                        {
-                            break;
-                        }
+                    }
+                    if (failedCount > _maxStealFailCount)
+                    {
+                        break;
                     }
 
                 }
-                _event.Reset();
+                selfData.signal.Reset();
                 Volatile.Write(ref selfData.isRunning, false);
             }
 
@@ -146,6 +151,7 @@ namespace Vocore
             {
                 throw new Exception("ScheduleParallel can only be called by the thread constructed this scheduler");
             }
+            _currentJob = action;
             int chunkSize = count / _threadCount;
             int remainder = count % _threadCount;
             int start = 0;
@@ -159,18 +165,14 @@ namespace Vocore
                     end++;
                     remainder--;
                 }
-                WorkerData workerData = _threadData[i];
+                ref WorkerData workerData = ref _threadData[i];
                 workerData.tasks.Clear();
-                // for (int j = start; j < end; j++)
-                // {
 
-                //     workerData.tasks.Push(j);
-                // }
+                Volatile.Write(ref workerData.isRunning, true);
                 workerData.tasks.Set(start, end - start);
-                
+                workerData.signal.Set();
             }
-            _currentJob = action;
-            _event.Set();
+
             //wait for all threads to finish
             for (int i = 0; i < _threadCount; i++)
             {
@@ -190,11 +192,10 @@ namespace Vocore
                 _threadData[i].tasks.Clear();
             }
             _cancellationTokenSource.Cancel(false);
-            _event.Set();
-            // for (int i = 0; i < _threadCount; i++)
-            // {
-            //     _threads[i].Join();
-            // }
+            for (int i = 0; i < _threadCount; i++)
+            {
+                _threadData[i].signal.Set();
+            }
             _isDisposed = true;
         }
     }

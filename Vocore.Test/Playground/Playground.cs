@@ -29,7 +29,7 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            int count = 10000;
+            int count = 100000;
             int starupCount = 10000;
             int[] array = new int[count];
             for (int i = 0; i < count; i++)

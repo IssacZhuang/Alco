@@ -117,6 +117,8 @@ namespace Vocore
             if (!CASTop(t, t + 1))
             {
                 item = -1;
+                VolatileBottom = t + 1;
+                // ???? the origin code in the paper is return empty 
                 return StealingResult.Abort;
             }
             VolatileBottom = t + 1;

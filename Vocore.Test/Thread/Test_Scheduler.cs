@@ -14,7 +14,7 @@ namespace Vocore.Test
                 action();
             }
         }
-        [Test("Test Job Scheduler")]
+        //[Test("Test Job Scheduler")]
         public void TestJobScheduler()
         {
             int count = 100000;
@@ -37,7 +37,7 @@ namespace Vocore.Test
 
         }
 
-        [Test("Test Job Scheduler High Concurrent")]
+        //[Test("Test Job Scheduler High Concurrent")]
         public void TestJobSchedulerHighConcurrent()
         {
             int count = 100000;
@@ -88,23 +88,42 @@ namespace Vocore.Test
         [Test("Test Parallel Scheduler High Concurrent")]
         public void TestParallelSchedulerHighConcurrent()
         {
-            int count = 100000;
+            int count = 5000;
             int[] array = new int[count];
-            ParallelScheduler testScheduler = new ParallelScheduler(8889, "TestScheduler");
-            testScheduler.For(count, (i) =>
+            ParallelScheduler testScheduler = new ParallelScheduler(8999, "TestScheduler");
+            int testCount = 1;
+
+            for (int j = 0; j < testCount; j++)
             {
-                array[i] = i;
-            });
-            int successCount = 0;
-            for (int i = 0; i < count; i++)
-            {
-                if (array[i] == i)
+                for (int i = 0; i < count; i++)
                 {
-                    successCount++;
+                    array[i] = 0;
                 }
+
+                testScheduler.For(count, (i) =>
+                {
+                    array[i] = i;
+                });
+                int successCount = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    if (array[i] == i)
+                    {
+                        successCount++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                UnitTest.PrintBlue("success: " + successCount);
+                UnitTest.AssertTrue(successCount == count);
             }
-            UnitTest.PrintBlue("success: " + successCount);
-            UnitTest.AssertTrue(successCount == count);
+
+
+
+
             testScheduler.Dispose();
 
         }

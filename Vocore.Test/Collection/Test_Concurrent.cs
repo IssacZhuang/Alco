@@ -258,7 +258,75 @@ namespace Vocore.Test
             UnitTest.PrintBlue("steal: " + stealCount);
             UnitTest.PrintBlue("success: " + success);
             UnitTest.AssertTrue(success == count);
+
+            deque.Set(0, count);
+            result.Clear();
+
+            bool threadPopFinished = false;
+            bool threadStealFinished = false;
+            int stealed =0;
+            int poped = 0;
+            ManualResetEvent resetEvent = new ManualResetEvent(false);
+            Thread threadPop = new Thread(() =>
+            {
+                resetEvent.WaitOne();
+                while (true)
+                {
+                    StealingResult stealResult = deque.TryPop(out int value);
+                    if (stealResult == StealingResult.Empty)
+                    {
+                        break;
+                    }
+                    if (stealResult == StealingResult.Success)
+                    {
+                        Volatile.Write(ref poped, Volatile.Read(ref poped) + 1);
+                        result.TryAdd(value, true);
+                    }
+                }
+                Volatile.Write(ref threadPopFinished, true);
+            });
+
+            Thread threadSteal = new Thread(() =>
+            {
+                resetEvent.WaitOne();
+                while (true)
+                {
+                    StealingResult stealResult = deque.TrySteal(out int value);
+                    if (stealResult == StealingResult.Empty)
+                    {
+                        break;
+                    }
+                    if (stealResult == StealingResult.Success)
+                    {
+                        Volatile.Write(ref stealed, Volatile.Read(ref stealed) + 1);
+                        result.TryAdd(value, true);
+                    }
+                }
+                Volatile.Write(ref threadStealFinished, true);
+            });
+
+            threadPop.Start();
+            threadSteal.Start();
+            resetEvent.Set();
+            
+            while (!Volatile.Read(ref threadPopFinished) || !Volatile.Read(ref threadStealFinished));
+
+            success = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (result.ContainsKey(i))
+                {
+                    success++;
+                }
+            }
+            UnitTest.PrintBlue("steal: " + stealed);
+            UnitTest.PrintBlue("pop: " + poped);
+            UnitTest.PrintBlue("success: " + success);
+            UnitTest.AssertTrue(success == count);
+
         }
+
+        
     }
 }
 
