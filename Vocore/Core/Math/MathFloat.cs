@@ -151,6 +151,23 @@ namespace Vocore
             return *(float*)&a;
         }
 
+        public static float lerpAngle(float from, float to, float t)
+        {
+            float a;
+
+            if (to - from > 180)
+            {
+                to -= 360;
+            }
+            if (to - from < -180)
+            {
+                to += 360;
+            }
+            a = from + t * (to - from);
+
+            return a;
+        }
+
     }
 }
 

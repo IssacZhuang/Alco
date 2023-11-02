@@ -25,6 +25,13 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float angle(Quaternion a, Quaternion b)
+        {
+            float dot = math.dot(a, b);
+            return math.acos(math.min(math.abs(dot), 1f)) * 2f * math.sign(dot);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion Euler(Vector3 xyz)
         {
             return Quaternion.CreateFromYawPitchRoll(xyz.Y, xyz.X, xyz.Z);

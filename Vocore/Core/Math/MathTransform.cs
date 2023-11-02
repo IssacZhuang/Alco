@@ -25,7 +25,15 @@ namespace Vocore
         }
 
 
-
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform lerp(Transform a, Transform b, float t)
+        {
+            return new Transform
+            {
+                position = lerp(a.position, b.position, t),
+                rotation = lerp(a.rotation, b.rotation, t),
+                scale = lerp(a.scale, b.scale, t)
+            };
+        }
     }
 }
