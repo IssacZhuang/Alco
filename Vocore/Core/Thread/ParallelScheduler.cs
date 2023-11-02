@@ -135,7 +135,6 @@ namespace Vocore
                     {
                         break;
                     }
-
                 }
                 selfData.signal.Reset();
                 Volatile.Write(ref selfData.isRunning, false);
@@ -169,8 +168,12 @@ namespace Vocore
                 workerData.tasks.Clear();
 
                 Volatile.Write(ref workerData.isRunning, true);
-                workerData.tasks.Set(start, end - start);
-                workerData.signal.Set();
+                workerData.tasks.Set(start, end - start); 
+            }
+
+            for (int i = 0; i < _threadCount; i++)
+            {
+                _threadData[i].signal.Set();
             }
 
             //wait for all threads to finish

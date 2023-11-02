@@ -12,7 +12,6 @@ namespace Vocore
         private int _bottom;
 
         private int _start;
-        private int _end;
 
         public IndexWorkStealingDeque()
         {
@@ -22,10 +21,9 @@ namespace Vocore
 
         public void Set(int start, int count)
         {
-            _top = 0;
-            _bottom = count;
-            _start = start;
-            _end = start + count;
+            VolatileTop = 0;
+            VolatileBottom = count;
+            Volatile.Write(ref _start, start);
         }
 
         private int VolatileBottom
