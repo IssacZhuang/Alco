@@ -122,7 +122,7 @@ namespace Vocore
             Vector3 min = boundingBox.min;
             Vector3 max = boundingBox.max;
 
-            Vector3 invRayDisplacement = math.inverse(rayDisplacement);//1f / rayDisplacement;
+            Vector3 invRayDisplacement = math.reciprocal(rayDisplacement);//1f / rayDisplacement;
 
             float txmin = (min.X - rayOrigin.X) * invRayDisplacement.X;
             float txmax = (max.X - rayOrigin.X) * invRayDisplacement.X;
@@ -227,7 +227,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray ray, BoundingBox boundingBox)
         {
-            Vector3 invRayDisplacement = math.inverse(ray.displacement);//1f / ray.displacement;
+            Vector3 invRayDisplacement = math.reciprocal(ray.displacement);//1f / ray.displacement;
             Vector3 originToMin = boundingBox.min - ray.origin;
             Vector3 originToMax = boundingBox.max - ray.origin;
 
