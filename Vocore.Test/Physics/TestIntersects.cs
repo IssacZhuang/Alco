@@ -12,7 +12,7 @@ namespace Vocore.Test
         [Test("test box sphere intersects")]
         public void TestIntersectsBoxSphere()
         {
-            ShapeBox box = new ShapeBox(new Vector3(2, 0, 0), new Vector3(1, 1, 1), math.EulerXYZ(45, 45, 0));
+            ShapeBox box = new ShapeBox(new Vector3(2, 0, 0), new Vector3(1, 1, 1), math.euler(math.radians(new Vector3(45, 45, 0))));
             ShapeSphere sphere = new ShapeSphere(new Vector3(2.3f, 0, 0), 1);
             ShapeSphere sphere2 = new ShapeSphere(new Vector3(0, 0, 0), 0.5f);
             UnitTest.AssertFalse(!UtilsCollision.BoxSphere(box, sphere));
@@ -32,38 +32,38 @@ namespace Vocore.Test
 
             UnitTest.AssertTrue(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(Vector3.Zero, new Vector3(0.99f), math.EulerXYZ(math.radians(new Vector3(45,0,0))));
+            boxA = new ShapeBox(Vector3.Zero, new Vector3(0.99f), math.euler(math.radians(new Vector3(45, 0, 0))));
             boxB = new ShapeBox(new Vector3(1, 0, 0), new Vector3(0.99f), Quaternion.Identity);
 
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(Vector3.Zero, new Vector3(0.99f), math.EulerXYZ(math.radians(new Vector3(0, 45, 0))));
+            boxA = new ShapeBox(Vector3.Zero, new Vector3(0.99f), math.euler(math.radians(new Vector3(0, 45, 0))));
             boxB = new ShapeBox(new Vector3(1, 0, 0), new Vector3(0.99f), Quaternion.Identity);
 
             UnitTest.AssertTrue(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(new Vector3(8, 0.2f, 0f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45))));
-            boxB = new ShapeBox(new Vector3(9.1f, 0.9f, 0f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45))));
+            boxA = new ShapeBox(new Vector3(8, 0.2f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45))));
+            boxB = new ShapeBox(new Vector3(9.1f, 0.9f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45))));
 
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(new Vector3(8, 4, 0f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45f))));
-            boxB = new ShapeBox(new Vector3(9.1f, 4.9f, 0f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45f))));
+            boxA = new ShapeBox(new Vector3(8, 4, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
+            boxB = new ShapeBox(new Vector3(9.1f, 4.9f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
 
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
             boxA = new ShapeBox(new Vector3(8, 5, 7f), new Vector3(1f), Quaternion.Identity);
-            boxB = new ShapeBox(new Vector3(9.1f, 5.9f, 7f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45f))));
+            boxB = new ShapeBox(new Vector3(9.1f, 5.9f, 7f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
 
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(new Vector3(8, 0.4f, 0f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45))));
+            boxA = new ShapeBox(new Vector3(8, 0.4f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45))));
             boxB = new ShapeBox(new Vector3(9.1f, 0.9f, 0f), new Vector3(1f), Quaternion.Identity);
 
             UnitTest.AssertTrue(UtilsCollision.BoxBox(boxA, boxB));
 
-            boxA = new ShapeBox(Vector3.Zero, new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45f))));
-            boxB = new ShapeBox(new Vector3(5f, 5f, 0f), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(45f))));
+            boxA = new ShapeBox(Vector3.Zero, new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
+            boxB = new ShapeBox(new Vector3(5f, 5f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
 
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
@@ -73,7 +73,7 @@ namespace Vocore.Test
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
             boxA = new ShapeBox(new Vector3(8, 5, 7f), new Vector3(1f), Quaternion.Identity);
-            boxB = new ShapeBox(new Vector3(9.1f, 5, 7), new Vector3(1f), math.EulerXYZ(math.radians(new Vector3(1f))));
+            boxB = new ShapeBox(new Vector3(9.1f, 5, 7), new Vector3(1f), math.euler(math.radians(new Vector3(1f))));
 
             UnitTest.AssertFalse(UtilsCollision.BoxBox(boxA, boxB));
 
@@ -100,7 +100,7 @@ namespace Vocore.Test
             UnitTest.AssertFalse(!UtilsCollision.RayBox(ray, box, out hit));
             UnitTest.PrintBlue(hit.ToString());
 
-            box = new ShapeBox(new Vector3(0, 0, 0), new Vector3(1f), math.EulerXYZ(new Vector3(0, 0, math.radians(135f))));
+            box = new ShapeBox(new Vector3(0, 0, 0), new Vector3(1f), math.euler(new Vector3(0, 0, math.radians(135f))));
             ray = Ray.CreateWithStartAndEnd(new Vector3(-1f, -0.7f, 0), new Vector3(3, -0.7f, 0));
 
             UnitTest.AssertFalse(!UtilsCollision.RayBox(ray, box, out hit));

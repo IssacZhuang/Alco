@@ -132,7 +132,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LookAt(Vector3 point)
         {
-            rotation = math.FromDirection(point - position);
+            rotation = math.direction(point - position);
         } 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

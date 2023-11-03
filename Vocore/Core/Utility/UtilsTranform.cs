@@ -9,17 +9,7 @@ namespace Vocore
 {
     public static class UtilsTranform
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform ToLocal(Transform transform, Transform parent)
-        {
-            Transform parentInverse = math.inverse(parent);
-            Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position);
-            Quaternion localRotation = math.mul(parentInverse.rotation, transform.rotation);
-            return new Transform(localRotation, localPosition);
-        }
-
         
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 CreateTransformTRS(Vector3 position, Quaternion rotation, Vector3 scale)
         {

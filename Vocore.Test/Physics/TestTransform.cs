@@ -22,8 +22,8 @@ namespace Vocore.Test
         [Test("test box to local")]
         public void TestBoxToLocal()
         {
-            ShapeBox box = new ShapeBox(new Vector3(0, 0, 0), new Vector3(1, 1, 1), math.EulerXYZ(math.radians(new Vector3(0, 0, 0))));
-            Transform transform = new Transform(math.EulerXYZ(math.radians(new Vector3(45, 0, 0))), new Vector3(0, 0, 0));
+            ShapeBox box = new ShapeBox(new Vector3(0, 0, 0), new Vector3(1, 1, 1), math.euler(math.radians(new Vector3(0, 0, 0))));
+            Transform transform = new Transform(math.euler(math.radians(new Vector3(45, 0, 0))), new Vector3(0, 0, 0));
             BoundingBox boxInWorld = box.GetBoundingBox(transform);
             BoundingBox boxInLocal = box.GetBoundingBox();
             UnitTest.PrintBlue(boxInWorld);

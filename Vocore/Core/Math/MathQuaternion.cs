@@ -32,33 +32,27 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion Euler(Vector3 xyz)
+        public static Quaternion euler(Vector3 xyz)
         {
             return Quaternion.CreateFromYawPitchRoll(xyz.Y, xyz.X, xyz.Z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion Euler(float x, float y, float z)
+        public static Quaternion euler(float x, float y, float z)
         {
             return Quaternion.CreateFromYawPitchRoll(y, x, z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion EulerXYZ(Vector3 xyz)
-        {
-            return Quaternion.CreateFromYawPitchRoll(xyz.Y, xyz.X, xyz.Z);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion EulerXYZ(float x, float y, float z)
-        {
-            return Quaternion.CreateFromYawPitchRoll(y, x, z);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion FromDirection(Vector3 dir)
+        public static Quaternion direction(Vector3 dir)
         {
             return Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(Vector3.Zero, dir, Vector3.UnitY));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 direction(Quaternion q)
+        {
+            return mul(q, Vector3.UnitZ);
         }
 
         //todo: use simd

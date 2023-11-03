@@ -8,6 +8,15 @@ namespace Vocore
     {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform toLocal(Transform transform, Transform parent)
+        {
+            Transform parentInverse = math.inverse(parent);
+            Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position);
+            Quaternion localRotation = math.mul(parentInverse.rotation, transform.rotation);
+            return new Transform(localRotation, localPosition);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform inverse(Transform a)
         {
             Quaternion invRot = inverse(a.rotation);
