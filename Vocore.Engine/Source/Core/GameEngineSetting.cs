@@ -2,29 +2,42 @@ using System;
 using Veldrid;
 using Veldrid.StartupUtilities;
 
-namespace Vocore
+namespace Vocore.Engine
 {
     public struct GameEngineSetting
     {
         public GraphicsBackend backend;
+        public bool hasGraphics;
         public string windowName;
         public int width;
         public int height;
         public int gametTickRate;
 
-        public static GameEngineSetting Default
+        public readonly static GameEngineSetting Default = new GameEngineSetting
         {
-            get
-            {
-                return new GameEngineSetting
-                {
-                    backend = VeldridStartup.GetPlatformDefaultBackend(),
-                    windowName = "Vocore",
-                    width = 1280,
-                    height = 720,
-                    gametTickRate = 30,
-                };
-            }
-        }
+            hasGraphics = true,
+            backend = VeldridStartup.GetPlatformDefaultBackend(),
+            windowName = "Vocore",
+            width = 1280,
+            height = 720,
+            gametTickRate = 30,
+        };
+
+
+        public readonly static GameEngineSetting HasGraphics = new GameEngineSetting
+        {
+            hasGraphics = true,
+            backend = VeldridStartup.GetPlatformDefaultBackend(),
+            windowName = "Vocore",
+            width = 1280,
+            height = 720,
+            gametTickRate = 30,
+        };
+
+        public readonly static GameEngineSetting NoGraphics = new GameEngineSetting
+        {
+            hasGraphics = false,
+            gametTickRate = 30,
+        };
     }
 }
