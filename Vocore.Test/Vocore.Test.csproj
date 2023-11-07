@@ -17,21 +17,6 @@
     <TieredPGO>true</TieredPGO>
   </PropertyGroup>
   <ItemGroup>
-    <!-- <Reference Include="UnityEngine">
-      <HintPath>..\Packages\UnityEngine\UnityEngine.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Packages\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
-    </Reference>
-    <Reference Include="Unity.Collections">
-      <HintPath>..\Packages\Unity.DOTS\Unity.Collections.dll</HintPath>
-    </Reference> -->
-  </ItemGroup>
-  <ItemGroup>
-    <!-- <ProjectReference Include="..\Vocore.Framework\Vocore.Framework.csproj">
-      <Project>{80a58f52-e22f-4c9a-b277-149117bcad18}</Project>
-      <Name>Vocore.Framework</Name>
-    </ProjectReference> -->
     <ProjectReference Include="..\Vocore\Vocore.csproj">
       <Project>{7a5ccee4-8701-49fc-b5c8-9f294c0509cf}</Project>
       <Name>Vocore</Name>
