@@ -27,6 +27,8 @@ public class App : Engine
         }
     }
 
+
+
     public App(GraphicsBackend backend, string name) : base(backend, name)
     {
 
@@ -45,7 +47,7 @@ public class App : Engine
         Current.Camera = _cameraP;
         //this.Fullscreen = true;
 
-        _cubeTranform2.rotation = math.EulerXYZ(new Vector3(0, 1, 0));
+        _cubeTranform2.rotation = math.euler(new Vector3(0, 1, 0));
 
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
@@ -152,15 +154,15 @@ public class App : Engine
         //Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform1, _texture.ResourceSet);
         //Graphics.DrawMeshWithTexture(MeshPool.Cube, _shaderTexture, _cubeTranform2, _texture.ResourceSet);
         TestJob job = new TestJob();
-        // job.RunParallel(100000);
-        // job.RunParallel(100000);
-        ThreadManager.AddAsyncTask(() =>
-        {
-            
-        }, () =>
-        {
-            int tmp = 1;
-        });
+        job.RunParallel(1000);
+        job.RunParallel(1000);
+        // ThreadManager.AddAsyncTask(() =>
+        // {
+
+        // }, () =>
+        // {
+        //     int tmp = 1;
+        // });
     }
 
     protected override void OnTick(float delta)

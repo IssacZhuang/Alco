@@ -6,7 +6,6 @@
     <AssemblyName>Vocore.Test</AssemblyName>
     <TargetFramework>net6.0</TargetFramework>
     <DebugType>pdbonly</DebugType>
-    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
