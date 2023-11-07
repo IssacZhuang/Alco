@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Vocore\Vocore.csproj"/>
+    <ProjectReference Include="..\Vocore\Vocore.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Veldrid" Version="4.9.0" />
@@ -21,5 +21,17 @@
     <EmbeddedResource Include="Assets\**">
       <LogicalName>%(EmbeddedResource.Identity)</LogicalName>
     </EmbeddedResource>
+  </ItemGroup>
+  <!-- Native Library-->
+  <PropertyGroup>
+    <NativeLibName_SDL2 Condition="'$(RuntimeIdentifier)' == 'win-x86' Or '$(RuntimeIdentifier)' == 'win-x64'">SDL2.dll</NativeLibName_SDL2>
+    <NativeLibName_SDL2 Condition="'$(RuntimeIdentifier)' == 'osx-x64'">libsdl2.dylib</NativeLibName_SDL2>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Condition="'$(NativeLibName_SDL2)' != '' " Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\$(NativeLibName_SDL2)">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>True</Visible>
+    </Content>
   </ItemGroup>
 </Project>

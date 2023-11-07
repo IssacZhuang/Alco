@@ -1,0 +1,1 @@
+dotnet build .\Vocore.sln -c Release

@@ -46,7 +46,7 @@ namespace Veldrid
 
         public bool Equals(Rectangle other) => X.Equals(other.X) && Y.Equals(other.Y) && Width.Equals(other.Width) && Height.Equals(other.Height);
 
-        public override bool Equals(object obj) => obj is Rectangle r && Equals(r);
+        public override bool Equals(object? obj) => obj is Rectangle r && Equals(r);
 
         public override int GetHashCode()
         {

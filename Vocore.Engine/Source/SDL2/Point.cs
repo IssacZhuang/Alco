@@ -16,7 +16,7 @@ namespace Veldrid
         }
 
         public bool Equals(Point other) => X.Equals(other.X) && Y.Equals(other.Y);
-        public override bool Equals(object obj) => obj is Point p && Equals(p);
+        public override bool Equals(object? obj) => obj is Point p && Equals(p);
         public override int GetHashCode() => HashHelper.Combine(X.GetHashCode(), Y.GetHashCode());
         public override string ToString() => $"({X}, {Y})";
 
