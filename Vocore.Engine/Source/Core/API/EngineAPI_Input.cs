@@ -59,7 +59,28 @@ namespace Vocore.Engine
             return false;
         }
 
-        
+        public bool IsKeyUp(Key key)
+        {
+            if (_snapshot == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _snapshot.KeyEvents.Count; i++)
+            {
+                if (_snapshot.KeyEvents[i].Key == key && !_snapshot.KeyEvents[i].Down)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsKeyPressing(Key key)
+        {
+            return _keyPressing[(byte)key];
+        }
 
 
     }
