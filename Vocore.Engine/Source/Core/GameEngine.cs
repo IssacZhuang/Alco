@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Veldrid;
 using Veldrid.Sdl2;
 using System.Runtime.InteropServices;
+using System.Numerics;
 
 #pragma warning disable CS8618
 #pragma warning disable CS8625
@@ -27,9 +28,9 @@ namespace Vocore.Engine
         #endregion
 
         #region  Internal
-        internal EngineGPU GPU;
-        internal EngineTimer Timer;
-        internal EngineProfiler Profiler;
+        internal EngineGraphics _frame;
+        internal EngineTimer _timer;
+        internal EngineProfiler _profiler;
         #endregion
 
         #region  State
@@ -112,7 +113,7 @@ namespace Vocore.Engine
 
                 _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, new GraphicsDeviceOptions
                 {
-                    SwapchainDepthFormat = PixelFormat.D24_UNorm_S8_UInt,
+                    SwapchainDepthFormat = PixelFormat.D32_Float_S8_UInt,
                 }, _setting.backend);
 
                 _window.Resized += () =>
@@ -121,7 +122,8 @@ namespace Vocore.Engine
                     _setting.width = _window.Width;
                     _setting.height = _window.Height;
                 };
-                GPU = new EngineGPU(this);
+                Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
+                _frame = new EngineGraphics(this, screenSizeFloat);
             }
             else
             {
@@ -130,8 +132,8 @@ namespace Vocore.Engine
             }
 
 
-            Timer = new EngineTimer(this);
-            Profiler = new EngineProfiler(this);
+            _timer = new EngineTimer(this);
+            _profiler = new EngineProfiler(this);
         }
 
         ~GameEngine()
@@ -165,7 +167,18 @@ namespace Vocore.Engine
         /// </summary>
         private void RunWithoutGraphics()
         {
-
+            InternalStart();
+            _timer.Start();
+            while (_isRunning)
+            {
+                _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+                if (canInvokePhysicsTick)
+                {
+                    InternalTick(physicsDeltaTime);
+                }
+                InternalUpdate(updateDeltaTime);
+                //InternalDraw(updateDeltaTime);
+            }
         }
 
         /// <summary>
@@ -173,15 +186,33 @@ namespace Vocore.Engine
         /// </summary>
         private void RunWithGraphics()
         {
-
+            InternalStart();
+            _timer.Start();
+            while (_isRunning)
+            {
+                _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+                if (canInvokePhysicsTick)
+                {
+                    InternalTick(physicsDeltaTime);
+                }
+                InternalUpdate(updateDeltaTime);
+                InternalDraw(updateDeltaTime);
+            }
         }
 
+        /// <summary>
+        /// The start point of the game, which is called before the main loop
+        /// </summary>
+        protected virtual void OnStart()
+        {
+
+        }
 
 
         /// <summary>
         /// The game tick, which handles the game logic
         /// </summary>
-        protected virtual void Tick()
+        protected virtual void OnTick(float delta)
         {
 
         }
@@ -190,7 +221,7 @@ namespace Vocore.Engine
         /// <summary>
         /// The frame tick, which handles the frame logic such as movement lerp and animation
         /// </summary>
-        protected virtual void Update()
+        protected virtual void OnUpdate(float delta)
         {
 
         }
@@ -198,29 +229,35 @@ namespace Vocore.Engine
         /// <summary>
         /// The render tick, which handles the render logic such as draw calls
         /// </summary>
-        protected virtual void Draw()
+        protected virtual void OnDraw(float delta)
         {
 
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalTick()
+        private void InternalTick(float delta)
         {
-            Tick();
+            OnTick(delta);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalUpdate()
+        private void InternalUpdate(float delta)
         {
-            Update();
+            OnUpdate(delta);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalDraw()
+        private void InternalDraw(float delta)
         {
-            GPU.BeginFrame();
-            Draw();
-            GPU.EndFrame();
+            _frame.BeginFrameUpdate(delta);
+            OnDraw(delta);
+            _frame.EndFrame();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void InternalStart()
+        {
+            OnStart();
         }
 
         public void Dispose()

@@ -4,6 +4,10 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
+    /// <summary>
+    /// The profiler module <br/>
+    /// Have only one instance in the Class Engine
+    /// </summary>
     internal struct EngineProfiler
     {
         private float _timer;
