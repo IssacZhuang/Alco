@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using static Veldrid.Sdl2.Sdl2Native;
 
+#pragma warning disable CS8600
+
 namespace Veldrid.Sdl2
 {
     internal static class Sdl2WindowRegistry

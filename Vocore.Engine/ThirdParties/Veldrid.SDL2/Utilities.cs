@@ -1,5 +1,7 @@
 ﻿using System.Text;
 
+#pragma warning disable CS8603
+
 namespace Veldrid.Sdl2
 {
     internal static class Utilities

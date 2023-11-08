@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using NativeLibrary = NativeLibraryLoader.NativeLibrary;
+#pragma warning disable CS8603
 
 namespace Veldrid.Sdl2
 {

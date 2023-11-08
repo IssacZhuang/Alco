@@ -11,6 +11,10 @@ using static Veldrid.Sdl2.Sdl2Native;
 using System.ComponentModel;
 using Veldrid;
 
+#pragma warning disable CS8618
+#pragma warning disable CS8622
+#pragma warning disable CS8625
+
 namespace Veldrid.Sdl2
 {
     public unsafe class Sdl2Window
