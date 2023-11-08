@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace Vocore
 {
-    internal class IndexWorkStealingDeque
+    public class IndexWorkStealingDeque
     {
         // inclusive
         private int _top;

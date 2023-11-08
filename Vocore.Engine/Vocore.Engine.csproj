@@ -31,7 +31,7 @@
     <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>True</Visible>
+      <Visible>False</Visible>
     </Content>
   </ItemGroup>
 </Project>
