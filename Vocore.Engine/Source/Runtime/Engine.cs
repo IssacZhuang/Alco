@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using Veldrid;
 using Veldrid.Sdl2;
-using Veldrid.StartupUtilities;
 
 #pragma warning disable CS8618
 

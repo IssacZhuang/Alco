@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Veldrid.Sdl2;
 
-namespace Veldrid.StartupUtilities
+namespace Veldrid.Sdl2
 {
     public static class VeldridStartup
     {
