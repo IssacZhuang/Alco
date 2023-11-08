@@ -16,7 +16,7 @@ namespace Vocore.Engine
     /// The entry point for the game <br/>
     /// The integration of the game loop, base API, sdl window and graphics device
     /// </summary>
-    public class GameEngine : IDisposable
+    public partial class GameEngine : IDisposable
     {
         public static GameEngine Instance { get; private set; }
         private GameEngineSetting _setting;
