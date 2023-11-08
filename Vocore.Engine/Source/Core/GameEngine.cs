@@ -31,6 +31,13 @@ namespace Vocore.Engine
         internal EngineGraphics _frame;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
+
+        #endregion
+
+        #region API
+
+        public EngineAPI_Window Window { get; private set; }
+
         #endregion
 
         #region  State
@@ -122,18 +129,12 @@ namespace Vocore.Engine
                     _setting.width = _window.Width;
                     _setting.height = _window.Height;
                 };
-                Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
-                _frame = new EngineGraphics(this, screenSizeFloat);
             }
             else
             {
                 _window = null;
                 _graphicsDevice = null;
             }
-
-
-            _timer = new EngineTimer(this);
-            _profiler = new EngineProfiler(this);
         }
 
         ~GameEngine()
@@ -151,7 +152,11 @@ namespace Vocore.Engine
         {
             _engineThread = Environment.CurrentManagedThreadId;
             _isRunning = true;
+
+            InitializeInfrastructure();
+            InitializeAPI();
             InitializePlugins();
+
             if (_setting.hasGraphics)
             {
                 RunWithGraphics();
@@ -282,6 +287,23 @@ namespace Vocore.Engine
                     Log.Error(e);
                 }
             }
+        }
+
+        private void InitializeInfrastructure()
+        {
+            if (_setting.hasGraphics)
+            {
+                Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
+                _frame = new EngineGraphics(this, screenSizeFloat);
+            }
+
+            _timer = new EngineTimer(this);
+            _profiler = new EngineProfiler(this);
+        }
+
+        private void InitializeAPI()
+        {
+            Window = new EngineAPI_Window(_window);
         }
 
         #endregion

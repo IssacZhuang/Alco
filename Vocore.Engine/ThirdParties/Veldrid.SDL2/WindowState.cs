@@ -1,5 +1,4 @@
-﻿namespace Veldrid
-{
+﻿
     public enum WindowState
     {
         Normal,
@@ -9,4 +8,4 @@
         BorderlessFullScreen,
         Hidden,
     }
-}
+

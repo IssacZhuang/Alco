@@ -22,7 +22,7 @@ public struct KeyEvent
     public override string ToString() => $"{Key} {(Down ? "Down" : "Up")} [{Modifiers}] (repeat={Repeat})";
 }
 
-public enum Key
+public enum Key:byte
 {
     //
     // Summary:
