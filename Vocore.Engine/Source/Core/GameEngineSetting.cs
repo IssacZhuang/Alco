@@ -18,8 +18,8 @@ namespace Vocore.Engine
             hasGraphics = true,
             backend = VeldridStartup.GetPlatformDefaultBackend(),
             windowName = "Vocore",
-            width = 1280,
-            height = 720,
+            width = 640,
+            height = 360,
             gametTickRate = 30,
         };
 
@@ -29,8 +29,8 @@ namespace Vocore.Engine
             hasGraphics = true,
             backend = VeldridStartup.GetPlatformDefaultBackend(),
             windowName = "Vocore",
-            width = 1280,
-            height = 720,
+            width = 640,
+            height = 360,
             gametTickRate = 30,
         };
 

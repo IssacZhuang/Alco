@@ -43,7 +43,7 @@ namespace Vocore.Engine
         public GraphicsBuffer(GraphicsDevice device, BufferUsage usage = BufferUsage.UniformBuffer)
         {
             _device = device;
-            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<T>(), usage));
+            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(DeviceBufferHelper.GetUniformBufferSize<T>(), usage));
         }
 
         ~GraphicsBuffer()

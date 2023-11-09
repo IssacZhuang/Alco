@@ -299,7 +299,7 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PumpInput()
         {
-            Current.InputSnapshot = _window.PumpEvents();
+            //Current.InputSnapshot = _window.PumpEvents();
             Input.UpdateKeyStates();
         }
 

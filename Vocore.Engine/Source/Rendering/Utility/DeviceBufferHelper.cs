@@ -7,7 +7,7 @@ namespace Vocore.Engine
 {
     public static class DeviceBufferHelper
     {
-        public static uint GetUniformBufferSize<T>(T type) where T : unmanaged
+        public static uint GetUniformBufferSize<T>() where T : unmanaged
         {
             return GetUniformBufferSize(UtilsMemory.SizeOf<T>());
         }

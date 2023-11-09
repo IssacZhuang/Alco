@@ -37,6 +37,7 @@ namespace Vocore.Engine
         #region API
 
         public EngineAPI_Window Window { get; private set; }
+        public EngineAPI_Input Input { get; private set; }
 
         #endregion
 
@@ -248,6 +249,7 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalUpdate(float delta)
         {
+            _window.PumpEvents();
             OnUpdate(delta);
         }
 
@@ -304,6 +306,7 @@ namespace Vocore.Engine
         private void InitializeAPI()
         {
             Window = new EngineAPI_Window(_window);
+            Input = new EngineAPI_Input(_window);
         }
 
         #endregion
