@@ -14,6 +14,8 @@ namespace Vocore.Engine
         private bool _isDisposed;
         private DeviceBuffer _buffer;
         private GraphicsDevice _device;
+        private uint _sizeInBytes;
+        private uint _stride;
 
         public ref T this[int index]
         {
@@ -33,11 +35,22 @@ namespace Vocore.Engine
             }
         }
 
+        public DeviceBuffer Buffer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _buffer;
+            }
+        }
+
         public GraphicsArrayBuffer(GraphicsDevice device, int capacity, BufferUsage usage = BufferUsage.UniformBuffer)
         {
-            uint stride = (uint)UtilsMemory.SizeOf<T>();
+            int stride = UtilsMemory.SizeOf<T>();
+            _stride = (uint)stride;
+            _sizeInBytes = DeviceBufferHelper.GetUniformBufferSize(stride * capacity);
             _device = device;
-            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(stride * (uint)capacity, usage, stride));
+            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(_sizeInBytes, usage, _stride));
             _content = new NativeBuffer<T>(capacity);
         }
 
@@ -62,18 +75,18 @@ namespace Vocore.Engine
         /// Update the value to the GPU memory.\n
         /// This operation is executed by GraphicsDevice, the buffer will be updated immediately.
         /// </summary>
-        public void ApplyToGPUImmediately()
+        public void UpdateToGPUImmediately()
         {
-            _device.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Size);
+            _device.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Length * _stride);
         }
 
         /// <summary>
         /// Update the value to the GPU memory.\n
         /// This operation is executed by command list, the buffer will be updated when the command list is executed. !!Recommended!!
         /// </summary>
-        public void ApplyToGPU(CommandList commandList)
+        public void UpdateToGPU(CommandList commandList)
         {
-            commandList.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Size);
+            commandList.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Length * _stride);
         }
 
         public ResourceSet CreateResourceSet(ResourceLayoutDescription layoutDesc)

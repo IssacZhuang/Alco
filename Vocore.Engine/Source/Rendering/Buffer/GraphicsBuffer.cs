@@ -37,6 +37,15 @@ namespace Vocore.Engine
             }
         }
 
+        public DeviceBuffer Buffer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _buffer;
+            }
+        }
+
         /// <summary>
         /// Create a GPU buffer with a value.
         /// </summary>
@@ -55,7 +64,7 @@ namespace Vocore.Engine
         /// Update the value to the GPU memory.\n
         /// This operation is executed by GraphicsDevice, the buffer will be updated immediately.
         /// </summary>
-        public void ApplyToGPUImmediately()
+        public void UpdateToGPUImmediately()
         {
             _device.UpdateBuffer(_buffer, 0, ref _value);
         }
@@ -64,7 +73,7 @@ namespace Vocore.Engine
         /// Update the value to the GPU memory.\n
         /// This operation is executed by command list, the buffer will be updated when the command list is executed. !!Recommended!!
         /// </summary>
-        public void ApplyToGPU(CommandList commandList)
+        public void UpdateToGPU(CommandList commandList)
         {
             commandList.UpdateBuffer(_buffer, 0, ref _value);
         }

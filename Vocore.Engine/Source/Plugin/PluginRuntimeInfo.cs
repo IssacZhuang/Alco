@@ -1,0 +1,31 @@
+using System;
+using Veldrid;
+
+namespace Vocore.Engine{
+    public class PluginRuntimeInfo : IEnginePlugin
+    {
+        public int Priority => -1000;
+
+        public void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
+        {
+            GraphicsDevice device = engine.GraphicsDevice;
+
+            Log.Info("--- Compatibility ---");
+            Log.Info("D3D11 Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.Direct3D11));
+            Log.Info("Vulkan Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.Vulkan));
+            Log.Info("OpenGL Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.OpenGL));
+            Log.Info("Metal Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.Metal));
+            Log.Info("OpenGL ES Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.OpenGLES));
+            Log.Info("\n--- Device Info ---");
+            Log.Info("Graphics Backend: \t" + device.BackendType);
+            Log.Info("IsDepthRangeZeroToOne: \t" + device.IsDepthRangeZeroToOne);
+            Log.Info("IsClipSpaceYInverted: \t" + device.IsClipSpaceYInverted);
+            Log.Info("IsUvOriginTopLeft: \t" + device.IsUvOriginTopLeft);
+        }
+
+        public void OnExit()
+        {
+
+        }
+    }
+}

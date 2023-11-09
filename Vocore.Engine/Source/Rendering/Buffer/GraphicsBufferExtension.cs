@@ -7,7 +7,7 @@ namespace Vocore.Engine
     {
         public static void UpdateBuffer(this CommandList commandList, IGraphicsBuffer buffer)
         {
-            buffer.ApplyToGPU(commandList);
+            buffer.UpdateToGPU(commandList);
         }
     }
 }

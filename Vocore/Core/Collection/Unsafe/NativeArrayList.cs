@@ -37,10 +37,8 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (IntPtr)_ptrBuffer;
         }
-
-        public int Size => _size;
         public int Stride => _stride;
-        public int Count => Size;
+        public int Count => _size;
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
         public int DefaultCapacity
