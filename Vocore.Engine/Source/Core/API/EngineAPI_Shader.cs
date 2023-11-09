@@ -4,7 +4,7 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public struct EngineAPI_Shader
+    public class EngineAPI_Shader
     {
         private readonly EngineShaderContext _context;
         internal EngineAPI_Shader(EngineShaderContext context)

@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
+using System.Security.Cryptography.X509Certificates;
 using Veldrid.Sdl2;
 
 namespace Vocore.Engine
@@ -9,7 +9,7 @@ namespace Vocore.Engine
     /// <summary>
     /// The API of the SDL2 window
     /// </summary>
-    public readonly struct EngineAPI_Window
+    public class EngineAPI_Window
     {
         private readonly Sdl2Window? _window;
         internal EngineAPI_Window(Sdl2Window? window)
@@ -31,10 +31,11 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (_window != null && _window.WindowState != value)
+                if (_window == null || _window.WindowState == value)
                 {
-                    _window.WindowState = value;
+                    return;
                 }
+                _window.WindowState = value;
             }
         }
 
@@ -56,6 +57,28 @@ namespace Vocore.Engine
                 {
                     _window.Width = value.x;
                     _window.Height = value.y;
+                }
+            }
+        }
+
+        public Vector2 SizeF
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_window == null)
+                {
+                    return new Vector2(0, 0);
+                }
+                return new Vector2(_window.Width, _window.Height);
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                if (_window != null && (_window.Width != value.X || _window.Height != value.Y))
+                {
+                    _window.Width = (int)value.X;
+                    _window.Height = (int)value.Y;
                 }
             }
         }
@@ -115,5 +138,107 @@ namespace Vocore.Engine
                 return (float)_window.Width / _window.Height;
             }
         }
+    }
+
+    // exposed API of the GameEngine.Window
+    public static class Window
+    {
+        public static WindowState WindowState
+        {
+            get
+            {
+                return GameEngine.Instance.Window.WindowState;
+            }
+            set
+            {
+                GameEngine.Instance.Window.WindowState = value;
+            }
+        }
+
+        public static int2 Size
+        {
+            get
+            {
+                return GameEngine.Instance.Window.Size;
+            }
+            set
+            {
+                GameEngine.Instance.Window.Size = value;
+            }
+        }
+
+        public static Vector2 SizeF
+        {
+            get
+            {
+                return GameEngine.Instance.Window.SizeF;
+            }
+            set
+            {
+                GameEngine.Instance.Window.SizeF = value;
+            }
+        }
+
+        public static int Width
+        {
+            get
+            {
+                return GameEngine.Instance.Window.Width;
+            }
+            set
+            {
+                GameEngine.Instance.Window.Width = value;
+            }
+        }
+
+        public static int Height
+        {
+            get
+            {
+                return GameEngine.Instance.Window.WindowHeight;
+            }
+            set
+            {
+                GameEngine.Instance.Window.WindowHeight = value;
+            }
+        }
+
+        public static float AspectRatio
+        {
+            get
+            {
+                return GameEngine.Instance.Window.AspectRatio;
+            }
+        }
+
+        public static Vector2 MousePosition
+        {
+            get
+            {
+                return GameEngine.Instance.Input.MousePosition;
+            }
+            set
+            {
+                GameEngine.Instance.Input.MousePosition = value;
+            }
+        }
+
+        public static Vector2 MouseDelta
+        {
+            get
+            {
+                return GameEngine.Instance.Input.MouseDelta;
+            }
+        }
+
+        public static float WheelDelta
+        {
+            get
+            {
+                return GameEngine.Instance.Input.WheelDelta;
+            }
+        }
+
+        
     }
 }

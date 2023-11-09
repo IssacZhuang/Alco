@@ -6,7 +6,7 @@ using Veldrid.Sdl2;
 
 namespace Vocore.Engine
 {
-    public struct EngineAPI_Input
+    public class EngineAPI_Input
     {
         private readonly Sdl2Window? _window;
         private EngineInputSnapshot? _snapshot;
@@ -37,6 +37,13 @@ namespace Vocore.Engine
                     return Vector2.Zero;
                 }
                 return _snapshot.MousePosition;
+            }
+            set
+            {
+                if (_window != null)
+                {
+                    _window.SetMousePosition(value);
+                }
             }
         }
 
@@ -154,4 +161,6 @@ namespace Vocore.Engine
             return _snapshot.IsMousePressing(button);
         }
     }
+
+    
 }

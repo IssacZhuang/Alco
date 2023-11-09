@@ -143,7 +143,10 @@ namespace Vocore.Engine
 
                 _window.Resized += () =>
                 {
+                    
                     _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
+                    
+                    Log.Info($"Window Resized {_window.Width}x{_window.Height}");
                     _setting.width = _window.Width;
                     _setting.height = _window.Height;
                 };

@@ -12,6 +12,7 @@ public class Game : GameEngine
 
     private Transform _cubeTranform1 = Transform.Default;
     private Transform _cubeTranform2 = Transform.Default;
+    private ActorFreeLook3D _actorFreeLook3D;
     override protected void OnStart()
     {
         Console.WriteLine("Hello World!");
@@ -22,14 +23,24 @@ public class Game : GameEngine
         var shaderBasic = File.ReadAllText(Path.Combine(WorkingDirectory, "Assets/Basic.glsl"));
         shaderBasic = Shader.ProcessInclude("Basic.glsl", shaderBasic);
         _shaderBasic = new Shader(GraphicsDevice, shaderBasic, "Basic");
+
+        _actorFreeLook3D = new ActorFreeLook3D();
+        _actorFreeLook3D.sensitivity = 10f;
     }
 
     protected override void OnUpdate(float delta)
     {
         base.OnUpdate(delta);
+        _actorFreeLook3D.Update();
+        _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
         if(Input.IsKeyDown(Key.Escape))
         {
             Log.Info("Escape key pressed");
+        }
+
+        if (Input.IsKeyDown(Key.F11))
+        {
+            Window.WindowState = Window.WindowState == WindowState.BorderlessFullScreen ? WindowState.Normal : WindowState.BorderlessFullScreen;
         }
 
         _timer += delta;

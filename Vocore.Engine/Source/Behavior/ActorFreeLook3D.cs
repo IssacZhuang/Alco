@@ -16,7 +16,7 @@ namespace Vocore.Engine
         private Vector2 ScreenCenter {
             get
             {
-                return new Vector2(Current.Window.Width / 2, Current.Window.Height / 2);
+                return WindowSize / 2;
             }
         }
 
@@ -24,7 +24,7 @@ namespace Vocore.Engine
         {
             get
             {
-                return new Vector2(Current.Window.Width, Current.Window.Height);
+                return GameEngine.Instance.Window.SizeF;
             }
         }
 
@@ -40,11 +40,11 @@ namespace Vocore.Engine
         {
             if(!_mouseInCenter)
             {
-                Input.MousePosition = ScreenCenter;
+                GameEngine.Instance.Input.MousePosition = ScreenCenter;
                 _mouseInCenter = true;
             }
-            var delta = Input.MousePosition - ScreenCenter;
-            Input.MousePosition = ScreenCenter;
+            var delta = GameEngine.Instance.Input.MousePosition - ScreenCenter;
+            GameEngine.Instance.Input.MousePosition = ScreenCenter;
             rotationY -= delta.X * sensitivity / WindowSize.Y;
             rotationX += delta.Y * sensitivity / WindowSize.X;
 

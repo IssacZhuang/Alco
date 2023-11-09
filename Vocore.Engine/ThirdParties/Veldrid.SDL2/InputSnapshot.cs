@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using System.Numerics;
 using Veldrid.Sdl2;
+using Vocore;
 
 namespace Veldrid
 {
@@ -127,8 +128,8 @@ namespace Veldrid
                 _keyEvents.Add(ke);
             }
 
-            _mousePosition = snapshot.MousePosition;
             _mouseDelta = snapshot.MousePosition - _mousePosition;
+            _mousePosition = snapshot.MousePosition;
             _wheelDelta = snapshot.WheelDelta;
         }
 
