@@ -65,5 +65,10 @@ namespace Vocore.Engine
             _device.SwapBuffers();
             _device.WaitForIdle();
         }
+
+        public ResourceSet CreateGlobalShaderDataResourceSet()
+        {
+            return _globalShaderData.CreateResourceSet(GlobalShaderData.Layout);
+        }
     }
 }

@@ -24,6 +24,10 @@ namespace Vocore.Engine
             }
         }
 
+
+        /// <summary>
+        /// The mouse position in screen space.
+        /// </summary>
         public Vector2 MousePosition
         {
             get
@@ -36,6 +40,9 @@ namespace Vocore.Engine
             }
         }
 
+        /// <summary>
+        /// The mouse movement since the last frame.
+        /// </summary>
         public Vector2 MouseDelta
         {
             get
@@ -48,6 +55,9 @@ namespace Vocore.Engine
             }
         }
 
+        /// <summary>
+        /// The mouse wheel delta since the last frame.
+        /// </summary>
         public float WheelDelta
         {
             get
@@ -60,6 +70,9 @@ namespace Vocore.Engine
             }
         }
 
+        /// <summary>
+        /// The key event in the last frame.
+        /// </summary>
         public IReadOnlyList<KeyEvent> KeyEvents
         {
             get
@@ -72,7 +85,9 @@ namespace Vocore.Engine
             }
         }
 
-
+        /// <summary>
+        /// The mouse event in the last frame.
+        /// </summary>
         public IReadOnlyList<MouseEvent> MouseEvents
         {
             get

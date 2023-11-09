@@ -42,7 +42,7 @@ namespace Vocore.Engine
             _vertexBuffer = _factory.CreateBuffer(new BufferDescription(VertexBufferSize, BufferUsage.VertexBuffer));
             _indexBuffer = _factory.CreateBuffer(new BufferDescription(IndexBufferSize, BufferUsage.IndexBuffer));
             _transformBuffer = _factory.CreateBuffer(new BufferDescription((uint)UtilsMemory.SizeOf<Matrix4x4>(), BufferUsage.UniformBuffer));
-            var bufferLayoutTransform = _factory.CreateResourceLayout(BufferLayout.Transform);
+            var bufferLayoutTransform = _factory.CreateResourceLayout(BufferLayout.Matrix4x4);
             _resourceSetTransform = _factory.CreateResourceSet(new ResourceSetDescription(bufferLayoutTransform, _transformBuffer));
             _instanceIdBuffer = _factory.CreateBuffer(new BufferDescription(InstanceIdBufferSize, BufferUsage.VertexBuffer));
             _instanceIds = new NativeBuffer<uint>(MaxInstanceCount);

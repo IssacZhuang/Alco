@@ -10,7 +10,7 @@ namespace Vocore.Engine
                     new ResourceLayoutElementDescription("ViewProjectionBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex)
                 );
 
-        public static readonly ResourceLayoutDescription Transform = new ResourceLayoutDescription(
+        public static readonly ResourceLayoutDescription Matrix4x4 = new ResourceLayoutDescription(
                     new ResourceLayoutElementDescription("ModelBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex)
                 );
 

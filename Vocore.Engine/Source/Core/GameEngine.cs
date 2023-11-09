@@ -38,6 +38,7 @@ namespace Vocore.Engine
 
         public EngineAPI_Window Window { get; private set; }
         public EngineAPI_Input Input { get; private set; }
+        public EngineAPI_Graphics Graphics { get; private set; }
 
         #endregion
 
@@ -77,6 +78,12 @@ namespace Vocore.Engine
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _engineThread == Environment.CurrentManagedThreadId;
+        }
+
+        public static string WorkingDirectory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => AppDomain.CurrentDomain.BaseDirectory;
         }
 
 
@@ -307,6 +314,7 @@ namespace Vocore.Engine
         {
             Window = new EngineAPI_Window(_window);
             Input = new EngineAPI_Input(_window);
+            Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.CreateGlobalShaderDataResourceSet());
         }
 
         #endregion

@@ -50,7 +50,7 @@ namespace Vocore.Engine
             _stride = (uint)stride;
             _sizeInBytes = DeviceBufferHelper.GetUniformBufferSize(stride * capacity);
             _device = device;
-            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(_sizeInBytes, usage, _stride));
+            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(_sizeInBytes, usage));
             _content = new NativeBuffer<T>(capacity);
         }
 

@@ -170,7 +170,7 @@ public class App : Engine
         if (_fps != Profiler.FPS)
         {
             _fps = Profiler.FPS;
-            //Log.Info(_fps.ToString());
+            Log.Info(_fps.ToString());
         }
     }
 
