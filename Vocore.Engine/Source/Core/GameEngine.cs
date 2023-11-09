@@ -31,6 +31,7 @@ namespace Vocore.Engine
         internal EngineGraphics _frame;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
+        internal EngineShaderContext _shaderContext;
 
         #endregion
 
@@ -38,6 +39,7 @@ namespace Vocore.Engine
 
         public EngineAPI_Window Window { get; private set; }
         public EngineAPI_Input Input { get; private set; }
+        public EngineAPI_Shader Shader { get; private set; }
         public EngineAPI_Graphics Graphics { get; private set; }
 
         #endregion
@@ -84,6 +86,14 @@ namespace Vocore.Engine
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => AppDomain.CurrentDomain.BaseDirectory;
+        }
+
+        public ICamera? Camera
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _frame.Camera;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => _frame.Camera = value;
         }
 
 
@@ -187,9 +197,25 @@ namespace Vocore.Engine
                 _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
                 if (canInvokePhysicsTick)
                 {
-                    InternalTick(physicsDeltaTime);
+                    try
+                    {
+                        InternalTick(physicsDeltaTime);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("[Tick Error]", e);
+                    }
+
                 }
-                InternalUpdate(updateDeltaTime);
+                try
+                {
+                    InternalUpdate(updateDeltaTime);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("[Update Error]", e);
+                }
+
                 //InternalDraw(updateDeltaTime);
             }
         }
@@ -206,10 +232,31 @@ namespace Vocore.Engine
                 _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
                 if (canInvokePhysicsTick)
                 {
-                    InternalTick(physicsDeltaTime);
+                    try
+                    {
+                        InternalTick(physicsDeltaTime);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("[Tick Error]", e);
+                    }
                 }
-                InternalUpdate(updateDeltaTime);
-                InternalDraw(updateDeltaTime);
+                try
+                {
+                    InternalUpdate(updateDeltaTime);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("[Update Error]", e);
+                }
+                try
+                {
+                    InternalDraw(updateDeltaTime);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("[Draw Error]", e);
+                }
             }
         }
 
@@ -304,6 +351,7 @@ namespace Vocore.Engine
             {
                 Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
                 _frame = new EngineGraphics(this, screenSizeFloat);
+                _shaderContext = new EngineShaderContext(GraphicsDevice);
             }
 
             _timer = new EngineTimer(this);
@@ -314,6 +362,7 @@ namespace Vocore.Engine
         {
             Window = new EngineAPI_Window(_window);
             Input = new EngineAPI_Input(_window);
+            Shader = new EngineAPI_Shader(_shaderContext);
             Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.CreateGlobalShaderDataResourceSet());
         }
 

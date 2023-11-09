@@ -9,9 +9,7 @@ namespace Vocore.Engine
     {
         public const float DefaultFov = 0.83f;
         private float _fov;
-
         private Matrix4x4 _projectionMatrix;
-        public static readonly uint BufferSize = (uint)UtilsMemory.SizeOf<Matrix4x4>();
 
         public float FieldOfView
         {

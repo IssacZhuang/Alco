@@ -17,9 +17,10 @@ public class Game : GameEngine
         Console.WriteLine("Hello World!");
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
+        Camera = _cameraP;
 
         var shaderBasic = File.ReadAllText(Path.Combine(WorkingDirectory, "Assets/Basic.glsl"));
-        shaderBasic = ShaderComplier.ProcessInclude(shaderBasic, "Basic.glsl");
+        shaderBasic = Shader.ProcessInclude("Basic.glsl", shaderBasic);
         _shaderBasic = new Shader(GraphicsDevice, shaderBasic, "Basic");
     }
 

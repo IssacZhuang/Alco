@@ -72,7 +72,7 @@ namespace Vocore.Engine
             _transformBuffer.Value = transform;
 
             _command.Begin();
-            
+
             _command.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
             _command.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
             _command.UpdateBuffer(_transformBuffer);

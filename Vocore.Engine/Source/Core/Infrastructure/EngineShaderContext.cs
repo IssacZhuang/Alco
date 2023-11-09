@@ -7,7 +7,7 @@ using Veldrid.SPIRV;
 
 namespace Vocore.Engine
 {
-    internal class EngineShaderPool
+    internal class EngineShaderContext
     {
         public const string MacroStageVertex = "VERTEX_SHADER";
         public const string MacroStageFragment = "FRAGMENT_SHADER";
@@ -36,7 +36,7 @@ namespace Vocore.Engine
         public BaseVirtualDirectory SourceGraphics { get; private set; }
         public BaseVirtualDirectory SourceCompute { get; private set; }
 
-        public EngineShaderPool(GraphicsDevice device)
+        public EngineShaderContext(GraphicsDevice device)
         {
             _device = device;
 
@@ -55,7 +55,7 @@ namespace Vocore.Engine
             return null;
         }
 
-        public bool TryGet(string name, out Shader shader)
+        public bool TryGet(string name, out Shader? shader)
         {
             if (_shaders.TryGetValue(name, out shader))
             {
@@ -91,7 +91,7 @@ namespace Vocore.Engine
                     if (SourceLibs.TryGetData(includeFilename, out var includeData))
                     {
                         sb.AppendLine(string.Format(Format_LineInculde, 1, includeFilename));
-                        sb.AppendLine(ProcessInclude(Encoding.UTF8.GetString(includeData), includeFilename));
+                        sb.AppendLine(ProcessInclude(includeFilename, Encoding.UTF8.GetString(includeData)));
                         sb.AppendLine(string.Format(Format_LineInculde, lineIndex + 2, filename));
                     }
                     else
@@ -108,15 +108,16 @@ namespace Vocore.Engine
             return sb.ToString();
         }
 
-        public SpirvReflection GetShaderReflection(GraphicsDevice graphicsDevice, string shaderText, string filename)
+
+        public VertexFragmentCompilationResult CrossPreComplie(string filename, string shaderText)
         {
-            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename, graphicsDevice.BackendType);
-            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename, graphicsDevice.BackendType);
-            VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexByteCode.Bytes, fragmentByteCode.Bytes, GetCompilationTarget(graphicsDevice.BackendType), new CrossCompileOptions
+            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename, _device.BackendType);
+            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename, _device.BackendType);
+            VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexByteCode.Bytes, fragmentByteCode.Bytes, GetCompilationTarget(_device.BackendType), new CrossCompileOptions
             {
                 NormalizeResourceNames = false,
             });
-            return vertexFragmentCompilationResult.Reflection;
+            return vertexFragmentCompilationResult;
         }
 
         private static ShaderByteCode ComplieVertexShaderToSpirv(string shaderText, string filename, GraphicsBackend backend)

@@ -9,6 +9,7 @@ using Veldrid;
 
 using(Game game = new Game())
 {
+    game.RegisterPlugin<PluginBuiltInShader>();
     game.RegisterPlugin<PluginRuntimeInfo>();
     game.Run();
 }
