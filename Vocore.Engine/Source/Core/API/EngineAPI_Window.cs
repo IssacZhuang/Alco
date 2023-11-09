@@ -102,5 +102,18 @@ namespace Vocore.Engine
                 }
             }
         }
+
+        public float AspectRatio
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_window == null)
+                {
+                    return 1;
+                }
+                return (float)_window.Width / _window.Height;
+            }
+        }
     }
 }

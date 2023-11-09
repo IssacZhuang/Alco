@@ -39,6 +39,11 @@ public class Game : GameEngine
 
         _cubeTranform2.Rotate(Transform.Up, delta);
 
+        
+    }
+
+    protected override void OnDraw(float delta)
+    {
         Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
         Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
     }

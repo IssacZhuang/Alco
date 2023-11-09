@@ -61,7 +61,7 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateProjectionMatrix()
         {
-            _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, Screen.AspectRatio, _near, _far);
+            _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, GameEngine.Instance.Window.AspectRatio, _near, _far);
         }
     }
 }
