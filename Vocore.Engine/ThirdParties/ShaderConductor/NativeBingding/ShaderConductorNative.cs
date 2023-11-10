@@ -55,17 +55,17 @@ namespace Vocore.ShaderConductor
         }
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void Native_Compile(NativeSourceDescription* source, OptionsDescription* optionsDesc, TargetDescription* target, ResultDescription* result);
+        private delegate void Native_Compile(Native_SourceDescription* source, Native_OptionsDescription* optionsDesc, Native_TargetDescription* target, Native_ResultDescription* result);
         private static readonly Native_Compile s_compile = LoadFunction<Native_Compile>("Compile");
-        internal static unsafe void Compile(NativeSourceDescription* source, OptionsDescription* optionsDesc, TargetDescription* target, ResultDescription* result)
+        internal static unsafe void Compile(Native_SourceDescription* source, Native_OptionsDescription* optionsDesc, Native_TargetDescription* target, Native_ResultDescription* result)
         {
             s_compile(source, optionsDesc, target, result);
         }
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void Native_Disassemble(DisassembleDescription* source, ResultDescription* result);
+        private delegate void Native_Disassemble(Native_DisassembleDescription* source, Native_ResultDescription* result);
         private static readonly Native_Disassemble s_disassemble = LoadFunction<Native_Disassemble>("Disassemble");
-        internal static unsafe void Disassemble(DisassembleDescription* source, ResultDescription* result)
+        internal static unsafe void Disassemble(Native_DisassembleDescription* source, Native_ResultDescription* result)
         {
             s_disassemble(source, result);
         }
@@ -103,7 +103,7 @@ namespace Vocore.ShaderConductor
         }
     }
 
-    internal enum ShaderStage : int
+    internal enum Native_ShaderStage : int
     {
         VertexShader,
         PixelShader,
@@ -115,7 +115,7 @@ namespace Vocore.ShaderConductor
         NumShaderStages,
     };
 
-    internal enum ShadingLanguage : int
+    internal enum Native_ShadingLanguage : int
     {
         Dxil = 0,
         SpirV,
@@ -130,20 +130,20 @@ namespace Vocore.ShaderConductor
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct NativeSourceDescription
+    internal unsafe struct Native_SourceDescription
     {
         public byte* source;
         public byte* entryPoint;
-        public ShaderStage stage;
+        public Native_ShaderStage stage;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal struct ShaderModel
+    internal struct Native_ShaderModel
     {
         public int major;
         public int minor;
 
-        public ShaderModel(int major, int minor)
+        public Native_ShaderModel(int major, int minor)
         {
             this.major = major;
             this.minor = minor;
@@ -151,7 +151,7 @@ namespace Vocore.ShaderConductor
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal struct OptionsDescription
+    internal struct Native_OptionsDescription
     {
         [MarshalAs(UnmanagedType.I1)]
         public bool packMatricesInRowMajor; // Experimental: Decide how a matrix get packed
@@ -163,25 +163,25 @@ namespace Vocore.ShaderConductor
         public bool disableOptimizations; // Force to turn off optimizations. Ignore optimizationLevel below.
         public int optimizationLevel; // 0 to 3, no optimization to most optimization
 
-        public ShaderModel shaderModel;
+        public Native_ShaderModel shaderModel;
 
         public int shiftAllTexturesBindings;
         public int shiftAllSamplersBindings;
         public int shiftAllCBuffersBindings;
         public int shiftAllUABuffersBindings;
 
-        public static OptionsDescription Default
+        public static Native_OptionsDescription Default
         {
             get
             {
-                var defaultInstance = new OptionsDescription
+                var defaultInstance = new Native_OptionsDescription
                 {
                     packMatricesInRowMajor = false,
                     enable16bitTypes = false,
                     enableDebugInfo = false,
                     disableOptimizations = false,
                     optimizationLevel = 3,
-                    shaderModel = new ShaderModel(6, 0)
+                    shaderModel = new Native_ShaderModel(6, 0)
                 };
 
                 return defaultInstance;
@@ -190,15 +190,14 @@ namespace Vocore.ShaderConductor
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct TargetDescription
+    internal unsafe struct Native_TargetDescription
     {
-        public ShadingLanguage language;
+        public Native_ShadingLanguage language;
         public byte* version;
-        public bool asModule;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct ResultDescription
+    internal unsafe struct Native_ResultDescription
     {
         public void* target;
         public bool isText;
@@ -208,9 +207,9 @@ namespace Vocore.ShaderConductor
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct DisassembleDescription
+    internal unsafe struct Native_DisassembleDescription
     {
-        public ShadingLanguage language;
+        public Native_ShadingLanguage language;
         public byte* binary;
         public int binarySize;
     }
