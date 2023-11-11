@@ -138,7 +138,7 @@ namespace Vocore.Engine
 
                 _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, new GraphicsDeviceOptions
                 {
-                    SwapchainDepthFormat = PixelFormat.D32_Float_S8_UInt,
+                    SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
                 }, _setting.backend);
 
                 _window.Resized += () =>
