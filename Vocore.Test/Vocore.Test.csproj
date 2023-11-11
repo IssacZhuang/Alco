@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Vocore.Test</RootNamespace>
     <AssemblyName>Vocore.Test</AssemblyName>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
