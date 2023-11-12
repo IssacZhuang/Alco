@@ -3,6 +3,9 @@ using System.Numerics;
 using System.IO;
 using Vocore;
 using Vocore.Engine;
+using Veldrid;
+
+using Shader = Vocore.Engine.Shader;
 
 public class Game : GameEngine
 {
@@ -35,7 +38,7 @@ public class Game : GameEngine
         _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
         if(Input.IsKeyDown(Key.Escape))
         {
-            Log.Info("Escape key pressed");
+            //Stop();
         }
 
         if (Input.IsKeyDown(Key.F11))
