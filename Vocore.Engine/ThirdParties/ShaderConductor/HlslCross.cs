@@ -10,6 +10,11 @@ namespace Vocore.ShaderCross
     {
         public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
 
+        public static VertexFragmentCompilationResult ComplieShader(string hlslCode, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "FS"){
+            CrossCompileTarget target = GetCrossCompileTarget(backend);
+            return ComplieShader(hlslCode, target, entryVertex, entryFragment);
+        }
+
         public static VertexFragmentCompilationResult ComplieShader(string hlslCode, CrossCompileTarget target, string entryVertex = "VS", string entryFragment = "FS")
         {
             byte[] vsBytes = ConvertHlslToSpirv(hlslCode, entryVertex, ShaderConductor.ShaderStage.VertexShader);
@@ -44,6 +49,26 @@ namespace Vocore.ShaderCross
             byte[] spirvBytes = ShaderBlobToByte(resultDesc.target);
 
             return spirvBytes;
+        }
+
+        public static CrossCompileTarget GetCrossCompileTarget(GraphicsBackend backend)
+        {
+            switch (backend)
+            {
+                case GraphicsBackend.Direct3D11:
+                    return CrossCompileTarget.HLSL;
+                //Vulkan can use Spirv directly
+                // case GraphicsBackend.Vulkan:
+                //     return CrossCompileTarget.GLSL;
+                case GraphicsBackend.OpenGL:
+                    return CrossCompileTarget.GLSL;
+                case GraphicsBackend.OpenGLES:
+                    return CrossCompileTarget.ESSL;
+                case GraphicsBackend.Metal:
+                    return CrossCompileTarget.MSL;
+                default:
+                    throw new Exception("Unsupported backend: " + backend);
+            }
         }
 
         private static byte[] ShaderBlobToByte(IntPtr ptr)

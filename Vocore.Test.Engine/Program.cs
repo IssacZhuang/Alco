@@ -20,7 +20,7 @@ using Veldrid.SPIRV;
 
 
 string text = @"
-cbuffer Matrices : register(b0)
+cbuffer Matrices
 {
     float4x4 worldViewProj;
 };
@@ -33,6 +33,7 @@ struct VS_IN
     float4 pos : POSITION;
     float4 col : COLOR;
     float2 tex : TEXCOORD;
+    uint instanceID : SV_InstanceID;
 };
 
 struct PS_IN
@@ -40,6 +41,7 @@ struct PS_IN
     float4 pos : SV_POSITION;
     float4 col : COLOR;
     float2 tex : TEXCOORD;
+    uint instanceID : SV_InstanceID;
 };
 
 PS_IN VS(VS_IN input)
@@ -49,28 +51,32 @@ PS_IN VS(VS_IN input)
     output.pos = mul(input.pos, worldViewProj);
     output.col = input.col;
     output.tex = input.tex;
+    output.instanceID = input.instanceID;
 
     return output;
 }
 
 float4 PS(PS_IN input) : SV_Target
 {
-    return DiffuseTexture.Sample(Sampler, input.tex);
+    return DiffuseTexture.Sample(Sampler, input.tex)* input.instanceID;
 }
 ";
 
 
-VertexFragmentCompilationResult result = HlslCross.ComplieShader(text, CrossCompileTarget.HLSL, "VS", "PS");
+VertexFragmentCompilationResult result = HlslCross.ComplieShader(text, CrossCompileTarget.MSL, "VS", "PS");
 
 Log.Info(result.VertexShader);
 Log.Info(result.FragmentShader);
 
 foreach (var item in result.Reflection.VertexElements)
 {
-    Log.Info(item.ToString());
+    Log.Info(item.Name, item.Semantic);
 }
 
 foreach (var item in result.Reflection.ResourceLayouts)
 {
-    Log.Info(item.ToString());
+    foreach (var item2 in item.Elements)
+    {
+        Log.Info(item2.Name, item2.Kind);
+    }
 }
