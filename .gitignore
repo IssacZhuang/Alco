@@ -1,6 +1,13 @@
+# C#
 /.vs/
 bin/
 obj/
 .vs/Vocore/v17/.suo
 Game
-Assemblies
+
+# rust
+debug/
+target/
+**/*.rs.bk
+Cargo.lock
+
