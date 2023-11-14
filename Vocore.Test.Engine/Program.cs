@@ -4,7 +4,8 @@ using Vocore.Engine;
 using Veldrid;
 
 using System.Runtime.InteropServices;
-using Vocore.ShaderConductor;
+using Vocore.ShaderCross;
+using Veldrid.SPIRV;
 
 // See https://aka.ms/new-console-template for more information
 // App app = new App(GraphicsBackend.OpenGL, "Test");
@@ -24,8 +25,8 @@ cbuffer Matrices : register(b0)
     float4x4 worldViewProj;
 };
 
-Texture2D DiffuseTexture : register(t0);
-SamplerState Sampler : register(s0);
+Texture2D DiffuseTexture;
+SamplerState Sampler;
 
 struct VS_IN
 {
@@ -59,26 +60,17 @@ float4 PS(PS_IN input) : SV_Target
 ";
 
 
-ShaderConductor.SourceDesc sourceDesc = new ShaderConductor.SourceDesc
-{
-source = text,
-entryPoint = "VS",
-stage = ShaderConductor.ShaderStage.VertexShader,
-};
+VertexFragmentCompilationResult result = HlslCross.ComplieShader(text, CrossCompileTarget.HLSL, "VS", "PS");
 
-ShaderConductor.OptionsDesc optionsDesc = ShaderConductor.OptionsDesc.Default;
+Log.Info(result.VertexShader);
+Log.Info(result.FragmentShader);
 
-ShaderConductor.TargetDesc targetDesc = new ShaderConductor.TargetDesc
+foreach (var item in result.Reflection.VertexElements)
 {
-    language = ShaderConductor.ShadingLanguage.Hlsl,
-    version = null,
-};
-
-ShaderConductor.Compile(ref sourceDesc, ref optionsDesc, ref targetDesc, out ShaderConductor.ResultDesc resultDesc);
-Log.Info(resultDesc.hasError);
-Log.Info(Marshal.PtrToStringAnsi(ShaderConductor.GetShaderConductorBlobData(resultDesc.target)));
-foreach (var item in ShaderConductor.GetUniformBuffers(resultDesc))
-{
-    Log.Info(item.blockName, item.instanceName);
+    Log.Info(item.ToString());
 }
 
+foreach (var item in result.Reflection.ResourceLayouts)
+{
+    Log.Info(item.ToString());
+}
