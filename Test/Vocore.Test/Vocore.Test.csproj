@@ -17,7 +17,6 @@
     <TieredPGO>true</TieredPGO>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Vocore\Vocore.csproj"/>
     <EmbeddedResource Include="TestFiles\TestLoad.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -36,5 +35,8 @@
     <EmbeddedResource Include="Config\Files\TestConfig.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Vocore\Vocore.csproj" />
   </ItemGroup>
 </Project>

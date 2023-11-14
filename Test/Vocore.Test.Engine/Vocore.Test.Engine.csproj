@@ -1,8 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="..\Vocore.Engine\Vocore.Engine.csproj" />
-    <ProjectReference Include="..\Vocore\Vocore.csproj" />
-  </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
@@ -11,5 +7,9 @@
     <Content Include="Assets/**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Vocore\Vocore.csproj" />
+    <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
   </ItemGroup>
 </Project>
