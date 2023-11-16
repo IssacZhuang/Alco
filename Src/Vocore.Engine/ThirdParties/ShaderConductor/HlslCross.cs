@@ -17,13 +17,13 @@ namespace Vocore.ShaderCross
 
         public static VertexFragmentCompilationResult ComplieShader(string hlslCode, CrossCompileTarget target, string entryVertex = "VS", string entryFragment = "FS")
         {
-            byte[] vsBytes = ConvertHlslToSpirv(hlslCode, entryVertex, ShaderConductor.ShaderStage.VertexShader);
-            byte[] fsBytes = ConvertHlslToSpirv(hlslCode, entryFragment, ShaderConductor.ShaderStage.PixelShader);
+            byte[] vsBytes = ComplieHlsl(hlslCode, entryVertex, ShaderConductor.ShaderStage.VertexShader, ShaderConductor.ShadingLanguage.SpirV);
+            byte[] fsBytes = ComplieHlsl(hlslCode, entryFragment, ShaderConductor.ShaderStage.PixelShader, ShaderConductor.ShadingLanguage.SpirV);
             
             return SpirvCompilation.CompileVertexFragment(vsBytes, fsBytes, target, new CrossCompileOptions());
         }
 
-        public static byte[] ConvertHlslToSpirv(string hlslCode, string entryPoint, ShaderConductor.ShaderStage stage)
+        public static byte[] ComplieHlsl(string hlslCode, string entryPoint, ShaderConductor.ShaderStage stage, ShaderConductor.ShadingLanguage language)
         {
             ShaderConductor.SourceDesc sourceDesc = new ShaderConductor.SourceDesc
             {
@@ -36,7 +36,7 @@ namespace Vocore.ShaderCross
 
             ShaderConductor.TargetDesc targetDesc = new ShaderConductor.TargetDesc
             {
-                language = ShaderConductor.ShadingLanguage.SpirV,
+                language = language,
                 version = null,
             };
 

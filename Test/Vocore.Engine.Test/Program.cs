@@ -6,6 +6,7 @@ using Veldrid;
 using System.Runtime.InteropServices;
 using Vocore.ShaderCross;
 using Veldrid.SPIRV;
+using System.Text;
 
 // See https://aka.ms/new-console-template for more information
 // App app = new App(GraphicsBackend.OpenGL, "Test");
@@ -20,7 +21,7 @@ using Veldrid.SPIRV;
 
 
 string text = @"
-cbuffer Matrices
+cbuffer Matrices: register(b0)
 {
     float4x4 worldViewProj;
 };
@@ -51,7 +52,7 @@ PS_IN VS(VS_IN input)
     output.pos = mul(input.pos, worldViewProj);
     output.col = input.col;
     output.tex = input.tex;
-    output.instanceID = input.instanceID;
+    //output.instanceID = input.instanceID;
 
     return output;
 }
@@ -63,20 +64,11 @@ float4 PS(PS_IN input) : SV_Target
 ";
 
 
-VertexFragmentCompilationResult result = HlslCross.ComplieShader(text, CrossCompileTarget.MSL, "VS", "PS");
+VertexFragmentCompilationResult result = HlslCross.ComplieShader(text, CrossCompileTarget.GLSL, "VS", "PS");
 
 Log.Info(result.VertexShader);
 Log.Info(result.FragmentShader);
 
-foreach (var item in result.Reflection.VertexElements)
-{
-    Log.Info(item.Name, item.Semantic);
-}
+byte[] result2 = HlslCross.ComplieHlsl(text, "VS", ShaderConductor.ShaderStage.VertexShader, ShaderConductor.ShadingLanguage.Glsl);
 
-foreach (var item in result.Reflection.ResourceLayouts)
-{
-    foreach (var item2 in item.Elements)
-    {
-        Log.Info(item2.Name, item2.Kind);
-    }
-}
+//Log.Info(Encoding.UTF8.GetString(result2));
