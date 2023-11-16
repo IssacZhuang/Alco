@@ -9,9 +9,9 @@ namespace Vocore.Engine
     public class EngineAPI_Input
     {
         private readonly Sdl2Window? _window;
-        private EngineInputSnapshot? _snapshot;
-        private List<KeyEvent> _emptyKeyEvents;
-        private List<MouseEvent> _emptyMouseEvents;
+        private readonly EngineInputSnapshot? _snapshot;
+        private readonly List<KeyEvent> _emptyKeyEvents;
+        private readonly List<MouseEvent> _emptyMouseEvents;
         internal EngineAPI_Input(Sdl2Window? window)
         {
             _window = window;

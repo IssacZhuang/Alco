@@ -4,7 +4,7 @@ using Veldrid;
 
 namespace Vocore.ImageSharp
 {
-    public class ImageSharpTexture
+    internal class ImageSharpTexture
     {
         /// <summary>
         /// An array of images, each a single element in the mipmap chain.
