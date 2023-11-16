@@ -16,12 +16,12 @@ namespace Vocore.Engine
 
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
-        private readonly BaseVirtualDirectory _sourceLibs;
-        public ShaderComplier(GraphicsDevice device)
+        private readonly IVirtualDirectory? _sourceLibs;
+        public ShaderComplier(GraphicsDevice device, IVirtualDirectory? sourceLibs = null)
         {
             _device = device;
             _factory = device.ResourceFactory;
-            _sourceLibs = new BaseVirtualDirectory();
+            _sourceLibs = sourceLibs;
         }
 
         /// <summary>
@@ -76,16 +76,16 @@ namespace Vocore.Engine
             return new Shader(filename, pipline, reflection);
         }
 
-        public bool TryAddLib(string filename, byte[] shadeLibText)
-        {
-            return _sourceLibs.TryAddData(filename, shadeLibText);
-        }
-
         /// <summary>
         /// Preprocess the #include statement in shader text
         /// </summary>
         public string ProcessInclude(string shaderText, string filename = "Unknow")
         {
+            if (_sourceLibs == null)
+            {
+                return shaderText;
+            }
+            
             StringBuilder sb = new StringBuilder();
             string[] lines = shaderText.Split('\n');
             int lineIndex = 0;

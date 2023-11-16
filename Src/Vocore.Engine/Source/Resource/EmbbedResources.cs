@@ -14,7 +14,7 @@ namespace Vocore.Engine
             {
                 if (_assembly == null)
                 {
-                    _assembly = Assembly.GetExecutingAssembly();
+                    _assembly = typeof(EmbbedResources).Assembly;
                 }
                 return _assembly;
             }

@@ -10,7 +10,7 @@ namespace Vocore.Engine
         public void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
 
-            IEnumerable<string> shaderNames = EmbbedResources.GetAllFileNamesWithExtension("glsl");
+            IEnumerable<string> shaderNames = EmbbedResources.GetAllFileNamesWithExtension("hlsl");
             foreach (var shaderName in shaderNames)
             {
                 // \ to /
@@ -19,17 +19,7 @@ namespace Vocore.Engine
                 if (EmbbedResources.IsShaderLib(parsedShaderName, out var filename))
                 {
                     //ShaderPool.SourceLibs.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
-                    engine.Shader.AddLibShaderText(filename, EmbbedResources.GetBytes(shaderName));
-                }
-                else if (EmbbedResources.IsGraphicsShader(parsedShaderName, out filename))
-                {
-                    //ShaderPool.SourceGraphics.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
-                    engine.Shader.AddGraphicsShaderText(filename, EmbbedResources.GetBytes(shaderName));
-                }
-                else if (EmbbedResources.IsComputeShader(parsedShaderName, out filename))
-                {
-                    //ShaderPool.SourceCompute.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
-                    engine.Shader.AddComputeShaderText(filename, EmbbedResources.GetBytes(shaderName));
+                    engine.Shader.TryAddShaderInclude(filename, EmbbedResources.GetBytes(shaderName));
                 }
             }
         }

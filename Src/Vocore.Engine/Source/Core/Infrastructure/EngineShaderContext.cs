@@ -35,6 +35,7 @@ namespace Vocore.Engine
         public BaseVirtualDirectory SourceLibs { get; private set; }
         public BaseVirtualDirectory SourceGraphics { get; private set; }
         public BaseVirtualDirectory SourceCompute { get; private set; }
+        public ShaderComplier Complier { get; private set; }
 
         public EngineShaderContext(GraphicsDevice device)
         {
@@ -43,6 +44,8 @@ namespace Vocore.Engine
             SourceLibs = new BaseVirtualDirectory();
             SourceGraphics = new BaseVirtualDirectory();
             SourceCompute = new BaseVirtualDirectory();
+
+            Complier = new ShaderComplier(_device, SourceLibs);
         }
 
         public Shader? Get(string name)
@@ -73,74 +76,6 @@ namespace Vocore.Engine
                 return;
             }
             _shaders.Add(name, shader);
-        }
-
-
-        public string ProcessInclude(string filename, string shaderText)
-        {
-            //insert including content and #line in the #include position
-            StringBuilder sb = new StringBuilder();
-            string[] lines = shaderText.Split('\n');
-            int lineIndex = 0;
-            foreach (var line in lines)
-            {
-                Match match = Regex.Match(line, Regex_Includes);
-                if (match.Success)
-                {
-                    string includeFilename = match.Groups["filename"].Value;
-                    if (SourceLibs.TryGetData(includeFilename, out var includeData))
-                    {
-                        sb.AppendLine(string.Format(Format_LineInculde, 1, includeFilename));
-                        sb.AppendLine(ProcessInclude(includeFilename, Encoding.UTF8.GetString(includeData)));
-                        sb.AppendLine(string.Format(Format_LineInculde, lineIndex + 2, filename));
-                    }
-                    else
-                    {
-                        Log.Error($"Include file {includeFilename} not found");
-                    }
-                }
-                else
-                {
-                    sb.AppendLine(line);
-                }
-                lineIndex++;
-            }
-            return sb.ToString();
-        }
-
-
-        
-
-        private static CrossCompileTarget GetCompilationTarget(GraphicsBackend backend)
-        {
-            return backend switch
-            {
-                GraphicsBackend.Direct3D11 => CrossCompileTarget.HLSL,
-                GraphicsBackend.OpenGL => CrossCompileTarget.GLSL,
-                GraphicsBackend.Metal => CrossCompileTarget.MSL,
-                GraphicsBackend.OpenGLES => CrossCompileTarget.ESSL,
-                GraphicsBackend.Vulkan => CrossCompileTarget.GLSL,
-                _ => throw new SpirvCompilationException($"Invalid GraphicsBackend: {backend}"),
-            };
-        }
-
-        public static MacroDefinition GetBackendMacro(GraphicsBackend backend)
-        {
-            switch (backend)
-            {
-                case GraphicsBackend.Direct3D11:
-                    return MacroPlatformDirect3D11Def;
-                case GraphicsBackend.OpenGL:
-                    return MacroPlatformOpenGLDef;
-                case GraphicsBackend.Metal:
-                    return MacroPlatformMetalDef;
-                case GraphicsBackend.OpenGLES:
-                    return MacroPlatformOpenGLESDef;
-                case GraphicsBackend.Vulkan:
-                    return MacroPlatformVulkanDef;
-                default:
-                    throw new SpirvCompilationException($"Invalid GraphicsBackend: {backend}");
-            }
         }
     }
 }

@@ -11,5 +11,8 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
+  </ItemGroup>
 
 </Project>

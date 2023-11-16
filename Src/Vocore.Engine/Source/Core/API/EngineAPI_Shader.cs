@@ -12,47 +12,14 @@ namespace Vocore.Engine
             _context = context;
         }
 
-        public void AddLibShaderText(string name, byte[] text)
+        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "FS")
         {
-            if (_context.SourceLibs.TryAddData(name, text))
-            {
-                Log.Info($"Shader lib {name} added");
-            }
-            else
-            {
-                Log.Error($"Shader lib {name} already added");
-            }
+            return _context.Complier.Complie(shaderText, filename, vertexEntry, fragmentEntry);
         }
 
-        public void AddGraphicsShaderText(string name, byte[] text)
+        public bool TryAddShaderInclude(string filename, byte[] shaderContent)
         {
-            if (_context.SourceGraphics.TryAddData(name, text))
-            {
-                Log.Info($"Shader graphics {name} added");
-            }
-            else
-            {
-                Log.Error($"Shader graphics {name} already added");
-            }
-        }
-
-        public void AddComputeShaderText(string name, byte[] text)
-        {
-            if (_context.SourceCompute.TryAddData(name, text))
-            {
-                Log.Info($"Shader compute {name} added");
-            }
-            else
-            {
-                Log.Error($"Shader compute {name} already added");
-            }
-        }
-
-
-
-        public string ProcessInclude(string filename, string shaderText)
-        {
-            return _context.ProcessInclude(filename, shaderText);
+            return _context.SourceLibs.TryAddData(filename, shaderContent);
         }
     }
 }
