@@ -25,7 +25,24 @@ namespace Vocore.ShaderCross
             this.fragment = fragment;
             this.reflection = reflection;
         }
+    }
 
-
+    public enum ShaderFormat
+    {
+        Spirv,
+        Dxil,
+        Hlsl,
+        /// <summary>
+        /// Glsl vulkan
+        /// </summary>
+        Glsl_450,
+        /// <summary>
+        /// Glsl opengl
+        /// </summary>
+        Glsl_330,
+        /// <summary>
+        /// Glsl opengles
+        /// </summary>
+        Glsl_300,
     }
 }

@@ -21,64 +21,14 @@ namespace Vocore.Engine
         public const string PragmaKey_ScissorTest = "scissor_test";
         public const string GLSL_True = "true";
         public const string GLSL_False = "false";
-        //example: #pragma blend_state override_blend
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
-        //exmaple: layout(location = 0) in vec3 position,
-        public const string RegexVertexLayout = @"layout\s*\(\s*location\s*=\s*(\d+)\s*\)\s*in\s*(\w+)\s*(\w+)";
-        public const string RegexPragmaInstructionInstanceBufferStart = "#pragma instance_start";
-        public const string RegexPragmaInstructionInstanceBufferEnd = "#pragma instance_end";
         public Dictionary<string, string> pragmaKeyValue;
-        public int instanceBufferStartIndex;
-        public int instanceBufferEndIndex;
-        public bool HasInstanceBuffer => instanceBufferStartIndex <= instanceBufferEndIndex;
-        public int IntancedElementCount => instanceBufferEndIndex - instanceBufferStartIndex + 1;
 
         public ShaderAnalyseResult(string shaderText)
         {
             pragmaKeyValue = new Dictionary<string, string>();
-            instanceBufferStartIndex = int.MaxValue;
-            instanceBufferEndIndex = -1;
             AnalyseShaderText(shaderText);
         }
-
-        private static readonly Dictionary<string, ShaderDataType> DataTypeCast = new Dictionary<string, ShaderDataType>{
-            {"float", ShaderDataType.Float},
-            {"vec2", ShaderDataType.Float2},
-            {"vec3", ShaderDataType.Float3},
-            {"vec4", ShaderDataType.Float4},
-            {"double", ShaderDataType.Double},
-            {"dvec2", ShaderDataType.Double2},
-            {"dvec3", ShaderDataType.Double3},
-            {"dvec4", ShaderDataType.Double4},
-            {"int", ShaderDataType.Int},
-            {"ivec2", ShaderDataType.Int2},
-            {"ivec3", ShaderDataType.Int3},
-            {"ivec4", ShaderDataType.Int4},
-            {"bool", ShaderDataType.Bool},
-            {"bvec2", ShaderDataType.Bool2},
-            {"bvec3", ShaderDataType.Bool3},
-            {"bvec4", ShaderDataType.Bool4},
-            {"mat2", ShaderDataType.Matrix2x2},
-            {"mat3", ShaderDataType.Matrix3x3},
-            {"mat4", ShaderDataType.Matrix4x4},
-            {"sampler1D", ShaderDataType.Texture1D},
-            {"sampler2D", ShaderDataType.Texture2D},
-            {"sampler3D", ShaderDataType.Texture3D},
-            {"samplerCube", ShaderDataType.TextureCube},
-        };
-
-        private static readonly Dictionary<ShaderDataType, VertexElementFormat> DataTypeVertexElementCast = new Dictionary<ShaderDataType, VertexElementFormat>{
-            {ShaderDataType.Float, VertexElementFormat.Float1},
-            {ShaderDataType.Float2, VertexElementFormat.Float2},
-            {ShaderDataType.Float3, VertexElementFormat.Float3},
-            {ShaderDataType.Float4, VertexElementFormat.Float4},
-            {ShaderDataType.Int, VertexElementFormat.Int1},
-            {ShaderDataType.Int2, VertexElementFormat.Int2},
-            {ShaderDataType.Int3, VertexElementFormat.Int3},
-            {ShaderDataType.Int4, VertexElementFormat.Int4},
-            {ShaderDataType.Bool2, VertexElementFormat.Byte2},
-            {ShaderDataType.Bool4, VertexElementFormat.Byte4},
-        };
 
         private static readonly Dictionary<string, BlendStateDescription> BlendStateCast = new Dictionary<string, BlendStateDescription>{
             {"override_blend", BlendStateDescription.SingleOverrideBlend},
@@ -200,52 +150,19 @@ namespace Vocore.Engine
         }
 
 
-
-        public static ShaderDataType GetShaderDataType(string type)
-        {
-            if (DataTypeCast.TryGetValue(type, out ShaderDataType result))
-            {
-                return result;
-            }
-            return ShaderDataType.None;
-        }
-
         private void AnalyseShaderText(string shader)
         {
             Dictionary<string, string> pragma = pragmaKeyValue;
             string[] lines = shader.Split('\n');
-            bool isInstanceBuffer = false;
             foreach (string line in lines)
             {
-                Match match = Regex.Match(line, RegexPragmaInstructionInstanceBufferStart);
-                if (match.Success)
-                {
+                Match match = Regex.Match(line, RegexPragmaKeyValuePair);
 
-                    isInstanceBuffer = true;
-                    continue;
-                }
-
-                match = Regex.Match(line, RegexPragmaInstructionInstanceBufferEnd);
-                if (match.Success)
-                {
-                    isInstanceBuffer = false;
-                    continue;
-                }
-
-                match = Regex.Match(line, RegexPragmaKeyValuePair);
                 if (match.Success)
                 {
                     string key = match.Groups[1].Value;
                     string value = match.Groups[2].Value;
                     pragma.Add(key, value);
-                }
-
-                if (isInstanceBuffer)
-                {
-                    match = Regex.Match(line, RegexVertexLayout);
-                    int location = int.Parse(match.Groups[1].Value);
-                    instanceBufferStartIndex = Math.Min(instanceBufferStartIndex, location);
-                    instanceBufferEndIndex = Math.Max(instanceBufferEndIndex, location);
                 }
             }
         }

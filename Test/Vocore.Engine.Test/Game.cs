@@ -23,9 +23,9 @@ public class Game : GameEngine
         _cameraP.tranform.position = new Vector3(0, 0, -5);
         Camera = _cameraP;
 
+        ShaderComplier complier = new ShaderComplier(GraphicsDevice);
         var shaderBasic = File.ReadAllText(Path.Combine(WorkingDirectory, "Assets/Basic.glsl"));
-        shaderBasic = Shader.ProcessInclude("Basic.glsl", shaderBasic);
-        _shaderBasic = new Shader(GraphicsDevice, shaderBasic, "Basic");
+        _shaderBasic = complier.Complie(shaderBasic, "Basic");
 
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;

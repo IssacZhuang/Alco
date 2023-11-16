@@ -32,7 +32,7 @@ namespace Vocore
         }
 
         //add or update
-        public bool TrySetSetData(string path, byte[] data)
+        public bool TrySetData(string path, byte[] data)
         {
             if (data == null)
             {

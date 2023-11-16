@@ -66,7 +66,7 @@ namespace Vocore.Engine
         {
             get
             {
-                ICamera? currentCamera = Current.Camera;
+                ICamera? currentCamera = GameEngine.Instance.Camera;
                 if (currentCamera == null)
                 {
                     return Matrix4x4.Identity;

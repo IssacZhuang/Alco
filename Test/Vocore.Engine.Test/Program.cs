@@ -64,11 +64,5 @@ float4 PS(PS_IN input) : SV_Target
 ";
 
 
-VertexFragmentCompilationResult result = HlslCross.ComplieShader(text, CrossCompileTarget.GLSL, "VS", "PS");
-
-Log.Info(result.VertexShader);
-Log.Info(result.FragmentShader);
-
-byte[] result2 = HlslCross.ComplieHlsl(text, "VS", ShaderConductor.ShaderStage.VertexShader, ShaderConductor.ShadingLanguage.Glsl);
 
 //Log.Info(Encoding.UTF8.GetString(result2));

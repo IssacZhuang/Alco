@@ -109,33 +109,7 @@ namespace Vocore.Engine
         }
 
 
-        public VertexFragmentCompilationResult CrossPreComplie(string filename, string shaderText)
-        {
-            ShaderByteCode vertexByteCode = ComplieVertexShaderToSpirv(shaderText, filename, _device.BackendType);
-            ShaderByteCode fragmentByteCode = ComplieFragmentShaderToSpirv(shaderText, filename, _device.BackendType);
-            VertexFragmentCompilationResult vertexFragmentCompilationResult = SpirvCompilation.CompileVertexFragment(vertexByteCode.Bytes, fragmentByteCode.Bytes, GetCompilationTarget(_device.BackendType), new CrossCompileOptions
-            {
-                NormalizeResourceNames = false,
-            });
-            return vertexFragmentCompilationResult;
-        }
-
-        private static ShaderByteCode ComplieVertexShaderToSpirv(string shaderText, string filename, GraphicsBackend backend)
-        {
-            GlslCompileOptions option = new GlslCompileOptions(true, MacroVertex, GetBackendMacro(backend));
-            return ComplieGlslToSpirv(shaderText, filename, ShaderStages.Vertex, option);
-        }
-
-        private static ShaderByteCode ComplieFragmentShaderToSpirv(string shaderText, string filename, GraphicsBackend backend)
-        {
-            GlslCompileOptions option = new GlslCompileOptions(true, MacroFragment, GetBackendMacro(backend));
-            return ComplieGlslToSpirv(shaderText, filename, ShaderStages.Fragment, option);
-        }
-        private static ShaderByteCode ComplieGlslToSpirv(string shaderText, string filename, ShaderStages stage, GlslCompileOptions option)
-        {
-            SpirvCompilationResult result = SpirvCompilation.CompileGlslToSpirv(shaderText, filename, stage, option);
-            return new ShaderByteCode(result, filename);
-        }
+        
 
         private static CrossCompileTarget GetCompilationTarget(GraphicsBackend backend)
         {
