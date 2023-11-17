@@ -75,7 +75,7 @@ namespace Vocore.ShaderCross
                 VertexFragmentCompilationResult spirvToShaderResult = SpirvCompilation.CompileVertexFragment(vertexSpirv, fragmentSpirv, CrossCompileTarget.GLSL);
                 reflection = spirvToShaderResult.Reflection;
 
-                result = new CrossComplieResult(vertexSpirv, CompliedEntry, fragmentSpirv, CompliedEntry, FixReflection(reflection));
+                result = new CrossComplieResult(vertexSpirv, entryVertex, fragmentSpirv, entryFragment, FixReflection(reflection));
             }
             else
             {
