@@ -14,6 +14,7 @@ namespace Vocore.Engine
         public const string Regex_Includes = @"#include\s+""(?<filename>[^""]+)""";
         public const string Format_LineInculde = "#line {0} \"{1}\"";
 
+
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
         private readonly IVirtualDirectory? _sourceLibs;
@@ -27,7 +28,7 @@ namespace Vocore.Engine
         /// <summary>
         /// Complie a HLSL shader to specified graphics backend
         /// </summary>
-        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "FS")
+        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS")
         {
             string shaderCode = ProcessInclude(shaderText, filename);
             CrossComplieResult result = HlslCrossComplier.ComplieGraphicsShader(shaderCode, _device.BackendType, vertexEntry, fragmentEntry);
@@ -41,8 +42,9 @@ namespace Vocore.Engine
 
             VertexLayoutDescription[] _vertexLayouts = new VertexLayoutDescription[] { new VertexLayoutDescription(reflection.VertexElements) };
 
-
-            Veldrid.Shader[] shaders = _factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
+            Veldrid.Shader[] shaders = new Veldrid.Shader[2];
+            shaders[0] = _factory.CreateShader(vertexShaderDescription);
+            shaders[1] = _factory.CreateShader(fragmentShaderDescription);
 
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = analyseResult.GetBlendState();
@@ -98,7 +100,7 @@ namespace Vocore.Engine
                     if (_sourceLibs.TryGetData(includeFilename, out var includeData))
                     {
                         sb.AppendLine(string.Format(Format_LineInculde, 1, includeFilename));
-                        sb.AppendLine(ProcessInclude(includeFilename, Encoding.UTF8.GetString(includeData)));
+                        sb.AppendLine(ProcessInclude(Encoding.UTF8.GetString(includeData), includeFilename));
                         sb.AppendLine(string.Format(Format_LineInculde, lineIndex + 2, filename));
                     }
                     else

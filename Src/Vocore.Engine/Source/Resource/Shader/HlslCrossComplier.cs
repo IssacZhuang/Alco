@@ -56,10 +56,12 @@ namespace Vocore.ShaderCross
             version = "",
         };
 
+        public const string CompliedEntry = "main";
+
 
         public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
 
-        public static CrossComplieResult ComplieGraphicsShader(string hlslCode, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "FS")
+        public static CrossComplieResult ComplieGraphicsShader(string hlslCode, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "PS")
         {
             byte[] vertexSpirv = ConvertHlsl(hlslCode, entryVertex, ShaderConductor.ShaderStage.VertexShader, TargetSpirv);
             byte[] fragmentSpirv = ConvertHlsl(hlslCode, entryFragment, ShaderConductor.ShaderStage.PixelShader, TargetSpirv);
@@ -72,7 +74,7 @@ namespace Vocore.ShaderCross
                 //the spirv-cross only get reflection for vulkan
                 VertexFragmentCompilationResult spirvToShaderResult = SpirvCompilation.CompileVertexFragment(vertexSpirv, fragmentSpirv, CrossCompileTarget.GLSL);
                 reflection = spirvToShaderResult.Reflection;
-                result = new CrossComplieResult(vertexSpirv, entryVertex, fragmentSpirv, entryFragment, reflection);
+                result = new CrossComplieResult(vertexSpirv, CompliedEntry, fragmentSpirv, CompliedEntry, reflection);
             }
             else
             {
@@ -81,9 +83,9 @@ namespace Vocore.ShaderCross
                 reflection = spirvToShaderResult.Reflection;
                 result = new CrossComplieResult(
                     Encoding.UTF8.GetBytes(spirvToShaderResult.VertexShader),
-                    entryVertex,
+                    CompliedEntry,
                     Encoding.UTF8.GetBytes(spirvToShaderResult.FragmentShader),
-                    entryFragment,
+                    CompliedEntry,
                     reflection
                     );
             }

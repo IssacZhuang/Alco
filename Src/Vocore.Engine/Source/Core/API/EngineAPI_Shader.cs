@@ -12,7 +12,7 @@ namespace Vocore.Engine
             _context = context;
         }
 
-        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "FS")
+        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS")
         {
             return _context.Complier.Complie(shaderText, filename, vertexEntry, fragmentEntry);
         }

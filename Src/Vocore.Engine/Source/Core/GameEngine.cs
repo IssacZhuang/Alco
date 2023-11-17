@@ -143,9 +143,9 @@ namespace Vocore.Engine
 
                 _window.Resized += () =>
                 {
-                    
+
                     _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
-                    
+
                     Log.Info($"Window Resized {_window.Width}x{_window.Height}");
                     _setting.width = _window.Width;
                     _setting.height = _window.Height;
@@ -200,24 +200,9 @@ namespace Vocore.Engine
                 _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
                 if (canInvokePhysicsTick)
                 {
-                    try
-                    {
-                        InternalTick(physicsDeltaTime);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("[Tick Error]", e);
-                    }
-
+                    InternalTick(physicsDeltaTime);
                 }
-                try
-                {
-                    InternalUpdate(updateDeltaTime);
-                }
-                catch (Exception e)
-                {
-                    Log.Error("[Update Error]", e);
-                }
+                InternalUpdate(updateDeltaTime);
 
                 //InternalDraw(updateDeltaTime);
             }
@@ -235,31 +220,13 @@ namespace Vocore.Engine
                 _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
                 if (canInvokePhysicsTick)
                 {
-                    try
-                    {
-                        InternalTick(physicsDeltaTime);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("[Tick Error]", e);
-                    }
+
+                    InternalTick(physicsDeltaTime);
                 }
-                try
-                {
-                    InternalUpdate(updateDeltaTime);
-                }
-                catch (Exception e)
-                {
-                    Log.Error("[Update Error]", e);
-                }
-                try
-                {
-                    InternalDraw(updateDeltaTime);
-                }
-                catch (Exception e)
-                {
-                    Log.Error("[Draw Error]", e);
-                }
+
+                InternalUpdate(updateDeltaTime);
+                InternalDraw(updateDeltaTime);
+
             }
         }
 
@@ -300,28 +267,57 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalTick(float delta)
         {
-            OnTick(delta);
+            try
+            {
+                OnTick(delta);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Tick Error]", e);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalUpdate(float delta)
         {
-            _window.PumpEvents();
-            OnUpdate(delta);
+            try
+            {
+                _window.PumpEvents();
+                OnUpdate(delta);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Update Error]", e);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalDraw(float delta)
         {
-            _frame.BeginFrameUpdate(delta);
-            OnDraw(delta);
-            _frame.EndFrame();
+            try
+            {
+                _frame.BeginFrameUpdate(delta);
+                OnDraw(delta);
+                _frame.EndFrame();
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Draw Error]", e);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalStart()
         {
-            OnStart();
+            try
+            {
+                OnStart();
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Start Error]", e);
+                Stop();
+            }
         }
 
         public void Dispose()
@@ -400,6 +396,11 @@ namespace Vocore.Engine
                 Log.Error($"Error when register plugin {plugin.GetType().Name}: ");
                 Log.Error(e);
             }
+        }
+
+        public void Stop()
+        {
+            _isRunning = false;
         }
 
         #endregion

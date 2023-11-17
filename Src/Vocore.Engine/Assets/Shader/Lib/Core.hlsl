@@ -28,7 +28,7 @@ float4 MakeClipSpaceConsistent(float4 vertex) {
   return vertex;
 }
 
-float4 MakeUVCosistent(float4 uv) {
+float2 MakeUVCosistent(float2 uv) {
 #ifdef BACKEND_OPENGL
   uv.y = 1.0 - uv.y;
 #endif
