@@ -12,6 +12,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Src\Vocore\Vocore.csproj" />
     <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
   </ItemGroup>
 

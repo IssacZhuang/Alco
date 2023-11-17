@@ -274,6 +274,7 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Tick Error]", e);
+                Stop();
             }
         }
 
@@ -288,6 +289,7 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Update Error]", e);
+                Stop();
             }
         }
 
@@ -303,6 +305,7 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Draw Error]", e);
+                Stop();
             }
         }
 

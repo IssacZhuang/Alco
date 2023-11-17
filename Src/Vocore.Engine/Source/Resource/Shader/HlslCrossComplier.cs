@@ -35,7 +35,7 @@ namespace Vocore.ShaderCross
         public static readonly ShaderConductor.TargetDesc TargetSpirv = new ShaderConductor.TargetDesc
         {
             language = ShaderConductor.ShadingLanguage.SpirV,
-            version = null,
+            version = "1.3",
         };
 
         public static readonly ShaderConductor.TargetDesc TargetOpenGL = new ShaderConductor.TargetDesc
@@ -74,7 +74,8 @@ namespace Vocore.ShaderCross
                 //the spirv-cross only get reflection for vulkan
                 VertexFragmentCompilationResult spirvToShaderResult = SpirvCompilation.CompileVertexFragment(vertexSpirv, fragmentSpirv, CrossCompileTarget.GLSL);
                 reflection = spirvToShaderResult.Reflection;
-                result = new CrossComplieResult(vertexSpirv, CompliedEntry, fragmentSpirv, CompliedEntry, reflection);
+
+                result = new CrossComplieResult(vertexSpirv, CompliedEntry, fragmentSpirv, CompliedEntry, FixReflection(reflection));
             }
             else
             {
@@ -86,7 +87,7 @@ namespace Vocore.ShaderCross
                     CompliedEntry,
                     Encoding.UTF8.GetBytes(spirvToShaderResult.FragmentShader),
                     CompliedEntry,
-                    reflection
+                    FixReflection(reflection)
                     );
             }
 
@@ -113,6 +114,24 @@ namespace Vocore.ShaderCross
             byte[] spirvBytes = ShaderBlobToBytes(resultDesc.target);
             ShaderConductor.DestroyShaderConductorBlob(resultDesc.target);
             return spirvBytes;
+        }
+
+        //fix glsl reflection to hls reflection
+        private static SpirvReflection FixReflection(SpirvReflection reflection)
+        {
+            ResourceLayoutDescription realLayout = reflection.ResourceLayouts[0];
+            ResourceLayoutElementDescription[] elements = realLayout.Elements;
+            ResourceLayoutDescription[] layouts = new ResourceLayoutDescription[elements.Length];
+            for (int i = 0; i < elements.Length; i++)
+            {
+                layouts[i] = CreateLayoutByElement(elements[i]);
+            }
+            return new SpirvReflection(reflection.VertexElements, layouts);
+        }
+
+        private static ResourceLayoutDescription CreateLayoutByElement(ResourceLayoutElementDescription element)
+        {
+            return new ResourceLayoutDescription(new ResourceLayoutElementDescription[] { element });
         }
 
         private static CrossCompileTarget GetCompileTarget(GraphicsBackend backend)

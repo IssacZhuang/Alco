@@ -18,6 +18,7 @@ namespace Vocore.Engine{
             Log.Info("OpenGL ES Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.OpenGLES));
             Log.Info("\n--- Device Info ---");
             Log.Info("Graphics Backend: \t" + device.BackendType);
+            Log.Info("Graphics Version: \t\t" + device.ApiVersion);
             Log.Info("IsDepthRangeZeroToOne: \t" + device.IsDepthRangeZeroToOne);
             Log.Info("IsClipSpaceYInverted: \t" + device.IsClipSpaceYInverted);
             Log.Info("IsUvOriginTopLeft: \t" + device.IsUvOriginTopLeft);

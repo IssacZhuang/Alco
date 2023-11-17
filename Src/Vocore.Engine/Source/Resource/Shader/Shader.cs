@@ -36,7 +36,7 @@ namespace Vocore.Engine
             for (int i = 0; i < _reflection.VertexElements.Length; i++)
             {
                 var element = _reflection.VertexElements[i];
-                result += $"[{i}] {element.Format} {element.Name}\n";
+                result += $"[{i}] {element.Format} {element.Name} {element.Semantic}\n";
             }
             result += "Resource Layouts:\n";
             for (int i = 0; i < _reflection.ResourceLayouts.Length; i++)

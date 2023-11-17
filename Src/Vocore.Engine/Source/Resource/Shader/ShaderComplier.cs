@@ -43,8 +43,18 @@ namespace Vocore.Engine
             VertexLayoutDescription[] _vertexLayouts = new VertexLayoutDescription[] { new VertexLayoutDescription(reflection.VertexElements) };
 
             Veldrid.Shader[] shaders = new Veldrid.Shader[2];
-            shaders[0] = _factory.CreateShader(vertexShaderDescription);
-            shaders[1] = _factory.CreateShader(fragmentShaderDescription);
+
+            if (_device.BackendType == GraphicsBackend.Vulkan)
+            {
+                shaders = _factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
+            }
+            else
+            {
+                shaders[0] = _factory.CreateShader(vertexShaderDescription);
+                shaders[1] = _factory.CreateShader(fragmentShaderDescription);
+            }
+
+            
 
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = analyseResult.GetBlendState();

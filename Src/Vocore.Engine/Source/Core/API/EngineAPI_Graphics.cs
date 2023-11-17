@@ -60,7 +60,7 @@ namespace Vocore.Engine
             DrawMesh(mesh, shader.Pipeline, transform);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Transform transform)
         {
             DrawMesh(mesh, shaderPipeline, transform.Matrix);
