@@ -1,4 +1,5 @@
 using System;
+
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -14,6 +15,12 @@ namespace Vocore.Engine
         public const string Regex_Includes = @"#include\s+""(?<filename>[^""]+)""";
         public const string Format_LineInculde = "#line {0} \"{1}\"";
 
+        public static readonly ShaderMacroDefine MacroD3D11 = new ShaderMacroDefine("BACKEND_D3D11", "TRUE");
+        public static readonly ShaderMacroDefine MacroD3D12 = new ShaderMacroDefine("BACKEND_D3D12", "TRUE");
+        public static readonly ShaderMacroDefine MacroOpenGL = new ShaderMacroDefine("BACKEND_OPENGL", "TRUE");
+        public static readonly ShaderMacroDefine MacroOpenGLES = new ShaderMacroDefine("BACKEND_OPENGLES", "TRUE");
+        public static readonly ShaderMacroDefine MacroVulkan = new ShaderMacroDefine("BACKEND_VULKAN", "TRUE");
+        public static readonly ShaderMacroDefine MacroMetal = new ShaderMacroDefine("BACKEND_METAL", "TRUE");
 
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
@@ -28,9 +35,17 @@ namespace Vocore.Engine
         /// <summary>
         /// Complie a HLSL shader to specified graphics backend
         /// </summary>
-        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS")
+        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS", ShaderMacroDefine[]? macros = null)
         {
-            string shaderCode = ProcessInclude(shaderText, filename);
+            List<ShaderMacroDefine> macroList = new List<ShaderMacroDefine>(){
+                GetBackendMacro(_device.BackendType)
+            };
+            if (macros != null)
+            {
+                macroList.AddRange(macros);
+            }
+            string shaderCode = ProcessMacro(shaderText, macroList);
+            shaderCode = ProcessInclude(shaderCode, filename);
             CrossComplieResult result = HlslCrossComplier.ComplieGraphicsShader(shaderCode, _device.BackendType, vertexEntry, fragmentEntry);
 
             ShaderDescription vertexShaderDescription = result.vertex;
@@ -88,6 +103,16 @@ namespace Vocore.Engine
             return new Shader(filename, pipline, reflection);
         }
 
+        public string ProcessMacro(string shaderText, ShaderMacroDefine[] macros)
+        {
+            return ShaderMacroDefine.BuildMacroString(macros) + shaderText;
+        }
+
+        public string ProcessMacro(string shaderText, IList<ShaderMacroDefine> macros)
+        {
+            return ShaderMacroDefine.BuildMacroString(macros) + shaderText;
+        }
+
         /// <summary>
         /// Preprocess the #include statement in shader text
         /// </summary>
@@ -125,6 +150,28 @@ namespace Vocore.Engine
                 lineIndex++;
             }
             return sb.ToString();
+        }
+
+        private ShaderMacroDefine GetBackendMacro(GraphicsBackend backend)
+        {
+            switch (backend)
+            {
+                case GraphicsBackend.Direct3D11:
+                    return MacroD3D11;
+                // currently not supported dx12
+                // case GraphicsBackend.Direct3D12:
+                //     return MacroD3D12;
+                case GraphicsBackend.OpenGL:
+                    return MacroOpenGL;
+                case GraphicsBackend.OpenGLES:
+                    return MacroOpenGLES;
+                case GraphicsBackend.Vulkan:
+                    return MacroVulkan;
+                case GraphicsBackend.Metal:
+                    return MacroMetal;
+                default:
+                    throw new NotSupportedException($"Backend {backend} not supported");
+            }
         }
 
 

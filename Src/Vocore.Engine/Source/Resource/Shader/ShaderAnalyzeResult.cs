@@ -19,8 +19,8 @@ namespace Vocore.Engine
         public const string PragmaKey_TopologyPrimitive = "topology_primitive";
         public const string PragmaKey_DepthClip = "depth_clip";
         public const string PragmaKey_ScissorTest = "scissor_test";
-        public const string GLSL_True = "true";
-        public const string GLSL_False = "false";
+        public const string Shader_True = "true";
+        public const string Shader_False = "false";
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
         public Dictionary<string, string> pragmaKeyValue;
 
@@ -74,7 +74,7 @@ namespace Vocore.Engine
         {
             if (pragmaKeyValue.TryGetValue(PragmaKey_DepthTest, out string? value))
             {
-                return value == GLSL_True;
+                return value == Shader_True;
             }
             //default value
             return true;
@@ -84,7 +84,7 @@ namespace Vocore.Engine
         {
             if (pragmaKeyValue.TryGetValue(PragmaKey_DepthWrite, out string? value))
             {
-                return value == GLSL_True;
+                return value == Shader_True;
             }
             //default value
             return true;
@@ -94,7 +94,7 @@ namespace Vocore.Engine
         {
             if (pragmaKeyValue.TryGetValue(PragmaKey_DepthClip, out string? value))
             {
-                return value == GLSL_True;
+                return value == Shader_True;
             }
             //default value
             return true;
@@ -104,7 +104,7 @@ namespace Vocore.Engine
         {
             if (pragmaKeyValue.TryGetValue(PragmaKey_ScissorTest, out string? value))
             {
-                return value == GLSL_True;
+                return value == Shader_True;
             }
             //default value
             return false;
