@@ -16,6 +16,7 @@ namespace Vocore.Engine
     // };
     public struct GlobalShaderData
     {
+        public static readonly uint SizeInBytes = DeviceBufferHelper.GetUniformBufferSize<GlobalShaderData>();
         public Matrix4x4 viewProjMatrix;
         public Vector2 screenSize;
         public float time;
@@ -27,16 +28,6 @@ namespace Vocore.Engine
         public static readonly ResourceLayoutDescription Layout = new ResourceLayoutDescription(
             new ResourceLayoutElementDescription("GlobalBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex | ShaderStages.Fragment)
         );
-        public static readonly uint SizeInBytes = GetSizeInBytes();
-        
-        public static uint GetSizeInBytes()
-        {
-            uint size = (uint)UtilsMemory.SizeOf<GlobalShaderData>();
-            uint remainder = size % 16;
-            //Uniform buffer size must be a multiple of 16 bytes.
-            size += remainder == 0 ? 0 : 16 - remainder;
-            return size;
-        }
     }
 
     

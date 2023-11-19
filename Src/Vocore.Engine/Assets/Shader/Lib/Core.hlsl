@@ -40,12 +40,12 @@ float2 MakeUVCosistent(float2 uv) {
 }
 
 float4 VertexToClipSpace(float4 vertex) {
-  float4 pos = mul(_TransformMatrix, MakeClipSpaceConsistent(vertex));
+  float4 pos = MakeClipSpaceConsistent(mul(_TransformMatrix, vertex));
   return mul(_ViewProjMatrix, pos);
 }
 
 float4 VertexToClipSpace(float3 vertex) {
-  float4 pos = mul(_TransformMatrix, MakeClipSpaceConsistent(float4(vertex, 1.0)));
+  float4 pos = MakeClipSpaceConsistent(mul(_TransformMatrix, float4(vertex, 1.0)));
   return mul(_ViewProjMatrix, pos);
 }
 

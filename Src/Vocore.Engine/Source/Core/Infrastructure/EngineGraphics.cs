@@ -14,9 +14,9 @@ namespace Vocore.Engine
         private static readonly float TimeLimit = math.pow(2, 24);
         public ICamera? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
-        private CommandList _commandList;
-        private GraphicsDevice _device;
-        private GraphicsBuffer<GlobalShaderData> _globalShaderData;
+        private readonly CommandList _commandList;
+        private readonly GraphicsDevice _device;
+        private readonly GraphicsBuffer<GlobalShaderData> _globalShaderData;
         private float _shaderTimer;
 
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
