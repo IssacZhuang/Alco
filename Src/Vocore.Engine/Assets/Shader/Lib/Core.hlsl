@@ -40,13 +40,12 @@ float2 MakeUVCosistent(float2 uv) {
 }
 
 float4 VertexToClipSpace(float4 vertex) {
-  float4 pos = MakeClipSpaceConsistent(mul(_TransformMatrix, vertex));
-  return mul(_ViewProjMatrix, pos);
+  float4 pos = mul(_TransformMatrix, vertex);
+  return MakeClipSpaceConsistent(mul(_ViewProjMatrix, pos));
 }
 
 float4 VertexToClipSpace(float3 vertex) {
-  float4 pos = MakeClipSpaceConsistent(mul(_TransformMatrix, float4(vertex, 1.0)));
-  return mul(_ViewProjMatrix, pos);
+  return VertexToClipSpace(float4(vertex, 1.0));
 }
 
 float4 SampleTex2D(Texture2D tex, SamplerState texSampler, float2 uv) {

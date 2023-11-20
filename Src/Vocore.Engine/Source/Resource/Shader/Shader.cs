@@ -11,6 +11,12 @@ namespace Vocore.Engine
         private readonly SpirvReflection _reflection;
         private readonly string _name;
 
+        public SpirvReflection Reflection
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _reflection;
+        }
+
         public Pipeline Pipeline
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
