@@ -4,7 +4,7 @@ using Veldrid;
 
 GameEngineSetting setting = GameEngineSetting.Default;
 setting.windowName = "BasicSDL";
-setting.backend = GraphicsBackend.Direct3D11;
+setting.backend = GraphicsBackend.Vulkan;
 
 using (Game game = new Game(setting))
 {

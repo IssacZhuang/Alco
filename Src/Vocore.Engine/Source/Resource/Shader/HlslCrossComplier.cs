@@ -41,7 +41,7 @@ namespace Vocore.ShaderCross
         public static readonly ShaderConductor.TargetDesc TargetOpenGL = new ShaderConductor.TargetDesc
         {
             language = ShaderConductor.ShadingLanguage.Glsl,
-            version = "330",
+            version = null,
         };
 
         public static readonly ShaderConductor.TargetDesc TargetOpenGLES = new ShaderConductor.TargetDesc
@@ -75,7 +75,7 @@ namespace Vocore.ShaderCross
                 VertexFragmentCompilationResult spirvToShaderResult = SpirvCompilation.CompileVertexFragment(vertexSpirv, fragmentSpirv, CrossCompileTarget.GLSL);
                 reflection = spirvToShaderResult.Reflection;
 
-                result = new CrossComplieResult(vertexSpirv, entryVertex, fragmentSpirv, entryFragment, FixReflection(reflection));
+                result = new CrossComplieResult(vertexSpirv, entryVertex, fragmentSpirv, entryFragment, reflection);
             }
             else
             {
@@ -87,7 +87,7 @@ namespace Vocore.ShaderCross
                     CompliedEntry,
                     Encoding.UTF8.GetBytes(spirvToShaderResult.FragmentShader),
                     CompliedEntry,
-                    FixReflection(reflection)
+                    reflection
                     );
             }
 
