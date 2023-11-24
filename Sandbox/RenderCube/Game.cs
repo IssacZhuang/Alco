@@ -58,8 +58,8 @@ public class Game : GameEngine
 
     protected override void OnDraw(float delta)
     {
-        Graphics.DrawMesh(MeshPool.Cube, _shaderBasic, _cubeTranform1);
-        Graphics.DrawMesh(MeshPool.TestCube, _shaderBasic, _cubeTranform2);
+        Graphics.DrawMesh(BuiltInMeshs.Cube, _shaderBasic, _cubeTranform1);
+        Graphics.DrawMesh(BuiltInMeshs.TestCube, _shaderBasic, _cubeTranform2);
     }
 
     public static string LoadAsset(string path)

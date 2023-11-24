@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace Vocore.Engine
 {
-    public static class MeshPool
+    public static class BuiltInMeshs
     {
         public static Vertex[] TestVertices = new Vertex[]
         {

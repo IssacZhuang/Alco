@@ -9,27 +9,6 @@ namespace Vocore.Engine
 {
     internal class EngineShaderContext
     {
-        public const string MacroStageVertex = "VERTEX_SHADER";
-        public const string MacroStageFragment = "FRAGMENT_SHADER";
-        public const string MacroPlatformVulkan = "BACKEND_VULKAN";
-        public const string MacroPlatformMetal = "BACKEND_METAL";
-        public const string MacroPlatformDirect3D11 = "BACKEND_DIRECT3D11";
-        public const string MacroPlatformOpenGL = "BACKEND_OPENGL";
-        public const string MacroPlatformOpenGLES = "BACKEND_OPENGLES";
-        public const string GLSL_True = "true";
-        public const string GLSL_False = "false";
-        public const string DefaultEntryPoint = "main";
-        public const string Regex_Includes = @"#include\s+""(?<filename>[^""]+)""";
-        public const string Format_LineInculde = "#line {0} \"{1}\"";
-
-        public static readonly MacroDefinition MacroVertex = new MacroDefinition(MacroStageVertex, GLSL_True);
-        public static readonly MacroDefinition MacroFragment = new MacroDefinition(MacroStageFragment, GLSL_True);
-        public static readonly MacroDefinition MacroPlatformVulkanDef = new MacroDefinition(MacroPlatformVulkan, GLSL_True);
-        public static readonly MacroDefinition MacroPlatformMetalDef = new MacroDefinition(MacroPlatformMetal, GLSL_True);
-        public static readonly MacroDefinition MacroPlatformDirect3D11Def = new MacroDefinition(MacroPlatformDirect3D11, GLSL_True);
-        public static readonly MacroDefinition MacroPlatformOpenGLDef = new MacroDefinition(MacroPlatformOpenGL, GLSL_True);
-        public static readonly MacroDefinition MacroPlatformOpenGLESDef = new MacroDefinition(MacroPlatformOpenGLES, GLSL_True);
-        
         private readonly Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
         private readonly GraphicsDevice _device;
         public BaseVirtualDirectory SourceLibs { get; private set; }

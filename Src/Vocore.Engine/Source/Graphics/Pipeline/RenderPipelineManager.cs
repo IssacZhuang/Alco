@@ -41,10 +41,19 @@ namespace Vocore.Engine
             for (int i = 0; i < _renderPiplines.Count; i++)
             {
                 renderPipline = _renderPiplines[i];
-                if (renderPipline.IsEnable)
+                try
                 {
-                    renderPipline.OnDraw(commandList);
+                    if (renderPipline.IsEnable)
+                    {
+                        renderPipline.OnDraw(commandList);
+                    }
                 }
+                catch (Exception e)
+                {
+                    Log.Error($"RenderPipline {renderPipline.GetType().Name} failed to draw");
+                    Log.Error(e.ToString());
+                }
+
             }
         }
 
@@ -52,7 +61,15 @@ namespace Vocore.Engine
         {
             for (int i = 0; i < _renderPiplines.Count; i++)
             {
-                _renderPiplines[i].OnDestroy();
+                try
+                {
+                    _renderPiplines[i].OnDestroy();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"RenderPipline {_renderPiplines[i].GetType().Name} failed to destroy");
+                    Log.Error(e.ToString());
+                }
             }
         }
     }
