@@ -1,11 +1,16 @@
 using System;
 using System.Threading;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 using Veldrid;
-using Veldrid.Sdl2;
-using System.Runtime.InteropServices;
-using System.Numerics;
+using Silk.NET.Windowing;
+using Silk.NET.Windowing.Glfw;
+using Silk.NET.Windowing.Extensions.Veldrid;
+using Silk.NET.Maths;
+using Silk.NET.Input.Glfw;
+
+
 
 #pragma warning disable CS8618
 #pragma warning disable CS8625
@@ -23,7 +28,7 @@ namespace Vocore.Engine
 
         #region  Resources
         private readonly GraphicsDevice _graphicsDevice;
-        private readonly Sdl2Window _window;
+        private readonly IWindow _window;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
 
@@ -125,30 +130,29 @@ namespace Vocore.Engine
 
             if (_setting.hasGraphics)
             {
-                WindowCreateInfo windowCreateInfo = new WindowCreateInfo
+                GlfwInput.RegisterPlatform();
+                VeldridWindow.CreateWindowAndGraphicsDevice(new WindowOptions
                 {
-                    X = 100,
-                    Y = 100,
-                    WindowWidth = _setting.width,
-                    WindowHeight = _setting.height,
-                    WindowTitle = _setting.windowName
-                };
-
-                _window = VeldridStartup.CreateWindow(ref windowCreateInfo);
-
-                _graphicsDevice = VeldridStartup.CreateGraphicsDevice(_window, new GraphicsDeviceOptions
+                    Position = new Vector2D<int>(100, 100),
+                    Size = new Vector2D<int>(_setting.width, _setting.height),
+                    Title = _setting.windowName,
+                }, new GraphicsDeviceOptions
                 {
                     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
-                }, _setting.backend);
+                }, _setting.backend, out IWindow window, out GraphicsDevice graphicsDevice);
 
-                _window.Resized += () =>
+                _window = window;
+
+                _graphicsDevice = graphicsDevice;
+
+                _window.Resize += (Vector2D<int> size) =>
                 {
 
-                    _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
+                    _graphicsDevice.MainSwapchain.Resize((uint)size.X, (uint)size.Y);
 
-                    Log.Info($"Window Resized {_window.Width}x{_window.Height}");
-                    _setting.width = _window.Width;
-                    _setting.height = _window.Height;
+                    Log.Info($"Window Resized {size.X}x{size.Y}");
+                    _setting.width = size.X;
+                    _setting.height = size.Y;
                 };
             }
             else
@@ -197,13 +201,7 @@ namespace Vocore.Engine
             _timer.Start();
             while (_isRunning)
             {
-                _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
-                if (canInvokePhysicsTick)
-                {
-                    InternalTick(physicsDeltaTime);
-                }
-                InternalUpdate(updateDeltaTime);
-
+                InternalUpdate();
                 //InternalDraw(updateDeltaTime);
             }
         }
@@ -215,19 +213,23 @@ namespace Vocore.Engine
         {
             InternalStart();
             _timer.Start();
-            while (_isRunning)
+            _window.Update += (delta) =>
             {
-                _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
-                if (canInvokePhysicsTick)
-                {
+                InternalUpdate();
 
-                    InternalTick(physicsDeltaTime);
-                }
+            };
 
-                InternalUpdate(updateDeltaTime);
-                InternalDraw(updateDeltaTime);
+            _window.Render += (delta) =>
+            {
+                InternalDraw((float)delta);
+            };
 
-            }
+            _window.Closing += () =>
+            {
+                _isRunning = false;
+            };
+
+            _window.Run();
         }
 
         /// <summary>
@@ -279,12 +281,25 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalUpdate(float delta)
+        private void InternalUpdate()
         {
+            _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+
+            if (canInvokePhysicsTick)
+            {
+                try
+                {
+                    InternalTick(physicsDeltaTime);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("[Tick Error]", e);
+                    Stop();
+                }
+            }
             try
             {
-                _window.PumpEvents();
-                OnUpdate(delta);
+                OnUpdate(updateDeltaTime);
             }
             catch (Exception e)
             {

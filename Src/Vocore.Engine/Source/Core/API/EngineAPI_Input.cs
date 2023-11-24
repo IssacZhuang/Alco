@@ -1,28 +1,45 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Veldrid;
-using Veldrid.Sdl2;
+using Silk.NET.Input;
+using Silk.NET.Input.Glfw;
+using Silk.NET.Windowing;
 
 namespace Vocore.Engine
 {
     public class EngineAPI_Input
     {
-        private readonly Sdl2Window? _window;
-        private readonly EngineInputSnapshot? _snapshot;
-        private readonly List<KeyEvent> _emptyKeyEvents;
-        private readonly List<MouseEvent> _emptyMouseEvents;
-        internal EngineAPI_Input(Sdl2Window? window)
+        private readonly IWindow? _window;
+        private readonly IInputContext? _input;
+        private readonly IMouse? _defaultMouse;
+        private readonly IKeyboard? _defaultKeyboard;
+
+        private Vector2 _mousePosition;
+        private Vector2 _mouseDelta;
+        internal EngineAPI_Input(IWindow? window)
         {
             _window = window;
-            _snapshot = null;
-            _emptyKeyEvents = new List<KeyEvent>();
-            _emptyMouseEvents = new List<MouseEvent>();
+
             if (_window != null)
             {
-                _snapshot = _window.PumpEvents();
+                _input = _window.CreateInput();
+                _defaultMouse = _input.Mice[0];
+                _defaultKeyboard = _input.Keyboards[0];
+
+                _defaultMouse.MouseMove += OnMouseMove;
+                
             }
         }
+
+        // Events
+
+        public void OnMouseMove(IMouse mouse, Vector2 position)
+        {
+            _mouseDelta = position - _mousePosition;
+            _mousePosition = position;
+        }
+
+        // API 
 
 
         /// <summary>
@@ -32,17 +49,17 @@ namespace Vocore.Engine
         {
             get
             {
-                if (_snapshot == null)
+                if (_defaultMouse == null)
                 {
                     return Vector2.Zero;
                 }
-                return _snapshot.MousePosition;
+                return _defaultMouse.Position;
             }
             set
             {
-                if (_window != null)
+                if (_defaultMouse != null)
                 {
-                    _window.SetMousePosition(value);
+                    _defaultMouse.Position = value;
                 }
             }
         }
@@ -54,113 +71,62 @@ namespace Vocore.Engine
         {
             get
             {
-                if (_snapshot == null)
-                {
-                    return Vector2.Zero;
-                }
-                return _snapshot.MouseDelta;
-            }
-        }
-
-        /// <summary>
-        /// The mouse wheel delta since the last frame.
-        /// </summary>
-        public float WheelDelta
-        {
-            get
-            {
-                if (_snapshot == null)
-                {
-                    return 0f;
-                }
-                return _snapshot.WheelDelta;
-            }
-        }
-
-        /// <summary>
-        /// The key event in the last frame.
-        /// </summary>
-        public IReadOnlyList<KeyEvent> KeyEvents
-        {
-            get
-            {
-                if (_snapshot == null)
-                {
-                    return _emptyKeyEvents;
-                }
-                return _snapshot.KeyEvents;
-            }
-        }
-
-        /// <summary>
-        /// The mouse event in the last frame.
-        /// </summary>
-        public IReadOnlyList<MouseEvent> MouseEvents
-        {
-            get
-            {
-                if (_snapshot == null)
-                {
-                    return _emptyMouseEvents;
-                }
-                return _snapshot.MouseEvents;
+                return _mouseDelta;
             }
         }
 
         public bool IsKeyDown(Key key)
         {
-            if (_snapshot == null)
+            if (_defaultKeyboard == null)
             {
                 return false;
             }
-            return _snapshot.IsKeyDown(key);
+            return _defaultKeyboard.IsKeyPressed(key);
         }
 
-        public bool IsKeyUp(Key key)
-        {
-            if (_snapshot == null)
-            {
-                return false;
-            }
-            return _snapshot.IsKeyUp(key);
-        }
+        // public bool IsKeyUp(Key key)
+        // {
+        //     if (_snapshot == null)
+        //     {
+        //         return false;
+        //     }
+        //     return _snapshot.IsKeyUp(key);
+        // }
 
-        public bool IsKeyPressing(Key key)
-        {
-            if (_snapshot == null)
-            {
-                return false;
-            }
-            return _snapshot.IsKeyPressing(key);
-        }
+        // public bool IsKeyPressing(Key key)
+        // {
+        //     if (_snapshot == null)
+        //     {
+        //         return false;
+        //     }
+        //     return _snapshot.IsKeyPressing(key);
+        // }
 
-        public bool IsMouseDown(MouseButton button)
-        {
-            if (_snapshot == null)
-            {
-                return false;
-            }
-            return _snapshot.IsMouseDown(button);
-        }
+        // public bool IsMouseDown(MouseButton button)
+        // {
+        //     if (_snapshot == null)
+        //     {
+        //         return false;
+        //     }
+        //     return _snapshot.IsMouseDown(button);
+        // }
 
-        public bool IsMouseUp(MouseButton button)
-        {
-            if (_snapshot == null)
-            {
-                return false;
-            }
-            return _snapshot.IsMouseUp(button);
-        }
+        // public bool IsMouseUp(MouseButton button)
+        // {
+        //     if (_snapshot == null)
+        //     {
+        //         return false;
+        //     }
+        //     return _snapshot.IsMouseUp(button);
+        // }
 
-        public bool IsMousePressing(MouseButton button)
-        {
-            if (_snapshot == null)
-            {
-                return false;
-            }
-            return _snapshot.IsMousePressing(button);
-        }
+        // public bool IsMousePressing(MouseButton button)
+        // {
+        //     if (_snapshot == null)
+        //     {
+        //         return false;
+        //     }
+        //     return _snapshot.IsMousePressing(button);
+        // }
     }
-
-    
 }

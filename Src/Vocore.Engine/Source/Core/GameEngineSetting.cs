@@ -1,6 +1,5 @@
 using System;
 using Veldrid;
-using Veldrid.Sdl2;
 
 namespace Vocore.Engine
 {
@@ -16,7 +15,7 @@ namespace Vocore.Engine
         public readonly static GameEngineSetting Default = new GameEngineSetting
         {
             hasGraphics = true,
-            backend = VeldridStartup.GetPlatformDefaultBackend(),
+            backend = CompatibilityHelper.GetPlatformDefaultBackend(),
             windowName = "Vocore",
             width = 640,
             height = 360,
@@ -27,7 +26,7 @@ namespace Vocore.Engine
         public readonly static GameEngineSetting HasGraphics = new GameEngineSetting
         {
             hasGraphics = true,
-            backend = VeldridStartup.GetPlatformDefaultBackend(),
+            backend = CompatibilityHelper.GetPlatformDefaultBackend(),
             windowName = "Vocore",
             width = 640,
             height = 360,

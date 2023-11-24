@@ -1,5 +1,7 @@
 using System;
 using System.Numerics;
+using Silk.NET.Input;
+using Silk.NET.Windowing;
 using Veldrid.SPIRV;
 using Vocore;
 using Vocore.Engine;
@@ -39,7 +41,7 @@ public class Game : GameEngine
 
         if (Input.IsKeyDown(Key.F11))
         {
-            Window.WindowState = Window.WindowState == WindowState.BorderlessFullScreen ? WindowState.Normal : WindowState.BorderlessFullScreen;
+            Window.WindowState = Window.WindowState == WindowState.Fullscreen ? WindowState.Normal : WindowState.Fullscreen;
         }
 
         _timer += delta;

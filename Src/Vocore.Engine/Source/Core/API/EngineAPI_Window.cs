@@ -1,8 +1,9 @@
 using System;
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using Veldrid.Sdl2;
+using Silk.NET.Maths;
+using Silk.NET.Windowing;
 
 namespace Vocore.Engine
 {
@@ -11,8 +12,8 @@ namespace Vocore.Engine
     /// </summary>
     public class EngineAPI_Window
     {
-        private readonly Sdl2Window? _window;
-        internal EngineAPI_Window(Sdl2Window? window)
+        private readonly IWindow? _window;
+        internal EngineAPI_Window(IWindow? window)
         {
             _window = window;
         }
@@ -24,7 +25,7 @@ namespace Vocore.Engine
             {
                 if (_window == null)
                 {
-                    return WindowState.Hidden;
+                    return WindowState.Normal;
                 }
                 return _window.WindowState;
             }
@@ -48,15 +49,14 @@ namespace Vocore.Engine
                 {
                     return new int2(0, 0);
                 }
-                return new int2(_window.Width, _window.Height);
+                return new int2(_window.Size.X, _window.Size.Y);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (_window != null && (_window.Width != value.x || _window.Height != value.y))
+                if (_window != null && (_window.Size.X != value.x || _window.Size.X != value.y))
                 {
-                    _window.Width = value.x;
-                    _window.Height = value.y;
+                    _window.Size = new Vector2D<int>(value.x, value.y);
                 }
             }
         }
@@ -66,19 +66,14 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_window == null)
-                {
-                    return new Vector2(0, 0);
-                }
-                return new Vector2(_window.Width, _window.Height);
+                return new Vector2(Size.x, Size.y);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (_window != null && (_window.Width != value.X || _window.Height != value.Y))
+                if (_window != null && (_window.Size.X != value.X || _window.Size.Y != value.Y))
                 {
-                    _window.Width = (int)value.X;
-                    _window.Height = (int)value.Y;
+                    _window.Size = new Vector2D<int>((int)value.X, (int)value.Y);
                 }
             }
         }
@@ -92,14 +87,14 @@ namespace Vocore.Engine
                 {
                     return 0;
                 }
-                return _window.Width;
+                return _window.Size.X;
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (_window != null && _window.Width != value)
+                if (_window != null && _window.Size.X != value)
                 {
-                    _window.Width = value;
+                    _window.Size = new Vector2D<int>(value, _window.Size.Y);
                 }
             }
         }
@@ -113,15 +108,15 @@ namespace Vocore.Engine
                 {
                     return 0;
                 }
-                return _window.Height;
+                return _window.Size.Y;
 
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (_window != null && _window.Height != value)
+                if (_window != null && _window.Size.Y != value)
                 {
-                    _window.Height = value;
+                    _window.Size = new Vector2D<int>(_window.Size.X, value);
                 }
             }
         }
@@ -135,7 +130,7 @@ namespace Vocore.Engine
                 {
                     return 1;
                 }
-                return (float)_window.Width / _window.Height;
+                return (float)_window.Size.X / (float)_window.Size.Y;
             }
         }
     }
@@ -210,35 +205,5 @@ namespace Vocore.Engine
                 return GameEngine.Instance.Window.AspectRatio;
             }
         }
-
-        public static Vector2 MousePosition
-        {
-            get
-            {
-                return GameEngine.Instance.Input.MousePosition;
-            }
-            set
-            {
-                GameEngine.Instance.Input.MousePosition = value;
-            }
-        }
-
-        public static Vector2 MouseDelta
-        {
-            get
-            {
-                return GameEngine.Instance.Input.MouseDelta;
-            }
-        }
-
-        public static float WheelDelta
-        {
-            get
-            {
-                return GameEngine.Instance.Input.WheelDelta;
-            }
-        }
-
-        
     }
 }
