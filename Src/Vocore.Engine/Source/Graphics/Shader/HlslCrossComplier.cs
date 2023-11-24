@@ -43,7 +43,7 @@ namespace Vocore.Engine
         public static readonly ShaderConductor.TargetDesc TargetOpenGL = new ShaderConductor.TargetDesc
         {
             language = ShaderConductor.ShadingLanguage.Glsl,
-            version = null,
+            version = "330",
         };
 
         public static readonly ShaderConductor.TargetDesc TargetOpenGLES = new ShaderConductor.TargetDesc

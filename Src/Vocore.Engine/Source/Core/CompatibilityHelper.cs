@@ -32,7 +32,7 @@ namespace Vocore.Engine
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                return PixelFormat.D32_Float_S8_UInt;
+                return PixelFormat.D24_UNorm_S8_UInt;
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {

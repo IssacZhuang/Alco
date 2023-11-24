@@ -7,9 +7,7 @@ using Veldrid;
 namespace Vocore.Engine
 {
 
-
-
-    public struct ShaderAnalyseResult
+    public class ShaderAnalyzer
     {
         public const string PragmaKey_BlendState = "blend_state";
         public const string PragmaKey_DepthTest = "depth_test";
@@ -24,7 +22,7 @@ namespace Vocore.Engine
         public const string RegexPragmaKeyValuePair = @"#pragma\s+(\w+)\s+(\w+)";
         public Dictionary<string, string> pragmaKeyValue;
 
-        public ShaderAnalyseResult(string shaderText)
+        public ShaderAnalyzer(string shaderText)
         {
             pragmaKeyValue = new Dictionary<string, string>();
             AnalyseShaderText(shaderText);

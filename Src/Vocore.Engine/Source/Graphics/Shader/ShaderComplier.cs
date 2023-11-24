@@ -50,7 +50,7 @@ namespace Vocore.Engine
             ShaderDescription vertexShaderDescription = result.vertex;
             ShaderDescription fragmentShaderDescription = result.fragment;
 
-            ShaderAnalyseResult analyseResult = new ShaderAnalyseResult(shaderText);
+            ShaderAnalyzer analyseResult = new ShaderAnalyzer(shaderText);
 
             SpirvReflection reflection = result.reflection;
 

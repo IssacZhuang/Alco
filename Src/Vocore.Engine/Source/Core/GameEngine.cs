@@ -9,6 +9,7 @@ using Silk.NET.Windowing.Glfw;
 using Silk.NET.Windowing.Extensions.Veldrid;
 using Silk.NET.Maths;
 using Silk.NET.Input.Glfw;
+using Silk.NET.GLFW;
 
 
 
@@ -131,13 +132,17 @@ namespace Vocore.Engine
             if (_setting.hasGraphics)
             {
                 GlfwInput.RegisterPlatform();
+                GlfwWindowing.RegisterPlatform();
+
                 VeldridWindow.CreateWindowAndGraphicsDevice(new WindowOptions
                 {
                     Position = new Vector2D<int>(100, 100),
                     Size = new Vector2D<int>(_setting.width, _setting.height),
                     Title = _setting.windowName,
+                    ShouldSwapAutomatically = false
                 }, new GraphicsDeviceOptions
                 {
+                    HasMainSwapchain = true,
                     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
                 }, _setting.backend, out IWindow window, out GraphicsDevice graphicsDevice);
 
@@ -145,9 +150,10 @@ namespace Vocore.Engine
 
                 _graphicsDevice = graphicsDevice;
 
+                _window.Initialize();
+
                 _window.Resize += (Vector2D<int> size) =>
                 {
-
                     _graphicsDevice.MainSwapchain.Resize((uint)size.X, (uint)size.Y);
 
                     Log.Info($"Window Resized {size.X}x{size.Y}");
@@ -228,7 +234,7 @@ namespace Vocore.Engine
             {
                 _isRunning = false;
             };
-
+            
             _window.Run();
         }
 
@@ -418,7 +424,14 @@ namespace Vocore.Engine
 
         public void Stop()
         {
-            _isRunning = false;
+            if (_setting.hasGraphics)
+            {
+                _window.Close();
+            }
+            else
+            {
+                _isRunning = false;
+            }
         }
 
         #endregion
