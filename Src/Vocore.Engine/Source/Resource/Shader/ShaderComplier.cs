@@ -66,6 +66,7 @@ namespace Vocore.Engine
             else
             {
                 shaders[0] = _factory.CreateShader(vertexShaderDescription);
+                Log.Info(Encoding.UTF8.GetString(vertexShaderDescription.ShaderBytes));
                 shaders[1] = _factory.CreateShader(fragmentShaderDescription);
             }
 
@@ -87,10 +88,22 @@ namespace Vocore.Engine
 
             pipelineDescription.PrimitiveTopology = analyseResult.GetTopologyPrimitive();
 
+            ResourceLayoutDescription[] resourceLayoutsDesc;
+
+            if (_device.BackendType == GraphicsBackend.OpenGL || _device.BackendType == GraphicsBackend.OpenGLES)
+            {
+                resourceLayoutsDesc = FixOpenGLBufferName(reflection.ResourceLayouts);
+            }
+            else
+            {
+                resourceLayoutsDesc = reflection.ResourceLayouts;
+            }
+
+
             ResourceLayout[] resourceLayouts = new ResourceLayout[reflection.ResourceLayouts.Length];
             for (int i = 0; i < reflection.ResourceLayouts.Length; i++)
             {
-                resourceLayouts[i] = _factory.CreateResourceLayout(reflection.ResourceLayouts[i]);
+                resourceLayouts[i] = _factory.CreateResourceLayout(resourceLayoutsDesc[i]);
             }
             pipelineDescription.ResourceLayouts = resourceLayouts;
             pipelineDescription.ShaderSet = new ShaderSetDescription(
@@ -172,6 +185,30 @@ namespace Vocore.Engine
                 default:
                     throw new NotSupportedException($"Backend {backend} not supported");
             }
+        }
+
+        private static ResourceLayoutDescription[] FixOpenGLBufferName(ResourceLayoutDescription[] layouts)
+        {
+            ResourceLayoutDescription[] result = new ResourceLayoutDescription[layouts.Length];
+            for (int i = 0; i < layouts.Length; i++)
+            {
+                result[i].Elements = new ResourceLayoutElementDescription[layouts[i].Elements.Length];
+                for (int j = 0; j < layouts[i].Elements.Length; j++)
+                {
+                    //copy the element
+                    result[i].Elements[j] = layouts[i].Elements[j];
+                    //fix name
+                    result[i].Elements[j].Name = FixOpenGLBufferName(result[i].Elements[j].Name);
+                }
+            }
+            return result;
+        }
+
+
+        private static string FixOpenGLBufferName(string name)
+        {
+            //replace . to _
+            return name.Replace('.', '_');
         }
 
 
