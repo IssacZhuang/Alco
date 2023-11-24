@@ -4,7 +4,9 @@ using System.Text;
 using Veldrid;
 using Veldrid.SPIRV;
 
-namespace Vocore.ShaderCross
+using Vocore.Engine.NativeBinding;
+
+namespace Vocore.Engine
 {
     public static class HlslCrossComplier
     {

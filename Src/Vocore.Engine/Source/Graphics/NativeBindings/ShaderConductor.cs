@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Vocore.ShaderCross
+namespace Vocore.Engine.NativeBinding
 {
     public static class ShaderConductor
     {

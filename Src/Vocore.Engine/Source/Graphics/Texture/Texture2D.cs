@@ -1,16 +1,21 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class Texture2D
+    public class Texture2D : IGraphicsResource
     {
-        private TextureView _textureView;
-        private Sampler _sampler;
-        public ResourceLayout _resourceLayout;
-        public ResourceSet _resourceSet;
-        public ResourceSet ResourceSet => _resourceSet;
+        private readonly TextureView _textureView;
+        private readonly Sampler _sampler;
+        public readonly ResourceLayout _resourceLayout;
+        public readonly ResourceSet _resourceSet;
+        public ResourceSet ResourceSet
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _resourceSet;
+        }
         public Texture2D(GraphicsDevice device, Stream stream, SamplerMode samplerMode = SamplerMode.Linear)
         {
             Texture texture = device.LoadTexture(stream);

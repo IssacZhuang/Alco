@@ -6,7 +6,6 @@ using System.Text.RegularExpressions;
 
 using Veldrid;
 using Veldrid.SPIRV;
-using Vocore.ShaderCross;
 
 namespace Vocore.Engine
 {

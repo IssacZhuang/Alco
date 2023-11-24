@@ -9,6 +9,7 @@ namespace Vocore.Engine
     {
         public const float DefaultFov = 0.83f;
         private float _fov;
+        private float _aspectRatio;
         private Matrix4x4 _projectionMatrix;
 
         public float FieldOfView
@@ -22,6 +23,7 @@ namespace Vocore.Engine
                 _isProjectionMatrixDirty = true;
             }
         }
+
 
         public override Matrix4x4 ProjectionMatrix
         {
@@ -47,21 +49,28 @@ namespace Vocore.Engine
             }
         }
 
-        public CameraPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar)
+        public CameraPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar, float aspectRatio = 16/9f)
         {
             _fov = fov;
             _near = near;
             _far = far;
+            _aspectRatio = aspectRatio;
 
             tranform = Transform.Default;
 
             _isProjectionMatrixDirty = true;
         }
 
+        public void SetAspectRatio(float aspectRatio)
+        {
+            _aspectRatio = aspectRatio;
+            _isProjectionMatrixDirty = true;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateProjectionMatrix()
         {
-            _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, GameEngine.Instance.Window.AspectRatio, _near, _far);
+            _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, _aspectRatio, _near, _far);
         }
     }
 }

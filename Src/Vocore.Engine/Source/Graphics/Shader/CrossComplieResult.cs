@@ -4,7 +4,7 @@ using System.Text;
 using Veldrid;
 using Veldrid.SPIRV;
 
-namespace Vocore.ShaderCross
+namespace Vocore.Engine
 {
     public class CrossComplieResult
     {

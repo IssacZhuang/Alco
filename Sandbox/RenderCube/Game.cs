@@ -48,6 +48,7 @@ public class Game : GameEngine
 
         _actorFreeLook3D.Update();
         _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
+        _cameraP.SetAspectRatio(Window.AspectRatio);
 
         _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
         _cubeTranform1.Rotate(Transform.Up, delta);
