@@ -134,15 +134,13 @@ namespace Vocore.Engine
                 GlfwInput.RegisterPlatform();
                 GlfwWindowing.RegisterPlatform();
 
-                VeldridWindow.CreateWindowAndGraphicsDevice(new WindowOptions
+                VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
                 {
                     Position = new Vector2D<int>(100, 100),
                     Size = new Vector2D<int>(_setting.width, _setting.height),
-                    Title = _setting.windowName,
-                    ShouldSwapAutomatically = false
+                    Title = _setting.windowName
                 }, new GraphicsDeviceOptions
                 {
-                    HasMainSwapchain = true,
                     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
                 }, _setting.backend, out IWindow window, out GraphicsDevice graphicsDevice);
 
