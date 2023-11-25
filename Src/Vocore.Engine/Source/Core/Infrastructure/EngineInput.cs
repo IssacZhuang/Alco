@@ -22,11 +22,12 @@ namespace Vocore.Engine
         private State _state;
         private Vector2 _mousePosition;
         private Vector2 _mouseDelta;
-        private bool _forceMouseScreenCenter;
         private IWindow? _window;
         private IInputContext? _input;
         private IMouse? _defaultMouse;
         private IKeyboard? _defaultKeyboard;
+
+        public bool ForceMouseInScreenCenter { get; set; }
 
         public Vector2 MousePosition
         {
@@ -114,9 +115,10 @@ namespace Vocore.Engine
             _mouseDelta = _mousePosition - _defaultMouse.Position;
             _mousePosition = _defaultMouse.Position;
 
-            if (_forceMouseScreenCenter)
+            if (ForceMouseInScreenCenter)
             {
-                _defaultMouse.Position = new Vector2(_window!.Size.X / 2, _window.Size.Y / 2);
+                _mousePosition = new Vector2(_window!.Size.X / 2, _window.Size.Y / 2);
+                _defaultMouse.Position = _mousePosition;
             }
         }
 
