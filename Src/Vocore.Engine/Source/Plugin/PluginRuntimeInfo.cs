@@ -22,6 +22,9 @@ namespace Vocore.Engine{
             Log.Info("IsDepthRangeZeroToOne: \t" + device.IsDepthRangeZeroToOne);
             Log.Info("IsClipSpaceYInverted: \t" + device.IsClipSpaceYInverted);
             Log.Info("IsUvOriginTopLeft: \t" + device.IsUvOriginTopLeft);
+            Log.Info("\n--- Thread ---");
+            Log.Info("CPU Thread Count: \t" + Environment.ProcessorCount);
+            Log.Info("Main Thread Id\t" + engine.MainThread);
         }
 
         public void OnExit()

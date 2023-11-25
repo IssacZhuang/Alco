@@ -217,23 +217,13 @@ namespace Vocore.Engine
         {
             InternalStart();
             _timer.Start();
-            _window.Update += (delta) =>
+            _window.Initialize();
+            while (_isRunning)
             {
-                InternalUpdate();
-
-            };
-
-            _window.Render += (delta) =>
-            {
-                InternalDraw((float)delta);
-            };
-
-            _window.Closing += () =>
-            {
-                _isRunning = false;
-            };
+                _window.DoEvents();
+                InternalUpdateWithGraphics();
+            }
             
-            _window.Run();
         }
 
         /// <summary>
@@ -313,12 +303,37 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalDraw(float delta)
+        private void InternalUpdateWithGraphics()
         {
+            _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+
+            if (canInvokePhysicsTick)
+            {
+                try
+                {
+                    InternalTick(physicsDeltaTime);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("[Tick Error]", e);
+                    Stop();
+                }
+            }
+
             try
             {
-                _frame.BeginFrameUpdate(delta);
-                OnDraw(delta);
+                OnUpdate(updateDeltaTime);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Update Error]", e);
+                Stop();
+            }
+
+            try
+            {
+                _frame.BeginFrameUpdate(updateDeltaTime);
+                OnDraw(updateDeltaTime);
                 _frame.EndFrame();
             }
             catch (Exception e)
@@ -422,14 +437,7 @@ namespace Vocore.Engine
 
         public void Stop()
         {
-            if (_setting.hasGraphics)
-            {
-                _window.Close();
-            }
-            else
-            {
-                _isRunning = false;
-            }
+            _isRunning = false;
         }
 
         #endregion
