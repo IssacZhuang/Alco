@@ -11,6 +11,7 @@ namespace Vocore.Engine
         public int width;
         public int height;
         public int gametTickRate;
+        public bool stopWhenError;
 
         public readonly static GameEngineSetting Default = new GameEngineSetting
         {

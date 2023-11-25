@@ -208,6 +208,7 @@ namespace Vocore.Engine
                 InternalUpdate();
                 //InternalDraw(updateDeltaTime);
             }
+            InternalStop();
         }
 
         /// <summary>
@@ -223,7 +224,7 @@ namespace Vocore.Engine
                 _window.DoEvents();
                 InternalUpdateWithGraphics();
             }
-            
+            InternalStop();
         }
 
         /// <summary>
@@ -260,6 +261,14 @@ namespace Vocore.Engine
 
         }
 
+        /// <summary>
+        /// Called when player exit the game
+        /// </summary>
+        protected virtual void OnStop()
+        {
+
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalTick(float delta)
         {
@@ -288,7 +297,7 @@ namespace Vocore.Engine
                 catch (Exception e)
                 {
                     Log.Error("[Tick Error]", e);
-                    Stop();
+                    TryErrorStop();
                 }
             }
             try
@@ -298,7 +307,7 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Update Error]", e);
-                Stop();
+                TryErrorStop();
             }
         }
 
@@ -316,7 +325,7 @@ namespace Vocore.Engine
                 catch (Exception e)
                 {
                     Log.Error("[Tick Error]", e);
-                    Stop();
+                    TryErrorStop();
                 }
             }
 
@@ -327,7 +336,7 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Update Error]", e);
-                Stop();
+                TryErrorStop();
             }
 
             try
@@ -339,7 +348,7 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Draw Error]", e);
-                Stop();
+                TryErrorStop();
             }
         }
 
@@ -353,6 +362,27 @@ namespace Vocore.Engine
             catch (Exception e)
             {
                 Log.Error("[Start Error]", e);
+                TryErrorStop();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void InternalStop()
+        {
+            try
+            {
+                OnStop();
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Stop Error]", e);
+            }
+        }
+
+        private void TryErrorStop()
+        {
+            if (_setting.stopWhenError)
+            {
                 Stop();
             }
         }
