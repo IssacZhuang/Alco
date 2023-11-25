@@ -48,7 +48,11 @@ namespace Vocore.Engine
 
         public void Add(string name, Shader shader)
         {
-            if (shader == null) throw new ArgumentNullException(nameof(shader));
+            if (shader == null)
+            {
+                throw new ArgumentNullException(nameof(shader));
+            }
+
             if (_shaders.ContainsKey(name))
             {
                 Log.Error($"Shader {name} already exists in pool");

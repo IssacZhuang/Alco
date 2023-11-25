@@ -12,13 +12,6 @@ namespace Vocore.Engine
         public float rotationX = 0;
         public float maxRotationX = 60;
         public float sensitivity = 0.02f;
-        private bool _mouseInCenter;
-        private Vector2 ScreenCenter {
-            get
-            {
-                return WindowSize / 2;
-            }
-        }
 
         private Vector2 WindowSize
         {
@@ -38,13 +31,8 @@ namespace Vocore.Engine
 
         public void Update()
         {
-            if(!_mouseInCenter)
-            {
-                GameEngine.Instance.Input.MousePosition = ScreenCenter;
-                _mouseInCenter = true;
-            }
-            var delta = GameEngine.Instance.Input.MousePosition - ScreenCenter;
-            GameEngine.Instance.Input.MousePosition = ScreenCenter;
+            var delta = GameEngine.Instance.Input.MouseDelta;
+            
             rotationY -= delta.X * sensitivity / WindowSize.Y;
             rotationX += delta.Y * sensitivity / WindowSize.X;
 

@@ -38,13 +38,14 @@ namespace Vocore.Engine
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
         internal EngineShaderContext _shaderContext;
+        internal EngineInput _input;
 
         #endregion
 
         #region API
 
         public EngineAPI_Window Window { get; private set; }
-        public EngineAPI_Input Input { get; private set; }
+        public EngineInput Input => _input;
         public EngineAPI_Shader Shader { get; private set; }
         public EngineAPI_Graphics Graphics { get; private set; }
 
@@ -316,6 +317,8 @@ namespace Vocore.Engine
         {
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
 
+            _input.Update();
+
             if (canInvokePhysicsTick)
             {
                 try
@@ -350,6 +353,8 @@ namespace Vocore.Engine
                 Log.Error("[Draw Error]", e);
                 TryErrorStop();
             }
+
+            _input.Reset();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -418,6 +423,7 @@ namespace Vocore.Engine
                 Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
                 _frame = new EngineGraphics(this, screenSizeFloat);
                 _shaderContext = new EngineShaderContext(GraphicsDevice);
+                _input = new EngineInput(_window);
             }
 
             _timer = new EngineTimer(this);
@@ -427,7 +433,6 @@ namespace Vocore.Engine
         private void InitializeAPI()
         {
             Window = new EngineAPI_Window(_window);
-            Input = new EngineAPI_Input(_window);
             Shader = new EngineAPI_Shader(_shaderContext);
             Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.CreateGlobalShaderDataResourceSet());
         }

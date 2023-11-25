@@ -15,7 +15,7 @@ namespace Vocore.Engine
         public static long Frequency = Stopwatch.Frequency;
         public static long MaxTimerTick = long.MaxValue / 2;
 
-        private Stopwatch _stopwatch;
+        private readonly Stopwatch _stopwatch;
         
         private long _pyhsicsTickInterval;
         private long _detlaTimerTick;
