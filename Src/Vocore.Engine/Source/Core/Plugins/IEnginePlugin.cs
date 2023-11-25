@@ -17,6 +17,12 @@ namespace Vocore.Engine
         void OnInitilize(GameEngine engine, ref GameEngineSetting setting);
 
         /// <summary>
+        /// Called when the engine starts running.
+        /// Used for initializing resources.
+        /// </summary>
+        void OnStart();
+
+        /// <summary>
         /// Called when the engine stops running.
         /// Used for cleaning up resources.
         /// </summary>

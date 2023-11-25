@@ -2,11 +2,11 @@ using System;
 using Veldrid;
 
 namespace Vocore.Engine{
-    public class PluginRuntimeInfo : IEnginePlugin
+    public class PluginRuntimeInfo : BaseEnginePlugin
     {
-        public int Priority => -1000;
+        public override int Priority => -1000;
 
-        public void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
+        public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
             GraphicsDevice device = engine.GraphicsDevice;
 
@@ -25,11 +25,6 @@ namespace Vocore.Engine{
             Log.Info("\n--- Thread ---");
             Log.Info("CPU Thread Count: \t" + Environment.ProcessorCount);
             Log.Info("Main Thread Id\t" + engine.MainThread);
-        }
-
-        public void OnExit()
-        {
-
         }
     }
 }

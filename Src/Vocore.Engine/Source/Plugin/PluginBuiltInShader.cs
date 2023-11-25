@@ -3,11 +3,11 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class PluginBuiltInShader : IEnginePlugin
+    public class PluginBuiltInShader : BaseEnginePlugin
     {
-        public int Priority => -1000;
+        public override int Priority => -1000;
 
-        public void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
+        public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
 
             IEnumerable<string> shaderNames = EmbbedResources.GetAllFileNamesWithExtension("hlsl");
@@ -22,11 +22,6 @@ namespace Vocore.Engine
                     engine.Shader.TryAddShaderInclude(filename, EmbbedResources.GetBytes(shaderName));
                 }
             }
-        }
-
-        public void OnExit()
-        {
-
         }
     }
 }
