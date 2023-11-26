@@ -21,8 +21,8 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        _shaderBasic = Shader.Complie(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
-        Log.Info(_shaderBasic.GetReflectionInfo());
+        _shaderBasic = Shader.ComplieAndAdd(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
+        
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
         Camera = _cameraP;

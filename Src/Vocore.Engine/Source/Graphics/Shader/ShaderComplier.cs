@@ -65,11 +65,8 @@ namespace Vocore.Engine
             else
             {
                 shaders[0] = _factory.CreateShader(vertexShaderDescription);
-                Log.Info(Encoding.UTF8.GetString(vertexShaderDescription.ShaderBytes));
                 shaders[1] = _factory.CreateShader(fragmentShaderDescription);
             }
-
-            
 
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = analyseResult.GetBlendState();

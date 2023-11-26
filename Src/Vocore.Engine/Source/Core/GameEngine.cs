@@ -46,7 +46,7 @@ namespace Vocore.Engine
 
         public EngineAPI_Window Window { get; private set; }
         public EngineInput Input => _input;
-        public EngineAPI_Shader Shader { get; private set; }
+        public EngineShaderContext Shader => _shaderContext;
         public EngineAPI_Graphics Graphics { get; private set; }
 
         #endregion
@@ -134,7 +134,7 @@ namespace Vocore.Engine
             {
                 GlfwInput.RegisterPlatform();
                 GlfwWindowing.RegisterPlatform();
-
+                
                 VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
                 {
                     Position = new Vector2D<int>(100, 100),
@@ -144,7 +144,7 @@ namespace Vocore.Engine
                 {
                     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
                 }, _setting.backend, out IWindow window, out GraphicsDevice graphicsDevice);
-
+                
                 _window = window;
 
                 _graphicsDevice = graphicsDevice;
@@ -159,6 +159,7 @@ namespace Vocore.Engine
                     _setting.width = size.X;
                     _setting.height = size.Y;
                 };
+                Log.Info(4);
             }
             else
             {
@@ -433,7 +434,6 @@ namespace Vocore.Engine
         private void InitializeAPI()
         {
             Window = new EngineAPI_Window(_window);
-            Shader = new EngineAPI_Shader(_shaderContext);
             Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.CreateGlobalShaderDataResourceSet());
         }
 

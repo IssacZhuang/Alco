@@ -7,26 +7,30 @@ using Veldrid.SPIRV;
 
 namespace Vocore.Engine
 {
-    internal class EngineShaderContext
+    public class EngineShaderContext
     {
         private readonly Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
         private readonly GraphicsDevice _device;
-        public BaseVirtualDirectory SourceLibs { get; private set; }
-        public BaseVirtualDirectory SourceGraphics { get; private set; }
-        public BaseVirtualDirectory SourceCompute { get; private set; }
+        private readonly BaseVirtualDirectory _sourceLibs;
+        private readonly BaseVirtualDirectory _sourceGraphics;
+        private readonly BaseVirtualDirectory _sourceCompute;
         public ShaderComplier Complier { get; private set; }
 
-        public EngineShaderContext(GraphicsDevice device)
+        internal EngineShaderContext(GraphicsDevice device)
         {
             _device = device;
 
-            SourceLibs = new BaseVirtualDirectory();
-            SourceGraphics = new BaseVirtualDirectory();
-            SourceCompute = new BaseVirtualDirectory();
+            _sourceLibs = new BaseVirtualDirectory();
+            _sourceGraphics = new BaseVirtualDirectory();
+            _sourceCompute = new BaseVirtualDirectory();
 
-            Complier = new ShaderComplier(_device, SourceLibs);
+            Complier = new ShaderComplier(_device, _sourceLibs);
         }
 
+
+        /// <summary>
+        /// Get shader from the ppol
+        /// </summary>
         public Shader? Get(string name)
         {
             if (_shaders.TryGetValue(name, out var shader))
@@ -37,28 +41,51 @@ namespace Vocore.Engine
             return null;
         }
 
-        public bool TryGet(string name, out Shader? shader)
+        /// <summary>
+        /// Try get shader from the pool
+        /// </summary>
+        public bool TryGetShader(string name, out Shader? shader)
         {
-            if (_shaders.TryGetValue(name, out shader))
-            {
-                return true;
-            }
-            return false;
+            return _shaders.TryGetValue(name, out shader);
         }
 
-        public void Add(string name, Shader shader)
+        /// <summary>
+        /// Add include file to the pool, which can be used by #include "filename" in shader
+        /// </summary>
+        public bool TryAddShaderInclude(string filename, byte[] shaderContent)
         {
-            if (shader == null)
-            {
-                throw new ArgumentNullException(nameof(shader));
-            }
+            return _sourceLibs.TryAddData(filename, shaderContent);
+        }
 
+        /// <summary>
+        /// Add include file to the pool, which can be used by #include "filename" in shader
+        /// </summary>
+        public bool TryAddShaderInclude(string filename, string shaderText)
+        {
+            return TryAddShaderInclude(filename, Encoding.UTF8.GetBytes(shaderText));
+        }
+
+        /// <summary>
+        /// Complie and add shader to the pool
+        /// </summary>
+        public Shader? ComplieAndAdd(string shaderText, string name = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS", ShaderMacroDefine[]? macros = null)
+        {
             if (_shaders.ContainsKey(name))
             {
-                Log.Error($"Shader {name} already exists in pool");
-                return;
+                Log.Error($"Shader {name} already exist in pool");
+                return null;
             }
-            _shaders.Add(name, shader);
+            try
+            {
+                Shader shader = Complier.Complie(shaderText, name, vertexEntry, fragmentEntry, macros);
+                _shaders.Add(name, shader);
+                return shader;
+            }
+            catch (Exception e)
+            {
+                Log.Error($"Complie Shader {name} failed: {e.Message}");
+                return null;
+            }
         }
     }
 }
