@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using Veldrid;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Glfw;
-using Silk.NET.Windowing.Extensions.Veldrid;
 using Silk.NET.Maths;
 using Silk.NET.Input.Glfw;
 using Silk.NET.GLFW;

@@ -3,8 +3,8 @@ using Vocore.Engine;
 using Veldrid;
 
 GameEngineSetting setting = GameEngineSetting.Default;
-setting.windowName = "BasicSDL";
-setting.backend = GraphicsBackend.OpenGLES;
+setting.windowName = "Render Cube";
+setting.backend = GraphicsBackend.Vulkan;
 setting.stopWhenError = true;
 
 using (Game game = new Game(setting))

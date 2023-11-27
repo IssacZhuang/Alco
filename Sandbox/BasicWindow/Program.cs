@@ -1,8 +1,10 @@
-﻿using Vocore;
+﻿using Veldrid;
+using Vocore;
 using Vocore.Engine;
 
 GameEngineSetting setting = GameEngineSetting.Default;
-setting.windowName = "BasicSDL";
+setting.backend = GraphicsBackend.OpenGL;
+setting.windowName = "Basic Window";
 
 using (Game game = new Game(setting))
 {
