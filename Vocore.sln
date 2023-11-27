@@ -16,7 +16,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Engine.Test", "Test\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sandbox", "Sandbox", "{1850B371-E822-4CC7-861B-4CF1DF644F33}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicSDL", "Sandbox\BasicSDL\BasicSDL.csproj", "{173197AB-3569-4576-9B60-A3000CB620C8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicWindow", "Sandbox\BasicWindow\BasicWindow.csproj", "{173197AB-3569-4576-9B60-A3000CB620C8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenderCube", "Sandbox\RenderCube\RenderCube.csproj", "{850E2C47-836C-4EDD-B15D-2CC70F6E8858}"
 EndProject
