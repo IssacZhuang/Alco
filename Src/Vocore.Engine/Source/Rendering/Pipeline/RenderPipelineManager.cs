@@ -53,8 +53,8 @@ namespace Vocore.Engine
                     Log.Error($"RenderPipline {renderPipline.GetType().Name} failed to draw");
                     Log.Error(e.ToString());
                 }
-
             }
+            
         }
 
         public void OnDestroy()

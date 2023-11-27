@@ -31,6 +31,11 @@ namespace Vocore.Engine
         {
 
         }
+
+        public void OnPostProcess(Framebuffer framebuffer)
+        {
+            
+        }
     }
 }
 

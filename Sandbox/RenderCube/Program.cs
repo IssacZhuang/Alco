@@ -4,7 +4,7 @@ using Veldrid;
 
 GameEngineSetting setting = GameEngineSetting.Default;
 setting.windowName = "BasicSDL";
-setting.backend = GraphicsBackend.OpenGL;
+setting.backend = GraphicsBackend.OpenGLES;
 setting.stopWhenError = true;
 
 using (Game game = new Game(setting))

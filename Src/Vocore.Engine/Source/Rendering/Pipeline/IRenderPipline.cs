@@ -9,6 +9,7 @@ namespace Vocore.Engine
         int Order { get; }
         void OnCreate(GraphicsDevice device);
         void OnDraw(CommandList commandList);
+        void OnPostProcess(Framebuffer framebuffer);
         void OnDestroy();
     }
 }
