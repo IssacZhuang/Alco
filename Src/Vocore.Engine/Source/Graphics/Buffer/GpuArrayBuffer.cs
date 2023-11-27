@@ -8,14 +8,15 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class GpuArrayBuffer<T> : IGpuBuffer, IDisposable where T : unmanaged
+    public class GpuArrayBuffer<T> : IGpuBuffer, IGpuResource, IDisposable where T : unmanaged
     {
         private NativeBuffer<T> _content;
         private bool _isDisposed;
-        private DeviceBuffer _buffer;
-        private GraphicsDevice _device;
-        private uint _sizeInBytes;
-        private uint _stride;
+        private readonly DeviceBuffer _buffer;
+        private readonly GraphicsDevice _device;
+        private readonly uint _sizeInBytes;
+        private readonly uint _stride;
+        private readonly ResourceSet _resourceSet;
 
         public ref T this[int index]
         {
@@ -44,6 +45,15 @@ namespace Vocore.Engine
             }
         }
 
+        public ResourceSet ResourceSet
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _resourceSet;
+            }
+        }
+
         public GpuArrayBuffer(GraphicsDevice device, int capacity, BufferUsage usage = BufferUsage.UniformBuffer)
         {
             int stride = UtilsMemory.SizeOf<T>();
@@ -52,6 +62,8 @@ namespace Vocore.Engine
             _device = device;
             _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(_sizeInBytes, usage));
             _content = new NativeBuffer<T>(capacity);
+            ResourceLayout layout = _device.ResourceFactory.CreateResourceLayout(BufferLayout.Default);
+            //_resourceSet = _device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
         ~GpuArrayBuffer()
@@ -87,12 +99,6 @@ namespace Vocore.Engine
         public void UpdateToGPU(CommandList commandList)
         {
             commandList.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Length * _stride);
-        }
-
-        public ResourceSet CreateResourceSet(ResourceLayoutDescription layoutDesc)
-        {
-            ResourceLayout layout = _device.ResourceFactory.CreateResourceLayout(layoutDesc);
-            return _device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
         public unsafe T* GetUnsafePtr()

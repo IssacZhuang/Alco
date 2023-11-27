@@ -24,19 +24,19 @@ namespace Vocore.Engine
         /// Set the GPU buffer by the binding id<br/>
         /// Recommanded!!
         /// </summary>
-        public bool TrySet(int bindingId, IGpuResource resource)
+        public bool TrySet(int id, IGpuResource resource)
         {
-            if (bindingId < 0 || bindingId >= _layouts.Length)
+            if (id < 0 || id >= _layouts.Length)
             {
                 return false;
             }
 
-            if (_layouts[bindingId].Elements.Length != 1)
+            if (_layouts[id].Elements.Length != 1)
             {
                 return false;
             }
 
-            _resources[bindingId] = resource;
+            _resources[id] = resource;
 
             return true;
         }
@@ -47,25 +47,25 @@ namespace Vocore.Engine
         /// </summary>
         public bool TrySet(string name, IGpuResource resource)
         {
-            return TrySet(GetBindingId(name), resource);
+            return TrySet(GetId(name), resource);
         }
 
         /// <summary>
         /// Remove the resource in the group<br/>
         /// </summary>
-        public bool TryRemove(int bindingId)
+        public bool TryRemove(int id)
         {
-            if (bindingId < 0 || bindingId >= _layouts.Length)
+            if (id < 0 || id >= _layouts.Length)
             {
                 return false;
             }
 
-            if (_resources[bindingId] == null)
+            if (_resources[id] == null)
             {
                 return false;
             }
 
-            _resources[bindingId] = null;
+            _resources[id] = null;
 
             return false;
         }
@@ -75,10 +75,10 @@ namespace Vocore.Engine
         /// </summary>
         public bool TryRemove(string name)
         {
-            return TryRemove(GetBindingId(name));
+            return TryRemove(GetId(name));
         }
 
-        public int GetBindingId(string name)
+        public int GetId(string name)
         {
             for (int i = 0; i < _layouts.Length; i++)
             {
@@ -97,9 +97,10 @@ namespace Vocore.Engine
         {
             for (uint i = 0; i < _layouts.Length; i++)
             {
-                if (_resources[i] != null)
+                IGpuResource resource = _resources[i]!;
+                if (resource  != null)
                 {
-                    commandList.SetGraphicsResourceSet(i, _resources[i].ResourceSet);
+                    commandList.SetGraphicsResourceSet(i, resource.ResourceSet);
                 }
             }
         }

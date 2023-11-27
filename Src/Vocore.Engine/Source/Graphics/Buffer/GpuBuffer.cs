@@ -7,12 +7,13 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class GpuBuffer<T> : IGpuBuffer, IDisposable where T : unmanaged
+    public class GpuBuffer<T> : IGpuBuffer, IGpuResource, IDisposable where T : unmanaged
     {
         private T _value;
         private bool _isDisposed;
-        private DeviceBuffer _buffer;
-        private GraphicsDevice _device;
+        private readonly DeviceBuffer _buffer;
+        private readonly GraphicsDevice _device;
+        private readonly ResourceSet _resourceSet;
 
         public T Value
         {
@@ -46,6 +47,15 @@ namespace Vocore.Engine
             }
         }
 
+        public ResourceSet ResourceSet
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _resourceSet;
+            }
+        }
+
         /// <summary>
         /// Create a GPU buffer with a value.
         /// </summary>
@@ -53,6 +63,8 @@ namespace Vocore.Engine
         {
             _device = device;
             _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(DeviceBufferHelper.GetUniformBufferSize<T>(), usage));
+            ResourceLayout layout = device.ResourceFactory.CreateResourceLayout(BufferLayout.Default);
+            _resourceSet = device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
         ~GpuBuffer()

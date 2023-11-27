@@ -33,7 +33,7 @@ namespace Vocore.Engine
 
             //init matrix buffer for the transform
             _transformBuffer = new GpuBuffer<Matrix4x4>(device, BufferUsage.UniformBuffer);
-            _resourceTransformData = _transformBuffer.CreateResourceSet(BufferLayout.Matrix4x4);
+            _resourceTransformData = _transformBuffer.CreateResourceSet(BufferLayout.Default);
 
             //prepare instance id 
             _instanceIdBuffer = new GpuArrayBuffer<uint>(device, MaxInstanceCount, BufferUsage.VertexBuffer);
