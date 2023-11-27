@@ -16,14 +16,14 @@ namespace Vocore.Engine
         public Vector2 ScreenSize { get; set; }
         private readonly CommandList _commandList;
         private readonly GraphicsDevice _device;
-        private readonly GraphicsBuffer<GlobalShaderData> _globalShaderData;
+        private readonly GpuBuffer<GlobalShaderData> _globalShaderData;
         private float _shaderTimer;
 
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
             _device = engine.GraphicsDevice;
             _commandList = _device.ResourceFactory.CreateCommandList();
-            _globalShaderData = new GraphicsBuffer<GlobalShaderData>(_device, BufferUsage.UniformBuffer);
+            _globalShaderData = new GpuBuffer<GlobalShaderData>(_device, BufferUsage.UniformBuffer);
             _shaderTimer = 0f;
             Camera = null;
             ScreenSize = screenSize;

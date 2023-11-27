@@ -17,8 +17,8 @@ namespace Vocore.Engine
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
         private readonly CommandList _command;
-        private readonly GraphicsBuffer<Matrix4x4> _transformBuffer;
-        private readonly GraphicsArrayBuffer<uint> _instanceIdBuffer;
+        private readonly GpuBuffer<Matrix4x4> _transformBuffer;
+        private readonly GpuArrayBuffer<uint> _instanceIdBuffer;
         private readonly DeviceBuffer _vertexBuffer;
         private readonly DeviceBuffer _indexBuffer;
         private readonly ResourceSet _resourceTransformData;
@@ -32,11 +32,11 @@ namespace Vocore.Engine
             _resourceGlobalShaderData = globalShaderDataSet;
 
             //init matrix buffer for the transform
-            _transformBuffer = new GraphicsBuffer<Matrix4x4>(device, BufferUsage.UniformBuffer);
+            _transformBuffer = new GpuBuffer<Matrix4x4>(device, BufferUsage.UniformBuffer);
             _resourceTransformData = _transformBuffer.CreateResourceSet(BufferLayout.Matrix4x4);
-            
+
             //prepare instance id 
-            _instanceIdBuffer = new GraphicsArrayBuffer<uint>(device, MaxInstanceCount, BufferUsage.VertexBuffer);
+            _instanceIdBuffer = new GpuArrayBuffer<uint>(device, MaxInstanceCount, BufferUsage.VertexBuffer);
             for (int i = 0; i < MaxInstanceCount; i++)
             {
                 _instanceIdBuffer[i] = (uint)i;

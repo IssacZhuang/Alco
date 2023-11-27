@@ -1,39 +1,37 @@
 using System;
 using System.Runtime.CompilerServices;
 
+using Vocore;
 using Vocore.Unsafe;
 
 using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class GraphicsBuffer<T> : IGraphicsBuffer, IDisposable where T : unmanaged
+    public class GpuArrayBuffer<T> : IGpuBuffer, IDisposable where T : unmanaged
     {
-        private T _value;
+        private NativeBuffer<T> _content;
         private bool _isDisposed;
         private DeviceBuffer _buffer;
         private GraphicsDevice _device;
+        private uint _sizeInBytes;
+        private uint _stride;
 
-        public T Value
+        public ref T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return _value;
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                _value = value;
+                return ref _content.GetRef(index);
             }
         }
 
-        public ref T ValueRef
+        public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return ref _value;
+                return _content.Length;
             }
         }
 
@@ -46,18 +44,31 @@ namespace Vocore.Engine
             }
         }
 
-        /// <summary>
-        /// Create a GPU buffer with a value.
-        /// </summary>
-        public GraphicsBuffer(GraphicsDevice device, BufferUsage usage = BufferUsage.UniformBuffer)
+        public GpuArrayBuffer(GraphicsDevice device, int capacity, BufferUsage usage = BufferUsage.UniformBuffer)
         {
+            int stride = UtilsMemory.SizeOf<T>();
+            _stride = (uint)stride;
+            _sizeInBytes = DeviceBufferHelper.GetUniformBufferSize(stride * capacity);
             _device = device;
-            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(DeviceBufferHelper.GetUniformBufferSize<T>(), usage));
+            _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(_sizeInBytes, usage));
+            _content = new NativeBuffer<T>(capacity);
         }
 
-        ~GraphicsBuffer()
+        ~GpuArrayBuffer()
         {
             Dispose();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set(int index, T value)
+        {
+            _content[index] = value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Get(int index)
+        {
+            return _content[index];
         }
 
         /// <summary>
@@ -66,7 +77,7 @@ namespace Vocore.Engine
         /// </summary>
         public void UpdateToGPUImmediately()
         {
-            _device.UpdateBuffer(_buffer, 0, ref _value);
+            _device.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Length * _stride);
         }
 
         /// <summary>
@@ -75,7 +86,7 @@ namespace Vocore.Engine
         /// </summary>
         public void UpdateToGPU(CommandList commandList)
         {
-            commandList.UpdateBuffer(_buffer, 0, ref _value);
+            commandList.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Length * _stride);
         }
 
         public ResourceSet CreateResourceSet(ResourceLayoutDescription layoutDesc)
@@ -84,10 +95,16 @@ namespace Vocore.Engine
             return _device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
+        public unsafe T* GetUnsafePtr()
+        {
+            return _content.DataPtr;
+        }
+
         public void Dispose()
         {
             if (_isDisposed) return;
             _buffer.Dispose();
+            _content.Dispose();
             _isDisposed = true;
             GC.SuppressFinalize(this);
         }

@@ -3,7 +3,7 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public interface IGraphicsResource
+    public interface IGpuResource
     {
         ResourceSet ResourceSet { get; }
     }

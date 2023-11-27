@@ -3,7 +3,7 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public interface IGraphicsBuffer
+    public interface IGpuBuffer
     {
         DeviceBuffer Buffer { get; }
         /// <summary>

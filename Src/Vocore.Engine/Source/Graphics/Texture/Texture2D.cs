@@ -5,7 +5,7 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class Texture2D : IGraphicsResource
+    public class Texture2D : IGpuResource
     {
         private readonly TextureView _textureView;
         private readonly Sampler _sampler;
