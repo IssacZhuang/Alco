@@ -60,7 +60,6 @@ namespace Vocore.Engine
 
         public const string CompliedEntry = "main";
 
-
         public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
 
         public static CrossComplieResult ComplieGraphicsShader(string hlslCode, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "PS")
@@ -116,19 +115,6 @@ namespace Vocore.Engine
             byte[] spirvBytes = ShaderBlobToBytes(resultDesc.target);
             ShaderConductor.DestroyShaderConductorBlob(resultDesc.target);
             return spirvBytes;
-        }
-
-        //fix glsl reflection to hls reflection
-        private static SpirvReflection FixReflection(SpirvReflection reflection)
-        {
-            ResourceLayoutDescription realLayout = reflection.ResourceLayouts[0];
-            ResourceLayoutElementDescription[] elements = realLayout.Elements;
-            ResourceLayoutDescription[] layouts = new ResourceLayoutDescription[elements.Length];
-            for (int i = 0; i < elements.Length; i++)
-            {
-                layouts[i] = CreateLayoutByElement(elements[i]);
-            }
-            return new SpirvReflection(reflection.VertexElements, layouts);
         }
 
         private static ResourceLayoutDescription CreateLayoutByElement(ResourceLayoutElementDescription element)

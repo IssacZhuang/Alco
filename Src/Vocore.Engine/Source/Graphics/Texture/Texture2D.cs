@@ -9,8 +9,8 @@ namespace Vocore.Engine
     {
         private readonly TextureView _textureView;
         private readonly Sampler _sampler;
-        public readonly ResourceLayout _resourceLayout;
-        public readonly ResourceSet _resourceSet;
+        private readonly ResourceLayout _resourceLayout;
+        private readonly ResourceSet _resourceSet;
         public ResourceSet ResourceSet
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
