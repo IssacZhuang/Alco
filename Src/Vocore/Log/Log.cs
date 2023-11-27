@@ -6,7 +6,7 @@ using System.Threading;
 namespace Vocore{
     public static class Log
     {
-        private static ThreadLocal<StringBuilder> _builder = new ThreadLocal<StringBuilder>(()=> new StringBuilder());
+        private readonly static ThreadLocal<StringBuilder> _builder = new ThreadLocal<StringBuilder>(()=> new StringBuilder());
         private static StringBuilder Builder
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -22,49 +22,213 @@ namespace Vocore{
         public const string ColorYellow = "#ffff00";
         public const string ColorCyan = "#00ffff";
         public const string ColorMagenta = "#ff00ff";
+        public const string Null = "null";
 
-        public static void Info(params object[] messages)
+        // public static void Info(params object[] messages)
+        // {
+        //     Builder.Clear();
+        //     for (int i = 0; i < messages.Length; i++)
+        //     {
+        //         Builder.Append(messages[i]?.ToString());
+        //         Builder.Append(" ");
+        //     }
+        //     ConsolePrint(Builder.ToString(), ConsoleColor.White);
+        // }
+
+        public static void Info<T> (T message)
+        {
+            if (message == null)
+            {
+                ConsolePrint(Null, ConsoleColor.White);
+                return;
+            }
+            ConsolePrint(message.ToString(), ConsoleColor.White);
+        }
+
+        public static void Info<T1, T2> (T1 message1, T2 message2)
         {
             Builder.Clear();
-            for (int i = 0; i < messages.Length; i++)
-            {
-                Builder.Append(messages[i]?.ToString());
-                Builder.Append(" ");
-            }
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
             ConsolePrint(Builder.ToString(), ConsoleColor.White);
         }
 
-        public static void Warning(params object[] messages)
+        public static void Info<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
-            for (int i = 0; i < messages.Length; i++)
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+        }
+
+        public static void Info<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+        }
+
+        public static void Info<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message5?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+        }
+
+        // public static void Warning(params object[] messages)
+        // {
+        //     Builder.Clear();
+        //     for (int i = 0; i < messages.Length; i++)
+        //     {
+        //         Builder.Append(messages[i]?.ToString());
+        //         Builder.Append(" ");
+        //     }
+        //     ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+        // }
+
+        public static void Warning<T> (T message)
+        {
+            if (message == null)
             {
-                Builder.Append(messages[i]?.ToString());
-                Builder.Append(" ");
+                ConsolePrint(Null, ConsoleColor.Yellow);
+                return;
             }
+            ConsolePrint(message.ToString(), ConsoleColor.Yellow);
+        }
+
+        public static void Warning<T1, T2> (T1 message1, T2 message2)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
             ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
         }
 
-        public static void Error(params object[] messages)
+        public static void Warning<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
-            for (int i = 0; i < messages.Length; i++)
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+        }
+
+        public static void Warning<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+        }
+
+        public static void Warning<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message5?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+        }
+
+        // public static void Error(params object[] messages)
+        // {
+        //     Builder.Clear();
+        //     for (int i = 0; i < messages.Length; i++)
+        //     {
+        //         Builder.Append(messages[i]?.ToString());
+        //         Builder.Append(" ");
+        //     }
+        //     ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+        // }
+
+        public static void Error<T> (T message)
+        {
+            if (message == null)
             {
-                Builder.Append(messages[i]?.ToString());
-                Builder.Append(" ");
+                ConsolePrint(Null, ConsoleColor.Red);
+                return;
             }
+            ConsolePrint(message.ToString(), ConsoleColor.Red);
+        }
+
+        public static void Error<T1, T2> (T1 message1, T2 message2)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
             ConsolePrint(Builder.ToString(), ConsoleColor.Red);
         }
 
-        public static void Success(params object[] messages)
+        public static void Error<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
-            for (int i = 0; i < messages.Length; i++)
-            {
-                Builder.Append(messages[i]?.ToString());
-                Builder.Append(" ");
-            }
-            ConsolePrint(Builder.ToString(), ConsoleColor.Green);
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+        }
+
+        public static void Error<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+        }
+
+        public static void Error<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message5?.ToString());
+            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
