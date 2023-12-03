@@ -17,31 +17,20 @@ namespace Vocore.Engine
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
         private readonly CommandList _command;
-        private readonly GpuBuffer<Matrix4x4> _transformBuffer;
-        private readonly GpuArrayBuffer<uint> _instanceIdBuffer;
+        private readonly UniformBuffer<Matrix4x4> _transformBuffer;
+        private readonly UniformBuffer<GlobalShaderData> _globalShaderBuffer;
         private readonly DeviceBuffer _vertexBuffer;
         private readonly DeviceBuffer _indexBuffer;
-        private readonly ResourceSet _resourceTransformData;
-        private readonly ResourceSet _resourceGlobalShaderData;
 
-        public EngineAPI_Graphics(GraphicsDevice device, ResourceSet globalShaderDataSet)
+        public EngineAPI_Graphics(GraphicsDevice device, UniformBuffer<GlobalShaderData> globalShaderBuffer)
         {
             _device = device;
             _factory = device.ResourceFactory;
             _command = device.ResourceFactory.CreateCommandList();
-            _resourceGlobalShaderData = globalShaderDataSet;
 
             //init matrix buffer for the transform
-            _transformBuffer = new GpuBuffer<Matrix4x4>(device, BufferUsage.UniformBuffer);
-            _resourceTransformData = _transformBuffer.CreateResourceSet(BufferLayout.Default);
-
-            //prepare instance id 
-            _instanceIdBuffer = new GpuArrayBuffer<uint>(device, MaxInstanceCount, BufferUsage.VertexBuffer);
-            for (int i = 0; i < MaxInstanceCount; i++)
-            {
-                _instanceIdBuffer[i] = (uint)i;
-            }
-            _instanceIdBuffer.UpdateToGPUImmediately();
+            _transformBuffer = new UniformBuffer<Matrix4x4>(device);
+            _globalShaderBuffer = globalShaderBuffer;
 
             //prepare shared vertex and index buffer
             _vertexBuffer = device.ResourceFactory.CreateBuffer(new BufferDescription(VertexBufferSize, BufferUsage.VertexBuffer));
@@ -83,8 +72,9 @@ namespace Vocore.Engine
             _command.SetVertexBuffer(0, _vertexBuffer);
             _command.SetIndexBuffer(_indexBuffer, mesh.IndexFormat);
 
-            _command.SetGraphicsResourceSet(0, _resourceGlobalShaderData);
-            _command.SetGraphicsResourceSet(1, _resourceTransformData);
+            _command.SetBuffer(0, _globalShaderBuffer);
+            _command.SetBuffer(1, _transformBuffer);
+
 
             _command.DrawIndexed(
                 indexCount: mesh.IndexCount,
@@ -99,7 +89,6 @@ namespace Vocore.Engine
         internal void Dispose()
         {
             _transformBuffer.Dispose();
-            _instanceIdBuffer.Dispose();
             _vertexBuffer.Dispose();
             _indexBuffer.Dispose();
             _command.Dispose();

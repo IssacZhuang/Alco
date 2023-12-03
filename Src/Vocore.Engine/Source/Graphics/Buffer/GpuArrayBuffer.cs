@@ -8,7 +8,7 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class GpuArrayBuffer<T> : IGpuBuffer, IGpuResource, IDisposable where T : unmanaged
+    public class GpuArrayBuffer<T> : IGpuBuffer, IDisposable where T : unmanaged
     {
         private NativeBuffer<T> _content;
         private bool _isDisposed;
@@ -16,7 +16,6 @@ namespace Vocore.Engine
         private readonly GraphicsDevice _device;
         private readonly uint _sizeInBytes;
         private readonly uint _stride;
-        private readonly ResourceSet _resourceSet;
 
         public ref T this[int index]
         {
@@ -45,16 +44,7 @@ namespace Vocore.Engine
             }
         }
 
-        public ResourceSet ResourceSet
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _resourceSet;
-            }
-        }
-
-        public GpuArrayBuffer(GraphicsDevice device, int capacity, BufferUsage usage = BufferUsage.UniformBuffer)
+        public GpuArrayBuffer(GraphicsDevice device, int capacity, BufferUsage usage)
         {
             int stride = UtilsMemory.SizeOf<T>();
             _stride = (uint)stride;
@@ -62,8 +52,6 @@ namespace Vocore.Engine
             _device = device;
             _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(_sizeInBytes, usage));
             _content = new NativeBuffer<T>(capacity);
-            ResourceLayout layout = _device.ResourceFactory.CreateResourceLayout(BufferLayout.Default);
-            //_resourceSet = _device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
         ~GpuArrayBuffer()

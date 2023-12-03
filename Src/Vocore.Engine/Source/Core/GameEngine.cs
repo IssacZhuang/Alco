@@ -433,7 +433,7 @@ namespace Vocore.Engine
         private void InitializeAPI()
         {
             Window = new EngineAPI_Window(_window);
-            Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.CreateGlobalShaderDataResourceSet());
+            Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.GlobalShaderData);
         }
 
         #endregion

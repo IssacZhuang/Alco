@@ -7,8 +7,16 @@ namespace Vocore.Engine
     public static partial class BufferLayout
     {
 
-        public static readonly ResourceLayoutDescription Default = new ResourceLayoutDescription(
-            new ResourceLayoutElementDescription("SingleBinding", ResourceKind.UniformBuffer, ShaderStages.Vertex|ShaderStages.Fragment|ShaderStages.Compute)
+        public static readonly ResourceLayoutDescription Uniform = new ResourceLayoutDescription(
+            new ResourceLayoutElementDescription("Uniform", ResourceKind.UniformBuffer, ShaderStages.Vertex|ShaderStages.Fragment|ShaderStages.Compute)
+        );
+
+        public static readonly ResourceLayoutDescription StructuredReadonly = new ResourceLayoutDescription(
+            new ResourceLayoutElementDescription("StructuredReadonly", ResourceKind.StructuredBufferReadOnly, ShaderStages.Vertex | ShaderStages.Fragment | ShaderStages.Compute)
+        );
+
+        public static readonly ResourceLayoutDescription StructuredReadWrite = new ResourceLayoutDescription(
+            new ResourceLayoutElementDescription("StructuredReadWrite", ResourceKind.StructuredBufferReadWrite, ShaderStages.Vertex | ShaderStages.Fragment | ShaderStages.Compute)
         );
 
         public static readonly ResourceLayoutDescription TextureReadonly = new ResourceLayoutDescription(

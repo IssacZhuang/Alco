@@ -7,13 +7,12 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public class GpuBuffer<T> : IGpuBuffer, IGpuResource, IDisposable where T : unmanaged
+    public class GpuBuffer<T> : IGpuBuffer, IDisposable where T : unmanaged
     {
         private T _value;
         private bool _isDisposed;
         private readonly DeviceBuffer _buffer;
         private readonly GraphicsDevice _device;
-        private readonly ResourceSet _resourceSet;
 
         public T Value
         {
@@ -47,15 +46,6 @@ namespace Vocore.Engine
             }
         }
 
-        public ResourceSet ResourceSet
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _resourceSet;
-            }
-        }
-
         /// <summary>
         /// Create a GPU buffer with a value.
         /// </summary>
@@ -63,8 +53,6 @@ namespace Vocore.Engine
         {
             _device = device;
             _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(DeviceBufferHelper.GetUniformBufferSize<T>(), usage));
-            ResourceLayout layout = device.ResourceFactory.CreateResourceLayout(BufferLayout.Default);
-            _resourceSet = device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
         ~GpuBuffer()
@@ -85,15 +73,9 @@ namespace Vocore.Engine
         /// Update the value to the GPU memory.\n
         /// This operation is executed by command list, the buffer will be updated when the command list is executed. !!Recommended!!
         /// </summary>
-        public void UpdateToGPU(CommandList commandList)
+        public virtual void UpdateToGPU(CommandList commandList)
         {
             commandList.UpdateBuffer(_buffer, 0, ref _value);
-        }
-
-        public ResourceSet CreateResourceSet(ResourceLayoutDescription layoutDesc)
-        {
-            ResourceLayout layout = _device.ResourceFactory.CreateResourceLayout(layoutDesc);
-            return _device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(layout, _buffer));
         }
 
         public void Dispose()

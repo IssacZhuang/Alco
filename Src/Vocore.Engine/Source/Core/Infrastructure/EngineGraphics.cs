@@ -16,14 +16,22 @@ namespace Vocore.Engine
         public Vector2 ScreenSize { get; set; }
         private readonly CommandList _commandList;
         private readonly GraphicsDevice _device;
-        private readonly GpuBuffer<GlobalShaderData> _globalShaderData;
+        private readonly UniformBuffer<GlobalShaderData> _globalShaderData;
         private float _shaderTimer;
+        public UniformBuffer<GlobalShaderData> GlobalShaderData
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _globalShaderData;
+            }
+        }
 
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
             _device = engine.GraphicsDevice;
             _commandList = _device.ResourceFactory.CreateCommandList();
-            _globalShaderData = new GpuBuffer<GlobalShaderData>(_device, BufferUsage.UniformBuffer);
+            _globalShaderData = new UniformBuffer<GlobalShaderData>(_device);
             _shaderTimer = 0f;
             Camera = null;
             ScreenSize = screenSize;
@@ -64,11 +72,6 @@ namespace Vocore.Engine
         {
             _device.SwapBuffers();
             _device.WaitForIdle();
-        }
-
-        public ResourceSet CreateGlobalShaderDataResourceSet()
-        {
-            return _globalShaderData.CreateResourceSet(GlobalShaderData.Layout);
         }
     }
 }

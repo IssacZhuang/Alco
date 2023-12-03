@@ -9,5 +9,11 @@ namespace Vocore.Engine
         {
             buffer.UpdateToGPU(commandList);
         }
+
+        public static void SetBuffer<T>(this CommandList commandList, uint slot, T buffer)where T: IGpuBuffer, IGpuResource
+        {
+            buffer.UpdateToGPU(commandList);
+            commandList.SetGraphicsResourceSet(slot, buffer.ResourceSet);
+        }
     }
 }
