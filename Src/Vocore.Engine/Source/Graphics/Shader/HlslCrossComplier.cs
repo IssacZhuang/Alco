@@ -3,69 +3,20 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Veldrid;
 using Veldrid.SPIRV;
-
-using Vocore.Engine.NativeBinding;
+using Vortice.Dxc;
 
 namespace Vocore.Engine
 {
     public static class HlslCrossComplier
     {
-        public static readonly ShaderConductor.TargetDesc TargetD3d12 = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.Dxil,
-            version = null,
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetD3d11 = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.Hlsl,
-            version = null,
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetDxil = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.Dxil,
-            version = null,
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetVulkan = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.SpirV,
-            version = null,
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetSpirv = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.SpirV,
-            version = "1.3",
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetOpenGL = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.Glsl,
-            version = "330",
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetOpenGLES = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.Essl,
-            version = "300",
-        };
-
-        public static readonly ShaderConductor.TargetDesc TargetMetal = new ShaderConductor.TargetDesc
-        {
-            language = ShaderConductor.ShadingLanguage.Msl_macOS,
-            version = "",
-        };
-
         public const string CompliedEntry = "main";
 
         public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
 
         public static CrossComplieResult ComplieGraphicsShader(string hlslCode, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "PS")
         {
-            byte[] vertexSpirv = ConvertHlsl(hlslCode, entryVertex, ShaderConductor.ShaderStage.VertexShader, TargetSpirv);
-            byte[] fragmentSpirv = ConvertHlsl(hlslCode, entryFragment, ShaderConductor.ShaderStage.PixelShader, TargetSpirv);
+            byte[] vertexSpirv = ConvetHlslToSpirv(hlslCode, entryVertex, DxcShaderStage.Vertex);
+            byte[] fragmentSpirv = ConvetHlslToSpirv(hlslCode, entryFragment, DxcShaderStage.Pixel);
 
             SpirvReflection reflection;
             CrossComplieResult result;
@@ -95,26 +46,14 @@ namespace Vocore.Engine
             return result;
         }
 
-        public static byte[] ConvertHlsl(string hlslCode, string entryPoint, ShaderConductor.ShaderStage stage, ShaderConductor.TargetDesc target)
+
+
+        public static byte[] ConvetHlslToSpirv(string hlslCode, string entry, DxcShaderStage stage)
         {
-            ShaderConductor.SourceDesc sourceDesc = new ShaderConductor.SourceDesc
-            {
-                source = hlslCode,
-                entryPoint = entryPoint,
-                stage = stage,
-            };
-
-            ShaderConductor.OptionsDesc optionsDesc = ShaderConductor.OptionsDesc.Default;
-
-            ShaderConductor.Compile(ref sourceDesc, ref optionsDesc, ref target, out ShaderConductor.ResultDesc resultDesc);
-            if (resultDesc.hasError)
-            {
-                throw new Exception(Marshal.PtrToStringAnsi(ShaderConductor.GetShaderConductorBlobData(resultDesc.errorWarningMsg)));
-            }
-
-            byte[] spirvBytes = ShaderBlobToBytes(resultDesc.target);
-            ShaderConductor.DestroyShaderConductorBlob(resultDesc.target);
-            return spirvBytes;
+            byte[] spirv = DxcCompiler.Compile(stage, hlslCode, entry, new DxcCompilerOptions(){
+                GenerateSpirv = true,
+            }).GetObjectBytecodeArray();
+            return spirv;
         }
 
         private static ResourceLayoutDescription CreateLayoutByElement(ResourceLayoutElementDescription element)
@@ -139,15 +78,6 @@ namespace Vocore.Engine
                 default:
                     throw new Exception("Unsupported backend: " + backend);
             }
-        }
-
-        private static byte[] ShaderBlobToBytes(IntPtr ptr)
-        {
-            int size = ShaderConductor.GetShaderConductorBlobSize(ptr);
-            IntPtr ptrData = ShaderConductor.GetShaderConductorBlobData(ptr);
-            byte[] bytes = new byte[size];
-            Marshal.Copy(ptrData, bytes, 0, size);
-            return bytes;
         }
     }
 }

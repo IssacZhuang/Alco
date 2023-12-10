@@ -33,25 +33,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        base.OnUpdate(delta);
-        _actorFreeLook3D.Update();
-        _cameraP.tranform.rotation = _actorFreeLook3D.Rotation;
-        if(Input.IsKeyDown(Key.Escape))
-        {
-            //Stop();
-        }
-
-        if (Input.IsKeyDown(Key.F11))
-        {
-            Window.WindowState = Window.WindowState == WindowState.BorderlessFullScreen ? WindowState.Normal : WindowState.BorderlessFullScreen;
-        }
-
-        _timer += delta;
-
-        _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
-        _cubeTranform1.Rotate(Transform.Up, delta);
-
-        _cubeTranform2.Rotate(Transform.Up, delta);
 
         
     }

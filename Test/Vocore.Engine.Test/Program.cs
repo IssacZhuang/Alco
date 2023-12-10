@@ -4,9 +4,10 @@ using Vocore.Engine;
 using Veldrid;
 
 using System.Runtime.InteropServices;
-using Vocore.ShaderCross;
 using Veldrid.SPIRV;
 using System.Text;
+
+using Vortice.Dxc;
 
 // See https://aka.ms/new-console-template for more information
 // App app = new App(GraphicsBackend.OpenGL, "Test");
@@ -63,6 +64,7 @@ float4 PS(PS_IN input) : SV_Target
 }
 ";
 
+IDxcResult result = DxcCompiler.Compile(DxcShaderStage.Vertex, text, "VS", new DxcCompilerOptions(){}, "test.hlsl", null, null, null);
 
 
 //Log.Info(Encoding.UTF8.GetString(result2));
