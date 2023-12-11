@@ -1,41 +1,53 @@
 using System;
-using System.Collections.Generic;
 using Veldrid;
-
-#pragma warning disable CS8618
+using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine
 {
     public abstract class BaseRenderPipeline : IRenderPipline
     {
-        
-        public virtual bool IsEnable => true;
+        private CommandList _commandList = null!;
+        public CommandList CommandList
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _commandList;
+            }
+        }
+        public bool IsEnable
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return true;
+            }
+        }
 
-        public virtual int Order => 1000;
+        public bool IsAsync
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return false;
+            }
+        }
 
-        protected GraphicsDevice _device;
-        protected ResourceFactory _factory;
+        public int Order => 0;
 
         public virtual void OnCreate(GraphicsDevice device)
         {
-            _device = device;
-            _factory = device.ResourceFactory;
-        }
-
-        public virtual void OnDraw(CommandList commandList)
-        {
-            
+            _commandList = device.ResourceFactory.CreateCommandList();
         }
 
         public virtual void OnDestroy()
         {
-
+            _commandList.Dispose();
         }
 
-        public void OnPostProcess(Framebuffer framebuffer)
+        public virtual void OnDraw()
         {
-            
+            //to be implemented
         }
     }
 }
-

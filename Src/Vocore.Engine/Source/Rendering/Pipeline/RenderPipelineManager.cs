@@ -35,7 +35,7 @@ namespace Vocore.Engine
             renderPipline.OnDestroy();
         }
 
-        public void OnDraw(CommandList commandList)
+        public void OnDraw()
         {
             IRenderPipline? renderPipline;
             for (int i = 0; i < _renderPiplines.Count; i++)
@@ -45,7 +45,7 @@ namespace Vocore.Engine
                 {
                     if (renderPipline.IsEnable)
                     {
-                        renderPipline.OnDraw(commandList);
+                        renderPipline.OnDraw();
                     }
                 }
                 catch (Exception e)

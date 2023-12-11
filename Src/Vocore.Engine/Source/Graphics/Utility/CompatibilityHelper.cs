@@ -43,5 +43,15 @@ namespace Vocore.Engine
                 return PixelFormat.D24_UNorm_S8_UInt;
             }
         }
+
+        public static PixelFormat GetPlatformColorFormat(bool isHDR)
+        {
+            if (isHDR)
+            {
+                return PixelFormat.R16_G16_B16_A16_Float;
+            }
+
+            return PixelFormat.R8_G8_B8_A8_UNorm;
+        }
     }
 }
