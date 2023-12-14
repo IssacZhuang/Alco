@@ -50,10 +50,18 @@ namespace Vocore.Engine
 
         public static byte[] ConvetHlslToSpirv(string hlslCode, string entry, DxcShaderStage stage)
         {
-            byte[] spirv = DxcCompiler.Compile(stage, hlslCode, entry, new DxcCompilerOptions(){
+            IDxcResult result = DxcCompiler.Compile(stage, hlslCode, entry, new DxcCompilerOptions()
+            {
                 GenerateSpirv = true,
-            }).GetObjectBytecodeArray();
-            return spirv;
+            });
+
+            if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
+            {
+
+                throw new Exception(result.GetErrors());
+            }
+
+            return result.GetObjectBytecodeArray();
         }
 
         private static ResourceLayoutDescription CreateLayoutByElement(ResourceLayoutElementDescription element)
