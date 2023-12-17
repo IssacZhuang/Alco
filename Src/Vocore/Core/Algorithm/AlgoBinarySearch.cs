@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class UtilsAlgorithm
+    public class AlgoBinarySearch
     {
         public static Comparison<T> DefaultComparer<T>()
         {

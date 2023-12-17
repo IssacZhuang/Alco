@@ -32,7 +32,7 @@ namespace Vocore
         {
             if (comparer == null)
             {
-                _comparer = UtilsAlgorithm.DefaultComparer<T>();
+                _comparer = AlgoBinarySearch.DefaultComparer<T>();
             }
             else
             {
@@ -46,7 +46,7 @@ namespace Vocore
 
             if (comparer == null)
             {
-                _comparer = UtilsAlgorithm.DefaultComparer<T>();
+                _comparer = AlgoBinarySearch.DefaultComparer<T>();
             }
             else
             {
@@ -59,7 +59,7 @@ namespace Vocore
         public void Add(T item)
         {
             //binary search and insert behind
-            int index = UtilsAlgorithm.BinarySearchCeil(_innerList, item, _comparer);
+            int index = AlgoBinarySearch.BinarySearchCeil(_innerList, item, _comparer);
             if (index == -1)
             {
                 _innerList.Add(item);
@@ -74,7 +74,7 @@ namespace Vocore
         public bool Remove(T item)
         {
             //binary search and remove
-            int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
+            int index = AlgoBinarySearch.BinarySearch(_innerList, item, _comparer);
             if (index == -1)
             {
                 return false;
@@ -86,7 +86,7 @@ namespace Vocore
 
         public bool Contains(T item)
         {
-            int index = UtilsAlgorithm.BinarySearch(_innerList, item, _comparer);
+            int index = AlgoBinarySearch.BinarySearch(_innerList, item, _comparer);
             return index != -1;
         }
 

@@ -71,7 +71,7 @@ namespace Vocore
                 direction = TimeDirection.CounterClockwise;
             }
 
-            int index = UtilsAlgorithm.BinarySearchCeil(events, start);
+            int index = AlgoBinarySearch.BinarySearchCeil(events, start);
             if (index < 0)
             {
                 return false;
