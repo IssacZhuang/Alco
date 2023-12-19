@@ -6,13 +6,13 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public struct ShapeBox: IShape
+    public struct ShapeBox3D : IShape3D
     {
         public Vector3 center;
         public Vector3 extends;
         public Quaternion rotation;
 
-        public ShapeBox(Vector3 center, Vector3 size, Quaternion rotation)
+        public ShapeBox3D(Vector3 center, Vector3 size, Quaternion rotation)
         {
             this.center = center;
             this.extends = size * 0.5f;
@@ -20,11 +20,11 @@ namespace Vocore
         }
 
 
-        public BoundingBox GetBoundingBox()
+        public BoundingBox3D GetBoundingBox()
         {
             if (rotation.Equals(Quaternion.Identity))
             {
-                return new BoundingBox(center - extends, center + extends);
+                return new BoundingBox3D(center - extends, center + extends);
             }
 
             Vector3 x = math.rotate(rotation, new Vector3(extends.X, 0, 0));
@@ -33,10 +33,10 @@ namespace Vocore
 
             Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
 
-            return new BoundingBox(center - halfExtentsInB, center + halfExtentsInB);
+            return new BoundingBox3D(center - halfExtentsInB, center + halfExtentsInB);
         }
 
-        public BoundingBox GetBoundingBox(Transform transform)
+        public BoundingBox3D GetBoundingBox(Transform transform)
         {
             // Vector3 centerInWorld = math.transform(transform, center);
             // Quaternion rotationInWorld = math.mul(transform.rot, rotation);
@@ -63,7 +63,7 @@ namespace Vocore
 
             Vector3 centerInWorld = math.transform(transform, center);
 
-            return new BoundingBox(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
+            return new BoundingBox3D(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
         }
 
         public override string ToString()

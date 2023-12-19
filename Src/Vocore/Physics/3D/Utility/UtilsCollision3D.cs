@@ -10,7 +10,7 @@ namespace Vocore
     public static class UtilsCollision
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool SphereSphere(ShapeSphere sphere1, ShapeSphere sphere2)
+        public static bool SphereSphere(ShapeSphere3D sphere1, ShapeSphere3D sphere2)
         {
             Vector3 difference = sphere1.center - sphere2.center;
             float distanceSquared = math.dot(difference, difference);
@@ -19,7 +19,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool BoxSphere(ShapeBox box, ShapeSphere sphere)
+        public static bool BoxSphere(ShapeBox3D box, ShapeSphere3D sphere)
         {
             Vector3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
 
@@ -31,7 +31,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool BoxBox(ShapeBox box1, ShapeBox box2)
+        public static bool BoxBox(ShapeBox3D box1, ShapeBox3D box2)
         {
             if (box1.rotation.Equals(Quaternion.Identity) && box2.rotation.Equals(Quaternion.Identity))
             {
@@ -42,7 +42,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool BoxBoxAxisAligned(ShapeBox box1, ShapeBox box2)
+        public static bool BoxBoxAxisAligned(ShapeBox3D box1, ShapeBox3D box2)
         {
             Vector3 min1 = box1.center - box1.extends;
             Vector3 max1 = box1.center + box1.extends;
@@ -55,10 +55,10 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IntersectAABBWorldToLocal(ShapeBox world, ShapeBox toLocal)
+        public static bool IntersectAABBWorldToLocal(ShapeBox3D world, ShapeBox3D toLocal)
         {
-            BoundingBox worldBox = new BoundingBox(-world.extends, world.extends);
-            BoundingBox localBox = toLocal.GetBoundingBox(math.inverse(new Transform(world.rotation, world.center)));
+            BoundingBox3D worldBox = new BoundingBox3D(-world.extends, world.extends);
+            BoundingBox3D localBox = toLocal.GetBoundingBox(math.inverse(new Transform(world.rotation, world.center)));
             return worldBox.Intersects(localBox);
         }
 
@@ -96,9 +96,9 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool RaySphere(Ray ray, ShapeSphere sphere, out RaycastHit hit)
+        public static bool RaySphere(Ray3D ray, ShapeSphere3D sphere, out RaycastHit3D hit)
         {
-            hit = new RaycastHit();
+            hit = new RaycastHit3D();
             float fraction = float.MaxValue;
             Vector3 normal = Vector3.Zero;
             hit = default;
@@ -114,7 +114,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool RayAABB(Ray ray, BoundingBox boundingBox, ref float fraction, out Vector3 normal)
+        public static bool RayAABB(Ray3D ray, BoundingBox3D boundingBox, ref float fraction, out Vector3 normal)
         {
             normal = Vector3.Zero;
             Vector3 rayOrigin = ray.origin;
@@ -225,7 +225,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool RayAABB(Ray ray, BoundingBox boundingBox)
+        public static bool RayAABB(Ray3D ray, BoundingBox3D boundingBox)
         {
             Vector3 invRayDisplacement = math.reciprocal(ray.displacement);//1f / ray.displacement;
             Vector3 originToMin = boundingBox.min - ray.origin;
@@ -290,15 +290,15 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool RayBox(Ray ray, ShapeBox box, out RaycastHit hit)
+        public static bool RayBox(Ray3D ray, ShapeBox3D box, out RaycastHit3D hit)
         {
             hit = default;
-            BoundingBox localAABB = new BoundingBox(-box.extends, box.extends);
+            BoundingBox3D localAABB = new BoundingBox3D(-box.extends, box.extends);
 
             Vector3 rayOriginLocal = math.transform(math.inverse(new Transform(box.rotation, box.center)), ray.origin);
             Vector3 rayDisplacementLocal = math.rotate(math.inverse(box.rotation), ray.displacement);
 
-            Ray localRay = new Ray(rayOriginLocal, rayDisplacementLocal);
+            Ray3D localRay = new Ray3D(rayOriginLocal, rayDisplacementLocal);
 
             float fraction = float.MaxValue;
 

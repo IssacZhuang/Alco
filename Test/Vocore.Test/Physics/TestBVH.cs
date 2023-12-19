@@ -9,10 +9,10 @@ using System.Runtime;
 
 namespace Vocore.Test
 {
-    public struct ComparerX : IComparer<ColliderRef>
+    public struct ComparerX : IComparer<ColliderRef3D>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Compare(ColliderRef x, ColliderRef y)
+        public int Compare(ColliderRef3D x, ColliderRef3D y)
         {
             return x.GetBoundingBox().min.X.CompareTo(y.GetBoundingBox().min.X);
         }
@@ -23,9 +23,9 @@ namespace Vocore.Test
         [Test("Benchmark build BVH tree")]
         public unsafe void TestBuildTree()
         {
-            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
-            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
-            NativeArrayList<Ray> rays = new NativeArrayList<Ray>();
+            NativeArrayList<ColliderBox3D> boxs = new NativeArrayList<ColliderBox3D>(8);
+            NativeArrayList<ColliderSphere3D> spheres = new NativeArrayList<ColliderSphere3D>(8);
+            NativeArrayList<Ray3D> rays = new NativeArrayList<Ray3D>();
 
             int colliderCount = 1500;
             int rayCount = 10000;
@@ -38,9 +38,9 @@ namespace Vocore.Test
                 Vector3 pos = random.NextVector3(-100, 100);
                 Vector3 size = random.NextVector3(1, 10);
                 Quaternion rot = random.NextQuaternionRotation();
-                boxs.Add(new ColliderBox
+                boxs.Add(new ColliderBox3D
                 {
-                    shape = new ShapeBox(pos, size, rot)
+                    shape = new ShapeBox3D(pos, size, rot)
                 });
             }
 
@@ -49,9 +49,9 @@ namespace Vocore.Test
 
                 Vector3 pos = random.NextVector3(-100, 100);
                 float radius = random.NextFloat(1, 10);
-                spheres.Add(new ColliderSphere
+                spheres.Add(new ColliderSphere3D
                 {
-                    shape = new ShapeSphere(pos, radius)
+                    shape = new ShapeSphere3D(pos, radius)
                 });
             }
 
@@ -61,15 +61,15 @@ namespace Vocore.Test
                 Vector3 start = random.NextVector3(-125, 125);
                 Vector3 direction = random.NextVector3(-6, 6);
                 Vector3 end = start + direction;// random.NextVector3(-125, 125);
-                rays.Add(Ray.CreateWithStartAndEnd(start, end));
+                rays.Add(Ray3D.CreateWithStartAndEnd(start, end));
             }
 
-            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>(colliderCount, false);
+            NativeArrayList<ColliderRef3D> colliders = new NativeArrayList<ColliderRef3D>(colliderCount, false);
 
-            NativeBVH bvh = new NativeBVH();
+            NativeBvh3D bvh = new NativeBvh3D();
 
-            ColliderBox* ptrBox = boxs.DataPtr;
-            ColliderSphere* ptrSphere = spheres.DataPtr;
+            ColliderBox3D* ptrBox = boxs.DataPtr;
+            ColliderSphere3D* ptrSphere = spheres.DataPtr;
 
             colliders.Clear();
 
@@ -77,12 +77,12 @@ namespace Vocore.Test
             {
                 for (int i = 0; i < boxs.Length; i++)
                 {
-                    colliders.Add(ColliderRef.Create(ptrBox + i));
+                    colliders.Add(ColliderRef3D.Create(ptrBox + i));
                 }
 
                 for (int i = 0; i < spheres.Length; i++)
                 {
-                    colliders.Add(ColliderRef.Create(ptrSphere + i));
+                    colliders.Add(ColliderRef3D.Create(ptrSphere + i));
                 }
             });
 
@@ -124,41 +124,41 @@ namespace Vocore.Test
         [Test("Test BVH ray collision")]
         public unsafe void TestRayCollision()
         {
-            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
-            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
-            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>();
+            NativeArrayList<ColliderBox3D> boxs = new NativeArrayList<ColliderBox3D>(8);
+            NativeArrayList<ColliderSphere3D> spheres = new NativeArrayList<ColliderSphere3D>(8);
+            NativeArrayList<ColliderRef3D> colliders = new NativeArrayList<ColliderRef3D>();
 
 
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(20, 0, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(20, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(10, 0, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(10, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
-            spheres.Add(new ColliderSphere
+            spheres.Add(new ColliderSphere3D
             {
-                shape = new ShapeSphere(new Vector3(-10, 0, 0), 1f)
+                shape = new ShapeSphere3D(new Vector3(-10, 0, 0), 1f)
             });
 
-            spheres.Add(new ColliderSphere
+            spheres.Add(new ColliderSphere3D
             {
-                shape = new ShapeSphere(Vector3.Zero, 0.8f)
+                shape = new ShapeSphere3D(Vector3.Zero, 0.8f)
             });
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
             });
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(-10, 0, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(-10, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
 
@@ -167,19 +167,19 @@ namespace Vocore.Test
 
             for (int i = 0; i < boxs.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(boxs.DataPtr + i));
+                colliders.Add(ColliderRef3D.Create(boxs.DataPtr + i));
             }
 
             for (int i = 0; i < spheres.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(spheres.DataPtr + i));
+                colliders.Add(ColliderRef3D.Create(spheres.DataPtr + i));
             }
 
             // colliders.Add(ColliderRef.Create(boxs.Ptr));
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
-            NativeBVH bvh = new NativeBVH();
-            Ray ray = Ray.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
+            NativeBvh3D bvh = new NativeBvh3D();
+            Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
 
             bvh.BuildTree(colliders);
 
@@ -188,9 +188,9 @@ namespace Vocore.Test
             //UnitTest.AssertFalse(result.hit);
 
 
-            ray = Ray.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
+            ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
 
-            RayCastResult result = bvh.CastRay(ray);
+            RayCastResult3D result = bvh.CastRay(ray);
 
             UnitTest.AssertFalse(!result.hit);
             UnitTest.PrintBlue(result.hitInfo.fraction);
@@ -206,62 +206,62 @@ namespace Vocore.Test
         [Test("Test BVH collider collision")]
         public unsafe void TestColliderCollision()
         {
-            NativeArrayList<ColliderBox> boxs = new NativeArrayList<ColliderBox>(8);
-            NativeArrayList<ColliderSphere> spheres = new NativeArrayList<ColliderSphere>(8);
-            NativeArrayList<ColliderRef> colliders = new NativeArrayList<ColliderRef>();
+            NativeArrayList<ColliderBox3D> boxs = new NativeArrayList<ColliderBox3D>(8);
+            NativeArrayList<ColliderSphere3D> spheres = new NativeArrayList<ColliderSphere3D>(8);
+            NativeArrayList<ColliderRef3D> colliders = new NativeArrayList<ColliderRef3D>();
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
             });
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(5, 0, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(5, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
-            boxs.Add(new ColliderBox
+            boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(5, 5, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(5, 5, 0), new Vector3(1f), Quaternion.Identity)
             });
 
-            spheres.Add(new ColliderSphere
+            spheres.Add(new ColliderSphere3D
             {
-                shape = new ShapeSphere(Vector3.Zero, 1f)
+                shape = new ShapeSphere3D(Vector3.Zero, 1f)
             });
 
             for (int i = 0; i < boxs.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(boxs.DataPtr + i));
+                colliders.Add(ColliderRef3D.Create(boxs.DataPtr + i));
             }
 
             for (int i = 0; i < spheres.Length; i++)
             {
-                colliders.Add(ColliderRef.Create(spheres.DataPtr + i));
+                colliders.Add(ColliderRef3D.Create(spheres.DataPtr + i));
             }
 
-            NativeBVH bvh = new NativeBVH();
+            NativeBvh3D bvh = new NativeBvh3D();
 
             bvh.BuildTree(colliders);
 
-            ColliderBox boxCast1 = new ColliderBox
+            ColliderBox3D boxCast1 = new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(-2, 1.1f, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(-2, 1.1f, 0), new Vector3(1f), Quaternion.Identity)
             };
 
-            ColliderBox boxCast2 = new ColliderBox
+            ColliderBox3D boxCast2 = new ColliderBox3D
             {
-                shape = new ShapeBox(new Vector3(-1.2f, 0, 0), new Vector3(1f), Quaternion.Identity)
+                shape = new ShapeBox3D(new Vector3(-1.2f, 0, 0), new Vector3(1f), Quaternion.Identity)
             };
 
-            ColliderSphere sphereCast1 = new ColliderSphere
+            ColliderSphere3D sphereCast1 = new ColliderSphere3D
             {
-                shape = new ShapeSphere(new Vector3(-2, 1.1f, 0), 1f)
+                shape = new ShapeSphere3D(new Vector3(-2, 1.1f, 0), 1f)
             };
 
-            ColliderSphere sphereCast2 = new ColliderSphere
+            ColliderSphere3D sphereCast2 = new ColliderSphere3D
             {
-                shape = new ShapeSphere(new Vector3(-1.2f, 0, 0), 1f)
+                shape = new ShapeSphere3D(new Vector3(-1.2f, 0, 0), 1f)
             };
 
             UnitTest.AssertFalse(bvh.CastColliderBox(ref boxCast1).hit);

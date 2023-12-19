@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public struct RaycastHit
+    public struct RaycastHit3D
     {
         public Vector3 point;
         public Vector3 normal;

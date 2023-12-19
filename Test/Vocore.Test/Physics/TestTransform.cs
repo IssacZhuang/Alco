@@ -22,10 +22,10 @@ namespace Vocore.Test
         [Test("test box to local")]
         public void TestBoxToLocal()
         {
-            ShapeBox box = new ShapeBox(new Vector3(0, 0, 0), new Vector3(1, 1, 1), math.euler(math.radians(new Vector3(0, 0, 0))));
+            ShapeBox3D box = new ShapeBox3D(new Vector3(0, 0, 0), new Vector3(1, 1, 1), math.euler(math.radians(new Vector3(0, 0, 0))));
             Transform transform = new Transform(math.euler(math.radians(new Vector3(45, 0, 0))), new Vector3(0, 0, 0));
-            BoundingBox boxInWorld = box.GetBoundingBox(transform);
-            BoundingBox boxInLocal = box.GetBoundingBox();
+            BoundingBox3D boxInWorld = box.GetBoundingBox(transform);
+            BoundingBox3D boxInLocal = box.GetBoundingBox();
             UnitTest.PrintBlue(boxInWorld);
             UnitTest.PrintBlue(boxInLocal);
         }
