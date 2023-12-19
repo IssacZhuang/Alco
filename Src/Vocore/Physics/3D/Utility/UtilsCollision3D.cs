@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
-    public static class UtilsCollision
+    public static class UtilsCollision3D
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SphereSphere(ShapeSphere3D sphere1, ShapeSphere3D sphere2)

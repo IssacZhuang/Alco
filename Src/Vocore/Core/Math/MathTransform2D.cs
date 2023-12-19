@@ -30,7 +30,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 transform(Transform2D a, Vector2 b)
         {
-            return rotate(b, a.rotation) * a.scale + a.position;
+            return rotate(b, a.rotation) + a.position;
         }
     }
 

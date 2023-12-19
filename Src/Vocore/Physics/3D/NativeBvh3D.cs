@@ -134,7 +134,7 @@ namespace Vocore
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!UtilsCollision.RayAABB(ray, top.boundingBox)) continue;
+                if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {
@@ -179,7 +179,7 @@ namespace Vocore
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!UtilsCollision.RayAABB(ray, top.boundingBox)) continue;
+                if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {

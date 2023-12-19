@@ -20,12 +20,12 @@ namespace Vocore
         {
             if (other->type == ColliderType.Box)
             {
-                return UtilsCollision.BoxBox(shape, ((ColliderBox3D*)other)->shape);
+                return UtilsCollision3D.BoxBox(shape, ((ColliderBox3D*)other)->shape);
             }
             
             if (other->type == ColliderType.Sphere)
             {
-                return UtilsCollision.BoxSphere(shape, ((ColliderSphere3D*)other)->shape);
+                return UtilsCollision3D.BoxSphere(shape, ((ColliderSphere3D*)other)->shape);
             }
 
             return false;
@@ -43,7 +43,7 @@ namespace Vocore
 
         public bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo)
         {
-            return UtilsCollision.RayBox(ray, shape, out hitInfo);
+            return UtilsCollision3D.RayBox(ray, shape, out hitInfo);
         }
     }
 
