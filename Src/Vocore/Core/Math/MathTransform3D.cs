@@ -11,10 +11,10 @@ namespace Vocore
         public static Transform3D toLocal(Transform3D transform, Transform3D parent)
         {
             Transform3D parentInverse = math.inverse(parent);
-            Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position) / parent.scale;
+            Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position) * parentInverse.scale;
             Quaternion localRotation = math.mul(parentInverse.rotation, transform.rotation);
-
-            return new Transform3D(localRotation, localPosition);
+            Vector3 localScale = transform.scale * parentInverse.scale;
+            return new Transform3D(localPosition, localRotation, localScale);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -24,14 +24,15 @@ namespace Vocore
             return new Transform3D
             {
                 position = mul(invRot, -a.position),
-                rotation = invRot
+                rotation = invRot,
+                scale = Vector3.One / a.scale
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 transform(Transform3D a, Vector3 b)
         {
-            return mul(a.rotation, b) + a.position;
+            return mul(a.rotation, b) * a.scale + a.position;
         }
 
 

@@ -10,9 +10,9 @@ namespace Vocore
         public static Transform2D toLocal(Transform2D transform, Transform2D parent)
         {
             Transform2D parentInverse = math.inverse(parent);
-            Vector2 localPosition = math.rotate(parentInverse.rotation, transform.position - parent.position) / parent.scale;
+            Vector2 localPosition = math.rotate(parentInverse.rotation, transform.position - parent.position) * parentInverse.scale;
             float localRotation = parentInverse.rotation + transform.rotation;
-
+            Vector2 localScale = transform.scale * parentInverse.scale;
             return new Transform2D(localRotation, localPosition);
         }
 
@@ -23,7 +23,8 @@ namespace Vocore
             return new Transform2D
             {
                 position = rotate(invRot, -a.position),
-                rotation = invRot
+                rotation = invRot,
+                scale = Vector2.One / a.scale
             };
         }
 
