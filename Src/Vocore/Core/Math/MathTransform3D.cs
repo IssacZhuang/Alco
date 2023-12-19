@@ -8,19 +8,20 @@ namespace Vocore
     {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform toLocal(Transform transform, Transform parent)
+        public static Transform3D toLocal(Transform3D transform, Transform3D parent)
         {
-            Transform parentInverse = math.inverse(parent);
-            Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position);
+            Transform3D parentInverse = math.inverse(parent);
+            Vector3 localPosition = math.mul(parentInverse.rotation, transform.position - parent.position) / parent.scale;
             Quaternion localRotation = math.mul(parentInverse.rotation, transform.rotation);
-            return new Transform(localRotation, localPosition);
+
+            return new Transform3D(localRotation, localPosition);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform inverse(Transform a)
+        public static Transform3D inverse(Transform3D a)
         {
             Quaternion invRot = inverse(a.rotation);
-            return new Transform
+            return new Transform3D
             {
                 position = mul(invRot, -a.position),
                 rotation = invRot
@@ -28,16 +29,16 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 transform(Transform a, Vector3 b)
+        public static Vector3 transform(Transform3D a, Vector3 b)
         {
-            return mul(a.rotation, b) + a.position;
+            return mul(a.rotation, b) * a.scale + a.position;
         }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform lerp(Transform a, Transform b, float t)
+        public static Transform3D lerp(Transform3D a, Transform3D b, float t)
         {
-            return new Transform
+            return new Transform3D
             {
                 position = lerp(a.position, b.position, t),
                 rotation = lerp(a.rotation, b.rotation, t),

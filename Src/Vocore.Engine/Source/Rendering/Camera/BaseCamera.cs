@@ -11,7 +11,7 @@ namespace Vocore.Engine
         protected float _near;
         protected float _far;
         protected bool _isProjectionMatrixDirty;
-        public Transform tranform;
+        public Transform3D tranform;
 
         public float Near
         {
@@ -73,7 +73,7 @@ namespace Vocore.Engine
             _near = near;
             _far = far;
             _isProjectionMatrixDirty = true;
-            tranform = Transform.Default;
+            tranform = Transform3D.Default;
         }
     }
 }

@@ -11,6 +11,5 @@ namespace Vocore
 
         public const double PI_DBL = 3.14159265358979323846;
         public const float PI = (float)PI_DBL;
-
     }
 }

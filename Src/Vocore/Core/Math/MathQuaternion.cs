@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
+    //math lib for 3d rotation
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

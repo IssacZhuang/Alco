@@ -4,12 +4,21 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
-    public struct Transform//umanaged
+    public struct Transform3D
     {
+        /// <summary>
+        /// The position of the transform in world space.
+        /// </summary>
         public Vector3 position;
+        /// <summary>
+        /// The rotation of the transform in world space stored as a Quaternion.
+        /// </summary>
         public Quaternion rotation;
+        /// <summary>
+        /// The scale of the transform in world space.
+        /// </summary>
         public Vector3 scale;
-        public static readonly Transform Default = new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One);
+        public static readonly Transform3D Default = new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One);
         public static readonly Vector3 Forward = Vector3.UnitZ;
         public static readonly Vector3 Back = -Vector3.UnitZ;
         public static readonly Vector3 Up = Vector3.UnitY;
@@ -17,28 +26,28 @@ namespace Vocore
         public static readonly Vector3 Right = -Vector3.UnitX;
         public static readonly Vector3 Left = Vector3.UnitX;
 
-        public Transform(Vector3 pos)
+        public Transform3D(Vector3 pos)
         {
             this.position = pos;
             this.rotation = Quaternion.Identity;
             this.scale = Vector3.One;
         }
 
-        public Transform(Vector3 pos, Quaternion rot)
+        public Transform3D(Vector3 pos, Quaternion rot)
         {
             this.position = pos;
             this.rotation = rot;
             this.scale = Vector3.One;
         }
 
-        public Transform(Quaternion rot, Vector3 pos)
+        public Transform3D(Quaternion rot, Vector3 pos)
         {
             this.position = pos;
             this.rotation = rot;
             this.scale = Vector3.One;
         }
 
-        public Transform(Vector3 pos, Quaternion rot, Vector3 scale)
+        public Transform3D(Vector3 pos, Quaternion rot, Vector3 scale)
         {
             this.position = pos;
             this.rotation = rot;
@@ -50,12 +59,12 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Vector3.Transform(Vector3.UnitZ, rotation);
+                return math.direction(rotation);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                //SetDirection(value);
+                rotation = math.direction(value);
             }
         }
 
@@ -64,34 +73,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return UtilsTranform.CreateTransformTRS(position, rotation, scale);
-            }
-        }
-
-        public Matrix4x4 MatrixRT
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return UtilsTranform.CreateTransformTR(position, rotation);
-            }
-        }
-
-        public Matrix4x4 MatrixSR
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return UtilsTranform.CreateTransformRS(rotation, scale);
-            }
-        }
-
-        public Matrix4x4 MatrixST
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return UtilsTranform.CreateTransformTS(position, scale);
+                return math.matrix4trs(position, rotation, scale);
             }
         }
 
@@ -125,7 +107,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector3 translation)
         {
-            position += Vector3.Transform(translation, rotation);
+            position += math.rotate(translation, rotation);
         }
 
 

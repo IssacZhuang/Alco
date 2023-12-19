@@ -12,8 +12,8 @@ public class Game : GameEngine
     private Shader _shaderBasic;
     private float _timer;
 
-    private Transform _cubeTranform1 = Transform.Default;
-    private Transform _cubeTranform2 = Transform.Default;
+    private Transform3D _cubeTranform1 = Transform3D.Default;
+    private Transform3D _cubeTranform2 = Transform3D.Default;
     private ActorFreeLook3D _actorFreeLook3D;
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -51,9 +51,9 @@ public class Game : GameEngine
         _cameraP.SetAspectRatio(Window.AspectRatio);
 
         _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
-        _cubeTranform1.Rotate(Transform.Up, delta);
+        _cubeTranform1.Rotate(Transform3D.Up, delta);
 
-        _cubeTranform2.Rotate(Transform.Up, delta);
+        _cubeTranform2.Rotate(Transform3D.Up, delta);
     }
 
     protected override void OnDraw(float delta)

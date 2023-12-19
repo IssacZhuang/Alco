@@ -56,7 +56,7 @@ namespace Vocore.Engine
             _far = far;
             _aspectRatio = aspectRatio;
 
-            tranform = Transform.Default;
+            tranform = Transform3D.Default;
 
             _isProjectionMatrixDirty = true;
         }

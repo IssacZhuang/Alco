@@ -13,8 +13,8 @@ public class Game : GameEngine
     private Shader _shaderBasic;
     private float _timer;
 
-    private Transform _cubeTranform1 = Transform.Default;
-    private Transform _cubeTranform2 = Transform.Default;
+    private Transform3D _cubeTranform1 = Transform3D.Default;
+    private Transform3D _cubeTranform2 = Transform3D.Default;
     private ActorFreeLook3D _actorFreeLook3D;
     override protected void OnStart()
     {

@@ -48,7 +48,7 @@ namespace Vocore
             return new BoundingBox3D();
         }
 
-        public BoundingBox3D GetBoundingBox(Transform transform)
+        public BoundingBox3D GetBoundingBox(Transform3D transform)
         {
             switch (_type)
             {

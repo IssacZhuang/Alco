@@ -54,7 +54,7 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Shader shader, Transform transform)
+        public void DrawMesh(IMesh mesh, Shader shader, Transform3D transform)
         {
             DrawMesh(mesh, shader.Pipeline, transform.Matrix);
         }
@@ -66,7 +66,7 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Transform transform)
+        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Transform3D transform)
         {
             DrawMesh(mesh, shaderPipeline, transform.Matrix);
         }
@@ -98,7 +98,7 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
-        public void DrawMeshWithTexture(IMesh mesh, Shader shader, Transform transform, ResourceSet texture)
+        public void DrawMeshWithTexture(IMesh mesh, Shader shader, Transform3D transform, ResourceSet texture)
         {
             DrawMeshWithTexture(mesh, shader.Pipeline, transform.Matrix, texture);
         }
@@ -136,7 +136,7 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
-        public void DrawMeshIntanced(IMesh mesh, Shader shader, Transform transform, uint instanceCount)
+        public void DrawMeshIntanced(IMesh mesh, Shader shader, Transform3D transform, uint instanceCount)
         {
             DrawMeshIntanced(mesh, shader.Pipeline, transform.Matrix, instanceCount);
         }

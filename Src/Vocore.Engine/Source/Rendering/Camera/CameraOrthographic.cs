@@ -69,7 +69,7 @@ namespace Vocore.Engine
             _near = near;
             _far = far;
             _isProjectionMatrixDirty = true;
-            tranform = Transform.Default;
+            tranform = Transform3D.Default;
         }
 
 
