@@ -27,6 +27,8 @@ namespace Vocore.Test
 
             UnitTest.AssertFalse(UtilsCollision3D.BoxBox(boxA, boxB));
 
+            Quaternion rotX90 = math.euler(math.radians(new Vector3(90, 0, 0)));
+
             boxA = new ShapeBox3D(Vector3.Zero, new Vector3(1.01f), Quaternion.Identity);
             boxB = new ShapeBox3D(new Vector3(1, 0, 0), new Vector3(1.01f), Quaternion.Identity);
 

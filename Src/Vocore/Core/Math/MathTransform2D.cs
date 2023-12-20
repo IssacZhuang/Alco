@@ -19,11 +19,10 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform2D inverse(Transform2D a)
         {
-            float invRot = -a.rotation;
             return new Transform2D
             {
-                position = rotate(invRot, -a.position),
-                rotation = invRot,
+                position = -a.position,
+                rotation = -a.rotation,
                 scale = Vector2.One / a.scale
             };
         }

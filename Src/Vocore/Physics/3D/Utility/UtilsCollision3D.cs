@@ -58,7 +58,7 @@ namespace Vocore
         public static bool IntersectAABBWorldToLocal(ShapeBox3D world, ShapeBox3D toLocal)
         {
             BoundingBox3D worldBox = new BoundingBox3D(-world.extends, world.extends);
-            BoundingBox3D localBox = toLocal.GetBoundingBox(math.inverse(new Transform3D(world.rotation, world.center)));
+            BoundingBox3D localBox = toLocal.GetBoundingBox(math.toLocal(new Transform3D(toLocal.rotation, toLocal.center), new Transform3D(world.rotation, world.center)));
             return worldBox.Intersects(localBox);
         }
 
