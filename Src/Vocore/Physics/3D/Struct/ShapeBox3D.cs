@@ -36,34 +36,14 @@ namespace Vocore
             return new BoundingBox3D(center - halfExtentsInB, center + halfExtentsInB);
         }
 
-        public BoundingBox3D GetBoundingBox(Transform3D transform)
+        public ShapeBox3D TransformByParent(Transform3D parent)
         {
-            // Vector3 centerInWorld = math.transform(transform, center);
-            // Quaternion rotationInWorld = math.mul(transform.rot, rotation);
-
-            // if (rotationInWorld.Equals(Quaternion.Identity))
-            // {
-            //     return new BoundingBox(centerInWorld - extends, centerInWorld + extends);
-            // }
-
-            // Vector3 x = math.rotate(rotationInWorld, new Vector3(extends.X, 0, 0));
-            // Vector3 y = math.rotate(rotationInWorld, new Vector3(0, extends.Y, 0));
-            // Vector3 z = math.rotate(rotationInWorld, new Vector3(0, 0, extends.Z));
-
-            // Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
-
-            // return new BoundingBox(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
-            Quaternion rotationInWorld = math.mul(rotation, transform.rotation);
-
-            Vector3 x = Vector3.Transform(new Vector3(extends.X, 0, 0), rotationInWorld);
-            Vector3 y = Vector3.Transform(new Vector3(0, extends.Y, 0), rotationInWorld);
-            Vector3 z = Vector3.Transform(new Vector3(0, 0, extends.Z), rotationInWorld);
-
-            Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
-
-            Vector3 centerInWorld = math.transform(transform, center);
-
-            return new BoundingBox3D(centerInWorld - halfExtentsInB, centerInWorld + halfExtentsInB);
+            return new ShapeBox3D
+            {
+                center = math.rotate(parent.rotation, center) * parent.scale + parent.position,
+                extends = extends * parent.scale,
+                rotation = math.mul(parent.rotation, rotation),
+            };
         }
 
         public override string ToString()

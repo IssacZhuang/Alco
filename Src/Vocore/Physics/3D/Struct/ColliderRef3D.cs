@@ -48,18 +48,6 @@ namespace Vocore
             return new BoundingBox3D();
         }
 
-        public BoundingBox3D GetBoundingBox(Transform3D transform)
-        {
-            switch (_type)
-            {
-                case ColliderType.Box:
-                    return (*(ColliderBox3D*)_ptr).GetBoundingBox(transform);
-                case ColliderType.Sphere:
-                    return (*(ColliderSphere3D*)_ptr).GetBoundingBox(transform);
-            }
-            return new BoundingBox3D();
-        }
-
         public bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo)
         {
             switch (_type)

@@ -23,15 +23,15 @@ namespace Vocore
             return new BoundingBox3D(center - extends, center + extends);
         }
 
-        public BoundingBox3D GetBoundingBox(Transform3D transform)
+        public ShapeSphere3D TransformByParent(Transform3D parent)
         {
-            Vector3 centerInWorld = math.transform(transform, center);
-            return new BoundingBox3D
+            return new ShapeSphere3D
             {
-                min = centerInWorld - new Vector3(radius),
-                max = centerInWorld + new Vector3(radius)
+                center = math.rotate(parent.rotation, center) * parent.scale + parent.position,
+                radius = radius * math.max(parent.scale.X, math.max(parent.scale.Y, parent.scale.Z))
             };
         }
+
     }
 }
 

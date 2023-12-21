@@ -29,6 +29,17 @@ namespace Vocore
             };
         }
 
+        public static Transform3D relative(Transform3D from, Transform3D to)
+        {
+            return new Transform3D
+            {
+                position = to.position - from.position,
+                rotation = mul(inverse(from.rotation), to.rotation),
+                scale = to.scale / from.scale
+            };
+        }
+
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 transform(Transform3D a, Vector3 b)
         {
