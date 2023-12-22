@@ -5,8 +5,8 @@ namespace Vocore
 {
     public struct RaycastHit2D
     {
-        public Vector3 point;
-        public Vector3 normal;
+        public Vector2 point;
+        public Vector2 normal;
         public float fraction;
         public override string ToString()
         {

@@ -3,12 +3,12 @@ using System.Numerics;
 
 namespace Vocore
 {
-    public struct ShapeShpere2D
+    public struct ShapeSphere2D : IShape2D
     {
         public Vector2 center;
         public float radius;
 
-        public ShapeShpere2D(Vector2 center, float radius)
+        public ShapeSphere2D(Vector2 center, float radius)
         {
             this.center = center;
             this.radius = radius;
@@ -19,9 +19,9 @@ namespace Vocore
             return new BoundingBox2D(center - new Vector2(radius), center + new Vector2(radius));
         }
 
-        public ShapeShpere2D TransformByParent(Transform2D parent)
+        public ShapeSphere2D TransformByParent(Transform2D parent)
         {
-            return new ShapeShpere2D
+            return new ShapeSphere2D
             {
                 center = math.rotate(center, parent.rotation) * parent.scale + parent.position,
                 radius = radius * math.max(parent.scale.X, parent.scale.Y)

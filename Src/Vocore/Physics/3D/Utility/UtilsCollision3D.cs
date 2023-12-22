@@ -199,7 +199,7 @@ namespace Vocore
             }
 
             fraction = tmin;
-            //todo: calculate normal of hit face
+            
             if (txmin == tmin)
             {
                 normal = new Vector3(-1.0f, 0.0f, 0.0f) * inverseX;
@@ -299,10 +299,10 @@ namespace Vocore
         {
             hit = default;
             BoundingBox3D localAABB = new BoundingBox3D(-box.extends, box.extends);
-
+            Quaternion invRot =math.inverse(box.rotation);
             //Vector3 rayOriginLocal = math.transform(math.inverse(new Transform3D(box.rotation, box.center)), ray.origin);
-            Vector3 rayOriginLocal = math.rotate(math.inverse(box.rotation), ray.origin - box.center);
-            Vector3 rayDisplacementLocal = math.rotate(math.inverse(box.rotation), ray.displacement);
+            Vector3 rayOriginLocal = math.rotate(invRot, ray.origin - box.center);
+            Vector3 rayDisplacementLocal = math.rotate(invRot, ray.displacement);
 
             Ray3D localRay = new Ray3D(rayOriginLocal, rayDisplacementLocal);
 
