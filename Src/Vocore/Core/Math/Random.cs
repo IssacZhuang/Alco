@@ -163,5 +163,11 @@ namespace Vocore
             q = select(q, -q, q.W < 0.0f);
             return new Quaternion(q.X, q.Y, q.Z, q.W);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Rotation2D NextRotation2D()
+        {
+            return new Rotation2D(NextFloat(2.0f * PI));
+        }
     }
 }

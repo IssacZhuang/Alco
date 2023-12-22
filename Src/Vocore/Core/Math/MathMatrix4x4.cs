@@ -49,7 +49,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Matrix4x4 matrix4rt(Quaternion rotation, Vector3 scale)
+        public static Matrix4x4 matrix4rs(Quaternion rotation, Vector3 scale)
         {
             return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation);
         }

@@ -7,8 +7,8 @@ namespace Vocore
     {
         public Vector2 center;
         public Vector2 extends;
-        public float rotation;
-        public ShapeBox2D(Vector2 center, Vector2 size, float rotation)
+        public Rotation2D rotation;
+        public ShapeBox2D(Vector2 center, Vector2 size, Rotation2D rotation)
         {
             this.center = center;
             this.extends = size * 0.5f;
@@ -17,7 +17,7 @@ namespace Vocore
 
         public BoundingBox2D GetBoundingBox()
         {
-            if (rotation == 0)
+            if (rotation == Rotation2D.Identity)
             {
                 return new BoundingBox2D(center - extends, center + extends);
             }
@@ -36,7 +36,7 @@ namespace Vocore
             {
                 center = math.rotate(center, parent.rotation) * parent.scale + parent.position,
                 extends = extends * parent.scale,
-                rotation = rotation + parent.rotation,
+                rotation = math.mul(rotation, parent.rotation)
             };
         }
     }

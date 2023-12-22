@@ -53,7 +53,7 @@ namespace Vocore.Test
             {
                 for (int i = 0; i < count; i++)
                 {
-                    v3 = math.rotate(r3, v3);
+                    r3 = math.mul(r3, rt3);
                 }
             });
 
@@ -61,7 +61,7 @@ namespace Vocore.Test
             {
                 for (int i = 0; i < count; i++)
                 {
-                    v2 = math.rotate(r2, v2);
+                    r2 = math.mul(r2, rt2);
                 }
             });
 

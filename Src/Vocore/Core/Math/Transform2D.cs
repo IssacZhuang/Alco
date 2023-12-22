@@ -13,36 +13,36 @@ namespace Vocore
         /// <summary>
         /// The rotation of the transform in world space stored as a radian.
         /// </summary>
-        public float rotation;
+        public Rotation2D rotation;
         /// <summary>
         /// The scale of the transform in world space.
         /// </summary>
         public Vector2 scale;
 
-        public static readonly Transform2D Default = new Transform2D(Vector2.Zero, 0, Vector2.One);
+        public static readonly Transform2D Default = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One);
 
         public Transform2D(Vector2 pos)
         {
             this.position = pos;
-            this.rotation = 0;
+            this.rotation = Rotation2D.Identity;
             this.scale = Vector2.One;
         }
 
-        public Transform2D(Vector2 pos, float rot)
+        public Transform2D(Vector2 pos, Rotation2D rot)
         {
             this.position = pos;
             this.rotation = rot;
             this.scale = Vector2.One;
         }
 
-        public Transform2D(float rot, Vector2 pos)
+        public Transform2D(Rotation2D rot, Vector2 pos)
         {
             this.position = pos;
             this.rotation = rot;
             this.scale = Vector2.One;
         }
 
-        public Transform2D(Vector2 pos, float rot, Vector2 scale)
+        public Transform2D(Vector2 pos, Rotation2D rot, Vector2 scale)
         {
             this.position = pos;
             this.rotation = rot;
@@ -59,7 +59,8 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                rotation = math.direction(value);
+                Vector2 norm = math.normalize(value);
+                rotation = new Rotation2D(norm.X, norm.Y);
             }
         }
 
@@ -68,7 +69,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix3x2.CreateScale(scale) * Matrix3x2.CreateRotation(rotation) * Matrix3x2.CreateTranslation(position);
+                return math.matrix3trs(position, rotation, scale);
             }
         }
 
@@ -77,7 +78,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix3x2.CreateTranslation(position);
+                return math.matrix3translation(position);
             }
         }
 
@@ -86,7 +87,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix3x2.CreateRotation(rotation);
+                return math.matrix3rotation(rotation);
             }
         }
 
@@ -95,7 +96,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix3x2.CreateScale(scale);
+                return math.matrix3scale(scale);
             }
         }
 
@@ -108,20 +109,27 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(float radians)
         {
-            rotation += radians;
+            math.sincos(radians, out float s, out float c);
+            rotation = math.mul(rotation, new Rotation2D(c, s));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Rotate(Rotation2D rot)
+        {
+            rotation = math.mul(rotation, rot);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LookAt(Vector2 point)
         {
-            rotation = math.direction(point - position);
+            this.Direction = point - position;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Rotate(Vector2 center, float radians)
+        public void Rotate(Vector2 center, Rotation2D rot)
         {
-            position = math.rotate(position - center, radians) + center;
-            rotation += radians;
+            position = math.rotate(position - center, rot) + center;
+            rotation = math.mul(rotation, rot);
         }
     }
 }

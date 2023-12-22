@@ -21,7 +21,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxSphere(ShapeBox3D box, ShapeSphere3D sphere)
         {
-            Vector3 sphereCenter = math.mul(math.inverse(box.rotation), sphere.center - box.center);
+            Vector3 sphereCenter = math.mul(sphere.center - box.center, math.inverse(box.rotation));
 
             Vector3 closestPoint = math.clamp(sphereCenter, -box.extends, box.extends);
 

@@ -19,7 +19,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxSphere(ShapeBox2D box, ShapeSphere2D shpere)
         {
-            Vector2 shpereCenter = math.rotate(shpere.center - box.center, -box.rotation);
+            Vector2 shpereCenter = math.rotate(shpere.center - box.center, math.inverse(box.rotation));
 
             Vector2 closestPoint = math.clamp(shpereCenter, -box.extends, box.extends);
 
@@ -31,7 +31,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBox(ShapeBox2D box1, ShapeBox2D box2D)
         {
-            if (box1.rotation == 0 && box2D.rotation == 0)
+            if (box1.rotation == Rotation2D.Identity && box2D.rotation == Rotation2D.Identity)
             {
                 return BoxBoxAxisAligned(box1, box2D);
             }
@@ -56,8 +56,10 @@ namespace Vocore
         {
             BoundingBox2D worldBox = new BoundingBox2D(-world.extends, world.extends);
 
-            toLocal.center = math.rotate(toLocal.center, -world.rotation);
-            toLocal.rotation -= world.rotation;
+            Rotation2D invRot = math.inverse(world.rotation);
+            toLocal.center = math.rotate(toLocal.center - world.center, invRot);
+            //toLocal.rotation -= world.rotation;
+            toLocal.rotation = math.mul(toLocal.rotation, invRot);
 
             BoundingBox2D localBox = toLocal.GetBoundingBox();
             return worldBox.Intersects(localBox);
@@ -234,9 +236,10 @@ namespace Vocore
             hit = default;
             BoundingBox2D localAABB = new BoundingBox2D(-box.extends, box.extends);
 
+            Rotation2D invRot = math.inverse(box.rotation);
             //Vector3 rayOriginLocal = math.transform(math.inverse(new Transform3D(box.rotation, box.center)), ray.origin);
-            Vector2 rayOriginLocal = math.rotate(ray.origin - box.center, -box.rotation);
-            Vector2 rayDisplacementLocal = math.rotate(ray.displacement, -box.rotation);
+            Vector2 rayOriginLocal = math.rotate(ray.origin - box.center, invRot);
+            Vector2 rayDisplacementLocal = math.rotate(ray.displacement, invRot);
 
             Ray2D localRay = new Ray2D(rayOriginLocal, rayDisplacementLocal);
 

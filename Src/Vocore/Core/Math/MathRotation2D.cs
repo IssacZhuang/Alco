@@ -68,6 +68,13 @@ namespace Vocore
         {
             return new Vector2(q.c, q.s);
         }
+
+        // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // public static Rotation2D direction(Vector2 v)
+        // {
+        //     v = normalize(v);
+        //     return new Rotation2D(v.X, v.Y);
+        // }
     }
 
 }

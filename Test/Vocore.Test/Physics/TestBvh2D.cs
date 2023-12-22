@@ -29,7 +29,7 @@ namespace Vocore.Test
 
                 Vector2 pos = random.NextVector2(-100, 100);
                 Vector2 size = random.NextVector2(1, 10);
-                float rot = random.NextFloat();
+                Rotation2D rot = random.NextRotation2D();
                 boxs.Add(new ColliderBox2D
                 {
                     shape = new ShapeBox2D(pos, size, rot)
@@ -124,13 +124,13 @@ namespace Vocore.Test
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(20, 0), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(20, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(10, 0), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(10, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
             spheres.Add(new ColliderSphere2D
@@ -145,12 +145,12 @@ namespace Vocore.Test
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), 0)
+                shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(-10, 0), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(-10, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
 
@@ -204,17 +204,17 @@ namespace Vocore.Test
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), 0)
+                shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(5, 0), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(5, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(5, 5), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(5, 5), new Vector2(1f), Rotation2D.Identity)
             });
 
             spheres.Add(new ColliderSphere2D
@@ -238,12 +238,12 @@ namespace Vocore.Test
 
             ColliderBox2D boxCast1 = new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(-2, 1.1f), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(-2, 1.1f), new Vector2(1f), Rotation2D.Identity)
             };
 
             ColliderBox2D boxCast2 = new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), 0)
+                shape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity)
             };
 
             ColliderSphere2D sphereCast1 = new ColliderSphere2D

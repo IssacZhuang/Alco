@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
-    public struct Rotation2D
+    public struct Rotation2D:IEquatable<Rotation2D>
     {
         /// <summary>
         /// Sin
@@ -33,5 +33,35 @@ namespace Vocore
             return new Rotation2D(math.radians(degree));
         }
 
+        // overload operator
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(Rotation2D a, Rotation2D b)
+        {
+            return a.s == b.s && a.c == b.c;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(Rotation2D a, Rotation2D b)
+        {
+            return a.s != b.s || a.c != b.c;
+        }
+
+        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(Rotation2D other)
+        {
+            return this == other;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Rotation2D d && this == d;
+        }
+
+        public override int GetHashCode()
+        {
+            return s.GetHashCode() ^ c.GetHashCode();
+        }
     }
 }
