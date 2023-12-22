@@ -33,8 +33,8 @@ namespace Vocore.Engine
         {
             var delta = GameEngine.Instance.Input.MouseDelta;
             
-            rotationY -= delta.X * sensitivity / WindowSize.Y;
-            rotationX += delta.Y * sensitivity / WindowSize.X;
+            rotationY += delta.X * sensitivity / WindowSize.Y;
+            rotationX -= delta.Y * sensitivity / WindowSize.X;
 
             rotationX = math.clamp(rotationX, -maxRotationX, maxRotationX);
         }

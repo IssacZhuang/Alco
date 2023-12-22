@@ -7,7 +7,7 @@ namespace Vocore
     public interface ICollider2D : IShape2D
     {
         bool CollidesWith<T>(T other) where T : unmanaged, ICollider2D;
-        bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo);
+        bool IntersectRay(Ray2D ray, out RaycastHit2D hitInfo);
         ColliderType type { get; }
     }
 }

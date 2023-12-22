@@ -40,9 +40,17 @@ namespace Vocore.Test
         public unsafe void Test()
         {
             Quaternion q = math.euler(math.radians(new Vector3(45, 45, 0)));
-            UnitTest.AssertTrue(math.mul(q, math.inverse(q)).Equals(Quaternion.Identity));
-            UnitTest.PrintBlue(q);
-            UnitTest.PrintBlue(math.mul(q, math.inverse(q)));
+            Vector3 vector = new Vector3(1,2,3);
+
+            Vector3 x = math.rotate(q, new Vector3(vector.X, 0, 0));
+            Vector3 y = math.rotate(q, new Vector3(0, vector.Y, 0));
+            Vector3 z = math.rotate(q, new Vector3(0, 0, vector.Z));
+
+            Vector3 rotated = math.abs(x) + math.abs(y) + math.abs(z);
+            Vector3 rotated2 = math.abs(math.rotate(vector, q));
+
+            UnitTest.Print(rotated);
+            UnitTest.Print(rotated2);
         }
     }
 

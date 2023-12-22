@@ -31,9 +31,10 @@ namespace Vocore
             Vector3 y = math.rotate(rotation, new Vector3(0, extends.Y, 0));
             Vector3 z = math.rotate(rotation, new Vector3(0, 0, extends.Z));
 
-            Vector3 halfExtentsInB = math.abs(x) + math.abs(y) + math.abs(z);
+            Vector3 extentsInB = math.abs(x) + math.abs(y) + math.abs(z);
+            // Vector3 extentsInB = math.abs(math.rotate(extends, rotation));
 
-            return new BoundingBox3D(center - halfExtentsInB, center + halfExtentsInB);
+            return new BoundingBox3D(center - extentsInB, center + extentsInB);
         }
 
         public ShapeBox3D TransformByParent(Transform3D parent)
