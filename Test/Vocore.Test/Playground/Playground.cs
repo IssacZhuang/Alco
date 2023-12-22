@@ -39,18 +39,32 @@ namespace Vocore.Test
         [Test("Playground")]
         public unsafe void Test()
         {
-            Quaternion q = math.euler(math.radians(new Vector3(45, 45, 0)));
-            Vector3 vector = new Vector3(1,2,3);
+            Vector3 v3 = new Vector3(1, 2, 3);
+            Quaternion r3 = math.euler(math.radians(new Vector3(45, 0, 0)));
+            Quaternion rt3 = math.euler(math.radians(new Vector3(43, 0, 0)));
 
-            Vector3 x = math.rotate(q, new Vector3(vector.X, 0, 0));
-            Vector3 y = math.rotate(q, new Vector3(0, vector.Y, 0));
-            Vector3 z = math.rotate(q, new Vector3(0, 0, vector.Z));
 
-            Vector3 rotated = math.abs(x) + math.abs(y) + math.abs(z);
-            Vector3 rotated2 = math.abs(math.rotate(vector, q));
+            Vector2 v2 = new Vector2(1, 2);
+            Rotation2D r2 = new Rotation2D(math.radians(45));
+            Rotation2D rt2 = new Rotation2D(math.radians(43));
 
-            UnitTest.Print(rotated);
-            UnitTest.Print(rotated2);
+            int count = 10000000;
+            UnitTest.Benchmark("rotate 3D", () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    v3 = math.rotate(r3, v3);
+                }
+            });
+
+            UnitTest.Benchmark("rotate 2D", () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    v2 = math.rotate(r2, v2);
+                }
+            });
+
         }
     }
 
