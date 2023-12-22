@@ -9,18 +9,10 @@ using System.Runtime;
 
 namespace Vocore.Test
 {
-    public struct ComparerX : IComparer<ColliderRef3D>
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Compare(ColliderRef3D x, ColliderRef3D y)
-        {
-            return x.GetBoundingBox().min.X.CompareTo(y.GetBoundingBox().min.X);
-        }
-    }
 
-    public class TestBVH
+    public class TestBvh3D
     {
-        [Test("Benchmark build BVH tree")]
+        [Test("Benchmark build BVH tree 3D")]
         public unsafe void TestBuildTree()
         {
             NativeArrayList<ColliderBox3D> boxs = new NativeArrayList<ColliderBox3D>(8);
@@ -121,7 +113,7 @@ namespace Vocore.Test
             bvh.Dispose();
         }
 
-        [Test("Test BVH ray collision")]
+        [Test("Test BVH ray collision 3D")]
         public unsafe void TestRayCollision()
         {
             NativeArrayList<ColliderBox3D> boxs = new NativeArrayList<ColliderBox3D>(8);
@@ -203,7 +195,7 @@ namespace Vocore.Test
 
         }
 
-        [Test("Test BVH collider collision")]
+        [Test("Test BVH collider collision 3D")]
         public unsafe void TestColliderCollision()
         {
             NativeArrayList<ColliderBox3D> boxs = new NativeArrayList<ColliderBox3D>(8);
