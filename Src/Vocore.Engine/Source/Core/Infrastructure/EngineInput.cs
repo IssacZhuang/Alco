@@ -204,6 +204,18 @@ namespace Vocore.Engine
             return _state.isMousePressing[offset];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ResetMouseToCenter()
+        {
+            if (_defaultMouse == null)
+            {
+                return;
+            }
+            _mousePosition = new Vector2(_window!.Size.X / 2, _window.Size.Y / 2);
+            _defaultMouse.Position = _mousePosition;
+            _mouseDelta = Vector2.Zero;
+        }
+
 
 
         private void OnMouseDown(IMouse mouse, MouseButton button)

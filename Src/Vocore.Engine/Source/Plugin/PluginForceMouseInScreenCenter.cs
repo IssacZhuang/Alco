@@ -9,6 +9,7 @@ namespace Vocore.Engine
         public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
             engine.Input.ForceMouseInScreenCenter = true;
+            engine.Input.ResetMouseToCenter();
         }
     }
 }

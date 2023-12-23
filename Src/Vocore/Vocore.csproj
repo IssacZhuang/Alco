@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <ProjectGuid>{7A5CCEE4-8701-49FC-B5C8-9F294C0509CF}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Vocore</RootNamespace>
     <AssemblyName>Vocore</AssemblyName>

@@ -1,6 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <ProjectGuid>{46DE48F6-1C2C-4DF6-99CE-7E4CAFDB34BE}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Vocore.Test</RootNamespace>
     <AssemblyName>Vocore.Test</AssemblyName>
