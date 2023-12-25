@@ -67,7 +67,7 @@ namespace Vocore.Engine
             _disposed = false;
         }
 
-        public static OffscreenBuffer CreateBySwapchainFramebuffer(GraphicsDevice device)
+        public static OffscreenBuffer CreateBySwapchainFramebuffer(GraphicsDevice device, SamplerMode samplerMode = SamplerMode.Linear)
         {
             Framebuffer swapChainBuffer = device.SwapchainFramebuffer;
             Texture defaultColorTexture = swapChainBuffer.ColorTargets[0].Target;
@@ -85,7 +85,7 @@ namespace Vocore.Engine
                 depth = swapChainBuffer.DepthTarget.Value.Target.Format;
             }
 
-            return new OffscreenBuffer(device, width, height, colors, depth);
+            return new OffscreenBuffer(device, width, height, colors, depth, samplerMode);
         }
 
         ~OffscreenBuffer()
@@ -99,7 +99,7 @@ namespace Vocore.Engine
 
             if (_depth.HasValue)
             {
-                Texture depthTexture = _factory.CreateTexture(TextureDescription.Texture2D(_width, _height, 1, 1, _depth.Value, TextureUsage.DepthStencil));
+                Texture depthTexture = _factory.CreateTexture(TextureDescription.Texture2D(_width, _height, 1, 1, _depth.Value, TextureUsage.DepthStencil| TextureUsage.Sampled));
                 desc.DepthTarget = new FramebufferAttachmentDescription(depthTexture, 0);
             }
 
@@ -138,13 +138,15 @@ namespace Vocore.Engine
             desc.BoundResources = new BindableResource[elementCount];
             for (int i = 0; i < _colors.Length; i++)
             {
-                desc.BoundResources[i * 2] = _framebuffer.ColorTargets[i].Target;
+                TextureView colorView = _factory.CreateTextureView(_framebuffer.ColorTargets[i].Target);
+                desc.BoundResources[i * 2] = colorView;
                 desc.BoundResources[i * 2 + 1] = GetSampler();
             }
 
             if (_framebuffer.DepthTarget.HasValue)
             {
-                desc.BoundResources[_colors.Length * 2] = _framebuffer.DepthTarget.Value.Target;
+                TextureView depthView = _factory.CreateTextureView(_framebuffer.DepthTarget.Value.Target);
+                desc.BoundResources[_colors.Length * 2] = depthView;
                 desc.BoundResources[_colors.Length * 2 + 1] = GetSampler();
             }
 

@@ -9,7 +9,7 @@ namespace Vocore.Engine
     /// The graphics module <br/>
     /// Have only one instance in the Class Engine
     /// </summary>
-    internal struct EngineGraphics
+    internal class EngineGraphics
     {
         private static readonly float TimeLimit = math.pow(2, 24);
         public ICamera? Camera { get; set; }
@@ -17,6 +17,7 @@ namespace Vocore.Engine
         private readonly CommandList _commandList;
         private readonly GraphicsDevice _device;
         private readonly UniformBuffer<GlobalShaderData> _globalShaderData;
+        private readonly OffscreenBuffer _targerBuffer;
         private float _shaderTimer;
         public UniformBuffer<GlobalShaderData> GlobalShaderData
         {
@@ -35,6 +36,7 @@ namespace Vocore.Engine
             _shaderTimer = 0f;
             Camera = null;
             ScreenSize = screenSize;
+            _targerBuffer = OffscreenBuffer.CreateBySwapchainFramebuffer(_device);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
