@@ -9,15 +9,18 @@ namespace Vocore.Engine
     /// The graphics module <br/>
     /// Have only one instance in the Class Engine
     /// </summary>
-    internal class EngineGraphics
+    public class EngineGraphics
     {
+        private static readonly uint VertexBufferSize = 1024 * 1024 * 4;
+        private static readonly uint IndexBufferSize = 1024 * 1024 * 4;
         private static readonly float TimeLimit = math.pow(2, 24);
         public ICamera? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
         private readonly CommandList _commandList;
         private readonly GraphicsDevice _device;
+        private readonly UniformBuffer<Matrix4x4> _transformBuffer;
         private readonly UniformBuffer<GlobalShaderData> _globalShaderData;
-        private readonly OffscreenBuffer _targerBuffer;
+        private readonly OffscreenBuffer _renderTarget;
         private float _shaderTimer;
         public UniformBuffer<GlobalShaderData> GlobalShaderData
         {
@@ -28,15 +31,26 @@ namespace Vocore.Engine
             }
         }
 
+        public OffscreenBuffer RenderTarget
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _renderTarget;
+            }
+        }
+
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
             _device = engine.GraphicsDevice;
             _commandList = _device.ResourceFactory.CreateCommandList();
-            _globalShaderData = new UniformBuffer<GlobalShaderData>(_device);
             _shaderTimer = 0f;
             Camera = null;
             ScreenSize = screenSize;
-            _targerBuffer = OffscreenBuffer.CreateBySwapchainFramebuffer(_device);
+
+            _renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(_device);
+            _globalShaderData = new UniformBuffer<GlobalShaderData>(_device);
+            _transformBuffer = new UniformBuffer<Matrix4x4>(_device);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

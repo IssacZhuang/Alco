@@ -102,5 +102,15 @@ namespace Vocore.Engine
             _isDisposed = true;
             GC.SuppressFinalize(this);
         }
+
+        public static GpuArrayBuffer<T> CreateIndexBuffer( GraphicsDevice device, int capacity)
+        {
+            return new GpuArrayBuffer<T>(device, capacity, BufferUsage.IndexBuffer);
+        }
+
+        public static GpuArrayBuffer<T> CreateVertexBuffer(GraphicsDevice device, int capacity)
+        {
+            return new GpuArrayBuffer<T>(device, capacity, BufferUsage.VertexBuffer);
+        }
     }
 }
