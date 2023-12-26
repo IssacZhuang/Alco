@@ -68,22 +68,22 @@ namespace Vocore.Engine
         /// <summary>
         /// Complie and add shader to the pool
         /// </summary>
-        public Shader? ComplieAndAdd(string shaderText, string name = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS", ShaderMacroDefine[]? macros = null)
+        public Shader? ComplieAndAdd(ShaderComplieDescription input)
         {
-            if (_shaders.ContainsKey(name))
+            if (_shaders.ContainsKey(input.Filename))
             {
-                Log.Error($"Shader {name} already exist in pool");
+                Log.Error($"Shader {input.Filename} already exist in pool");
                 return null;
             }
             try
             {
-                Shader shader = Complier.Complie(shaderText, name, vertexEntry, fragmentEntry, macros);
-                _shaders.Add(name, shader);
+                Shader shader = Complier.Complie(input);
+                _shaders.Add(input.Filename, shader);
                 return shader;
             }
             catch (Exception e)
             {
-                Log.Error($"Complie Shader {name} failed: {e.Message}");
+                Log.Error($"Complie Shader {input.Filename} failed: {e.Message}");
                 return null;
             }
         }

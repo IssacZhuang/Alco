@@ -34,23 +34,23 @@ namespace Vocore.Engine
         /// <summary>
         /// Complie a HLSL shader to specified graphics backend
         /// </summary>
-        public Shader Complie(string shaderText, string filename = "Unknow", string vertexEntry = "VS", string fragmentEntry = "PS", ShaderMacroDefine[]? macros = null)
+        public Shader Complie(ShaderComplieDescription input)
         {
             List<ShaderMacroDefine> macroList = new List<ShaderMacroDefine>(){
                 GetBackendMacro(_device.BackendType)
             };
-            if (macros != null)
+            if (input.Macros != null)
             {
-                macroList.AddRange(macros);
+                macroList.AddRange(input.Macros);
             }
-            string shaderCode = ProcessMacro(shaderText, macroList);
-            shaderCode = ProcessInclude(shaderCode, filename);
-            CrossComplieResult result = HlslCrossComplier.ComplieGraphicsShader(shaderCode, _device.BackendType, vertexEntry, fragmentEntry);
+            string shaderCode = ProcessMacro(input.ShaderText, macroList);
+            shaderCode = ProcessInclude(shaderCode, input.Filename);
+            CrossComplieResult result = HlslCrossComplier.ComplieGraphicsShader(shaderCode, _device.BackendType, input.VertexEntry, input.FragmentEntry);
 
             ShaderDescription vertexShaderDescription = result.vertex;
             ShaderDescription fragmentShaderDescription = result.fragment;
 
-            ShaderAnalyzer analyseResult = new ShaderAnalyzer(shaderText);
+            ShaderAnalyzer analyseResult = new ShaderAnalyzer(input.ShaderText);
 
             SpirvReflection reflection = result.reflection;
 
@@ -109,7 +109,7 @@ namespace Vocore.Engine
             pipelineDescription.Outputs = _device.SwapchainFramebuffer.OutputDescription;
             Pipeline pipline = _factory.CreateGraphicsPipeline(pipelineDescription);
 
-            return new Shader(filename, pipline, reflection);
+            return new Shader(input.Filename, pipline, reflection);
         }
 
         public string ProcessMacro(string shaderText, ShaderMacroDefine[] macros)

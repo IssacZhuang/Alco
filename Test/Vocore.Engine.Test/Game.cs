@@ -25,7 +25,10 @@ public class Game : GameEngine
 
         ShaderComplier complier = new ShaderComplier(GraphicsDevice);
         var shaderBasic = File.ReadAllText(Path.Combine(WorkingDirectory, "Assets/Basic.glsl"));
-        _shaderBasic = complier.Complie(shaderBasic, "Basic");
+
+        ShaderComplieDescription shaderInput = new ShaderComplieDescription(shaderBasic, "Basic");
+
+        _shaderBasic = complier.Complie(shaderInput);
 
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
