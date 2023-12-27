@@ -33,5 +33,13 @@ namespace Vocore.Engine
         {
             commandList.SetGraphicsResourceSet(slot, resource.ResourceSet);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetResourceGroup(this CommandList commandList, GpuResourceGroup resourceGroup)
+        {
+            resourceGroup.SetResourceForCommandList(commandList);
+        }
+
+
     }
 }

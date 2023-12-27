@@ -38,24 +38,24 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Shader shader, Transform3D transform)
+        public void DrawMesh(IMeshData mesh, Shader shader, Transform3D transform)
         {
             DrawMesh(mesh, shader.Pipeline, transform.Matrix);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Shader shader, Matrix4x4 transform)
+        public void DrawMesh(IMeshData mesh, Shader shader, Matrix4x4 transform)
         {
             DrawMesh(mesh, shader.Pipeline, transform);
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Transform3D transform)
+        public void DrawMesh(IMeshData mesh, Pipeline shaderPipeline, Transform3D transform)
         {
             DrawMesh(mesh, shaderPipeline, transform.Matrix);
         }
 
-        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
+        public void DrawMesh(IMeshData mesh, Pipeline shaderPipeline, Matrix4x4 transform)
         {
             //set transform data to memory, later will be updated to GPU by the command list
             _transformBuffer.Value = transform;

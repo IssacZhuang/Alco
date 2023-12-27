@@ -4,17 +4,17 @@ using Veldrid.SPIRV;
 
 namespace Vocore.Engine
 {
-    public class GpuBufferGroup
+    public class GpuResourceGroup
     {
         private readonly ResourceLayoutDescription[] _layouts;
         private readonly IGpuResource?[] _resources;
-        public GpuBufferGroup(Shader shader) : this(shader.Reflection)
+        public GpuResourceGroup(Shader shader) : this(shader.Reflection)
         {
         }
-        public GpuBufferGroup(SpirvReflection reflection) : this(reflection.ResourceLayouts)
+        public GpuResourceGroup(SpirvReflection reflection) : this(reflection.ResourceLayouts)
         {
         }
-        public GpuBufferGroup(ResourceLayoutDescription[] layouts)
+        public GpuResourceGroup(ResourceLayoutDescription[] layouts)
         {
             _layouts = layouts;
             _resources = new IGpuResource[_layouts.Length];

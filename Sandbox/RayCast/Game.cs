@@ -62,7 +62,7 @@ public class Game : GameEngine
 
     protected override void OnDraw(float delta)
     {
-        IMesh mesh = _isHit ? BuiltInMeshs.Cube : BuiltInMeshs.TestCube;
+        IMeshData mesh = _isHit ? BuiltInMeshs.Cube : BuiltInMeshs.TestCube;
         Graphics.DrawMesh(mesh, _shaderBasic, _cubeTranform1);
     }
 

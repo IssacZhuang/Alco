@@ -54,24 +54,24 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Shader shader, Transform3D transform)
+        public void DrawMesh(IMeshData mesh, Shader shader, Transform3D transform)
         {
             DrawMesh(mesh, shader.Pipeline, transform.Matrix);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Shader shader, Matrix4x4 transform)
+        public void DrawMesh(IMeshData mesh, Shader shader, Matrix4x4 transform)
         {
             DrawMesh(mesh, shader.Pipeline, transform);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Transform3D transform)
+        public void DrawMesh(IMeshData mesh, Pipeline shaderPipeline, Transform3D transform)
         {
             DrawMesh(mesh, shaderPipeline, transform.Matrix);
         }
 
-        public void DrawMesh(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform)
+        public void DrawMesh(IMeshData mesh, Pipeline shaderPipeline, Matrix4x4 transform)
         {
             // _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
             // _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
@@ -98,17 +98,17 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
-        public void DrawMeshWithTexture(IMesh mesh, Shader shader, Transform3D transform, ResourceSet texture)
+        public void DrawMeshWithTexture(IMeshData mesh, Shader shader, Transform3D transform, ResourceSet texture)
         {
             DrawMeshWithTexture(mesh, shader.Pipeline, transform.Matrix, texture);
         }
 
-        public void DrawMeshWithTexture(IMesh mesh, Shader shader, Matrix4x4 transform, ResourceSet texture)
+        public void DrawMeshWithTexture(IMeshData mesh, Shader shader, Matrix4x4 transform, ResourceSet texture)
         {
             DrawMeshWithTexture(mesh, shader.Pipeline, transform, texture);
         }
 
-        public void DrawMeshWithTexture(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform, ResourceSet texture)
+        public void DrawMeshWithTexture(IMeshData mesh, Pipeline shaderPipeline, Matrix4x4 transform, ResourceSet texture)
         {
             // _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
             // _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
@@ -136,17 +136,17 @@ namespace Vocore.Engine
             _device.SubmitCommands(_commandList);
         }
 
-        public void DrawMeshIntanced(IMesh mesh, Shader shader, Transform3D transform, uint instanceCount)
+        public void DrawMeshIntanced(IMeshData mesh, Shader shader, Transform3D transform, uint instanceCount)
         {
             DrawMeshIntanced(mesh, shader.Pipeline, transform.Matrix, instanceCount);
         }
 
-        public void DrawMeshIntanced(IMesh mesh, Shader shader, Matrix4x4 transform, uint instanceCount)
+        public void DrawMeshIntanced(IMeshData mesh, Shader shader, Matrix4x4 transform, uint instanceCount)
         {
             DrawMeshIntanced(mesh, shader.Pipeline, transform, instanceCount);
         }
 
-        public void DrawMeshIntanced(IMesh mesh, Pipeline shaderPipeline, Matrix4x4 transform, uint instanceCount)
+        public void DrawMeshIntanced(IMeshData mesh, Pipeline shaderPipeline, Matrix4x4 transform, uint instanceCount)
         {
             // _device.UpdateBuffer(_vertexBuffer, 0, mesh.VertexPtr, mesh.VertexBufferSize);
             // _device.UpdateBuffer(_indexBuffer, 0, mesh.IndexPtr, mesh.IndexBufferSize);
