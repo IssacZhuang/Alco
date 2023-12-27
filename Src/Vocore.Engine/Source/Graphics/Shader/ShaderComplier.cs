@@ -106,7 +106,16 @@ namespace Vocore.Engine
                 vertexLayouts: _vertexLayouts,
                 shaders: shaders
                 );
-            pipelineDescription.Outputs = _device.SwapchainFramebuffer.OutputDescription;
+
+            if (input.OutputDescription.HasValue)
+            {
+                pipelineDescription.Outputs = input.OutputDescription.Value;
+            }
+            else
+            {
+                pipelineDescription.Outputs = _device.SwapchainFramebuffer.OutputDescription;
+            }
+
             Pipeline pipline = _factory.CreateGraphicsPipeline(pipelineDescription);
 
             return new Shader(input.Filename, pipline, reflection);
