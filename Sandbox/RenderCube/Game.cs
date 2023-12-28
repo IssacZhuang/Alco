@@ -37,9 +37,13 @@ public class Game : GameEngine
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
 
-        _drawList = new DrawList(GraphicsDevice);
+        OffscreenBuffer renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(GraphicsDevice);
+
+        _drawList = new DrawList(GraphicsDevice, renderTarget.Framebuffer );
 
         _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
+
+        
 
         _bufferGroup = new GpuResourceGroup(_shaderBasic);
         _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);
@@ -85,6 +89,7 @@ public class Game : GameEngine
         _transformBuffer.Value = _cubeTranform2.Matrix;
         _drawList.DrawMesh(_cube2, _shaderBasic.Pipeline, _bufferGroup);
         _drawList.End();
+        //_drawList.PushToScreen();
     }
 
     public static string LoadAsset(string path)
