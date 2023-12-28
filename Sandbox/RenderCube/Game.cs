@@ -15,6 +15,10 @@ public class Game : GameEngine
     private Transform3D _cubeTranform1 = Transform3D.Default;
     private Transform3D _cubeTranform2 = Transform3D.Default;
     private ActorFreeLook3D _actorFreeLook3D;
+    private DrawList _drawList;
+    private GpuResourceGroup _bufferGroup;
+    private MeshBuffer _cube1;
+    private MeshBuffer _cube2;
     public Game(GameEngineSetting setting) : base(setting)
     {
     }
@@ -23,6 +27,7 @@ public class Game : GameEngine
     {
         ShaderComplieDescription shaderInput = new ShaderComplieDescription(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
         _shaderBasic = Shader.ComplieAndAdd(shaderInput);
+        Log.Info(_shaderBasic.GetReflectionInfo());
         
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
@@ -30,7 +35,15 @@ public class Game : GameEngine
 
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
- 
+
+        _drawList = new DrawList(GraphicsDevice);
+        _bufferGroup = new GpuResourceGroup(_shaderBasic);
+        _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);
+
+        _cube1 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);
+
+        _cube2 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.TestCube);
+
     }
     protected override void OnUpdate(float delta)
     {
@@ -59,9 +72,13 @@ public class Game : GameEngine
 
     protected override void OnDraw(float delta)
     {
-        Graphics.DrawMesh(BuiltInMeshs.Cube, _shaderBasic, _cubeTranform1);
-        Graphics.DrawMesh(BuiltInMeshs.TestCube, _shaderBasic, _cubeTranform2);
-        
+        // Graphics.DrawMesh(BuiltInMeshs.Cube, _shaderBasic, _cubeTranform1);
+        // Graphics.DrawMesh(BuiltInMeshs.TestCube, _shaderBasic, _cubeTranform2);
+
+        _drawList.Begin();
+        _drawList.DrawMesh(_cube1, _shaderBasic.Pipeline, _bufferGroup);
+        _drawList.DrawMesh(_cube2, _shaderBasic.Pipeline, _bufferGroup);
+        _drawList.End();
     }
 
     public static string LoadAsset(string path)

@@ -33,7 +33,7 @@ namespace Vocore.Engine
         #endregion
 
         #region  Internal
-        internal EngineGraphics _frame;
+        public EngineGraphics _frame;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
         internal EngineShaderContext _shaderContext;

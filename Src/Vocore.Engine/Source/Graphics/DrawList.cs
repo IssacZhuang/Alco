@@ -37,6 +37,13 @@ namespace Vocore.Engine
             _target = device.SwapchainFramebuffer;
         }
 
+        public void Begin()
+        {
+            _commands.Begin();
+        }
+
+
+
         public void DrawMesh(IMeshResource mesh, Pipeline pipeline, GpuResourceGroup bufferGroup)
         {
             _commands.SetPipeline(pipeline);
@@ -45,6 +52,12 @@ namespace Vocore.Engine
             _commands.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
             _commands.SetResourceGroup(bufferGroup);
             _commands.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        }
+
+        public void End()
+        {
+            _commands.End();
+            _device.SubmitCommands(_commands);
         }
 
 
