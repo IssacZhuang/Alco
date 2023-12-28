@@ -8,6 +8,7 @@ namespace Vocore.Engine
     {
         private readonly ResourceLayoutDescription[] _layouts;
         private readonly IGpuResource?[] _resources;
+        private readonly IGpuBuffer?[] _buffers;
         public GpuResourceGroup(Shader shader) : this(shader.Reflection)
         {
         }
@@ -18,6 +19,7 @@ namespace Vocore.Engine
         {
             _layouts = layouts;
             _resources = new IGpuResource[_layouts.Length];
+            _buffers = new IGpuBuffer[_layouts.Length];
         }
 
         /// <summary>
@@ -26,6 +28,12 @@ namespace Vocore.Engine
         /// </summary>
         public bool TrySet(int id, IGpuResource resource)
         {
+            if(resource == null)
+            {
+                Log.Warning("Try to set a null resource");
+                return false;
+            }
+
             if (id < 0 || id >= _layouts.Length)
             {
                 return false;
@@ -37,7 +45,10 @@ namespace Vocore.Engine
             }
 
             _resources[id] = resource;
-
+            if (resource is IGpuBuffer buffer)
+            {
+                _buffers[id] = buffer;
+            }
             return true;
         }
 
@@ -66,6 +77,7 @@ namespace Vocore.Engine
             }
 
             _resources[id] = null;
+            _buffers[id] = null;
 
             return false;
         }
@@ -97,6 +109,12 @@ namespace Vocore.Engine
         {
             for (uint i = 0; i < _layouts.Length; i++)
             {
+                IGpuBuffer buffer = _buffers[i]!;
+                if (buffer != null)
+                {
+                    buffer.UpdateToGPU(commandList);
+                }
+
                 IGpuResource resource = _resources[i]!;
                 if (resource  != null)
                 {

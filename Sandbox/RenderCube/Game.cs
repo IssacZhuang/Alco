@@ -17,6 +17,7 @@ public class Game : GameEngine
     private ActorFreeLook3D _actorFreeLook3D;
     private DrawList _drawList;
     private GpuResourceGroup _bufferGroup;
+    private UniformBuffer<Matrix4x4> _transformBuffer;
     private MeshBuffer _cube1;
     private MeshBuffer _cube2;
     public Game(GameEngineSetting setting) : base(setting)
@@ -37,11 +38,14 @@ public class Game : GameEngine
         _actorFreeLook3D.sensitivity = 10f;
 
         _drawList = new DrawList(GraphicsDevice);
+
+        _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
+
         _bufferGroup = new GpuResourceGroup(_shaderBasic);
         _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);
+        _bufferGroup.TrySet("type.TransformBuffer", _transformBuffer);
 
         _cube1 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);
-
         _cube2 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.TestCube);
 
     }
@@ -76,7 +80,9 @@ public class Game : GameEngine
         // Graphics.DrawMesh(BuiltInMeshs.TestCube, _shaderBasic, _cubeTranform2);
 
         _drawList.Begin();
+        _transformBuffer.Value = _cubeTranform1.Matrix;
         _drawList.DrawMesh(_cube1, _shaderBasic.Pipeline, _bufferGroup);
+        _transformBuffer.Value = _cubeTranform2.Matrix;
         _drawList.DrawMesh(_cube2, _shaderBasic.Pipeline, _bufferGroup);
         _drawList.End();
     }
