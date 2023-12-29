@@ -158,7 +158,7 @@ namespace Vocore.Engine
                     }
                     else
                     {
-                        Log.Error($"Include file {includeFilename} not found");
+                        throw new ShaderCompilationException($"Include file {includeFilename} not found");
                     }
                 }
                 else

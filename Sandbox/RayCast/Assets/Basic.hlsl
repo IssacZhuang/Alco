@@ -1,4 +1,4 @@
-#include "Core.hlsl"
+#include "Core.hlsli"
 
 struct VS_IN 
 {

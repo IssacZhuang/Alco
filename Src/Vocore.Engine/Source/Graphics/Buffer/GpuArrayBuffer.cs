@@ -17,12 +17,12 @@ namespace Vocore.Engine
         private readonly uint _sizeInBytes;
         private readonly uint _stride;
 
-        public ref T this[int index]
+        public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return ref _content.GetRef(index);
+                return _content.Get(index);
             }
         }
 

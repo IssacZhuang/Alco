@@ -62,7 +62,7 @@ namespace Vocore.Engine
                 _shaderTimer -= TimeLimit;
             }
             
-            ref GlobalShaderData data = ref _globalShaderData.ValueRef;
+            GlobalShaderData data = _globalShaderData.Value;
             data.deltaTime = delta;
             data.time = _shaderTimer;
             data.sinTime = math.sin(_shaderTimer);
@@ -72,6 +72,8 @@ namespace Vocore.Engine
                 data.viewProjMatrix = Camera.ViewProjectionMatrix;
             }
             data.screenSize = ScreenSize;
+
+            _globalShaderData.Value = data;
 
             _commandList.Begin();
             _commandList.SetFramebuffer(_device.SwapchainFramebuffer);

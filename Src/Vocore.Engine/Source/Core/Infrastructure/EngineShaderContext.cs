@@ -83,7 +83,7 @@ namespace Vocore.Engine
             }
             catch (Exception e)
             {
-                Log.Error($"Complie Shader {input.Filename} failed: {e.Message}");
+                Log.Error($"Complie Shader {input.Filename} failed: \n{e}");
                 return null;
             }
         }

@@ -58,7 +58,7 @@ namespace Vocore.Engine
             if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
             {
 
-                throw new Exception(result.GetErrors());
+                throw new ShaderCompilationException(result.GetErrors());
             }
 
             return result.GetObjectBytecodeArray();

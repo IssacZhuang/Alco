@@ -55,10 +55,10 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T GetRef(int index)
+        public T Get(int index)
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
-            return ref DataPtr[index];
+            return DataPtr[index];
         }
 
         public NativeBuffer(int size)

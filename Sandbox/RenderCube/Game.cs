@@ -37,9 +37,7 @@ public class Game : GameEngine
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
 
-        OffscreenBuffer renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(GraphicsDevice);
-
-        _drawList = new DrawList(GraphicsDevice, renderTarget.Framebuffer );
+        _drawList = new DrawList(GraphicsDevice);
 
         _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
 

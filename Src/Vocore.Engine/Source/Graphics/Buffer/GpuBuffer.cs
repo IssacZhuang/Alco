@@ -28,15 +28,6 @@ namespace Vocore.Engine
             }
         }
 
-        public ref T ValueRef
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return ref _value;
-            }
-        }
-
         public DeviceBuffer Buffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
