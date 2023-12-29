@@ -10,7 +10,7 @@ namespace Vocore.Engine
         public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
 
-            IEnumerable<string> shaderNames = EmbbedResources.GetAllFileNamesWithExtension("hlsl");
+            IEnumerable<string> shaderNames = EmbbedResources.AllFileNames;
             foreach (var shaderName in shaderNames)
             {
                 // \ to /

@@ -20,10 +20,6 @@ namespace Vocore.Engine
             }
         }
 
-        public static readonly string PathShaderLib = "Assets/Shader/Lib/";
-        public static readonly string PathGraphicsShader = "Assets/Shader/Graphics/";
-        public static readonly string PathComputeShader = "Assets/Shader/Compute/";
-
         public static string[] AllFileNames
         {
             get
@@ -34,21 +30,15 @@ namespace Vocore.Engine
 
         public static bool IsShaderLib(string path, out string filename)
         {
-            filename = path.Replace(PathShaderLib, "");
-            return path.StartsWith(PathShaderLib);
+            filename = Path.GetFileName(path);
+            return filename.EndsWith(".hlsli");
         }
 
-        public static bool IsGraphicsShader(string path, out string filename)
+        public static bool IsShader(string path, out string filename)
         {
-            filename = path.Replace(PathGraphicsShader, "");
-            return path.StartsWith(PathGraphicsShader);
+            filename = Path.GetFileName(path);
+            return filename.EndsWith(".hlsl");
         }
-
-        public static bool IsComputeShader(string path, out string filename)
-        {
-            filename = path.Replace(PathComputeShader, "");
-            return path.StartsWith(PathComputeShader);
-        }   
 
         public static byte[] GetBytes(string path)
         {
@@ -67,11 +57,6 @@ namespace Vocore.Engine
         public static string GetText(string path)
         {
             return Encoding.UTF8.GetString(GetBytes(path));
-        }
-
-        public static IEnumerable<string> GetAllFileNamesWithExtension(string extension)
-        {
-            return AllFileNames.Where(x => x.EndsWith(extension));
         }
     }
 }
