@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using Silk.NET.Input;
 using Silk.NET.Windowing;
-
+using Veldrid;
 using Vocore;
 using Vocore.Engine;
 
@@ -29,7 +29,7 @@ public class Game : GameEngine
         ShaderComplieDescription shaderInput = new ShaderComplieDescription(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
         _shaderBasic = Shader.ComplieAndAdd(shaderInput);
         Log.Info(_shaderBasic.GetReflectionInfo());
-        
+
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
         Camera = _cameraP;
@@ -41,7 +41,14 @@ public class Game : GameEngine
 
         _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
 
-        
+        OffscreenBuffer renderTarget = new OffscreenBuffer(GraphicsDevice, 
+        (uint)Window.Size.x,
+        (uint)Window.Size.y, 
+        new PixelFormat[]{
+            PixelFormat.R16_G16_B16_A16_UNorm
+        }, 
+            CompatibilityHelper.GetPlatformDepthTestingFormat()
+        );
 
         _bufferGroup = new GpuResourceGroup(_shaderBasic);
         _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);
@@ -53,7 +60,7 @@ public class Game : GameEngine
     }
     protected override void OnUpdate(float delta)
     {
-        
+
         if (Input.IsKeyDown(Key.Escape))
         {
             Stop();
@@ -72,7 +79,7 @@ public class Game : GameEngine
 
         _cubeTranform1.position = new Vector3(1, 0.5f * math.sin(_timer), 0);
         _cubeTranform1.Rotate(Vector3.UnitY, delta);
-        
+
         _cubeTranform2.Rotate(Vector3.UnitY, delta);
     }
 
@@ -83,9 +90,9 @@ public class Game : GameEngine
 
         _drawList.Begin();
         _transformBuffer.Value = _cubeTranform1.Matrix;
-        _drawList.DrawMesh(_cube1, _shaderBasic, _bufferGroup);
+        _drawList.DrawMesh(_cube1, _shaderBasic.Pipeline, _bufferGroup);
         _transformBuffer.Value = _cubeTranform2.Matrix;
-        _drawList.DrawMesh(_cube2, _shaderBasic, _bufferGroup);
+        _drawList.DrawMesh(_cube2, _shaderBasic.Pipeline, _bufferGroup);
         _drawList.End();
         //_drawList.PushToScreen();
     }

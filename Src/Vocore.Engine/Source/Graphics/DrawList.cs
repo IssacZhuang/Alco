@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using Veldrid;
 
 namespace Vocore.Engine
@@ -48,8 +49,12 @@ namespace Vocore.Engine
             
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrawMesh(IMeshResource mesh, Shader shader, GpuResourceGroup bufferGroup){
+            DrawMesh(mesh, shader.Pipeline, bufferGroup);
+        }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawMesh(IMeshResource mesh, Pipeline pipeline, GpuResourceGroup bufferGroup)
         {
             _commands.SetPipeline(pipeline);
@@ -67,7 +72,6 @@ namespace Vocore.Engine
 
         public void PushToScreen()
         {
-
             _commands.Begin();
             _commands.CopyTexture(_target.ColorTargets[0].Target, _device.SwapchainFramebuffer.ColorTargets[0].Target);
             _commands.End();
