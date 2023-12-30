@@ -6,6 +6,8 @@ using Veldrid;
 using Vocore;
 using Vocore.Engine;
 
+using Shader = Vocore.Engine.Shader;
+
 public class Game : GameEngine
 {
     private CameraPerspective _cameraP;
@@ -26,7 +28,17 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        ShaderComplieDescription shaderInput = new ShaderComplieDescription(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
+        OffscreenBuffer renderTarget = new OffscreenBuffer(GraphicsDevice,
+        (uint)Window.Size.x,
+        (uint)Window.Size.y,
+        new PixelFormat[]{
+            PixelFormat.R16_G16_B16_A16_UNorm
+        },
+            CompatibilityHelper.GetPlatformDepthTestingFormat()
+        );
+
+        ShaderComplieDescription shaderInput = new ShaderComplieDescription( LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
+        shaderInput.OutputDescription = renderTarget.OutputDescription;
         _shaderBasic = Shader.ComplieAndAdd(shaderInput);
         Log.Info(_shaderBasic.GetReflectionInfo());
 
@@ -37,18 +49,9 @@ public class Game : GameEngine
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
 
-        _drawList = new DrawList(GraphicsDevice);
+        _drawList = new DrawList(GraphicsDevice, renderTarget);
 
         _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
-
-        OffscreenBuffer renderTarget = new OffscreenBuffer(GraphicsDevice, 
-        (uint)Window.Size.x,
-        (uint)Window.Size.y, 
-        new PixelFormat[]{
-            PixelFormat.R16_G16_B16_A16_UNorm
-        }, 
-            CompatibilityHelper.GetPlatformDepthTestingFormat()
-        );
 
         _bufferGroup = new GpuResourceGroup(_shaderBasic);
         _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);

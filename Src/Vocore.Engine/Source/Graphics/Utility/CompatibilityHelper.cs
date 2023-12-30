@@ -46,6 +46,8 @@ namespace Vocore.Engine
 
         public static PixelFormat GetPlatformColorFormat(bool isHDR)
         {
+            
+
             if (isHDR)
             {
                 return PixelFormat.R16_G16_B16_A16_Float;
