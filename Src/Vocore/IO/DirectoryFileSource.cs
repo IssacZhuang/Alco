@@ -17,7 +17,11 @@ namespace Vocore
         {
             get
             {
-                return Directory.EnumerateFiles(_directoryPath);
+                //list all files in directory or sub directory with relative path
+                foreach (var file in Directory.EnumerateFiles(_directoryPath, "*", SearchOption.AllDirectories))
+                {
+                    yield return Path.GetRelativePath(_directoryPath, file);
+                }
             }
         }
 

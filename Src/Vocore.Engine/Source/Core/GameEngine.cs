@@ -28,12 +28,13 @@ namespace Vocore.Engine
 
         #region  Resources
         private readonly GraphicsDevice _graphicsDevice;
+        private readonly AssetManager _assets = new AssetManager();
         private readonly IWindow _window;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
 
         #region  Internal
-        public EngineGraphics _frame;
+        internal EngineGraphics _graphics;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
         internal EngineShaderContext _shaderContext;
@@ -44,9 +45,17 @@ namespace Vocore.Engine
         #region API
 
         public EngineAPI_Window Window { get; private set; }
-        public EngineInput Input => _input;
+        public EngineInput Input
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _input;
+        }
         public EngineShaderContext Shader => _shaderContext;
-        public EngineAPI_Graphics Graphics { get; private set; }
+        public EngineGraphics Graphics
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _graphics;
+        }
 
         #endregion
 
@@ -97,11 +106,10 @@ namespace Vocore.Engine
         public ICamera? Camera
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _frame.Camera;
+            get => _graphics.Camera;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => _frame.Camera = value;
+            set => _graphics.Camera = value;
         }
-
 
         /// <summary>
         /// The graphics device of the game<br/>
@@ -112,6 +120,16 @@ namespace Vocore.Engine
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _graphicsDevice;
+        }
+
+        /// <summary>
+        /// The asset manager of the game<br/>
+        /// Which provides the asset loading and caching
+        /// </summary>
+        public AssetManager Assets
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _assets;
         }
 
         #endregion
@@ -147,6 +165,7 @@ namespace Vocore.Engine
                 _window = window;
 
                 _graphicsDevice = graphicsDevice;
+                _assets = new AssetManager();
 
                 _window.Initialize();
 
@@ -344,9 +363,9 @@ namespace Vocore.Engine
 
             try
             {
-                _frame.BeginFrameUpdate(updateDeltaTime);
+                _graphics.BeginFrameUpdate(updateDeltaTime);
                 OnDraw(updateDeltaTime);
-                _frame.EndFrame();
+                _graphics.EndFrame();
             }
             catch (Exception e)
             {
@@ -421,7 +440,7 @@ namespace Vocore.Engine
             if (_setting.hasGraphics)
             {
                 Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
-                _frame = new EngineGraphics(this, screenSizeFloat);
+                _graphics = new EngineGraphics(this, screenSizeFloat);
                 _shaderContext = new EngineShaderContext(GraphicsDevice);
                 _input = new EngineInput(_window);
             }
@@ -433,7 +452,6 @@ namespace Vocore.Engine
         private void InitializeAPI()
         {
             Window = new EngineAPI_Window(_window);
-            Graphics = new EngineAPI_Graphics(_graphicsDevice, _frame.GlobalShaderData);
         }
 
         #endregion

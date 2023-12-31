@@ -26,9 +26,9 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        ShaderComplieDescription shaderInput = new ShaderComplieDescription(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
-        _shaderBasic = Shader.ComplieAndAdd(shaderInput);
-        Log.Info(_shaderBasic.GetReflectionInfo());
+        Log.Info(WorkingDirectory);
+        Assets.AddFileSource(new DirectoryFileSource(WorkingDirectory));
+        Assets.TryLoad<Shader>("Assets/Basic.hlsl", out _shaderBasic);
         
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
@@ -42,7 +42,7 @@ public class Game : GameEngine
         _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
 
         _bufferGroup = new GpuResourceGroup(_shaderBasic);
-        _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);
+        _bufferGroup.TrySet("type.GlobalBuffer", Graphics.GlobalShaderData);
         _bufferGroup.TrySet("type.TransformBuffer", _transformBuffer);
 
         _cube1 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);

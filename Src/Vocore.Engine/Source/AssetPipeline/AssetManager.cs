@@ -13,6 +13,13 @@ namespace Vocore.Engine
         private readonly List<IFileSource> _fileSources = new List<IFileSource>();
         private bool _isEntryDirty = false;
 
+        public AssetManager()
+        {
+            //built in asset loaders
+            RegisterAssetLoader(new AssetLoaderHlsl());
+            RegisterAssetLoader(new AssetLoaderHlslInclude());
+        }
+
         public void RegisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
         {
             foreach (var extension in assetLoader.FileExtensions)
@@ -69,9 +76,14 @@ namespace Vocore.Engine
             _isEntryDirty = false;
         }
 
-        public bool TryGet<TAsset>(string filename, out TAsset asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        public bool TryLoad<TAsset>(string filename, out TAsset asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
             UpdateEntries();
+            filename = ParseEntry(filename);
+            foreach (var entry in _fileEntries.Keys)
+            {
+                Log.Info(entry);
+            }
             if (_strongCache.TryGetValue(filename, out var strongAsset))
             {
                 if (strongAsset is TAsset strongAssetT)
@@ -160,6 +172,11 @@ namespace Vocore.Engine
         private void SetStrongCache(string filename, object asset)
         {
             _strongCache[filename] = asset;
+        }
+
+        private string ParseEntry(string entry)
+        {
+            return entry.Replace('/', '\\');
         }
     }
 }

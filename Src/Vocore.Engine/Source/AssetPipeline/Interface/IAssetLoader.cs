@@ -2,7 +2,8 @@ using System;
 
 namespace Vocore.Engine
 {
-    public interface IBaseAssetLoader{
+    public interface IBaseAssetLoader
+    {
         /// <summary>
         /// The name of the asset loader
         /// </summary>
@@ -11,6 +12,7 @@ namespace Vocore.Engine
         /// The file extension of the asset loader
         /// </summary>
         IEnumerable<string> FileExtensions { get; }
+
     }
     public interface IAssetLoader<TAsset> :IBaseAssetLoader where TAsset : class
     {

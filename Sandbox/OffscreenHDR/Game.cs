@@ -54,7 +54,7 @@ public class Game : GameEngine
         _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
 
         _bufferGroup = new GpuResourceGroup(_shaderBasic);
-        _bufferGroup.TrySet("type.GlobalBuffer", _frame.GlobalShaderData);
+        _bufferGroup.TrySet("type.GlobalBuffer", _graphics.GlobalShaderData);
         _bufferGroup.TrySet("type.TransformBuffer", _transformBuffer);
 
         _cube1 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);

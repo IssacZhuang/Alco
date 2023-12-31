@@ -1,4 +1,4 @@
-#include "Base.hlsli"
+#include "Assets/Shader/Lib/Base.hlsli"
 
 cbuffer GlobalBuffer : register(b0, space0) {
   float4x4 _ViewProjMatrix;

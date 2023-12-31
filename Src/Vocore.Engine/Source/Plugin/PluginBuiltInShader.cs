@@ -5,23 +5,23 @@ namespace Vocore.Engine
 {
     public class PluginBuiltInShader : BaseEnginePlugin
     {
+        private class ShaderLibSource : IFileSource
+        {
+            public IEnumerable<string> AllFileNames => EmbbedResources.AllFileNames;
+
+            public bool TryGetData(string path, out byte[] data)
+            {
+                data = EmbbedResources.GetBytes(path);
+
+                return data != null;
+            }
+        }
         public override int Priority => -1000;
 
         public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
-
-            IEnumerable<string> shaderNames = EmbbedResources.AllFileNames;
-            foreach (var shaderName in shaderNames)
-            {
-                // \ to /
-                string parsedShaderName = shaderName.Replace('\\', '/');
-                Log.Info($"Loading Shader {parsedShaderName}");
-                if (EmbbedResources.IsShaderLib(parsedShaderName, out var filename))
-                {
-                    //ShaderPool.SourceLibs.TryAddData(filename, EmbbedResources.GetBytes(shaderName));
-                    engine.Shader.TryAddShaderInclude(filename, EmbbedResources.GetBytes(shaderName));
-                }
-            }
+            engine.Assets.AddFileSource(new ShaderLibSource());
+            
         }
     }
 }
