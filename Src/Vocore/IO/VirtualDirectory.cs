@@ -3,11 +3,19 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class BaseVirtualDirectory : IVirtualDirectory
+    public class VirtualDirectory : IFileSource
     {
         private readonly Dictionary<string, byte[]> _data = new Dictionary<string, byte[]>();
 
         public int FileCount => _data.Count;
+
+        public IEnumerable<string> AllFileNames
+        {
+            get
+            {
+                return _data.Keys;
+            }
+        }
 
         public IEnumerable<KeyValuePair<string, byte[]>> AllFiles
         {

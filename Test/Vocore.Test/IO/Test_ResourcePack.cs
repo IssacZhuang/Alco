@@ -20,12 +20,12 @@ namespace Vocore.Test
             byte[] data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
             using (ResourcePack pack = new ResourcePack(path))
             {
-                pack.TrySetFile("test.bin", data);
+                pack.TrySetData("test.bin", data);
             }
 
             using (ResourcePack pack = new ResourcePack(path))
             {
-                if (pack.TryGetFileBinary("test.bin", out byte[] result))
+                if (pack.TryGetData("test.bin", out byte[] result))
                 {
                     UnitTest.AssertFalse(result == null);
                     UnitTest.AssertFalse(result.Length == 0);

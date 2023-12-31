@@ -1,11 +1,13 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 
 namespace Vocore
 {
-    public class ResourcePack : IDisposable
+    public class ResourcePack : IDisposable, IFileSource
     {
         private readonly ZipArchive _archive;
         public ZipArchive Archive => _archive;
@@ -23,7 +25,18 @@ namespace Vocore
             }
         }
 
-        public bool TrySetFile(string path, byte[] file)
+        public IEnumerable<string> AllFileNames
+        {
+            get
+            {
+                foreach (ZipArchiveEntry entry in _archive.Entries)
+                {
+                    yield return entry.FullName;
+                }
+            }
+        }
+
+        public bool TrySetData(string path, byte[] file)
         {
             if (file == null)
             {
@@ -37,24 +50,6 @@ namespace Vocore
             using (Stream stream = entry.Open())
             {
                 stream.Write(file, 0, file.Length);
-            }
-            return true;
-        }
-
-        public bool TrySetTextFile(string path, string text)
-        {
-            if (text == null)
-            {
-                return false;
-            }
-
-            _archive.GetEntry(path)?.Delete();
-
-            ZipArchiveEntry entry = _archive.CreateEntry(path);
-
-            using (StreamWriter writer = new StreamWriter(entry.Open()))
-            {
-                writer.Write(text);
             }
             return true;
         }
@@ -96,7 +91,7 @@ namespace Vocore
             return _archive.GetEntry(path).Open();
         }
 
-        public bool TryGetFileBinary(string path, out byte[] binary)
+        public bool TryGetData(string path, out byte[] binary)
         {
             if (_archive.GetEntry(path) == null)
             {
@@ -108,21 +103,6 @@ namespace Vocore
             {
                 _archive.GetEntry(path).Open().CopyTo(stream);
                 binary = stream.ToArray();
-            }
-            return true;
-        }
-
-        public bool TryGetFileText(string path, out string text)
-        {
-            if (_archive.GetEntry(path) == null)
-            {
-                text = null;
-                return false;
-            }
-
-            using (StreamReader reader = new StreamReader(_archive.GetEntry(path).Open()))
-            {
-                text = reader.ReadToEnd();
             }
             return true;
         }

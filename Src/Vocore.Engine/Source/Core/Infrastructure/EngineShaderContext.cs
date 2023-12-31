@@ -11,18 +11,18 @@ namespace Vocore.Engine
     {
         private readonly Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
         private readonly GraphicsDevice _device;
-        private readonly BaseVirtualDirectory _sourceLibs;
-        private readonly BaseVirtualDirectory _sourceGraphics;
-        private readonly BaseVirtualDirectory _sourceCompute;
+        private readonly VirtualDirectory _sourceLibs;
+        private readonly VirtualDirectory _sourceGraphics;
+        private readonly VirtualDirectory _sourceCompute;
         public ShaderComplier Complier { get; private set; }
 
         internal EngineShaderContext(GraphicsDevice device)
         {
             _device = device;
 
-            _sourceLibs = new BaseVirtualDirectory();
-            _sourceGraphics = new BaseVirtualDirectory();
-            _sourceCompute = new BaseVirtualDirectory();
+            _sourceLibs = new VirtualDirectory();
+            _sourceGraphics = new VirtualDirectory();
+            _sourceCompute = new VirtualDirectory();
 
             Complier = new ShaderComplier(_device, _sourceLibs);
         }

@@ -23,8 +23,8 @@ namespace Vocore.Engine
 
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
-        private readonly IVirtualDirectory? _sourceLibs;
-        public ShaderComplier(GraphicsDevice device, IVirtualDirectory? sourceLibs = null)
+        private readonly IFileSource? _sourceLibs;
+        public ShaderComplier(GraphicsDevice device, IFileSource? sourceLibs = null)
         {
             _device = device;
             _factory = device.ResourceFactory;

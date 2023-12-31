@@ -52,7 +52,7 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
 
-            UnitTest.AssertTrue(cache.Get("test") != null);
+            UnitTest.AssertTrue(cache.TryGet("test", out TestObject resutl) && resutl != null);
             //refer the object to keep it alive
             Log.Info(obj.Value);
 
@@ -61,7 +61,7 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
 
-            UnitTest.AssertTrue(cache.Get("test") == null);
+            UnitTest.AssertFalse(cache.TryGet("test", out resutl) && resutl != null);
         }
     }
 }
