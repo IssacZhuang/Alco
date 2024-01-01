@@ -1,4 +1,4 @@
-#include "Core.hlsli"
+#include "Assets/ShaderLib/Core.hlsli"
 
 struct VS_IN 
 {

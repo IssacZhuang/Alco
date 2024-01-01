@@ -1,3 +1,5 @@
+// compatility functions --start
+
 float4 MakeClipSpaceConsistent(float4 vertex) {
 #ifdef BACKEND_OPENGL
 	vertex.z = vertex.z * 2.0 - vertex.w;
@@ -37,3 +39,13 @@ float4 VertexToClipSpace(float4 vertex, float4x4 transformMatrix, float4x4 viewP
 float4 VertexToClipSpace(float3 vertex, float4x4 transformMatrix, float4x4 viewProjMatrix) {
 	return VertexToClipSpace(float4(vertex, 1.0), transformMatrix, viewProjMatrix);
 }
+
+// compatility functions --end
+
+// Macro functions --start
+
+#define SLOT(x) register(b0, space##x)
+
+#define PROPS(x, y) cbuffer x : SLOT(y)
+
+// Macro functions --end

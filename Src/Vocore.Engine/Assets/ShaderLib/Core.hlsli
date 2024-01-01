@@ -1,6 +1,6 @@
-#include "Assets/Shader/Lib/Base.hlsli"
+#include "Assets/ShaderLib/Base.hlsli"
 
-cbuffer GlobalBuffer : register(b0, space0) {
+cbuffer GlobalBuffer : SLOT(0) {
   float4x4 _ViewProjMatrix;
   float2 _ScreenSize;
   float _Time;
@@ -9,7 +9,7 @@ cbuffer GlobalBuffer : register(b0, space0) {
   float _CosTime;
 };
 
-cbuffer TransformBuffer : register(b0, space1) { float4x4 _TransformMatrix; };
+cbuffer TransformBuffer : SLOT(1) { float4x4 _TransformMatrix; };
 
 #define PI 3.141592
 #define TAU 6.283185

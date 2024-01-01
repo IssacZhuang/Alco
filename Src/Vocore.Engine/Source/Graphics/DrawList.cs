@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Veldrid;
 
@@ -7,35 +8,37 @@ namespace Vocore.Engine
     public class DrawList
     {
         private Framebuffer _target;
-        private CommandList _commands;
-        private GraphicsDevice _device;
+        private readonly CommandList _commands;
+        private readonly GraphicsDevice _device;
+        private readonly UniformBuffer<GlobalShaderData> _globalShaderData;
+        private readonly UniformBuffer<Matrix4x4> _transformBuffer;
 
-        public DrawList(GraphicsDevice device, CommandList commandList, Framebuffer framebuffer)
+        public DrawList(GameEngine engine, CommandList commandList, Framebuffer framebuffer)
         {
             _target = framebuffer;
             _commands = commandList;
-            _device = device;
+            _device = engine.GraphicsDevice;
+            _globalShaderData = engine.Graphics.GlobalShaderData;
+            _transformBuffer = new UniformBuffer<Matrix4x4>(_device);
         }
 
-        public DrawList(GraphicsDevice device, OffscreenBuffer framebuffer, CommandList commandList) : this(device, commandList, framebuffer.Framebuffer)
+        public DrawList(GameEngine engine, OffscreenBuffer framebuffer, CommandList commandList) : this(engine, commandList, framebuffer.Framebuffer)
         {
         }
 
-        public DrawList(GraphicsDevice device, CommandList commandList) : this(device, commandList, device.SwapchainFramebuffer)
+        public DrawList(GameEngine engine, CommandList commandList) : this(engine, commandList, engine.GraphicsDevice.SwapchainFramebuffer)
         {
         }
 
-        public DrawList(GraphicsDevice device, Framebuffer framebuffer) : this(device, device.ResourceFactory.CreateCommandList(), framebuffer)
+        public DrawList(GameEngine engine, Framebuffer framebuffer) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), framebuffer)
         {
         }
 
-        public DrawList(GraphicsDevice device, OffscreenBuffer framebuffer) : this(device, device.ResourceFactory.CreateCommandList(), framebuffer.Framebuffer)
+        public DrawList(GameEngine engine, OffscreenBuffer framebuffer) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), framebuffer.Framebuffer)
         {
         }
 
-
-
-        public DrawList(GraphicsDevice device) : this(device, device.ResourceFactory.CreateCommandList(), device.SwapchainFramebuffer)
+        public DrawList(GameEngine engine) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), engine.GraphicsDevice.SwapchainFramebuffer)
         {
         }
 
@@ -49,18 +52,55 @@ namespace Vocore.Engine
             
         }
 
+        /// <summary>
+        /// Draw a mesh with a shader and a buffer group, no preset buffers.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMeshResource mesh, Shader shader, GpuResourceGroup bufferGroup){
+        public void DrawMesh(IMeshResource mesh, Shader shader, GpuResourceGroup? bufferGroup = null)
+        {
             DrawMesh(mesh, shader.Pipeline, bufferGroup);
         }
 
+        /// <summary>
+        /// Draw a mesh with a shader and a buffer group, no preset buffers.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawMesh(IMeshResource mesh, Pipeline pipeline, GpuResourceGroup bufferGroup)
+        public void DrawMesh(IMeshResource mesh, Pipeline pipeline, GpuResourceGroup? bufferGroup = null)
         {
             _commands.SetPipeline(pipeline);
             _commands.SetVertexBuffer(0, mesh.VertexBuffer);
             _commands.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-            _commands.SetResourceGroup(bufferGroup);
+            if (bufferGroup != null)
+            {
+                _commands.SetResourceGroup(bufferGroup);
+            }
+            _commands.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        }
+
+        /// <summary>
+        /// Draw a mesh with a shader and a buffer group with the global shader data(slot 0) and the transform buffer(slot 1).
+        /// </summary>
+        public void DrawMeshTranformed(IMeshResource mesh, Shader shader, Transform3D transform, GpuResourceGroup? bufferGroup = null)
+        {
+            DrawMeshTranformed(mesh, shader.Pipeline, transform, bufferGroup);
+        }
+
+        /// <summary>
+        /// Draw a mesh with a shader and a buffer group with the global shader data(slot 0) and the transform buffer(slot 1).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrawMeshTranformed(IMeshResource mesh, Pipeline pipeline, Transform3D transform, GpuResourceGroup? bufferGroup = null)
+        {
+            _transformBuffer.Value = transform.Matrix;
+            _commands.SetPipeline(pipeline);
+            _commands.SetVertexBuffer(0, mesh.VertexBuffer);
+            _commands.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+            _commands.SetBuffer(0, _globalShaderData);
+            _commands.SetBuffer(1, _transformBuffer);
+            if (bufferGroup != null)
+            {
+                _commands.SetResourceGroup(bufferGroup);
+            }
             _commands.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }
 

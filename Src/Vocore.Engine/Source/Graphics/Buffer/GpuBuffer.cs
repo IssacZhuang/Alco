@@ -13,6 +13,7 @@ namespace Vocore.Engine
         private bool _isDisposed;
         private readonly DeviceBuffer _buffer;
         private readonly GraphicsDevice _device;
+        private bool _isDirty = true;
 
         public T Value
         {
@@ -25,6 +26,7 @@ namespace Vocore.Engine
             set
             {
                 _value = value;
+                _isDirty = true;
             }
         }
 
@@ -66,7 +68,9 @@ namespace Vocore.Engine
         /// </summary>
         public virtual void UpdateToGPU(CommandList commandList)
         {
+            if (!_isDirty) return;
             commandList.UpdateBuffer(_buffer, 0, ref _value);
+            _isDirty = false;
         }
 
         public void Dispose()

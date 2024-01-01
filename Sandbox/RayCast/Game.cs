@@ -9,20 +9,32 @@ using Vocore.Engine;
 public class Game : GameEngine
 {
     private CameraPerspective _cameraP;
-    private Shader _shaderBasic;
+    
     private float _timer;
 
     private Transform3D _cubeTranform1 = Transform3D.Default;
     private ShapeBox3D _cubeShape1 = new ShapeBox3D(Vector3.Zero, Vector3.One, Quaternion.Identity);
     private bool _isHit = false;
     private ActorFreeLook3D _actorFreeLook3D;
+    private DrawList _drawList;
+    private Shader _shader;
+    private GpuResourceGroup _bufferGroup;
+    private UniformBuffer<Vector4> _colorBuffer;
+    private MeshBuffer _mesh;
     public Game(GameEngineSetting setting) : base(setting)
     {
     }
 
     protected override void OnStart()
     {
-        _shaderBasic = Shader.ComplieAndAdd(new ShaderComplieDescription(LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl"));
+        Assets.AddFileSource(new DirectoryFileSource(WorkingDirectory));
+        Assets.TryLoad<Shader>("Assets/Basic.hlsl", out _shader);
+
+        _drawList = new DrawList(this);
+        _bufferGroup = new GpuResourceGroup(_shader);
+        _colorBuffer = new UniformBuffer<Vector4>(GraphicsDevice);
+        _bufferGroup.TrySet("type.ColorBuffer", _colorBuffer);
+        _mesh = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);
 
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
@@ -62,8 +74,10 @@ public class Game : GameEngine
 
     protected override void OnDraw(float delta)
     {
-        IMeshData mesh = _isHit ? BuiltInMeshs.Cube : BuiltInMeshs.TestCube;
-        Graphics.DrawMesh(mesh, _shaderBasic, _cubeTranform1);
+        _colorBuffer.Value = _isHit ? new Vector4(1,0,0,1): new Vector4(1,1,1,1);
+        _drawList.Begin();
+        _drawList.DrawMeshTranformed(_mesh, _shader, _cubeTranform1, _bufferGroup);
+        _drawList.End();
     }
 
     public static string LoadAsset(string path)

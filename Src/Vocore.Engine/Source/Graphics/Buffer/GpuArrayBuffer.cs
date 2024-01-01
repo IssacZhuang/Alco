@@ -16,13 +16,20 @@ namespace Vocore.Engine
         private readonly GraphicsDevice _device;
         private readonly uint _sizeInBytes;
         private readonly uint _stride;
+        private bool _isDirty = true;
 
         public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return _content.Get(index);
+                return _content[index];
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                _content[index] = value;
+                _isDirty = true;
             }
         }
 
@@ -59,18 +66,6 @@ namespace Vocore.Engine
             Dispose();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Set(int index, T value)
-        {
-            _content[index] = value;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Get(int index)
-        {
-            return _content[index];
-        }
-
         /// <summary>
         /// Update the value to the GPU memory.\n
         /// This operation is executed by GraphicsDevice, the buffer will be updated immediately.
@@ -86,7 +81,9 @@ namespace Vocore.Engine
         /// </summary>
         public void UpdateToGPU(CommandList commandList)
         {
+            if (!_isDirty) return;
             commandList.UpdateBuffer(_buffer, 0, _content.IntPtr, (uint)_content.Length * _stride);
+            _isDirty = false;
         }
 
         public unsafe T* GetUnsafePtr()

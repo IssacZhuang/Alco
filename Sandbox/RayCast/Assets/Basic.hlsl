@@ -1,4 +1,4 @@
-#include "Core.hlsli"
+#include "Assets/ShaderLib/Core.hlsli"
 
 struct VS_IN 
 {
@@ -14,6 +14,8 @@ struct PS_IN
   float2 uv : TEXCOORD;
 };
 
+cbuffer ColorBuffer : SLOT(2) { float4 _Color; };
+
 PS_IN VS(VS_IN input) 
 {
   PS_IN output = (PS_IN)0;
@@ -27,5 +29,5 @@ PS_IN VS(VS_IN input)
 
 float4 PS(PS_IN input) : SV_Target 
 { 
-    return input.color; 
+    return input.color * _Color; 
 }

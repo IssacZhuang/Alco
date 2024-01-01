@@ -18,8 +18,6 @@ public class Game : GameEngine
     private Transform3D _cubeTranform2 = Transform3D.Default;
     private ActorFreeLook3D _actorFreeLook3D;
     private DrawList _drawList;
-    private GpuResourceGroup _bufferGroup;
-    private UniformBuffer<Matrix4x4> _transformBuffer;
     private MeshBuffer _cube1;
     private MeshBuffer _cube2;
     public Game(GameEngineSetting setting) : base(setting)
@@ -28,19 +26,17 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        OffscreenBuffer renderTarget = new OffscreenBuffer(GraphicsDevice,
-        (uint)Window.Size.x,
-        (uint)Window.Size.y,
-        new PixelFormat[]{
-            PixelFormat.R16_G16_B16_A16_UNorm
-        },
-            CompatibilityHelper.GetPlatformDepthTestingFormat()
-        );
+        OffscreenBuffer renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(GraphicsDevice);
 
-        ShaderComplieDescription shaderInput = new ShaderComplieDescription( LoadAsset("Assets/Basic.hlsl"), "Basic.hlsl");
-        shaderInput.OutputDescription = renderTarget.OutputDescription;
-        _shaderBasic = Shader.ComplieAndAdd(shaderInput);
+        Assets.AddFileSource(new DirectoryFileSource(WorkingDirectory));
+        Assets.TryLoad<Shader>("Assets/Basic.hlsl", out _shaderBasic);
         Log.Info(_shaderBasic.GetReflectionInfo());
+
+        _drawList = new DrawList(this, renderTarget);
+
+        _cube1 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);
+        _cube2 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.TestCube);
+
 
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);
@@ -49,17 +45,7 @@ public class Game : GameEngine
         _actorFreeLook3D = new ActorFreeLook3D();
         _actorFreeLook3D.sensitivity = 10f;
 
-        _drawList = new DrawList(GraphicsDevice, renderTarget);
-
-        _transformBuffer = new UniformBuffer<Matrix4x4>(GraphicsDevice);
-
-        _bufferGroup = new GpuResourceGroup(_shaderBasic);
-        _bufferGroup.TrySet("type.GlobalBuffer", _graphics.GlobalShaderData);
-        _bufferGroup.TrySet("type.TransformBuffer", _transformBuffer);
-
-        _cube1 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);
-        _cube2 = new MeshBuffer(GraphicsDevice, BuiltInMeshs.TestCube);
-
+        
     }
     protected override void OnUpdate(float delta)
     {
@@ -92,10 +78,8 @@ public class Game : GameEngine
         // Graphics.DrawMesh(BuiltInMeshs.TestCube, _shaderBasic, _cubeTranform2);
 
         _drawList.Begin();
-        _transformBuffer.Value = _cubeTranform1.Matrix;
-        _drawList.DrawMesh(_cube1, _shaderBasic.Pipeline, _bufferGroup);
-        _transformBuffer.Value = _cubeTranform2.Matrix;
-        _drawList.DrawMesh(_cube2, _shaderBasic.Pipeline, _bufferGroup);
+        _drawList.DrawMeshTranformed(_cube1, _shaderBasic.Pipeline, _cubeTranform1);
+        _drawList.DrawMeshTranformed(_cube2, _shaderBasic.Pipeline, _cubeTranform2);
         _drawList.End();
         //_drawList.PushToScreen();
     }

@@ -22,10 +22,5 @@ namespace Vocore.Engine
                 return _resourceSet;
             }
         }
-
-        public override void UpdateToGPU(CommandList commandList)
-        {
-            base.UpdateToGPU(commandList);
-        }
     }
 }
