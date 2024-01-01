@@ -5,6 +5,21 @@ namespace Vocore.Engine
 {
     public static class BuiltInMeshs
     {
+        public static Vertex[] FullScreenQuad = new Vertex[]
+        {
+            new Vertex(new Vector3(-1, 1, 0), new Vector2(0, 0), new Vector4(1, 1, 1, 1)),
+            new Vertex(new Vector3(1, 1, 0), new Vector2(1, 0), new Vector4(1, 1, 1, 1)),
+            new Vertex(new Vector3(1, -1, 0), new Vector2(1, 1), new Vector4(1, 1, 1, 1)),
+            new Vertex(new Vector3(-1, -1, 0), new Vector2(0, 1), new Vector4(1, 1, 1, 1)),
+        };
+
+        public static Vertex[] FullScreenTriangle = new Vertex[]
+        {
+            new Vertex(new Vector3(-1, 3, 0), new Vector2(0, 2), new Vector4(1, 1, 1, 1)),
+            new Vertex(new Vector3(3, 3, 0), new Vector2(2, 2), new Vector4(1, 1, 1, 1)),
+            new Vertex(new Vector3(-1, -1, 0), new Vector2(0, 0), new Vector4(1, 1, 1, 1)),
+        };
+
         public static Vertex[] TestVertices = new Vertex[]
         {
             new Vertex(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0), new Vector4(1, 0, 0, 1)),

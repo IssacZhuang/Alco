@@ -50,4 +50,8 @@ float4 VertexToClipSpace(float3 vertex, float4x4 transformMatrix, float4x4 viewP
 
 #define PROPS(slot, type, name) PROPS_STRUCT(slot, name) { type name; }
 
+#define PROPS_TEXTURE(slot, name) PROPS_STRUCT(slot, name) { Texture2D name; SamplerState name##Sampler; }
+
+#define TEX2D(texName, uv) SampleTex2D(texName, texName##Sampler, uv)
+
 // Macro functions --end
