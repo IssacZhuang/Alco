@@ -12,7 +12,6 @@ namespace Vocore.Engine
         /// The file extension of the asset loader
         /// </summary>
         IEnumerable<string> FileExtensions { get; }
-
     }
     public interface IAssetLoader<TAsset> :IBaseAssetLoader where TAsset : class
     {

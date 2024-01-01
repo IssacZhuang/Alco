@@ -25,6 +25,8 @@ namespace Vocore
             }
         }
 
+        public virtual int Order => 3;
+
         public bool TryGetData(string path, out byte[] data)
         {
             try

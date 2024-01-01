@@ -7,6 +7,7 @@ namespace Vocore.Engine
     {
         private class ShaderLibSource : IFileSource
         {
+            public int Order => 0;
             public IEnumerable<string> AllFileNames => EmbbedResources.AllFileNames;
 
             public bool TryGetData(string path, out byte[] data)

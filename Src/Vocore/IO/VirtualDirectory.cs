@@ -8,6 +8,7 @@ namespace Vocore
         private readonly Dictionary<string, byte[]> _data = new Dictionary<string, byte[]>();
 
         public int FileCount => _data.Count;
+        public int Order => 1;
 
         public IEnumerable<string> AllFileNames
         {
@@ -24,6 +25,8 @@ namespace Vocore
                 return _data;
             }
         }
+
+        
 
         public bool TryAddData(string path, byte[] data)
         {

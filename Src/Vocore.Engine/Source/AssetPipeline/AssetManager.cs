@@ -6,18 +6,35 @@ namespace Vocore.Engine
 {
     public class AssetManager
     {
+        // key: filename, value: asset
         private readonly WeakCache _weakCache = new WeakCache();
+        // key: filename, value: asset
         private readonly Dictionary<string, object> _strongCache = new Dictionary<string, object>();
+        // key: extension, value: asset loader
         private readonly Dictionary<string, IBaseAssetLoader> _assetLoaders = new Dictionary<string, IBaseAssetLoader>();
+        // key: filename, value: file source
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
-        private readonly List<IFileSource> _fileSources = new List<IFileSource>();
+        private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
+        private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
         private bool _isEntryDirty = false;
+        private bool _isRecongizedExtensionsDirty = false;
+        private int _ownerThreadId;
 
         public AssetManager()
         {
+            _ownerThreadId = Environment.CurrentManagedThreadId;
             //built in asset loaders
             RegisterAssetLoader(new AssetLoaderHlsl());
             RegisterAssetLoader(new AssetLoaderHlslInclude());
+        }
+
+        public IEnumerable<string> AllFileNames
+        {
+            get
+            {
+                TryRefreshEntries();
+                return _fileEntries.Keys;
+            }
         }
 
         public void RegisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
@@ -30,6 +47,8 @@ namespace Vocore.Engine
                 }
                 _assetLoaders.Add(extension, assetLoader);
             }
+            _isRecongizedExtensionsDirty = true;
+            _isEntryDirty = true;
         }
 
         public void UnregisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
@@ -44,6 +63,8 @@ namespace Vocore.Engine
                     }
                 }
             }
+            _isRecongizedExtensionsDirty = true;
+            _isEntryDirty = true;
         }
 
         public void AddFileSource(IFileSource fileSource)
@@ -58,32 +79,25 @@ namespace Vocore.Engine
             _isEntryDirty = true;
         }
 
-        public void UpdateEntries()
+        public bool TryRefreshEntries()
         {
-            if (!_isEntryDirty)
-            {
-                return;
-            }
+            bool result = _isEntryDirty || _isRecongizedExtensionsDirty;
+            UpdateRecongizedExtensions();
+            UpdateEntries();
+            return result;
+        }
 
-            _fileEntries.Clear();
-            foreach (var fileSource in _fileSources)
-            {
-                foreach (var file in fileSource.AllFileNames)
-                {
-                    _fileEntries.Add(file, fileSource);
-                }
-            }
-            _isEntryDirty = false;
+        public void ForceRefreshEntries()
+        {
+            UpdateRecongizedExtensions(true);
+            UpdateEntries(true);
         }
 
         public bool TryLoad<TAsset>(string filename, out TAsset asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
-            UpdateEntries();
+            CheckThread();
+            TryRefreshEntries();
             filename = ParseEntry(filename);
-            foreach (var entry in _fileEntries.Keys)
-            {
-                Log.Info(entry);
-            }
             if (_strongCache.TryGetValue(filename, out var strongAsset))
             {
                 if (strongAsset is TAsset strongAssetT)
@@ -164,6 +178,25 @@ namespace Vocore.Engine
             return true;
         }
 
+        public bool IsRecongizedExtension(string extension)
+        {
+            UpdateRecongizedExtensions();
+            return _recongizedExtensions.Contains(extension);
+        }
+
+        public bool IsOwnerThread(int threadId)
+        {
+            return _ownerThreadId == threadId;
+        }
+
+        private void CheckThread()
+        {
+            if (!IsOwnerThread(Environment.CurrentManagedThreadId))
+            {
+                throw new Exception("The asset manager can only be accessed by the thread that created it which usually is the main thread");
+            }
+        }
+
         private void SetWeakCache(string filename, object asset)
         {
             _weakCache.Set(filename, asset);
@@ -177,6 +210,46 @@ namespace Vocore.Engine
         private string ParseEntry(string entry)
         {
             return entry.Replace('/', '\\');
+        }
+
+        private void UpdateRecongizedExtensions(bool forced = false)
+        {
+            if (!_isRecongizedExtensionsDirty && !forced)
+            {
+                return;
+            }
+
+            _recongizedExtensions.Clear();
+            foreach (var loader in _assetLoaders.Values)
+            {
+                foreach (var extension in loader.FileExtensions)
+                {
+                    _recongizedExtensions.Add(extension);
+                }
+            }
+            _isRecongizedExtensionsDirty = false;
+        }
+
+        private void UpdateEntries(bool forced = false)
+        {
+            if (!_isEntryDirty && !forced)
+            {
+                return;
+            }
+
+            _fileEntries.Clear();
+            foreach (var fileSource in _fileSources)
+            {
+                foreach (var file in fileSource.AllFileNames)
+                {
+                    string extension = Path.GetExtension(file);
+                    if (_recongizedExtensions.Contains(extension))
+                    {
+                        _fileEntries.Add(file, fileSource);
+                    }
+                }
+            }
+            _isEntryDirty = false;
         }
     }
 }

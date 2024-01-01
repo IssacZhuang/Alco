@@ -12,6 +12,8 @@ namespace Vocore
         private readonly ZipArchive _archive;
         public ZipArchive Archive => _archive;
 
+        public int Order => 2;
+
         public ResourcePack(string path)
         {
             if (File.Exists(path))
