@@ -4,7 +4,7 @@ using Veldrid;
 
 GameEngineSetting setting = GameEngineSetting.Default;
 setting.windowName = "Render Cube";
-setting.backend = GraphicsBackend.Vulkan;
+setting.backend = GraphicsBackend.Direct3D11;
 setting.stopWhenError = true;
 
 using (Game game = new Game(setting))

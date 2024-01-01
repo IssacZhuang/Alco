@@ -29,11 +29,12 @@ public class Game : GameEngine
     {
         Assets.AddFileSource(new DirectoryFileSource(WorkingDirectory));
         Assets.TryLoad<Shader>("Assets/Basic.hlsl", out _shader);
+        Log.Info(_shader.GetReflectionInfo());
 
         _drawList = new DrawList(this);
         _bufferGroup = new GpuResourceGroup(_shader);
         _colorBuffer = new UniformBuffer<Vector4>(GraphicsDevice);
-        _bufferGroup.TrySet("type.ColorBuffer", _colorBuffer);
+        _bufferGroup.TrySet("_Color", _colorBuffer);
         _mesh = new MeshBuffer(GraphicsDevice, BuiltInMeshs.Cube);
 
         _cameraP = new CameraPerspective();

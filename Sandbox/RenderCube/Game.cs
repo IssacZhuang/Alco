@@ -27,6 +27,7 @@ public class Game : GameEngine
     {
         Assets.AddFileSource(new DirectoryFileSource(WorkingDirectory));
         Assets.TryLoad<Shader>("Assets/Basic.hlsl", out _shader);
+        Log.Info(_shader.GetReflectionInfo());
         
         _cameraP = new CameraPerspective();
         _cameraP.tranform.position = new Vector3(0, 0, -5);

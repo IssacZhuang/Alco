@@ -44,8 +44,10 @@ float4 VertexToClipSpace(float3 vertex, float4x4 transformMatrix, float4x4 viewP
 
 // Macro functions --start
 
-#define SLOT(x) register(b0, space##x)
+#define SLOT(slot) register(b0, space##slot)
 
-#define PROPS(x, y) cbuffer x : SLOT(y)
+#define PROPS_STRUCT(slot, name) cbuffer name : SLOT(slot)
+
+#define PROPS(slot, type, name) PROPS_STRUCT(slot, name) { type name; }
 
 // Macro functions --end

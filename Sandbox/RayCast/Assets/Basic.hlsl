@@ -14,7 +14,7 @@ struct PS_IN
   float2 uv : TEXCOORD;
 };
 
-cbuffer ColorBuffer : SLOT(2) { float4 _Color; };
+PROPS(2, float4, _Color);
 
 PS_IN VS(VS_IN input) 
 {

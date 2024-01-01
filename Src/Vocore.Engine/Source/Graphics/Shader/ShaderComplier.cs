@@ -9,7 +9,7 @@ using Veldrid.SPIRV;
 
 namespace Vocore.Engine
 {
-    public class ShaderComplier
+    public partial class ShaderComplier
     {
         public const string Regex_Includes = @"#include\s+""(?<filename>[^""]+)""";
         public const string Format_LineInculde = "#line {0} \"{1}\"";
@@ -24,6 +24,9 @@ namespace Vocore.Engine
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
         private readonly IFileSource? _sourceLibs;
+
+        [GeneratedRegex("(?<type>\\w+)\\.")]
+        private static partial Regex FixReflectionName();
         public ShaderComplier(GraphicsDevice device, IFileSource? sourceLibs = null)
         {
             _device = device;
@@ -95,6 +98,7 @@ namespace Vocore.Engine
                 resourceLayoutsDesc = reflection.ResourceLayouts;
             }
 
+            FixReflectionName(reflection.ResourceLayouts);
 
             ResourceLayout[] resourceLayouts = new ResourceLayout[reflection.ResourceLayouts.Length];
             for (int i = 0; i < reflection.ResourceLayouts.Length; i++)
@@ -214,6 +218,22 @@ namespace Vocore.Engine
         {
             //replace . to _
             return name.Replace('.', '_');
+        }
+
+        private static void FixReflectionName(ResourceLayoutDescription[] layouts)
+        {
+            for (int i = 0; i < layouts.Length; i++)
+            {
+                for (int j = 0; j < layouts[i].Elements.Length; j++)
+                {
+                    layouts[i].Elements[j].Name = FixReflectionName(layouts[i].Elements[j].Name);
+                }
+            }
+        }
+
+        private static string FixReflectionName(string name)
+        {
+            return FixReflectionName().Replace(name, "");
         }
 
 
