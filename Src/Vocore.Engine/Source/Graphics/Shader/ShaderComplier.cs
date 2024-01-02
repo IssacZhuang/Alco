@@ -20,6 +20,7 @@ namespace Vocore.Engine
         public static readonly ShaderMacroDefine MacroOpenGLES = new ShaderMacroDefine("BACKEND_OPENGLES", "TRUE");
         public static readonly ShaderMacroDefine MacroVulkan = new ShaderMacroDefine("BACKEND_VULKAN", "TRUE");
         public static readonly ShaderMacroDefine MacroMetal = new ShaderMacroDefine("BACKEND_METAL", "TRUE");
+        public static readonly ShaderMacroDefine MacroDebugColor = new ShaderMacroDefine("DEBUG_COLOR", "float4(1,0,1,1)");
 
         private readonly GraphicsDevice _device;
         private readonly ResourceFactory _factory;
@@ -40,15 +41,17 @@ namespace Vocore.Engine
         public Shader Complie(ShaderComplieDescription input)
         {
             List<ShaderMacroDefine> macroList = new List<ShaderMacroDefine>(){
-                GetBackendMacro(_device.BackendType)
+                GetBackendMacro(_device.BackendType),
+                MacroDebugColor
             };
             if (input.Macros != null)
             {
                 macroList.AddRange(input.Macros);
             }
-            string shaderCode = ProcessMacro(input.ShaderText, macroList);
-            shaderCode = ProcessInclude(shaderCode, input.Filename);
-            CrossComplieResult result = HlslCrossComplier.ComplieGraphicsShader(shaderCode, _device.BackendType, input.VertexEntry, input.FragmentEntry);
+
+            string shaderCode = ProcessInclude(input.ShaderText, input.Filename);
+            shaderCode = FixLineBreak(shaderCode);
+            CrossComplieResult result = HlslCrossComplier.ComplieGraphicsShader(shaderCode, input.Filename, _device.BackendType, input.VertexEntry, input.FragmentEntry, macroList.ToArray());
 
             ShaderDescription vertexShaderDescription = result.vertex;
             ShaderDescription fragmentShaderDescription = result.fragment;
@@ -125,11 +128,6 @@ namespace Vocore.Engine
             return new Shader(input.Filename, pipline, reflection);
         }
 
-        public string ProcessMacro(string shaderText, ShaderMacroDefine[] macros)
-        {
-            return ShaderMacroDefine.BuildMacroString(macros) + shaderText;
-        }
-
         public string ProcessMacro(string shaderText, IList<ShaderMacroDefine> macros)
         {
             return ShaderMacroDefine.BuildMacroString(macros) + shaderText;
@@ -156,9 +154,9 @@ namespace Vocore.Engine
                     string includeFilename = match.Groups["filename"].Value;
                     if (_sourceLibs.TryGetData(includeFilename, out var includeData))
                     {
-                        sb.AppendLine(string.Format(Format_LineInculde, 1, includeFilename));
+                        sb.AppendLine(string.Format(Format_LineInculde, 1, FixIncludeFileName(includeFilename)));
                         sb.AppendLine(ProcessInclude(Encoding.UTF8.GetString(includeData), includeFilename));
-                        sb.AppendLine(string.Format(Format_LineInculde, lineIndex + 2, filename));
+                        sb.AppendLine(string.Format(Format_LineInculde, lineIndex + 2, FixIncludeFileName(filename)));
                     }
                     else
                     {
@@ -234,6 +232,16 @@ namespace Vocore.Engine
         private static string FixReflectionName(string name)
         {
             return FixReflectionName().Replace(name, "");
+        }
+
+        private static string FixIncludeFileName(string filename)
+        {
+            return filename.Replace("\\", "/");
+        }
+
+        private static string FixLineBreak(string shaderText)
+        {
+            return shaderText.Replace("\r\n", "\n");
         }
 
 

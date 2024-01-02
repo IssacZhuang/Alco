@@ -13,10 +13,11 @@ namespace Vocore.Engine
 
         public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
 
-        public static CrossComplieResult ComplieGraphicsShader(string hlslCode, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "PS")
+        public static CrossComplieResult ComplieGraphicsShader(string hlslCode, string filename, GraphicsBackend backend, string entryVertex = "VS", string entryFragment = "PS", ShaderMacroDefine[]? macros = null)
         {
-            byte[] vertexSpirv = ConvetHlslToSpirv(hlslCode, entryVertex, DxcShaderStage.Vertex);
-            byte[] fragmentSpirv = ConvetHlslToSpirv(hlslCode, entryFragment, DxcShaderStage.Pixel);
+            DxcDefine[] dxcMacros = ShaderMacroDefine.ToDxcMacro(macros);
+            byte[] vertexSpirv = ConvetHlslToSpirv(hlslCode, filename, entryVertex, DxcShaderStage.Vertex, dxcMacros);
+            byte[] fragmentSpirv = ConvetHlslToSpirv(hlslCode, filename, entryFragment, DxcShaderStage.Pixel, dxcMacros);
 
             SpirvReflection reflection;
             CrossComplieResult result;
@@ -48,12 +49,12 @@ namespace Vocore.Engine
 
 
 
-        public static byte[] ConvetHlslToSpirv(string hlslCode, string entry, DxcShaderStage stage)
+        public static byte[] ConvetHlslToSpirv(string hlslCode, string filename, string entry, DxcShaderStage stage, DxcDefine[]? defines = null)
         {
             IDxcResult result = DxcCompiler.Compile(stage, hlslCode, entry, new DxcCompilerOptions()
             {
                 GenerateSpirv = true,
-            });
+            }, filename, defines);
 
             if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
             {

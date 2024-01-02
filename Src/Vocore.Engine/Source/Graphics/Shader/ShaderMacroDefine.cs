@@ -1,4 +1,5 @@
 using System.Text;
+using Vortice.Dxc;
 
 namespace Vocore.Engine
 {
@@ -34,14 +35,35 @@ namespace Vocore.Engine
         public static string BuildMacroString(IList<ShaderMacroDefine> macros)
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine(FirstLine);
 
             foreach (var macro in macros)
             {
                 sb.AppendLine(macro.ToString());
             }
 
+            sb.AppendLine(FirstLine);
+
             return sb.ToString();
+        }
+
+        public static DxcDefine[] ToDxcMacro(ShaderMacroDefine[]? macros)
+        {
+            if (macros == null || macros.Length == 0)
+            {
+                return Array.Empty<DxcDefine>();
+            }
+            DxcDefine[] dxcMacros = new DxcDefine[macros.Length];
+
+            for (int i = 0; i < macros.Length; i++)
+            {
+                dxcMacros[i] = new DxcDefine
+                {
+                    Name = macros[i].name,
+                    Value = macros[i].value
+                };
+            }
+
+            return dxcMacros;
         }
     }
 }
