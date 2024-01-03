@@ -7,7 +7,7 @@ namespace Vocore.Engine
 {
     public static class CompatibilityHelper
     {
-        public static GraphicsBackend GetPlatformDefaultBackend()
+        public static GraphicsBackend GetPlatformDefaultGraphicsAPI()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {

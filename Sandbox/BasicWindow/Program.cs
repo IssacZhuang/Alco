@@ -3,8 +3,8 @@ using Vocore;
 using Vocore.Engine;
 
 GameEngineSetting setting = GameEngineSetting.Default;
-setting.backend = GraphicsBackend.OpenGL;
-setting.windowName = "Basic Window";
+setting.GraphicsAPI = GraphicsBackend.OpenGL;
+setting.WindowName = "Basic Window";
 
 using (Game game = new Game(setting))
 {

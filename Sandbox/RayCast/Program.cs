@@ -3,9 +3,9 @@ using Vocore.Engine;
 using Veldrid;
 
 GameEngineSetting setting = GameEngineSetting.Default;
-setting.windowName = "Render Cube";
-setting.backend = GraphicsBackend.Direct3D11;
-setting.stopWhenError = true;
+setting.WindowName = "Render Cube";
+setting.GraphicsAPI = GraphicsBackend.Direct3D11;
+setting.StopWhenError = true;
 
 using (Game game = new Game(setting))
 {

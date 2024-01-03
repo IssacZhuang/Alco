@@ -5,39 +5,42 @@ namespace Vocore.Engine
 {
     public struct GameEngineSetting
     {
-        public GraphicsBackend backend;
-        public bool hasGraphics;
-        public string windowName;
-        public int width;
-        public int height;
-        public int gametTickRate;
-        public bool stopWhenError;
+        public GraphicsBackend GraphicsAPI;
+        public bool HasGraphics;
+        public string WindowName;
+        public int Width;
+        public int Height;
+        public int GametTickRate;
+        public bool StopWhenError;
+        public RenderingSetting RenderingSetting;
 
         public readonly static GameEngineSetting Default = new GameEngineSetting
         {
-            hasGraphics = true,
-            backend = CompatibilityHelper.GetPlatformDefaultBackend(),
-            windowName = "Vocore",
-            width = 640,
-            height = 360,
-            gametTickRate = 30,
+            HasGraphics = true,
+            GraphicsAPI = CompatibilityHelper.GetPlatformDefaultGraphicsAPI(),
+            WindowName = "Vocore",
+            Width = 640,
+            Height = 360,
+            GametTickRate = 30,
+            RenderingSetting = RenderingSetting.Forward
         };
 
 
-        public readonly static GameEngineSetting HasGraphics = new GameEngineSetting
+        public readonly static GameEngineSetting WithGraphics = new GameEngineSetting
         {
-            hasGraphics = true,
-            backend = CompatibilityHelper.GetPlatformDefaultBackend(),
-            windowName = "Vocore",
-            width = 640,
-            height = 360,
-            gametTickRate = 30,
+            HasGraphics = true,
+            GraphicsAPI = CompatibilityHelper.GetPlatformDefaultGraphicsAPI(),
+            WindowName = "Vocore",
+            Width = 640,
+            Height = 360,
+            GametTickRate = 30,
+            RenderingSetting = RenderingSetting.Forward
         };
 
         public readonly static GameEngineSetting NoGraphics = new GameEngineSetting
         {
-            hasGraphics = false,
-            gametTickRate = 30,
+            HasGraphics = false,
+            GametTickRate = 30,
         };
     }
 }

@@ -147,7 +147,7 @@ namespace Vocore.Engine
             Instance = this;
             _setting = setting;
 
-            if (_setting.hasGraphics)
+            if (_setting.HasGraphics)
             {
                 GlfwInput.RegisterPlatform();
                 GlfwWindowing.RegisterPlatform();
@@ -155,12 +155,12 @@ namespace Vocore.Engine
                 VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
                 {
                     Position = new Vector2D<int>(100, 100),
-                    Size = new Vector2D<int>(_setting.width, _setting.height),
-                    Title = _setting.windowName
+                    Size = new Vector2D<int>(_setting.Width, _setting.Height),
+                    Title = _setting.WindowName
                 }, new GraphicsDeviceOptions
                 {
                     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
-                }, _setting.backend, out IWindow window, out GraphicsDevice graphicsDevice);
+                }, _setting.GraphicsAPI, out IWindow window, out GraphicsDevice graphicsDevice);
                 
                 _window = window;
 
@@ -174,8 +174,8 @@ namespace Vocore.Engine
                     _graphicsDevice.MainSwapchain.Resize((uint)size.X, (uint)size.Y);
 
                     Log.Info($"Window Resized {size.X}x{size.Y}");
-                    _setting.width = size.X;
-                    _setting.height = size.Y;
+                    _setting.Width = size.X;
+                    _setting.Height = size.Y;
                 };
                 Log.Info(4);
             }
@@ -206,7 +206,7 @@ namespace Vocore.Engine
             InitializeAPI();
             InitializePlugins();
 
-            if (_setting.hasGraphics)
+            if (_setting.HasGraphics)
             {
                 RunWithGraphics();
             }
@@ -405,7 +405,7 @@ namespace Vocore.Engine
 
         private void TryErrorStop()
         {
-            if (_setting.stopWhenError)
+            if (_setting.StopWhenError)
             {
                 Stop();
             }
@@ -437,9 +437,9 @@ namespace Vocore.Engine
 
         private void InitializeInfrastructure()
         {
-            if (_setting.hasGraphics)
+            if (_setting.HasGraphics)
             {
-                Vector2 screenSizeFloat = new Vector2(_setting.width, _setting.height);
+                Vector2 screenSizeFloat = new Vector2(_setting.Width, _setting.Height);
                 _graphics = new EngineGraphics(this, screenSizeFloat);
                 _shaderContext = new EngineShaderContext(GraphicsDevice);
                 _input = new EngineInput(_window);
