@@ -64,15 +64,16 @@ namespace Vocore.Engine
 
             Veldrid.Shader[] shaders = new Veldrid.Shader[2];
 
-            if (_device.BackendType == GraphicsBackend.Vulkan)
-            {
+            // if (_device.BackendType == GraphicsBackend.Vulkan)
+            // {
                 shaders = _factory.CreateFromSpirv(vertexShaderDescription, fragmentShaderDescription);
-            }
-            else
-            {
-                shaders[0] = _factory.CreateShader(vertexShaderDescription);
-                shaders[1] = _factory.CreateShader(fragmentShaderDescription);
-            }
+            // }
+            // else
+            // {
+            //     shaders[0] = _factory.CreateShader(vertexShaderDescription);
+            //     shaders[1] = _factory.CreateShader(fragmentShaderDescription);
+            //     Log.Info(Encoding.UTF8.GetString(fragmentShaderDescription.ShaderBytes));
+            // }
 
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
             pipelineDescription.BlendState = analyseResult.GetBlendState();
@@ -101,7 +102,7 @@ namespace Vocore.Engine
                 resourceLayoutsDesc = reflection.ResourceLayouts;
             }
 
-            FixReflectionName(reflection.ResourceLayouts);
+
 
             ResourceLayout[] resourceLayouts = new ResourceLayout[reflection.ResourceLayouts.Length];
             for (int i = 0; i < reflection.ResourceLayouts.Length; i++)
@@ -125,7 +126,7 @@ namespace Vocore.Engine
 
             Pipeline pipline = _factory.CreateGraphicsPipeline(pipelineDescription);
 
-            return new Shader(input.Filename, pipline, reflection);
+            return new Shader(input.Filename, pipline, FixReflectionName(reflection));
         }
 
         public string ProcessMacro(string shaderText, IList<ShaderMacroDefine> macros)
@@ -218,15 +219,24 @@ namespace Vocore.Engine
             return name.Replace('.', '_');
         }
 
-        private static void FixReflectionName(ResourceLayoutDescription[] layouts)
+        private static SpirvReflection FixReflectionName(SpirvReflection reflection)
         {
-            for (int i = 0; i < layouts.Length; i++)
+            VertexElementDescription[] VertexElements = reflection.VertexElements;
+            ResourceLayoutDescription[] ResourceLayouts = new ResourceLayoutDescription[reflection.ResourceLayouts.Length];
+            for (int i = 0; i < ResourceLayouts.Length; i++)
             {
-                for (int j = 0; j < layouts[i].Elements.Length; j++)
+                int elementLength = reflection.ResourceLayouts[i].Elements.Length;
+                ResourceLayoutElementDescription[] elements = elementLength == 0 ? Array.Empty<ResourceLayoutElementDescription>() : new ResourceLayoutElementDescription[elementLength];
+
+
+                for (int j = 0; j < elements.Length; j++)
                 {
-                    layouts[i].Elements[j].Name = FixReflectionName(layouts[i].Elements[j].Name);
+                    elements[j].Name = FixReflectionName(reflection.ResourceLayouts[i].Elements[j].Name);
                 }
+                ResourceLayouts[i] = new ResourceLayoutDescription(elements);
             }
+
+            return new SpirvReflection(VertexElements, ResourceLayouts);
         }
 
         private static string FixReflectionName(string name)

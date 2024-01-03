@@ -32,16 +32,10 @@ namespace Vocore.Engine
             }
             else
             {
-                CrossCompileTarget target = GetCompileTarget(backend);
-                VertexFragmentCompilationResult spirvToShaderResult = SpirvCompilation.CompileVertexFragment(vertexSpirv, fragmentSpirv, target);
+                VertexFragmentCompilationResult spirvToShaderResult = SpirvCompilation.CompileVertexFragment(vertexSpirv, fragmentSpirv, CrossCompileTarget.GLSL);
                 reflection = spirvToShaderResult.Reflection;
-                result = new CrossComplieResult(
-                    Encoding.UTF8.GetBytes(spirvToShaderResult.VertexShader),
-                    CompliedEntry,
-                    Encoding.UTF8.GetBytes(spirvToShaderResult.FragmentShader),
-                    CompliedEntry,
-                    reflection
-                    );
+
+                result = new CrossComplieResult(vertexSpirv, CompliedEntry, fragmentSpirv, CompliedEntry, reflection);
             }
 
             return result;
