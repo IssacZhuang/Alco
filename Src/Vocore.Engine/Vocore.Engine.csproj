@@ -16,6 +16,10 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.0.2" />
     <PackageReference Include="Silk.NET.Input.Glfw" Version="2.19.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.SPIRV.Cross" Version="2.20.0" />
+    <PackageReference Include="Silk.NET.SPIRV.Cross.Native" Version="2.20.0" />
+    <PackageReference Include="Silk.NET.SPIRV.Reflect" Version="2.20.0" />
+    <PackageReference Include="Silk.NET.SPIRV.Reflect.Native" Version="2.20.0" />
     <!-- <PackageReference Include="Silk.NET.Windowing.Extensions.Veldrid" Version="2.19.0" /> -->
   </ItemGroup>
   <ItemGroup>

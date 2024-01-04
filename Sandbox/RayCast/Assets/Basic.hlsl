@@ -14,7 +14,7 @@ struct PS_IN
   float2 uv : TEXCOORD;
 };
 
-PROPS(2, float4, _Color);
+PROPS(4, float4, _Color);
 
 PS_IN VS(VS_IN input) 
 {
