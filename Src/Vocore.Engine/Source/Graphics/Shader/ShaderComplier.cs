@@ -59,8 +59,12 @@ namespace Vocore.Engine
             ShaderAnalyzer analyseResult = new ShaderAnalyzer(input.ShaderText);
 
             SpirvReflection reflection = result.reflection;
+            foreach(var vertexElement in reflection.VertexElements)
+            {
+                Log.Info(vertexElement.Semantic);
+            }
             new SpirvShaderSource(result.vertex.ShaderBytes, ShaderStage.Vertex);
-            new SpirvShaderSource(result.fragment.ShaderBytes, ShaderStage.Fragment);
+            new SpirvShaderSource(result.fragment.ShaderBytes, ShaderStage.Pixel);
 
             VertexLayoutDescription[] _vertexLayouts = new VertexLayoutDescription[] { new VertexLayoutDescription(reflection.VertexElements) };
 

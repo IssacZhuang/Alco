@@ -3,6 +3,7 @@ using Silk.NET.SPIRV.Reflect;
 
 using SilkDescriptorType = Silk.NET.SPIRV.Reflect.DescriptorType;
 using SilkDescriptorBinding = Silk.NET.SPIRV.Reflect.DescriptorBinding;
+using SilkVertexSematic = Silk.NET.SPIRV.BuiltIn;
 
 namespace Vocore.Engine
 {
@@ -38,6 +39,23 @@ namespace Vocore.Engine
                     throw new Exception($"Unknown descriptor type {type}");
             }
         }
+
+        // public static VertexSematic VertexSematicSilkToVocore(SilkVertexSematic sematic)
+        // {
+        //     switch (sematic)
+        //     {
+        //         case SilkVertexSematic.Position:
+        //             return VertexSematic.Position;
+        //         case SilkVertexSematic.Normal:
+        //             return VertexSematic.Normal;
+        //         case SilkVertexSematic.Texcoord:
+        //             return VertexSematic.Texcoord;
+        //         case SilkVertexSematic.Color:
+        //             return VertexSematic.Color;
+        //         default:
+        //             throw new Exception($"Unknown vertex sematic {sematic}");
+        //     }
+        // }
 
         public unsafe static DescriptorBinding GetDescriptorBinding(SilkDescriptorBinding binding)
         {
