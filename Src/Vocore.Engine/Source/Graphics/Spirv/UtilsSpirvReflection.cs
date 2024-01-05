@@ -47,12 +47,14 @@ namespace Vocore.Engine
                     {
                         bindings.Add(binding.Binding, binding);
                     }
-                    
                 }
             }
 
             return bindings.Values.ToArray();
         }
+
+        
+
 
         
     }

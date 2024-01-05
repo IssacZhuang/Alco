@@ -30,6 +30,8 @@ namespace Vocore.Engine
             {
                 UtilsSpirvReflection.SetShaderStage(set, stage);
             }
+
+            _vertexLayouts = new VertexInputLayout[1] { UtilsSilkTranslation.GetVertexInputLayout(_reflectData) };
         }
 
 
