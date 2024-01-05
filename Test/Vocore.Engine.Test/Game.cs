@@ -23,10 +23,10 @@ public class Game : GameEngine
         _cameraP.tranform.position = new Vector3(0, 0, -5);
         Camera = _cameraP;
 
-        ShaderComplier complier = new ShaderComplier(GraphicsDevice);
+        ShaderCompiler complier = new ShaderCompiler(GraphicsDevice);
         var shaderBasic = File.ReadAllText(Path.Combine(WorkingDirectory, "Assets/Basic.glsl"));
 
-        ShaderComplieDescription shaderInput = new ShaderComplieDescription(shaderBasic, "Basic");
+        ShaderCompileDescription shaderInput = new ShaderCompileDescription(shaderBasic, "Basic");
 
         _shaderBasic = complier.Complie(shaderInput);
 

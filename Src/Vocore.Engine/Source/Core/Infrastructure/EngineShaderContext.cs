@@ -14,7 +14,7 @@ namespace Vocore.Engine
         private readonly VirtualDirectory _sourceLibs;
         private readonly VirtualDirectory _sourceGraphics;
         private readonly VirtualDirectory _sourceCompute;
-        public ShaderComplier Complier { get; private set; }
+        public ShaderCompiler Complier { get; private set; }
 
         internal EngineShaderContext(GraphicsDevice device)
         {
@@ -24,7 +24,7 @@ namespace Vocore.Engine
             _sourceGraphics = new VirtualDirectory();
             _sourceCompute = new VirtualDirectory();
 
-            Complier = new ShaderComplier(_device, _sourceLibs);
+            Complier = new ShaderCompiler(_device, _sourceLibs);
         }
 
 
@@ -68,7 +68,7 @@ namespace Vocore.Engine
         /// <summary>
         /// Complie and add shader to the pool
         /// </summary>
-        public Shader? ComplieAndAdd(ShaderComplieDescription input)
+        public Shader? ComplieAndAdd(ShaderCompileDescription input)
         {
             if (_shaders.ContainsKey(input.Filename))
             {

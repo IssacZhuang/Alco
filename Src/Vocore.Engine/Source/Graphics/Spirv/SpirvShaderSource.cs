@@ -2,6 +2,8 @@ using System;
 using Silk.NET.SPIRV.Cross;
 using Silk.NET.SPIRV.Reflect;
 
+using Result = Silk.NET.SPIRV.Reflect.Result;
+
 namespace Vocore.Engine
 {
     public class SpirvShaderSource
@@ -22,7 +24,11 @@ namespace Vocore.Engine
             fixed (byte* ptr = spirv)
             {
                 void* p = ptr;
-                reflect.CreateShaderModule((nuint)spirv.Length, p, ref _reflectData);
+                Result result = reflect.CreateShaderModule((nuint)spirv.Length, p, ref _reflectData);
+                if (result != Result.Success)
+                {
+                    throw new Exception("Failed to reflect SPIR-V module: " + result);
+                }
             }
 
             _descriptorSets = UtilsSilkTranslation.GetDescriptorSets(_reflectData);

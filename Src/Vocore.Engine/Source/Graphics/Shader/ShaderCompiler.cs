@@ -9,7 +9,7 @@ using Veldrid.SPIRV;
 
 namespace Vocore.Engine
 {
-    public partial class ShaderComplier
+    public partial class ShaderCompiler
     {
         public const string Regex_Includes = @"#include\s+""(?<filename>[^""]+)""";
         public const string Format_LineInculde = "#line {0} \"{1}\"";
@@ -28,7 +28,7 @@ namespace Vocore.Engine
 
         [GeneratedRegex("(?<type>\\w+)\\.")]
         private static partial Regex FixReflectionName();
-        public ShaderComplier(GraphicsDevice device, IFileSource? sourceLibs = null)
+        public ShaderCompiler(GraphicsDevice device, IFileSource? sourceLibs = null)
         {
             _device = device;
             _factory = device.ResourceFactory;
@@ -38,7 +38,7 @@ namespace Vocore.Engine
         /// <summary>
         /// Complie a HLSL shader to specified graphics backend
         /// </summary>
-        public Shader Complie(ShaderComplieDescription input)
+        public Shader Complie(ShaderCompileDescription input)
         {
             List<ShaderMacroDefine> macroList = new List<ShaderMacroDefine>(){
                 GetBackendMacro(_device.BackendType),

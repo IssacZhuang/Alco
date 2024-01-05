@@ -15,15 +15,15 @@ namespace Vocore.Engine
                 return GameEngine.Instance.Assets.TryLoad(path, out data);
             }
         }
-        private ShaderComplier? _shaderComplier;
+        private ShaderCompiler? _shaderComplier;
 
-        public ShaderComplier ShaderComplier
+        public ShaderCompiler ShaderComplier
         {
             get
             {
                 if (_shaderComplier == null)
                 {
-                    _shaderComplier = new ShaderComplier(GameEngine.Instance.GraphicsDevice, new ShaderLibSource());
+                    _shaderComplier = new ShaderCompiler(GameEngine.Instance.GraphicsDevice, new ShaderLibSource());
                 }
                 return _shaderComplier;
             }
@@ -34,7 +34,7 @@ namespace Vocore.Engine
 
         public bool TryLoad(string filename, byte[] data, out Shader asset)
         {
-            asset = ShaderComplier.Complie(new ShaderComplieDescription(Encoding.UTF8.GetString(data), filename));
+            asset = ShaderComplier.Complie(new ShaderCompileDescription(Encoding.UTF8.GetString(data), filename));
             return true;
         }
     }

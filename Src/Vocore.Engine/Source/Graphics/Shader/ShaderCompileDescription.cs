@@ -3,7 +3,7 @@ using Veldrid;
 
 namespace Vocore.Engine
 {
-    public struct ShaderComplieDescription
+    public struct ShaderCompileDescription
     {
         /// <summary>
         /// The shader text in HLSL
@@ -31,7 +31,7 @@ namespace Vocore.Engine
         /// </summary>
         public OutputDescription? OutputDescription;
 
-        public ShaderComplieDescription(string shaderText, string filename)
+        public ShaderCompileDescription(string shaderText, string filename)
         {
             ShaderText = shaderText;
             Filename = filename;
@@ -41,7 +41,7 @@ namespace Vocore.Engine
             OutputDescription = null;
         }
 
-        public ShaderComplieDescription(string shaderText, string filename, string vertexEntry, string fragmentEntry, ShaderMacroDefine[]? macros = null, OutputDescription? outputDescription = null)
+        public ShaderCompileDescription(string shaderText, string filename, string vertexEntry, string fragmentEntry, ShaderMacroDefine[]? macros = null, OutputDescription? outputDescription = null)
         {
             ShaderText = shaderText;
             Filename = filename;
