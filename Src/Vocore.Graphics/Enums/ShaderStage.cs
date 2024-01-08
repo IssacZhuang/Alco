@@ -9,6 +9,8 @@ public enum ShaderStage
     Hull = 1 << 1,
     // currently not supported
     Domain = 1 << 2,
-    Fragment = 1 << 3,
-    Compute = 1 << 4,
+    // currently not supported
+    Geometry = 1 << 3,
+    Fragment = 1 << 4,
+    Compute = 1 << 5,
 }

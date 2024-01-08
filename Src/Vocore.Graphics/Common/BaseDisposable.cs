@@ -4,19 +4,17 @@ namespace Vocore.Graphics
 {
     public abstract class BaseDisposable : IDisposable
     {
-        private volatile bool _disposed;
+        private volatile uint _disposed;
 
-        public bool Disposed => _disposed;
+        public bool IsDisposed => _disposed != 0;
 
         public void Dispose()
         {
-            if (_disposed)
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
             {
-                return;
+                Dispose(true);
+                GC.SuppressFinalize(this);
             }
-
-            Dispose(true);
-            _disposed = true;
         }
 
         protected abstract void Dispose(bool disposing);

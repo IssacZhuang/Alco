@@ -3,10 +3,12 @@ namespace Graphics;
 public enum PixelFormat
 {
     Undefined = 0,
+    // 8-bit
     R8Unorm = 1,
     R8Snorm = 2,
     R8Uint = 3,
     R8Sint = 4,
+    // 16-bit
     R16Uint = 5,
     R16Sint = 6,
     R16Float = 7,
@@ -14,6 +16,7 @@ public enum PixelFormat
     RG8Snorm = 9,
     RG8Uint = 10,
     RG8Sint = 11,
+    // 32-bit
     R32Float = 12,
     R32Uint = 13,
     R32Sint = 14,
@@ -27,25 +30,30 @@ public enum PixelFormat
     RGBA8Sint = 22,
     BGRA8Unorm = 23,
     BGRA8UnormSrgb = 24,
+    // Packed 32-bit
     RGB10A2Uint = 25,
     RGB10A2Unorm = 26,
     RG11B10Ufloat = 27,
     RGB9E5Ufloat = 28,
+    // 64-bit
     RG32Float = 29,
     RG32Uint = 30,
     RG32Sint = 31,
     RGBA16Uint = 32,
     RGBA16Sint = 33,
     RGBA16Float = 34,
+    // 128-bit
     RGBA32Float = 35,
     RGBA32Uint = 36,
     RGBA32Sint = 37,
+    // Depth-stencil
     Stencil8 = 38,
     Depth16Unorm = 39,
     Depth24Plus = 40,
     Depth24PlusStencil8 = 41,
     Depth32Float = 42,
     Depth32FloatStencil8 = 43,
+    // BC Compressed
     BC1RGBAUnorm = 44,
     BC1RGBAUnormSrgb = 45,
     BC2RGBAUnorm = 46,
@@ -60,6 +68,7 @@ public enum PixelFormat
     BC6HRGBFloat = 55,
     BC7RGBAUnorm = 56,
     BC7RGBAUnormSrgb = 57,
+    // ETC Compressed
     ETC2RGB8Unorm = 58,
     ETC2RGB8UnormSrgb = 59,
     ETC2RGB8A1Unorm = 60,
@@ -70,6 +79,7 @@ public enum PixelFormat
     EACR11Snorm = 65,
     EACRG11Unorm = 66,
     EACRG11Snorm = 67,
+    // ASTC Compressed
     ASTC4x4Unorm = 68,
     ASTC4x4UnormSrgb = 69,
     ASTC5x4Unorm = 70,
