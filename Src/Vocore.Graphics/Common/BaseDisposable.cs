@@ -19,6 +19,6 @@ namespace Vocore.Graphics
             _disposed = true;
         }
 
-        protected virtual void Dispose(bool disposing);
+        protected abstract void Dispose(bool disposing);
     }
 }
