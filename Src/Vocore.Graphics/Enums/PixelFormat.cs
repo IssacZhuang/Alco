@@ -1,4 +1,4 @@
-namespace Graphics;
+namespace Vocore.Graphics;
 
 public enum PixelFormat
 {
