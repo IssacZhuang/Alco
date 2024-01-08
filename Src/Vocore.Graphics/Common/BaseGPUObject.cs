@@ -2,7 +2,7 @@ using System;
 
 namespace Vocore.Graphics
 {
-    public abstract class BaseDisposable : IDisposable
+    public abstract class BaseGPUObject : IDisposable
     {
         private volatile uint _disposed;
 
