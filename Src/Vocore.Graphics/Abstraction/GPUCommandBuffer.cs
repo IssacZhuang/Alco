@@ -2,5 +2,83 @@ namespace Vocore.Graphics;
 
 public abstract class GPUCommandBuffer : BaseGPUObject
 {
-    
+    //API
+
+    public void Begin(GPURenderPass renderPass)
+    {
+        InternalBegin(renderPass);
+    }
+
+    public void End()
+    {
+        InternalEnd();
+    }
+
+    public void SetPipeline(GPUPipeline pipeline)
+    {
+        InternalSetPipeline(pipeline);
+    }
+
+    public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    {
+        InternalDrawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
+
+    public void DrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    {
+        InternalDrawIndirect(indirectBuffer, offset, drawCount, stride);
+    }
+
+    public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    {
+        InternalDrawIndexedIndirect(indirectBuffer, offset, drawCount, stride);
+    }
+
+    public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    {
+        InternalUpdateBuffer(buffer, bufferOffset, data, size);
+    }
+
+    // polymorphism
+
+    public unsafe void UpdateBuffer(GPUBuffer buffer, byte* data, uint size)
+    {
+        UpdateBuffer(buffer, 0, data, size);
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T data) where T : unmanaged
+    {
+        UpdateBuffer(buffer, bufferOffset, (byte*)&data, (uint)sizeof(T));
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T data) where T : unmanaged
+    {
+        UpdateBuffer(buffer, 0, (byte*)&data, (uint)sizeof(T));
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
+    {
+        fixed (T* ptr = data)
+        {
+            UpdateBuffer(buffer, bufferOffset, (byte*)ptr, (uint)(sizeof(T) * data.Length));
+        }
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
+    {
+        UpdateBuffer(buffer, 0, data);
+    }
+
+
+    // need to be implemented for each backend
+    protected abstract void InternalBegin(GPURenderPass renderPass);
+    protected abstract void InternalEnd();
+    protected abstract void InternalSetPipeline(GPUPipeline pipeline);
+    protected abstract void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
+    protected abstract void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
+    protected abstract void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
+    /// <summary>
+    /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
+    /// </summary>
+    protected abstract unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 }
