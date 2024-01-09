@@ -8,7 +8,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// </summary>
     /// <param name="createInfo">The descriptor for the GPU buffer.</param>
     /// <returns>The created GPU buffer.</returns>
-    public GPUBuffer CreateBuffer(in BufferCreateInfo createInfo)
+    public GPUBuffer CreateBuffer(in BufferDescriptor createInfo)
     {
         return InternalCreateBuffer(createInfo);
     }
@@ -27,7 +27,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// </summary>
     /// <param name="createInfo">The descriptor for the GPU texture.</param>
     /// <returns>The created GPU texture.</returns>
-    public GPUTexture CreateTexture(in TextureCreateInfo createInfo)
+    public GPUTexture CreateTexture(in TextureDescriptor createInfo)
     {
         return InternalCreateTexture(createInfo);
     }
@@ -59,15 +59,35 @@ public abstract class GPUDevice : BaseGPUObject
         InternalDestroyCommandBuffer(commandBuffer);
     }
 
-    protected abstract GPUBuffer InternalCreateBuffer(in BufferCreateInfo descriptor);
+    /// <summary>
+    /// Creates a GPU render pass with the specified descriptor.
+    /// </summary>
+    public GPURenderPass CreateRenderPass(in RenderPassDescriptor descriptor)
+    {
+        return InternalCreateRenderPass(descriptor);
+    }
+
+    /// <summary>
+    /// Destroys the specified GPU render pass.
+    /// </summary>
+    public void DestroyRenderPass(GPURenderPass renderPass)
+    {
+        InternalDestroyRenderPass(renderPass);
+    }
+
+    protected abstract GPUBuffer InternalCreateBuffer(in BufferDescriptor descriptor);
 
     protected abstract void InternalDestroyBuffer(GPUBuffer buffer);
 
-    protected abstract GPUTexture InternalCreateTexture(in TextureCreateInfo descriptor);
+    protected abstract GPUTexture InternalCreateTexture(in TextureDescriptor descriptor);
 
     protected abstract void InternalDestroyTexture(GPUTexture texture);
 
     protected abstract GPUCommandBuffer InternalCreateCommandBuffer();
 
     protected abstract void InternalDestroyCommandBuffer(GPUCommandBuffer commandBuffer);
+
+    protected abstract GPURenderPass InternalCreateRenderPass(in RenderPassDescriptor descriptor);
+
+    protected abstract void InternalDestroyRenderPass(GPURenderPass renderPass);
 }

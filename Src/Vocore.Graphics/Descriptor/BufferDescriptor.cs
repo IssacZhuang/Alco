@@ -3,16 +3,16 @@ namespace Vocore.Graphics;
 /// <summary>
 /// Represents the creation information for a GPU buffer.
 /// </summary>
-public struct BufferCreateInfo
+public struct BufferDescriptor
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="BufferCreateInfo"/> struct.
+    /// Initializes a new instance of the <see cref="BufferDescriptor"/> struct.
     /// </summary>
     /// <param name="size">The size of the buffer.</param>
     /// <param name="usage">The usage flags for the buffer.</param>
     /// <param name="accessMode">The access mode for the buffer.</param>
     /// <param name="name">The name of the buffer (optional).</param>
-    public BufferCreateInfo(ulong size, BufferUsage usage, AccessMode accessMode, string name = "Unnamed GPU buffer")
+    public BufferDescriptor(ulong size, BufferUsage usage, AccessMode accessMode, string name = "Unnamed GPU buffer")
     {
         Size = size;
         AccessMode = accessMode;

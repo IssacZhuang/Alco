@@ -12,4 +12,9 @@ internal static class UtilsCast
             bToA.Add(b, a);
         }
     }
+
+    public static Func<TA, TB> GenerateCastFunc<TA, TB>(Dictionary<TA, TB> castTable) where TA : notnull where TB : notnull
+    {
+        return a => castTable[a];
+    }
 }

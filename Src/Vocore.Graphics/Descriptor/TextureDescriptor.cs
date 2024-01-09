@@ -3,10 +3,10 @@ namespace Vocore.Graphics;
 /// <summary>
 /// Represents the creation information for a GPU texture.
 /// </summary>
-public struct TextureCreateInfo
+public struct TextureDescriptor
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="TextureCreateInfo"/> struct.
+    /// Initializes a new instance of the <see cref="TextureDescriptor"/> struct.
     /// </summary>
     /// <param name="dimension">The dimension of the texture.</param>
     /// <param name="format">The pixel format of the texture.</param>
@@ -18,7 +18,7 @@ public struct TextureCreateInfo
     /// <param name="sampleCount">The sample count of the texture.</param>
     /// <param name="accessMode">The access mode of the texture.</param>
     /// <param name="name">The name of the texture.</param>
-    public TextureCreateInfo(
+    public TextureDescriptor(
         TextureDimension dimension,
         PixelFormat format,
         uint width,
