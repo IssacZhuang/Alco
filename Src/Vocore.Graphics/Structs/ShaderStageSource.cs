@@ -3,16 +3,16 @@ namespace Vocore.Graphics
     /// <summary>
     /// Represents the information required to create a shader stage.
     /// </summary>
-    public struct ShaderStageDescriptor
+    public struct ShaderStageSource
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ShaderStageDescriptor"/> struct.
+        /// Initializes a new instance of the <see cref="ShaderStageSource"/> struct.
         /// </summary>
         /// <param name="stage">The shader stage.</param>
         /// <param name="language">The shader language.</param>
         /// <param name="source">The shader source code.</param>
         /// <param name="entryPoint">The entry point function name.</param>
-        public ShaderStageDescriptor(ShaderStage stage, ShaderLanguage language, byte[] source, string entryPoint)
+        public ShaderStageSource(ShaderStage stage, ShaderLanguage language, byte[] source, string entryPoint)
         {
             Stage = stage;
             Language = language;
