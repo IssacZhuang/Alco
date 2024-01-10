@@ -75,6 +75,9 @@ public abstract class GPUDevice : BaseGPUObject
         InternalDestroyRenderPass(renderPass);
     }
 
+    public abstract PixelFormat GetPrefferedSurfaceFomat();
+    public abstract PixelFormat GetPrefferedDepthFomat();
+
     protected abstract GPUBuffer InternalCreateBuffer(in BufferDescriptor descriptor);
 
     protected abstract void InternalDestroyBuffer(GPUBuffer buffer);
