@@ -17,4 +17,11 @@ internal static class UtilsCast
     {
         return a => castTable[a];
     }
+
+    public static void GenerateCastFunc<TA, TB>(IEnumerable<Tuple<TA, TB>> castList, out Func<TA, TB> aToB, out Func<TB, TA> bToA) where TA : notnull where TB : notnull
+    {
+        GenerateCastTable(castList, out var aToBTable, out var bToATable);
+        aToB = GenerateCastFunc(aToBTable);
+        bToA = GenerateCastFunc(bToATable);
+    }
 }

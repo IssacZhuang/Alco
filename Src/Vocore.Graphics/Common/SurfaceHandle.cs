@@ -1,42 +1,42 @@
 namespace Vocore.Graphics;
 
-public abstract class SurfaceHandle
+public abstract class SurfaceSource
 {
-    protected SurfaceHandle()
+    protected SurfaceSource()
     {
     }
 
-    public static SurfaceHandle CreateAndroidWindow(IntPtr window) => new AndroidWindowSurfaceHandle(window);
-    public static SurfaceHandle CreateMetalLayer(IntPtr layer) => new MetalLayerSurfaceHandle(layer);
-    public static SurfaceHandle CreateWin32Window(IntPtr hwnd) => new Win32SurfaceHandle(hwnd);
-    public static SurfaceHandle CreateSwapChainPanel(object swapChainPanelNative, float logicalDpi) => new SwapChainPanelSurfaceHandle(swapChainPanelNative, logicalDpi);
-    public static SurfaceHandle CreateWaylandSurface(IntPtr display, IntPtr surface) => new WaylandSurfaceHandle(display, surface);
-    public static SurfaceHandle CreateXcbWindow(IntPtr connection, uint window) => new XcbWindowSurfaceHandle(connection, window);
-    public static SurfaceHandle CreateXlibWindow(IntPtr display, ulong window) => new XlibWindowSurfaceHandle(display, window);
+    public static SurfaceSource CreateAndroidWindow(IntPtr window) => new AndroidWindowSurfaceSource(window);
+    public static SurfaceSource CreateMetalLayer(IntPtr layer) => new MetalLayerSurfaceHandle(layer);
+    public static SurfaceSource CreateWin32Window(IntPtr hwnd) => new Win32SurfaceHandle(hwnd);
+    public static SurfaceSource CreateSwapChainPanel(object swapChainPanelNative, float logicalDpi) => new SwapChainPanelSurfaceHandle(swapChainPanelNative, logicalDpi);
+    public static SurfaceSource CreateWaylandSurface(IntPtr display, IntPtr surface) => new WaylandSurfaceHandle(display, surface);
+    public static SurfaceSource CreateXcbWindow(IntPtr connection, uint window) => new XcbWindowSurfaceHandle(connection, window);
+    public static SurfaceSource CreateXlibWindow(IntPtr display, ulong window) => new XlibWindowSurfaceHandle(display, window);
 }
 
-internal class AndroidWindowSurfaceHandle : SurfaceHandle
+internal class AndroidWindowSurfaceSource : SurfaceSource
 {
     public IntPtr Window { get; }
 
-    public AndroidWindowSurfaceHandle(IntPtr window) => Window = window;
+    public AndroidWindowSurfaceSource(IntPtr window) => Window = window;
 }
 
-internal class MetalLayerSurfaceHandle : SurfaceHandle
+internal class MetalLayerSurfaceHandle : SurfaceSource
 {
     public IntPtr Layer { get; }
 
     public MetalLayerSurfaceHandle(IntPtr layer) => Layer = layer;
 }
 
-internal class Win32SurfaceHandle : SurfaceHandle
+internal class Win32SurfaceHandle : SurfaceSource
 {
     public IntPtr Hwnd { get; }
 
     public Win32SurfaceHandle(IntPtr hwnd) => Hwnd = hwnd;
 }
 
-internal class SwapChainPanelSurfaceHandle : SurfaceHandle
+internal class SwapChainPanelSurfaceHandle : SurfaceSource
 {
     public object SwapChainPanelNative { get; }
     public float LogicalDpi { get; }
@@ -48,7 +48,7 @@ internal class SwapChainPanelSurfaceHandle : SurfaceHandle
     }
 }
 
-internal class WaylandSurfaceHandle : SurfaceHandle
+internal class WaylandSurfaceHandle : SurfaceSource
 {
     public IntPtr Display { get; }
     public IntPtr Surface { get; }
@@ -60,7 +60,7 @@ internal class WaylandSurfaceHandle : SurfaceHandle
     }
 }
 
-internal class XcbWindowSurfaceHandle : SurfaceHandle
+internal class XcbWindowSurfaceHandle : SurfaceSource
 {
     public IntPtr Connection { get; }
     public uint Window { get; }
@@ -72,7 +72,7 @@ internal class XcbWindowSurfaceHandle : SurfaceHandle
     }
 }
 
-internal class XlibWindowSurfaceHandle : SurfaceHandle
+internal class XlibWindowSurfaceHandle : SurfaceSource
 {
     public IntPtr Display { get; }
     public ulong Window { get; }
