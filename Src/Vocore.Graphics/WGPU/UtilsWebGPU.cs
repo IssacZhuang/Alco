@@ -1,3 +1,4 @@
+using System.Text;
 using WebGPU;
 using static WebGPU.WebGPU;
 
@@ -18,12 +19,12 @@ public static class UtilsWebGPU
         new(GraphicsBackend.OpenGLES, WGPUInstanceBackend.GL),
     };
 
-    public static readonly Func<GraphicsBackend, WGPUInstanceBackend> ToWebGPU;
-    public static readonly Func<WGPUInstanceBackend, GraphicsBackend> ToAbstract;
+    public static readonly Func<GraphicsBackend, WGPUInstanceBackend> BackendToWebGPU;
+    public static readonly Func<WGPUInstanceBackend, GraphicsBackend> BackendToAbstract;
 
     static UtilsWebGPU()
     {
-        UtilsCast.GenerateCastFunc(BackendMap, out ToWebGPU, out ToAbstract);
+        UtilsCast.GenerateCastFunc(BackendMap, out BackendToWebGPU, out BackendToAbstract);
     }
 
     public unsafe static WGPUSurface CreateSurface(this WGPUInstance instance, SurfaceSource surface)
@@ -121,5 +122,56 @@ public static class UtilsWebGPU
         };
 
         return wgpuInstanceCreateSurface(instance, &descriptor);
+    }
+
+    public unsafe static WGPUShaderModule CreateShaderModule(this WGPUDevice device, in ShaderStageSource source)
+    {
+        WGPUShaderModuleDescriptor shaderDesc = new()
+        {
+            hintCount = 0,
+            hints = null
+        };
+        if (source.Language == ShaderLanguage.SPIRV)
+        {
+            fixed (byte* ptr = source.Source)
+            {
+                WGPUShaderModuleSPIRVDescriptor descriptor = new WGPUShaderModuleSPIRVDescriptor()
+                {
+                    codeSize = (uint)source.Source.Length / sizeof(uint),
+                    code = (uint*)ptr,
+                    chain = new WGPUChainedStruct()
+                    {
+                        next = null,
+                        sType = WGPUSType.ShaderModuleSPIRVDescriptor,
+                    },
+                };
+
+                shaderDesc.nextInChain = (WGPUChainedStruct*)&descriptor;
+
+                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+            }
+        }
+        else if (source.Language == ShaderLanguage.WGSL)
+        {
+            string code = Encoding.UTF8.GetString(source.Source);
+            fixed (sbyte* ptr = code.GetUtf8Span())
+            {
+                WGPUShaderModuleWGSLDescriptor descriptor = new WGPUShaderModuleWGSLDescriptor()
+                {
+                    code = ptr,
+                    chain = new WGPUChainedStruct()
+                    {
+                        next = null,
+                        sType = WGPUSType.ShaderModuleWGSLDescriptor,
+                    },
+                };
+
+                shaderDesc.nextInChain = (WGPUChainedStruct*)&descriptor;
+
+                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+            }
+        }
+
+        throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV and WGSL are supported. Try compiling your shader to SPIRV if you are using HLSL or GLSL.");
     }
 }

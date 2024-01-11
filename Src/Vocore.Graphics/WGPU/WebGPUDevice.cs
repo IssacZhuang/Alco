@@ -18,7 +18,7 @@ public class WebGPUDevice : GPUDevice
         WGPUInstanceExtras extras = new WGPUInstanceExtras()
         {
             flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
-            backends = UtilsWebGPU.ToWebGPU(descriptor.Backend),
+            backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
         };
 
         WGPUInstanceDescriptor instanceDescriptor = new WGPUInstanceDescriptor()
