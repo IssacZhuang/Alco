@@ -1,7 +1,7 @@
 
 using WebGPU;
 
-namespace Vocore.Graphics;
+namespace Vocore.Graphics.WebGPU;
 
 public class WebGPUPipeline : GPUPipeline
 {

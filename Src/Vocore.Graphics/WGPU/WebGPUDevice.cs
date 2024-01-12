@@ -3,7 +3,7 @@ using WebGPU;
 
 using static WebGPU.WebGPU;
 
-namespace Vocore.Graphics;
+namespace Vocore.Graphics.WebGPU;
 
 public class WebGPUDevice : GPUDevice
 {

@@ -1,10 +1,9 @@
-using System.Text;
 using WebGPU;
 using static WebGPU.WebGPU;
 
-namespace Vocore.Graphics;
+namespace Vocore.Graphics.WebGPU;
 
-public static class UtilsWebGPU
+public static partial class UtilsWebGPU
 {
     // Graphics backend mapping
     public static readonly Tuple<GraphicsBackend, WGPUInstanceBackend>[] BackendCast = new Tuple<GraphicsBackend, WGPUInstanceBackend>[]
@@ -172,6 +171,93 @@ public static class UtilsWebGPU
     public static readonly Func<PixelFormat, WGPUTextureFormat> PixelFormatToWebGPU;
     public static readonly Func<WGPUTextureFormat, PixelFormat> PixelFormatToAbstract;
 
+    // Blend factor mapping
+
+    public static readonly Tuple<BlendFactor, WGPUBlendFactor>[] BlendFactorCast = new Tuple<BlendFactor, WGPUBlendFactor>[]
+    {
+        new(BlendFactor.Zero, WGPUBlendFactor.Zero),
+        new(BlendFactor.One, WGPUBlendFactor.One),
+        new(BlendFactor.Src, WGPUBlendFactor.Src),
+        new(BlendFactor.OneMinusSrc, WGPUBlendFactor.OneMinusSrc),
+        new(BlendFactor.SrcAlpha, WGPUBlendFactor.SrcAlpha),
+        new(BlendFactor.OneMinusSrcAlpha, WGPUBlendFactor.OneMinusSrcAlpha),
+        new(BlendFactor.Dst, WGPUBlendFactor.Dst),
+        new(BlendFactor.OneMinusDst, WGPUBlendFactor.OneMinusDst),
+        new(BlendFactor.DstAlpha, WGPUBlendFactor.DstAlpha),
+        new(BlendFactor.OneMinusDstAlpha, WGPUBlendFactor.OneMinusDstAlpha),
+        new(BlendFactor.SrcAlphaSaturated, WGPUBlendFactor.SrcAlphaSaturated),
+        new(BlendFactor.Constant, WGPUBlendFactor.Constant),
+        new(BlendFactor.OneMinusConstant, WGPUBlendFactor.OneMinusConstant),
+    };
+
+    public static readonly Func<BlendFactor, WGPUBlendFactor> BlendFactorToWebGPU;
+    public static readonly Func<WGPUBlendFactor, BlendFactor> BlendFactorToAbstract;
+
+    // Blend Operation mapping
+    
+    public static readonly Tuple<BlendOperation, WGPUBlendOperation>[] BlendOperationCast = new Tuple<BlendOperation, WGPUBlendOperation>[]
+    {
+        new(BlendOperation.Add, WGPUBlendOperation.Add),
+        new(BlendOperation.Subtract, WGPUBlendOperation.Subtract),
+        new(BlendOperation.ReverseSubtract, WGPUBlendOperation.ReverseSubtract),
+        new(BlendOperation.Min, WGPUBlendOperation.Min),
+        new(BlendOperation.Max, WGPUBlendOperation.Max),
+    };
+
+    public static readonly Func<BlendOperation, WGPUBlendOperation> BlendOperationToWebGPU;
+    public static readonly Func<WGPUBlendOperation, BlendOperation> BlendOperationToAbstract;
+
+    // Vertex step mode mapping
+
+    public static readonly Tuple<VertexStepMode, WGPUVertexStepMode>[] VertexStepModeCast = new Tuple<VertexStepMode, WGPUVertexStepMode>[]
+    {
+        new(VertexStepMode.Vertex, WGPUVertexStepMode.Vertex),
+        new(VertexStepMode.Instance, WGPUVertexStepMode.Instance),
+    };
+
+    public static readonly Func<VertexStepMode, WGPUVertexStepMode> VertexStepModeToWebGPU;
+    public static readonly Func<WGPUVertexStepMode, VertexStepMode> VertexStepModeToAbstract;
+
+    // Vertex format mapping
+
+    public static readonly Tuple<VertexFormat, WGPUVertexFormat>[] VertexFormatCast = new Tuple<VertexFormat, WGPUVertexFormat>[]
+    {
+        new(VertexFormat.Undefined, WGPUVertexFormat.Undefined),
+        new(VertexFormat.Uint8x2, WGPUVertexFormat.Uint8x2),
+        new(VertexFormat.Uint8x4, WGPUVertexFormat.Uint8x4),
+        new(VertexFormat.Sint8x2, WGPUVertexFormat.Sint8x2),
+        new(VertexFormat.Sint8x4, WGPUVertexFormat.Sint8x4),
+        new(VertexFormat.Unorm8x2, WGPUVertexFormat.Unorm8x2),
+        new(VertexFormat.Unorm8x4, WGPUVertexFormat.Unorm8x4),
+        new(VertexFormat.Snorm8x2, WGPUVertexFormat.Snorm8x2),
+        new(VertexFormat.Snorm8x4, WGPUVertexFormat.Snorm8x4),
+        new(VertexFormat.Uint16x2, WGPUVertexFormat.Uint16x2),
+        new(VertexFormat.Uint16x4, WGPUVertexFormat.Uint16x4),
+        new(VertexFormat.Sint16x2, WGPUVertexFormat.Sint16x2),
+        new(VertexFormat.Sint16x4, WGPUVertexFormat.Sint16x4),
+        new(VertexFormat.Unorm16x2, WGPUVertexFormat.Unorm16x2),
+        new(VertexFormat.Unorm16x4, WGPUVertexFormat.Unorm16x4),
+        new(VertexFormat.Snorm16x2, WGPUVertexFormat.Snorm16x2),
+        new(VertexFormat.Snorm16x4, WGPUVertexFormat.Snorm16x4),
+        new(VertexFormat.Float16x2, WGPUVertexFormat.Float16x2),
+        new(VertexFormat.Float16x4, WGPUVertexFormat.Float16x4),
+        new(VertexFormat.Float32, WGPUVertexFormat.Float32),
+        new(VertexFormat.Float32x2, WGPUVertexFormat.Float32x2),
+        new(VertexFormat.Float32x3, WGPUVertexFormat.Float32x3),
+        new(VertexFormat.Float32x4, WGPUVertexFormat.Float32x4),
+        new(VertexFormat.Uint32, WGPUVertexFormat.Uint32),
+        new(VertexFormat.Uint32x2, WGPUVertexFormat.Uint32x2),
+        new(VertexFormat.Uint32x3, WGPUVertexFormat.Uint32x3),
+        new(VertexFormat.Uint32x4, WGPUVertexFormat.Uint32x4),
+        new(VertexFormat.Sint32, WGPUVertexFormat.Sint32),
+        new(VertexFormat.Sint32x2, WGPUVertexFormat.Sint32x2),
+        new(VertexFormat.Sint32x3, WGPUVertexFormat.Sint32x3),
+        new(VertexFormat.Sint32x4, WGPUVertexFormat.Sint32x4),
+    };
+
+    public static readonly Func<VertexFormat, WGPUVertexFormat> VertexFormatToWebGPU;
+    public static readonly Func<WGPUVertexFormat, VertexFormat> VertexFormatToAbstract;
+
     static UtilsWebGPU()
     {
         UtilsCast.GenerateCastFunc(BackendCast, out BackendToWebGPU, out BackendToAbstract);
@@ -180,154 +266,9 @@ public static class UtilsWebGPU
         UtilsCast.GenerateCastFunc(FrontFaceCast, out FrontFaceToWebGPU, out FrontFaceToAbstract);
         UtilsCast.GenerateCastFunc(IndexFormatCast, out IndexFormatToWebGPU, out IndexFormatToAbstract);
         UtilsCast.GenerateCastFunc(PixelFormatCast, out PixelFormatToWebGPU, out PixelFormatToAbstract);
-    }
-    
-
-    public unsafe static WGPUSurface CreateSurface(this WGPUInstance instance, SurfaceSource surface)
-    {
-        WGPUChainedStruct* chainStruct = default;
-        switch (surface)
-        {
-            case AndroidWindowSurfaceSource androidWindowSurface:
-                WGPUSurfaceDescriptorFromAndroidNativeWindow widnowChain =
-                new WGPUSurfaceDescriptorFromAndroidNativeWindow()
-                {
-                    window = androidWindowSurface.Window,
-                    chain = new WGPUChainedStruct()
-                    {
-                        sType = WGPUSType.SurfaceDescriptorFromAndroidNativeWindow,
-                    },
-                };
-
-                chainStruct = (WGPUChainedStruct*)&widnowChain;
-                break;
-            case MetalLayerSurfaceHandle metalLayerSurface:
-                WGPUSurfaceDescriptorFromMetalLayer metalLayerChain =
-                new WGPUSurfaceDescriptorFromMetalLayer()
-                {
-                    layer = metalLayerSurface.Layer,
-                    chain = new WGPUChainedStruct()
-                    {
-                        sType = WGPUSType.SurfaceDescriptorFromMetalLayer,
-                    },
-                };
-
-                chainStruct = (WGPUChainedStruct*)&metalLayerChain;
-                break;
-            case Win32SurfaceHandle win32Surface:
-                WGPUSurfaceDescriptorFromWindowsHWND win32Chain =
-                new WGPUSurfaceDescriptorFromWindowsHWND()
-                {
-                    hinstance = (IntPtr)null,
-                    hwnd = win32Surface.Hwnd,
-                    chain = new WGPUChainedStruct()
-                    {
-                        sType = WGPUSType.SurfaceDescriptorFromWindowsHWND,
-                    },
-                };
-
-                chainStruct = (WGPUChainedStruct*)&win32Chain;
-                break;
-            case WaylandSurfaceHandle waylandSurface:
-                WGPUSurfaceDescriptorFromWaylandSurface surfaceChain =
-                new WGPUSurfaceDescriptorFromWaylandSurface()
-                {
-                    display = waylandSurface.Display,
-                    surface = waylandSurface.Surface,
-                    chain = new WGPUChainedStruct()
-                    {
-                        sType = WGPUSType.SurfaceDescriptorFromWaylandSurface,
-                    },
-                };
-
-                chainStruct = (WGPUChainedStruct*)&surfaceChain;
-                break;
-            case XcbWindowSurfaceHandle xcbWindowSurface:
-                WGPUSurfaceDescriptorFromXcbWindow surfaceXlibChain =
-                new WGPUSurfaceDescriptorFromXcbWindow()
-                {
-                    connection = xcbWindowSurface.Connection,
-                    window = xcbWindowSurface.Window,
-                    chain = new WGPUChainedStruct()
-                    {
-                        sType = WGPUSType.SurfaceDescriptorFromXcbWindow,
-                    },
-                };
-
-                chainStruct = (WGPUChainedStruct*)&surfaceXlibChain;
-                break;
-            case XlibWindowSurfaceHandle xlibWindowSurface:
-                WGPUSurfaceDescriptorFromXlibWindow surfaceXcbChain =
-                new WGPUSurfaceDescriptorFromXlibWindow()
-                {
-                    display = xlibWindowSurface.Display,
-                    window = xlibWindowSurface.Window,
-                    chain = new WGPUChainedStruct()
-                    {
-                        sType = WGPUSType.SurfaceDescriptorFromXlibWindow,
-                    },
-                };
-
-                chainStruct = (WGPUChainedStruct*)&surfaceXcbChain;
-                break;
-        }
-
-        WGPUSurfaceDescriptor descriptor = new WGPUSurfaceDescriptor()
-        {
-            nextInChain = chainStruct,
-        };
-
-        return wgpuInstanceCreateSurface(instance, &descriptor);
-    }
-
-    public unsafe static WGPUShaderModule CreateShaderModule(this WGPUDevice device, in ShaderStageSource source)
-    {
-        WGPUShaderModuleDescriptor shaderDesc = new()
-        {
-            hintCount = 0,
-            hints = null
-        };
-        if (source.Language == ShaderLanguage.SPIRV)
-        {
-            fixed (byte* ptr = source.Source)
-            {
-                WGPUShaderModuleSPIRVDescriptor descriptor = new WGPUShaderModuleSPIRVDescriptor()
-                {
-                    codeSize = (uint)source.Source.Length / sizeof(uint),
-                    code = (uint*)ptr,
-                    chain = new WGPUChainedStruct()
-                    {
-                        next = null,
-                        sType = WGPUSType.ShaderModuleSPIRVDescriptor,
-                    },
-                };
-
-                shaderDesc.nextInChain = (WGPUChainedStruct*)&descriptor;
-
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
-            }
-        }
-        else if (source.Language == ShaderLanguage.WGSL)
-        {
-            string code = Encoding.UTF8.GetString(source.Source);
-            fixed (sbyte* ptr = code.GetUtf8Span())
-            {
-                WGPUShaderModuleWGSLDescriptor descriptor = new WGPUShaderModuleWGSLDescriptor()
-                {
-                    code = ptr,
-                    chain = new WGPUChainedStruct()
-                    {
-                        next = null,
-                        sType = WGPUSType.ShaderModuleWGSLDescriptor,
-                    },
-                };
-
-                shaderDesc.nextInChain = (WGPUChainedStruct*)&descriptor;
-
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
-            }
-        }
-
-        throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV and WGSL are supported. Try compiling your shader to SPIRV if you are using HLSL or GLSL.");
+        UtilsCast.GenerateCastFunc(BlendFactorCast, out BlendFactorToWebGPU, out BlendFactorToAbstract);
+        UtilsCast.GenerateCastFunc(BlendOperationCast, out BlendOperationToWebGPU, out BlendOperationToAbstract);
+        UtilsCast.GenerateCastFunc(VertexStepModeCast, out VertexStepModeToWebGPU, out VertexStepModeToAbstract);
+        UtilsCast.GenerateCastFunc(VertexFormatCast, out VertexFormatToWebGPU, out VertexFormatToAbstract);
     }
 }
