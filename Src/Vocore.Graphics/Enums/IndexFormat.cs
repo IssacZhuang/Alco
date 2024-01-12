@@ -1,6 +1,6 @@
 namespace Vocore.Graphics;
 
-public enum WGPUIndexFormat
+public enum IndexFormat
 {
     Undefined = 0,
     Uint16 = 1,

@@ -13,7 +13,7 @@ public class WebGPUPipeline : GPUPipeline
 
     public WebGPUPipeline(in PipelineDescriptor descriptor)
     {
-
+        
     }
 
     protected override void Dispose(bool disposing)
