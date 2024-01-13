@@ -65,6 +65,8 @@ public class WebGPUDevice : GPUDevice
     protected override void Dispose(bool disposing)
     {
         wgpuInstanceRelease(Instance);
+        wgpuDeviceDestroy(Device);
+        wgpuDeviceRelease(Device);
     }
 
     public override PixelFormat GetPrefferedDepthFomat()

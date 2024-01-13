@@ -5,6 +5,8 @@ namespace Vocore.Graphics
     /// </summary>
     public struct ShaderStageSource
     {
+        public static readonly ShaderStageSource Empty = new(ShaderStage.None, ShaderLanguage.Undefined, Array.Empty<byte>(), string.Empty);
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ShaderStageSource"/> struct.
         /// </summary>

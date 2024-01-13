@@ -153,4 +153,24 @@ public static partial class UtilsWebGPU
 
         throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV and WGSL are supported. Try compiling your shader to SPIRV if you are using HLSL or GLSL.");
     }
+
+    public static WGPUVertexAttribute ConvertToWebGPU(this VertexElement attribute)
+    {
+        return new WGPUVertexAttribute()
+        {
+            format = VertexFormatToWebGPU(attribute.Format),
+            offset = attribute.Offset,
+            shaderLocation = attribute.Location,
+        };
+    }
+
+    public static WGPUBlendComponent ConvertToWebGPU(this BlendComponent component)
+    {
+        return new WGPUBlendComponent()
+        {
+            srcFactor = BlendFactorToWebGPU(component.SrcFactor),
+            dstFactor = BlendFactorToWebGPU(component.DstFactor),
+            operation = BlendOperationToWebGPU(component.Operation),
+        };
+    }
 }

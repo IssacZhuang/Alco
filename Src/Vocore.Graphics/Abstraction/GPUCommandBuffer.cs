@@ -14,7 +14,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         InternalEnd();
     }
 
-    public void SetPipeline(GPUPipeline pipeline)
+    public void SetPipeline(GPUGraphicsPipeline pipeline)
     {
         InternalSetPipeline(pipeline);
     }
@@ -73,7 +73,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     // need to be implemented for each backend
     protected abstract void InternalBegin(GPURenderPass renderPass);
     protected abstract void InternalEnd();
-    protected abstract void InternalSetPipeline(GPUPipeline pipeline);
+    protected abstract void InternalSetPipeline(GPUGraphicsPipeline pipeline);
     protected abstract void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
     protected abstract void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
     protected abstract void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);

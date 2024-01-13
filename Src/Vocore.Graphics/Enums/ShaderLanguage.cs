@@ -2,6 +2,7 @@ namespace Vocore.Graphics
 {
     public enum ShaderLanguage
     {
+        Undefined,
         // supported
         HLSL,
         SPIRV,

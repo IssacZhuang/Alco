@@ -258,6 +258,22 @@ public static partial class UtilsWebGPU
     public static readonly Func<VertexFormat, WGPUVertexFormat> VertexFormatToWebGPU;
     public static readonly Func<WGPUVertexFormat, VertexFormat> VertexFormatToAbstract;
 
+    // compare function mapping
+    public static readonly Tuple<CompareFunction, WGPUCompareFunction>[] CompareFunctionCast = new Tuple<CompareFunction, WGPUCompareFunction>[]
+    {
+        new(CompareFunction.Never, WGPUCompareFunction.Never),
+        new(CompareFunction.Less, WGPUCompareFunction.Less),
+        new(CompareFunction.Equal, WGPUCompareFunction.Equal),
+        new(CompareFunction.LessEqual, WGPUCompareFunction.LessEqual),
+        new(CompareFunction.Greater, WGPUCompareFunction.Greater),
+        new(CompareFunction.NotEqual, WGPUCompareFunction.NotEqual),
+        new(CompareFunction.GreaterEqual, WGPUCompareFunction.GreaterEqual),
+        new(CompareFunction.Always, WGPUCompareFunction.Always),
+    };
+
+    public static readonly Func<CompareFunction, WGPUCompareFunction> CompareFunctionToWebGPU;
+    public static readonly Func<WGPUCompareFunction, CompareFunction> CompareFunctionToAbstract;
+
     static UtilsWebGPU()
     {
         UtilsCast.GenerateCastFunc(BackendCast, out BackendToWebGPU, out BackendToAbstract);
@@ -270,5 +286,6 @@ public static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(BlendOperationCast, out BlendOperationToWebGPU, out BlendOperationToAbstract);
         UtilsCast.GenerateCastFunc(VertexStepModeCast, out VertexStepModeToWebGPU, out VertexStepModeToAbstract);
         UtilsCast.GenerateCastFunc(VertexFormatCast, out VertexFormatToWebGPU, out VertexFormatToAbstract);
+        UtilsCast.GenerateCastFunc(CompareFunctionCast, out CompareFunctionToWebGPU, out CompareFunctionToAbstract);
     }
 }
