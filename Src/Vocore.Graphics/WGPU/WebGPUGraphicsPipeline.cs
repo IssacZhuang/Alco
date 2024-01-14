@@ -4,7 +4,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public class WebGPUGraphicsPipeline : GPUGraphicsPipeline
+internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
 {
     private readonly string _name = "Unnamed Graphics Pipeline";
     public override string Name => _name;
@@ -67,7 +67,7 @@ public class WebGPUGraphicsPipeline : GPUGraphicsPipeline
             };
 
             // TODO: color targets
-            WGPUFragmentState fragmentState = new()
+            WGPUFragmentState fragmentState = new WGPUFragmentState()
             {
                 module = pixelShader,
                 entryPoint = pPixelEntry,
@@ -77,15 +77,15 @@ public class WebGPUGraphicsPipeline : GPUGraphicsPipeline
                 constants = null,
             };
 
-            WGPUDepthStencilState depthStencilState = new()
+            WGPUDepthStencilState depthStencilState = new WGPUDepthStencilState()
             {
                 nextInChain = null,
                 format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthStencilFormat),
-                depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnable,
+                depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled,
                 depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
             };
 
-            WGPURenderPipelineDescriptor pipelineDescriptor = new()
+            WGPURenderPipelineDescriptor pipelineDescriptor = new WGPURenderPipelineDescriptor()
             {
                 vertex = new WGPUVertexState
                 {

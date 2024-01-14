@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public class WebGPUDevice : GPUDevice
+internal class WebGPUDevice : GPUDevice
 {
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;

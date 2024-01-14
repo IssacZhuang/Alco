@@ -12,8 +12,8 @@ public struct RenderPassDescriptor
     }
     public ColorAttachment[] Colors { get; init; }
     public DepthAttachment? Depth { get; init; }
-    public uint Width { get; init; }
-    public uint Height { get; init; }
+    public uint Width { get; set; }
+    public uint Height { get; set; }
     public string? Name { get; init; }
 
 }

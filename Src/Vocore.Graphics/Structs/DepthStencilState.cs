@@ -7,26 +7,26 @@ public struct DepthStencilState
     public static DepthStencilState DepthWrite => new(true, CompareFunction.LessEqual);
 
     public static DepthStencilState DepthRead => new(false, CompareFunction.LessEqual);
-    public DepthStencilState(bool depthWriteEnable, CompareFunction depthCompare)
+    public DepthStencilState(bool depthWriteEnabled, CompareFunction depthCompare)
     {
-        DepthWriteEnable = depthWriteEnable;
-        DepthBoundsTestEnable = false;
+        DepthWriteEnabled = depthWriteEnabled;
+        DepthBoundsTestEnabled = false;
         DepthCompare = depthCompare;
         FrontFace = StencilFaceState.Default;
         BackFace = StencilFaceState.Default;
     }
 
-    public DepthStencilState(bool depthWriteEnable, bool depthBoundsTestEnable, CompareFunction depthCompare, StencilFaceState frontFace, StencilFaceState backFace)
+    public DepthStencilState(bool depthWriteEnabled, bool depthBoundsTestEnabled, CompareFunction depthCompare, StencilFaceState frontFace, StencilFaceState backFace)
     {
-        DepthWriteEnable = depthWriteEnable;
-        DepthBoundsTestEnable = depthBoundsTestEnable;
+        DepthWriteEnabled = depthWriteEnabled;
+        DepthBoundsTestEnabled = depthBoundsTestEnabled;
         DepthCompare = depthCompare;
         FrontFace = frontFace;
         BackFace = backFace;
     }
 
-    public bool DepthWriteEnable { get; init; }
-    public bool DepthBoundsTestEnable { get; init; }
+    public bool DepthWriteEnabled { get; init; }
+    public bool DepthBoundsTestEnabled { get; init; }
     public CompareFunction DepthCompare { get; init; }
     public StencilFaceState FrontFace { get; init; } = StencilFaceState.Default;
     public StencilFaceState BackFace { get; init; } = StencilFaceState.Default;

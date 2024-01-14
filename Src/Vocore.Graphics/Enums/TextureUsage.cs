@@ -12,11 +12,15 @@ public enum TextureUsage
     /// </summary>
     Write = 1 << 1,
     /// <summary>
-    /// Used as a render target or color attachment.
+    /// Used for sampling operations or compute shader reads.
     /// </summary>
-    RenderTarget = 1 << 2,
+    TextureBinding = 1 << 2,
     /// <summary>
-    /// Used as a depth stencil target or depth stencil attachment.
+    /// Used for storage operations or compute shader writes.
     /// </summary>
-    DepthStencil = 1 << 3,
+    StorageBinding = 1 << 3,
+    /// <summary>
+    /// Used as a render target, color attachment or depth stencil attachment.
+    /// </summary>
+    RenderAttachment = 1 << 4,
 }

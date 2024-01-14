@@ -274,6 +274,29 @@ public static partial class UtilsWebGPU
     public static readonly Func<CompareFunction, WGPUCompareFunction> CompareFunctionToWebGPU;
     public static readonly Func<WGPUCompareFunction, CompareFunction> CompareFunctionToAbstract;
 
+    public static readonly Tuple<TextureUsage, WGPUTextureUsage>[] TextureUsageCast = new Tuple<TextureUsage, WGPUTextureUsage>[]
+    {
+        new(TextureUsage.None, WGPUTextureUsage.None),
+        new(TextureUsage.Read, WGPUTextureUsage.CopySrc),
+        new(TextureUsage.Write, WGPUTextureUsage.CopyDst),
+        new(TextureUsage.TextureBinding, WGPUTextureUsage.TextureBinding),
+        new(TextureUsage.StorageBinding, WGPUTextureUsage.StorageBinding),
+        new(TextureUsage.RenderAttachment, WGPUTextureUsage.RenderAttachment)
+    };
+
+    public static readonly Func<TextureUsage, WGPUTextureUsage> TextureUsageToWebGPU;
+    public static readonly Func<WGPUTextureUsage, TextureUsage> TextureUsageToAbstract;
+
+    public static readonly Tuple<TextureDimension, WGPUTextureDimension>[] TextureDimensionCast = new Tuple<TextureDimension, WGPUTextureDimension>[]
+    {
+        new(TextureDimension.Texture1D, WGPUTextureDimension._1D),
+        new(TextureDimension.Texture2D, WGPUTextureDimension._2D),
+        new(TextureDimension.Texture3D, WGPUTextureDimension._3D),
+    };
+
+    public static readonly Func<TextureDimension, WGPUTextureDimension> TextureDimensionToWebGPU;
+    public static readonly Func<WGPUTextureDimension, TextureDimension> TextureDimensionToAbstract;
+
     static UtilsWebGPU()
     {
         UtilsCast.GenerateCastFunc(BackendCast, out BackendToWebGPU, out BackendToAbstract);
@@ -287,5 +310,7 @@ public static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(VertexStepModeCast, out VertexStepModeToWebGPU, out VertexStepModeToAbstract);
         UtilsCast.GenerateCastFunc(VertexFormatCast, out VertexFormatToWebGPU, out VertexFormatToAbstract);
         UtilsCast.GenerateCastFunc(CompareFunctionCast, out CompareFunctionToWebGPU, out CompareFunctionToAbstract);
+        UtilsCast.GenerateCastFunc(TextureUsageCast, out TextureUsageToWebGPU, out TextureUsageToAbstract);
+        UtilsCast.GenerateCastFunc(TextureDimensionCast, out TextureDimensionToWebGPU, out TextureDimensionToAbstract);
     }
 }

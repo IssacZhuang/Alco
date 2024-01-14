@@ -2,5 +2,9 @@ namespace Vocore.Graphics;
 
 public struct ColorAttachment
 {
-    public GPUTexture Texture { get; init; }
+    public ColorAttachment(PixelFormat format)
+    {
+        Format = format;
+    }
+    public PixelFormat Format { get; init; }
 }
