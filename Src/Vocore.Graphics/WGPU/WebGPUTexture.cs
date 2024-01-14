@@ -46,7 +46,7 @@ internal class WebGPUTexture : GPUTexture
 
         WGPUTextureDescriptor textureDescriptor = new WGPUTextureDescriptor
         {
-            usage = UtilsWebGPU.TextureUsageToWebGPU(descriptor.Usage),
+            usage = UtilsWebGPU.ConvertTextureUsage(descriptor.Usage),
             dimension = UtilsWebGPU.TextureDimensionToWebGPU(descriptor.Dimension),
             size = _size,
             format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.Format),

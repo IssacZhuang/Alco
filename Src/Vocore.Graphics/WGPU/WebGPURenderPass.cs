@@ -1,4 +1,5 @@
 
+using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
 
@@ -15,15 +16,35 @@ internal class WebGPURenderPass : GPURenderPass
     private WebGPUTexture? _depthTexture;
     private WGPUTextureView _depthView;
 
-    public override IReadOnlyList<ColorAttachment> Colors => throw new NotImplementedException();
+    public override IReadOnlyList<GPUTexture> Colors
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorTextures;
+    }
 
-    public override DepthAttachment? Depth => throw new NotImplementedException();
+    public override GPUTexture? Depth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthTexture;
+    }
 
-    public override uint Width => throw new NotImplementedException();
+    public override uint Width
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _abstractDescriptor.Width;
+    }
 
-    public override uint Height => throw new NotImplementedException();
+    public override uint Height
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _abstractDescriptor.Height;
+    }
 
-    public override string Name => throw new NotImplementedException();
+    public override string Name
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _abstractDescriptor.Name ?? string.Empty;
+    }
 
     public unsafe WebGPURenderPass(WGPUDevice nativeDevice, in RenderPassDescriptor descriptor)
     {
