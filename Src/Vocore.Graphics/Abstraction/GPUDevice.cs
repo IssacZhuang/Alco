@@ -13,6 +13,20 @@ public abstract class GPUDevice : BaseGPUObject
         return InternalCreateBuffer(createInfo);
     }
 
+    public GPUBuffer CreateBuffer<T>(in BufferDescriptor createInfo, T[] data) where T : unmanaged
+    {
+        GPUBuffer buffer = InternalCreateBuffer(createInfo);
+        UpdateBuffer(buffer, data);
+        return buffer;
+    }
+
+    public GPUBuffer CreateBuffer<T>(in BufferDescriptor createInfo, T data) where T : unmanaged
+    {
+        GPUBuffer buffer = InternalCreateBuffer(createInfo);
+        UpdateBuffer(buffer, data);
+        return buffer;
+    }
+
     /// <summary>
     /// Destroys the specified GPU buffer.
     /// </summary>
@@ -75,6 +89,51 @@ public abstract class GPUDevice : BaseGPUObject
         InternalDestroyRenderPass(renderPass);
     }
 
+    public void Submit(GPUCommandBuffer commandBuffer)
+    {
+        if (!commandBuffer.HasBuffer)
+        {
+            throw new GraphicsException($"Command buffer:{commandBuffer.Name} is empty, try use GPUCommandBuffer.Begin() and GPUCommandBuffer.End() to record commands.");
+        }
+
+        InternalSubmit(commandBuffer);
+    }
+
+    public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    {
+        InternalUpdateBuffer(buffer, bufferOffset, data, size);
+    }
+
+    // polymorphism
+
+    public unsafe void UpdateBuffer(GPUBuffer buffer, byte* data, uint size)
+    {
+        UpdateBuffer(buffer, 0, data, size);
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T data) where T : unmanaged
+    {
+        UpdateBuffer(buffer, bufferOffset, (byte*)&data, (uint)sizeof(T));
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T data) where T : unmanaged
+    {
+        UpdateBuffer(buffer, 0, (byte*)&data, (uint)sizeof(T));
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
+    {
+        fixed (T* ptr = data)
+        {
+            UpdateBuffer(buffer, bufferOffset, (byte*)ptr, (uint)(sizeof(T) * data.Length));
+        }
+    }
+
+    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
+    {
+        UpdateBuffer(buffer, 0, data);
+    }
+
     public abstract PixelFormat GetPrefferedSurfaceFomat();
     public abstract PixelFormat GetPrefferedDepthFomat();
 
@@ -86,11 +145,19 @@ public abstract class GPUDevice : BaseGPUObject
 
     protected abstract void InternalDestroyTexture(GPUTexture texture);
 
-    protected abstract GPUCommandBuffer InternalCreateCommandBuffer();
+    protected abstract GPUCommandBuffer InternalCreateCommandBuffer(in CommandBufferDescriptor? descriptor = null);
 
     protected abstract void InternalDestroyCommandBuffer(GPUCommandBuffer commandBuffer);
 
     protected abstract GPURenderPass InternalCreateRenderPass(in RenderPassDescriptor descriptor);
 
     protected abstract void InternalDestroyRenderPass(GPURenderPass renderPass);
+
+    protected abstract void InternalSubmit(GPUCommandBuffer commandBuffer);
+    /// <summary>
+    /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
+    /// </summary>
+    protected abstract unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
+
+
 }

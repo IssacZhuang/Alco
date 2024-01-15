@@ -31,4 +31,47 @@ public static partial class UtilsWebGPU
         return result;
     }
 
+    public static WGPUBufferUsage ConvertBufferUsage(BufferUsage usage)
+    {
+        WGPUBufferUsage result = 0;
+
+        if ((usage & BufferUsage.MapRead) != 0)
+        {
+            result |= WGPUBufferUsage.MapRead;
+        }
+        if ((usage & BufferUsage.MapWrite) != 0)
+        {
+            result |= WGPUBufferUsage.MapWrite;
+        }
+        if ((usage & BufferUsage.CopySrc) != 0)
+        {
+            result |= WGPUBufferUsage.CopySrc;
+        }
+        if ((usage & BufferUsage.CopyDst) != 0)
+        {
+            result |= WGPUBufferUsage.CopyDst;
+        }
+        if ((usage & BufferUsage.Uniform) != 0)
+        {
+            result |= WGPUBufferUsage.Uniform;
+        }
+        if ((usage & BufferUsage.Storage) != 0)
+        {
+            result |= WGPUBufferUsage.Storage;
+        }
+        if ((usage & BufferUsage.Index) != 0)
+        {
+            result |= WGPUBufferUsage.Index;
+        }
+        if ((usage & BufferUsage.Vertex) != 0)
+        {
+            result |= WGPUBufferUsage.Vertex;
+        }
+        if ((usage & BufferUsage.Indirect) != 0)
+        {
+            result |= WGPUBufferUsage.Indirect;
+        }
+        return result;
+    }
+
 }

@@ -1,4 +1,5 @@
 
+using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
 
@@ -9,6 +10,12 @@ internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
     private readonly string _name = "Unnamed Graphics Pipeline";
     public override string Name => _name;
     private readonly WGPURenderPipeline _pipeline;
+
+    public WGPURenderPipeline Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipeline;
+    }
 
     public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
     {

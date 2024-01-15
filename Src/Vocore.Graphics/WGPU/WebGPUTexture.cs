@@ -9,6 +9,7 @@ internal class WebGPUTexture : GPUTexture
     private readonly WGPUDevice _nativeDevice;
     private readonly WGPUTexture _nativeTexture;
     private readonly WGPUExtent3D _size;
+
     public override uint Width
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -27,7 +28,7 @@ internal class WebGPUTexture : GPUTexture
         get => _size.depthOrArrayLayers;
     }
 
-    public WGPUTexture NativeTexture
+    public WGPUTexture Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _nativeTexture;

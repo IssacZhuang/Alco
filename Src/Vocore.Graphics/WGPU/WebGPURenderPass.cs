@@ -7,14 +7,22 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPURenderPass : GPURenderPass
 {
-    private RenderPassDescriptor _abstractDescriptor;
-    private WGPUDevice _nativeDevice;
-    private WGPURenderPassDescriptor _descriptor;
 
-    private WebGPUTexture[] _colorTextures;
-    private WGPUTextureView[] _colorViews;
+    private readonly WGPUDevice _nativeDevice;
+    private readonly WebGPUTexture[] _colorTextures;
+    private readonly WGPUTextureView[] _colorViews;
     private WebGPUTexture? _depthTexture;
     private WGPUTextureView _depthView;
+
+    private WGPURenderPassDescriptor _descriptor;
+
+    private RenderPassDescriptor _abstractDescriptor;
+
+    public WGPURenderPassDescriptor RenderPassDescriptor
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _descriptor;
+    }
 
     public override IReadOnlyList<GPUTexture> Colors
     {
@@ -87,14 +95,14 @@ internal class WebGPURenderPass : GPURenderPass
         for (int i = 0; i < colorCount; i++)
         {
             _colorTextures[i] = new WebGPUTexture(_nativeDevice, BuildTextureDescriptor(descriptor.Colors[i].Format, descriptor.Width, descriptor.Height));
-            _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].NativeTexture, null);
+            _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
         }
 
         _depthView = WGPUTextureView.Null;
         if (descriptor.Depth.HasValue)
         {
             _depthTexture = new WebGPUTexture(_nativeDevice, BuildTextureDescriptor(descriptor.Depth.Value.Format, descriptor.Width, descriptor.Height));
-            _depthView = wgpuTextureCreateView(_depthTexture.NativeTexture, null);
+            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
         }
 
         WGPURenderPassColorAttachment* colorAttachments = stackalloc WGPURenderPassColorAttachment[colorCount];

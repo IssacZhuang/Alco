@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using WebGPU;
 
@@ -12,6 +13,11 @@ internal class WebGPUDevice : GPUDevice
     public readonly WGPUSurface Surface;
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
+    public WGPUDevice Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Device;
+    }
 
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
     {
@@ -62,6 +68,13 @@ internal class WebGPUDevice : GPUDevice
         Queue = wgpuDeviceGetQueue(Device);
     }
 
+    protected unsafe override void InternalSubmit(GPUCommandBuffer commandBuffer)
+    {
+;
+        WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
+        wgpuQueueSubmit(Queue, 1, &buffer);
+    }
+
     protected override void Dispose(bool disposing)
     {
         wgpuInstanceRelease(Instance);
@@ -79,27 +92,26 @@ internal class WebGPUDevice : GPUDevice
         throw new NotImplementedException();
     }
 
-
-
     protected override GPUBuffer InternalCreateBuffer(in BufferDescriptor descriptor)
     {
         throw new NotImplementedException();
     }
 
-    protected override GPUCommandBuffer InternalCreateCommandBuffer()
+    protected override GPUCommandBuffer InternalCreateCommandBuffer(in CommandBufferDescriptor? descriptor = null)
     {
-        throw new NotImplementedException();
-    }
-
-    protected override GPURenderPass InternalCreateRenderPass(in RenderPassDescriptor descriptor)
-    {
-        throw new NotImplementedException();
+        return new WebGPUCommandBuffer(Native, descriptor);
     }
 
     protected override GPUTexture InternalCreateTexture(in TextureDescriptor descriptor)
     {
-        throw new NotImplementedException();
+        return new WebGPUTexture(Native, descriptor);
     }
+
+    protected override GPURenderPass InternalCreateRenderPass(in RenderPassDescriptor descriptor)
+    {
+       return new WebGPURenderPass(Native, descriptor);
+    }
+
 
     protected override void InternalDestroyBuffer(GPUBuffer buffer)
     {
@@ -111,12 +123,13 @@ internal class WebGPUDevice : GPUDevice
         throw new NotImplementedException();
     }
 
-    protected override void InternalDestroyRenderPass(GPURenderPass renderPass)
+    
+    protected override void InternalDestroyTexture(GPUTexture texture)
     {
         throw new NotImplementedException();
     }
 
-    protected override void InternalDestroyTexture(GPUTexture texture)
+    protected override void InternalDestroyRenderPass(GPURenderPass renderPass)
     {
         throw new NotImplementedException();
     }
@@ -132,5 +145,11 @@ internal class WebGPUDevice : GPUDevice
         {
             //Log.Error("Could not get WebGPU adapter: " + Interop.GetString(message));
         }
+    }
+
+    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    {
+        WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
+        wgpuQueueWriteBuffer(Queue, nativeBuffer, bufferOffset, data, size);
     }
 }

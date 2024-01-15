@@ -1,41 +1,58 @@
+using System.Runtime.CompilerServices;
+
 namespace Vocore.Graphics;
 
 public abstract class GPUCommandBuffer : BaseGPUObject
 {
+    protected bool _isRecording = false;
     //API
+    public abstract string Name { get; }
+    public abstract bool HasBuffer { get; }
+    public virtual bool IsRecording
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _isRecording;
+    }
 
     public void Begin(GPURenderPass renderPass)
     {
+        UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
         InternalBegin(renderPass);
     }
 
     public void End()
     {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalEnd();
     }
 
     public void SetPipeline(GPUGraphicsPipeline pipeline)
     {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalSetPipeline(pipeline);
     }
 
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalDrawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     public void DrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalDrawIndirect(indirectBuffer, offset, drawCount, stride);
     }
 
     public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalDrawIndexedIndirect(indirectBuffer, offset, drawCount, stride);
     }
 
     public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while UpdateBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalUpdateBuffer(buffer, bufferOffset, data, size);
     }
 
