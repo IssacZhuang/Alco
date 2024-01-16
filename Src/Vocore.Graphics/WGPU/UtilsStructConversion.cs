@@ -37,7 +37,7 @@ public static partial class UtilsWebGPU
 
                 chainStruct = (WGPUChainedStruct*)&metalLayerChain;
                 break;
-            case Win32SurfaceHandle win32Surface:
+            case Win32SurfaceSource win32Surface:
                 WGPUSurfaceDescriptorFromWindowsHWND win32Chain =
                 new WGPUSurfaceDescriptorFromWindowsHWND()
                 {
@@ -51,7 +51,7 @@ public static partial class UtilsWebGPU
 
                 chainStruct = (WGPUChainedStruct*)&win32Chain;
                 break;
-            case WaylandSurfaceHandle waylandSurface:
+            case WaylandSurfaceSource waylandSurface:
                 WGPUSurfaceDescriptorFromWaylandSurface surfaceChain =
                 new WGPUSurfaceDescriptorFromWaylandSurface()
                 {
@@ -65,7 +65,7 @@ public static partial class UtilsWebGPU
 
                 chainStruct = (WGPUChainedStruct*)&surfaceChain;
                 break;
-            case XcbWindowSurfaceHandle xcbWindowSurface:
+            case XcbWindowSurfaceSource xcbWindowSurface:
                 WGPUSurfaceDescriptorFromXcbWindow surfaceXlibChain =
                 new WGPUSurfaceDescriptorFromXcbWindow()
                 {
@@ -79,7 +79,7 @@ public static partial class UtilsWebGPU
 
                 chainStruct = (WGPUChainedStruct*)&surfaceXlibChain;
                 break;
-            case XlibWindowSurfaceHandle xlibWindowSurface:
+            case XlibWindowSurfaceSource xlibWindowSurface:
                 WGPUSurfaceDescriptorFromXlibWindow surfaceXcbChain =
                 new WGPUSurfaceDescriptorFromXlibWindow()
                 {

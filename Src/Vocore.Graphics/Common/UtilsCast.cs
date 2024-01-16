@@ -13,6 +13,25 @@ internal static class UtilsCast
         }
     }
 
+    public static Func<TA, TB> GenerateCastFunc<TA, TB>(IEnumerable<Tuple<TA, TB>> castList) where TA : notnull where TB : notnull
+    {
+        Dictionary<TA, TB> castTable = new Dictionary<TA, TB>();
+        foreach (var (a, b) in castList)
+        {
+            castTable.Add(a, b);
+        }
+
+        return (a) =>
+        {
+            if (castTable.TryGetValue(a, out var b))
+            {
+                return b;
+            }
+            throw new GraphicsException($"Cannot cast {typeof(TA).Name}:{a} to {typeof(TB).Name}");
+        };
+
+    }
+
     public static Func<TA, TB> GenerateCastFunc<TA, TB>(Dictionary<TA, TB> castTable) where TA : notnull where TB : notnull
     {
         return (a) =>

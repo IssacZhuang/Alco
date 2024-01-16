@@ -6,7 +6,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUDevice : GPUDevice
+public partial class WebGPUDevice : GPUDevice
 {
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
@@ -47,7 +47,7 @@ internal class WebGPUDevice : GPUDevice
         fixed (WGPUAdapter* adapterPtr = &Adapter)
         {
             // TODO: add native error handler
-            wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, null, (IntPtr)adapterPtr);
+            wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, (IntPtr)adapterPtr);
         }
 
         fixed (sbyte* name = descriptor.Name.GetUtf8Span())
@@ -62,7 +62,7 @@ internal class WebGPUDevice : GPUDevice
             };
 
             // TODO: add native error handler
-            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, null, (IntPtr)devicePtr);
+            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, (IntPtr)devicePtr);
         }
 
         Queue = wgpuDeviceGetQueue(Device);
@@ -134,6 +134,12 @@ internal class WebGPUDevice : GPUDevice
         throw new NotImplementedException();
     }
 
+    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    {
+        WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
+        wgpuQueueWriteBuffer(Queue, nativeBuffer, bufferOffset, data, size);
+    }
+
     [UnmanagedCallersOnly]
     private unsafe static void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter candidateAdapter, sbyte* message, nint pUserData)
     {
@@ -143,13 +149,20 @@ internal class WebGPUDevice : GPUDevice
         }
         else
         {
-            //Log.Error("Could not get WebGPU adapter: " + Interop.GetString(message));
+            Console.WriteLine("Could not get WebGPU adapter: " + Interop.GetString(message));
         }
     }
 
-    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    [UnmanagedCallersOnly]
+    private unsafe static void OnDeviceRequestEnded(WGPURequestDeviceStatus status, WGPUDevice device, sbyte* message, nint pUserData)
     {
-        WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
-        wgpuQueueWriteBuffer(Queue, nativeBuffer, bufferOffset, data, size);
+        if (status == WGPURequestDeviceStatus.Success)
+        {
+            *(WGPUDevice*)pUserData = device;
+        }
+        else
+        {
+            Console.WriteLine("Could not get WebGPU device: " + Interop.GetString(message));
+        }
     }
 }

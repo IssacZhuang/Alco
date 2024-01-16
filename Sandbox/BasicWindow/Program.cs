@@ -2,13 +2,9 @@
 using Vocore;
 using Vocore.Engine;
 
-GameEngineSetting setting = GameEngineSetting.Default;
-setting.GraphicsAPI = GraphicsBackend.OpenGL;
-setting.WindowName = "Basic Window";
-
-using (Game game = new Game(setting))
+new GraphicsWindow(new WindowSetting()
 {
-    game.RegisterPlugin<PluginBuiltInShader>();
-    game.RegisterPlugin<PluginRuntimeInfo>();
-    game.Run();
-}
+    Width = 800,
+    Height = 600,
+    Title = "Vocore Graphics Window"
+});

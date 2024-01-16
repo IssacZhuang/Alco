@@ -32,6 +32,18 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         InternalSetPipeline(pipeline);
     }
 
+    public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        InternalSetVertexBuffer(slot, buffer, offset, size);
+    }
+
+    public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format,  ulong offset, ulong size)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        InternalSetIndexBuffer(buffer, format, offset, size);
+    }
+
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
@@ -57,6 +69,16 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     }
 
     // polymorphism
+
+    public void SetVertexBuffer(uint slot, GPUBuffer buffer)
+    {
+        SetVertexBuffer(slot, buffer, 0, buffer.Size);
+    }
+
+    public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format)
+    {
+        SetIndexBuffer(buffer, format, 0, buffer.Size);
+    }
 
     public unsafe void UpdateBuffer(GPUBuffer buffer, byte* data, uint size)
     {
@@ -91,6 +113,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void InternalBegin(GPURenderPass renderPass);
     protected abstract void InternalEnd();
     protected abstract void InternalSetPipeline(GPUGraphicsPipeline pipeline);
+    protected abstract void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size);
+    protected abstract void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);
     protected abstract void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
     protected abstract void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
     protected abstract void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);

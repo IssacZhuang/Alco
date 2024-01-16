@@ -8,11 +8,11 @@ public abstract class SurfaceSource
 
     public static SurfaceSource CreateAndroidWindow(IntPtr window) => new AndroidWindowSurfaceSource(window);
     public static SurfaceSource CreateMetalLayer(IntPtr layer) => new MetalLayerSurfaceHandle(layer);
-    public static SurfaceSource CreateWin32Window(IntPtr hwnd) => new Win32SurfaceHandle(hwnd);
-    public static SurfaceSource CreateSwapChainPanel(object swapChainPanelNative, float logicalDpi) => new SwapChainPanelSurfaceHandle(swapChainPanelNative, logicalDpi);
-    public static SurfaceSource CreateWaylandSurface(IntPtr display, IntPtr surface) => new WaylandSurfaceHandle(display, surface);
-    public static SurfaceSource CreateXcbWindow(IntPtr connection, uint window) => new XcbWindowSurfaceHandle(connection, window);
-    public static SurfaceSource CreateXlibWindow(IntPtr display, ulong window) => new XlibWindowSurfaceHandle(display, window);
+    public static SurfaceSource CreateWin32Window(IntPtr hwnd, IntPtr hInstance) => new Win32SurfaceSource(hwnd, hInstance);
+    public static SurfaceSource CreateSwapChainPanel(object swapChainPanelNative, float logicalDpi) => new SwapChainPanelSurfaceSource(swapChainPanelNative, logicalDpi);
+    public static SurfaceSource CreateWaylandSurface(IntPtr display, IntPtr surface) => new WaylandSurfaceSource(display, surface);
+    public static SurfaceSource CreateXcbWindow(IntPtr connection, uint window) => new XcbWindowSurfaceSource(connection, window);
+    public static SurfaceSource CreateXlibWindow(IntPtr display, ulong window) => new XlibWindowSurfaceSource(display, window);
 }
 
 internal class AndroidWindowSurfaceSource : SurfaceSource
@@ -29,55 +29,60 @@ internal class MetalLayerSurfaceHandle : SurfaceSource
     public MetalLayerSurfaceHandle(IntPtr layer) => Layer = layer;
 }
 
-internal class Win32SurfaceHandle : SurfaceSource
+internal class Win32SurfaceSource : SurfaceSource
 {
     public IntPtr Hwnd { get; }
+    public IntPtr HInstance { get; }
 
-    public Win32SurfaceHandle(IntPtr hwnd) => Hwnd = hwnd;
+    public Win32SurfaceSource(IntPtr hwnd, IntPtr hinstance)
+    {
+        Hwnd = hwnd;
+        HInstance = hinstance;
+    }
 }
 
-internal class SwapChainPanelSurfaceHandle : SurfaceSource
+internal class SwapChainPanelSurfaceSource : SurfaceSource
 {
     public object SwapChainPanelNative { get; }
     public float LogicalDpi { get; }
 
-    public SwapChainPanelSurfaceHandle(object swapChainPanelNative, float logicalDpi)
+    public SwapChainPanelSurfaceSource(object swapChainPanelNative, float logicalDpi)
     {
         SwapChainPanelNative = swapChainPanelNative;
         LogicalDpi = logicalDpi;
     }
 }
 
-internal class WaylandSurfaceHandle : SurfaceSource
+internal class WaylandSurfaceSource : SurfaceSource
 {
     public IntPtr Display { get; }
     public IntPtr Surface { get; }
 
-    public WaylandSurfaceHandle(IntPtr display, IntPtr surface)
+    public WaylandSurfaceSource(IntPtr display, IntPtr surface)
     {
         Display = display;
         Surface = surface;
     }
 }
 
-internal class XcbWindowSurfaceHandle : SurfaceSource
+internal class XcbWindowSurfaceSource : SurfaceSource
 {
     public IntPtr Connection { get; }
     public uint Window { get; }
 
-    public XcbWindowSurfaceHandle(IntPtr connection, uint window)
+    public XcbWindowSurfaceSource(IntPtr connection, uint window)
     {
         Connection = connection;
         Window = window;
     }
 }
 
-internal class XlibWindowSurfaceHandle : SurfaceSource
+internal class XlibWindowSurfaceSource : SurfaceSource
 {
     public IntPtr Display { get; }
     public ulong Window { get; }
 
-    public XlibWindowSurfaceHandle(IntPtr display, ulong window)
+    public XlibWindowSurfaceSource(IntPtr display, ulong window)
     {
         Display = display;
         Window = window;

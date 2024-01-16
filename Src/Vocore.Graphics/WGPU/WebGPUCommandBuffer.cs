@@ -125,4 +125,14 @@ public class WebGPUCommandBuffer : GPUCommandBuffer
     {
 
     }
+
+    protected override void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
+    {
+        throw new NotImplementedException();
+    }
 }
