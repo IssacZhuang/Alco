@@ -3,9 +3,7 @@ using System.Threading;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Silk.NET.Windowing;
-using Silk.NET.Windowing.Glfw;
 using Silk.NET.Maths;
-using Silk.NET.Input.Glfw;
 using Vocore.Graphics;
 
 
@@ -137,6 +135,8 @@ namespace Vocore.Engine
 
         public GameEngine(GameEngineSetting setting)
         {
+
+            WebGPULogger.RegisterLogger();
             if (Instance != null)
             {
                 throw new Exception("The GameEngine can only have one instance.");
@@ -146,8 +146,8 @@ namespace Vocore.Engine
 
             if (_setting.HasGraphics)
             {
-                GlfwInput.RegisterPlatform();
-                GlfwWindowing.RegisterPlatform();
+                // GlfwInput.RegisterPlatform();
+                // GlfwWindowing.RegisterPlatform();
 
                 // VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
                 // {
@@ -181,7 +181,6 @@ namespace Vocore.Engine
                     _setting.Width = size.X;
                     _setting.Height = size.Y;
                 };
-                Log.Info(4);
             }
             else
             {
@@ -369,6 +368,7 @@ namespace Vocore.Engine
             {
                 _graphics.BeginFrameUpdate(updateDeltaTime);
                 OnDraw(updateDeltaTime);
+
                 _graphics.EndFrame();
             }
             catch (Exception e)

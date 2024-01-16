@@ -1,7 +1,6 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Silk.NET.GLFW;
 using Silk.NET.Input;
 using Silk.NET.Windowing;
 

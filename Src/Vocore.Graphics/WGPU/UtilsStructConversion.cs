@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using WebGPU;
 using static WebGPU.WebGPU;
@@ -8,7 +9,10 @@ public static partial class UtilsWebGPU
 {
     public unsafe static WGPUSurface CreateSurface(this WGPUInstance instance, SurfaceSource surface)
     {
-        WGPUChainedStruct* chainStruct = default;
+        WGPUSurfaceDescriptor descriptor = new WGPUSurfaceDescriptor()
+        {
+            
+        };
         switch (surface)
         {
             case AndroidWindowSurfaceSource androidWindowSurface:
@@ -22,7 +26,7 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                chainStruct = (WGPUChainedStruct*)&widnowChain;
+                descriptor.nextInChain = (WGPUChainedStruct*)&widnowChain;
                 break;
             case MetalLayerSurfaceHandle metalLayerSurface:
                 WGPUSurfaceDescriptorFromMetalLayer metalLayerChain =
@@ -35,13 +39,13 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                chainStruct = (WGPUChainedStruct*)&metalLayerChain;
+                descriptor.nextInChain = (WGPUChainedStruct*)&metalLayerChain;
                 break;
             case Win32SurfaceSource win32Surface:
                 WGPUSurfaceDescriptorFromWindowsHWND win32Chain =
                 new WGPUSurfaceDescriptorFromWindowsHWND()
                 {
-                    hinstance = (IntPtr)null,
+                    hinstance =win32Surface.HInstance,
                     hwnd = win32Surface.Hwnd,
                     chain = new WGPUChainedStruct()
                     {
@@ -49,7 +53,7 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                chainStruct = (WGPUChainedStruct*)&win32Chain;
+                descriptor.nextInChain = (WGPUChainedStruct*)&win32Chain;
                 break;
             case WaylandSurfaceSource waylandSurface:
                 WGPUSurfaceDescriptorFromWaylandSurface surfaceChain =
@@ -63,7 +67,7 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                chainStruct = (WGPUChainedStruct*)&surfaceChain;
+                descriptor.nextInChain = (WGPUChainedStruct*)&surfaceChain;
                 break;
             case XcbWindowSurfaceSource xcbWindowSurface:
                 WGPUSurfaceDescriptorFromXcbWindow surfaceXlibChain =
@@ -77,7 +81,7 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                chainStruct = (WGPUChainedStruct*)&surfaceXlibChain;
+                descriptor.nextInChain = (WGPUChainedStruct*)&surfaceXlibChain;
                 break;
             case XlibWindowSurfaceSource xlibWindowSurface:
                 WGPUSurfaceDescriptorFromXlibWindow surfaceXcbChain =
@@ -91,14 +95,11 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                chainStruct = (WGPUChainedStruct*)&surfaceXcbChain;
+                descriptor.nextInChain = (WGPUChainedStruct*)&surfaceXcbChain;
                 break;
         }
 
-        WGPUSurfaceDescriptor descriptor = new WGPUSurfaceDescriptor()
-        {
-            nextInChain = chainStruct,
-        };
+        
 
         return wgpuInstanceCreateSurface(instance, &descriptor);
     }
@@ -173,4 +174,7 @@ public static partial class UtilsWebGPU
             operation = BlendOperationToWebGPU(component.Operation),
         };
     }
+
+    [LibraryImport("kernel32")]
+    private unsafe static partial nint GetModuleHandleW(ushort* lpModuleName);
 }

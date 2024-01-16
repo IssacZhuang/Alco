@@ -1,5 +1,7 @@
 using System;
+using Silk.NET.Windowing;
 using Veldrid;
+using Vocore.Graphics;
 
 namespace Vocore.Engine{
     public class PluginRuntimeInfo : BaseEnginePlugin
@@ -8,7 +10,7 @@ namespace Vocore.Engine{
 
         public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
         {
-            // GraphicsDevice device = engine.GraphicsDevice;
+            GPUDevice device = engine.GraphicsDevice;
 
             // Log.Info("--- Compatibility ---");
             // Log.Info("D3D11 Supported: \t" + GraphicsDevice.IsBackendSupported(GraphicsBackend.Direct3D11));

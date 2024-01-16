@@ -1,9 +1,7 @@
 using System.Runtime.CompilerServices;
 using Silk.NET.Core.Contexts;
-using Silk.NET.Input.Glfw;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
-using Silk.NET.Windowing.Glfw;
 using Vocore.Graphics;
 using Vocore.Graphics.WebGPU;
 
@@ -13,28 +11,16 @@ namespace Vocore.Engine
     {
         public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, out GPUDevice device, out IWindow window)
         {
-            GlfwInput.RegisterPlatform();
-            GlfwWindowing.RegisterPlatform();
-            WindowOptions silkWindowOptions = new WindowOptions(
-                true,
-                new Vector2D<int>(0, 0),
-                new Vector2D<int>(setting.Width, setting.Height),
-                -1,
-                -1,
-                new GraphicsAPI
-                (
-                    ContextAPI.None,
-                    ContextProfile.Core,
-                    ContextFlags.ForwardCompatible,
-                    new APIVersion(1, 0)
-                ),
-                setting.Title,
-                WindowState.Normal,
-                WindowBorder.Resizable,
-                false,
-                false,
-                VideoMode.Default,
-                null);
+            WindowOptions silkWindowOptions = WindowOptions.Default;
+            silkWindowOptions.API = GraphicsAPI.None;
+            silkWindowOptions.Size = new Vector2D<int>(setting.Width, setting.Height);
+            silkWindowOptions.FramesPerSecond = 60;
+            silkWindowOptions.UpdatesPerSecond = 60;
+            silkWindowOptions.Position = new Vector2D<int>(0, 0);
+            silkWindowOptions.Title = setting.Title;
+            silkWindowOptions.IsVisible = true;
+            silkWindowOptions.ShouldSwapAutomatically = false;
+            silkWindowOptions.IsContextControlDisabled = true;
 
             window = Window.Create(silkWindowOptions);
             window.Initialize();
@@ -45,7 +31,7 @@ namespace Vocore.Engine
             {
                 Debug = false,
                 VSync = false,
-                Backend = GraphicsBackend.Auto,
+                Backend = GraphicsBackend.Vulkan,
                 SurfaceSource = surfaceSource,
                 InitialSurfaceSizeWidth = (uint)setting.Width,
                 InitialSurfaceSizeHeight = (uint)setting.Height,
@@ -66,26 +52,32 @@ namespace Vocore.Engine
 
             if (window.Win32.HasValue)
             {
+                Log.Info("Creating Win32 window");
                 return SurfaceSource.CreateWin32Window(window.Win32.Value.Hwnd, window.Win32.Value.HInstance);
             }
 
             if (window.X11.HasValue)
             {
+                Log.Info("Creating X11 window");
                 return SurfaceSource.CreateXlibWindow(window.X11.Value.Display, window.X11.Value.Window);
             }
 
             if (window.Wayland.HasValue)
             {
+                Log.Info("Creating Wayland window");
                 return SurfaceSource.CreateWaylandSurface(window.Wayland.Value.Display, window.Wayland.Value.Surface);
             }
 
             if (window.Android.HasValue)
             {
+                Log.Info("Creating Android window");
                 return SurfaceSource.CreateAndroidWindow(window.Android.Value.Window);
             }
 
             if (window.Cocoa.HasValue)
             {
+                Log.Info("Creating Cocoa window");
+                
                 return SurfaceSource.CreateMetalLayer(window.Cocoa.Value);
             }
 

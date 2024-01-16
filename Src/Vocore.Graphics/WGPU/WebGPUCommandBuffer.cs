@@ -4,7 +4,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public class WebGPUCommandBuffer : GPUCommandBuffer
+internal class WebGPUCommandBuffer : GPUCommandBuffer
 {
     private readonly WGPUDevice _nativeDevice;
     private readonly string _name;

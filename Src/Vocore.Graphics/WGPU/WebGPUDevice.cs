@@ -27,6 +27,7 @@ public partial class WebGPUDevice : GPUDevice
 
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
     {
+        wgpuSetLogCallback(LogCallback);
         WGPUInstanceExtras extras = new WGPUInstanceExtras()
         {
             flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
@@ -45,19 +46,14 @@ public partial class WebGPUDevice : GPUDevice
         {
             nextInChain = null,
             compatibleSurface = Surface,
-            powerPreference = WGPUPowerPreference.HighPerformance,
-            backendType = WGPUBackendType.Undefined,
-            forceFallbackAdapter = false
         };
 
-        fixed (WGPUAdapter* adapterPtr = &Adapter)
-        {
-            // TODO: add native error handler
-            wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, (IntPtr)adapterPtr);
-        }
+        WGPUAdapter adapter = WGPUAdapter.Null;
+        wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
+        Adapter = adapter;
+
 
         fixed (sbyte* name = descriptor.Name.GetUtf8Span())
-        fixed (WGPUDevice* devicePtr = &Device)
         {
             WGPUDeviceDescriptor deviceDescriptor = new()
             {
@@ -67,11 +63,14 @@ public partial class WebGPUDevice : GPUDevice
                 requiredFeatureCount = 0,
             };
 
-            // TODO: add native error handler
-            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, (IntPtr)devicePtr);
+            WGPUDevice device = WGPUDevice.Null;
+            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, new nint(&device));
+            Device = device;
         }
 
         Queue = wgpuDeviceGetQueue(Device);
+
+        wgpuDeviceSetUncapturedErrorCallback(Device, &OnUnhandleError);
 
         _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
         _width = descriptor.InitialSurfaceSizeWidth;
@@ -165,8 +164,8 @@ public partial class WebGPUDevice : GPUDevice
             device = Device,
             format = _swapChainFormat,
             usage = WGPUTextureUsage.RenderAttachment,
-            viewFormatCount = 1,
-            viewFormats = &viewFormat,
+            // viewFormatCount = 0,
+            // viewFormats = null,
             alphaMode = WGPUCompositeAlphaMode.Auto,
             width = width,
             height = height,
@@ -179,6 +178,7 @@ public partial class WebGPUDevice : GPUDevice
     {
         WGPUSurfaceTexture surfaceTexture = default;
         wgpuSurfaceGetCurrentTexture(Surface, &surfaceTexture);
+
         if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Timeout)
         {
             Console.WriteLine("Cannot acquire next swap chain texture");
@@ -190,7 +190,42 @@ public partial class WebGPUDevice : GPUDevice
             Console.WriteLine("Surface texture is outdated, reconfigure the surface!");
             return;
         }
+
+        WGPUTextureView view = wgpuTextureCreateView(surfaceTexture.texture, null);
+
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
+
+        WGPURenderPassColorAttachment attachment = new WGPURenderPassColorAttachment
+        {
+            view = view,
+            resolveTarget = WGPUTextureView.Null,
+            loadOp = WGPULoadOp.Clear,
+            storeOp = WGPUStoreOp.Store,
+            clearValue = new WGPUColor
+            {
+                r = 0.1,
+                g = 0.2,
+                b = 0.3,
+                a = 1,
+            },
+        };
+        WGPURenderPassDescriptor renderPassDescriptor = new()
+        {
+            colorAttachmentCount = 1,
+            colorAttachments = &attachment,
+            depthStencilAttachment = null,
+        };
+
+        WGPURenderPassEncoder passEncoder = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
+        wgpuRenderPassEncoderEnd(passEncoder);
+        WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(encoder, null);
+        wgpuQueueSubmit(Queue, 1, &buffer);
         wgpuSurfacePresent(Surface);
+        wgpuCommandBufferRelease(buffer);
+        wgpuCommandEncoderRelease(encoder);
+        wgpuRenderPassEncoderRelease(passEncoder);
+        wgpuTextureRelease(surfaceTexture.texture);
+        wgpuTextureViewRelease(view);
     }
 
     [UnmanagedCallersOnly]
@@ -199,6 +234,7 @@ public partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestAdapterStatus.Success)
         {
             *(WGPUAdapter*)pUserData = candidateAdapter;
+            InfoCallback?.Invoke("adapter created");
         }
         else
         {
@@ -212,6 +248,7 @@ public partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestDeviceStatus.Success)
         {
             *(WGPUDevice*)pUserData = device;
+            InfoCallback?.Invoke("device created");
         }
         else
         {
@@ -219,5 +256,28 @@ public partial class WebGPUDevice : GPUDevice
         }
     }
 
+    [UnmanagedCallersOnly]
+    private unsafe static void OnUnhandleError(WGPUErrorType type, sbyte* message, nint pUserData)
+    {
+        ErrorCallback?.Invoke("Unhandle WebGPU error: " + Interop.GetString(message));
+    }
 
+
+    private static void LogCallback(WGPULogLevel level, string message, nint userdata = 0)
+    {
+        switch (level)
+        {
+            case WGPULogLevel.Error:
+                ErrorCallback?.Invoke(message);
+                break;
+            case WGPULogLevel.Warn:
+                WarningCallback?.Invoke(message);
+                break;
+            case WGPULogLevel.Info:
+            case WGPULogLevel.Debug:
+            case WGPULogLevel.Trace:
+                InfoCallback?.Invoke(message);
+                break;
+        }
+    }
 }
