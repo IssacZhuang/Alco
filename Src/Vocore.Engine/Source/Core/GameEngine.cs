@@ -175,7 +175,7 @@ namespace Vocore.Engine
 
                 _window.Resize += (Vector2D<int> size) =>
                 {
-                    //_graphicsDevice.MainSwapchain.Resize((uint)size.X, (uint)size.Y);
+                    _graphicsDevice.ResizeSurface((uint)size.X, (uint)size.Y);
 
                     Log.Info($"Window Resized {size.X}x{size.Y}");
                     _setting.Width = size.X;

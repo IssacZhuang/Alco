@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Veldrid;
+using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
@@ -17,7 +18,7 @@ namespace Vocore.Engine
         public ICamera? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
         private readonly CommandList _commandList;
-        private readonly GraphicsDevice _device;
+        private readonly GPUDevice _device;
         private readonly UniformBuffer<Matrix4x4> _transformBuffer;
         private readonly UniformBuffer<GlobalShaderData> _globalShaderData;
         private readonly OffscreenBuffer _renderTarget;
@@ -43,7 +44,7 @@ namespace Vocore.Engine
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
             // TODO : implement with new graphics module
-            //_device = engine.GraphicsDevice;
+            _device = engine.GraphicsDevice;
             //_commandList = _device.ResourceFactory.CreateCommandList();
             _shaderTimer = 0f;
             Camera = null;
@@ -59,32 +60,32 @@ namespace Vocore.Engine
         {
             // TODO : implement with new graphics module
             return;
-            _shaderTimer += delta;
-            if (_shaderTimer >= TimeLimit)
-            {
-                _shaderTimer -= TimeLimit;
-            }
+            // _shaderTimer += delta;
+            // if (_shaderTimer >= TimeLimit)
+            // {
+            //     _shaderTimer -= TimeLimit;
+            // }
             
-            GlobalShaderData data = _globalShaderData.Value;
-            data.deltaTime = delta;
-            data.time = _shaderTimer;
-            data.sinTime = math.sin(_shaderTimer);
-            data.cosTime = math.cos(_shaderTimer);
-            if (Camera != null)
-            {
-                data.viewProjMatrix = Camera.ViewProjectionMatrix;
-            }
-            data.screenSize = ScreenSize;
+            // GlobalShaderData data = _globalShaderData.Value;
+            // data.deltaTime = delta;
+            // data.time = _shaderTimer;
+            // data.sinTime = math.sin(_shaderTimer);
+            // data.cosTime = math.cos(_shaderTimer);
+            // if (Camera != null)
+            // {
+            //     data.viewProjMatrix = Camera.ViewProjectionMatrix;
+            // }
+            // data.screenSize = ScreenSize;
 
-            _globalShaderData.Value = data;
+            // _globalShaderData.Value = data;
 
-            _commandList.Begin();
-            _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
-            _commandList.ClearColorTarget(0, RgbaFloat.Black);
-            _commandList.ClearDepthStencil(1f);
-            _commandList.UpdateBuffer(_globalShaderData);
-            _commandList.End();
-            _device.SubmitCommands(_commandList);
+            // _commandList.Begin();
+            // _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
+            // _commandList.ClearColorTarget(0, RgbaFloat.Black);
+            // _commandList.ClearDepthStencil(1f);
+            // _commandList.UpdateBuffer(_globalShaderData);
+            // _commandList.End();
+            // _device.SubmitCommands(_commandList);
         }
 
 
@@ -92,8 +93,8 @@ namespace Vocore.Engine
         public void EndFrame()
         {
             // TODO : implement with new graphics module
-            // _device.SwapBuffers();
             // _device.WaitForIdle();
+            _device.SwapBuffers();
         }
     }
 }

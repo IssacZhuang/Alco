@@ -9,6 +9,7 @@ public class Game : GameEngine
     {
         
     }
+    
     protected override void OnUpdate(float delta)
     {
         if(Input.IsKeyDown(Key.Escape))

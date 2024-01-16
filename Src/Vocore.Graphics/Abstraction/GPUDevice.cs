@@ -6,7 +6,7 @@ public abstract class GPUDevice : BaseGPUObject
     public static Action<string>? ErrorCallback { get; set; }
     public static Action<string>? WarningCallback { get; set; }
     public static Action<string>? InfoCallback { get; set; }
-    
+
     /// <summary>
     /// Creates a GPU buffer with the specified descriptor.
     /// </summary>
@@ -14,19 +14,19 @@ public abstract class GPUDevice : BaseGPUObject
     /// <returns>The created GPU buffer.</returns>
     public GPUBuffer CreateBuffer(in BufferDescriptor createInfo)
     {
-        return InternalCreateBuffer(createInfo);
+        return CreateBufferCore(createInfo);
     }
 
     public GPUBuffer CreateBuffer<T>(in BufferDescriptor createInfo, T[] data) where T : unmanaged
     {
-        GPUBuffer buffer = InternalCreateBuffer(createInfo);
+        GPUBuffer buffer = CreateBufferCore(createInfo);
         UpdateBuffer(buffer, data);
         return buffer;
     }
 
     public GPUBuffer CreateBuffer<T>(in BufferDescriptor createInfo, T data) where T : unmanaged
     {
-        GPUBuffer buffer = InternalCreateBuffer(createInfo);
+        GPUBuffer buffer = CreateBufferCore(createInfo);
         UpdateBuffer(buffer, data);
         return buffer;
     }
@@ -37,7 +37,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <param name="buffer">The GPU buffer to destroy.</param>
     public void DestroyBuffer(GPUBuffer buffer)
     {
-        InternalDestroyBuffer(buffer);
+        DestroyBufferCore(buffer);
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <returns>The created GPU texture.</returns>
     public GPUTexture CreateTexture(in TextureDescriptor createInfo)
     {
-        return InternalCreateTexture(createInfo);
+        return CreateTextureCore(createInfo);
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <param name="texture">The GPU texture to destroy.</param>
     public void DestroyTexture(GPUTexture texture)
     {
-        InternalDestroyTexture(texture);
+        DestroyTextureCore(texture);
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <returns>The created GPU command buffer.</returns>
     public GPUCommandBuffer CreateCommandBuffer()
     {
-        return InternalCreateCommandBuffer();
+        return CreateCommandBufferCore();
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <param name="commandBuffer">The GPU command buffer to destroy.</param>
     public void DestroyCommandBuffer(GPUCommandBuffer commandBuffer)
     {
-        InternalDestroyCommandBuffer(commandBuffer);
+        DestroyCommandBufferCore(commandBuffer);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// </summary>
     public GPURenderPass CreateRenderPass(in RenderPassDescriptor descriptor)
     {
-        return InternalCreateRenderPass(descriptor);
+        return CreateRenderPassCore(descriptor);
     }
 
     /// <summary>
@@ -90,7 +90,16 @@ public abstract class GPUDevice : BaseGPUObject
     /// </summary>
     public void DestroyRenderPass(GPURenderPass renderPass)
     {
-        InternalDestroyRenderPass(renderPass);
+        DestroyRenderPassCore(renderPass);
+    }
+
+    public void ResizeSurface(uint width, uint height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            throw new GraphicsException("Surface width and height must be greater than 0.");
+        }
+        ResizeSurfaceCore(width, height);
     }
 
     public void Submit(GPUCommandBuffer commandBuffer)
@@ -100,12 +109,17 @@ public abstract class GPUDevice : BaseGPUObject
             throw new GraphicsException($"Command buffer:{commandBuffer.Name} is empty, try use GPUCommandBuffer.Begin() and GPUCommandBuffer.End() to record commands.");
         }
 
-        InternalSubmit(commandBuffer);
+        SubmitCore(commandBuffer);
+    }
+
+    public void SwapBuffers()
+    {
+        SwapBuffersCore();
     }
 
     public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
-        InternalUpdateBuffer(buffer, bufferOffset, data, size);
+        UpdateBufferCore(buffer, bufferOffset, data, size);
     }
 
     // polymorphism
@@ -141,27 +155,30 @@ public abstract class GPUDevice : BaseGPUObject
     public abstract PixelFormat GetPrefferedSurfaceFomat();
     public abstract PixelFormat GetPrefferedDepthFomat();
 
-    protected abstract GPUBuffer InternalCreateBuffer(in BufferDescriptor descriptor);
+    protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
 
-    protected abstract void InternalDestroyBuffer(GPUBuffer buffer);
+    protected abstract void DestroyBufferCore(GPUBuffer buffer);
 
-    protected abstract GPUTexture InternalCreateTexture(in TextureDescriptor descriptor);
+    protected abstract GPUTexture CreateTextureCore(in TextureDescriptor descriptor);
 
-    protected abstract void InternalDestroyTexture(GPUTexture texture);
+    protected abstract void DestroyTextureCore(GPUTexture texture);
 
-    protected abstract GPUCommandBuffer InternalCreateCommandBuffer(in CommandBufferDescriptor? descriptor = null);
+    protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
 
-    protected abstract void InternalDestroyCommandBuffer(GPUCommandBuffer commandBuffer);
+    protected abstract void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer);
 
-    protected abstract GPURenderPass InternalCreateRenderPass(in RenderPassDescriptor descriptor);
+    protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
 
-    protected abstract void InternalDestroyRenderPass(GPURenderPass renderPass);
+    protected abstract void DestroyRenderPassCore(GPURenderPass renderPass);
+    protected abstract void ResizeSurfaceCore(uint width, uint height);
 
-    protected abstract void InternalSubmit(GPUCommandBuffer commandBuffer);
+    protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
+
+    protected abstract void SwapBuffersCore();
     /// <summary>
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>
-    protected abstract unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 
 
 }

@@ -47,6 +47,8 @@ namespace Vocore.Engine
                 VSync = false,
                 Backend = GraphicsBackend.Auto,
                 SurfaceSource = surfaceSource,
+                InitialSurfaceSizeWidth = (uint)setting.Width,
+                InitialSurfaceSizeHeight = (uint)setting.Height,
                 Name = setting.Title = " Graphics Device"
             };
 

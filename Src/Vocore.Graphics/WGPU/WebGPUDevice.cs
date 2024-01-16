@@ -14,6 +14,11 @@ public partial class WebGPUDevice : GPUDevice
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
+    private readonly WGPUTextureFormat _swapChainFormat;
+    private uint _width;
+    private uint _height;
+    private bool _vsync;
+
     public WGPUDevice Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,9 +72,16 @@ public partial class WebGPUDevice : GPUDevice
         }
 
         Queue = wgpuDeviceGetQueue(Device);
+
+        _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
+        _width = descriptor.InitialSurfaceSizeWidth;
+        _height = descriptor.InitialSurfaceSizeHeight;
+        _vsync = descriptor.VSync;
+
+        ResizeSurfaceCore(_width, _height);
     }
 
-    protected unsafe override void InternalSubmit(GPUCommandBuffer commandBuffer)
+    protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
 ;
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
@@ -93,52 +105,92 @@ public partial class WebGPUDevice : GPUDevice
         throw new NotImplementedException();
     }
 
-    protected override GPUBuffer InternalCreateBuffer(in BufferDescriptor descriptor)
+    protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
         throw new NotImplementedException();
     }
 
-    protected override GPUCommandBuffer InternalCreateCommandBuffer(in CommandBufferDescriptor? descriptor = null)
+    protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
         return new WebGPUCommandBuffer(Native, descriptor);
     }
 
-    protected override GPUTexture InternalCreateTexture(in TextureDescriptor descriptor)
+    protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)
     {
         return new WebGPUTexture(Native, descriptor);
     }
 
-    protected override GPURenderPass InternalCreateRenderPass(in RenderPassDescriptor descriptor)
+    protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
     {
        return new WebGPURenderPass(Native, descriptor);
     }
 
 
-    protected override void InternalDestroyBuffer(GPUBuffer buffer)
+    protected override void DestroyBufferCore(GPUBuffer buffer)
     {
         throw new NotImplementedException();
     }
 
-    protected override void InternalDestroyCommandBuffer(GPUCommandBuffer commandBuffer)
+    protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
     {
         throw new NotImplementedException();
     }
 
-    
-    protected override void InternalDestroyTexture(GPUTexture texture)
+
+    protected override void DestroyTextureCore(GPUTexture texture)
     {
         throw new NotImplementedException();
     }
 
-    protected override void InternalDestroyRenderPass(GPURenderPass renderPass)
+    protected override void DestroyRenderPassCore(GPURenderPass renderPass)
     {
         throw new NotImplementedException();
     }
 
-    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
         wgpuQueueWriteBuffer(Queue, nativeBuffer, bufferOffset, data, size);
+    }
+
+    protected unsafe override void ResizeSurfaceCore(uint width, uint height)
+    {
+        _width = width;
+        _height = height;
+
+        WGPUTextureFormat viewFormat = _swapChainFormat;
+        WGPUSurfaceConfiguration surfaceConfiguration = new()
+        {
+            nextInChain = null,
+            device = Device,
+            format = _swapChainFormat,
+            usage = WGPUTextureUsage.RenderAttachment,
+            viewFormatCount = 1,
+            viewFormats = &viewFormat,
+            alphaMode = WGPUCompositeAlphaMode.Auto,
+            width = width,
+            height = height,
+            presentMode = _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Immediate,
+        };
+        wgpuSurfaceConfigure(Surface, &surfaceConfiguration);
+    }
+
+    protected unsafe override void SwapBuffersCore()
+    {
+        WGPUSurfaceTexture surfaceTexture = default;
+        wgpuSurfaceGetCurrentTexture(Surface, &surfaceTexture);
+        if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Timeout)
+        {
+            Console.WriteLine("Cannot acquire next swap chain texture");
+            return;
+        }
+
+        if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Outdated)
+        {
+            Console.WriteLine("Surface texture is outdated, reconfigure the surface!");
+            return;
+        }
+        wgpuSurfacePresent(Surface);
     }
 
     [UnmanagedCallersOnly]
@@ -166,4 +218,6 @@ public partial class WebGPUDevice : GPUDevice
             ErrorCallback?.Invoke("Could not get WebGPU device: " + Interop.GetString(message));
         }
     }
+
+
 }
