@@ -42,20 +42,23 @@ namespace Vocore.Engine
 
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
-            _device = engine.GraphicsDevice;
-            _commandList = _device.ResourceFactory.CreateCommandList();
+            // TODO : implement with new graphics module
+            //_device = engine.GraphicsDevice;
+            //_commandList = _device.ResourceFactory.CreateCommandList();
             _shaderTimer = 0f;
             Camera = null;
             ScreenSize = screenSize;
 
-            _renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(_device);
-            _globalShaderData = new UniformBuffer<GlobalShaderData>(_device);
-            _transformBuffer = new UniformBuffer<Matrix4x4>(_device);
+           // _renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(_device);
+            // _globalShaderData = new UniformBuffer<GlobalShaderData>(_device);
+            // _transformBuffer = new UniformBuffer<Matrix4x4>(_device);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void BeginFrameUpdate(float delta)
         {
+            // TODO : implement with new graphics module
+            return;
             _shaderTimer += delta;
             if (_shaderTimer >= TimeLimit)
             {
@@ -88,8 +91,9 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndFrame()
         {
-            _device.SwapBuffers();
-            _device.WaitForIdle();
+            // TODO : implement with new graphics module
+            // _device.SwapBuffers();
+            // _device.WaitForIdle();
         }
     }
 }

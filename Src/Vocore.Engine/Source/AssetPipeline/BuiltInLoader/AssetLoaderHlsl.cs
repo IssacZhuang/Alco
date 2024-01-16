@@ -23,7 +23,7 @@ namespace Vocore.Engine
             {
                 if (_shaderComplier == null)
                 {
-                    _shaderComplier = new ShaderCompiler(GameEngine.Instance.GraphicsDevice, new ShaderLibSource());
+                    //_shaderComplier = new ShaderCompiler(GameEngine.Instance.GraphicsDevice, new ShaderLibSource());
                 }
                 return _shaderComplier;
             }

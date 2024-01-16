@@ -17,7 +17,7 @@ namespace Vocore.Engine
         {
             _target = framebuffer;
             _commands = commandList;
-            _device = engine.GraphicsDevice;
+            //_device = engine.GraphicsDevice;
             _globalShaderData = engine.Graphics.GlobalShaderData;
             _transformBuffer = new UniformBuffer<Matrix4x4>(_device);
         }
@@ -26,21 +26,21 @@ namespace Vocore.Engine
         {
         }
 
-        public DrawList(GameEngine engine, CommandList commandList) : this(engine, commandList, engine.GraphicsDevice.SwapchainFramebuffer)
-        {
-        }
+        // public DrawList(GameEngine engine, CommandList commandList) : this(engine, commandList, engine.GraphicsDevice.SwapchainFramebuffer)
+        // {
+        // }
 
-        public DrawList(GameEngine engine, Framebuffer framebuffer) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), framebuffer)
-        {
-        }
+        // public DrawList(GameEngine engine, Framebuffer framebuffer) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), framebuffer)
+        // {
+        // }
 
-        public DrawList(GameEngine engine, OffscreenBuffer framebuffer) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), framebuffer.Framebuffer)
-        {
-        }
+        // public DrawList(GameEngine engine, OffscreenBuffer framebuffer) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), framebuffer.Framebuffer)
+        // {
+        // }
 
-        public DrawList(GameEngine engine) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), engine.GraphicsDevice.SwapchainFramebuffer)
-        {
-        }
+        // public DrawList(GameEngine engine) : this(engine, engine.GraphicsDevice.ResourceFactory.CreateCommandList(), engine.GraphicsDevice.SwapchainFramebuffer)
+        // {
+        // }
 
         public void Begin()
         {

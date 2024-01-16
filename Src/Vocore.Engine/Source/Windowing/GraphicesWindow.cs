@@ -9,17 +9,9 @@ using Vocore.Graphics.WebGPU;
 
 namespace Vocore.Engine
 {
-    public class GraphicsWindow
+    public static class GraphicsWindow
     {
-
-        private readonly IWindow _window;
-        private readonly GPUDevice _graphicsDevice;
-        public GPUDevice GraphicsDevice
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _graphicsDevice;
-        }
-        public GraphicsWindow(WindowSetting setting)
+        public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, out GPUDevice device, out IWindow window)
         {
             GlfwInput.RegisterPlatform();
             GlfwWindowing.RegisterPlatform();
@@ -44,10 +36,10 @@ namespace Vocore.Engine
                 VideoMode.Default,
                 null);
 
-            _window = Window.Create(silkWindowOptions);
-            _window.Initialize();
+            window = Window.Create(silkWindowOptions);
+            window.Initialize();
 
-            SurfaceSource surfaceSource = GetSurfaceSource(_window.Native);
+            SurfaceSource surfaceSource = GetSurfaceSource(window.Native);
 
             DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
             {
@@ -58,7 +50,7 @@ namespace Vocore.Engine
                 Name = setting.Title = " Graphics Device"
             };
 
-            _graphicsDevice = new WebGPUDevice(deviceDescriptor);
+            device = new WebGPUDevice(deviceDescriptor);
         }
 
         public static SurfaceSource GetSurfaceSource(INativeWindow? window)

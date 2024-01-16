@@ -13,6 +13,7 @@ public partial class WebGPUDevice : GPUDevice
     public readonly WGPUSurface Surface;
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
+
     public WGPUDevice Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -149,7 +150,7 @@ public partial class WebGPUDevice : GPUDevice
         }
         else
         {
-            Console.WriteLine("Could not get WebGPU adapter: " + Interop.GetString(message));
+            ErrorCallback?.Invoke("Could not get WebGPU adapter: " + Interop.GetString(message));
         }
     }
 
@@ -162,7 +163,7 @@ public partial class WebGPUDevice : GPUDevice
         }
         else
         {
-            Console.WriteLine("Could not get WebGPU device: " + Interop.GetString(message));
+            ErrorCallback?.Invoke("Could not get WebGPU device: " + Interop.GetString(message));
         }
     }
 }

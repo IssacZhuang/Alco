@@ -2,13 +2,11 @@ using System;
 using System.Threading;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
-using Veldrid;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Glfw;
 using Silk.NET.Maths;
 using Silk.NET.Input.Glfw;
-using Silk.NET.GLFW;
+using Vocore.Graphics;
 
 
 
@@ -27,7 +25,7 @@ namespace Vocore.Engine
         private GameEngineSetting _setting;
 
         #region  Resources
-        private readonly GraphicsDevice _graphicsDevice;
+        private readonly GPUDevice _graphicsDevice;
         private readonly AssetManager _assets = new AssetManager();
         private readonly IWindow _window;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
@@ -37,7 +35,6 @@ namespace Vocore.Engine
         internal EngineGraphics _graphics;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
-        internal EngineShaderContext _shaderContext;
         internal EngineInput _input;
 
         #endregion
@@ -50,7 +47,7 @@ namespace Vocore.Engine
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _input;
         }
-        public EngineShaderContext Shader => _shaderContext;
+
         public EngineGraphics Graphics
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -116,7 +113,7 @@ namespace Vocore.Engine
         /// Which provides the low level graphics API,<br/>
         /// It is dangerous to use if you not familiar with graphics programming
         /// </summary>
-        public GraphicsDevice GraphicsDevice
+        public GPUDevice GraphicsDevice
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _graphicsDevice;
@@ -151,27 +148,34 @@ namespace Vocore.Engine
             {
                 GlfwInput.RegisterPlatform();
                 GlfwWindowing.RegisterPlatform();
-                
-                VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
+
+                // VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
+                // {
+                //     Position = new Vector2D<int>(100, 100),
+                //     Size = new Vector2D<int>(_setting.Width, _setting.Height),
+                //     Title = _setting.WindowName
+                // }, new GraphicsDeviceOptions
+                // {
+                //     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
+                // }, _setting.GraphicsAPI, out IWindow window, out GraphicsDevice graphicsDevice);
+
+                GraphicsWindow.CreateGraphicsDeviceWithWindow(new WindowSetting
                 {
-                    Position = new Vector2D<int>(100, 100),
-                    Size = new Vector2D<int>(_setting.Width, _setting.Height),
+                    Width = _setting.Width,
+                    Height = _setting.Height,
                     Title = _setting.WindowName
-                }, new GraphicsDeviceOptions
-                {
-                    SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
-                }, _setting.GraphicsAPI, out IWindow window, out GraphicsDevice graphicsDevice);
+                }, out GPUDevice graphicsDevice, out IWindow window);
                 
                 _window = window;
 
                 _graphicsDevice = graphicsDevice;
                 _assets = new AssetManager();
 
-                _window.Initialize();
+                //_window.Initialize();
 
                 _window.Resize += (Vector2D<int> size) =>
                 {
-                    _graphicsDevice.MainSwapchain.Resize((uint)size.X, (uint)size.Y);
+                    //_graphicsDevice.MainSwapchain.Resize((uint)size.X, (uint)size.Y);
 
                     Log.Info($"Window Resized {size.X}x{size.Y}");
                     _setting.Width = size.X;
@@ -441,7 +445,6 @@ namespace Vocore.Engine
             {
                 Vector2 screenSizeFloat = new Vector2(_setting.Width, _setting.Height);
                 _graphics = new EngineGraphics(this, screenSizeFloat);
-                _shaderContext = new EngineShaderContext(GraphicsDevice);
                 _input = new EngineInput(_window);
             }
 
