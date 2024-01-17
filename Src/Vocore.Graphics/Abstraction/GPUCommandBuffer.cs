@@ -6,7 +6,6 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 {
     protected bool _isRecording = false;
     //API
-    public abstract string Name { get; }
     public abstract bool HasBuffer { get; }
     public virtual bool IsRecording
     {

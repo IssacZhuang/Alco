@@ -1,11 +1,18 @@
 namespace Vocore.Graphics;
 
+
 public abstract class GPURenderPass : BaseGPUObject
 {
-    public abstract IReadOnlyList<GPUTexture> Colors { get; }
-    public abstract GPUTexture? Depth { get; }
-    public abstract uint Width { get; }
-    public abstract uint Height { get; }
-    public abstract string Name { get; }
-    public abstract void Resize(uint width, uint height);
+    public abstract IReadOnlyList<ColorAttachment> Colors { get; }
+    public abstract DepthAttachment? Depth { get; }
+    public bool AttachmentsEqual(GPURenderPass other)
+    {
+        if (Colors.Count != other.Colors.Count) return false;
+        for (int i = 0; i < Colors.Count; i++)
+        {
+            if (Colors[i] != other.Colors[i]) return false;
+        }
+        if (Depth != other.Depth) return false;
+        return true;
+    }
 }

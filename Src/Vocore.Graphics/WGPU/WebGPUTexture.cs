@@ -34,8 +34,11 @@ internal class WebGPUTexture : GPUTexture
         get => _nativeTexture;
     }
 
+    public override string Name {get;}
+
     public unsafe WebGPUTexture(WGPUDevice nativeDevice, in TextureDescriptor descriptor)
     {
+        Name = descriptor.Name;
         _nativeDevice = nativeDevice;
 
         _size = new WGPUExtent3D

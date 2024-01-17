@@ -46,5 +46,5 @@ public struct BufferDescriptor
     /// <summary>
     /// The name of the buffer.
     /// </summary>
-    public string? Name { get; init; } = "Unnamed GPU buffer";
+    public string Name { get; init; } = "Unnamed GPU buffer";
 }

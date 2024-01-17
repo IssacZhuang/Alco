@@ -102,5 +102,5 @@ public struct TextureDescriptor
     /// <summary>
     /// The name of the texture.
     /// </summary>
-    public string? Name { get; set; } = "Unnamed GPU texture";
+    public string Name { get; set; } = "Unnamed GPU texture";
 }

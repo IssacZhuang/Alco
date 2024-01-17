@@ -16,12 +16,11 @@ internal class WebGPUBuffer : GPUBuffer
 
     public override BufferUsage Usage => throw new NotImplementedException();
 
-    public override string Name => throw new NotImplementedException();
-
-    
+    public override string Name { get; }
 
     public unsafe WebGPUBuffer(WebGPUDevice device, in BufferDescriptor descriptor)
     {
+        Name = descriptor.Name;
         fixed (sbyte* name = descriptor.Name.GetUtf8Span())
         {
             WGPUBufferDescriptor bufferDescriptor = new()

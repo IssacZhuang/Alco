@@ -7,9 +7,6 @@ namespace Vocore.Graphics.WebGPU;
 internal class WebGPUCommandBuffer : GPUCommandBuffer
 {
     private readonly WGPUDevice _nativeDevice;
-    private readonly string _name;
-
-
 
     // used every frame
     private WGPUCommandEncoder _encoder;
@@ -17,6 +14,7 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     // create on end(), can be reused
     private WGPUCommandBuffer _buffer;
 
+    public override string Name {get;}
     public WGPUCommandBuffer Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -29,21 +27,22 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         get => _buffer != WGPUCommandBuffer.Null;
     }
 
-    public override string Name => throw new NotImplementedException();
+    
 
     public unsafe WebGPUCommandBuffer(WGPUDevice nativeDevice, CommandBufferDescriptor? descriptor = null)
     {
+
         _nativeDevice = nativeDevice;
         if (descriptor.HasValue)
         {
-            _name = descriptor.Value.Name;
+            Name = descriptor.Value.Name;
         }
         else
         {
-            _name = "Unnamed Command Buffer";
+            Name = "Unnamed Command Buffer";
         }
 
-        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, _name);
+        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
 
 
         _buffer = WGPUCommandBuffer.Null;
@@ -74,12 +73,12 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected unsafe override void InternalBegin(GPURenderPass renderPass)
     {
-        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, _name);
+        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
 
         // begin render pass
         WebGPURenderPass webGPURenderPass = (WebGPURenderPass)renderPass;
-        WGPURenderPassDescriptor descriptor = webGPURenderPass.RenderPassDescriptor;
-        _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
+        // WGPURenderPassDescriptor descriptor = webGPURenderPass.RenderPassDescriptor;
+        // _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
 
         // clear buffer
         wgpuCommandBufferRelease(_buffer);
@@ -88,7 +87,7 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected unsafe override void InternalEnd()
     {
-        _buffer = wgpuCommandEncoderFinish(_encoder, _name);
+        _buffer = wgpuCommandEncoderFinish(_encoder, Name);
 
         // release encoder
         wgpuCommandEncoderRelease(_encoder);

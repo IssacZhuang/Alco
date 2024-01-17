@@ -7,8 +7,7 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
 {
-    private readonly string _name = "Unnamed Graphics Pipeline";
-    public override string Name => _name;
+    public override string Name {get;}
     private readonly WGPURenderPipeline _pipeline;
 
     public WGPURenderPipeline Native
@@ -19,7 +18,7 @@ internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
 
     public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
     {
-        _name = descriptor.Name;
+        Name = descriptor.Name;
         // Create shader modules
         if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderStageSource vertex, out ShaderStageSource pixel))
         {

@@ -14,6 +14,7 @@ public partial class WebGPUDevice : GPUDevice
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
+    public override string Name { get; }
     private readonly WGPUTextureFormat _swapChainFormat;
     private uint _width;
     private uint _height;
@@ -27,6 +28,7 @@ public partial class WebGPUDevice : GPUDevice
 
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
     {
+        Name = descriptor.Name;
         wgpuSetLogCallback(LogCallback);
         WGPUInstanceExtras extras = new WGPUInstanceExtras()
         {

@@ -4,6 +4,7 @@ namespace Vocore.Graphics;
 
 public abstract class BaseGPUObject : IDisposable
 {
+    public abstract string Name { get; }
     private volatile uint _disposed;
 
     public bool IsDisposed => _disposed != 0;

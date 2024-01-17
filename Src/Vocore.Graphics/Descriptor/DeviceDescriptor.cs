@@ -9,7 +9,7 @@ namespace Vocore.Graphics
             bool debug = false,
             uint initialSurfaceSizeWidth = 640,
             uint initialSurfaceSizeHeight = 360,
-            string? name = "Vocore Graphics Device"
+            string name = "Vocore Graphics Device"
         )
         {
             SurfaceSource = surfaceSource;
@@ -27,6 +27,6 @@ namespace Vocore.Graphics
         public bool Debug { get; init; } = false;
         public uint InitialSurfaceSizeWidth { get; init; }
         public uint InitialSurfaceSizeHeight { get; init; }
-        public string? Name { get; init; } = "Vocore Graphics Device";
+        public string Name { get; init; } = "Vocore Graphics Device";
     }
 }
