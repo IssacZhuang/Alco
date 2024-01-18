@@ -58,6 +58,27 @@ internal class WebGPUFrameBuffer : GPUFrameBuffer
 
     #region WebGPU Implementation
 
+    // surfaceTexture is getting from the swap chain, should be disposed by device
+    internal WebGPUFrameBuffer(WebGPURenderPass renderPass, WebGPUTexture surfaceTexture)
+    {
+        Name = "SwapChain FrameBuffer";
+
+        _width = surfaceTexture.Width;
+        _height = surfaceTexture.Height;
+        _isColorTextureOwner = false;
+
+        _colorTextures = new WebGPUTexture[1];
+        _colorTextures[0] = surfaceTexture;
+
+        if (renderPass.Depth.HasValue)
+        {
+            _depthTexture = new WebGPUTexture(
+                renderPass.NativeDevice,
+                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Depth.Value.Format), _width, _height),
+                "Depth Texture");
+        }
+    }
+
     internal WebGPUFrameBuffer(WebGPURenderPass renderPass, uint width, uint height, string name)
     {
         Name = name;
