@@ -25,7 +25,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         InternalEnd();
     }
 
-    public void SetPipeline(GPUGraphicsPipeline pipeline)
+    public void SetPipeline(GPUPipeline pipeline)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalSetPipeline(pipeline);
@@ -111,7 +111,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     // need to be implemented for each backend
     protected abstract void InternalBegin(GPURenderPass renderPass);
     protected abstract void InternalEnd();
-    protected abstract void InternalSetPipeline(GPUGraphicsPipeline pipeline);
+    protected abstract void InternalSetPipeline(GPUPipeline pipeline);
     protected abstract void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);
     protected abstract void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);

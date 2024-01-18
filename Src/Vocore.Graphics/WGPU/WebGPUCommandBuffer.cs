@@ -98,9 +98,9 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         _renderPass = WGPURenderPassEncoder.Null;
     }
 
-    protected override void InternalSetPipeline(GPUGraphicsPipeline pipeline)
+    protected override void InternalSetPipeline(GPUPipeline pipeline)
     {
-        WGPURenderPipeline nativePipeline = ((WebGPUGraphicsPipeline)pipeline).Native;
+        WGPURenderPipeline nativePipeline = ((WebGPUPipeline)pipeline).Native;
         wgpuRenderPassEncoderSetPipeline(_renderPass, nativePipeline);
     }
 

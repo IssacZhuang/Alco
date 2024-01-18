@@ -5,24 +5,38 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
+internal class WebGPUPipeline : GPUPipeline
 {
-    public override string Name {get;}
-    private readonly WGPURenderPipeline _pipeline;
+    public override string Name { get; }
+    private readonly WGPURenderPipeline _graphicsipeline;
+    private readonly WGPUComputePipeline _computePipeline;
 
     public WGPURenderPipeline Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipeline;
+        get => _graphicsipeline;
     }
 
-    public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
+    public override ShaderStage Stages => throw new NotImplementedException();
+
+    public unsafe WebGPUPipeline(WGPUDevice nativeDevice, in ComputePipelineDescriptor descriptor)
+    {
+        Name = descriptor.Name;
+        if (descriptor.Source.Stage != ShaderStage.Compute)
+        {
+            throw new ArgumentException("The shader stage must be compute when creating a compute pipeline");
+        }
+
+        // TODO: descriptor
+    }
+
+    public unsafe WebGPUPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
     {
         Name = descriptor.Name;
         // Create shader modules
         if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderStageSource vertex, out ShaderStageSource pixel))
         {
-            throw new ArgumentException("The shader stages must contain a vertex and a pixel shader.");
+            throw new ArgumentException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
         }
 
         WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);
@@ -61,7 +75,7 @@ internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
             vertexAttributePtr += vertexInputLayouts[i].Elements.Length;
         }
 
-
+        // TODO: bind groups/pipline layout
 
         fixed (sbyte* pVertexEntry = vertex.EntryPoint.GetUtf8Span())
         fixed (sbyte* pPixelEntry = pixel.EntryPoint.GetUtf8Span())
@@ -111,7 +125,7 @@ internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
                 },
             };
 
-            _pipeline = wgpuDeviceCreateRenderPipeline(nativeDevice, &pipelineDescriptor);
+            _graphicsipeline = wgpuDeviceCreateRenderPipeline(nativeDevice, &pipelineDescriptor);
         }
 
         wgpuShaderModuleRelease(vertexShader);
@@ -120,6 +134,6 @@ internal class WebGPUGraphicsPipeline : GPUGraphicsPipeline
 
     protected override void Dispose(bool disposing)
     {
-        wgpuRenderPipelineRelease(_pipeline);
+        wgpuRenderPipelineRelease(_graphicsipeline);
     }
 }
