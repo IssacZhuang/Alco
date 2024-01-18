@@ -5,6 +5,8 @@ public abstract class GPURenderPass : BaseGPUObject
 {
     public abstract IReadOnlyList<ColorAttachment> Colors { get; }
     public abstract DepthAttachment? Depth { get; }
+    public abstract GPUFrameBuffer CreateFrameBuffer(uint width, uint height, string? name = null);
+
     public bool AttachmentsEqual(GPURenderPass other)
     {
         if (Colors.Count != other.Colors.Count) return false;

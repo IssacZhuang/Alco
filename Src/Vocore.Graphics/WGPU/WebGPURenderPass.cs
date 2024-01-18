@@ -7,14 +7,20 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPURenderPass : GPURenderPass
 {
-
+    #region Properties
     private readonly WGPUDevice _nativeDevice;
     private RenderPassDescriptor _abstractDescriptor;
+    private readonly WGPURenderPassColorAttachment[] _colorAttachments;
+    private readonly WGPURenderPassDepthStencilAttachment? _depthAttachment;
+
+    #endregion
+
+    #region Abstract Implementation
 
     public override string Name
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _abstractDescriptor.Name ?? string.Empty;
+        get => _abstractDescriptor.Name;
     }
 
     public override IReadOnlyList<ColorAttachment> Colors
@@ -29,8 +35,42 @@ internal class WebGPURenderPass : GPURenderPass
         get => _abstractDescriptor.Depth;
     }
 
-    private WGPURenderPassColorAttachment[] _colorAttachments;
-    private WGPURenderPassDepthStencilAttachment? _depthAttachment;
+    protected override void Dispose(bool disposing)
+    {
+        // Nothing to do
+    }
+
+    public override GPUFrameBuffer CreateFrameBuffer(uint width, uint height, string? name = null)
+    {
+        if (name == null)
+        {
+            name = $"{Name} - FrameBuffer";
+        }
+
+        return new WebGPUFrameBuffer(this, width, height, name);
+    }
+
+    #endregion
+
+    #region WebGPU Implementation
+
+    internal IReadOnlyList<WGPURenderPassColorAttachment> WebGPUColorAttachments
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorAttachments;
+    }
+
+    internal WGPURenderPassDepthStencilAttachment? WebGPUDepthAttachment
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthAttachment;
+    }
+
+    internal WGPUDevice NativeDevice
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _nativeDevice;
+    }
 
     public unsafe WebGPURenderPass(WGPUDevice nativeDevice, in RenderPassDescriptor descriptor)
     {
@@ -75,24 +115,5 @@ internal class WebGPURenderPass : GPURenderPass
         }
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        
-    }
-
-    private static TextureDescriptor BuildTextureDescriptor(in PixelFormat format, uint width, uint height)
-    {
-        return new TextureDescriptor
-        {
-            // the texture could be used as a render target, copied from, or sampled from a shader
-            Usage = TextureUsage.RenderAttachment | TextureUsage.Read | TextureUsage.TextureBinding,
-            Dimension = TextureDimension.Texture2D,
-            Width = width,
-            Height = height,
-            DepthOrArrayLayer = 1,
-            Format = format,
-            MipLevels = 1,
-            SampleCount = 1,
-        };
-    }
+    #endregion
 }

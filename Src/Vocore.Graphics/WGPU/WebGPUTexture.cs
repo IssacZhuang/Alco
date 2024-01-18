@@ -6,10 +6,15 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPUTexture : GPUTexture
 {
+    #region Properties
     private readonly WGPUDevice _nativeDevice;
     private readonly WGPUTexture _nativeTexture;
     private readonly WGPUExtent3D _size;
 
+    #endregion
+
+    #region Abstract Implementation
+    public override string Name { get; }
     public override uint Width
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -28,15 +33,31 @@ internal class WebGPUTexture : GPUTexture
         get => _size.depthOrArrayLayers;
     }
 
-    public WGPUTexture Native
+    protected override void Dispose(bool disposing)
+    {
+        wgpuTextureRelease(_nativeTexture);
+    }
+
+    #endregion
+
+
+    #region WebGPU Implementation
+    internal WGPUTexture Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _nativeTexture;
     }
 
-    public override string Name {get;}
+    internal unsafe WebGPUTexture(WGPUDevice nativeDevice, in WGPUTextureDescriptor descriptor, string name)
+    {
+        Name = name;
+        WGPUTextureDescriptor textureDescriptor = descriptor;
+        _nativeDevice = nativeDevice;
+        _size = descriptor.size;
+        _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+    }
 
-    public unsafe WebGPUTexture(WGPUDevice nativeDevice, in TextureDescriptor descriptor)
+    internal unsafe WebGPUTexture(WGPUDevice nativeDevice, in TextureDescriptor descriptor)
     {
         Name = descriptor.Name;
         _nativeDevice = nativeDevice;
@@ -61,11 +82,6 @@ internal class WebGPUTexture : GPUTexture
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        wgpuTextureRelease(_nativeTexture);
-    }
-
     public unsafe WGPUTextureView CreateView(in WGPUTextureViewDescriptor descriptor)
     {
         fixed (WGPUTextureViewDescriptor* descriptorPtr = &descriptor)
@@ -73,4 +89,6 @@ internal class WebGPUTexture : GPUTexture
             return wgpuTextureCreateView(_nativeTexture, descriptorPtr);
         }
     }
+
+    #endregion
 }
