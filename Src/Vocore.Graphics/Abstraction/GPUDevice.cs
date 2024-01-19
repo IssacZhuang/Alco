@@ -7,6 +7,12 @@ public abstract class GPUDevice : BaseGPUObject
     public static Action<string>? WarningCallback { get; set; }
     public static Action<string>? InfoCallback { get; set; }
 
+
+    public abstract GPURenderPass SwapChainRenderPass { get; }
+    public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
+    public abstract bool VSync { get; set; }
+
+
     /// <summary>
     /// Creates a GPU buffer with the specified descriptor.
     /// </summary>

@@ -8,83 +8,44 @@ namespace Vocore.Graphics.WebGPU;
 
 public partial class WebGPUDevice : GPUDevice
 {
+
+    #region Properties
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
     public readonly WGPUSurface Surface;
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
-    public override string Name { get; }
+
     private readonly WGPUTextureFormat _swapChainFormat;
     private uint _width;
     private uint _height;
     private bool _vsync;
 
-    public WGPUDevice Native
+    private readonly WebGPUSurfaceFrameBuffer _surfaceFrameBuffer;
+    private readonly WebGPURenderPass _surfaceRenderPass;
+
+    #endregion
+
+    #region Abstract Implementation
+
+    public override string Name { get; }
+
+    public override GPURenderPass SwapChainRenderPass => throw new NotImplementedException();
+
+    public override GPUFrameBuffer SwapChainFrameBuffer => throw new NotImplementedException();
+
+    public override bool VSync
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Device;
-    }
-
-    public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
-    {
-        Name = descriptor.Name;
-        wgpuSetLogCallback(LogCallback);
-        WGPUInstanceExtras extras = new WGPUInstanceExtras()
-        {
-            flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
-            backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
-        };
-
-        WGPUInstanceDescriptor instanceDescriptor = new WGPUInstanceDescriptor()
-        {
-            nextInChain = (WGPUChainedStruct*)&extras,
-        };
-
-        Instance = wgpuCreateInstance(&instanceDescriptor);
-        Surface = Instance.CreateSurface(descriptor.SurfaceSource);
-
-        WGPURequestAdapterOptions requestAdapterOptions = new WGPURequestAdapterOptions()
-        {
-            nextInChain = null,
-            compatibleSurface = Surface,
-        };
-
-        WGPUAdapter adapter = WGPUAdapter.Null;
-        wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
-        Adapter = adapter;
-
-
-        fixed (sbyte* name = descriptor.Name.GetUtf8Span())
-        {
-            WGPUDeviceDescriptor deviceDescriptor = new()
-            {
-                nextInChain = null,
-                label = name,
-                requiredLimits = null,
-                requiredFeatureCount = 0,
-            };
-
-            WGPUDevice device = WGPUDevice.Null;
-            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, new nint(&device));
-            Device = device;
-        }
-
-        Queue = wgpuDeviceGetQueue(Device);
-
-        wgpuDeviceSetUncapturedErrorCallback(Device, &OnUnhandleError);
-
-        _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
-        _width = descriptor.InitialSurfaceSizeWidth;
-        _height = descriptor.InitialSurfaceSizeHeight;
-        _vsync = descriptor.VSync;
-
-        ResizeSurfaceCore(_width, _height);
+        get => _vsync;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _vsync = value;
     }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
-;
+        ;
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
         wgpuQueueSubmit(Queue, 1, &buffer);
     }
@@ -123,7 +84,7 @@ public partial class WebGPUDevice : GPUDevice
 
     protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
     {
-       return new WebGPURenderPass(Native, descriptor);
+        return new WebGPURenderPass(Native, descriptor);
     }
 
 
@@ -230,6 +191,101 @@ public partial class WebGPUDevice : GPUDevice
         wgpuTextureViewRelease(view);
     }
 
+    #endregion
+
+    #region WebGPU Implementation
+
+    public WGPUDevice Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Device;
+    }
+
+    public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
+    {
+        Name = descriptor.Name;
+        wgpuSetLogCallback(LogCallback);
+
+        // create instance
+        WGPUInstanceExtras extras = new WGPUInstanceExtras()
+        {
+            flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
+            backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
+        };
+
+        WGPUInstanceDescriptor instanceDescriptor = new WGPUInstanceDescriptor()
+        {
+            nextInChain = (WGPUChainedStruct*)&extras,
+        };
+
+        Instance = wgpuCreateInstance(&instanceDescriptor);
+
+        // create surface
+        Surface = Instance.CreateSurface(descriptor.SurfaceSource);
+
+        // create adapter
+        WGPURequestAdapterOptions requestAdapterOptions = new WGPURequestAdapterOptions()
+        {
+            nextInChain = null,
+            compatibleSurface = Surface,
+        };
+
+        WGPUAdapter adapter = WGPUAdapter.Null;
+        wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
+        Adapter = adapter;
+
+        // create device
+        fixed (sbyte* name = descriptor.Name.GetUtf8Span())
+        {
+            WGPUDeviceDescriptor deviceDescriptor = new()
+            {
+                nextInChain = null,
+                label = name,
+                requiredLimits = null,
+                requiredFeatureCount = 0,
+            };
+
+            WGPUDevice device = WGPUDevice.Null;
+            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, new nint(&device));
+            Device = device;
+        }
+        wgpuDeviceSetUncapturedErrorCallback(Device, &OnUnhandleError);
+
+        //get queue
+        Queue = wgpuDeviceGetQueue(Device);
+
+        // load config
+        _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
+        _width = descriptor.InitialSurfaceSizeWidth;
+        _height = descriptor.InitialSurfaceSizeHeight;
+        _vsync = descriptor.VSync;
+
+        // create surface frame buffer
+        ResizeSurfaceCore(_width, _height);
+
+        WGPURenderPassColorAttachment surfaceColor = new WGPURenderPassColorAttachment
+        {
+            view = WGPUTextureView.Null,
+            resolveTarget = WGPUTextureView.Null,
+            loadOp = WGPULoadOp.Clear,
+            storeOp = WGPUStoreOp.Store,
+            clearValue = new WGPUColor
+            {
+                r = 0.1,
+                g = 0.2,
+                b = 0.3,
+                a = 1,
+            },
+        };
+
+        //TODO: create render pass and frame buffer
+        
+    }
+
+    #endregion
+
+    #region Callbacks
+
     [UnmanagedCallersOnly]
     private unsafe static void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter candidateAdapter, sbyte* message, nint pUserData)
     {
@@ -282,4 +338,6 @@ public partial class WebGPUDevice : GPUDevice
                 break;
         }
     }
+
+    #endregion
 }

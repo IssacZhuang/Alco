@@ -1,4 +1,5 @@
 
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
@@ -10,6 +11,8 @@ internal class WebGPURenderPass : GPURenderPass
     #region Properties
     private readonly WGPUDevice _nativeDevice;
     private RenderPassDescriptor _abstractDescriptor;
+
+    //the texture view are not setted in the WebGPURenderPass object, these attachments are used to create the framebuffer
     private readonly WGPURenderPassColorAttachment[] _colorAttachments;
     private readonly WGPURenderPassDepthStencilAttachment? _depthAttachment;
 
@@ -37,7 +40,7 @@ internal class WebGPURenderPass : GPURenderPass
 
     protected override void Dispose(bool disposing)
     {
-        // Nothing to do
+        // Nothing to do because only meta data inside
     }
 
     public override GPUFrameBuffer CreateFrameBuffer(uint width, uint height, string? name = null)
@@ -72,6 +75,55 @@ internal class WebGPURenderPass : GPURenderPass
         get => _nativeDevice;
     }
 
+    // used by WebGPU device to create surface render pass
+    internal unsafe WebGPURenderPass(WGPUDevice nativeDevice,
+        WGPURenderPassColorAttachment surfaceColor,
+        WGPUTextureFormat surfaceFormat,
+        WGPURenderPassDepthStencilAttachment? depthAttachment,
+        WGPUTextureFormat depthFormat,
+     string name)
+    {
+
+        ColorAttachment[] colors = new ColorAttachment[1];
+        DepthAttachment? depth = null;
+
+
+        WGPUColor clearColor = surfaceColor.clearValue;
+        colors[0] = new ColorAttachment
+        {
+            Format = UtilsWebGPU.PixelFormatToAbstract(surfaceFormat),
+            ClearColor = new Vector4(
+                (float)clearColor.r,
+                (float)clearColor.g,
+                (float)clearColor.b,
+                (float)clearColor.a
+            )
+        };
+
+
+        if (depthAttachment.HasValue)
+        {
+            depth = new DepthAttachment
+            {
+                Format = UtilsWebGPU.PixelFormatToAbstract(depthFormat),
+                ClearDepth = depthAttachment.Value.depthClearValue,
+                ClearStencil = depthAttachment.Value.stencilClearValue,
+            };
+        }
+
+        _abstractDescriptor = new RenderPassDescriptor
+        {
+            Name = name,
+            Colors = colors,
+            Depth = depth,
+        };
+
+        _nativeDevice = nativeDevice;
+        _colorAttachments = new WGPURenderPassColorAttachment[1] { surfaceColor };
+        _depthAttachment = depthAttachment;
+    }
+
+    // for GPUDevice.CreateRenderPass(RenderPassDescriptor)
     public unsafe WebGPURenderPass(WGPUDevice nativeDevice, in RenderPassDescriptor descriptor)
     {
         int colorCount = _abstractDescriptor.Colors.Length;

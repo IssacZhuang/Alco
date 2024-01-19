@@ -6,6 +6,7 @@ namespace Vocore.Graphics;
 /// </surmmary>
 public abstract class GPUFrameBuffer : BaseGPUObject
 {
+    public abstract GPURenderPass RenderPass { get; }
     public abstract IReadOnlyList<GPUTexture> Colors { get; }
     public abstract GPUTexture? Depth { get; }
     public abstract uint Width { get; }

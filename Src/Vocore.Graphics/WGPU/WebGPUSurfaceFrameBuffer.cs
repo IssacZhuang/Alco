@@ -4,12 +4,13 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
+internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
     private readonly uint _width;
     private readonly uint _height;
-    private readonly WebGPUTexture[] _colorTextures;
+    // use list for the abstraction but only one element inside
+    private readonly WebGPUSurfaceTexture[] _colorTextures;
     private readonly WebGPUTexture? _depthTexture;
     private readonly WebGPURenderPass _renderPass;
 
@@ -17,13 +18,11 @@ internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     #region Abstract Implementation
     public override string Name { get; }
-
     public override GPURenderPass RenderPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderPass;
     }
-
     public override IReadOnlyList<GPUTexture> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -76,31 +75,31 @@ internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _depthTexture;
     }
 
-    internal WebGPUFrameBuffer(WebGPURenderPass renderPass, uint width, uint height, string name)
+    internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WebGPUSurfaceTexture surfaceTexture)
     {
-        Name = name;
+        Name = "SwapChain FrameBuffer";
         _renderPass = renderPass;
 
-        _width = width;
-        _height = height;
+        _width = surfaceTexture.Width;
+        _height = surfaceTexture.Height;
 
-        _colorTextures = new WebGPUTexture[renderPass.Colors.Count];
-        for (int i = 0; i < renderPass.Colors.Count; i++)
-        {
-            _colorTextures[i] = new WebGPUTexture(
-                renderPass.NativeDevice,
-                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Colors[i].Format), width, height),
-                $"Color Texture {i}");
-        }
+        _colorTextures = new WebGPUSurfaceTexture[1];
+        _colorTextures[0] = surfaceTexture;
 
         if (renderPass.Depth.HasValue)
         {
             _depthTexture = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Depth.Value.Format), width, height),
+                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Depth.Value.Format), _width, _height),
                 "Depth Texture");
         }
     }
+
+    internal void SwapBuffers()
+    {
+        _colorTextures[0].SwapBuffer();
+    }
+
 
     private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height)
     {

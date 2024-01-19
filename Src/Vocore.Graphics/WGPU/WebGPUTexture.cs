@@ -4,7 +4,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUTexture : GPUTexture
+internal class WebGPUTexture : WebGPUTextureBase
 {
     #region Properties
     private readonly WGPUDevice _nativeDevice;
@@ -42,7 +42,7 @@ internal class WebGPUTexture : GPUTexture
 
 
     #region WebGPU Implementation
-    internal WGPUTexture Native
+    public override WGPUTexture Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _nativeTexture;
