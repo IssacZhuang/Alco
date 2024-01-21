@@ -10,7 +10,7 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private readonly uint _width;
     private readonly uint _height;
     // use list for the abstraction but only one element inside
-    private readonly WebGPUSurfaceTexture[] _colorTextures;
+    private readonly SurfaceTexture[] _colorTextures;
     private readonly WebGPUTexture? _depthTexture;
     private readonly WebGPURenderPass _renderPass;
 
@@ -75,16 +75,18 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _depthTexture;
     }
 
-    internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WebGPUSurfaceTexture surfaceTexture)
+    internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface)
     {
         Name = "SwapChain FrameBuffer";
         _renderPass = renderPass;
 
+
+        SurfaceTexture surfaceTexture = new SurfaceTexture(surface);
+        _colorTextures = new SurfaceTexture[1];
+        _colorTextures[0] = surfaceTexture;
+
         _width = surfaceTexture.Width;
         _height = surfaceTexture.Height;
-
-        _colorTextures = new WebGPUSurfaceTexture[1];
-        _colorTextures[0] = surfaceTexture;
 
         if (renderPass.Depth.HasValue)
         {
@@ -122,4 +124,92 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     }
 
     #endregion
+
+    internal class SurfaceTexture : WebGPUTextureBase
+    {
+        #region Properties
+        private const string NAME = "WebGPU Surface Texture";
+        private readonly WGPUSurface _surface;
+        // Update every frame
+        private WGPUTexture _texture;
+        //Changed when the surface is resized
+        private uint _width;
+        private uint _height;
+
+        #endregion
+
+        #region Abstract Implementation
+
+        public override uint Width
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _width;
+        }
+
+        public override uint Height
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _height;
+        }
+
+        public override uint Depth
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => 1;
+        }
+
+        public override string Name
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => NAME;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            //do nothing
+        }
+
+        #endregion
+
+        #region WebGPU Implementation
+
+        public override WGPUTexture Native
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _texture;
+        }
+
+        public unsafe SurfaceTexture(WGPUSurface surface)
+        {
+            _surface = surface;
+
+            WGPUSurfaceTexture surfaceTexture = default;
+            wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
+            _texture = surfaceTexture.texture;
+            _width = wgpuTextureGetHeight(_texture);
+            _height = wgpuTextureGetWidth(_texture);
+        }
+
+        public unsafe void SwapBuffer()
+        {
+            wgpuSurfacePresent(_surface);
+            //release the texture
+            wgpuTextureRelease(_texture);
+            //get the new texture
+            WGPUSurfaceTexture surfaceTexture = default;
+            wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
+            _texture = surfaceTexture.texture;
+            _width = wgpuTextureGetHeight(_texture);
+            _height = wgpuTextureGetWidth(_texture);
+        }
+
+        //can only be called from the device
+        internal void InternalDispose()
+        {
+            wgpuTextureRelease(_texture);
+            wgpuTextureDestroy(_texture);
+        }
+
+        #endregion
+    }
 }

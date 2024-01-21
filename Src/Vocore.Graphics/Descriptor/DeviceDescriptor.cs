@@ -1,9 +1,13 @@
+using System.Numerics;
+
 namespace Vocore.Graphics
 {
     public struct DeviceDescriptor
     {
         public DeviceDescriptor(
             SurfaceSource surfaceSource,
+            Vector4 surfaceClearColor,
+            
             GraphicsBackend backend = GraphicsBackend.Auto,
             bool vsync = false,
             bool debug = false,
@@ -13,6 +17,7 @@ namespace Vocore.Graphics
         )
         {
             SurfaceSource = surfaceSource;
+            SurfaceClearColor = surfaceClearColor;
             Backend = backend;
             VSync = vsync;
             Debug = debug;
@@ -27,6 +32,7 @@ namespace Vocore.Graphics
         public bool Debug { get; init; } = false;
         public uint InitialSurfaceSizeWidth { get; init; }
         public uint InitialSurfaceSizeHeight { get; init; }
+        public Vector4 SurfaceClearColor { get; init; } = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
         public string Name { get; init; } = "Vocore Graphics Device";
     }
 }

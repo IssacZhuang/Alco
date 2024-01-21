@@ -420,6 +420,7 @@ namespace Vocore.Engine
             if (_isDisposed) return;
             _isDisposed = true;
             Instance = null;
+            GraphicsDevice.Dispose();
             GC.SuppressFinalize(this);
         }
 

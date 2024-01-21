@@ -25,6 +25,8 @@ public partial class WebGPUDevice : GPUDevice
     private readonly WebGPUSurfaceFrameBuffer _surfaceFrameBuffer;
     private readonly WebGPURenderPass _surfaceRenderPass;
 
+    private bool _hasCommandSubmitted;
+
     #endregion
 
     #region Abstract Implementation
@@ -45,16 +47,21 @@ public partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
-        ;
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
         wgpuQueueSubmit(Queue, 1, &buffer);
+        _hasCommandSubmitted = true;
     }
 
     protected override void Dispose(bool disposing)
     {
+        _surfaceFrameBuffer.Dispose();
+        _surfaceRenderPass.Dispose();
+
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
         wgpuDeviceRelease(Device);
+        wgpuSurfaceRelease(Surface);
+        wgpuAdapterRelease(Adapter);
     }
 
     public override PixelFormat GetPrefferedDepthFomat()
@@ -120,7 +127,7 @@ public partial class WebGPUDevice : GPUDevice
         _width = width;
         _height = height;
 
-        WGPUTextureFormat viewFormat = _swapChainFormat;
+        //WGPUTextureFormat viewFormat = _swapChainFormat;
         WGPUSurfaceConfiguration surfaceConfiguration = new()
         {
             nextInChain = null,
@@ -139,56 +146,62 @@ public partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void SwapBuffersCore()
     {
-        WGPUSurfaceTexture surfaceTexture = default;
-        wgpuSurfaceGetCurrentTexture(Surface, &surfaceTexture);
+        // WGPUSurfaceTexture surfaceTexture = default;
+        // wgpuSurfaceGetCurrentTexture(Surface, &surfaceTexture);
 
-        if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Timeout)
+        // if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Timeout)
+        // {
+        //     Console.WriteLine("Cannot acquire next swap chain texture");
+        //     return;
+        // }
+
+        // if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Outdated)
+        // {
+        //     Console.WriteLine("Surface texture is outdated, reconfigure the surface!");
+        //     return;
+        // }
+
+        // WGPUTextureView view = wgpuTextureCreateView(surfaceTexture.texture, null);
+
+        // WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
+
+        // WGPURenderPassColorAttachment attachment = new WGPURenderPassColorAttachment
+        // {
+        //     view = view,
+        //     resolveTarget = WGPUTextureView.Null,
+        //     loadOp = WGPULoadOp.Clear,
+        //     storeOp = WGPUStoreOp.Store,
+        //     clearValue = new WGPUColor
+        //     {
+        //         r = 0.1,
+        //         g = 0.2,
+        //         b = 0.3,
+        //         a = 1,
+        //     },
+        // };
+        // WGPURenderPassDescriptor renderPassDescriptor = new()
+        // {
+        //     colorAttachmentCount = 1,
+        //     colorAttachments = &attachment,
+        //     depthStencilAttachment = null,
+        // };
+
+        // WGPURenderPassEncoder passEncoder = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
+        // wgpuRenderPassEncoderEnd(passEncoder);
+        // WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(encoder, null);
+        // wgpuQueueSubmit(Queue, 1, &buffer);
+        // wgpuSurfacePresent(Surface);
+        // wgpuCommandBufferRelease(buffer);
+        // wgpuCommandEncoderRelease(encoder);
+        // wgpuRenderPassEncoderRelease(passEncoder);
+        // wgpuTextureRelease(surfaceTexture.texture);
+        // wgpuTextureViewRelease(view);
+        if (!_hasCommandSubmitted)
         {
-            Console.WriteLine("Cannot acquire next swap chain texture");
             return;
         }
-
-        if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Outdated)
-        {
-            Console.WriteLine("Surface texture is outdated, reconfigure the surface!");
-            return;
-        }
-
-        WGPUTextureView view = wgpuTextureCreateView(surfaceTexture.texture, null);
-
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
-
-        WGPURenderPassColorAttachment attachment = new WGPURenderPassColorAttachment
-        {
-            view = view,
-            resolveTarget = WGPUTextureView.Null,
-            loadOp = WGPULoadOp.Clear,
-            storeOp = WGPUStoreOp.Store,
-            clearValue = new WGPUColor
-            {
-                r = 0.1,
-                g = 0.2,
-                b = 0.3,
-                a = 1,
-            },
-        };
-        WGPURenderPassDescriptor renderPassDescriptor = new()
-        {
-            colorAttachmentCount = 1,
-            colorAttachments = &attachment,
-            depthStencilAttachment = null,
-        };
-
-        WGPURenderPassEncoder passEncoder = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
-        wgpuRenderPassEncoderEnd(passEncoder);
-        WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(encoder, null);
-        wgpuQueueSubmit(Queue, 1, &buffer);
-        wgpuSurfacePresent(Surface);
-        wgpuCommandBufferRelease(buffer);
-        wgpuCommandEncoderRelease(encoder);
-        wgpuRenderPassEncoderRelease(passEncoder);
-        wgpuTextureRelease(surfaceTexture.texture);
-        wgpuTextureViewRelease(view);
+        _surfaceFrameBuffer.SwapBuffers();
+        _hasCommandSubmitted = false;
     }
 
     #endregion
@@ -260,26 +273,35 @@ public partial class WebGPUDevice : GPUDevice
         _height = descriptor.InitialSurfaceSizeHeight;
         _vsync = descriptor.VSync;
 
-        // create surface frame buffer
+        // config surface
         ResizeSurfaceCore(_width, _height);
 
-        WGPURenderPassColorAttachment surfaceColor = new WGPURenderPassColorAttachment
-        {
-            view = WGPUTextureView.Null,
-            resolveTarget = WGPUTextureView.Null,
-            loadOp = WGPULoadOp.Clear,
-            storeOp = WGPUStoreOp.Store,
-            clearValue = new WGPUColor
-            {
-                r = 0.1,
-                g = 0.2,
-                b = 0.3,
-                a = 1,
-            },
-        };
-
         //TODO: create render pass and frame buffer
-        
+        // create surface render pass
+        RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
+            new ColorAttachment[]
+            {
+                new ColorAttachment()
+                {
+                    Format = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat),
+                    ClearColor = descriptor.SurfaceClearColor,
+                },
+            },
+            new DepthAttachment()
+            {
+                Format = PixelFormat.Depth24PlusStencil8,
+                ClearDepth = 1.0f,
+                ClearStencil = 0,
+            },
+            "Surface Render Pass"
+        );
+
+        _surfaceRenderPass = new WebGPURenderPass(Device, renderPassDescriptor);
+
+        // create surface frame buffer
+        _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(_surfaceRenderPass, Surface);
+
+
     }
 
     #endregion
@@ -292,7 +314,7 @@ public partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestAdapterStatus.Success)
         {
             *(WGPUAdapter*)pUserData = candidateAdapter;
-            InfoCallback?.Invoke("adapter created");
+            InfoCallback?.Invoke("Adapter created");
         }
         else
         {
@@ -306,7 +328,7 @@ public partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestDeviceStatus.Success)
         {
             *(WGPUDevice*)pUserData = device;
-            InfoCallback?.Invoke("device created");
+            InfoCallback?.Invoke("Device created");
         }
         else
         {

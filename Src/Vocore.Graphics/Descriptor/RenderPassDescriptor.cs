@@ -10,6 +10,6 @@ public struct RenderPassDescriptor
     }
     public ColorAttachment[] Colors { get; init; }
     public DepthAttachment? Depth { get; init; }
-    public string Name { get; init; }
+    public string Name { get; init; } = "Unnamed Render Pass";
 
 }

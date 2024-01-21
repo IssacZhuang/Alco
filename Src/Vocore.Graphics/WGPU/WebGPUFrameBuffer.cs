@@ -89,15 +89,15 @@ internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
         {
             _colorTextures[i] = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Colors[i].Format), width, height),
+                BuildTextureDescriptor(renderPass.WebGPUColorInfos[i].format, width, height),
                 $"Color Texture {i}");
         }
 
-        if (renderPass.Depth.HasValue)
+        if (renderPass.WebGPUDepthInfo.HasValue)
         {
             _depthTexture = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Depth.Value.Format), width, height),
+                BuildTextureDescriptor(renderPass.WebGPUDepthInfo.Value.format, width, height),
                 "Depth Texture");
         }
     }

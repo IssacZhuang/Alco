@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using WebGPU;
@@ -175,6 +176,14 @@ public static partial class UtilsWebGPU
         };
     }
 
-    [LibraryImport("kernel32")]
-    private unsafe static partial nint GetModuleHandleW(ushort* lpModuleName);
+    public static WGPUColor ConvertColor(Vector4 color)
+    {
+        return new WGPUColor()
+        {
+            r = color.X,
+            g = color.Y,
+            b = color.Z,
+            a = color.W,
+        };
+    }
 }
