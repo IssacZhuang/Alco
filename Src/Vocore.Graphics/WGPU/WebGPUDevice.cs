@@ -18,6 +18,7 @@ public partial class WebGPUDevice : GPUDevice
 
 
     private readonly WGPUTextureFormat _swapChainFormat;
+    private readonly PixelFormat _preferredSurfaceFormat;
     private uint _width;
     private uint _height;
     private bool _vsync;
@@ -33,10 +34,29 @@ public partial class WebGPUDevice : GPUDevice
 
     public override string Name { get; }
 
-    public override GPURenderPass SwapChainRenderPass => throw new NotImplementedException();
+    public override GPURenderPass SwapChainRenderPass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _surfaceRenderPass;
+    }
 
-    public override GPUFrameBuffer SwapChainFrameBuffer => throw new NotImplementedException();
+    public override GPUFrameBuffer SwapChainFrameBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _surfaceFrameBuffer;
+    }
 
+    public override PixelFormat PrefferedDepthFomat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => PixelFormat.Depth24PlusStencil8;
+    }
+
+    public override PixelFormat PrefferedSurfaceFomat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _preferredSurfaceFormat;
+    }
     public override bool VSync
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -64,19 +84,9 @@ public partial class WebGPUDevice : GPUDevice
         wgpuAdapterRelease(Adapter);
     }
 
-    public override PixelFormat GetPrefferedDepthFomat()
-    {
-        throw new NotImplementedException();
-    }
-
-    public override PixelFormat GetPrefferedSurfaceFomat()
-    {
-        throw new NotImplementedException();
-    }
-
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
-        throw new NotImplementedException();
+        return new WebGPUBuffer(Native, descriptor);
     }
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
@@ -97,23 +107,22 @@ public partial class WebGPUDevice : GPUDevice
 
     protected override void DestroyBufferCore(GPUBuffer buffer)
     {
-        throw new NotImplementedException();
+        buffer.Dispose();
     }
 
     protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
     {
-        throw new NotImplementedException();
+        commandBuffer.Dispose();
     }
-
 
     protected override void DestroyTextureCore(GPUTexture texture)
     {
-        throw new NotImplementedException();
+        texture.Dispose();
     }
 
     protected override void DestroyRenderPassCore(GPURenderPass renderPass)
     {
-        throw new NotImplementedException();
+        renderPass.Dispose();
     }
 
     protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
@@ -269,6 +278,8 @@ public partial class WebGPUDevice : GPUDevice
 
         // load config
         _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
+        _preferredSurfaceFormat = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat);
+
         _width = descriptor.InitialSurfaceSizeWidth;
         _height = descriptor.InitialSurfaceSizeHeight;
         _vsync = descriptor.VSync;

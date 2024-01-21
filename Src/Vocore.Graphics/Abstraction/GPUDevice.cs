@@ -10,6 +10,8 @@ public abstract class GPUDevice : BaseGPUObject
 
     public abstract GPURenderPass SwapChainRenderPass { get; }
     public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
+    public abstract PixelFormat PrefferedSurfaceFomat { get; }
+    public abstract PixelFormat PrefferedDepthFomat { get; }
     public abstract bool VSync { get; set; }
 
 
@@ -158,8 +160,7 @@ public abstract class GPUDevice : BaseGPUObject
         UpdateBuffer(buffer, 0, data);
     }
 
-    public abstract PixelFormat GetPrefferedSurfaceFomat();
-    public abstract PixelFormat GetPrefferedDepthFomat();
+
 
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
 

@@ -13,16 +13,22 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         get => _isRecording;
     }
 
-    public void Begin(GPURenderPass renderPass)
+    public void Begin()
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
-        InternalBegin(renderPass);
+        InternalBegin();
     }
 
     public void End()
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
         InternalEnd();
+    }
+
+    public void SetFrameBuffer(GPUFrameBuffer frameBuffer)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetFrameBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        InternalSetFrameBuffer(frameBuffer);
     }
 
     public void SetPipeline(GPUPipeline pipeline)
@@ -109,8 +115,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
 
     // need to be implemented for each backend
-    protected abstract void InternalBegin(GPURenderPass renderPass);
+    protected abstract void InternalBegin();
     protected abstract void InternalEnd();
+    protected abstract void InternalSetFrameBuffer(GPUFrameBuffer frameBuffer);
     protected abstract void InternalSetPipeline(GPUPipeline pipeline);
     protected abstract void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);

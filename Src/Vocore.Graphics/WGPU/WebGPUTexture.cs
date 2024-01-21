@@ -10,6 +10,7 @@ internal class WebGPUTexture : WebGPUTextureBase
     private readonly WGPUDevice _nativeDevice;
     private readonly WGPUTexture _nativeTexture;
     private readonly WGPUExtent3D _size;
+    private readonly WGPUTextureView _defaultView;
 
     #endregion
 
@@ -36,6 +37,8 @@ internal class WebGPUTexture : WebGPUTextureBase
     protected override void Dispose(bool disposing)
     {
         wgpuTextureRelease(_nativeTexture);
+        wgpuTextureDestroy(_nativeTexture);
+        wgpuTextureViewRelease(_defaultView);
     }
 
     #endregion
@@ -48,6 +51,12 @@ internal class WebGPUTexture : WebGPUTextureBase
         get => _nativeTexture;
     }
 
+    public override WGPUTextureView DefaultView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _defaultView;
+    }
+
     internal unsafe WebGPUTexture(WGPUDevice nativeDevice, in WGPUTextureDescriptor descriptor, string name)
     {
         Name = name;
@@ -55,6 +64,7 @@ internal class WebGPUTexture : WebGPUTextureBase
         _nativeDevice = nativeDevice;
         _size = descriptor.size;
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+        _defaultView = wgpuTextureCreateView(_nativeTexture, null);
     }
 
     internal unsafe WebGPUTexture(WGPUDevice nativeDevice, in TextureDescriptor descriptor)
@@ -80,14 +90,6 @@ internal class WebGPUTexture : WebGPUTextureBase
         };
 
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
-    }
-
-    public unsafe WGPUTextureView CreateView(in WGPUTextureViewDescriptor descriptor)
-    {
-        fixed (WGPUTextureViewDescriptor* descriptorPtr = &descriptor)
-        {
-            return wgpuTextureCreateView(_nativeTexture, descriptorPtr);
-        }
     }
 
     #endregion

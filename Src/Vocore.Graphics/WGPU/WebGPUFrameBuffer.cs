@@ -1,17 +1,23 @@
 using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
+using static Vocore.Graphics.UtilsInterop;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
+internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
     private readonly uint _width;
     private readonly uint _height;
+
     private readonly WebGPUTexture[] _colorTextures;
     private readonly WebGPUTexture? _depthTexture;
     private readonly WebGPURenderPass _renderPass;
+    private readonly WGPURenderPassDescriptor _descriptor;
+    // native memory, need to be manually released
+    private readonly WGPURenderPassColorAttachment* _colorAttachments;
+    private readonly WGPURenderPassDepthStencilAttachment* _depthAttachment;
 
     #endregion
 
@@ -56,24 +62,20 @@ internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
             texture.Dispose();
         }
 
-
         _depthTexture?.Dispose();
+
+        Free(_colorAttachments);
+        Free(_depthAttachment);
     }
 
     #endregion
 
     #region WebGPU Implementation
 
-    public override IReadOnlyList<WebGPUTextureBase> WebGPUColorTextures
+    public override WGPURenderPassDescriptor Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _colorTextures;
-    }
-
-    public override WebGPUTextureBase? WebGPUDepthTexture
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthTexture;
+        get => _descriptor;
     }
 
     internal WebGPUFrameBuffer(WebGPURenderPass renderPass, uint width, uint height, string name)
@@ -85,21 +87,58 @@ internal class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _height = height;
 
         _colorTextures = new WebGPUTexture[renderPass.Colors.Count];
-        for (int i = 0; i < renderPass.Colors.Count; i++)
+        _descriptor = new WGPURenderPassDescriptor
         {
+            colorAttachmentCount = (uint)renderPass.Colors.Count,
+        };
+
+        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(renderPass.Colors.Count);
+        for (int i = 0; i < renderPass.WebGPUColorInfos.Count; i++)
+        {
+            WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
+
             _colorTextures[i] = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(renderPass.WebGPUColorInfos[i].format, width, height),
+                BuildTextureDescriptor(colorInfo.format, width, height),
                 $"Color Texture {i}");
+
+            // TODO: fiil the texure view
+            _colorAttachments[i] = new WGPURenderPassColorAttachment
+            {
+                view = _colorTextures[i].DefaultView,
+                loadOp = WGPULoadOp.Clear,
+                storeOp = WGPUStoreOp.Store,
+                clearValue = colorInfo.clearColor,
+            };
         }
 
         if (renderPass.WebGPUDepthInfo.HasValue)
         {
+            WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
+
             _depthTexture = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(renderPass.WebGPUDepthInfo.Value.format, width, height),
+                BuildTextureDescriptor(depthInfo.format, width, height),
                 "Depth Texture");
+            _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
+
+            // TODO: fiil the texure view
+            *_depthAttachment = new WGPURenderPassDepthStencilAttachment
+            {
+                view = _depthTexture.DefaultView,
+                depthLoadOp = WGPULoadOp.Clear,
+                depthStoreOp = WGPUStoreOp.Store,
+                depthClearValue = depthInfo.clearDepth,
+                stencilLoadOp = WGPULoadOp.Clear,
+                stencilStoreOp = WGPUStoreOp.Store,
+                stencilClearValue = depthInfo.clearStencil,
+            };
         }
+
+        _descriptor.colorAttachments = _colorAttachments;
+        _descriptor.depthStencilAttachment = _depthAttachment;
+
+
     }
 
     private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height)

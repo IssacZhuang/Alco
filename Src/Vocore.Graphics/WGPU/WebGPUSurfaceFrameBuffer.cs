@@ -10,7 +10,7 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private readonly uint _width;
     private readonly uint _height;
     // use list for the abstraction but only one element inside
-    private readonly SurfaceTexture[] _colorTextures;
+    private readonly WebGPUSurfaceTexture[] _colorTextures;
     private readonly WebGPUTexture? _depthTexture;
     private readonly WebGPURenderPass _renderPass;
 
@@ -47,6 +47,8 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _height;
     }
 
+    public override WGPURenderPassDescriptor Native => throw new NotImplementedException();
+
     protected override void Dispose(bool disposing)
     {
 
@@ -63,26 +65,14 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     #region WebGPU Implementation
 
-    public override IReadOnlyList<WebGPUTextureBase> WebGPUColorTextures
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _colorTextures;
-    }
-
-    public override WebGPUTextureBase? WebGPUDepthTexture
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthTexture;
-    }
-
     internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface)
     {
         Name = "SwapChain FrameBuffer";
         _renderPass = renderPass;
 
 
-        SurfaceTexture surfaceTexture = new SurfaceTexture(surface);
-        _colorTextures = new SurfaceTexture[1];
+        WebGPUSurfaceTexture surfaceTexture = new WebGPUSurfaceTexture(surface);
+        _colorTextures = new WebGPUSurfaceTexture[1];
         _colorTextures[0] = surfaceTexture;
 
         _width = surfaceTexture.Width;
@@ -125,13 +115,14 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     #endregion
 
-    internal class SurfaceTexture : WebGPUTextureBase
+    internal class WebGPUSurfaceTexture : WebGPUTextureBase
     {
         #region Properties
         private const string NAME = "WebGPU Surface Texture";
         private readonly WGPUSurface _surface;
         // Update every frame
         private WGPUTexture _texture;
+        private WGPUTextureView _defaultView;
         //Changed when the surface is resized
         private uint _width;
         private uint _height;
@@ -166,7 +157,9 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
         protected override void Dispose(bool disposing)
         {
-            //do nothing
+            wgpuTextureRelease(_texture);
+            wgpuTextureDestroy(_texture);
+            wgpuTextureViewRelease(_defaultView);
         }
 
         #endregion
@@ -179,7 +172,13 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => _texture;
         }
 
-        public unsafe SurfaceTexture(WGPUSurface surface)
+        public override WGPUTextureView DefaultView
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _defaultView;
+        }
+
+        public unsafe WebGPUSurfaceTexture(WGPUSurface surface)
         {
             _surface = surface;
 
@@ -188,6 +187,8 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _texture = surfaceTexture.texture;
             _width = wgpuTextureGetHeight(_texture);
             _height = wgpuTextureGetWidth(_texture);
+
+            _defaultView = wgpuTextureCreateView(_texture, null);
         }
 
         public unsafe void SwapBuffer()
@@ -201,14 +202,12 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _texture = surfaceTexture.texture;
             _width = wgpuTextureGetHeight(_texture);
             _height = wgpuTextureGetWidth(_texture);
+
+            //refresh the view
+            wgpuTextureViewRelease(_defaultView);
+            _defaultView = wgpuTextureCreateView(_texture, null);
         }
 
-        //can only be called from the device
-        internal void InternalDispose()
-        {
-            wgpuTextureRelease(_texture);
-            wgpuTextureDestroy(_texture);
-        }
 
         #endregion
     }

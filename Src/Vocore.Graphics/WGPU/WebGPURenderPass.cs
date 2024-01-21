@@ -8,28 +8,17 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPURenderPass : GPURenderPass
 {
-    internal struct ColorAttachmentInfo
-    {
-        public WGPUTextureFormat format;
-        public WGPUColor clearColor;
-    }
 
-    internal struct DepthAttachmentInfo
-    {
-        public WGPUTextureFormat format;
-        public float clearDepth;
-        public bool isDepthReadOnly;
-        public uint clearStencil;
-        public bool isStencilReadOnly;
-    }
+
+
 
     #region Properties
     private readonly WGPUDevice _nativeDevice;
     private readonly RenderPassDescriptor _descriptor;
 
     //the texture view are not setted in the WebGPURenderPass object, these attachments are used to create the framebuffer
-    private readonly ColorAttachmentInfo[] _colorInfos;
-    private readonly DepthAttachmentInfo? _depthInfo;
+    private readonly WGPUColorAttachmentInfo[] _colorInfos;
+    private readonly WGPUDepthAttachmentInfo? _depthInfo;
 
     #endregion
 
@@ -72,13 +61,13 @@ internal class WebGPURenderPass : GPURenderPass
 
     #region WebGPU Implementation
 
-    internal IReadOnlyList<ColorAttachmentInfo> WebGPUColorInfos
+    internal IReadOnlyList<WGPUColorAttachmentInfo> WebGPUColorInfos
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorInfos;
     }
 
-    internal DepthAttachmentInfo? WebGPUDepthInfo
+    internal WGPUDepthAttachmentInfo? WebGPUDepthInfo
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depthInfo;
@@ -98,11 +87,11 @@ internal class WebGPURenderPass : GPURenderPass
 
         int colorCount = descriptor.Colors.Length;
 
-        _colorInfos = new ColorAttachmentInfo[colorCount];
+        _colorInfos = new WGPUColorAttachmentInfo[colorCount];
         for (int i = 0; i < colorCount; i++)
         {
             ColorAttachment color = descriptor.Colors[i];
-            _colorInfos[i] = new ColorAttachmentInfo
+            _colorInfos[i] = new WGPUColorAttachmentInfo
             {
                 format = UtilsWebGPU.PixelFormatToWebGPU(color.Format),
                 clearColor = UtilsWebGPU.ConvertColor(color.ClearColor),
@@ -112,7 +101,7 @@ internal class WebGPURenderPass : GPURenderPass
         if (descriptor.Depth.HasValue)
         {
             DepthAttachment depth = descriptor.Depth.Value;
-            _depthInfo = new DepthAttachmentInfo
+            _depthInfo = new WGPUDepthAttachmentInfo
             {
                 format = UtilsWebGPU.PixelFormatToWebGPU(depth.Format),
                 clearDepth = depth.ClearDepth,

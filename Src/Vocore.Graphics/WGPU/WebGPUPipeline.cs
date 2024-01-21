@@ -5,11 +5,11 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUPipeline : GPUPipeline
+internal class WebGPUGraphicsPipeline : GPUPipeline
 {
     public override string Name { get; }
     private readonly WGPURenderPipeline _graphicsipeline;
-    private readonly WGPUComputePipeline _computePipeline;
+    private readonly ShaderStage _stages;
 
     public WGPURenderPipeline Native
     {
@@ -17,26 +17,25 @@ internal class WebGPUPipeline : GPUPipeline
         get => _graphicsipeline;
     }
 
-    public override ShaderStage Stages => throw new NotImplementedException();
-
-    public unsafe WebGPUPipeline(WGPUDevice nativeDevice, in ComputePipelineDescriptor descriptor)
+    public override ShaderStage Stages
     {
-        Name = descriptor.Name;
-        if (descriptor.Source.Stage != ShaderStage.Compute)
-        {
-            throw new ArgumentException("The shader stage must be compute when creating a compute pipeline");
-        }
-
-        // TODO: descriptor
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _stages;
     }
 
-    public unsafe WebGPUPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
+    public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
     {
         Name = descriptor.Name;
         // Create shader modules
         if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderStageSource vertex, out ShaderStageSource pixel))
         {
             throw new ArgumentException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
+        }
+
+        _stages = ShaderStage.None;
+        for (int i = 0; i < descriptor.ShaderStages.Length; i++)
+        {
+            _stages |= descriptor.ShaderStages[i].Stage;
         }
 
         WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);

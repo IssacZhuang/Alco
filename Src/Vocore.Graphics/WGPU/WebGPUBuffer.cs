@@ -18,7 +18,7 @@ internal class WebGPUBuffer : GPUBuffer
 
     public override string Name { get; }
 
-    public unsafe WebGPUBuffer(WebGPUDevice device, in BufferDescriptor descriptor)
+    public unsafe WebGPUBuffer(WGPUDevice nativeDevice, in BufferDescriptor descriptor)
     {
         Name = descriptor.Name;
         fixed (sbyte* name = descriptor.Name.GetUtf8Span())
@@ -32,7 +32,7 @@ internal class WebGPUBuffer : GPUBuffer
                 mappedAtCreation = false,
             };
 
-            _buffer = wgpuDeviceCreateBuffer(device.Native, &bufferDescriptor);
+            _buffer = wgpuDeviceCreateBuffer(nativeDevice, &bufferDescriptor);
         }
     }
 

@@ -6,20 +6,28 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPUCommandBuffer : GPUCommandBuffer
 {
+    #region Properties
     private readonly WGPUDevice _nativeDevice;
 
     // used every frame
     private WGPUCommandEncoder _encoder;
+
+    // cached state create by internal 
     private WGPURenderPassEncoder _renderPass;
+    private WGPUComputePassEncoder _computePass;
+
+    // cached state from outside
+    private WGPURenderPipeline _graphicsPipeline;
+    private WGPUComputePipeline _computePipeline;
+
     // create on end(), can be reused
     private WGPUCommandBuffer _buffer;
 
-    public override string Name {get;}
-    public WGPUCommandBuffer Native
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer;
-    }
+    #endregion
+
+    #region Abstract Implementation
+
+    public override string Name { get; }
 
     public override bool HasBuffer
     {
@@ -27,7 +35,96 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         get => _buffer != WGPUCommandBuffer.Null;
     }
 
-    
+    protected override void Dispose(bool disposing)
+    {
+        ReleaseCommandBuffer();
+        ReleaseCommandEncoder();
+        ReleaseComputePass();
+        ReleaseRenderPass();
+    }
+
+    // begin the encoder
+    protected unsafe override void InternalBegin()
+    {
+        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
+
+        // clear buffer
+        wgpuCommandBufferRelease(_buffer);
+        _buffer = WGPUCommandBuffer.Null;
+    }
+
+    // end the encoder
+    protected unsafe override void InternalEnd()
+    {
+        _buffer = wgpuCommandEncoderFinish(_encoder, Name);
+
+        // release encoder
+        wgpuCommandEncoderRelease(_encoder);
+        _encoder = WGPUCommandEncoder.Null;
+    }
+
+    protected override unsafe void InternalSetFrameBuffer(GPUFrameBuffer frameBuffer)
+    {
+        WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
+    }
+
+    protected override void InternalSetPipeline(GPUPipeline pipeline)
+    {
+        WGPURenderPipeline nativePipeline = ((WebGPUGraphicsPipeline)pipeline).Native;
+        wgpuRenderPassEncoderSetPipeline(_renderPass, nativePipeline);
+    }
+
+    protected override void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    {
+        wgpuRenderPassEncoderDrawIndexed(_renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
+
+    protected override void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    {
+
+    }
+
+    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    {
+
+    }
+
+    protected override void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
+    {
+        throw new NotImplementedException();
+    }
+
+    #endregion
+
+    #region WebGPU Implementation
+
+    public WGPUCommandBuffer Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _buffer;
+    }
+
+    public bool HasRenderPass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _renderPass != WGPURenderPassEncoder.Null;
+    }
+
+    public bool HasComputePass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _computePass != WGPUComputePassEncoder.Null;
+    }
 
     public unsafe WebGPUCommandBuffer(WGPUDevice nativeDevice, CommandBufferDescriptor? descriptor = null)
     {
@@ -46,24 +143,34 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
 
         _buffer = WGPUCommandBuffer.Null;
-        _renderPass = WGPURenderPassEncoder.Null;
         _encoder = WGPUCommandEncoder.Null;
+
+        _renderPass = WGPURenderPassEncoder.Null;
+        _computePass = WGPUComputePassEncoder.Null;
     }
 
-    protected override void Dispose(bool disposing)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ReleaseRenderPass()
     {
-        if (_buffer != WGPUCommandBuffer.Null)
-        {
-            wgpuCommandBufferRelease(_buffer);
-            _buffer = WGPUCommandBuffer.Null;
-        }
-
         if (_renderPass != WGPURenderPassEncoder.Null)
         {
             wgpuRenderPassEncoderRelease(_renderPass);
             _renderPass = WGPURenderPassEncoder.Null;
         }
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ReleaseComputePass()
+    {
+        if (_computePass != WGPUComputePassEncoder.Null)
+        {
+            wgpuComputePassEncoderRelease(_computePass);
+            _computePass = WGPUComputePassEncoder.Null;
+        }
+    }
+
+    private void ReleaseCommandEncoder()
+    {
         if (_encoder != WGPUCommandEncoder.Null)
         {
             wgpuCommandEncoderRelease(_encoder);
@@ -71,67 +178,26 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    protected unsafe override void InternalBegin(GPURenderPass renderPass)
+    private void ReleaseCommandBuffer()
     {
-        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
-
-        // begin render pass
-        WebGPURenderPass webGPURenderPass = (WebGPURenderPass)renderPass;
-        // WGPURenderPassDescriptor descriptor = webGPURenderPass.RenderPassDescriptor;
-        // _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
-
-        // clear buffer
-        wgpuCommandBufferRelease(_buffer);
-        _buffer = WGPUCommandBuffer.Null;
+        if (_buffer != WGPUCommandBuffer.Null)
+        {
+            wgpuCommandBufferRelease(_buffer);
+            _buffer = WGPUCommandBuffer.Null;
+        }
     }
 
-    protected unsafe override void InternalEnd()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ClearGraphicsPipeline()
     {
-        _buffer = wgpuCommandEncoderFinish(_encoder, Name);
-
-        // release encoder
-        wgpuCommandEncoderRelease(_encoder);
-        _encoder = WGPUCommandEncoder.Null;
-
-        // release render pass
-        wgpuRenderPassEncoderRelease(_renderPass);
-        _renderPass = WGPURenderPassEncoder.Null;
+        _graphicsPipeline = WGPURenderPipeline.Null;
     }
 
-    protected override void InternalSetPipeline(GPUPipeline pipeline)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ClearComputePipeline()
     {
-        WGPURenderPipeline nativePipeline = ((WebGPUPipeline)pipeline).Native;
-        wgpuRenderPassEncoderSetPipeline(_renderPass, nativePipeline);
+        _computePipeline = WGPUComputePipeline.Null;
     }
 
-    protected override void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
-    {
-        wgpuRenderPassEncoderDrawIndexed(_renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-    }
-
-    protected override void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
-    {
-        throw new NotImplementedException();
-    }
-
-    protected override void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
-    {
-
-
-    }
-
-    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
-    {
-
-    }
-
-    protected override void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
-    {
-        throw new NotImplementedException();
-    }
-
-    protected override void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
-    {
-        throw new NotImplementedException();
-    }
+    #endregion
 }
