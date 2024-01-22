@@ -16,12 +16,14 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     public void Begin()
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
+        _isRecording = true;
         InternalBegin();
     }
 
     public void End()
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
+        _isRecording = false;
         InternalEnd();
     }
 

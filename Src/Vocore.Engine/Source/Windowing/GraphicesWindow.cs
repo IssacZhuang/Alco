@@ -31,7 +31,7 @@ namespace Vocore.Engine
             {
                 Debug = false,
                 VSync = false,
-                Backend = GraphicsBackend.Vulkan,
+                Backend = GraphicsBackend.Auto,
                 SurfaceSource = surfaceSource,
                 InitialSurfaceSizeWidth = (uint)setting.Width,
                 InitialSurfaceSizeHeight = (uint)setting.Height,

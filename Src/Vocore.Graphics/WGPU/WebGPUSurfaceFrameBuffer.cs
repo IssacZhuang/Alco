@@ -229,8 +229,9 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             WGPUSurfaceTexture surfaceTexture = default;
             wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
             _texture = surfaceTexture.texture;
-            _width = wgpuTextureGetHeight(_texture);
-            _height = wgpuTextureGetWidth(_texture);
+            _width = wgpuTextureGetWidth(_texture);
+            _height = wgpuTextureGetHeight(_texture);
+
 
             _defaultView = wgpuTextureCreateView(_texture, null);
         }
@@ -244,8 +245,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             WGPUSurfaceTexture surfaceTexture = default;
             wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
             _texture = surfaceTexture.texture;
-            _width = wgpuTextureGetHeight(_texture);
-            _height = wgpuTextureGetWidth(_texture);
+            _width = wgpuTextureGetWidth(_texture);
+            _height = wgpuTextureGetHeight(_texture);
 
             //refresh the view
             wgpuTextureViewRelease(_defaultView);

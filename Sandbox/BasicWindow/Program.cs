@@ -2,7 +2,9 @@
 using Vocore;
 using Vocore.Engine;
 
-GameEngineSetting setting = GameEngineSetting.Default;
+GameEngineSetting setting = GameEngineSetting.Default with{
+    StopWhenError = true,
+};
 setting.GraphicsAPI = GraphicsBackend.OpenGL;
 setting.WindowName = "Basic Window";
 

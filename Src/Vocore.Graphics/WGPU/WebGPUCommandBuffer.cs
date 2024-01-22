@@ -12,7 +12,7 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     // used every frame
     private WGPUCommandEncoder _encoder;
 
-    // cached state create by internal 
+    // cached state create by internal, release on end()
     private WGPURenderPassEncoder _renderPass;
     private WGPUComputePassEncoder _computePass;
 
@@ -39,23 +39,29 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     {
         ReleaseCommandBuffer();
         ReleaseCommandEncoder();
-        ReleaseComputePass();
-        ReleaseRenderPass();
+
     }
 
     // begin the encoder
     protected unsafe override void InternalBegin()
     {
+        return;
         _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
 
         // clear buffer
-        wgpuCommandBufferRelease(_buffer);
-        _buffer = WGPUCommandBuffer.Null;
+        if (_buffer != WGPUCommandBuffer.Null)
+        {
+            wgpuCommandBufferRelease(_buffer);
+            _buffer = WGPUCommandBuffer.Null;
+        }
     }
 
     // end the encoder
     protected unsafe override void InternalEnd()
     {
+        return;
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
         _buffer = wgpuCommandEncoderFinish(_encoder, Name);
 
         // release encoder
@@ -65,7 +71,29 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override unsafe void InternalSetFrameBuffer(GPUFrameBuffer frameBuffer)
     {
+        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
+
+        // clear buffer
+        if (_buffer != WGPUCommandBuffer.Null)
+        {
+            wgpuCommandBufferRelease(_buffer);
+            _buffer = WGPUCommandBuffer.Null;
+        }
+
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
+
+        //TryFinishCurrentRenderPass();
+        WGPURenderPassDescriptor descriptor = nativeFrameBuffer.Native;
+        _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
+
+        //TryFinishCurrentRenderPass();
+        //TryFinishCurrentComputePass();
+        wgpuRenderPassEncoderEnd(_renderPass);
+        _buffer = wgpuCommandEncoderFinish(_encoder, Name);
+
+        // release encoder
+        wgpuCommandEncoderRelease(_encoder);
+        _encoder = WGPUCommandEncoder.Null;
     }
 
     protected override void InternalSetPipeline(GPUPipeline pipeline)
@@ -149,26 +177,6 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         _computePass = WGPUComputePassEncoder.Null;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ReleaseRenderPass()
-    {
-        if (_renderPass != WGPURenderPassEncoder.Null)
-        {
-            wgpuRenderPassEncoderRelease(_renderPass);
-            _renderPass = WGPURenderPassEncoder.Null;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ReleaseComputePass()
-    {
-        if (_computePass != WGPUComputePassEncoder.Null)
-        {
-            wgpuComputePassEncoderRelease(_computePass);
-            _computePass = WGPUComputePassEncoder.Null;
-        }
-    }
-
     private void ReleaseCommandEncoder()
     {
         if (_encoder != WGPUCommandEncoder.Null)
@@ -184,6 +192,31 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         {
             wgpuCommandBufferRelease(_buffer);
             _buffer = WGPUCommandBuffer.Null;
+        }
+    }
+
+    private unsafe void StartRenderPass(WGPURenderPassDescriptor descriptor)
+    {
+        _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
+    }
+
+    private void TryFinishCurrentRenderPass()
+    {
+        if (_renderPass != WGPURenderPassEncoder.Null)
+        {
+            wgpuRenderPassEncoderEnd(_renderPass);
+            wgpuRenderPassEncoderRelease(_renderPass);
+            _renderPass = WGPURenderPassEncoder.Null;
+        }
+    }
+
+    private void TryFinishCurrentComputePass()
+    {
+        if (_computePass != WGPUComputePassEncoder.Null)
+        {
+            wgpuComputePassEncoderEnd(_computePass);
+            wgpuComputePassEncoderRelease(_computePass);
+            _computePass = WGPUComputePassEncoder.Null;
         }
     }
 
