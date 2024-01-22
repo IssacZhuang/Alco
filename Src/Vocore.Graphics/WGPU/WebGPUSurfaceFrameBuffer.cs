@@ -1,10 +1,11 @@
 using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
+using static Vocore.Graphics.UtilsInterop;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
+internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
     private readonly uint _width;
@@ -13,6 +14,10 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private readonly WebGPUSurfaceTexture[] _colorTextures;
     private readonly WebGPUTexture? _depthTexture;
     private readonly WebGPURenderPass _renderPass;
+    private readonly WGPURenderPassDescriptor _descriptor;
+    // native memory, need to be manually released
+    private readonly WGPURenderPassColorAttachment* _colorAttachments;
+    private readonly WGPURenderPassDepthStencilAttachment* _depthAttachment;
 
     #endregion
 
@@ -47,7 +52,7 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _height;
     }
 
-    public override WGPURenderPassDescriptor Native => throw new NotImplementedException();
+
 
     protected override void Dispose(bool disposing)
     {
@@ -57,33 +62,72 @@ internal class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             texture.Dispose();
         }
 
-
         _depthTexture?.Dispose();
+        Free(_colorAttachments);
+        Free(_depthAttachment);
     }
 
     #endregion
 
     #region WebGPU Implementation
 
+    public override WGPURenderPassDescriptor Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _descriptor;
+    }
     internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface)
     {
         Name = "SwapChain FrameBuffer";
         _renderPass = renderPass;
 
+        _descriptor = new WGPURenderPassDescriptor
+        {
+            colorAttachmentCount = 1,
+            colorAttachments = null,
+            depthStencilAttachment = null,
+        };
 
         WebGPUSurfaceTexture surfaceTexture = new WebGPUSurfaceTexture(surface);
         _colorTextures = new WebGPUSurfaceTexture[1];
         _colorTextures[0] = surfaceTexture;
 
+        WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[0];
+
+        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(1);
+        _colorAttachments[0] = new WGPURenderPassColorAttachment
+        {
+            view = surfaceTexture.DefaultView,
+            loadOp = WGPULoadOp.Clear,
+            storeOp = WGPUStoreOp.Store,
+            clearValue = colorInfo.clearColor,
+        };
+        _descriptor.colorAttachments = _colorAttachments;
+
         _width = surfaceTexture.Width;
         _height = surfaceTexture.Height;
 
-        if (renderPass.Depth.HasValue)
+        if (renderPass.WebGPUDepthInfo.HasValue)
         {
+            _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
+            WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
             _depthTexture = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(UtilsWebGPU.PixelFormatToWebGPU(renderPass.Depth.Value.Format), _width, _height),
+                BuildTextureDescriptor(depthInfo.format, _width, _height),
                 "Depth Texture");
+
+            _depthAttachment[0] = new WGPURenderPassDepthStencilAttachment
+            {
+                view = _depthTexture.DefaultView,
+                depthLoadOp = WGPULoadOp.Clear,
+                depthStoreOp = WGPUStoreOp.Store,
+                depthClearValue = depthInfo.clearDepth,
+                stencilLoadOp = WGPULoadOp.Clear,
+                stencilStoreOp = WGPUStoreOp.Store,
+                stencilClearValue = depthInfo.clearStencil,
+            };
+
+            _descriptor.depthStencilAttachment = _depthAttachment;
         }
     }
 
