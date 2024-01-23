@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Silk.NET.Core.Contexts;
 using Silk.NET.Maths;
@@ -35,6 +36,7 @@ namespace Vocore.Engine
                 SurfaceSource = surfaceSource,
                 InitialSurfaceSizeWidth = (uint)setting.Width,
                 InitialSurfaceSizeHeight = (uint)setting.Height,
+                SurfaceClearColor = new Vector4(0.1f, 0.2f, 0.2f, 1.0f),
                 Name = setting.Title = " Graphics Device"
             };
 

@@ -45,7 +45,6 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     // begin the encoder
     protected unsafe override void InternalBegin()
     {
-        return;
         _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
 
         // clear buffer
@@ -59,7 +58,6 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     // end the encoder
     protected unsafe override void InternalEnd()
     {
-        return;
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
         _buffer = wgpuCommandEncoderFinish(_encoder, Name);
@@ -71,29 +69,12 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override unsafe void InternalSetFrameBuffer(GPUFrameBuffer frameBuffer)
     {
-        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
-
-        // clear buffer
-        if (_buffer != WGPUCommandBuffer.Null)
-        {
-            wgpuCommandBufferRelease(_buffer);
-            _buffer = WGPUCommandBuffer.Null;
-        }
-
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
 
-        //TryFinishCurrentRenderPass();
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
         WGPURenderPassDescriptor descriptor = nativeFrameBuffer.Native;
         _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
-
-        //TryFinishCurrentRenderPass();
-        //TryFinishCurrentComputePass();
-        wgpuRenderPassEncoderEnd(_renderPass);
-        _buffer = wgpuCommandEncoderFinish(_encoder, Name);
-
-        // release encoder
-        wgpuCommandEncoderRelease(_encoder);
-        _encoder = WGPUCommandEncoder.Null;
     }
 
     protected override void InternalSetPipeline(GPUPipeline pipeline)

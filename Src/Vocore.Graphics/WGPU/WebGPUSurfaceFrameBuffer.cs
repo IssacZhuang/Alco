@@ -98,6 +98,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _colorAttachments[0] = new WGPURenderPassColorAttachment
         {
             view = surfaceTexture.DefaultView,
+            resolveTarget = WGPUTextureView.Null,
             loadOp = WGPULoadOp.Clear,
             storeOp = WGPUStoreOp.Store,
             clearValue = colorInfo.clearColor,
@@ -134,6 +135,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     internal void SwapBuffers()
     {
         _colorTextures[0].SwapBuffer();
+        _colorAttachments[0].view = _colorTextures[0].DefaultView;
     }
 
 
