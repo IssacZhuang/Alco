@@ -135,22 +135,7 @@ public partial class WebGPUDevice : GPUDevice
     {
         _width = width;
         _height = height;
-
-        //WGPUTextureFormat viewFormat = _swapChainFormat;
-        WGPUSurfaceConfiguration surfaceConfiguration = new()
-        {
-            nextInChain = null,
-            device = Device,
-            format = _swapChainFormat,
-            usage = WGPUTextureUsage.RenderAttachment,
-            // viewFormatCount = 0,
-            // viewFormats = null,
-            alphaMode = WGPUCompositeAlphaMode.Auto,
-            width = width,
-            height = height,
-            presentMode = _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Immediate,
-        };
-        wgpuSurfaceConfigure(Surface, &surfaceConfiguration);
+        _surfaceFrameBuffer.UpdateSurfaceConfig(GetSurfaceConfig());
     }
 
     protected unsafe override void SwapBuffersCore()
@@ -284,9 +269,6 @@ public partial class WebGPUDevice : GPUDevice
         _height = descriptor.InitialSurfaceSizeHeight;
         _vsync = descriptor.VSync;
 
-        // config surface
-        ResizeSurfaceCore(_width, _height);
-
         //TODO: create render pass and frame buffer
         // create surface render pass
         RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
@@ -310,9 +292,24 @@ public partial class WebGPUDevice : GPUDevice
         _surfaceRenderPass = new WebGPURenderPass(Device, renderPassDescriptor);
 
         // create surface frame buffer
-        _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(_surfaceRenderPass, Surface);
+        _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(_surfaceRenderPass, Surface, GetSurfaceConfig());
+    }
 
-
+    private WGPUSurfaceConfiguration GetSurfaceConfig()
+    {
+        return new WGPUSurfaceConfiguration
+        {
+            nextInChain = null,
+            device = Device,
+            format = _swapChainFormat,
+            usage = WGPUTextureUsage.RenderAttachment,
+            // viewFormatCount = 0,
+            // viewFormats = null,
+            alphaMode = WGPUCompositeAlphaMode.Auto,
+            width = _width,
+            height = _height,
+            presentMode = _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Immediate,
+        };
     }
 
     #endregion

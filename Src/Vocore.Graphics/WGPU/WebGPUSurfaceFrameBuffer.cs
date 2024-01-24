@@ -8,16 +8,23 @@ namespace Vocore.Graphics.WebGPU;
 internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
-    private readonly uint _width;
-    private readonly uint _height;
     // use list for the abstraction but only one element inside
-    private readonly WebGPUSurfaceTexture[] _colorTextures;
-    private readonly WebGPUTexture? _depthTexture;
-    private readonly WebGPURenderPass _renderPass;
+    private readonly WGPUSurface _surface;
     private readonly WGPURenderPassDescriptor _descriptor;
+    private readonly WebGPUSurfaceTexture[] _colorTextures;
+    private readonly WebGPURenderPass _renderPass;
+    private WebGPUTexture? _depthTexture;
+
+
     // native memory, need to be manually released
     private readonly WGPURenderPassColorAttachment* _colorAttachments;
     private readonly WGPURenderPassDepthStencilAttachment* _depthAttachment;
+
+    // dynamic
+    private WGPUSurfaceConfiguration _config;
+    private bool _isResized;
+    private uint _width;
+    private uint _height;
 
     #endregion
 
@@ -52,8 +59,6 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _height;
     }
 
-
-
     protected override void Dispose(bool disposing)
     {
 
@@ -76,10 +81,16 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor;
     }
-    internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface)
+    internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config)
     {
         Name = "SwapChain FrameBuffer";
         _renderPass = renderPass;
+
+        // configure the surface
+        wgpuSurfaceConfigure(surface, &config);
+        _surface = surface;
+        _config = config;
+        _isResized = false;
 
         _descriptor = new WGPURenderPassDescriptor
         {
@@ -87,6 +98,9 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             colorAttachments = null,
             depthStencilAttachment = null,
         };
+        // reset the pointer
+        _colorAttachments = null;
+        _depthAttachment = null;
 
         WebGPUSurfaceTexture surfaceTexture = new WebGPUSurfaceTexture(surface);
         _colorTextures = new WebGPUSurfaceTexture[1];
@@ -94,8 +108,9 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
         WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[0];
 
+        // pointer attention !!
         _colorAttachments = Alloc<WGPURenderPassColorAttachment>(1);
-        _colorAttachments[0] = new WGPURenderPassColorAttachment
+        *_colorAttachments = new WGPURenderPassColorAttachment
         {
             view = surfaceTexture.DefaultView,
             resolveTarget = WGPUTextureView.Null,
@@ -117,7 +132,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                 BuildTextureDescriptor(depthInfo.format, _width, _height),
                 "Depth Texture");
 
-            _depthAttachment[0] = new WGPURenderPassDepthStencilAttachment
+            // pointer attention !!
+            *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
                 view = _depthTexture.DefaultView,
                 depthLoadOp = WGPULoadOp.Clear,
@@ -132,10 +148,38 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         }
     }
 
-    internal void SwapBuffers()
+    public void UpdateSurfaceConfig(WGPUSurfaceConfiguration config)
     {
-        _colorTextures[0].SwapBuffer();
-        _colorAttachments[0].view = _colorTextures[0].DefaultView;
+        _config = config;
+        _width = config.width;
+        _height = config.height;
+        _isResized = true;
+    }
+
+    public void SwapBuffers()
+    {
+        _colorTextures[0].PresentAnDrop();
+        if (_isResized)
+        {
+            WGPUSurfaceConfiguration config = _config;
+            wgpuSurfaceConfigure(_surface, &config);
+            ResizeDepthTexture();
+            _isResized = false;
+        }
+        _colorTextures[0].GetNewOutputTexture(ref (*_colorAttachments).view);
+    }
+
+    private void ResizeDepthTexture()
+    {
+        if (_renderPass.WebGPUDepthInfo.HasValue)
+        {
+            _depthTexture?.Dispose();
+            _depthTexture = new WebGPUTexture(
+                _renderPass.NativeDevice,
+                BuildTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height),
+                "Depth Texture");
+            (*_depthAttachment).view = _depthTexture.DefaultView;
+        }
     }
 
 
@@ -203,8 +247,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
         protected override void Dispose(bool disposing)
         {
-            wgpuTextureRelease(_texture);
             wgpuTextureDestroy(_texture);
+            wgpuTextureRelease(_texture);
             wgpuTextureViewRelease(_defaultView);
         }
 
@@ -238,12 +282,14 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _defaultView = wgpuTextureCreateView(_texture, null);
         }
 
-        public unsafe void SwapBuffer()
+        public unsafe void PresentAnDrop()
         {
             wgpuSurfacePresent(_surface);
-            //release the texture
             wgpuTextureRelease(_texture);
-            //get the new texture
+        }
+
+        public unsafe void GetNewOutputTexture(ref WGPUTextureView view)
+        {
             WGPUSurfaceTexture surfaceTexture = default;
             wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
             _texture = surfaceTexture.texture;
@@ -253,9 +299,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             //refresh the view
             wgpuTextureViewRelease(_defaultView);
             _defaultView = wgpuTextureCreateView(_texture, null);
+            view = _defaultView;
         }
-
-
         #endregion
     }
 }
