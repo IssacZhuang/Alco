@@ -3,9 +3,7 @@ namespace Vocore.Graphics;
 
 public abstract class GPUDevice : BaseGPUObject
 {
-    public static Action<string>? ErrorCallback { get; set; }
-    public static Action<string>? WarningCallback { get; set; }
-    public static Action<string>? InfoCallback { get; set; }
+    
 
 
     public abstract GPURenderPass SwapChainRenderPass { get; }

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Vocore.Graphics;
 using Vocore.Graphics.WebGPU;
 
 namespace Vocore.Engine
@@ -7,9 +8,9 @@ namespace Vocore.Engine
     {
         internal static void RegisterLogger()
         {
-            WebGPUDevice.ErrorCallback = LogError;
-            WebGPUDevice.WarningCallback = LogWarning;
-            WebGPUDevice.InfoCallback = LogInfo;
+            GraphicsLogger.ErrorCallback = LogError;
+            GraphicsLogger.WarningCallback = LogWarning;
+            GraphicsLogger.InfoCallback = LogInfo;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

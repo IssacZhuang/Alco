@@ -322,11 +322,11 @@ public partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestAdapterStatus.Success)
         {
             *(WGPUAdapter*)pUserData = candidateAdapter;
-            InfoCallback?.Invoke("Adapter created");
+            GraphicsLogger.Info("Adapter created");
         }
         else
         {
-            ErrorCallback?.Invoke("Could not get WebGPU adapter: " + Interop.GetString(message));
+            throw new GraphicsException("Could not get WebGPU adapter: " + Interop.GetString(message));
         }
     }
 
@@ -336,35 +336,33 @@ public partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestDeviceStatus.Success)
         {
             *(WGPUDevice*)pUserData = device;
-            InfoCallback?.Invoke("Device created");
+            GraphicsLogger.Info("Device created");
         }
         else
         {
-            ErrorCallback?.Invoke("Could not get WebGPU device: " + Interop.GetString(message));
+            throw new GraphicsException("Could not get WebGPU device: " + Interop.GetString(message));
         }
     }
 
     [UnmanagedCallersOnly]
     private unsafe static void OnUnhandleError(WGPUErrorType type, sbyte* message, nint pUserData)
     {
-        ErrorCallback?.Invoke("Unhandle WebGPU error: " + Interop.GetString(message));
+        throw new GraphicsException("Unhandle WebGPU error: " + Interop.GetString(message));
     }
-
 
     private static void LogCallback(WGPULogLevel level, string message, nint userdata = 0)
     {
         switch (level)
         {
             case WGPULogLevel.Error:
-                ErrorCallback?.Invoke(message);
-                break;
+                throw new GraphicsException(message);
             case WGPULogLevel.Warn:
-                WarningCallback?.Invoke(message);
+                GraphicsLogger.Warning(message);
                 break;
             case WGPULogLevel.Info:
             case WGPULogLevel.Debug:
             case WGPULogLevel.Trace:
-                InfoCallback?.Invoke(message);
+                GraphicsLogger.Info(message);
                 break;
         }
     }
