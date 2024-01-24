@@ -22,6 +22,21 @@ public static partial class UtilsWebGPU
     public static readonly Func<GraphicsBackend, WGPUInstanceBackend> BackendToWebGPU;
     //public static readonly Func<WGPUInstanceBackend, GraphicsBackend> BackendToAbstract;
 
+    public static readonly Tuple<GraphicsBackend, WGPUBackendType>[] BackendType = new Tuple<GraphicsBackend, WGPUBackendType>[]
+    {
+        new(GraphicsBackend.None, WGPUBackendType.Null),
+        new(GraphicsBackend.Auto, WGPUBackendType.Undefined),
+        new(GraphicsBackend.WebGPU, WGPUBackendType.WebGPU),
+        new(GraphicsBackend.Vulkan, WGPUBackendType.Vulkan),
+        new(GraphicsBackend.D3D11, WGPUBackendType.D3D11),
+        new(GraphicsBackend.D3D12, WGPUBackendType.D3D12),
+        new(GraphicsBackend.Metal, WGPUBackendType.Metal),
+        new(GraphicsBackend.OpenGL, WGPUBackendType.OpenGL),
+        new(GraphicsBackend.OpenGLES, WGPUBackendType.OpenGLES),
+    };
+
+    public static readonly Func<GraphicsBackend, WGPUBackendType> BackendTypeToWebGPU;
+
     // Primitive topology mapping
     public static readonly Tuple<PrimitiveTopology, WGPUPrimitiveTopology>[] PrimitiveTopologyCast = new Tuple<PrimitiveTopology, WGPUPrimitiveTopology>[]
     {
@@ -287,6 +302,7 @@ public static partial class UtilsWebGPU
     static UtilsWebGPU()
     {
         BackendToWebGPU = UtilsCast.GenerateCastFunc(BackendCast);
+        BackendTypeToWebGPU = UtilsCast.GenerateCastFunc(BackendType);
         UtilsCast.GenerateCastFunc(PrimitiveTopologyCast, out PrimitiveTopologyToWebGPU, out PrimitiveTopologyToAbstract);
         UtilsCast.GenerateCastFunc(CullModeCast, out CullModeToWebGPU, out CullModeToAbstract);
         UtilsCast.GenerateCastFunc(FrontFaceCast, out FrontFaceToWebGPU, out FrontFaceToAbstract);

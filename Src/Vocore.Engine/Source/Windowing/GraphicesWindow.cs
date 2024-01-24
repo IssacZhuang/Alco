@@ -17,7 +17,7 @@ namespace Vocore.Engine
             silkWindowOptions.Size = new Vector2D<int>(setting.Width, setting.Height);
             silkWindowOptions.FramesPerSecond = 60;
             silkWindowOptions.UpdatesPerSecond = 60;
-            silkWindowOptions.Position = new Vector2D<int>(0, 0);
+            silkWindowOptions.Position = new Vector2D<int>(100, 100);
             silkWindowOptions.Title = setting.Title;
             silkWindowOptions.IsVisible = true;
             silkWindowOptions.ShouldSwapAutomatically = false;

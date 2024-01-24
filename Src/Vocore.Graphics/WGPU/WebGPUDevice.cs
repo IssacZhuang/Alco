@@ -16,6 +16,8 @@ public partial class WebGPUDevice : GPUDevice
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
+    private readonly DeviceDescriptor _descriptor;
+
 
     private readonly WGPUTextureFormat _swapChainFormat;
     private readonly PixelFormat _preferredSurfaceFormat;
@@ -210,6 +212,7 @@ public partial class WebGPUDevice : GPUDevice
 
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
     {
+        _descriptor = descriptor;
         Name = descriptor.Name;
         wgpuSetLogCallback(LogCallback);
 
@@ -235,6 +238,7 @@ public partial class WebGPUDevice : GPUDevice
         {
             nextInChain = null,
             compatibleSurface = Surface,
+            backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
         };
 
         WGPUAdapter adapter = WGPUAdapter.Null;
@@ -308,8 +312,17 @@ public partial class WebGPUDevice : GPUDevice
             alphaMode = WGPUCompositeAlphaMode.Auto,
             width = _width,
             height = _height,
-            presentMode = _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Immediate,
+            presentMode = GetPresentMode(),
         };
+    }
+
+    private WGPUPresentMode GetPresentMode()
+    {
+        if (_descriptor.Backend == GraphicsBackend.OpenGL || _descriptor.Backend == GraphicsBackend.OpenGLES)
+        {
+            return _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Mailbox;
+        }
+        return _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Immediate;
     }
 
     #endregion
