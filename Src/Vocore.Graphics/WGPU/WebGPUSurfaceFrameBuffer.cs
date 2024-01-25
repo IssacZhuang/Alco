@@ -286,6 +286,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         {
             wgpuSurfacePresent(_surface);
             wgpuTextureRelease(_texture);
+            wgpuTextureViewRelease(_defaultView);
         }
 
         public unsafe void GetNewOutputTexture(ref WGPUTextureView view)
@@ -297,7 +298,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _height = wgpuTextureGetHeight(_texture);
 
             //refresh the view
-            wgpuTextureViewRelease(_defaultView);
+            
             _defaultView = wgpuTextureCreateView(_texture, null);
             view = _defaultView;
         }

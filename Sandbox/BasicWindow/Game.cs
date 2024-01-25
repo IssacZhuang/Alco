@@ -19,10 +19,10 @@ public class Game : GameEngine
             Stop();
         }
 
-        if (Input.IsKeyDown(Key.F11))
-        {
-            Window.WindowState = Window.WindowState == WindowState.Fullscreen ? WindowState.Normal : WindowState.Fullscreen;
-        }
+        // if (Input.IsKeyDown(Key.F11))
+        // {
+        //     Window.WindowState = Window.WindowState == WindowState.Fullscreen ? WindowState.Normal : WindowState.Fullscreen;
+        // }
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
