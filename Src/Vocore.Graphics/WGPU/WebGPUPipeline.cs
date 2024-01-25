@@ -7,20 +7,35 @@ namespace Vocore.Graphics.WebGPU;
 
 internal class WebGPUGraphicsPipeline : GPUPipeline
 {
-    public override string Name { get; }
+    #region Properties
     private readonly WGPURenderPipeline _graphicsipeline;
     private readonly ShaderStage _stages;
 
-    public WGPURenderPipeline Native
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _graphicsipeline;
-    }
+    #endregion
+
+    #region Abstract Implementation
+
+    public override string Name { get; }
 
     public override ShaderStage Stages
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _stages;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        wgpuRenderPipelineRelease(_graphicsipeline);
+    }
+
+    #endregion
+
+    #region WebGPU Implementation
+
+    public WGPURenderPipeline Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _graphicsipeline;
     }
 
     public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
@@ -131,8 +146,5 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         wgpuShaderModuleRelease(pixelShader);
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        wgpuRenderPipelineRelease(_graphicsipeline);
-    }
+    #endregion
 }
