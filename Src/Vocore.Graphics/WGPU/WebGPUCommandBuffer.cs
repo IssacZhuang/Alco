@@ -43,7 +43,7 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     }
 
     // begin the encoder
-    protected unsafe override void InternalBegin()
+    protected unsafe override void BeginCore()
     {
         _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
 
@@ -56,7 +56,7 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     }
 
     // end the encoder
-    protected unsafe override void InternalEnd()
+    protected unsafe override void EndCore()
     {
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
@@ -67,7 +67,7 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         _encoder = WGPUCommandEncoder.Null;
     }
 
-    protected override unsafe void InternalSetFrameBuffer(GPUFrameBuffer frameBuffer)
+    protected override unsafe void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
 
@@ -77,38 +77,38 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
     }
 
-    protected override void InternalSetPipeline(GPUPipeline pipeline)
+    protected override void SetPipelineCore(GPUPipeline pipeline)
     {
         WGPURenderPipeline nativePipeline = ((WebGPUGraphicsPipeline)pipeline).Native;
         wgpuRenderPassEncoderSetPipeline(_renderPass, nativePipeline);
     }
 
-    protected override void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         wgpuRenderPassEncoderDrawIndexed(_renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
-    protected override void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
         throw new NotImplementedException();
     }
 
-    protected override void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
 
     }
 
-    protected override unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
 
     }
 
-    protected override void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
+    protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         throw new NotImplementedException();
     }
 
-    protected override void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
+    protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         throw new NotImplementedException();
     }

@@ -17,62 +17,62 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
-        InternalBegin();
+        BeginCore();
     }
 
     public void End()
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
         _isRecording = false;
-        InternalEnd();
+        EndCore();
     }
 
     public void SetFrameBuffer(GPUFrameBuffer frameBuffer)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetFrameBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalSetFrameBuffer(frameBuffer);
+        SetFrameBufferCore(frameBuffer);
     }
 
     public void SetPipeline(GPUPipeline pipeline)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalSetPipeline(pipeline);
+        SetPipelineCore(pipeline);
     }
 
     public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalSetVertexBuffer(slot, buffer, offset, size);
+        SetVertexBufferCore(slot, buffer, offset, size);
     }
 
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format,  ulong offset, ulong size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalSetIndexBuffer(buffer, format, offset, size);
+        SetIndexBufferCore(buffer, format, offset, size);
     }
 
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalDrawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     public void DrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalDrawIndirect(indirectBuffer, offset, drawCount, stride);
+        DrawIndirectCore(indirectBuffer, offset, drawCount, stride);
     }
 
     public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalDrawIndexedIndirect(indirectBuffer, offset, drawCount, stride);
+        DrawIndexedIndirectCore(indirectBuffer, offset, drawCount, stride);
     }
 
     public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while UpdateBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        InternalUpdateBuffer(buffer, bufferOffset, data, size);
+        UpdateBufferCore(buffer, bufferOffset, data, size);
     }
 
     // polymorphism
@@ -117,17 +117,17 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
 
     // need to be implemented for each backend
-    protected abstract void InternalBegin();
-    protected abstract void InternalEnd();
-    protected abstract void InternalSetFrameBuffer(GPUFrameBuffer frameBuffer);
-    protected abstract void InternalSetPipeline(GPUPipeline pipeline);
-    protected abstract void InternalSetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size);
-    protected abstract void InternalSetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);
-    protected abstract void InternalDrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
-    protected abstract void InternalDrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
-    protected abstract void InternalDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
+    protected abstract void BeginCore();
+    protected abstract void EndCore();
+    protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
+    protected abstract void SetPipelineCore(GPUPipeline pipeline);
+    protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
+    protected abstract void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);
+    protected abstract void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
+    protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
+    protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
     /// <summary>
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>
-    protected abstract unsafe void InternalUpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 }
