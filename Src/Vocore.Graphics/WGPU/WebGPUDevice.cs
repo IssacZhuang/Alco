@@ -273,7 +273,6 @@ public partial class WebGPUDevice : GPUDevice
         _height = descriptor.InitialSurfaceSizeHeight;
         _vsync = descriptor.VSync;
 
-        //TODO: create render pass and frame buffer
         // create surface render pass
         RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
             new ColorAttachment[]

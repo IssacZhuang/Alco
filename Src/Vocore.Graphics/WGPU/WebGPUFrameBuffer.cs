@@ -102,7 +102,6 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 BuildTextureDescriptor(colorInfo.format, width, height),
                 $"Color Texture {i}");
 
-            // TODO: fiil the texure view
             _colorAttachments[i] = new WGPURenderPassColorAttachment
             {
                 view = _colorTextures[i].DefaultView,
@@ -122,7 +121,6 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 "Depth Texture");
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
 
-            // TODO: fiil the texure view
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
                 view = _depthTexture.DefaultView,
