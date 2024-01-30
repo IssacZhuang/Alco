@@ -60,6 +60,7 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         VertexInputLayout[] vertexInputLayouts = descriptor.VertexInputLayouts;
         int vertexElementCount = 0;
 
+        // !! memory alloc attention
         WGPUVertexBufferLayout* vertexBufferLayouts = stackalloc WGPUVertexBufferLayout[vertexInputLayouts.Length];
 
         for (int i = 0; i < vertexInputLayouts.Length; i++)
@@ -74,23 +75,22 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
             };
         }
 
+        // !! memory alloc attention
         WGPUVertexAttribute* vertexAttributes = stackalloc WGPUVertexAttribute[vertexElementCount];
-        WGPUVertexAttribute* vertexAttributePtr = vertexAttributes;
 
         for (int i = 0; i < vertexInputLayouts.Length; i++)
         {
-            vertexBufferLayouts[i].attributes = vertexAttributePtr;
+            vertexBufferLayouts[i].attributes = vertexAttributes;
 
             for (int j = 0; j < vertexInputLayouts[i].Elements.Length; j++)
             {
-                vertexAttributePtr[j] = UtilsWebGPU.ConvertToWebGPU(vertexInputLayouts[i].Elements[j]);
+                vertexAttributes[j] = UtilsWebGPU.ConvertToWebGPU(vertexInputLayouts[i].Elements[j]);
             }
 
-            vertexAttributePtr += vertexInputLayouts[i].Elements.Length;
+            vertexAttributes += vertexInputLayouts[i].Elements.Length;
         }
 
         // TODO: bind groups/pipline layout
-
         fixed (sbyte* pVertexEntry = vertex.EntryPoint.GetUtf8Span())
         fixed (sbyte* pPixelEntry = pixel.EntryPoint.GetUtf8Span())
         {
@@ -100,13 +100,26 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                 alpha = UtilsWebGPU.ConvertToWebGPU(descriptor.BlendState.Alpha),
             };
 
+            // !! memory alloc attention
+            WGPUColorTargetState* targets = stackalloc WGPUColorTargetState[descriptor.ColorFormats.Length];
+
+            for (int i = 0; i < descriptor.ColorFormats.Length; i++)
+            {
+                targets[i] = new WGPUColorTargetState()
+                {
+                    format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.ColorFormats[i]),
+                    blend = &blendState,
+                    writeMask = WGPUColorWriteMask.All,
+                };
+            }
+
             // TODO: color targets
             WGPUFragmentState fragmentState = new WGPUFragmentState()
             {
                 module = pixelShader,
                 entryPoint = pPixelEntry,
                 targetCount = (uint)descriptor.ColorFormats.Length,
-                targets = null,
+                targets = targets,
                 constantCount = 0,
                 constants = null,
             };
