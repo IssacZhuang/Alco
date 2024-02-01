@@ -1,5 +1,77 @@
 
-## Struct for WebGPU shader resource binding
+## SPIRV Reflect resource binding
+
+``` csharp
+public struct DescriptorBinding
+{
+	public uint SpirvId;
+	public unsafe byte* Name;
+	public uint Binding;
+	public uint InputAttachmentIndex;
+	public uint Set;
+	public DescriptorType DescriptorType;
+	public ResourceType ResourceType;
+	public ImageTraits Image;
+	public BlockVariable Block;
+	public BindingArrayTraits Array;
+	public uint Count;
+	public uint Accessed;
+	public uint UavCounterId;
+	public unsafe DescriptorBinding* UavCounterBinding;
+	public unsafe TypeDescription* TypeDescription;
+	public DescriptorBindingWordOffset WordOffset;
+	public uint DecorationFlags;
+}
+
+public enum DescriptorType
+{
+	Sampler = 0,
+	CombinedImageSampler = 1,
+	SampledImage = 2,
+	StorageImage = 3,
+	UniformTexelBuffer = 4,
+	StorageTexelBuffer = 5,
+	UniformBuffer = 6,
+	StorageBuffer = 7,
+	UniformBufferDynamic = 8,
+	StorageBufferDynamic = 9,
+	InputAttachment = 10,
+}
+
+public enum ResourceType
+{
+	Undefined = 0,
+	Sampler = 1,
+	Cbv = 2,
+	Srv = 4,
+	Uav = 8
+}
+
+public struct ImageTraits
+{
+	public Dim Dim;
+	public uint Depth;
+	public uint Arrayed;
+	public uint Ms;
+	public uint Sampled;
+	public ImageFormat ImageFormat;
+}
+
+public enum Dim
+{
+	Dim1D = 0,
+	Dim2D = 1,
+	Dim3D = 2,
+	DimCube = 3,
+	DimRect = 4,
+	DimBuffer = 5,
+	DimSubpassData = 6,
+}
+
+
+```
+
+## WebGPU shader resource binding
 
 ``` csharp
 public struct WGPUPipelineLayoutDescriptor
