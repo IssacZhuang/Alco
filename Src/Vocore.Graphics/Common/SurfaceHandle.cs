@@ -15,6 +15,12 @@ public abstract class SurfaceSource
     public static SurfaceSource CreateXlibWindow(IntPtr display, ulong window) => new XlibWindowSurfaceSource(display, window);
 }
 
+internal class HtmlCanvasSurfaceSource : SurfaceSource
+{
+    public string Selector { get; }
+    public HtmlCanvasSurfaceSource(string selector) => Selector = selector;
+}
+
 internal class AndroidWindowSurfaceSource : SurfaceSource
 {
     public IntPtr Window { get; }

@@ -16,6 +16,22 @@ public static partial class UtilsWebGPU
         };
         switch (surface)
         {
+            case HtmlCanvasSurfaceSource htmlCanvasSurface:
+                fixed (sbyte* ptr = htmlCanvasSurface.Selector.GetUtf8Span())
+                {
+                    WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasChain =
+                    new WGPUSurfaceDescriptorFromCanvasHTMLSelector()
+                    {
+                        selector = ptr,
+                        chain = new WGPUChainedStruct()
+                        {
+                            sType = WGPUSType.SurfaceDescriptorFromCanvasHTMLSelector,
+                        },
+                    };
+
+                    descriptor.nextInChain = (WGPUChainedStruct*)&canvasChain;
+                }
+                break;
             case AndroidWindowSurfaceSource androidWindowSurface:
                 WGPUSurfaceDescriptorFromAndroidNativeWindow widnowChain =
                 new WGPUSurfaceDescriptorFromAndroidNativeWindow()
