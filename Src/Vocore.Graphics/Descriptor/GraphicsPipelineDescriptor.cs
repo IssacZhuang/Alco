@@ -9,7 +9,7 @@ public struct GraphicsPipelineDescriptor
         BlendState blendState,
         VertexInputLayout[] vertexInputLayouts,
         PixelFormat[] colorFormats,
-        PixelFormat depthStencilFormat,
+        PixelFormat? depthStencilFormat,
         string name = "Unnamed Graphics Pipeline"
         )
     {
@@ -31,6 +31,6 @@ public struct GraphicsPipelineDescriptor
     public BlendState BlendState { get; init; }
     public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.DepthNone;
     public PixelFormat[] ColorFormats { get; init; }
-    public PixelFormat DepthStencilFormat { get; init; }
+    public PixelFormat? DepthStencilFormat { get; init; }
     public string Name { get; init; } = "Unnamed Graphics Pipeline";
 }

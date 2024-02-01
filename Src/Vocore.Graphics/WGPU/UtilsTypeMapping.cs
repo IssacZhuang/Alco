@@ -299,6 +299,20 @@ public static partial class UtilsWebGPU
     public static readonly Func<TextureDimension, WGPUTextureDimension> TextureDimensionToWebGPU;
     public static readonly Func<WGPUTextureDimension, TextureDimension> TextureDimensionToAbstract;
 
+    public static readonly Tuple<TextureViewDimension, WGPUTextureViewDimension>[] TextureViewDimensionCast = new Tuple<TextureViewDimension, WGPUTextureViewDimension>[]
+    {
+        new(TextureViewDimension.Undefined, WGPUTextureViewDimension.Undefined),
+        new(TextureViewDimension.Texture1D, WGPUTextureViewDimension._1D),
+        new(TextureViewDimension.Texture2D, WGPUTextureViewDimension._2D),
+        new(TextureViewDimension.Texture2DArray, WGPUTextureViewDimension._2DArray),
+        new(TextureViewDimension.Cube, WGPUTextureViewDimension.Cube),
+        new(TextureViewDimension.CubeArray, WGPUTextureViewDimension.CubeArray),
+        new(TextureViewDimension.Texture3D, WGPUTextureViewDimension._3D),
+    };
+
+    public static readonly Func<TextureViewDimension, WGPUTextureViewDimension> TextureViewDimensionToWebGPU;
+    public static readonly Func<WGPUTextureViewDimension, TextureViewDimension> TextureViewDimensionToAbstract;
+
     static UtilsWebGPU()
     {
         BackendToWebGPU = UtilsCast.GenerateCastFunc(BackendCast);
@@ -314,5 +328,6 @@ public static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(VertexFormatCast, out VertexFormatToWebGPU, out VertexFormatToAbstract);
         UtilsCast.GenerateCastFunc(CompareFunctionCast, out CompareFunctionToWebGPU, out CompareFunctionToAbstract);
         UtilsCast.GenerateCastFunc(TextureDimensionCast, out TextureDimensionToWebGPU, out TextureDimensionToAbstract);
+        UtilsCast.GenerateCastFunc(TextureViewDimensionCast, out TextureViewDimensionToWebGPU, out TextureViewDimensionToAbstract);
     }
 }

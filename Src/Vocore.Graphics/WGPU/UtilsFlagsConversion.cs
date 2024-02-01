@@ -5,9 +5,32 @@ namespace Vocore.Graphics.WebGPU;
 
 public static partial class UtilsWebGPU
 {
+    public static WGPUStorageTextureAccess ConvertAccessMode(AccessMode access)
+    {
+        // has write and no read
+        if ((access & AccessMode.Write) != 0 && (access & AccessMode.Read) == 0)
+        {
+            return WGPUStorageTextureAccess.WriteOnly;
+        }
+
+        // has read and no write
+        if ((access & AccessMode.Read) != 0 && (access & AccessMode.Write) == 0)
+        {
+            return WGPUStorageTextureAccess.ReadOnly;
+        }
+
+        // has read and write
+        if ((access & AccessMode.Read) != 0 && (access & AccessMode.Write) != 0)
+        {
+            return WGPUStorageTextureAccess.ReadWrite;
+        }
+
+        return WGPUStorageTextureAccess.Undefined;
+    }
+
     public static WGPUTextureUsage ConvertTextureUsage(TextureUsage usage)
     {
-        WGPUTextureUsage result = 0;
+        WGPUTextureUsage result = WGPUTextureUsage.None;
         if ((usage & TextureUsage.Read) != 0)
         {
             result |= WGPUTextureUsage.CopySrc;
@@ -33,7 +56,7 @@ public static partial class UtilsWebGPU
 
     public static WGPUBufferUsage ConvertBufferUsage(BufferUsage usage)
     {
-        WGPUBufferUsage result = 0;
+        WGPUBufferUsage result = WGPUBufferUsage.None;
 
         if ((usage & BufferUsage.MapRead) != 0)
         {
@@ -71,6 +94,27 @@ public static partial class UtilsWebGPU
         {
             result |= WGPUBufferUsage.Indirect;
         }
+        return result;
+    }
+
+    public static WGPUShaderStage ConvertShaderStage(ShaderStage stage)
+    {
+        WGPUShaderStage result = WGPUShaderStage.None;
+        if ((stage & ShaderStage.Vertex) != 0)
+        {
+            result |= WGPUShaderStage.Vertex;
+        }
+
+        if ((stage & ShaderStage.Pixel) != 0)
+        {
+            result |= WGPUShaderStage.Fragment;
+        }
+
+        if ((stage & ShaderStage.Compute) != 0)
+        {
+            result |= WGPUShaderStage.Compute;
+        }
+
         return result;
     }
 

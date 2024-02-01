@@ -46,11 +46,11 @@ float4 VertexToClipSpace(float3 vertex, float4x4 transformMatrix, float4x4 viewP
 
 #define SLOT(slot) register(b0, space##slot)
 
-#define PROPS_STRUCT(slot, name) cbuffer name : SLOT(slot)
+#define DEFINE_STRUCT(slot, name) cbuffer name : SLOT(slot)
 
-#define PROPS(slot, type, name) PROPS_STRUCT(slot, name) { type name; }
+#define DEFINE_VAR(slot, type, name) DEFINE_STRUCT(slot, name) { type name; }
 
-#define PROPS_TEXTURE(slot, name) PROPS_STRUCT(slot, name) { Texture2D name; SamplerState name##Sampler; }
+#define DEFINE_TEXTURE(slot, name) Texture2D name : register(t0, space##slot); SamplerState name##Sampler : register(s1, space##slot);
 
 #define TEX2D(texName, uv) SampleTex2D(texName, texName##Sampler, uv)
 

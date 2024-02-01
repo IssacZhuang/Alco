@@ -41,10 +41,14 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
     public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
     {
         Name = descriptor.Name;
-        // Create shader modules
+
+
+        // === Create shader modules ===============================
+
+
         if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderStageSource vertex, out ShaderStageSource pixel))
         {
-            throw new ArgumentException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
+            throw new GraphicsException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
         }
 
         _stages = ShaderStage.None;
@@ -56,11 +60,13 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);
         WGPUShaderModule pixelShader = nativeDevice.CreateShaderModule(pixel);
 
-        // Parse vertex input layouts
+
+        // === Create vertex layout ======================================
+
+
         VertexInputLayout[] vertexInputLayouts = descriptor.VertexInputLayouts;
         int vertexElementCount = 0;
 
-        // !! memory alloc attention
         WGPUVertexBufferLayout* vertexBufferLayouts = stackalloc WGPUVertexBufferLayout[vertexInputLayouts.Length];
 
         for (int i = 0; i < vertexInputLayouts.Length; i++)
@@ -75,7 +81,6 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
             };
         }
 
-        // !! memory alloc attention
         WGPUVertexAttribute* vertexAttributes = stackalloc WGPUVertexAttribute[vertexElementCount];
 
         for (int i = 0; i < vertexInputLayouts.Length; i++)
@@ -94,6 +99,11 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         fixed (sbyte* pVertexEntry = vertex.EntryPoint.GetUtf8Span())
         fixed (sbyte* pPixelEntry = pixel.EntryPoint.GetUtf8Span())
         {
+
+
+            // === Fragment state ======================================
+
+
             WGPUBlendState blendState = new()
             {
                 color = UtilsWebGPU.ConvertToWebGPU(descriptor.BlendState.Color),
@@ -124,26 +134,71 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                 constants = null,
             };
 
-            WGPUDepthStencilState depthStencilState = new WGPUDepthStencilState()
+
+            // === Vertex state ======================================
+
+
+            WGPUVertexState vertexState = new WGPUVertexState
+            {
+                module = vertexShader,
+                entryPoint = pVertexEntry,
+                buffers = vertexBufferLayouts,
+                bufferCount = (uint)vertexInputLayouts.Length,
+                constantCount = 0,
+                constants = null,
+            };
+
+
+            // === Create pipeline layout ======================================
+
+
+            WGPUBindGroupLayout* bindGroupLayouts = stackalloc WGPUBindGroupLayout[descriptor.ResourceLayouts.Length];
+
+            for (int i = 0; i < descriptor.ResourceLayouts.Length; i++)
+            {
+                ResourceBinding[] bindings = descriptor.ResourceLayouts[i].Bindings;
+#pragma warning disable CA2014
+                WGPUBindGroupLayoutEntry* entries = stackalloc WGPUBindGroupLayoutEntry[bindings.Length];
+#pragma warning restore CA2014
+
+                for (int j = 0; j < bindings.Length; j++)
+                {
+                    entries[j] = bindings[j].ConvertToWebGPU();
+                }
+
+                fixed (sbyte* pName = descriptor.ResourceLayouts[i].Name.GetUtf8Span())
+                {
+                    WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor = new WGPUBindGroupLayoutDescriptor
+                    {
+                        nextInChain = null,
+                        label = pName,
+                        entryCount = (uint)bindings.Length,
+                        entries = entries,
+                    };
+
+                    bindGroupLayouts[i] = wgpuDeviceCreateBindGroupLayout(nativeDevice, &bindGroupLayoutDescriptor);
+                }
+            }
+
+            WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor
             {
                 nextInChain = null,
-                format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthStencilFormat),
-                depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled,
-                depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
+                label = null,
+                bindGroupLayoutCount = (uint)descriptor.ResourceLayouts.Length,
+                bindGroupLayouts = bindGroupLayouts,
             };
+
+            WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(nativeDevice, &pipelineLayoutDescriptor);
+
+
+            // === Create pipeline ======================================
+
 
             WGPURenderPipelineDescriptor pipelineDescriptor = new WGPURenderPipelineDescriptor()
             {
-                vertex = new WGPUVertexState
-                {
-                    module = vertexShader,
-                    entryPoint = pVertexEntry,
-                    buffers = vertexBufferLayouts,
-                    bufferCount = (uint)vertexInputLayouts.Length,
-                    constantCount = 0,
-                    constants = null,
-                },
+                vertex = vertexState,
                 fragment = &fragmentState,
+                layout = pipelineLayout,
                 multisample = new WGPUMultisampleState
                 {
                     count = 1,
@@ -151,6 +206,25 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                     alphaToCoverageEnabled = false,
                 },
             };
+
+
+            // === Set depth stencil state if exist ======================================
+
+
+            if (descriptor.DepthStencilFormat.HasValue)
+            {
+                WGPUDepthStencilState depthStencilState = new WGPUDepthStencilState()
+                {
+                    nextInChain = null,
+                    format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthStencilFormat.Value),
+                    depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled,
+                    depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
+                };
+
+                pipelineDescriptor.depthStencil = &depthStencilState;
+            }
+
+
 
             _graphicsipeline = wgpuDeviceCreateRenderPipeline(nativeDevice, &pipelineDescriptor);
         }

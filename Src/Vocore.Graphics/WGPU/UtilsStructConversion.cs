@@ -30,8 +30,10 @@ public static partial class UtilsWebGPU
                     };
 
                     descriptor.nextInChain = (WGPUChainedStruct*)&canvasChain;
+                    // create the surface immediately because the pointer will be invalid outside of this block
+                    return wgpuInstanceCreateSurface(instance, &descriptor);
                 }
-                break;
+
             case AndroidWindowSurfaceSource androidWindowSurface:
                 WGPUSurfaceDescriptorFromAndroidNativeWindow widnowChain =
                 new WGPUSurfaceDescriptorFromAndroidNativeWindow()
@@ -45,6 +47,7 @@ public static partial class UtilsWebGPU
 
                 descriptor.nextInChain = (WGPUChainedStruct*)&widnowChain;
                 break;
+
             case MetalLayerSurfaceHandle metalLayerSurface:
                 WGPUSurfaceDescriptorFromMetalLayer metalLayerChain =
                 new WGPUSurfaceDescriptorFromMetalLayer()
@@ -58,6 +61,7 @@ public static partial class UtilsWebGPU
 
                 descriptor.nextInChain = (WGPUChainedStruct*)&metalLayerChain;
                 break;
+
             case Win32SurfaceSource win32Surface:
                 WGPUSurfaceDescriptorFromWindowsHWND win32Chain =
                 new WGPUSurfaceDescriptorFromWindowsHWND()
@@ -72,6 +76,7 @@ public static partial class UtilsWebGPU
 
                 descriptor.nextInChain = (WGPUChainedStruct*)&win32Chain;
                 break;
+
             case WaylandSurfaceSource waylandSurface:
                 WGPUSurfaceDescriptorFromWaylandSurface surfaceChain =
                 new WGPUSurfaceDescriptorFromWaylandSurface()
@@ -86,6 +91,7 @@ public static partial class UtilsWebGPU
 
                 descriptor.nextInChain = (WGPUChainedStruct*)&surfaceChain;
                 break;
+
             case XcbWindowSurfaceSource xcbWindowSurface:
                 WGPUSurfaceDescriptorFromXcbWindow surfaceXlibChain =
                 new WGPUSurfaceDescriptorFromXcbWindow()
@@ -100,6 +106,7 @@ public static partial class UtilsWebGPU
 
                 descriptor.nextInChain = (WGPUChainedStruct*)&surfaceXlibChain;
                 break;
+
             case XlibWindowSurfaceSource xlibWindowSurface:
                 WGPUSurfaceDescriptorFromXlibWindow surfaceXcbChain =
                 new WGPUSurfaceDescriptorFromXlibWindow()
@@ -115,8 +122,6 @@ public static partial class UtilsWebGPU
                 descriptor.nextInChain = (WGPUChainedStruct*)&surfaceXcbChain;
                 break;
         }
-
-        
 
         return wgpuInstanceCreateSurface(instance, &descriptor);
     }
@@ -201,5 +206,65 @@ public static partial class UtilsWebGPU
             b = color.Z,
             a = color.W,
         };
+    }
+
+    public static WGPUBindGroupLayoutEntry ConvertToWebGPU(this ResourceBinding binding)
+    {
+        WGPUBindGroupLayoutEntry result = new WGPUBindGroupLayoutEntry
+        {
+            binding = binding.Binding,
+            visibility = ConvertShaderStage(binding.Stage),
+        };
+
+        if (binding.Type == BindingType.UniformBuffer)
+        {
+            result.buffer = new WGPUBufferBindingLayout
+            {
+                type = WGPUBufferBindingType.Uniform,
+                hasDynamicOffset = false,
+                minBindingSize = 0,
+            };
+        }
+
+        if (binding.Type == BindingType.StorageBuffer)
+        {
+            result.buffer = new WGPUBufferBindingLayout
+            {
+                type = WGPUBufferBindingType.Storage,
+                hasDynamicOffset = false,
+                minBindingSize = 0,
+            };
+        }
+
+
+        if (binding.Type == BindingType.Sampler)
+        {
+            result.sampler = new WGPUSamplerBindingLayout
+            {
+                type = WGPUSamplerBindingType.Filtering,
+            };
+        }
+
+        if (binding.Type == BindingType.Texture)
+        {
+            result.texture = new WGPUTextureBindingLayout
+            {
+                sampleType = WGPUTextureSampleType.Float,
+                viewDimension = TextureViewDimensionToWebGPU(binding.TextureInfo.ViewDimension),
+                multisampled = false,
+            };
+        }
+
+        if (binding.Type == BindingType.StorageTexture)
+        {
+            result.storageTexture = new WGPUStorageTextureBindingLayout
+            {
+                access = ConvertAccessMode(binding.StorageTextureInfo.access),
+                format = PixelFormatToWebGPU(binding.StorageTextureInfo.Format),
+                viewDimension = TextureViewDimensionToWebGPU(binding.StorageTextureInfo.ViewDimension),
+            };
+        }
+
+        return result;
     }
 }
