@@ -102,8 +102,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             Stride = (uint)Marshal.SizeOf<Vertex>(),
             Elements = new VertexElement[]
             {
-                new VertexElement(1, 0, VertexFormat.Float32x3, "Position"),
-                new VertexElement(2, (uint)Marshal.SizeOf<Vector3>(), VertexFormat.Float32x3, "Color")
+                new VertexElement(0, 0, VertexFormat.Float32x3, "Position"),
+                new VertexElement(1, (uint)Marshal.SizeOf<Vector3>(), VertexFormat.Float32x3, "Color")
             }
         };
 
