@@ -5,9 +5,10 @@ public struct GraphicsPipelineDescriptor
     public GraphicsPipelineDescriptor(
         ResourceBindingLayout[] resourceLayouts,
         ShaderStageSource[] shaderStages,
+        VertexInputLayout[] vertexInputLayouts,
         RasterizerState rasterizerState,
         BlendState blendState,
-        VertexInputLayout[] vertexInputLayouts,
+        DepthStencilState depthStencilState,
         PixelFormat[] colorFormats,
         PixelFormat? depthStencilFormat,
         string name = "Unnamed Graphics Pipeline"
@@ -17,6 +18,7 @@ public struct GraphicsPipelineDescriptor
         ShaderStages = shaderStages;
         RasterizerState = rasterizerState;
         BlendState = blendState;
+        DepthStencilState = depthStencilState;
         VertexInputLayouts = vertexInputLayouts;
         ColorFormats = colorFormats;
         DepthStencilFormat = depthStencilFormat;

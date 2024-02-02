@@ -18,7 +18,7 @@ public static class UtilsDescriptor
                 pixel = stages[i];
             }
         }
-
+    
         return vertex.Stage != ShaderStage.None && pixel.Stage != ShaderStage.None;
     }
 

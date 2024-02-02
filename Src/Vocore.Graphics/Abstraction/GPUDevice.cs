@@ -3,13 +3,10 @@ namespace Vocore.Graphics;
 
 public abstract class GPUDevice : BaseGPUObject
 {
-    
-
-
     public abstract GPURenderPass SwapChainRenderPass { get; }
     public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
-    public abstract PixelFormat PrefferedDepthFomat { get; }
+    public abstract PixelFormat PrefferedDepthStencilFormat { get; }
     public abstract bool VSync { get; set; }
 
 
@@ -99,6 +96,16 @@ public abstract class GPUDevice : BaseGPUObject
         DestroyRenderPassCore(renderPass);
     }
 
+    public GPUPipeline CreateGraphicsPipeline(in GraphicsPipelineDescriptor descriptor)
+    {
+        return CreateGraphicsPipelineCore(descriptor);
+    }
+
+    public void DestroyGraphicsPipeline(GPUPipeline pipeline)
+    {
+        DestroyGraphicsPipelineCore(pipeline);
+    }
+
     public void ResizeSurface(uint width, uint height)
     {
         if (width <= 0 || height <= 0)
@@ -161,20 +168,20 @@ public abstract class GPUDevice : BaseGPUObject
 
 
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
-
     protected abstract void DestroyBufferCore(GPUBuffer buffer);
 
     protected abstract GPUTexture CreateTextureCore(in TextureDescriptor descriptor);
-
     protected abstract void DestroyTextureCore(GPUTexture texture);
 
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
-
     protected abstract void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer);
 
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
-
     protected abstract void DestroyRenderPassCore(GPURenderPass renderPass);
+
+    protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
+    protected abstract void DestroyGraphicsPipelineCore(GPUPipeline pipeline);
+
     protected abstract void ResizeSurfaceCore(uint width, uint height);
 
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);

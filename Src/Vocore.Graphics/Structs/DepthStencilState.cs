@@ -2,7 +2,7 @@ namespace Vocore.Graphics;
 
 public struct DepthStencilState
 {
-    public static DepthStencilState DepthNone => new(false, CompareFunction.Always);
+    public static DepthStencilState DepthNone => new(false, CompareFunction.Never);
 
     public static DepthStencilState DepthWrite => new(true, CompareFunction.LessEqual);
 

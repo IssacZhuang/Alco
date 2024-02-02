@@ -1,6 +1,4 @@
-using System;
 using Silk.NET.Input;
-using Silk.NET.Windowing;
 using Vocore.Engine;
 using Vocore.Graphics;
 
@@ -18,12 +16,10 @@ public class Game : GameEngine
         {
             Stop();
         }
+    }
 
-        // if (Input.IsKeyDown(Key.F11))
-        // {
-        //     Window.WindowState = Window.WindowState == WindowState.Fullscreen ? WindowState.Normal : WindowState.Fullscreen;
-        // }
-
+    protected override void OnDraw(float delta)
+    {
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.End();

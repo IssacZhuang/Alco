@@ -1,16 +1,17 @@
-﻿using Vocore;
+﻿using Veldrid;
+using Vocore;
 using Vocore.Engine;
-using Veldrid;
 
-GameEngineSetting setting = GameEngineSetting.Default;
-setting.WindowName = "Render Cube";
+GameEngineSetting setting = GameEngineSetting.Default with
+{
+    StopWhenError = true,
+};
 setting.GraphicsAPI = GraphicsBackend.OpenGL;
-setting.StopWhenError = true;
+setting.WindowName = "Basic Window";
 
 using (Game game = new Game(setting))
 {
     game.RegisterPlugin<PluginBuiltInShader>();
     game.RegisterPlugin<PluginRuntimeInfo>();
-    game.RegisterPlugin<PluginForceMouseInScreenCenter>();
     game.Run();
 }

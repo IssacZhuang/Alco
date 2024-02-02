@@ -148,7 +148,7 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                shaderDesc.nextInChain = (WGPUChainedStruct*)&descriptor;
+                shaderDesc.nextInChain = &descriptor.chain;
 
                 return wgpuDeviceCreateShaderModule(device, &shaderDesc);
             }
@@ -168,7 +168,7 @@ public static partial class UtilsWebGPU
                     },
                 };
 
-                shaderDesc.nextInChain = (WGPUChainedStruct*)&descriptor;
+                shaderDesc.nextInChain = &descriptor.chain;
 
                 return wgpuDeviceCreateShaderModule(device, &shaderDesc);
             }
@@ -266,5 +266,15 @@ public static partial class UtilsWebGPU
         }
 
         return result;
+    }
+
+    public static WGPUStencilFaceState ConvertToWebGPU(StencilFaceState stencilFaceState){
+        return new WGPUStencilFaceState()
+        {
+            compare = CompareFunctionToWebGPU(stencilFaceState.Compare),
+            depthFailOp = StencilOperationToWebGPU(stencilFaceState.DepthFailOperation),
+            failOp = StencilOperationToWebGPU(stencilFaceState.StencilFailOperation),
+            passOp = StencilOperationToWebGPU(stencilFaceState.PassOperation),
+        };
     }
 }

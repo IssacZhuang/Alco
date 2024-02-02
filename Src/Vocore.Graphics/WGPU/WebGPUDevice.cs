@@ -48,7 +48,7 @@ public partial class WebGPUDevice : GPUDevice
         get => _surfaceFrameBuffer;
     }
 
-    public override PixelFormat PrefferedDepthFomat
+    public override PixelFormat PrefferedDepthStencilFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => PixelFormat.Depth24PlusStencil8;
@@ -105,6 +105,10 @@ public partial class WebGPUDevice : GPUDevice
     {
         return new WebGPURenderPass(Native, descriptor);
     }
+    protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
+    {
+        return new WebGPUGraphicsPipeline(Native, descriptor);
+    }
 
 
     protected override void DestroyBufferCore(GPUBuffer buffer)
@@ -127,6 +131,11 @@ public partial class WebGPUDevice : GPUDevice
         renderPass.Dispose();
     }
 
+    protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
+    {
+        pipeline.Dispose();
+    }
+
     protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
@@ -142,56 +151,6 @@ public partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void SwapBuffersCore()
     {
-        // WGPUSurfaceTexture surfaceTexture = default;
-        // wgpuSurfaceGetCurrentTexture(Surface, &surfaceTexture);
-
-        // if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Timeout)
-        // {
-        //     Console.WriteLine("Cannot acquire next swap chain texture");
-        //     return;
-        // }
-
-        // if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus.Outdated)
-        // {
-        //     Console.WriteLine("Surface texture is outdated, reconfigure the surface!");
-        //     return;
-        // }
-
-        // WGPUTextureView view = wgpuTextureCreateView(surfaceTexture.texture, null);
-
-        // WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
-
-        // WGPURenderPassColorAttachment attachment = new WGPURenderPassColorAttachment
-        // {
-        //     view = view,
-        //     resolveTarget = WGPUTextureView.Null,
-        //     loadOp = WGPULoadOp.Clear,
-        //     storeOp = WGPUStoreOp.Store,
-        //     clearValue = new WGPUColor
-        //     {
-        //         r = 0.1,
-        //         g = 0.2,
-        //         b = 0.3,
-        //         a = 1,
-        //     },
-        // };
-        // WGPURenderPassDescriptor renderPassDescriptor = new()
-        // {
-        //     colorAttachmentCount = 1,
-        //     colorAttachments = &attachment,
-        //     depthStencilAttachment = null,
-        // };
-
-        // WGPURenderPassEncoder passEncoder = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
-        // wgpuRenderPassEncoderEnd(passEncoder);
-        // WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(encoder, null);
-        // wgpuQueueSubmit(Queue, 1, &buffer);
-        // wgpuSurfacePresent(Surface);
-        // wgpuCommandBufferRelease(buffer);
-        // wgpuCommandEncoderRelease(encoder);
-        // wgpuRenderPassEncoderRelease(passEncoder);
-        // wgpuTextureRelease(surfaceTexture.texture);
-        // wgpuTextureViewRelease(view);
         if (!_hasCommandSubmitted)
         {
             return;

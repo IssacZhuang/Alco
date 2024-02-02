@@ -1,5 +1,6 @@
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using WebGPU;
 using static WebGPU.WebGPU;
 
@@ -59,7 +60,7 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
 
         WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);
         WGPUShaderModule pixelShader = nativeDevice.CreateShaderModule(pixel);
-
+        //wgpuShaderModuleGetCompilationInfo(vertexShader, &ShaderCompileErrorCallback, 0);
 
         // === Create vertex layout ======================================
 
@@ -191,6 +192,26 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
             WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(nativeDevice, &pipelineLayoutDescriptor);
 
 
+            // === Primitive State ======================================
+
+
+            WGPUPrimitiveState primitiveState = new WGPUPrimitiveState
+            {
+                topology = UtilsWebGPU.PrimitiveTopologyToWebGPU(descriptor.PrimitiveTopology),
+                // TODO : strip index format
+                stripIndexFormat = WGPUIndexFormat.Undefined,
+                frontFace = UtilsWebGPU.FrontFaceToWebGPU(descriptor.RasterizerState.FrontFace),
+                cullMode = UtilsWebGPU.CullModeToWebGPU(descriptor.RasterizerState.CullMode),
+            };
+
+            if (descriptor.PrimitiveTopology == PrimitiveTopology.TriangleStrip || descriptor.PrimitiveTopology == PrimitiveTopology.LineStrip)
+            {
+                primitiveState.stripIndexFormat = WGPUIndexFormat.Uint32;
+            }
+
+
+
+
             // === Create pipeline ======================================
 
 
@@ -199,6 +220,7 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                 vertex = vertexState,
                 fragment = &fragmentState,
                 layout = pipelineLayout,
+                primitive = primitiveState,
                 multisample = new WGPUMultisampleState
                 {
                     count = 1,
@@ -219,6 +241,8 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                     format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthStencilFormat.Value),
                     depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled,
                     depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
+                    stencilFront = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
+                    stencilBack = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
                 };
 
                 pipelineDescriptor.depthStencil = &depthStencilState;
@@ -227,10 +251,22 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
 
 
             _graphicsipeline = wgpuDeviceCreateRenderPipeline(nativeDevice, &pipelineDescriptor);
+
         }
 
         wgpuShaderModuleRelease(vertexShader);
         wgpuShaderModuleRelease(pixelShader);
+    }
+
+    [UnmanagedCallersOnly]
+    private unsafe static void ShaderCompileErrorCallback(WGPUCompilationInfoRequestStatus status, WGPUCompilationInfo* info, nint userData)
+    {
+        for (nuint i = 0; i < info->messageCount; i++)
+        {
+            WGPUCompilationMessage message = info->messages[i];
+            string? messageStr = Interop.GetString(message.message);
+            Console.WriteLine(messageStr ?? "");
+        }
     }
 
     #endregion

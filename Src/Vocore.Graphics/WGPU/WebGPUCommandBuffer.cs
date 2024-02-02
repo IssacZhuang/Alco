@@ -105,12 +105,14 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
-        throw new NotImplementedException();
+        WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
+        wgpuRenderPassEncoderSetVertexBuffer(_renderPass, slot, nativeBuffer.Native, offset, size);
     }
 
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
-        throw new NotImplementedException();
+        WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
+        wgpuRenderPassEncoderSetIndexBuffer(_renderPass, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
     }
 
     #endregion

@@ -161,6 +161,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _colorTextures[0].PresentAnDrop();
         if (_isResized)
         {
+            
             WGPUSurfaceConfiguration config = _config;
             wgpuSurfaceConfigure(_surface, &config);
             ResizeDepthTexture();

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
 
@@ -6,7 +7,7 @@ namespace Vocore.Graphics.WebGPU;
 public static partial class UtilsWebGPU
 {
     // Graphics backend mapping
-    public static readonly Tuple<GraphicsBackend, WGPUInstanceBackend>[] BackendCast = new Tuple<GraphicsBackend, WGPUInstanceBackend>[]
+    private static readonly Tuple<GraphicsBackend, WGPUInstanceBackend>[] BackendCast = new Tuple<GraphicsBackend, WGPUInstanceBackend>[]
     {
         new(GraphicsBackend.None, WGPUInstanceBackend.None),
         new(GraphicsBackend.Auto, WGPUInstanceBackend.Primary),
@@ -22,7 +23,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<GraphicsBackend, WGPUInstanceBackend> BackendToWebGPU;
     //public static readonly Func<WGPUInstanceBackend, GraphicsBackend> BackendToAbstract;
 
-    public static readonly Tuple<GraphicsBackend, WGPUBackendType>[] BackendType = new Tuple<GraphicsBackend, WGPUBackendType>[]
+    private static readonly Tuple<GraphicsBackend, WGPUBackendType>[] BackendType = new Tuple<GraphicsBackend, WGPUBackendType>[]
     {
         new(GraphicsBackend.None, WGPUBackendType.Null),
         new(GraphicsBackend.Auto, WGPUBackendType.Undefined),
@@ -38,7 +39,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<GraphicsBackend, WGPUBackendType> BackendTypeToWebGPU;
 
     // Primitive topology mapping
-    public static readonly Tuple<PrimitiveTopology, WGPUPrimitiveTopology>[] PrimitiveTopologyCast = new Tuple<PrimitiveTopology, WGPUPrimitiveTopology>[]
+    private static readonly Tuple<PrimitiveTopology, WGPUPrimitiveTopology>[] PrimitiveTopologyCast = new Tuple<PrimitiveTopology, WGPUPrimitiveTopology>[]
     {
         new(PrimitiveTopology.PointList, WGPUPrimitiveTopology.PointList),
         new(PrimitiveTopology.LineList, WGPUPrimitiveTopology.LineList),
@@ -51,7 +52,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<WGPUPrimitiveTopology, PrimitiveTopology> PrimitiveTopologyToAbstract;
 
     // Cull mode mapping
-    public static readonly Tuple<CullMode, WGPUCullMode>[] CullModeCast = new Tuple<CullMode, WGPUCullMode>[]
+    private static readonly Tuple<CullMode, WGPUCullMode>[] CullModeCast = new Tuple<CullMode, WGPUCullMode>[]
     {
         new(CullMode.None, WGPUCullMode.None),
         new(CullMode.Front, WGPUCullMode.Front),
@@ -62,7 +63,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<WGPUCullMode, CullMode> CullModeToAbstract;
 
     //Front face mapping
-    public static readonly Tuple<FrontFace, WGPUFrontFace>[] FrontFaceCast = new Tuple<FrontFace, WGPUFrontFace>[]
+    private static readonly Tuple<FrontFace, WGPUFrontFace>[] FrontFaceCast = new Tuple<FrontFace, WGPUFrontFace>[]
     {
         new(FrontFace.Clockwise, WGPUFrontFace.CW),
         new(FrontFace.CounterClockwise, WGPUFrontFace.CCW),
@@ -72,18 +73,21 @@ public static partial class UtilsWebGPU
     public static readonly Func<WGPUFrontFace, FrontFace> FrontFaceToAbstract;
 
     // Index format mapping
-    public static readonly Tuple<IndexFormat, WGPUIndexFormat>[] IndexFormatCast = new Tuple<IndexFormat, WGPUIndexFormat>[]
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static WGPUIndexFormat IndexFormatToWebGPU(IndexFormat format)
     {
-        new(IndexFormat.Uint16, WGPUIndexFormat.Uint16),
-        new(IndexFormat.Uint32, WGPUIndexFormat.Uint32),
-    };
-    
-    public static readonly Func<IndexFormat, WGPUIndexFormat> IndexFormatToWebGPU;
-    public static readonly Func<WGPUIndexFormat, IndexFormat> IndexFormatToAbstract;
+        return format switch
+        {
+            IndexFormat.Uint16 => WGPUIndexFormat.Uint16,
+            IndexFormat.Uint32 => WGPUIndexFormat.Uint32,
+            _ => WGPUIndexFormat.Undefined,
+        };
+    }
 
     // Pixel format mapping
 
-    public static readonly Tuple<PixelFormat, WGPUTextureFormat>[] PixelFormatCast = new Tuple<PixelFormat, WGPUTextureFormat>[]
+    private static readonly Tuple<PixelFormat, WGPUTextureFormat>[] PixelFormatCast = new Tuple<PixelFormat, WGPUTextureFormat>[]
     {
         new(PixelFormat.Undefined, WGPUTextureFormat.Undefined),
         new(PixelFormat.R8Unorm, WGPUTextureFormat.R8Unorm),
@@ -188,7 +192,7 @@ public static partial class UtilsWebGPU
 
     // Blend factor mapping
 
-    public static readonly Tuple<BlendFactor, WGPUBlendFactor>[] BlendFactorCast = new Tuple<BlendFactor, WGPUBlendFactor>[]
+    private static readonly Tuple<BlendFactor, WGPUBlendFactor>[] BlendFactorCast = new Tuple<BlendFactor, WGPUBlendFactor>[]
     {
         new(BlendFactor.Zero, WGPUBlendFactor.Zero),
         new(BlendFactor.One, WGPUBlendFactor.One),
@@ -209,8 +213,8 @@ public static partial class UtilsWebGPU
     public static readonly Func<WGPUBlendFactor, BlendFactor> BlendFactorToAbstract;
 
     // Blend Operation mapping
-    
-    public static readonly Tuple<BlendOperation, WGPUBlendOperation>[] BlendOperationCast = new Tuple<BlendOperation, WGPUBlendOperation>[]
+
+    private static readonly Tuple<BlendOperation, WGPUBlendOperation>[] BlendOperationCast = new Tuple<BlendOperation, WGPUBlendOperation>[]
     {
         new(BlendOperation.Add, WGPUBlendOperation.Add),
         new(BlendOperation.Subtract, WGPUBlendOperation.Subtract),
@@ -224,7 +228,7 @@ public static partial class UtilsWebGPU
 
     // Vertex step mode mapping
 
-    public static readonly Tuple<VertexStepMode, WGPUVertexStepMode>[] VertexStepModeCast = new Tuple<VertexStepMode, WGPUVertexStepMode>[]
+    private static readonly Tuple<VertexStepMode, WGPUVertexStepMode>[] VertexStepModeCast = new Tuple<VertexStepMode, WGPUVertexStepMode>[]
     {
         new(VertexStepMode.Vertex, WGPUVertexStepMode.Vertex),
         new(VertexStepMode.Instance, WGPUVertexStepMode.Instance),
@@ -235,7 +239,7 @@ public static partial class UtilsWebGPU
 
     // Vertex format mapping
 
-    public static readonly Tuple<VertexFormat, WGPUVertexFormat>[] VertexFormatCast = new Tuple<VertexFormat, WGPUVertexFormat>[]
+    private static readonly Tuple<VertexFormat, WGPUVertexFormat>[] VertexFormatCast = new Tuple<VertexFormat, WGPUVertexFormat>[]
     {
         new(VertexFormat.Undefined, WGPUVertexFormat.Undefined),
         new(VertexFormat.Uint8x2, WGPUVertexFormat.Uint8x2),
@@ -274,7 +278,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<WGPUVertexFormat, VertexFormat> VertexFormatToAbstract;
 
     // compare function mapping
-    public static readonly Tuple<CompareFunction, WGPUCompareFunction>[] CompareFunctionCast = new Tuple<CompareFunction, WGPUCompareFunction>[]
+    private static readonly Tuple<CompareFunction, WGPUCompareFunction>[] CompareFunctionCast = new Tuple<CompareFunction, WGPUCompareFunction>[]
     {
         new(CompareFunction.Never, WGPUCompareFunction.Never),
         new(CompareFunction.Less, WGPUCompareFunction.Less),
@@ -289,7 +293,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<CompareFunction, WGPUCompareFunction> CompareFunctionToWebGPU;
     public static readonly Func<WGPUCompareFunction, CompareFunction> CompareFunctionToAbstract;
 
-    public static readonly Tuple<TextureDimension, WGPUTextureDimension>[] TextureDimensionCast = new Tuple<TextureDimension, WGPUTextureDimension>[]
+    private static readonly Tuple<TextureDimension, WGPUTextureDimension>[] TextureDimensionCast = new Tuple<TextureDimension, WGPUTextureDimension>[]
     {
         new(TextureDimension.Texture1D, WGPUTextureDimension._1D),
         new(TextureDimension.Texture2D, WGPUTextureDimension._2D),
@@ -299,7 +303,7 @@ public static partial class UtilsWebGPU
     public static readonly Func<TextureDimension, WGPUTextureDimension> TextureDimensionToWebGPU;
     public static readonly Func<WGPUTextureDimension, TextureDimension> TextureDimensionToAbstract;
 
-    public static readonly Tuple<TextureViewDimension, WGPUTextureViewDimension>[] TextureViewDimensionCast = new Tuple<TextureViewDimension, WGPUTextureViewDimension>[]
+    private static readonly Tuple<TextureViewDimension, WGPUTextureViewDimension>[] TextureViewDimensionCast = new Tuple<TextureViewDimension, WGPUTextureViewDimension>[]
     {
         new(TextureViewDimension.Undefined, WGPUTextureViewDimension.Undefined),
         new(TextureViewDimension.Texture1D, WGPUTextureViewDimension._1D),
@@ -313,6 +317,22 @@ public static partial class UtilsWebGPU
     public static readonly Func<TextureViewDimension, WGPUTextureViewDimension> TextureViewDimensionToWebGPU;
     public static readonly Func<WGPUTextureViewDimension, TextureViewDimension> TextureViewDimensionToAbstract;
 
+    private static readonly Tuple<StencilOperation, WGPUStencilOperation>[] StencilOperationCast = new Tuple<StencilOperation, WGPUStencilOperation>[]
+    {
+        new(StencilOperation.Keep, WGPUStencilOperation.Keep),
+        new(StencilOperation.Zero, WGPUStencilOperation.Zero),
+        new(StencilOperation.Replace, WGPUStencilOperation.Replace),
+        new(StencilOperation.Invert, WGPUStencilOperation.Invert),
+        new(StencilOperation.IncrementClamp, WGPUStencilOperation.IncrementClamp),
+        new(StencilOperation.DecrementClamp, WGPUStencilOperation.DecrementClamp),
+        new(StencilOperation.IncrementWrap, WGPUStencilOperation.IncrementWrap),
+        new(StencilOperation.DecrementWrap, WGPUStencilOperation.DecrementWrap),
+    };
+
+    public static readonly Func<StencilOperation, WGPUStencilOperation> StencilOperationToWebGPU;
+    public static readonly Func<WGPUStencilOperation, StencilOperation> StencilOperationToAbstract;
+
+
     static UtilsWebGPU()
     {
         BackendToWebGPU = UtilsCast.GenerateCastFunc(BackendCast);
@@ -320,7 +340,6 @@ public static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(PrimitiveTopologyCast, out PrimitiveTopologyToWebGPU, out PrimitiveTopologyToAbstract);
         UtilsCast.GenerateCastFunc(CullModeCast, out CullModeToWebGPU, out CullModeToAbstract);
         UtilsCast.GenerateCastFunc(FrontFaceCast, out FrontFaceToWebGPU, out FrontFaceToAbstract);
-        UtilsCast.GenerateCastFunc(IndexFormatCast, out IndexFormatToWebGPU, out IndexFormatToAbstract);
         UtilsCast.GenerateCastFunc(PixelFormatCast, out PixelFormatToWebGPU, out PixelFormatToAbstract);
         UtilsCast.GenerateCastFunc(BlendFactorCast, out BlendFactorToWebGPU, out BlendFactorToAbstract);
         UtilsCast.GenerateCastFunc(BlendOperationCast, out BlendOperationToWebGPU, out BlendOperationToAbstract);
@@ -329,5 +348,6 @@ public static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(CompareFunctionCast, out CompareFunctionToWebGPU, out CompareFunctionToAbstract);
         UtilsCast.GenerateCastFunc(TextureDimensionCast, out TextureDimensionToWebGPU, out TextureDimensionToAbstract);
         UtilsCast.GenerateCastFunc(TextureViewDimensionCast, out TextureViewDimensionToWebGPU, out TextureViewDimensionToAbstract);
+        UtilsCast.GenerateCastFunc(StencilOperationCast, out StencilOperationToWebGPU, out StencilOperationToAbstract);
     }
 }

@@ -37,8 +37,12 @@ internal class WebGPUTexture : WebGPUTextureBase
     protected override void Dispose(bool disposing)
     {
         wgpuTextureRelease(_nativeTexture);
-        wgpuTextureDestroy(_nativeTexture);
         wgpuTextureViewRelease(_defaultView);
+        
+        // the ref count of texture is 0 now so it is already destroyed, 
+        // there is no need to call wgpuTextureDestroy
+
+        //wgpuTextureDestroy(_nativeTexture);
     }
 
     #endregion
