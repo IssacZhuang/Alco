@@ -246,6 +246,12 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => NAME;
         }
 
+        public override BindableResourceType ResourceType
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => BindableResourceType.Texture;
+        }
+
         protected override void Dispose(bool disposing)
         {
             //wgpuTextureDestroy(_texture);

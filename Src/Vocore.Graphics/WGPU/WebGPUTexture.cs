@@ -41,6 +41,12 @@ internal class WebGPUTexture : WebGPUTextureBase
         wgpuTextureViewRelease(_defaultView);
     }
 
+    public override BindableResourceType ResourceType
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => BindableResourceType.Texture;
+    }
+
     #endregion
 
 

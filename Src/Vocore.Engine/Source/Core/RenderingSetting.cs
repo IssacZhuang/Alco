@@ -5,7 +5,13 @@ namespace Vocore.Engine
 {
     public struct RenderingSetting
     {
+        /// <summary>
+        /// The format of GBffer for deferred rendering. Put null to disable deferred rendering.
+        /// </summary>
         public PixelFormat[]? GBufferColors;
+        /// <summary>
+        /// The texture format for the depth buffer. Put null to disable depth stencil test.
+        /// </summary>
         public PixelFormat? Depth;
 
         public readonly bool IsDeferred => GBufferColors != null;

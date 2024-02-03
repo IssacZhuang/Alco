@@ -26,6 +26,12 @@ internal class WebGPUBuffer : GPUBuffer
         get => _usage;
     }
 
+    public override BindableResourceType ResourceType
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => BindableResourceType.Buffer;
+    }
+
     public override string Name { get; }
 
     protected override void Dispose(bool disposing)
