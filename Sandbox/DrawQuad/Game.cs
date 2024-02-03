@@ -25,11 +25,13 @@ public class Game : GameEngine
 
     private static readonly Vertex[] Vertices =
     {
-        new Vertex {Position = new Vector3(-0.5f, -0.5f, 0.0f), Color = new Vector3(1.0f, 0.0f, 0.0f)},
-        new Vertex {Position = new Vector3(0.5f, -0.5f, 0.0f), Color = new Vector3(0.0f, 1.0f, 0.0f)},
-        new Vertex {Position = new Vector3(0.5f, 0.5f, 0.0f), Color = new Vector3(0.0f, 0.0f, 1.0f)},
-        new Vertex {Position = new Vector3(-0.5f, 0.5f, 0.0f), Color = new Vector3(1.0f, 1.0f, 1.0f)}
+        new Vertex {Position = new Vector3(-0.5f, 0.5f, 0.5f), Color = new Vector3(1.0f, 0.0f, 0.0f)},
+        new Vertex {Position = new Vector3(0.5f, 0.5f, 0.5f), Color = new Vector3(0.0f, 1.0f, 0.0f)},
+        new Vertex {Position = new Vector3(0.5f, -0.5f, 0.5f), Color = new Vector3(0.0f, 0.0f, 1.0f)},
+        new Vertex {Position = new Vector3(-0.5f, -0.5f, 0.5f), Color = new Vector3(1.0f, 1.0f, 1.0f)}
     };
+
+    private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
 
     private const string ShaderCodeWGSL = @"
 // Vertex shader
@@ -50,7 +52,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.color = model.color;
-    out.clip_position = vec4<f32>(model.position, 1.0);
+    out.clip_position = vec4<f32>(model.position, 1);
     return out;
 }
 
@@ -67,10 +69,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     #endregion
 
     private GPUCommandBuffer _commandBuffer;
+    private GPUBuffer _vertexBuffer;
+    private GPUBuffer _indexBuffer;
     private GPUPipeline _pipeline;
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
+        _vertexBuffer = CreateVertexBuffer();
+        _indexBuffer = CreateIndexBuffer();
         _pipeline = CreatePipeline();
     }
 
@@ -87,8 +93,31 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetPipeline(_pipeline);
+        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
+    }
+
+    private GPUBuffer CreateIndexBuffer()
+    {
+        return GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Quad Index Buffer",
+            Size = (uint)Marshal.SizeOf<ushort>() * (uint)Indices.Length,
+            Usage = BufferUsage.Index | BufferUsage.CopyDst
+        }, Indices);
+    }
+
+    private GPUBuffer CreateVertexBuffer()
+    {
+        return GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Quad Vertex Buffer",
+            Size = (uint)Marshal.SizeOf<Vertex>() * (uint)Vertices.Length,
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst
+        }, Vertices);
     }
 
     private GPUPipeline CreatePipeline()

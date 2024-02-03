@@ -13,6 +13,7 @@ namespace Vocore.Graphics
             bool debug = false,
             uint initialSurfaceSizeWidth = 640,
             uint initialSurfaceSizeHeight = 360,
+            PixelFormat? depthFormat = null,
             string name = "Vocore Graphics Device"
         )
         {
@@ -23,6 +24,7 @@ namespace Vocore.Graphics
             Debug = debug;
             InitialSurfaceSizeWidth = initialSurfaceSizeWidth;
             InitialSurfaceSizeHeight = initialSurfaceSizeHeight;
+            DepthFormat = depthFormat;
             Name = name;
         }
 
@@ -30,9 +32,11 @@ namespace Vocore.Graphics
         public SurfaceSource SurfaceSource { get; init; }
         public bool VSync { get; init; } = false;
         public bool Debug { get; init; } = false;
+        
         public uint InitialSurfaceSizeWidth { get; init; }
         public uint InitialSurfaceSizeHeight { get; init; }
         public Vector4 SurfaceClearColor { get; init; } = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+        public PixelFormat? DepthFormat { get; init; } = null;
         public string Name { get; init; } = "Vocore Graphics Device";
     }
 }

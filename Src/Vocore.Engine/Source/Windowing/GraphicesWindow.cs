@@ -36,8 +36,8 @@ namespace Vocore.Engine
                 SurfaceSource = surfaceSource,
                 InitialSurfaceSizeWidth = (uint)setting.Width,
                 InitialSurfaceSizeHeight = (uint)setting.Height,
-                SurfaceClearColor = new Vector4(0.1f, 0.2f, 0.2f, 1.0f),
-                Name = setting.Title = " Graphics Device"
+                SurfaceClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+                Name = setting.Title
             };
 
             device = new WebGPUDevice(deviceDescriptor);

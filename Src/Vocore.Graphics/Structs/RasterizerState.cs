@@ -12,8 +12,8 @@ public struct RasterizerState
     public CullMode CullMode { get; init; }
     public FrontFace FrontFace { get; init; }
 
-    public static readonly RasterizerState CullNone = new RasterizerState(FillMode.Solid, CullMode.None, FrontFace.Clockwise);
-    public static readonly RasterizerState CullFront = new RasterizerState(FillMode.Solid, CullMode.Front, FrontFace.Clockwise);
-    public static readonly RasterizerState CullBack = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
-    public static readonly RasterizerState Wireframe = new RasterizerState(FillMode.Wireframe, CullMode.None, FrontFace.Clockwise);
+    public static readonly RasterizerState CullNone = new RasterizerState(FillMode.Solid, CullMode.None, FrontFace.CounterClockwise);
+    public static readonly RasterizerState CullFront = new RasterizerState(FillMode.Solid, CullMode.Front, FrontFace.CounterClockwise);
+    public static readonly RasterizerState CullBack = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.CounterClockwise);
+    public static readonly RasterizerState Wireframe = new RasterizerState(FillMode.Wireframe, CullMode.None, FrontFace.CounterClockwise);
 }

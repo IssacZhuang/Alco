@@ -248,7 +248,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
         protected override void Dispose(bool disposing)
         {
-            wgpuTextureDestroy(_texture);
+            //wgpuTextureDestroy(_texture);
             wgpuTextureRelease(_texture);
             wgpuTextureViewRelease(_defaultView);
         }

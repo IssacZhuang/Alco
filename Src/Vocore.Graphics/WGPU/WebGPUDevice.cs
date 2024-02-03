@@ -21,6 +21,7 @@ public partial class WebGPUDevice : GPUDevice
 
     private readonly WGPUTextureFormat _swapChainFormat;
     private readonly PixelFormat _preferredSurfaceFormat;
+    private readonly PixelFormat? _preferredDepthStencilFormat;
     private uint _width;
     private uint _height;
     private bool _vsync;
@@ -48,10 +49,13 @@ public partial class WebGPUDevice : GPUDevice
         get => _surfaceFrameBuffer;
     }
 
-    public override PixelFormat PrefferedDepthStencilFormat
+    public override PixelFormat? PrefferedDepthStencilFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => PixelFormat.Depth24PlusStencil8;
+        get
+        {
+            return _preferredDepthStencilFormat;
+        }
     }
 
     public override PixelFormat PrefferedSurfaceFomat
@@ -232,7 +236,21 @@ public partial class WebGPUDevice : GPUDevice
         _height = descriptor.InitialSurfaceSizeHeight;
         _vsync = descriptor.VSync;
 
+
+
         // create surface render pass
+        DepthAttachment? depth = null;
+        if (descriptor.DepthFormat.HasValue)
+        {
+            _preferredDepthStencilFormat = descriptor.DepthFormat;
+            new DepthAttachment()
+            {
+                Format = descriptor.DepthFormat.Value,
+                ClearDepth = 1.0f,
+                ClearStencil = 0,
+            };
+        }
+
         RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
             new ColorAttachment[]
             {
@@ -242,14 +260,11 @@ public partial class WebGPUDevice : GPUDevice
                     ClearColor = descriptor.SurfaceClearColor,
                 },
             },
-            new DepthAttachment()
-            {
-                Format = PixelFormat.Depth24PlusStencil8,
-                ClearDepth = 1.0f,
-                ClearStencil = 0,
-            },
+            depth,
             "Surface Render Pass"
         );
+
+
 
         _surfaceRenderPass = new WebGPURenderPass(Device, renderPassDescriptor);
 

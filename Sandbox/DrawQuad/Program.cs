@@ -5,6 +5,7 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
+    RenderingSetting = RenderingSetting.ForwardNoDepth
 };
 setting.GraphicsAPI = GraphicsBackend.OpenGL;
 setting.WindowName = "Basic Window";
