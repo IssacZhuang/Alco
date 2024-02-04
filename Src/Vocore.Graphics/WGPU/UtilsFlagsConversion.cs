@@ -3,7 +3,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public static partial class UtilsWebGPU
+internal static partial class UtilsWebGPU
 {
     public static WGPUStorageTextureAccess ConvertAccessMode(AccessMode access)
     {

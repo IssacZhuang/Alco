@@ -158,27 +158,7 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
             for (int i = 0; i < descriptor.ResourceLayouts.Length; i++)
             {
                 ResourceBinding[] bindings = descriptor.ResourceLayouts[i].Bindings;
-#pragma warning disable CA2014
-                WGPUBindGroupLayoutEntry* entries = stackalloc WGPUBindGroupLayoutEntry[bindings.Length];
-#pragma warning restore CA2014
-
-                for (int j = 0; j < bindings.Length; j++)
-                {
-                    entries[j] = bindings[j].ConvertToWebGPU();
-                }
-
-                fixed (sbyte* pName = descriptor.ResourceLayouts[i].Name.GetUtf8Span())
-                {
-                    WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor = new WGPUBindGroupLayoutDescriptor
-                    {
-                        nextInChain = null,
-                        label = pName,
-                        entryCount = (uint)bindings.Length,
-                        entries = entries,
-                    };
-
-                    bindGroupLayouts[i] = wgpuDeviceCreateBindGroupLayout(nativeDevice, &bindGroupLayoutDescriptor);
-                }
+                bindGroupLayouts[i] = nativeDevice.CreateBindGroupLayout(bindings);
             }
 
             WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor

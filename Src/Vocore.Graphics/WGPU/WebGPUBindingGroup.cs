@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 using WebGPU;
 
 using static WebGPU.WebGPU;
@@ -8,6 +10,7 @@ internal unsafe class WebGPUBindingGroup : GpuBindingGroup
 {
     #region Properties
     private readonly WGPUBindGroup _native;
+
     #endregion
 
     #region Abstract Implementation
@@ -24,6 +27,13 @@ internal unsafe class WebGPUBindingGroup : GpuBindingGroup
     #endregion
 
     #region WebGPU Implementation
+
+    public WGPUBindGroup Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _native;
+    }
+    
     public WebGPUBindingGroup(WGPUDevice nativeDevice, BindingGroupDescriptor descriptor)
     {
         WGPUBindGroupEntry* entries = stackalloc WGPUBindGroupEntry[descriptor.Entries.Length];
@@ -59,6 +69,8 @@ internal unsafe class WebGPUBindingGroup : GpuBindingGroup
             entryCount = (uint)descriptor.Entries.Length,
             entries = entries,
         };
+
+        _native = wgpuDeviceCreateBindGroup(nativeDevice, &nativeDescriptor);
     }
 
     
