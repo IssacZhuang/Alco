@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "1-DrawQuad", "Sandbox\1-Dra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2-UniformBuffer", "Sandbox\2-UniformBuffer\2-UniformBuffer.csproj", "{AB84EC5E-BC42-4905-9E80-90F4F931E097}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3-TextureBinding", "Sandbox\3-TextureBinding\3-TextureBinding.csproj", "{26244DA0-154E-4A2C-89D2-B9D21A288C56}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{AB84EC5E-BC42-4905-9E80-90F4F931E097}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AB84EC5E-BC42-4905-9E80-90F4F931E097}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AB84EC5E-BC42-4905-9E80-90F4F931E097}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26244DA0-154E-4A2C-89D2-B9D21A288C56}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26244DA0-154E-4A2C-89D2-B9D21A288C56}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26244DA0-154E-4A2C-89D2-B9D21A288C56}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26244DA0-154E-4A2C-89D2-B9D21A288C56}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -76,5 +82,6 @@ Global
 		{B3EE6666-C48A-47AE-A586-F63EC33405A2} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{E83404A7-AEA2-4DDA-BB42-F19CA6A09E08} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{AB84EC5E-BC42-4905-9E80-90F4F931E097} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{26244DA0-154E-4A2C-89D2-B9D21A288C56} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal
