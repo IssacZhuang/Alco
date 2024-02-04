@@ -3,7 +3,7 @@ namespace Vocore.Graphics;
 public struct GraphicsPipelineDescriptor
 {
     public GraphicsPipelineDescriptor(
-        ResourceBindingLayout[] resourceLayouts,
+        GPUBindGroup[] bindGroups,
         ShaderStageSource[] shaderStages,
         VertexInputLayout[] vertexInputLayouts,
         RasterizerState rasterizerState,
@@ -14,7 +14,7 @@ public struct GraphicsPipelineDescriptor
         string name = "Unnamed Graphics Pipeline"
         )
     {
-        ResourceLayouts = resourceLayouts;
+        BindGroups = bindGroups;
         ShaderStages = shaderStages;
         RasterizerState = rasterizerState;
         BlendState = blendState;
@@ -25,7 +25,7 @@ public struct GraphicsPipelineDescriptor
         Name = name;
     }
 
-    public ResourceBindingLayout[] ResourceLayouts { get; init; }
+    public GPUBindGroup[] BindGroups { get; init; }
     public ShaderStageSource[] ShaderStages { get; init; }
     public VertexInputLayout[] VertexInputLayouts { get; init; }
     public RasterizerState RasterizerState { get; init; } = RasterizerState.CullNone;

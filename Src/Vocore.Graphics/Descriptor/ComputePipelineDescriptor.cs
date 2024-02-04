@@ -4,7 +4,7 @@ namespace Vocore.Graphics
     {
         public ComputePipelineDescriptor(
             ShaderStageSource computeShader,
-            ResourceBindingLayout[] resourceLayouts,
+            BindGroupDescriptor[] resourceLayouts,
             string name = "Unnamed Compute Pipeline")
         {
             Name = name;
@@ -13,7 +13,7 @@ namespace Vocore.Graphics
         }
 
         public ShaderStageSource Source { get; init; }
-        public ResourceBindingLayout[] ResourceLayouts { get; init; }
+        public BindGroupDescriptor[] ResourceLayouts { get; init; }
         public string Name { get; init; } = "Unnamed Compute Pipeline";
 
 

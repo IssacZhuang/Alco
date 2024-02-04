@@ -141,7 +141,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         DepthStencilState depthStencil = DepthStencilState.DepthNone;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
-            Array.Empty<ResourceBindingLayout>(),
+            Array.Empty<BindGroupDescriptor>(),
             new ShaderStageSource[] { vertexShader, fragmentShader },
             new VertexInputLayout[] { vertexLayout },
             rasterizer,

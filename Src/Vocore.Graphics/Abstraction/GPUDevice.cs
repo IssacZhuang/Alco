@@ -1,6 +1,8 @@
 namespace Vocore.Graphics;
 
-
+/// <summary>
+/// The context and resource factory for the GPU.
+/// </summary> 
 public abstract class GPUDevice : BaseGPUObject
 {
     public abstract GPURenderPass SwapChainRenderPass { get; }

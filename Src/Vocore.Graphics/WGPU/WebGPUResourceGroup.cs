@@ -6,7 +6,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUBindingGroup : GpuBindingGroup
+internal unsafe class WebGPUResourceGroup : GPUResourceGroup
 {
     #region Properties
     private readonly WGPUBindGroup _native;
@@ -33,13 +33,13 @@ internal unsafe class WebGPUBindingGroup : GpuBindingGroup
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
     }
-    
-    public WebGPUBindingGroup(WGPUDevice nativeDevice, BindingGroupDescriptor descriptor)
+
+    public WebGPUResourceGroup(WGPUDevice nativeDevice, ResourceGroupDescriptor descriptor)
     {
-        WGPUBindGroupEntry* entries = stackalloc WGPUBindGroupEntry[descriptor.Entries.Length];
-        for (int i = 0; i < descriptor.Entries.Length; i++)
+        WGPUBindGroupEntry* entries = stackalloc WGPUBindGroupEntry[descriptor.Resources.Length];
+        for (int i = 0; i < descriptor.Resources.Length; i++)
         {
-            BindingEntry entry = descriptor.Entries[i];
+            ResourceBindingEntry entry = descriptor.Resources[i];
             WGPUBindGroupEntry nativeEntry = new WGPUBindGroupEntry
             {
                 binding = entry.Binding,
@@ -66,14 +66,14 @@ internal unsafe class WebGPUBindingGroup : GpuBindingGroup
 
         WGPUBindGroupDescriptor nativeDescriptor = new WGPUBindGroupDescriptor
         {
-            entryCount = (uint)descriptor.Entries.Length,
+            entryCount = (uint)descriptor.Resources.Length,
             entries = entries,
         };
 
         _native = wgpuDeviceCreateBindGroup(nativeDevice, &nativeDescriptor);
     }
 
-    
+
     #endregion
 
 

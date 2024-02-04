@@ -177,23 +177,6 @@ internal static partial class UtilsWebGPU
         throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV and WGSL are supported. Try compiling your shader to SPIRV if you are using HLSL or GLSL.");
     }
 
-    public unsafe static WGPUBindGroupLayout CreateBindGroupLayout(this WGPUDevice device, ResourceBinding[] bindings)
-    {
-        WGPUBindGroupLayoutEntry* entries = stackalloc WGPUBindGroupLayoutEntry[bindings.Length];
-        for (int i = 0; i < bindings.Length; i++)
-        {
-            entries[i] = bindings[i].ConvertToWebGPU();
-        }
-
-        WGPUBindGroupLayoutDescriptor descriptor = new WGPUBindGroupLayoutDescriptor()
-        {
-            entryCount = (uint)bindings.Length,
-            entries = entries,
-        };
-
-        return wgpuDeviceCreateBindGroupLayout(device, &descriptor);
-    }
-
     public static WGPUVertexAttribute ConvertToWebGPU(this VertexElement attribute)
     {
         return new WGPUVertexAttribute()
@@ -225,7 +208,7 @@ internal static partial class UtilsWebGPU
         };
     }
 
-    public static WGPUBindGroupLayoutEntry ConvertToWebGPU(this ResourceBinding binding)
+    public static WGPUBindGroupLayoutEntry ConvertToWebGPU(this BindGroupEntry binding)
     {
         WGPUBindGroupLayoutEntry result = new WGPUBindGroupLayoutEntry
         {

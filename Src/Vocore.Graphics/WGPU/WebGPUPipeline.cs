@@ -153,19 +153,18 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
             // === Create pipeline layout ======================================
 
 
-            WGPUBindGroupLayout* bindGroupLayouts = stackalloc WGPUBindGroupLayout[descriptor.ResourceLayouts.Length];
+            WGPUBindGroupLayout* bindGroupLayouts = stackalloc WGPUBindGroupLayout[descriptor.BindGroups.Length];
 
-            for (int i = 0; i < descriptor.ResourceLayouts.Length; i++)
+            for (int i = 0; i < descriptor.BindGroups.Length; i++)
             {
-                ResourceBinding[] bindings = descriptor.ResourceLayouts[i].Bindings;
-                bindGroupLayouts[i] = nativeDevice.CreateBindGroupLayout(bindings);
+                bindGroupLayouts[i] = ((WebGPUBindGroup)descriptor.BindGroups[i]).Native;
             }
 
             WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor
             {
                 nextInChain = null,
                 label = null,
-                bindGroupLayoutCount = (uint)descriptor.ResourceLayouts.Length,
+                bindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
                 bindGroupLayouts = bindGroupLayouts,
             };
 

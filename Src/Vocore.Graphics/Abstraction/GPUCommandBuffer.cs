@@ -2,6 +2,9 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Graphics;
 
+/// <summary>
+/// The buffer to record GPU commands which used for rendering and compute.
+/// </summary> 
 public abstract class GPUCommandBuffer : BaseGPUObject
 {
     protected bool _isRecording = false;

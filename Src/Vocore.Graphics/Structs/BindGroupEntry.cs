@@ -1,6 +1,6 @@
 namespace Vocore.Graphics;
 
-public struct ResourceBinding
+public struct BindGroupEntry
 {
     public uint Binding { get; init; }
     public ShaderStage Stage { get; init; }

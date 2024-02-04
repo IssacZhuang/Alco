@@ -1,8 +1,8 @@
 namespace Vocore.Graphics;
 
-public struct BindingEntry
+public struct ResourceBindingEntry
 {
-    public BindingEntry(uint binding, ShaderStage stage, IGPUBindableResource resource)
+    public ResourceBindingEntry(uint binding, ShaderStage stage, IGPUBindableResource resource)
     {
         Binding = binding;
         Resource = resource;

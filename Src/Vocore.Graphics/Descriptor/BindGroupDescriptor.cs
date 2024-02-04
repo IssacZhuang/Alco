@@ -1,8 +1,8 @@
 namespace Vocore.Graphics;
 
-public struct ResourceBindingLayout
+public struct BindGroupDescriptor
 {
     public uint Set { get; init; }
     public string Name { get; init; }
-    public ResourceBinding[] Bindings { get; init; }
+    public BindGroupEntry[] Bindings { get; init; }
 }

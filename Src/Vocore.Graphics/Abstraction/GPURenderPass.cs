@@ -1,6 +1,8 @@
 namespace Vocore.Graphics;
 
-
+/// <summary>
+/// The meta data to describe the color attachment.
+/// </summary>
 public abstract class GPURenderPass : BaseGPUObject
 {
     public abstract IReadOnlyList<ColorAttachment> Colors { get; }

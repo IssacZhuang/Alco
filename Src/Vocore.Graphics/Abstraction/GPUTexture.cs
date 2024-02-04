@@ -1,5 +1,8 @@
 namespace Vocore.Graphics;
 
+/// <summary>
+/// The texture in the VRAM
+/// </summary>
 public abstract class GPUTexture : BaseGPUObject, IGPUBindableResource
 {
     public abstract uint Width { get; }
