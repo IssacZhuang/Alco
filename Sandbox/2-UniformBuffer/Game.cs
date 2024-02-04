@@ -36,6 +36,9 @@ public class Game : GameEngine
     private const string ShaderCodeWGSL = @"
 // Vertex shader
 
+@group(0) @binding(0) 
+var<uniform> color: vec3<f32>;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
@@ -60,7 +63,7 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.color, 1.0);
+    return vec4<f32>(color, 1.0);
 }
     ";
 
@@ -71,13 +74,30 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
+    private GPUBuffer _colorBuffer;
     private GPUPipeline _pipeline;
+    private GPUResourceGroup _resourceGroup;
+
+
+    private float _timer = 0.0f;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _vertexBuffer = CreateVertexBuffer();
         _indexBuffer = CreateIndexBuffer();
-        _pipeline = CreatePipeline();
+
+        _colorBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Color Buffer",
+            Size = (uint)Marshal.SizeOf<Vector3>(),
+            Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+        });
+
+        GPUBindGroup bindGroup = CreateBindGroup();
+
+        _pipeline = CreatePipeline(bindGroup);
+        _resourceGroup = CreateResourceGroup(bindGroup, _colorBuffer);
     }
 
     protected override void OnUpdate(float delta)
@@ -90,11 +110,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     protected override void OnDraw(float delta)
     {
+        _timer += delta;
+        UpdateColor(new Vector3((float)Math.Sin(_timer), (float)Math.Cos(_timer), 0.0f));
+
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetResourceGroup(0, _resourceGroup);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -120,7 +144,19 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }, Vertices);
     }
 
-    private GPUPipeline CreatePipeline()
+    private GPUBindGroup CreateBindGroup()
+    {
+        return GraphicsDevice.CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "color",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Pixel, BindingType.UniformBuffer),
+            }
+        });
+    }
+
+    private GPUPipeline CreatePipeline(GPUBindGroup bindGroup)
     {
         ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderBytes, "vs_main");
         ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, ShaderBytes, "fs_main");
@@ -141,7 +177,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         DepthStencilState depthStencil = DepthStencilState.DepthNone;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
-            Array.Empty<BindGroupDescriptor>(),
+            new GPUBindGroup[] { bindGroup },
             new ShaderStageSource[] { vertexShader, fragmentShader },
             new VertexInputLayout[] { vertexLayout },
             rasterizer,
@@ -153,5 +189,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(pipelineDescriptor);
+    }
+
+    private GPUResourceGroup CreateResourceGroup(GPUBindGroup bindGroup, GPUBuffer buffer)
+    {
+        return GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor
+        {
+            Layout = bindGroup,
+            Resources = new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, ShaderStage.Pixel, buffer),
+            }
+        });
+    }
+
+    private void UpdateColor(Vector3 color)
+    {
+        GraphicsDevice.UpdateBuffer(_colorBuffer, 0, color);
     }
 }

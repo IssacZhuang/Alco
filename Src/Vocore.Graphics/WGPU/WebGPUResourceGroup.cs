@@ -68,6 +68,7 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
         {
             entryCount = (uint)descriptor.Resources.Length,
             entries = entries,
+            layout = ((WebGPUBindGroup)descriptor.Layout).Native,
         };
 
         _native = wgpuDeviceCreateBindGroup(nativeDevice, &nativeDescriptor);

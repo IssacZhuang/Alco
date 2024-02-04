@@ -78,6 +78,12 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         UpdateBufferCore(buffer, bufferOffset, data, size);
     }
 
+    public void SetResourceGroup(uint slot, GPUResourceGroup resourceGroup)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        SetResourceGroupCore(slot, resourceGroup);
+    }
+
     // polymorphism
 
     public void SetVertexBuffer(uint slot, GPUBuffer buffer)
@@ -129,6 +135,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
     protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
     protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
+    protected abstract void SetResourceGroupCore(uint slot, GPUResourceGroup resourceGroup);
     /// <summary>
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>

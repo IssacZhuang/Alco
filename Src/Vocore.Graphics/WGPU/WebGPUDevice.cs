@@ -114,6 +114,16 @@ public partial class WebGPUDevice : GPUDevice
         return new WebGPUGraphicsPipeline(Native, descriptor);
     }
 
+    protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
+    {
+        return new WebGPUBindGroup(Native, descriptor);
+    }
+
+    protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)
+    {
+        return new WebGPUResourceGroup(Native, descriptor);
+    }
+
 
     protected override void DestroyBufferCore(GPUBuffer buffer)
     {
@@ -138,6 +148,16 @@ public partial class WebGPUDevice : GPUDevice
     protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
     {
         pipeline.Dispose();
+    }
+
+    protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
+    {
+        bindGroup.Dispose();
+    }
+
+    protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
+    {
+        resourceGroup.Dispose();
     }
 
     protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)

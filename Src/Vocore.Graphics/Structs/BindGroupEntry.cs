@@ -2,6 +2,41 @@ namespace Vocore.Graphics;
 
 public struct BindGroupEntry
 {
+    public BindGroupEntry(
+        uint binding,
+        ShaderStage stage,
+        BindingType type,
+        TextureBindingInfo? textureInfo = null,
+        StorageTextureBindingInfo? storageTextureInfo = null
+        )
+    {
+        Binding = binding;
+        Stage = stage;
+        Type = type;
+
+        if (textureInfo.HasValue)
+        {
+            TextureInfo = textureInfo.Value;
+        }
+        else if (type == BindingType.Texture)
+        {
+            TextureInfo = TextureBindingInfo.Default2D;
+        }
+        else
+        {
+            TextureInfo = TextureBindingInfo.None;
+        }
+
+        if (storageTextureInfo.HasValue)
+        {
+            StorageTextureInfo = storageTextureInfo.Value;
+        }
+        else
+        {
+            StorageTextureInfo = StorageTextureBindingInfo.None;
+        }
+    }
+
     public uint Binding { get; init; }
     public ShaderStage Stage { get; init; }
     public BindingType Type { get; init; }

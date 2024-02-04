@@ -259,7 +259,7 @@ internal static partial class UtilsWebGPU
         {
             result.storageTexture = new WGPUStorageTextureBindingLayout
             {
-                access = ConvertAccessMode(binding.StorageTextureInfo.access),
+                access = ConvertAccessMode(binding.StorageTextureInfo.Access),
                 format = PixelFormatToWebGPU(binding.StorageTextureInfo.Format),
                 viewDimension = TextureViewDimensionToWebGPU(binding.StorageTextureInfo.ViewDimension),
             };

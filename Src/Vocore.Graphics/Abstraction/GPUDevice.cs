@@ -108,6 +108,26 @@ public abstract class GPUDevice : BaseGPUObject
         DestroyGraphicsPipelineCore(pipeline);
     }
 
+    public GPUBindGroup CreateBindGroup(in BindGroupDescriptor descriptor)
+    {
+        return CreateBindGroupCore(descriptor);
+    }
+
+    public void DestroyBindGroup(GPUBindGroup bindGroup)
+    {
+        DestroyBindGroupCore(bindGroup);
+    }
+
+    public GPUResourceGroup CreateResourceGroup(in ResourceGroupDescriptor descriptor)
+    {
+        return CreateResourceGroupCore(descriptor);
+    }
+
+    public void DestroyResourceGroup(GPUResourceGroup resourceGroup)
+    {
+        DestroyResourceGroupCore(resourceGroup);
+    }
+
     public void ResizeSurface(uint width, uint height)
     {
         if (width <= 0 || height <= 0)
@@ -183,6 +203,12 @@ public abstract class GPUDevice : BaseGPUObject
 
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
     protected abstract void DestroyGraphicsPipelineCore(GPUPipeline pipeline);
+
+    protected abstract GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor);
+    protected abstract void DestroyBindGroupCore(GPUBindGroup bindGroup);
+
+    protected abstract GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor);
+    protected abstract void DestroyResourceGroupCore(GPUResourceGroup resourceGroup);
 
     protected abstract void ResizeSurfaceCore(uint width, uint height);
 

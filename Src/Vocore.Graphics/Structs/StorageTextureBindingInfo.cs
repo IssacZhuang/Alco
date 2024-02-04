@@ -2,7 +2,25 @@ namespace Vocore.Graphics;
 
 public struct StorageTextureBindingInfo
 {
-    public AccessMode access;
+    public StorageTextureBindingInfo(
+        AccessMode access,
+        TextureViewDimension viewDimension,
+        PixelFormat format)
+    {
+        Access = access;
+        ViewDimension = viewDimension;
+        Format = format;
+    }
+
+
+    public AccessMode Access;
     public TextureViewDimension ViewDimension { get; init; }
     public PixelFormat Format { get; init; }
+
+    public static readonly StorageTextureBindingInfo None = new()
+    {
+        Access = AccessMode.None,
+        ViewDimension = TextureViewDimension.Undefined,
+        Format = PixelFormat.Undefined
+    };
 }

@@ -115,6 +115,12 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         wgpuRenderPassEncoderSetIndexBuffer(_renderPass, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
     }
 
+    protected unsafe override void SetResourceGroupCore(uint slot, GPUResourceGroup resourceGroup)
+    {
+        WebGPUResourceGroup nativeResourceGroup = (WebGPUResourceGroup)resourceGroup;
+        wgpuRenderPassEncoderSetBindGroup(_renderPass, slot, nativeResourceGroup.Native, 0, null);
+    }
+
     #endregion
 
     #region WebGPU Implementation
