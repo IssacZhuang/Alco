@@ -1,5 +1,5 @@
 using System;
-using Veldrid;
+using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
@@ -17,7 +17,7 @@ namespace Vocore.Engine
         public readonly static GameEngineSetting Default = new GameEngineSetting
         {
             HasGraphics = true,
-            GraphicsAPI = CompatibilityHelper.GetPlatformDefaultGraphicsAPI(),
+            GraphicsAPI = GraphicsBackend.Auto,
             WindowName = "Vocore",
             Width = 640,
             Height = 360,
@@ -29,7 +29,7 @@ namespace Vocore.Engine
         public readonly static GameEngineSetting WithGraphics = new GameEngineSetting
         {
             HasGraphics = true,
-            GraphicsAPI = CompatibilityHelper.GetPlatformDefaultGraphicsAPI(),
+            GraphicsAPI = GraphicsBackend.Auto,
             WindowName = "Vocore",
             Width = 640,
             Height = 360,

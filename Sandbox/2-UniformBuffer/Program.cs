@@ -7,8 +7,8 @@ GameEngineSetting setting = GameEngineSetting.Default with
     StopWhenError = true,
     RenderingSetting = RenderingSetting.ForwardNoDepth
 };
-setting.GraphicsAPI = GraphicsBackend.OpenGL;
-setting.WindowName = "Basic Window";
+
+setting.WindowName = "Uniform Buffer";
 
 using (Game game = new Game(setting))
 {
