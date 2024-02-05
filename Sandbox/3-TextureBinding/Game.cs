@@ -111,7 +111,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     protected override void OnDraw(float delta)
     {
         _timer += delta;
-        UpdateColor(new Vector3((float)Math.Sin(_timer), (float)Math.Cos(_timer), 0.0f));
+        UpdateColor(new Vector3(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f));
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
