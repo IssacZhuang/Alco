@@ -54,10 +54,12 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
                     nativeEntry.size = buffer.Size;
                     break;
                 case BindableResourceType.Sampler:
-                    //TODO: Implement Sampler
+                    WebGPUSampler sampler = (WebGPUSampler)entry.Resource;
+                    nativeEntry.sampler = sampler.Native;
                     break;
-                case BindableResourceType.Texture:
-                    //TODO: Implement Texture
+                case BindableResourceType.TextureView:
+                    WebGPUTextureView textureView = (WebGPUTextureView)entry.Resource;
+                    nativeEntry.textureView = textureView.Native;
                     break;
             }
 

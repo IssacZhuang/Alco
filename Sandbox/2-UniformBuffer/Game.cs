@@ -205,6 +205,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     private void UpdateColor(Vector3 color)
     {
-        GraphicsDevice.UpdateBuffer(_colorBuffer, 0, color);
+        GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
     }
 }

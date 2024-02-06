@@ -3,6 +3,6 @@ namespace Vocore.Graphics;
 public enum BindableResourceType
 {
     Buffer,
-    Texture,
+    TextureView,
     Sampler,
 }

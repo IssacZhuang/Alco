@@ -71,6 +71,18 @@ public partial class WebGPUDevice : GPUDevice
         set => _vsync = value;
     }
 
+    public override GPUSampler SamplerNearestRepeat { get; }
+
+    public override GPUSampler SamplerLinearRepeat { get; }
+
+    public override GPUSampler SamplerNearestClamp { get; }
+
+    public override GPUSampler SamplerLinearClamp { get; }
+
+    public override GPUSampler SamplerNearestMirrorRepeat { get; }
+
+    public override GPUSampler SamplerLinearMirrorRepeat { get; }
+
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
@@ -124,6 +136,11 @@ public partial class WebGPUDevice : GPUDevice
         return new WebGPUResourceGroup(Native, descriptor);
     }
 
+    protected unsafe override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
+    {
+        return new WebGPUSampler(Native, descriptor, false);
+    }
+
 
     protected override void DestroyBufferCore(GPUBuffer buffer)
     {
@@ -160,10 +177,51 @@ public partial class WebGPUDevice : GPUDevice
         resourceGroup.Dispose();
     }
 
-    protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+
+
+    protected override void DestroySamplerCore(GPUSampler sampler)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
         wgpuQueueWriteBuffer(Queue, nativeBuffer, bufferOffset, data, size);
+    }
+
+    protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSzie, uint mipLevel)
+    {
+        WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+
+        WGPUImageCopyTexture copyTextureInfo = new WGPUImageCopyTexture
+        {
+            texture = nativeTexture,
+            mipLevel = mipLevel,
+            origin = new WGPUOrigin3D
+            {
+                x = 0,
+                y = 0,
+                z = 0,
+            },
+            aspect = WGPUTextureAspect.All,
+        };
+
+        WGPUTextureDataLayout textureDataLayout = new WGPUTextureDataLayout
+        {
+            offset = 0,
+            bytesPerRow = pixelSzie * texture.Width,
+            rowsPerImage = texture.Height,
+        };
+
+        WGPUExtent3D writeSize = new WGPUExtent3D
+        {
+            width = texture.Width,
+            height = texture.Height,
+            depthOrArrayLayers = texture.Depth,
+        };
+
+        wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
     }
 
     protected unsafe override void ResizeSurfaceCore(uint width, uint height)
@@ -290,6 +348,74 @@ public partial class WebGPUDevice : GPUDevice
 
         // create surface frame buffer
         _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(_surfaceRenderPass, Surface, GetSurfaceConfig());
+
+        // create default samplers
+
+        SamplerNearestRepeat = CreateSampler(new SamplerDescriptor()
+        {
+            AddressModeU = AddressMode.Repeat,
+            AddressModeV = AddressMode.Repeat,
+            AddressModeW = AddressMode.Repeat,
+            MinFilter = FilterMode.Nearest,
+            MagFilter = FilterMode.Nearest,
+            MipFilter = FilterMode.Nearest,
+            Name = "nearest_repeat_sampler",
+        });
+
+        SamplerLinearRepeat = CreateSampler(new SamplerDescriptor()
+        {
+            AddressModeU = AddressMode.Repeat,
+            AddressModeV = AddressMode.Repeat,
+            AddressModeW = AddressMode.Repeat,
+            MinFilter = FilterMode.Linear,
+            MagFilter = FilterMode.Linear,
+            MipFilter = FilterMode.Linear,
+            Name = "linear_repeat_sampler",
+        });
+
+        SamplerNearestClamp = CreateSampler(new SamplerDescriptor()
+        {
+            AddressModeU = AddressMode.ClampToEdge,
+            AddressModeV = AddressMode.ClampToEdge,
+            AddressModeW = AddressMode.ClampToEdge,
+            MinFilter = FilterMode.Nearest,
+            MagFilter = FilterMode.Nearest,
+            MipFilter = FilterMode.Nearest,
+            Name = "nearest_clamp_sampler",
+        });
+
+        SamplerLinearClamp = CreateSampler(new SamplerDescriptor()
+        {
+            AddressModeU = AddressMode.ClampToEdge,
+            AddressModeV = AddressMode.ClampToEdge,
+            AddressModeW = AddressMode.ClampToEdge,
+            MinFilter = FilterMode.Linear,
+            MagFilter = FilterMode.Linear,
+            MipFilter = FilterMode.Linear,
+            Name = "linear_clamp_sampler",
+        });
+
+        SamplerNearestMirrorRepeat = CreateSampler(new SamplerDescriptor()
+        {
+            AddressModeU = AddressMode.MirrorRepeat,
+            AddressModeV = AddressMode.MirrorRepeat,
+            AddressModeW = AddressMode.MirrorRepeat,
+            MinFilter = FilterMode.Nearest,
+            MagFilter = FilterMode.Nearest,
+            MipFilter = FilterMode.Nearest,
+            Name = "nearest_mirror_repeat_sampler",
+        });
+
+        SamplerLinearMirrorRepeat = CreateSampler(new SamplerDescriptor()
+        {
+            AddressModeU = AddressMode.MirrorRepeat,
+            AddressModeV = AddressMode.MirrorRepeat,
+            AddressModeW = AddressMode.MirrorRepeat,
+            MinFilter = FilterMode.Linear,
+            MagFilter = FilterMode.Linear,
+            MipFilter = FilterMode.Linear,
+            Name = "linear_mirror_repeat_sampler",
+        });
     }
 
     private WGPUSurfaceConfiguration GetSurfaceConfig()

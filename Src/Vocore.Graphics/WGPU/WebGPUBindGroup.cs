@@ -4,7 +4,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public class WebGPUBindGroup : GPUBindGroup
+internal class WebGPUBindGroup : GPUBindGroup
 {
     #region Properties
     private readonly WGPUBindGroupLayout _native;

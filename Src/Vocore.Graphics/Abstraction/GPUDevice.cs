@@ -5,11 +5,22 @@ namespace Vocore.Graphics;
 /// </summary> 
 public abstract class GPUDevice : BaseGPUObject
 {
+    // Abstract properties
     public abstract GPURenderPass SwapChainRenderPass { get; }
     public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
     public abstract PixelFormat? PrefferedDepthStencilFormat { get; }
     public abstract bool VSync { get; set; }
+
+
+    // Default samplers, those are the most common samplers used in the graphics pipeline.
+    // user can also create their own samplers by using the CreateSampler method.
+    public abstract GPUSampler SamplerNearestRepeat { get; }
+    public abstract GPUSampler SamplerLinearRepeat { get; }
+    public abstract GPUSampler SamplerNearestClamp { get; }
+    public abstract GPUSampler SamplerLinearClamp { get; }
+    public abstract GPUSampler SamplerNearestMirrorRepeat { get; }
+    public abstract GPUSampler SamplerLinearMirrorRepeat { get; }
 
 
     /// <summary>
@@ -25,14 +36,14 @@ public abstract class GPUDevice : BaseGPUObject
     public GPUBuffer CreateBuffer<T>(in BufferDescriptor createInfo, T[] data) where T : unmanaged
     {
         GPUBuffer buffer = CreateBufferCore(createInfo);
-        UpdateBuffer(buffer, data);
+        WriteBuffer(buffer, data);
         return buffer;
     }
 
     public GPUBuffer CreateBuffer<T>(in BufferDescriptor createInfo, T data) where T : unmanaged
     {
         GPUBuffer buffer = CreateBufferCore(createInfo);
-        UpdateBuffer(buffer, data);
+        WriteBuffer(buffer, data);
         return buffer;
     }
 
@@ -128,6 +139,16 @@ public abstract class GPUDevice : BaseGPUObject
         DestroyResourceGroupCore(resourceGroup);
     }
 
+    public GPUSampler CreateSampler(in SamplerDescriptor descriptor)
+    {
+        return CreateSamplerCore(descriptor);
+    }
+
+    public void DestroySampler(GPUSampler sampler)
+    {
+        DestroySamplerCore(sampler);
+    }
+
     public void ResizeSurface(uint width, uint height)
     {
         if (width <= 0 || height <= 0)
@@ -152,42 +173,58 @@ public abstract class GPUDevice : BaseGPUObject
         SwapBuffersCore();
     }
 
-    public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    public unsafe void WriteBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
-        UpdateBufferCore(buffer, bufferOffset, data, size);
+        WriteBufferCore(buffer, bufferOffset, data, size);
+    }
+
+    public unsafe void WriteTexture(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    {
+        WriteTextureCore(texture, data, dataSize, pixelSize, mipLevel);
     }
 
     // polymorphism
 
-    public unsafe void UpdateBuffer(GPUBuffer buffer, byte* data, uint size)
+    public unsafe void WriteBuffer(GPUBuffer buffer, byte* data, uint size)
     {
-        UpdateBuffer(buffer, 0, data, size);
+        WriteBuffer(buffer, 0, data, size);
     }
 
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T data) where T : unmanaged
+    public unsafe void WriteBuffer<T>(GPUBuffer buffer, uint bufferOffset, T data) where T : unmanaged
     {
-        UpdateBuffer(buffer, bufferOffset, (byte*)&data, (uint)sizeof(T));
+        WriteBuffer(buffer, bufferOffset, (byte*)&data, (uint)sizeof(T));
     }
 
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T data) where T : unmanaged
+    public unsafe void WriteBuffer<T>(GPUBuffer buffer, T data) where T : unmanaged
     {
-        UpdateBuffer(buffer, 0, (byte*)&data, (uint)sizeof(T));
+        WriteBuffer(buffer, 0, (byte*)&data, (uint)sizeof(T));
     }
 
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
+    public unsafe void WriteBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
     {
         fixed (T* ptr = data)
         {
-            UpdateBuffer(buffer, bufferOffset, (byte*)ptr, (uint)(sizeof(T) * data.Length));
+            WriteBuffer(buffer, bufferOffset, (byte*)ptr, (uint)(sizeof(T) * data.Length));
         }
     }
 
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
+    public unsafe void WriteBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
     {
-        UpdateBuffer(buffer, 0, data);
+        WriteBuffer(buffer, 0, data);
     }
 
+    public unsafe void WriteTexture<TColor>(GPUTexture texture, TColor* data, uint length, uint mipLevel = 0) where TColor : unmanaged
+    {
+        WriteTexture(texture, (byte*)data, (uint)sizeof(TColor) * length, (uint)sizeof(TColor), mipLevel);
+    }
 
+    public unsafe void WriteTexture<TColor>(GPUTexture texture, TColor[] data, uint mipLevel = 0) where TColor : unmanaged
+    {
+        fixed (TColor* ptr = data)
+        {
+            WriteTexture(texture, ptr, (uint)data.Length, mipLevel);
+        }
+    }
 
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
     protected abstract void DestroyBufferCore(GPUBuffer buffer);
@@ -210,6 +247,9 @@ public abstract class GPUDevice : BaseGPUObject
     protected abstract GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor);
     protected abstract void DestroyResourceGroupCore(GPUResourceGroup resourceGroup);
 
+    protected abstract GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor);
+    protected abstract void DestroySamplerCore(GPUSampler sampler);
+
     protected abstract void ResizeSurfaceCore(uint width, uint height);
 
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
@@ -218,7 +258,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <summary>
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>
-    protected abstract unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 
-
+    protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel);
 }

@@ -246,12 +246,6 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => NAME;
         }
 
-        public override BindableResourceType ResourceType
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BindableResourceType.Texture;
-        }
-
         protected override void Dispose(bool disposing)
         {
             //wgpuTextureDestroy(_texture);
@@ -275,6 +269,12 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => _defaultView;
         }
 
+        public override uint MipLevelCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => 1;
+        }
+
         public unsafe WebGPUSurfaceTexture(WGPUSurface surface)
         {
             _surface = surface;
@@ -284,7 +284,6 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _texture = surfaceTexture.texture;
             _width = wgpuTextureGetWidth(_texture);
             _height = wgpuTextureGetHeight(_texture);
-
 
             _defaultView = wgpuTextureCreateView(_texture, null);
         }

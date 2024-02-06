@@ -332,6 +332,33 @@ internal static partial class UtilsWebGPU
     public static readonly Func<StencilOperation, WGPUStencilOperation> StencilOperationToWebGPU;
     public static readonly Func<WGPUStencilOperation, StencilOperation> StencilOperationToAbstract;
 
+    private static readonly Tuple<AddressMode, WGPUAddressMode>[] AddressModeCast = new Tuple<AddressMode, WGPUAddressMode>[]
+    {
+        new(AddressMode.ClampToEdge, WGPUAddressMode.ClampToEdge),
+        new(AddressMode.Repeat, WGPUAddressMode.Repeat),
+        new(AddressMode.MirrorRepeat, WGPUAddressMode.MirrorRepeat),
+    };
+
+    public static readonly Func<AddressMode, WGPUAddressMode> AddressModeToWebGPU;
+    public static readonly Func<WGPUAddressMode, AddressMode> AddressModeToAbstract;
+
+    private static readonly Tuple<FilterMode, WGPUFilterMode>[] FilterModeCast = new Tuple<FilterMode, WGPUFilterMode>[]
+    {
+        new(FilterMode.Nearest, WGPUFilterMode.Nearest),
+        new(FilterMode.Linear, WGPUFilterMode.Linear),
+    };
+
+    public static readonly Func<FilterMode, WGPUFilterMode> FilterModeToWebGPU;
+    public static readonly Func<WGPUFilterMode, FilterMode> FilterModeToAbstract;
+
+    private static readonly Tuple<FilterMode, WGPUMipmapFilterMode>[] MipmapFilterModeCast = new Tuple<FilterMode, WGPUMipmapFilterMode>[]
+    {
+        new(FilterMode.Nearest, WGPUMipmapFilterMode.Nearest),
+        new(FilterMode.Linear, WGPUMipmapFilterMode.Linear),
+    };
+
+    public static readonly Func<FilterMode, WGPUMipmapFilterMode> MipmapFilterModeToWebGPU;
+    public static readonly Func<WGPUMipmapFilterMode, FilterMode> MipmapFilterModeToAbstract;
 
     static UtilsWebGPU()
     {
@@ -349,5 +376,8 @@ internal static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(TextureDimensionCast, out TextureDimensionToWebGPU, out TextureDimensionToAbstract);
         UtilsCast.GenerateCastFunc(TextureViewDimensionCast, out TextureViewDimensionToWebGPU, out TextureViewDimensionToAbstract);
         UtilsCast.GenerateCastFunc(StencilOperationCast, out StencilOperationToWebGPU, out StencilOperationToAbstract);
+        UtilsCast.GenerateCastFunc(AddressModeCast, out AddressModeToWebGPU, out AddressModeToAbstract);
+        UtilsCast.GenerateCastFunc(FilterModeCast, out FilterModeToWebGPU, out FilterModeToAbstract);
+        UtilsCast.GenerateCastFunc(MipmapFilterModeCast, out MipmapFilterModeToWebGPU, out MipmapFilterModeToAbstract);
     }
 }
