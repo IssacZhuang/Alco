@@ -73,7 +73,10 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(color, 1.0) * textureSample(image, imageSampler, in.texCoord);
+    var color:vec4<f32> = vec4<f32>(color, 1.0) * textureSample(image, imageSampler, in.texCoord);
+    //inverse gamma correction, why??
+    color = vec4<f32>(pow(color, vec4<f32>(2.2)));
+    return color;
 }
     ";
 
