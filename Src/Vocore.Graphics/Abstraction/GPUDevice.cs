@@ -167,7 +167,8 @@ public abstract class GPUDevice : BaseGPUObject
     {
         if (width <= 0 || height <= 0)
         {
-            throw new GraphicsException("Surface width and height must be greater than 0.");
+            //it might be the window is minimized
+            return;
         }
         ResizeSurfaceCore(width, height);
     }
