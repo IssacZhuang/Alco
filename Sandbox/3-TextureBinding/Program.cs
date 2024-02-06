@@ -4,7 +4,9 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    RenderingSetting = RenderingSetting.ForwardNoDepth
+    RenderingSetting = RenderingSetting.ForwardNoDepth,
+    Width = 400,
+    Height = 400
 };
 setting.WindowName = "Texture Binding";
 

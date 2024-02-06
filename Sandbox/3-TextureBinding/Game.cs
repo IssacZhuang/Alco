@@ -100,12 +100,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         _vertexBuffer = CreateVertexBuffer();
         _indexBuffer = CreateIndexBuffer();
 
+
+
         _colorBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
         {
             Name = "Color Buffer",
             Size = (uint)Marshal.SizeOf<Vector3>(),
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
+
+        UpdateColor(new Vector3(1, 1, 1));
 
         _pipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture);
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
@@ -124,7 +128,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     protected override void OnDraw(float delta)
     {
         _timer += delta;
-        UpdateColor(new Vector3(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f));
+
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
