@@ -176,7 +176,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         };
 
         RasterizerState rasterizer = RasterizerState.CullNone;
-        BlendState blend = BlendState.Opaque;
+        BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.DepthNone;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(

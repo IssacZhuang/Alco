@@ -35,6 +35,7 @@ namespace Vocore.Graphics
             Alpha = new BlendComponent(BlendFactor.One, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add)
         };
 
+        // Traditional transparency
         public static readonly BlendState NonPremultipliedAlpha = new BlendState
         {
             Color = new BlendComponent(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add),
