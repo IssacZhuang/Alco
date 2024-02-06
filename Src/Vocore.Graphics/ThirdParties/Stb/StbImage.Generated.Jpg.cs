@@ -3,6 +3,7 @@
 using System.Runtime.InteropServices;
 using Hebron.Runtime;
 
+#nullable disable
 #pragma warning disable CA2014
 
 namespace StbImageSharp

@@ -245,7 +245,7 @@ internal static partial class UtilsWebGPU
             };
         }
 
-        if (binding.Type == BindingType.Texture)
+        if (binding.Type == BindingType.TextureView)
         {
             result.texture = new WGPUTextureBindingLayout
             {

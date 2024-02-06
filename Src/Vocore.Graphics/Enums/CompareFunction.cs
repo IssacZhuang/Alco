@@ -2,12 +2,13 @@ namespace Vocore.Graphics;
 
 public enum CompareFunction
 {
-    Never = 0,
-    Less = 1,
-    Equal = 2,
+    Undefined = 0,
+    Never = 1,
+    Less = 2,
     LessEqual = 3,
-    Greater = 4,
-    NotEqual = 5,
-    GreaterEqual = 6,
-    Always = 7,
+    Equal = 4,
+    Greater = 5,
+    NotEqual = 6,
+    GreaterEqual = 7,
+    Always = 8,
 }

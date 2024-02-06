@@ -280,6 +280,7 @@ internal static partial class UtilsWebGPU
     // compare function mapping
     private static readonly Tuple<CompareFunction, WGPUCompareFunction>[] CompareFunctionCast = new Tuple<CompareFunction, WGPUCompareFunction>[]
     {
+        new(CompareFunction.Undefined, WGPUCompareFunction.Undefined),
         new(CompareFunction.Never, WGPUCompareFunction.Never),
         new(CompareFunction.Less, WGPUCompareFunction.Less),
         new(CompareFunction.Equal, WGPUCompareFunction.Equal),

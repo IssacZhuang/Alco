@@ -198,7 +198,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             Layout = bindGroup,
             Resources = new ResourceBindingEntry[]
             {
-                new ResourceBindingEntry(0, ShaderStage.Pixel, buffer),
+                new ResourceBindingEntry(0, buffer),
             }
         });
     }

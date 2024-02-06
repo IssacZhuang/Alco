@@ -25,7 +25,7 @@ public struct TextureDescriptor
         uint height,
         uint depthOrArrayLayer = 1,
         uint mipLevels = 1,
-        TextureUsage usage = TextureUsage.Read,
+        TextureUsage usage = TextureUsage.TextureBinding | TextureUsage.Write,
         uint sampleCount = 1,
         AccessMode accessMode = AccessMode.None,
         string name = "Unnamed GPU texture")
@@ -72,7 +72,7 @@ public struct TextureDescriptor
     /// <summary>
     /// The usage of the texture.
     /// </summary>
-    public TextureUsage Usage { get; set; } = TextureUsage.Read;
+    public TextureUsage Usage { get; set; } = TextureUsage.TextureBinding | TextureUsage.Write;
 
     /// <summary>
     /// The width of the texture.

@@ -60,6 +60,11 @@ public class WebGPUTextureView : GPUTextureView
                 nextInChain = null,
                 label = ptrName,
                 dimension = UtilsWebGPU.TextureViewDimensionToWebGPU(descriptor.Dimension),
+                baseMipLevel = descriptor.BaseMipLevel,
+                mipLevelCount = descriptor.MipLevelCount,
+                baseArrayLayer = descriptor.BaseArrayLayer,
+                arrayLayerCount = descriptor.ArrayLayerCount,
+                aspect = WGPUTextureAspect.All,
             };
             _native = wgpuTextureCreateView(_texture.Native, &viewDescriptor);
         }

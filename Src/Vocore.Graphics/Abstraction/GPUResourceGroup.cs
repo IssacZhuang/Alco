@@ -5,5 +5,5 @@ namespace Vocore.Graphics;
 /// </summary>
 public abstract class GPUResourceGroup : BaseGPUObject
 {
-    public abstract IReadOnlyList<IGPUBindableResource> Resources { get; init; }
+    public abstract IReadOnlyList<IGPUBindableResource> Resources { get; }
 }

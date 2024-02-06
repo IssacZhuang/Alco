@@ -71,17 +71,18 @@ public partial class WebGPUDevice : GPUDevice
         set => _vsync = value;
     }
 
+    //default samplers
+
     public override GPUSampler SamplerNearestRepeat { get; }
-
     public override GPUSampler SamplerLinearRepeat { get; }
-
     public override GPUSampler SamplerNearestClamp { get; }
-
     public override GPUSampler SamplerLinearClamp { get; }
-
     public override GPUSampler SamplerNearestMirrorRepeat { get; }
-
     public override GPUSampler SamplerLinearMirrorRepeat { get; }
+
+    //default bind groups
+    public override GPUBindGroup BindGroupBuffer { get; }
+    public override GPUBindGroup BindGroupTexture { get; }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
@@ -136,6 +137,12 @@ public partial class WebGPUDevice : GPUDevice
         return new WebGPUResourceGroup(Native, descriptor);
     }
 
+    protected override GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor)
+    {
+        return new WebGPUTextureView(Native, descriptor);
+    }
+
+    
     protected unsafe override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
     {
         return new WebGPUSampler(Native, descriptor, false);
@@ -177,11 +184,14 @@ public partial class WebGPUDevice : GPUDevice
         resourceGroup.Dispose();
     }
 
-
+    protected override void DestroyTextureViewCore(GPUTextureView textureView)
+    {
+        textureView.Dispose();
+    }
 
     protected override void DestroySamplerCore(GPUSampler sampler)
     {
-        throw new NotImplementedException();
+        sampler.Dispose();
     }
 
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
@@ -351,7 +361,7 @@ public partial class WebGPUDevice : GPUDevice
 
         // create default samplers
 
-        SamplerNearestRepeat = CreateSampler(new SamplerDescriptor()
+        SamplerNearestRepeat = CreateSampler(SamplerDescriptor.Default with
         {
             AddressModeU = AddressMode.Repeat,
             AddressModeV = AddressMode.Repeat,
@@ -362,7 +372,7 @@ public partial class WebGPUDevice : GPUDevice
             Name = "nearest_repeat_sampler",
         });
 
-        SamplerLinearRepeat = CreateSampler(new SamplerDescriptor()
+        SamplerLinearRepeat = CreateSampler(SamplerDescriptor.Default with
         {
             AddressModeU = AddressMode.Repeat,
             AddressModeV = AddressMode.Repeat,
@@ -373,7 +383,7 @@ public partial class WebGPUDevice : GPUDevice
             Name = "linear_repeat_sampler",
         });
 
-        SamplerNearestClamp = CreateSampler(new SamplerDescriptor()
+        SamplerNearestClamp = CreateSampler(SamplerDescriptor.Default with
         {
             AddressModeU = AddressMode.ClampToEdge,
             AddressModeV = AddressMode.ClampToEdge,
@@ -384,7 +394,7 @@ public partial class WebGPUDevice : GPUDevice
             Name = "nearest_clamp_sampler",
         });
 
-        SamplerLinearClamp = CreateSampler(new SamplerDescriptor()
+        SamplerLinearClamp = CreateSampler(SamplerDescriptor.Default with
         {
             AddressModeU = AddressMode.ClampToEdge,
             AddressModeV = AddressMode.ClampToEdge,
@@ -395,7 +405,7 @@ public partial class WebGPUDevice : GPUDevice
             Name = "linear_clamp_sampler",
         });
 
-        SamplerNearestMirrorRepeat = CreateSampler(new SamplerDescriptor()
+        SamplerNearestMirrorRepeat = CreateSampler(SamplerDescriptor.Default with
         {
             AddressModeU = AddressMode.MirrorRepeat,
             AddressModeV = AddressMode.MirrorRepeat,
@@ -406,7 +416,7 @@ public partial class WebGPUDevice : GPUDevice
             Name = "nearest_mirror_repeat_sampler",
         });
 
-        SamplerLinearMirrorRepeat = CreateSampler(new SamplerDescriptor()
+        SamplerLinearMirrorRepeat = CreateSampler(SamplerDescriptor.Default with
         {
             AddressModeU = AddressMode.MirrorRepeat,
             AddressModeV = AddressMode.MirrorRepeat,
@@ -416,6 +426,27 @@ public partial class WebGPUDevice : GPUDevice
             MipFilter = FilterMode.Linear,
             Name = "linear_mirror_repeat_sampler",
         });
+
+        //create default bind groups
+        BindGroupBuffer = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_buffer",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Pixel|ShaderStage.Compute, BindingType.UniformBuffer),
+            },
+        });
+
+        BindGroupTexture = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Pixel|ShaderStage.Compute, BindingType.TextureView),
+                new BindGroupEntry(1, ShaderStage.Vertex|ShaderStage.Pixel|ShaderStage.Compute, BindingType.Sampler),
+            },
+        });
+
     }
 
     private WGPUSurfaceConfiguration GetSurfaceConfig()

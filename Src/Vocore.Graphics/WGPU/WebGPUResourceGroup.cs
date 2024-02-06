@@ -15,7 +15,7 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
 
     #region Abstract Implementation
 
-    public override IReadOnlyList<IGPUBindableResource> Resources { get => throw new NotImplementedException(); init => throw new NotImplementedException(); }
+    public override IReadOnlyList<IGPUBindableResource> Resources { get => throw new NotImplementedException(); }
 
     public override string Name => throw new NotImplementedException();
 

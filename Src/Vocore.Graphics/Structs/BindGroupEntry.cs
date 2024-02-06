@@ -18,7 +18,7 @@ public struct BindGroupEntry
         {
             TextureInfo = textureInfo.Value;
         }
-        else if (type == BindingType.Texture)
+        else if (type == BindingType.TextureView)
         {
             TextureInfo = TextureBindingInfo.Default2D;
         }

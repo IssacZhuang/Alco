@@ -4,6 +4,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Hebron.Runtime;
 
+#nullable disable
+
 namespace StbImageSharp
 {
 #if !STBSHARP_INTERNAL

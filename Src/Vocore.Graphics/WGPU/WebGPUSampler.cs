@@ -56,6 +56,10 @@ internal class WebGPUSampler : GPUSampler
                 magFilter = UtilsWebGPU.FilterModeToWebGPU(descriptor.MagFilter),
                 minFilter = UtilsWebGPU.FilterModeToWebGPU(descriptor.MinFilter),
                 mipmapFilter = UtilsWebGPU.MipmapFilterModeToWebGPU(descriptor.MipFilter),
+                lodMinClamp = descriptor.LodMinClamp,
+                lodMaxClamp = descriptor.LodMaxClamp,
+                compare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.Compare),
+                maxAnisotropy = descriptor.MaxAnisotropy,
             };
 
             _native = wgpuDeviceCreateSampler(nativeDevice, &nativeDescriptor);

@@ -11,6 +11,7 @@ using VertexInputLayout = Vocore.Graphics.VertexInputLayout;
 using VertexStepMode = Vocore.Graphics.VertexStepMode;
 using VertexElement = Vocore.Graphics.VertexElement;
 using VertexFormat = Vocore.Graphics.VertexFormat;
+using Texture2D = Vocore.Graphics.Texture2D;
 
 public class Game : GameEngine
 {
@@ -21,14 +22,15 @@ public class Game : GameEngine
     {
         public Vector3 Position;
         public Vector3 Color;
+        public Vector2 TexCoord;
     }
 
     private static readonly Vertex[] Vertices =
     {
-        new Vertex {Position = new Vector3(-0.5f, 0.5f, 0.5f), Color = new Vector3(1.0f, 0.0f, 0.0f)},
-        new Vertex {Position = new Vector3(0.5f, 0.5f, 0.5f), Color = new Vector3(0.0f, 1.0f, 0.0f)},
-        new Vertex {Position = new Vector3(0.5f, -0.5f, 0.5f), Color = new Vector3(0.0f, 0.0f, 1.0f)},
-        new Vertex {Position = new Vector3(-0.5f, -0.5f, 0.5f), Color = new Vector3(1.0f, 1.0f, 1.0f)}
+        new Vertex {Position = new Vector3(-0.5f, 0.5f, 0.5f), Color = new Vector3(1.0f, 0.0f, 0.0f), TexCoord = new Vector2(0.0f, 0.0f)},
+        new Vertex {Position = new Vector3(0.5f, 0.5f, 0.5f), Color = new Vector3(0.0f, 1.0f, 0.0f), TexCoord = new Vector2(1.0f, 0.0f)},
+        new Vertex {Position = new Vector3(0.5f, -0.5f, 0.5f), Color = new Vector3(0.0f, 0.0f, 1.0f), TexCoord = new Vector2(1.0f, 1.0f)},
+        new Vertex {Position = new Vector3(-0.5f, -0.5f, 0.5f), Color = new Vector3(1.0f, 1.0f, 1.0f), TexCoord = new Vector2(0.0f, 1.0f)}
     };
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
@@ -39,14 +41,21 @@ public class Game : GameEngine
 @group(0) @binding(0) 
 var<uniform> color: vec3<f32>;
 
+@group(1) @binding(0) 
+var image: texture_2d<f32>;
+@group(1) @binding(1) 
+var imageSampler: sampler;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) texCoord: vec2<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec3<f32>,
+    @location(1) texCoord: vec2<f32>,
 };
 
 @vertex
@@ -56,6 +65,7 @@ fn vs_main(
     var out: VertexOutput;
     out.color = model.color;
     out.clip_position = vec4<f32>(model.position, 1);
+    out.texCoord = model.texCoord;
     return out;
 }
 
@@ -63,9 +73,11 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(color, 1.0);
+    return vec4<f32>(color, 1.0) * textureSample(image, imageSampler, in.texCoord);
 }
     ";
+
+    private const string ImageFileName = "Assets/test.png";
 
     private static readonly byte[] ShaderBytes = Encoding.UTF8.GetBytes(ShaderCodeWGSL);
 
@@ -76,7 +88,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     private GPUBuffer _indexBuffer;
     private GPUBuffer _colorBuffer;
     private GPUPipeline _pipeline;
-    private GPUResourceGroup _resourceGroup;
+    private GPUResourceGroup _resourceGroupBuffer;
+    private Texture2D _texture;
 
 
     private float _timer = 0.0f;
@@ -94,10 +107,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        GPUBindGroup bindGroup = CreateBindGroup();
+        _pipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture);
+        _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
 
-        _pipeline = CreatePipeline(bindGroup);
-        _resourceGroup = CreateResourceGroup(bindGroup, _colorBuffer);
+        _texture = CreateTexture();
     }
 
     protected override void OnUpdate(float delta)
@@ -118,7 +131,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         _commandBuffer.SetPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.SetResourceGroup(0, _resourceGroup);
+        _commandBuffer.SetResourceGroup(0, _resourceGroupBuffer);
+        _commandBuffer.SetResourceGroup(1, _texture.Resources);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -144,19 +158,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }, Vertices);
     }
 
-    private GPUBindGroup CreateBindGroup()
-    {
-        return GraphicsDevice.CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "color",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Pixel, BindingType.UniformBuffer),
-            }
-        });
-    }
-
-    private GPUPipeline CreatePipeline(GPUBindGroup bindGroup)
+    private GPUPipeline CreatePipeline(GPUBindGroup bindGroupBuffer, GPUBindGroup bindGroupTexture)
     {
         ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderBytes, "vs_main");
         ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, ShaderBytes, "fs_main");
@@ -168,7 +170,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             Elements = new VertexElement[]
             {
                 new VertexElement(0, 0, VertexFormat.Float32x3, "Position"),
-                new VertexElement(1, (uint)Marshal.SizeOf<Vector3>(), VertexFormat.Float32x3, "Color")
+                new VertexElement(1, (uint)Marshal.SizeOf<Vector3>(), VertexFormat.Float32x3, "Color"),
+                new VertexElement(2, (uint)(Marshal.SizeOf<Vector3>() * 2), VertexFormat.Float32x2, "TexCoord"),
             }
         };
 
@@ -177,7 +180,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         DepthStencilState depthStencil = DepthStencilState.DepthNone;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
-            new GPUBindGroup[] { bindGroup },
+            new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
             new ShaderStageSource[] { vertexShader, fragmentShader },
             new VertexInputLayout[] { vertexLayout },
             rasterizer,
@@ -198,9 +201,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             Layout = bindGroup,
             Resources = new ResourceBindingEntry[]
             {
-                new ResourceBindingEntry(0, ShaderStage.Pixel, buffer),
+                new ResourceBindingEntry(0, buffer),
             }
         });
+    }
+
+    private Texture2D CreateTexture()
+    {
+        byte[] data = File.ReadAllBytes(ImageFileName);
+        MemoryStream stream = new MemoryStream(data);
+        return GraphicsDevice.CreateTexture2D(stream);
     }
 
     private void UpdateColor(Vector3 color)

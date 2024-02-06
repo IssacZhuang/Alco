@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
+#nullable disable
+
 namespace StbImageSharp
 {
 	internal class AnimatedGifEnumerator : IEnumerator<AnimatedFrameResult>

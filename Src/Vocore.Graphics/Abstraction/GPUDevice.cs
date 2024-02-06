@@ -22,6 +22,10 @@ public abstract class GPUDevice : BaseGPUObject
     public abstract GPUSampler SamplerNearestMirrorRepeat { get; }
     public abstract GPUSampler SamplerLinearMirrorRepeat { get; }
 
+    // Default bind groups, those are the most common bind groups used in the graphics pipeline.
+    public abstract GPUBindGroup BindGroupBuffer { get; }
+    public abstract GPUBindGroup BindGroupTexture { get; }
+
 
     /// <summary>
     /// Creates a GPU buffer with the specified descriptor.
@@ -139,6 +143,16 @@ public abstract class GPUDevice : BaseGPUObject
         DestroyResourceGroupCore(resourceGroup);
     }
 
+    public GPUTextureView CreateTextureView(in TextureViewDescriptor descriptor)
+    {
+        return CreateTextureViewCore(descriptor);
+    }
+
+    public void DestroyTextureView(GPUTextureView textureView)
+    {
+        DestroyTextureViewCore(textureView);
+    }
+
     public GPUSampler CreateSampler(in SamplerDescriptor descriptor)
     {
         return CreateSamplerCore(descriptor);
@@ -213,16 +227,11 @@ public abstract class GPUDevice : BaseGPUObject
         WriteBuffer(buffer, 0, data);
     }
 
-    public unsafe void WriteTexture<TColor>(GPUTexture texture, TColor* data, uint length, uint mipLevel = 0) where TColor : unmanaged
-    {
-        WriteTexture(texture, (byte*)data, (uint)sizeof(TColor) * length, (uint)sizeof(TColor), mipLevel);
-    }
-
     public unsafe void WriteTexture<TColor>(GPUTexture texture, TColor[] data, uint mipLevel = 0) where TColor : unmanaged
     {
         fixed (TColor* ptr = data)
         {
-            WriteTexture(texture, ptr, (uint)data.Length, mipLevel);
+            WriteTexture(texture, (byte*)ptr, (uint)(sizeof(TColor) * data.Length), (uint)sizeof(TColor), mipLevel);
         }
     }
 
@@ -246,6 +255,9 @@ public abstract class GPUDevice : BaseGPUObject
 
     protected abstract GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor);
     protected abstract void DestroyResourceGroupCore(GPUResourceGroup resourceGroup);
+
+    protected abstract GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor);
+    protected abstract void DestroyTextureViewCore(GPUTextureView textureView);
 
     protected abstract GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor);
     protected abstract void DestroySamplerCore(GPUSampler sampler);
