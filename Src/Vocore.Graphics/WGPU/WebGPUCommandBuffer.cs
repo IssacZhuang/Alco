@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUCommandBuffer : GPUCommandBuffer
+internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 {
     private static readonly Exception ExceptionNoFramebuffer = new("No framebuffer is set before set the graphics pipeline");
     private static readonly Exception ExceptionNoGraphicsPipeline = new("No graphics pipeline is set before drawing or set resources");
@@ -29,6 +29,9 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
     // create on end(), can be reused
     private WGPUCommandBuffer _buffer;
 
+    //release on dispose
+    private sbyte* _nativeName;
+
     #endregion
 
     #region Abstract Implementation
@@ -43,15 +46,23 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void Dispose(bool disposing)
     {
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
+
         ReleaseCommandBuffer();
         ReleaseCommandEncoder();
 
+        UtilsInterop.Free(_nativeName);
     }
 
     // begin the encoder
     protected unsafe override void BeginCore()
     {
-        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
+        WGPUCommandEncoderDescriptor descriptor = new WGPUCommandEncoderDescriptor
+        {
+            label = _nativeName
+        };
+        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, &descriptor);
 
         // clear buffer
         if (_buffer != WGPUCommandBuffer.Null)
@@ -67,7 +78,12 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
 
-        _buffer = wgpuCommandEncoderFinish(_encoder, Name);
+        WGPUCommandBufferDescriptor descriptor = new WGPUCommandBufferDescriptor
+        {
+            label = _nativeName
+        };
+
+        _buffer = wgpuCommandEncoderFinish(_encoder, &descriptor);
 
         _graphicsPipeline = WGPURenderPipeline.Null;
         _computePipeline = WGPUComputePipeline.Null;
@@ -214,17 +230,21 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
         }
         else
         {
-            Name = "Unnamed Command Buffer";
+            Name = "unnamed_command_buffer";
         }
-
-        _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, Name);
-
 
         _buffer = WGPUCommandBuffer.Null;
         _encoder = WGPUCommandEncoder.Null;
 
         _renderPass = WGPURenderPassEncoder.Null;
         _computePass = WGPUComputePassEncoder.Null;
+
+        ReadOnlySpan<sbyte> nameSpan = Name.GetUtf8Span();
+        fixed (sbyte* ptr = nameSpan)
+        {
+            _nativeName = UtilsInterop.Alloc<sbyte>(nameSpan.Length + 1);
+            UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+        }
     }
 
     private void ReleaseCommandEncoder()

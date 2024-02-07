@@ -14,4 +14,9 @@ public unsafe static class UtilsInterop
     {
         Marshal.FreeHGlobal((IntPtr)ptr);
     }
+
+    public static void Copy<T>(T* src, T* dst, uint srcSize, uint dstSize) where T : unmanaged
+    {
+        Buffer.MemoryCopy(src, dst, srcSize, dstSize);
+    }
 }
