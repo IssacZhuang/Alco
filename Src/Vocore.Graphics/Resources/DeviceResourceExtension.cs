@@ -7,8 +7,7 @@ public static class DeviceResourceExtension
     public static Texture2D CreateTexture2DFromFile(
         this GPUDevice device,
         Stream stream,
-        bool isSRGB = false,
-        string name = "unnamed_texture"
+        ImageLoadOption option
     )
     {
 
@@ -21,16 +20,14 @@ public static class DeviceResourceExtension
             (uint)image.Width,
             (uint)image.Height,
             GetPixelSize(targetComponents),
-            isSRGB,
-            name
+            option
         );
     }
 
     public static Texture2D CreateTexture2DFromFile(
         this GPUDevice device,
         byte[] data,
-        bool isSRGB = false,
-        string name = "unnamed_texture"
+        ImageLoadOption? option = null
     )
     {
         ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
@@ -42,8 +39,7 @@ public static class DeviceResourceExtension
             (uint)image.Width,
             (uint)image.Height,
             GetPixelSize(targetComponents),
-            isSRGB,
-            name
+            option
         );
     }
 
@@ -54,8 +50,7 @@ public static class DeviceResourceExtension
         uint width,
         uint height,
         uint pixelSize = 4,
-        bool isSRGB = false,
-        string name = "unnamed_texture"
+        ImageLoadOption? option = null
     )
     {
         TextureDescriptor textureDescriptor = new TextureDescriptor(
@@ -68,9 +63,11 @@ public static class DeviceResourceExtension
             TextureUsage.TextureBinding | TextureUsage.Write
         );
 
-        if (isSRGB) textureDescriptor.Format = PixelFormat.RGBA8UnormSrgb;
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
 
-        textureDescriptor.Name = name;
+        if (optionReal.IsSRGB) textureDescriptor.Format = PixelFormat.RGBA8UnormSrgb;
+
+        textureDescriptor.Name = optionReal.Name;
 
         GPUTexture texture = device.CreateTexture(textureDescriptor);
 
@@ -86,7 +83,7 @@ public static class DeviceResourceExtension
             TextureViewDimension.Texture2D
         );
 
-        textureDescriptor.Name = name;
+        textureDescriptor.Name = optionReal.Name;
 
         GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
 
@@ -104,8 +101,7 @@ public static class DeviceResourceExtension
         uint width,
         uint height,
         uint pixelSize = 4,
-        bool isSRGB = false,
-        string name = "unnamed_texture"
+        ImageLoadOption? option = null
     )
     {
         fixed (byte* ptr = data)
@@ -117,8 +113,7 @@ public static class DeviceResourceExtension
                 width,
                 height,
                 pixelSize,
-                isSRGB,
-                name
+                option
             );
         }
     }
