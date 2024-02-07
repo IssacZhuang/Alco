@@ -80,7 +80,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
     ";
 
-    private const string ImageFileName = "Assets/test.png";
+    private const string ImageFileName = "Assets/test.jpg";
 
     private static readonly byte[] ShaderBytes = Encoding.UTF8.GetBytes(ShaderCodeWGSL);
 
@@ -102,7 +102,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _vertexBuffer = CreateVertexBuffer();
         _indexBuffer = CreateIndexBuffer();
-        
+
         _colorBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
         {
             Name = "Color Buffer",

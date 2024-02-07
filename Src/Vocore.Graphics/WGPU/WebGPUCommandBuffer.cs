@@ -30,7 +30,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     private WGPUCommandBuffer _buffer;
 
     //release on dispose
-    private sbyte* _nativeName;
+    private readonly sbyte* _nativeName;
 
     #endregion
 
@@ -46,6 +46,9 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void Dispose(bool disposing)
     {
+        // the buffer will not be released if the End() is not called
+        // do check here to prevent memory leak
+    
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
 

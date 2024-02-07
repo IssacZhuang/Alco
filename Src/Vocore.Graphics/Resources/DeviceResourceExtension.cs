@@ -11,14 +11,16 @@ public static class DeviceResourceExtension
         string name = "unnamed_texture"
     )
     {
-        ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+
+        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
+        ImageResult image = ImageResult.FromStream(stream, targetComponents);
 
         return CreateTexture2DFromData(
             device,
             image.Data,
             (uint)image.Width,
             (uint)image.Height,
-            GetPixelSize(image.SourceComp),
+            GetPixelSize(targetComponents),
             isSRGB,
             name
         );
@@ -31,14 +33,15 @@ public static class DeviceResourceExtension
         string name = "unnamed_texture"
     )
     {
-        ImageResult image = ImageResult.FromMemory(data, ColorComponents.RedGreenBlueAlpha);
+        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
+        ImageResult image = ImageResult.FromMemory(data, targetComponents);
 
         return CreateTexture2DFromData(
             device,
             image.Data,
             (uint)image.Width,
             (uint)image.Height,
-            GetPixelSize(image.SourceComp),
+            GetPixelSize(targetComponents),
             isSRGB,
             name
         );
