@@ -90,12 +90,12 @@ internal class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
-        throw new NotImplementedException();
+       
     }
 
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
     {
-
+        
     }
 
     protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)

@@ -4,40 +4,59 @@ namespace Vocore.Graphics;
 
 public static class DeviceResourceExtension
 {
-    public unsafe static Texture2D CreateTexture2D(
+    public unsafe static Texture2D CreateTexture2DFromFile(
         this GPUDevice device,
         Stream stream,
-        bool generateMipmaps = false,
+        bool isSRGB = false,
         string name = "unnamed_texture"
     )
     {
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
-        TextureDescriptor textureDescriptor = new TextureDescriptor(
-            TextureDimension.Texture2D,
-            PixelFormat.RGBA8UnormSrgb,
+
+        return CreateTexture2DFromData(
+            device,
+            image.Data,
             (uint)image.Width,
             (uint)image.Height,
+            GetPixelSize(image.SourceComp),
+            isSRGB,
+            name
+        );
+    }
+
+    public unsafe static Texture2D CreateTexture2DFromData(
+        this GPUDevice device,
+        byte* data,
+        uint size,
+        uint width,
+        uint height,
+        uint pixelSize = 4,
+        bool isSRGB = false,
+        string name = "unnamed_texture"
+    )
+    {
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            PixelFormat.RGBA8Unorm,
+            width,
+            height,
             1,
             1,
             TextureUsage.TextureBinding | TextureUsage.Write
         );
 
+        if (isSRGB) textureDescriptor.Format = PixelFormat.RGBA8UnormSrgb;
+
         textureDescriptor.Name = name;
 
         GPUTexture texture = device.CreateTexture(textureDescriptor);
 
-        uint pixelSize = 4;
-
-        fixed (byte* ptr = image.Data)
-        {
-            device.WriteTexture(
-                texture,
-                ptr,
-                (uint)image.Width * pixelSize * (uint)image.Height * pixelSize,
-                pixelSize
-            );
-        }
-
+        device.WriteTexture(
+            texture,
+            data,
+            size,
+            pixelSize
+        );
 
         TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
             texture,
@@ -54,5 +73,47 @@ public static class DeviceResourceExtension
             textureView,
             device.SamplerLinearRepeat
         );
+    }
+
+    public unsafe static Texture2D CreateTexture2DFromData(
+        this GPUDevice device,
+        byte[] data,
+        uint width,
+        uint height,
+        uint pixelSize = 4,
+        bool isSRGB = false,
+        string name = "unnamed_texture"
+    )
+    {
+        fixed (byte* ptr = data)
+        {
+            return CreateTexture2DFromData(
+                device,
+                ptr,
+                (uint)data.Length,
+                width,
+                height,
+                pixelSize,
+                isSRGB,
+                name
+            );
+        }
+    }
+
+    private static uint GetPixelSize(ColorComponents components)
+    {
+        switch (components)
+        {
+            case ColorComponents.RedGreenBlueAlpha:
+                return 4;
+            case ColorComponents.RedGreenBlue:
+                return 3;
+            case ColorComponents.GreyAlpha:
+                return 2;
+            case ColorComponents.Grey:
+                return 1;
+            default:
+                throw new NotSupportedException("The color components is not supported");
+        }
     }
 }

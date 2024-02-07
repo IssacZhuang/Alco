@@ -217,7 +217,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     {
         byte[] data = File.ReadAllBytes(ImageFileName);
         MemoryStream stream = new MemoryStream(data);
-        return GraphicsDevice.CreateTexture2D(stream);
+        return GraphicsDevice.CreateTexture2DFromFile(stream);
     }
 
     private void UpdateColor(Vector3 color)
