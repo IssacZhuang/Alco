@@ -30,16 +30,24 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         EndCore();
     }
 
+    //graphics
+
     public void SetFrameBuffer(GPUFrameBuffer frameBuffer)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetFrameBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetFrameBufferCore(frameBuffer);
     }
 
-    public void SetPipeline(GPUPipeline pipeline)
+    public void SetGraphicsPipeline(GPUPipeline pipeline)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        SetPipelineCore(pipeline);
+        SetGraphicsPipelineCore(pipeline);
+    }
+
+    public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        SetGraphicsResourcesCore(slot, resourceGroup);
     }
 
     public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
@@ -54,22 +62,28 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         SetIndexBufferCore(buffer, format, offset, size);
     }
 
+    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while Draw, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        DrawCore(vertexCount, instanceCount, firstVertex, firstInstance);
+    }
+
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
-    public void DrawIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        DrawIndirectCore(indirectBuffer, offset, drawCount, stride);
+        DrawIndirectCore(indirectBuffer, offset);
     }
 
-    public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride)
+    public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        DrawIndexedIndirectCore(indirectBuffer, offset, drawCount, stride);
+        DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
     public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
@@ -78,10 +92,30 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         UpdateBufferCore(buffer, bufferOffset, data, size);
     }
 
-    public void SetResourceGroup(uint slot, GPUResourceGroup resourceGroup)
+    //compute
+
+    public void SetComputePipeline(GPUPipeline pipeline)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        SetComputePipelineCore(pipeline);
+    }
+
+    public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        SetResourceGroupCore(slot, resourceGroup);
+        SetComputeResourcesCore(slot, resourceGroup);
+    }
+
+    public void DispatchCompute(uint x, uint y, uint z)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DispatchCompute, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        DispatchComputeCore(x, y, z);
+    }
+
+    public void DispatchComputeIndirect(GPUBuffer indirectBuffer, uint offset)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DispatchComputeIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        DispatchComputeIndirectCore(indirectBuffer, offset);
     }
 
     // polymorphism
@@ -129,13 +163,18 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void BeginCore();
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
-    protected abstract void SetPipelineCore(GPUPipeline pipeline);
+    protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);
+    protected abstract void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
     protected abstract void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
-    protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
-    protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount, uint stride);
-    protected abstract void SetResourceGroupCore(uint slot, GPUResourceGroup resourceGroup);
+    protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset);
+    protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset);
+    protected abstract void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup);
+    protected abstract void SetComputePipelineCore(GPUPipeline pipeline);
+    protected abstract void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup);
+    protected abstract void DispatchComputeCore(uint x, uint y, uint z);
+    protected abstract void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset);
     /// <summary>
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>

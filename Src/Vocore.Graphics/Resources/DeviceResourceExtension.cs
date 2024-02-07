@@ -4,7 +4,7 @@ namespace Vocore.Graphics;
 
 public static class DeviceResourceExtension
 {
-    public unsafe static Texture2D CreateTexture2DFromFile(
+    public static Texture2D CreateTexture2DFromFile(
         this GPUDevice device,
         Stream stream,
         bool isSRGB = false,
@@ -12,6 +12,26 @@ public static class DeviceResourceExtension
     )
     {
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+
+        return CreateTexture2DFromData(
+            device,
+            image.Data,
+            (uint)image.Width,
+            (uint)image.Height,
+            GetPixelSize(image.SourceComp),
+            isSRGB,
+            name
+        );
+    }
+
+    public static Texture2D CreateTexture2DFromFile(
+        this GPUDevice device,
+        byte[] data,
+        bool isSRGB = false,
+        string name = "unnamed_texture"
+    )
+    {
+        ImageResult image = ImageResult.FromMemory(data, ColorComponents.RedGreenBlueAlpha);
 
         return CreateTexture2DFromData(
             device,
