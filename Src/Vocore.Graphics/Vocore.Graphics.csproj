@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Alimer.Bindings.WebGPU" Version="1.3.5" />
+    <PackageReference Include="SharpGen.Runtime" Version="2.1.2-beta" />
+    <PackageReference Include="SharpGen.Runtime.COM" Version="2.1.2-beta" />
   </ItemGroup>
 
 </Project>

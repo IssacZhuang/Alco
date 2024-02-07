@@ -54,7 +54,7 @@ public class Game : GameEngine
         _colorBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
         {
             Name = "Color Buffer",
-            Size = (uint)Marshal.SizeOf<Vector3>(),
+            Size = (uint)Marshal.SizeOf<Vector4>(),
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
@@ -75,7 +75,7 @@ public class Game : GameEngine
     protected override void OnDraw(float delta)
     {
         _timer += delta;
-        UpdateColor(new Vector3(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f));
+        UpdateColor(new Vector4(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f, 1.0f));
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
@@ -115,16 +115,17 @@ public class Game : GameEngine
             Name = "color",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Pixel, BindingType.UniformBuffer),
+                new BindGroupEntry(0, ShaderStage.Fragment, BindingType.UniformBuffer),
             }
         });
     }
 
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroup)
     {
-        byte[] ShaderCode= LoadFile("Shader.wgsl");
-        ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
-        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, ShaderCode, "fs_main");
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
+
+        ShaderStageSource vertexShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragmentShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
@@ -168,7 +169,7 @@ public class Game : GameEngine
         });
     }
 
-    private void UpdateColor(Vector3 color)
+    private void UpdateColor(Vector4 color)
     {
         GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
     }

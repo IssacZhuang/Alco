@@ -13,7 +13,7 @@ public static class UtilsDescriptor
                 vertex = stages[i];
             }
 
-            if (stages[i].Stage.HasFlag(ShaderStage.Pixel))
+            if (stages[i].Stage.HasFlag(ShaderStage.Fragment))
             {
                 pixel = stages[i];
             }

@@ -105,7 +105,7 @@ internal static partial class UtilsWebGPU
             result |= WGPUShaderStage.Vertex;
         }
 
-        if ((stage & ShaderStage.Pixel) != 0)
+        if ((stage & ShaderStage.Fragment) != 0)
         {
             result |= WGPUShaderStage.Fragment;
         }

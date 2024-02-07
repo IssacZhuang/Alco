@@ -5,7 +5,6 @@ using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Engine;
 
-
 using ShaderStage = Vocore.Graphics.ShaderStage;
 using VertexInputLayout = Vocore.Graphics.VertexInputLayout;
 using VertexStepMode = Vocore.Graphics.VertexStepMode;
@@ -117,9 +116,15 @@ public class Game : GameEngine
 
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroupBuffer, GPUBindGroup bindGroupTexture)
     {
-        byte[] shaderCode = LoadFile("Shader.wgsl");
-        ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, shaderCode, "vs_main");
-        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, shaderCode, "fs_main");
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
+    
+        ShaderStageSource vertexShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragmentShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+
+        // byte[] ShaderCode = LoadFile("Shader.wgsl");
+
+        // ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
+        // ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "fs_main");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {

@@ -120,7 +120,7 @@ public class Game : GameEngine
     {
         byte[] ShaderCode = LoadFile("DrawTexture.wgsl");
         ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
-        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, ShaderCode, "fs_main");
+        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "fs_main");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {

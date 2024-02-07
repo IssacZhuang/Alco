@@ -11,6 +11,7 @@ using VertexInputLayout = Vocore.Graphics.VertexInputLayout;
 using VertexStepMode = Vocore.Graphics.VertexStepMode;
 using VertexElement = Vocore.Graphics.VertexElement;
 using VertexFormat = Vocore.Graphics.VertexFormat;
+using Vortice.Dxc;
 
 public class Game : GameEngine
 {
@@ -90,9 +91,10 @@ public class Game : GameEngine
 
     private GPUPipeline CreatePipeline()
     {
-        byte[] shaderCode = LoadFile("Shader.wgsl");
-        ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, shaderCode, "vs_main");
-        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, shaderCode, "fs_main");
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
+
+        ShaderStageSource vertexShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragmentShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
