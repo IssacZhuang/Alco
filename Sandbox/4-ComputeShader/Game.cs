@@ -35,55 +35,6 @@ public class Game : GameEngine
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
 
-    private const string ShaderCodeWGSL = @"
-// Vertex shader
-
-@group(0) @binding(0) 
-var<uniform> color: vec3<f32>;
-
-@group(1) @binding(0) 
-var image: texture_2d<f32>;
-@group(1) @binding(1) 
-var imageSampler: sampler;
-
-struct VertexInput {
-    @location(0) position: vec3<f32>,
-    @location(1) color: vec3<f32>,
-    @location(2) texCoord: vec2<f32>,
-};
-
-struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec3<f32>,
-    @location(1) texCoord: vec2<f32>,
-};
-
-@vertex
-fn vs_main(
-    model: VertexInput,
-) -> VertexOutput {
-    var out: VertexOutput;
-    out.color = model.color;
-    out.clip_position = vec4<f32>(model.position, 1);
-    out.texCoord = model.texCoord;
-    return out;
-}
-
-// Fragment shader
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color:vec4<f32> = vec4<f32>(color, 1.0) * textureSample(image, imageSampler, in.texCoord);
-    //inverse gamma correction, why??
-    color = vec4<f32>(pow(color, vec4<f32>(2.2)));
-    return color;
-}
-    ";
-
-    private const string ImageFileName = "Assets/test.jpg";
-
-    private static readonly byte[] ShaderBytes = Encoding.UTF8.GetBytes(ShaderCodeWGSL);
-
     #endregion
 
     private GPUCommandBuffer _commandBuffer;
@@ -165,8 +116,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroupBuffer, GPUBindGroup bindGroupTexture)
     {
-        ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderBytes, "vs_main");
-        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, ShaderBytes, "fs_main");
+        byte[] ShaderCode = LoadFile("DrawTexture.wgsl");
+        ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
+        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Pixel, ShaderLanguage.WGSL, ShaderCode, "fs_main");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
@@ -213,7 +165,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     private Texture2D CreateTexture()
     {
-        byte[] data = File.ReadAllBytes(ImageFileName);
+        byte[] data = LoadFile("test.jpg");
 
         return GraphicsDevice.CreateTexture2DFromFile(data);
     }
@@ -221,5 +173,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     private void UpdateColor(Vector3 color)
     {
         GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
+    }
+
+    private static byte[] LoadFile(string path)
+    {
+        return File.ReadAllBytes(Path.Combine("Assets", path));
     }
 }
