@@ -124,6 +124,16 @@ public abstract class GPUDevice : BaseGPUObject
         DestroyGraphicsPipelineCore(pipeline);
     }
 
+    public GPUPipeline CreateComputePipeline(in ComputePipelineDescriptor descriptor)
+    {
+        return CreateComputePipelineCore(descriptor);
+    }
+
+    public void DestroyComputePipeline(GPUPipeline pipeline)
+    {
+        DestroyComputePipelineCore(pipeline);
+    }
+
     public GPUBindGroup CreateBindGroup(in BindGroupDescriptor descriptor)
     {
         return CreateBindGroupCore(descriptor);
@@ -251,6 +261,9 @@ public abstract class GPUDevice : BaseGPUObject
 
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
     protected abstract void DestroyGraphicsPipelineCore(GPUPipeline pipeline);
+
+    protected abstract GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor);
+    protected abstract void DestroyComputePipelineCore(GPUPipeline pipeline);
 
     protected abstract GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor);
     protected abstract void DestroyBindGroupCore(GPUBindGroup bindGroup);

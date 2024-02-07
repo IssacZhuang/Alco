@@ -41,7 +41,8 @@ public class Game : GameEngine
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
     private GPUBuffer _colorBuffer;
-    private GPUPipeline _pipeline;
+    private GPUPipeline _graphicsPipeline;
+    private GPUPipeline _computePipeline;
     private GPUResourceGroup _resourceGroupBuffer;
     private Texture2D _texture;
 
@@ -63,7 +64,8 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _pipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2D);
+        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2D);
+        _computePipeline = CreateComputePipeline();
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
 
         _texture = CreateTexture();
@@ -84,7 +86,7 @@ public class Game : GameEngine
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
+        _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
@@ -149,6 +151,20 @@ public class Game : GameEngine
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(pipelineDescriptor);
+    }
+
+    private GPUPipeline CreateComputePipeline()
+    {
+        byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
+        ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
+
+        ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
+            computeShader,
+            new GPUBindGroup[] { GraphicsDevice.BindGroupStorageTexture2D },
+            "box_blur_pipeline"
+        );
+
+        return GraphicsDevice.CreateComputePipeline(pipelineDescriptor);
     }
 
     private GPUResourceGroup CreateResourceGroup(GPUBindGroup bindGroup, GPUBuffer buffer)

@@ -128,6 +128,11 @@ public partial class WebGPUDevice : GPUDevice
         return new WebGPUGraphicsPipeline(Native, descriptor);
     }
 
+    protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
+    {
+        return new WebGPUComputePipeline(Native, descriptor);
+    }
+
     protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
     {
         return new WebGPUBindGroup(Native, descriptor);
@@ -171,6 +176,11 @@ public partial class WebGPUDevice : GPUDevice
     }
 
     protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
+    {
+        pipeline.Dispose();
+    }
+
+    protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
     {
         pipeline.Dispose();
     }
@@ -541,6 +551,8 @@ public partial class WebGPUDevice : GPUDevice
                 break;
         }
     }
+
+    
 
     #endregion
 }
