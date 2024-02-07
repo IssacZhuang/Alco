@@ -16,7 +16,4 @@
       <Visible>False</Visible>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <Content Update="Assets\Shader.wgsl" Link="Assets\Shader.wgsl" />
-  </ItemGroup>
 </Project>

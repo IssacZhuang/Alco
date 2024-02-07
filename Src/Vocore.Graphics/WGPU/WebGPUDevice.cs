@@ -82,7 +82,8 @@ public partial class WebGPUDevice : GPUDevice
 
     //default bind groups
     public override GPUBindGroup BindGroupBuffer { get; }
-    public override GPUBindGroup BindGroupTexture { get; }
+    public override GPUBindGroup BindGroupTexture2D { get; }
+    public override GPUBindGroup BindGroupStorageTexture2D { get; }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
@@ -439,13 +440,22 @@ public partial class WebGPUDevice : GPUDevice
             },
         });
 
-        BindGroupTexture = CreateBindGroup(new BindGroupDescriptor
+        BindGroupTexture2D = CreateBindGroup(new BindGroupDescriptor
         {
             Name = "default_bind_group_texture",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Pixel|ShaderStage.Compute, BindingType.TextureView),
+                new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Pixel|ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
                 new BindGroupEntry(1, ShaderStage.Vertex|ShaderStage.Pixel|ShaderStage.Compute, BindingType.Sampler),
+            },
+        });
+
+        BindGroupStorageTexture2D = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_storage_texture",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.Write, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
             },
         });
 
