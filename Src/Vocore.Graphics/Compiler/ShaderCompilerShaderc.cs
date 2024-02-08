@@ -1,12 +1,10 @@
 using Silk.NET.Shaderc;
 
-using static Silk.NET.Shaderc.Shaderc;
-
 namespace Vocore.Graphics;
 
 public unsafe static class ShaderCompilerShaderc
 {
-    private static readonly Shaderc Api = Shaderc.GetApi();
+    private static readonly Shaderc API = Shaderc.GetApi();
 
     //glsl
 
@@ -62,36 +60,36 @@ public unsafe static class ShaderCompilerShaderc
         string filename = "unnamed_shader.glsl",
         ShaderMacroDefine[]? defines = null)
     {
-        CompileOptions* options = Api.CompileOptionsInitialize();
-        Api.CompileOptionsSetSourceLanguage(options, language);
+        CompileOptions* options = API.CompileOptionsInitialize();
+        API.CompileOptionsSetSourceLanguage(options, language);
 
         if (defines != null)
         {
             foreach (var define in defines)
             {
-                Api.CompileOptionsAddMacroDefinition(options, define.name, define.value);
+                API.CompileOptionsAddMacroDefinition(options, define.name, define.value);
             }
         }
 
-        Api.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
+        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
         //Api.CompileOptionsSetGenerateDebugInfo(options);
-        Api.CompileOptionsSetWarningsAsErrors(options);
-        Api.CompileOptionsSetAutoMapLocations(options, true);
-        Api.CompileOptionsSetAutoBindUniforms(options, true);
-        Api.CompileOptionsSetAutoCombinedImageSampler(options, false);
-        Api.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
+        API.CompileOptionsSetWarningsAsErrors(options);
+        API.CompileOptionsSetAutoMapLocations(options, true);
+        API.CompileOptionsSetAutoBindUniforms(options, true);
+        API.CompileOptionsSetAutoCombinedImageSampler(options, false);
+        API.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
         //Api.CompileOptionsSetTargetSpirv(options, SpirvVersion.Shaderc16);
 
-        Compiler* compiler = Api.CompilerInitialize();
+        Compiler* compiler = API.CompilerInitialize();
 
-        CompilationResult* result = Api.CompileIntoSpv(compiler, hlslCode, GetShaderKind(stage), filename, entry, options);
+        CompilationResult* result = API.CompileIntoSpv(compiler, hlslCode, GetShaderKind(stage), filename, entry, options);
 
-        if (Api.ResultGetNumErrors(result) > 0)
+        if (API.ResultGetNumErrors(result) > 0)
         {
-            GraphicsLogger.Error(Api.ResultGetErrorMessageS(result));
+            GraphicsLogger.Error(API.ResultGetErrorMessageS(result));
         }
-        nuint size = Api.ResultGetLength(result);
-        byte* data = Api.ResultGetBytes(result);
+        nuint size = API.ResultGetLength(result);
+        byte* data = API.ResultGetBytes(result);
 
         byte[] output = new byte[size];
         for (nuint i = 0; i < size; i++)
@@ -99,9 +97,9 @@ public unsafe static class ShaderCompilerShaderc
             output[i] = data[i];
         }
 
-        Api.ResultRelease(result);
-        Api.CompilerRelease(compiler);
-        Api.CompileOptionsRelease(options);
+        API.ResultRelease(result);
+        API.CompilerRelease(compiler);
+        API.CompileOptionsRelease(options);
 
         return output;
     }

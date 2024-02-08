@@ -7,12 +7,14 @@ public struct BindGroupEntry
         ShaderStage stage,
         BindingType type,
         TextureBindingInfo? textureInfo = null,
-        StorageTextureBindingInfo? storageTextureInfo = null
+        StorageTextureBindingInfo? storageTextureInfo = null,
+        string name = "unnamed_binding"
         )
     {
         Binding = binding;
         Stage = stage;
         Type = type;
+        Name = name;
 
         if (textureInfo.HasValue)
         {
@@ -44,5 +46,6 @@ public struct BindGroupEntry
     public TextureBindingInfo TextureInfo { get; init; }
     //Available when type is StorageTexture
     public StorageTextureBindingInfo StorageTextureInfo { get; init; }
+    public string Name { get; init; } = "unnamed_binding";
 
 }
