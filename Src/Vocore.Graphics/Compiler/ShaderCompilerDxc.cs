@@ -2,7 +2,7 @@ using Vortice.Dxc;
 
 namespace Vocore.Graphics;
 
-public static class ShaderCompilerHLSL
+public static class ShaderCompilerDxc
 {
     public static ShaderStageSource CrearteSpirvShaderSource(string hlslCode, ShaderStage stage, string entry, string filename = "unnamed_shader.hlsl", ShaderMacroDefine[]? defines = null)
     {

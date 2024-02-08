@@ -124,8 +124,14 @@ public class Game : GameEngine
     {
         string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
 
-        ShaderStageSource vertexShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        ShaderStageSource fragmentShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+
+        //dxc
+        // ShaderStageSource vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        // ShaderStageSource fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+
+        //shaderc
+        ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
