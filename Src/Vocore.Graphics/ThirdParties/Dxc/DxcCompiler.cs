@@ -93,7 +93,7 @@ public static partial class DxcCompiler
         {
             if (options.OptimizationLevel < 4)
             {
-                arguments.Add($"-O{options.OptimizationLevel}");
+                //arguments.Add($"-O{options.OptimizationLevel}");
             }
             else
             {

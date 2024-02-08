@@ -12,11 +12,12 @@ public static class ShaderCompilerHLSL
 
     public static byte[] ConvetHlslToSpirv(string hlslCode, string filename, string entry, ShaderStage stage, ShaderMacroDefine[]? defines = null)
     {
-
+        // use custom optimization recipe to prevent layout changes
         IDxcResult result = DxcCompiler.Compile(ConvertShaderStage(stage), hlslCode, entry, new DxcCompilerOptions()
         {
             GenerateSpirv = true,
-        }, filename, ShaderMacroDefine.ToDxcMacro(defines));
+            SkipOptimizations = false
+        }, filename, ShaderMacroDefine.ToDxcMacro(defines), null, new string[] { BuildOptArgs() });
 
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
         {
@@ -39,4 +40,58 @@ public static class ShaderCompilerHLSL
             _ => throw new NotSupportedException("Unsupported shader stage")
         };
     }
+
+
+    public static string BuildOptArgs()
+    {
+        return "-Oconfig=" + string.Join(",", OptimizationQueue);
+    }
+
+    // modified from spirv-opt -O
+    private static readonly string[] OptimizationQueue = new string[]{
+        "--wrap-opkill",
+        "--eliminate-dead-branches",
+        "--merge-return",
+        "--inline-entry-points-exhaustive",
+        "--eliminate-dead-functions",
+        "--eliminate-dead-code-aggressive",
+        "--private-to-local",
+        "--eliminate-local-single-block",
+        "--eliminate-local-single-store",
+        "--eliminate-dead-code-aggressive",
+        "--scalar-replacement=100",
+        "--convert-local-access-chains",
+        "--eliminate-local-single-block",
+        "--eliminate-local-single-store",
+        "--eliminate-dead-code-aggressive",
+        "--ssa-rewrite",
+        "--eliminate-dead-code-aggressive",
+        "--ccp",
+        "--eliminate-dead-code-aggressive",
+        "--loop-unroll",
+        "--eliminate-dead-branches",
+        "--redundancy-elimination",
+        "--combine-access-chains",
+        "--simplify-instructions",
+        "--scalar-replacement=100",
+        "--convert-local-access-chains",
+        "--eliminate-local-single-block",
+        "--eliminate-local-single-store",
+        // "--eliminate-dead-code-aggressive",
+        "--ssa-rewrite",
+        // "--eliminate-dead-code-aggressive",
+        "--vector-dce",
+        "--eliminate-dead-inserts",
+        "--eliminate-dead-branches",
+        "--simplify-instructions",
+         "--if-conversion",
+        "--copy-propagate-arrays",
+        "--reduce-load-size",
+        // "--eliminate-dead-code-aggressive",
+        "--merge-blocks",
+        "--redundancy-elimination",
+        "--eliminate-dead-branches",
+        "--merge-blocks",
+        "--simplify-instructions"
+    };
 }

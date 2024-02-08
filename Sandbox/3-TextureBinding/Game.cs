@@ -57,7 +57,7 @@ public class Game : GameEngine
         _colorBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
         {
             Name = "Color Buffer",
-            Size = (uint)Marshal.SizeOf<Vector3>(),
+            Size = (uint)Marshal.SizeOf<Vector4>(),
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 

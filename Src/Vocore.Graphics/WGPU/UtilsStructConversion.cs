@@ -133,6 +133,8 @@ internal static partial class UtilsWebGPU
             hintCount = 0,
             hints = null
         };
+
+        
         if (source.Language == ShaderLanguage.SPIRV)
         {
             fixed (byte* ptr = source.Source)

@@ -2,9 +2,8 @@
     float3 color;
 };
 
-
-[[vk::binding(0,1)]] Texture2D<float4> image;
-[[vk::binding(1,1)]] sampler imageSampler;
+[[vk::binding(0,1)]] Texture2D image;
+[[vk::binding(1,1)]] SamplerState imageSampler;
 
 struct VertexInput {
     float3 position : POSITION0;
@@ -29,6 +28,6 @@ VertexOutput vs_main(VertexInput model) {
 float4 fs_main(VertexOutput input) : SV_Target0 {
     float4 result = float4(color, 1.0) * image.Sample(imageSampler, input.texCoord);
     // inverse gamma correction
-    result = pow(result, float4(2.2, 2.2, 2.2, 1.0));
+    result = pow(result, float4(2.2, 2.2, 2.2, 2.2));
     return result;
 }
