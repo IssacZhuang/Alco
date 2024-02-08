@@ -63,7 +63,7 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _pipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2D);
+        _pipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2DSampled);
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
 
         _texture = CreateTexture();

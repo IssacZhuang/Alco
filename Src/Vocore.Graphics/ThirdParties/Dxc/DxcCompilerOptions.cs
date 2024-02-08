@@ -23,7 +23,7 @@ public sealed class DxcCompilerOptions
     public bool ResourcesMayAlias { get; set; }
     public bool AllResourcesBound { get; set; }
 
-    public int HLSLVersion { get; set; } = 2018;
+    public int HLSLVersion { get; set; } = 2021;
 
     public bool StripReflectionIntoSeparateBlob { get; set; } = true;
 

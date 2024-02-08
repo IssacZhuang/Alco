@@ -10,6 +10,11 @@ public partial class WebGPUDevice : GPUDevice
 {
 
     #region Properties
+
+    public static readonly WGPUFeatureName[] features = new WGPUFeatureName[]
+        {
+            WGPUFeatureName.BGRA8UnormStorage,
+        };
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
     public readonly WGPUSurface Surface;
@@ -82,7 +87,8 @@ public partial class WebGPUDevice : GPUDevice
 
     //default bind groups
     public override GPUBindGroup BindGroupBuffer { get; }
-    public override GPUBindGroup BindGroupTexture2D { get; }
+    public override GPUBindGroup BindGroupTexture2DSampled { get; }
+    public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupStorageTexture2D { get; }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
@@ -309,6 +315,13 @@ public partial class WebGPUDevice : GPUDevice
         wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
         Adapter = adapter;
 
+
+        WGPUFeatureName* features = stackalloc WGPUFeatureName[WebGPUDevice.features.Length];
+        for (int i = 0; i < WebGPUDevice.features.Length; i++)
+        {
+            features[i] = WebGPUDevice.features[i];
+        }
+
         // create device
         fixed (sbyte* name = descriptor.Name.GetUtf8Span())
         {
@@ -317,7 +330,8 @@ public partial class WebGPUDevice : GPUDevice
                 nextInChain = null,
                 label = name,
                 requiredLimits = null,
-                requiredFeatureCount = 0,
+                requiredFeatureCount = (uint)WebGPUDevice.features.Length,
+                requiredFeatures = features,
             };
 
             WGPUDevice device = WGPUDevice.Null;
@@ -450,13 +464,22 @@ public partial class WebGPUDevice : GPUDevice
             },
         });
 
-        BindGroupTexture2D = CreateBindGroup(new BindGroupDescriptor
+        BindGroupTexture2DSampled = CreateBindGroup(new BindGroupDescriptor
         {
             Name = "default_bind_group_texture",
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Fragment|ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
                 new BindGroupEntry(1, ShaderStage.Vertex|ShaderStage.Fragment|ShaderStage.Compute, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTexture2DRead = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture_read",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
             },
         });
 

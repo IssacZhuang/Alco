@@ -37,7 +37,7 @@ public class Texture2D : BaseGPUObject, IGPUResources
         Name = texture.Name;
 
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            device.BindGroupTexture2D,
+            device.BindGroupTexture2DSampled,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, _textureView),
                 new ResourceBindingEntry(1, _sampler)

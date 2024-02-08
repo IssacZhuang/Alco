@@ -64,7 +64,7 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2D);
+        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2DSampled);
         _computePipeline = CreateComputePipeline();
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
 
@@ -155,12 +155,15 @@ public class Game : GameEngine
 
     private GPUPipeline CreateComputePipeline()
     {
-        byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
-        ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
+        ShaderStageSource computeShader = ShaderCompilerHLSL.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+
+        // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
+        // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
-            new GPUBindGroup[] { GraphicsDevice.BindGroupStorageTexture2D },
+            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupStorageTexture2D },
             "box_blur_pipeline"
         );
 
