@@ -1,5 +1,5 @@
-[[vk::image_format("rgba8")]] [[vk::binding(0,0)]] Texture2D<float4> inputTexture;
-[[vk::image_format("rgba8")]] [[vk::binding(0,1)]] RWTexture2D<float4> outputTexture;
+ Texture2D<float4> inputTexture : register(t0, space0);
+ RWTexture2D<float4> outputTexture : register(u0, space1);
 
 [numthreads(8, 8, 1)]
 void cs_main(uint3 id : SV_DispatchThreadID) {

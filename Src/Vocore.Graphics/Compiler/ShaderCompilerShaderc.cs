@@ -6,6 +6,12 @@ public unsafe static class ShaderCompilerShaderc
 {
     private static readonly Shaderc API = Shaderc.GetApi();
 
+    public static readonly string GLSL_MACRO_VERTEX_STAGE = "VERTEX";
+    public static readonly string GLSL_MACRO_FRAGMENT_STAGE = "FRAGMENT";
+    public static readonly string GLSL_MACRO_COMPUTE_STAGE = "COMPUTE";
+
+    private static readonly string GLSL_TRUE = "1";
+
     //glsl
 
     public static ShaderStageSource CrearteSpirvSourceFromGlsl(
@@ -26,7 +32,26 @@ public unsafe static class ShaderCompilerShaderc
         string filename = "unnamed_shader.glsl",
         ShaderMacroDefine[]? defines = null)
     {
-        return ConvetShaderToSpirv(hlslCode, stage, entry, SourceLanguage.Glsl, filename, defines);
+        List<ShaderMacroDefine> macroDefines = new List<ShaderMacroDefine>();
+        if (defines != null)
+        {
+            macroDefines.AddRange(defines);
+        }
+
+        if (stage == ShaderStage.Vertex)
+        {
+            macroDefines.Add(new ShaderMacroDefine(GLSL_MACRO_VERTEX_STAGE, GLSL_TRUE));
+        }
+        else if (stage == ShaderStage.Fragment)
+        {
+            macroDefines.Add(new ShaderMacroDefine(GLSL_MACRO_FRAGMENT_STAGE, GLSL_TRUE));
+        }
+        else if (stage == ShaderStage.Compute)
+        {
+            macroDefines.Add(new ShaderMacroDefine(GLSL_MACRO_COMPUTE_STAGE, GLSL_TRUE));
+        }
+
+        return ConvetShaderToSpirv(hlslCode, stage, entry, SourceLanguage.Glsl, filename, macroDefines.ToArray());
     }
 
     //hlsl
@@ -71,13 +96,14 @@ public unsafe static class ShaderCompilerShaderc
             }
         }
 
-        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
+        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Zero);
         //Api.CompileOptionsSetGenerateDebugInfo(options);
         API.CompileOptionsSetWarningsAsErrors(options);
-        API.CompileOptionsSetAutoMapLocations(options, true);
-        API.CompileOptionsSetAutoBindUniforms(options, true);
-        API.CompileOptionsSetAutoCombinedImageSampler(options, false);
+        // API.CompileOptionsSetAutoMapLocations(options, false);
+        // API.CompileOptionsSetAutoBindUniforms(options, false);
+        // API.CompileOptionsSetAutoCombinedImageSampler(options, false);
         API.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
+        
         //Api.CompileOptionsSetTargetSpirv(options, SpirvVersion.Shaderc16);
 
         Compiler* compiler = API.CompilerInitialize();

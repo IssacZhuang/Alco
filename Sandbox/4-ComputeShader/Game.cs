@@ -156,7 +156,12 @@ public class Game : GameEngine
     private GPUPipeline CreateComputePipeline()
     {
         string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
-        ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+
+        //dxc
+        //ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+
+        //shaderc
+        ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
         // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
