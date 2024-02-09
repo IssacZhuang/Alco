@@ -40,12 +40,17 @@ public struct BindGroupEntry
     }
 
     public uint Binding { get; init; }
-    public ShaderStage Stage { get; init; }
+    public ShaderStage Stage { get; set; }
     public BindingType Type { get; init; }
     //Available when type is Texture
     public TextureBindingInfo TextureInfo { get; init; }
     //Available when type is StorageTexture
     public StorageTextureBindingInfo StorageTextureInfo { get; init; }
     public string Name { get; init; } = "unnamed_binding";
+
+    public override string ToString()
+    {
+        return $"BindGroupEntry: {Name} (Binding: {Binding}, Stage: {Stage}, Type: {Type})";
+    }
 
 }

@@ -142,6 +142,29 @@ internal static class UtilsRelfectType
         return dimension;
     }
 
+
+    public static ShaderStage ConvertShaderStage(ShaderStageFlagBits stage)
+    {
+        switch (stage)
+        {
+            case ShaderStageFlagBits.VertexBit:
+                return ShaderStage.Vertex;
+            case ShaderStageFlagBits.FragmentBit:
+                return ShaderStage.Fragment;
+            case ShaderStageFlagBits.ComputeBit:
+                return ShaderStage.Compute;
+            case ShaderStageFlagBits.GeometryBit:
+                return ShaderStage.Geometry;
+            case ShaderStageFlagBits.TessellationControlBit:
+                return ShaderStage.Hull;
+            case ShaderStageFlagBits.TessellationEvaluationBit:
+                return ShaderStage.Domain;
+            default:
+                throw new Exception($"Unsupported shader stage {stage}");
+
+        }
+    }
+
     static UtilsRelfectType()
     {
         ConvertFormat = UtilsCast.GenerateCastFunc(RelfectFormatToVertexCast);

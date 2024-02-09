@@ -12,5 +12,10 @@ public struct VertexElement
     public uint Location { get; init; }
     public uint Offset { get; init; }
     public VertexFormat Format { get; init; }
-    public string Name { get; init; } = "Unnamed Vertex Element";
+    public string Name { get; init; } = "unnamed_vertex_element";
+
+    public override string ToString()
+    {
+        return $"Location: {Location}, Name: {Name}, Offset: {Offset}, Format: {Format} ";
+    }
 }

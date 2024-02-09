@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Silk.NET.Core.Native;
 
 namespace Vocore.Graphics;
 
@@ -32,6 +33,6 @@ public unsafe static class UtilsInterop
 
     public unsafe static string ReadString(byte* ptrString)
     {
-        return Marshal.PtrToStringAnsi((IntPtr)ptrString) ?? "";
+        return SilkMarshal.PtrToString((IntPtr)ptrString) ?? string.Empty;
     }
 }

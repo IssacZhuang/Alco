@@ -6,6 +6,7 @@
 [[vk::binding(1,1)]] SamplerState imageSampler;
 
 struct VertexInput {
+    uint instanceID : SV_InstanceID;
     float3 position : POSITION0;
     float3 color : COLOR0;
     float2 texCoord : TEXCOORD0;

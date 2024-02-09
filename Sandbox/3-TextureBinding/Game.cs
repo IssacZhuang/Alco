@@ -11,6 +11,7 @@ using VertexStepMode = Vocore.Graphics.VertexStepMode;
 using VertexElement = Vocore.Graphics.VertexElement;
 using VertexFormat = Vocore.Graphics.VertexFormat;
 using Texture2D = Vocore.Graphics.Texture2D;
+using Vocore;
 
 public class Game : GameEngine
 {
@@ -119,12 +120,19 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
 
         //dxc
-        // ShaderStageSource vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        // ShaderStageSource fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        ShaderStageSource vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         //shaderc
-        ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+
+        ShaderReflectionInfo vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader.Source);
+        ShaderReflectionInfo fragmentReflection = UtilsShaderRelfection.GetSpirvReflection(fragmentShader.Source);
+
+        Log.Info(vertexReflection);
+        Log.Info(fragmentReflection);
+        Log.Info(UtilsShaderRelfection.MergeReflectionInfo(vertexReflection, fragmentReflection));
 
         // byte[] ShaderCode = LoadFile("Shader.wgsl");
 
