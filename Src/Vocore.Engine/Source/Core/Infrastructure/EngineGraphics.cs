@@ -1,7 +1,6 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Veldrid;
 using Vocore.Graphics;
 
 namespace Vocore.Engine
@@ -12,41 +11,16 @@ namespace Vocore.Engine
     /// </summary>
     public class EngineGraphics
     {
-        private static readonly uint VertexBufferSize = 1024 * 1024 * 4;
-        private static readonly uint IndexBufferSize = 1024 * 1024 * 4;
         private static readonly float TimeLimit = math.pow(2, 24);
         public ICamera? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
-        private readonly CommandList _commandList;
         private readonly GPUDevice _device;
-        private readonly UniformBuffer<Matrix4x4> _transformBuffer;
-        private readonly UniformBuffer<GlobalShaderData> _globalShaderData;
-        private readonly OffscreenBuffer _renderTarget;
-        private float _shaderTimer;
-        public UniformBuffer<GlobalShaderData> GlobalShaderData
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _globalShaderData;
-            }
-        }
-
-        public OffscreenBuffer RenderTarget
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _renderTarget;
-            }
-        }
 
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
             // TODO : implement with new graphics module
             _device = engine.GraphicsDevice;
             //_commandList = _device.ResourceFactory.CreateCommandList();
-            _shaderTimer = 0f;
             Camera = null;
             ScreenSize = screenSize;
 

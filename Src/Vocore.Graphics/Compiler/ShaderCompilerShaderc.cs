@@ -99,7 +99,7 @@ public unsafe static class ShaderCompilerShaderc
         API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Zero);
         API.CompileOptionsSetWarningsAsErrors(options);
         API.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
-        optimi
+        
         Compiler* compiler = API.CompilerInitialize();
 
         CompilationResult* result = API.CompileIntoSpv(compiler, hlslCode, GetShaderKind(stage), filename, entry, options);

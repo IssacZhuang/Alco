@@ -1,6 +1,6 @@
 using System;
-using Veldrid;
 using System.Runtime.CompilerServices;
+using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
@@ -47,7 +47,7 @@ namespace Vocore.Engine
         public IndexFormat IndexFormat
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => IndexFormat.UInt16;
+            get => IndexFormat.Uint16;
         }
 
         public unsafe Mesh(Vertex[] vertices, ushort[] indices)

@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
-using Vocore.Graphics.WebGPU;
 
 namespace Vocore.Engine
 {

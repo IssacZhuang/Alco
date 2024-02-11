@@ -1,6 +1,5 @@
 using System;
 using Silk.NET.Windowing;
-using Veldrid;
 using Vocore.Graphics;
 
 namespace Vocore.Engine{
@@ -27,6 +26,8 @@ namespace Vocore.Engine{
             Log.Info("\n--- Thread ---");
             Log.Info("CPU Thread Count: \t" + Environment.ProcessorCount);
             Log.Info("Main Thread Id\t" + engine.MainThread);
+            
+            
         }
     }
 }

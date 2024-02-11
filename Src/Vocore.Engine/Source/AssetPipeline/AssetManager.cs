@@ -24,7 +24,7 @@ namespace Vocore.Engine
         {
             _ownerThreadId = Environment.CurrentManagedThreadId;
             //built in asset loaders
-            RegisterAssetLoader(new AssetLoaderHlsl());
+            //RegisterAssetLoader(new AssetLoaderHlsl());
             RegisterAssetLoader(new AssetLoaderHlslInclude());
         }
 

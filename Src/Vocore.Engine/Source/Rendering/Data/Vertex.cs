@@ -1,7 +1,6 @@
 using System;
 using System.Numerics;
 using Vocore.Unsafe;
-using Veldrid;
 
 namespace Vocore.Engine
 {
