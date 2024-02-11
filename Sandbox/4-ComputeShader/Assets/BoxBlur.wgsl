@@ -7,7 +7,7 @@ fn cs_main(@builtin(global_invocation_id) id: vec3<u32>) {
     var color: vec3<f32> = textureLoad(inputTexture, id.xy, 0).rgb;
     for (var i: i32 = -1; i < 2; i = i + 1) {
         for (var j: i32 = -1; j < 2; j = j + 1) {
-            color = color + textureLoad(inputTexture, id.xy + vec2<i32>(i, j), 0).rgb;
+            color = color + textureLoad(inputTexture, vec2<i32>(id.xy) + vec2<i32>(i, j), 0).rgb;
         }
     }
 

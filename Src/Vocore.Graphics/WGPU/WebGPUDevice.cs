@@ -234,8 +234,6 @@ public partial class WebGPUDevice : GPUDevice
             aspect = WGPUTextureAspect.All,
         };
 
-        Console.WriteLine("WriteTextureCore: " + dataSize + " " + pixelSzie + " " + texture.Width + " " + texture.Height);
-
         WGPUTextureDataLayout textureDataLayout = new WGPUTextureDataLayout
         {
             offset = 0,

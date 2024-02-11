@@ -97,15 +97,9 @@ public unsafe static class ShaderCompilerShaderc
         }
 
         API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Zero);
-        //Api.CompileOptionsSetGenerateDebugInfo(options);
         API.CompileOptionsSetWarningsAsErrors(options);
-        // API.CompileOptionsSetAutoMapLocations(options, false);
-        // API.CompileOptionsSetAutoBindUniforms(options, false);
-        // API.CompileOptionsSetAutoCombinedImageSampler(options, false);
         API.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
-        
-        //Api.CompileOptionsSetTargetSpirv(options, SpirvVersion.Shaderc16);
-
+        optimi
         Compiler* compiler = API.CompilerInitialize();
 
         CompilationResult* result = API.CompileIntoSpv(compiler, hlslCode, GetShaderKind(stage), filename, entry, options);

@@ -12,6 +12,7 @@ using VertexStepMode = Vocore.Graphics.VertexStepMode;
 using VertexElement = Vocore.Graphics.VertexElement;
 using VertexFormat = Vocore.Graphics.VertexFormat;
 using Texture2D = Vocore.Graphics.Texture2D;
+using Vocore;
 
 public class Game : GameEngine
 {
@@ -160,11 +161,19 @@ public class Game : GameEngine
         //dxc
         //ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
-        //shaderc
-        ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        //shaderc hlsl
+        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+
+        //shaderc glsl
+        string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
+        ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(ShaderCode, ShaderStage.Compute, "main", "BoxBlur.glsl");
+
 
         // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
         // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
+
+        ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Source);
+        Log.Info(reflectionInfo);
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,

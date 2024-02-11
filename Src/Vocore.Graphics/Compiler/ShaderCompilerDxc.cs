@@ -18,7 +18,7 @@ public static class ShaderCompilerDxc
             GenerateSpirv = true,
             SkipOptimizations = false
         }, filename, ShaderMacroDefine.ToDxcMacro(defines), null, new string[] { BuildOptArgs() });
-
+        
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
         {
 
