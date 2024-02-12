@@ -1,13 +1,40 @@
+using System.Numerics;
 using StbImageSharp;
+
+using static Vocore.Graphics.UtilsInterop;
 
 namespace Vocore.Graphics;
 
 public static class DeviceResourceExtension
 {
+    public unsafe static Texture2D CreateTexture2DEmpty(
+        this GPUDevice device,
+        uint width,
+        uint height,
+        ColorFloat color,
+        ImageLoadOption? option = null
+    )
+    {
+        int length = (int)(width * height);
+        Color32* data = Alloc<Color32>(length);
+        Memset(data, length, color.ToColor32());
+        Texture2D texture = CreateTexture2DFromData(
+            device,
+            (byte*)data,
+            (uint)sizeof(Color32) * width * height,
+            width,
+            height,
+            4,
+            option
+        );
+        Free(data);
+        return texture;
+    }
+
     public static Texture2D CreateTexture2DFromFile(
         this GPUDevice device,
         Stream stream,
-        ImageLoadOption option
+        ImageLoadOption? option = null
     )
     {
 
@@ -45,6 +72,29 @@ public static class DeviceResourceExtension
 
     public unsafe static Texture2D CreateTexture2DFromData(
         this GPUDevice device,
+        byte[] data,
+        uint width,
+        uint height,
+        uint pixelSize = 4,
+        ImageLoadOption? option = null
+    )
+    {
+        fixed (byte* ptr = data)
+        {
+            return CreateTexture2DFromData(
+                device,
+                ptr,
+                (uint)data.Length,
+                width,
+                height,
+                pixelSize,
+                option
+            );
+        }
+    }
+
+    public unsafe static Texture2D CreateTexture2DFromData(
+        this GPUDevice device,
         byte* data,
         uint size,
         uint width,
@@ -53,21 +103,19 @@ public static class DeviceResourceExtension
         ImageLoadOption? option = null
     )
     {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,
-            PixelFormat.RGBA8Unorm,
+            optionReal.IsSRGB ? PixelFormat.RGBA8UnormSrgb : PixelFormat.RGBA8Unorm,
             width,
             height,
             1,
+            optionReal.MipLevels,
+            optionReal.Usage,
             1,
-            TextureUsage.TextureBinding | TextureUsage.Write
+            optionReal.Name
         );
-
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-
-        if (optionReal.IsSRGB) textureDescriptor.Format = PixelFormat.RGBA8UnormSrgb;
-
-        textureDescriptor.Name = optionReal.Name;
 
         GPUTexture texture = device.CreateTexture(textureDescriptor);
 
@@ -95,28 +143,7 @@ public static class DeviceResourceExtension
         );
     }
 
-    public unsafe static Texture2D CreateTexture2DFromData(
-        this GPUDevice device,
-        byte[] data,
-        uint width,
-        uint height,
-        uint pixelSize = 4,
-        ImageLoadOption? option = null
-    )
-    {
-        fixed (byte* ptr = data)
-        {
-            return CreateTexture2DFromData(
-                device,
-                ptr,
-                (uint)data.Length,
-                width,
-                height,
-                pixelSize,
-                option
-            );
-        }
-    }
+
 
     private static uint GetPixelSize(ColorComponents components)
     {

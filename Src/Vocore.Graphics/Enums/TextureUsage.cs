@@ -23,4 +23,12 @@ public enum TextureUsage
     /// Used as a render target, color attachment or depth stencil attachment.
     /// </summary>
     RenderAttachment = 1 << 4,
+    /// <summary>
+    /// Read | Write | TextureBinding
+    /// </summary>
+    Standard = Read | Write | TextureBinding,
+    /// <summary>
+    /// Write | TextureBinding | RenderAttachment
+    /// </summary>
+    RenderTarget = Write | TextureBinding | RenderAttachment,
 }

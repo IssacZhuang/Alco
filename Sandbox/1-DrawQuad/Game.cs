@@ -5,14 +5,6 @@ using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Engine;
 
-
-using ShaderStage = Vocore.Graphics.ShaderStage;
-using VertexInputLayout = Vocore.Graphics.VertexInputLayout;
-using VertexStepMode = Vocore.Graphics.VertexStepMode;
-using VertexElement = Vocore.Graphics.VertexElement;
-using VertexFormat = Vocore.Graphics.VertexFormat;
-using Vortice.Dxc;
-
 public class Game : GameEngine
 {
     #region Shader Data

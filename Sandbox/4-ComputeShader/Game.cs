@@ -6,12 +6,6 @@ using Vocore.Graphics;
 using Vocore.Engine;
 
 
-using ShaderStage = Vocore.Graphics.ShaderStage;
-using VertexInputLayout = Vocore.Graphics.VertexInputLayout;
-using VertexStepMode = Vocore.Graphics.VertexStepMode;
-using VertexElement = Vocore.Graphics.VertexElement;
-using VertexFormat = Vocore.Graphics.VertexFormat;
-using Texture2D = Vocore.Graphics.Texture2D;
 using Vocore;
 
 public class Game : GameEngine
@@ -45,7 +39,8 @@ public class Game : GameEngine
     private GPUPipeline _graphicsPipeline;
     private GPUPipeline _computePipeline;
     private GPUResourceGroup _resourceGroupBuffer;
-    private Texture2D _texture;
+    private Texture2D _image;
+    private Texture2D _renderTarget;
 
 
     private float _timer = 0.0f;
@@ -69,7 +64,10 @@ public class Game : GameEngine
         _computePipeline = CreateComputePipeline();
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
 
-        _texture = CreateTexture();
+        _image = LaodTexture();
+        _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
+
+        //box blur texture
     }
 
     protected override void OnUpdate(float delta)
@@ -91,7 +89,7 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _texture.Resources);
+        _commandBuffer.SetGraphicsResources(1, _renderTarget.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -196,11 +194,16 @@ public class Game : GameEngine
         });
     }
 
-    private Texture2D CreateTexture()
+    private Texture2D LaodTexture()
     {
         byte[] data = LoadFile("test.jpg");
 
         return GraphicsDevice.CreateTexture2DFromFile(data);
+    }
+
+    private Texture2D CreateRenderTarget(uint width, uint height)
+    {
+        return GraphicsDevice.CreateTexture2DEmpty(width, height, new Vector4(1, 1, 1, 1));
     }
 
     private void UpdateColor(Vector3 color)

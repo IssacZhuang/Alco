@@ -16,7 +16,6 @@ public struct TextureDescriptor
     /// <param name="mipLevels">The number of mip levels of the texture.</param>
     /// <param name="usage">The usage of the texture.</param>
     /// <param name="sampleCount">The sample count of the texture.</param>
-    /// <param name="accessMode">The access mode of the texture.</param>
     /// <param name="name">The name of the texture.</param>
     public TextureDescriptor(
         TextureDimension dimension,
@@ -27,7 +26,6 @@ public struct TextureDescriptor
         uint mipLevels = 1,
         TextureUsage usage = TextureUsage.TextureBinding | TextureUsage.Write,
         uint sampleCount = 1,
-        AccessMode accessMode = AccessMode.None,
         string name = "Unnamed GPU texture")
     {
         Name = name;
@@ -37,7 +35,6 @@ public struct TextureDescriptor
         DepthOrArrayLayer = depthOrArrayLayer;
         MipLevels = mipLevels;
         SampleCount = sampleCount;
-        AccessMode = accessMode;
         Dimension = dimension;
         Usage = usage;
     }
@@ -62,12 +59,7 @@ public struct TextureDescriptor
     /// <summary>
     /// The pixel format of the texture.
     /// </summary>
-    public PixelFormat Format;
-
-    /// <summary>
-    /// The access mode of the texture.
-    /// </summary>
-    public AccessMode AccessMode { get; set; } = AccessMode.None;
+    public PixelFormat Format { get; set; } = PixelFormat.RGBA8Unorm;
 
     /// <summary>
     /// The usage of the texture.

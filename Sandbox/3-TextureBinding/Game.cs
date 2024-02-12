@@ -4,13 +4,6 @@ using System.Text;
 using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Engine;
-
-using ShaderStage = Vocore.Graphics.ShaderStage;
-using VertexInputLayout = Vocore.Graphics.VertexInputLayout;
-using VertexStepMode = Vocore.Graphics.VertexStepMode;
-using VertexElement = Vocore.Graphics.VertexElement;
-using VertexFormat = Vocore.Graphics.VertexFormat;
-using Texture2D = Vocore.Graphics.Texture2D;
 using Vocore;
 
 public class Game : GameEngine
@@ -89,7 +82,7 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _texture.Resources);
+        _commandBuffer.SetGraphicsResources(1, _texture.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

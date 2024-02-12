@@ -5,10 +5,15 @@ namespace Vocore.Graphics;
 /// <summary>
 /// A GPUTexture with a TextureView which the dimension is 2D
 /// </summary>
-public class Texture2D : BaseGPUObject, IGPUResources
+public class Texture2D : ShaderResource
 {
-    private readonly GPUResourceGroup _resources;
+    // bind group include texture and sampeler
+    private GPUResourceGroup? _resourcesSample;
 
+    // bind gorup only include texture
+    private GPUResourceGroup? _resourcesSingle;
+
+    private readonly GPUDevice _device;
     // internal
     private readonly GPUTexture _texture;
     private readonly GPUTextureView _textureView;
@@ -18,10 +23,45 @@ public class Texture2D : BaseGPUObject, IGPUResources
 
     public override string Name { get; }
 
-    public GPUResourceGroup Resources
+    public GPUResourceGroup ResourcesSample
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _resources;
+        get
+        {
+            if (_resourcesSample == null)
+            {
+                _resourcesSample = CreateResourcesSample();
+            }
+
+            return _resourcesSample;
+        }
+    }
+
+    public GPUResourceGroup ResourcesSingle
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_resourcesSingle == null)
+            {
+                _resourcesSingle = CreateResourceGroupSingle();
+            }
+
+            return _resourcesSingle;
+        }
+    }
+
+
+    public uint Width
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _texture.Width;
+    }
+
+    public uint Hieght
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _texture.Height;
     }
 
     internal Texture2D(
@@ -30,21 +70,13 @@ public class Texture2D : BaseGPUObject, IGPUResources
         GPUTextureView textureView,
         GPUSampler sampler)
     {
+        _device = device;
+
         _texture = texture;
         _textureView = textureView;
         _sampler = sampler;
 
         Name = texture.Name;
-
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            device.BindGroupTexture2DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-                new ResourceBindingEntry(1, _sampler)
-            }
-        );
-
-        _resources = device.CreateResourceGroup(descriptor);
     }
 
     protected override void Dispose(bool disposing)
@@ -52,6 +84,31 @@ public class Texture2D : BaseGPUObject, IGPUResources
         _texture.Dispose();
         _textureView.Dispose();
         //the sampler is not disposed here because it is a shared resource
+    }
+
+    private GPUResourceGroup CreateResourcesSample()
+    {
+        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DSampled,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, _textureView),
+                new ResourceBindingEntry(1, _sampler)
+            }
+        );
+
+        return _device.CreateResourceGroup(descriptor);
+    }
+
+    private GPUResourceGroup CreateResourceGroupSingle()
+    {
+        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DRead,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, _textureView),
+            }
+        );
+
+        return _device.CreateResourceGroup(descriptor);
     }
 
 
