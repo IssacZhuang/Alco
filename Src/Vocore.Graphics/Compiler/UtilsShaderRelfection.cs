@@ -26,12 +26,12 @@ public static class UtilsShaderRelfection
             }
         }
 
-
         //TODO: implement reflection info
         ShaderReflectionInfo info = new ShaderReflectionInfo
         {
             BindGroups = GetBindgGroupLayouts(module),
-            VertexLayouts = new VertexInputLayout[] { GetVertexInputLayout(module) }
+            VertexLayouts = new VertexInputLayout[] { GetVertexInputLayout(module) },
+            Size = GetThreadGroupSize(module)
         };
 
         API.DestroyShaderModule(&module);
@@ -68,6 +68,34 @@ public static class UtilsShaderRelfection
         {
             BindGroups = bindGroups.Values.ToArray(),
             VertexLayouts = vertex.VertexLayouts
+        };
+    }
+
+    // compute thread group size
+    private unsafe static ThreadGroupSize GetThreadGroupSize(ReflectShaderModule shaderModule)
+    {
+        if (shaderModule.EntryPointCount == 0)
+        {
+            return ThreadGroupSize.Default;
+        }
+
+        if ((shaderModule.ShaderStage & ShaderStageFlagBits.ComputeBit) == 0)
+        {
+            return ThreadGroupSize.Default;
+        }
+
+        EntryPoint entry = shaderModule.EntryPoints[0];
+        return GetThreadGroupSize(entry);
+    }
+
+    private unsafe static ThreadGroupSize GetThreadGroupSize(EntryPoint entry)
+    {
+        LocalSize size = entry.LocalSize;
+        return new ThreadGroupSize
+        {
+            X = size.X,
+            Y = size.Y,
+            Z = size.Z
         };
     }
 

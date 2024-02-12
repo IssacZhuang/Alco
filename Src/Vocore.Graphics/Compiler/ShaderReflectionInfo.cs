@@ -6,6 +6,10 @@ public struct ShaderReflectionInfo
 {
     public VertexInputLayout[] VertexLayouts;
     public BindGroupLayout[] BindGroups;
+    /// <summary>
+    /// Thread group size for compute shader
+    /// </summary>
+    public ThreadGroupSize Size;
 
     public override string ToString()
     {
@@ -42,6 +46,11 @@ public struct ShaderReflectionInfo
         // {
         //     builder.AppendLine(bindGroup.ToString());
         // }
+
+        if (Size != ThreadGroupSize.Default)
+        {
+            builder.AppendLine(Size.ToString());
+        }
 
         return builder.ToString();
     }
