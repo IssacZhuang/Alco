@@ -68,6 +68,14 @@ public class Game : GameEngine
         _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
 
         //box blur texture
+
+        _commandBuffer.Begin();
+        _commandBuffer.SetComputePipeline(_computePipeline);
+        _commandBuffer.SetComputeResources(0, _image.ResourcesRead);
+        _commandBuffer.SetComputeResources(1, _renderTarget.ResourcesStorage);
+        _commandBuffer.DispatchCompute(_image.Width / 8, _image.Hieght / 8, 1);
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
     }
 
     protected override void OnUpdate(float delta)
@@ -203,7 +211,13 @@ public class Game : GameEngine
 
     private Texture2D CreateRenderTarget(uint width, uint height)
     {
-        return GraphicsDevice.CreateTexture2DEmpty(width, height, new Vector4(1, 1, 1, 1));
+        return GraphicsDevice.CreateTexture2DEmpty(width, height, new Vector4(1, 1, 1, 1), new ImageLoadOption
+        {
+            IsSRGB = false,
+            MipLevels = 1,
+            Usage = TextureUsage.ComputeWrite,
+            Name = "RenderTarget"
+        });
     }
 
     private void UpdateColor(Vector3 color)

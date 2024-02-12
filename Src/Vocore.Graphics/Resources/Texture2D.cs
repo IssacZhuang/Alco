@@ -11,7 +11,8 @@ public class Texture2D : ShaderResource
     private GPUResourceGroup? _resourcesSample;
 
     // bind gorup only include texture
-    private GPUResourceGroup? _resourcesSingle;
+    private GPUResourceGroup? _resourcesRead;
+    private GPUResourceGroup? _resourcesStorage;
 
     private readonly GPUDevice _device;
     // internal
@@ -37,17 +38,31 @@ public class Texture2D : ShaderResource
         }
     }
 
-    public GPUResourceGroup ResourcesSingle
+    public GPUResourceGroup ResourcesRead
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            if (_resourcesSingle == null)
+            if (_resourcesRead == null)
             {
-                _resourcesSingle = CreateResourceGroupSingle();
+                _resourcesRead = CreateResourceGroupRead();
             }
 
-            return _resourcesSingle;
+            return _resourcesRead;
+        }
+    }
+
+    public GPUResourceGroup ResourcesStorage
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_resourcesStorage == null)
+            {
+                _resourcesStorage = CreateResourceGroupStorage();
+            }
+
+            return _resourcesStorage;
         }
     }
 
@@ -77,6 +92,7 @@ public class Texture2D : ShaderResource
         _sampler = sampler;
 
         Name = texture.Name;
+
     }
 
     protected override void Dispose(bool disposing)
@@ -99,10 +115,22 @@ public class Texture2D : ShaderResource
         return _device.CreateResourceGroup(descriptor);
     }
 
-    private GPUResourceGroup CreateResourceGroupSingle()
+    private GPUResourceGroup CreateResourceGroupRead()
     {
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
             _device.BindGroupTexture2DRead,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, _textureView),
+            }
+        );
+
+        return _device.CreateResourceGroup(descriptor);
+    }
+
+    private GPUResourceGroup CreateResourceGroupStorage()
+    {
+        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+            _device.BindGroupStorageTexture2D,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, _textureView),
             }

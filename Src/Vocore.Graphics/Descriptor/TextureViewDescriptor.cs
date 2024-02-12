@@ -13,6 +13,10 @@ public struct TextureViewDescriptor
     {
         Name = name;
         Dimension = dimension;
+        BaseMipLevel = baseMipLevel;
+        MipLevelCount = mipLevelCount;
+        BaseArrayLayer = baseArrayLayer;
+        ArrayLayerCount = arrayLayerCount;
         Texture = texture;
     }
 

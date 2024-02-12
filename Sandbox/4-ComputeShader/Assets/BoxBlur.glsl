@@ -20,12 +20,20 @@ COMPUTE_THREADS(8, 8, 1);
 void main() {
     ivec2 id = ivec2(gl_GlobalInvocationID.xy);
     vec4 color = texelFetch(inputTexture, id, 0);
-    for (int i = -1; i < 2; i++) {
-        for (int j = -1; j < 2; j++) {
+    int size = 16;
+    // for (int i = -1; i < 2; i++) {
+    //     for (int j = -1; j < 2; j++) {
+    //         ivec2 pos = id + ivec2(i, j);
+    //         color += texelFetch(inputTexture, pos, 0);
+    //     }
+    // }
+    for (int i = -size; i < size; i++) {
+        for (int j = -size; j < size; j++) {
             ivec2 pos = id + ivec2(i, j);
             color += texelFetch(inputTexture, pos, 0);
         }
     }
-    color /= 9.0;
-    imageStore(outputTexture, id, vec4(1,1,1,1));
+    // color /= 9.0;
+    color /= (2 * size + 1) * (2 * size + 1);
+    imageStore(outputTexture, id, color);
 }
