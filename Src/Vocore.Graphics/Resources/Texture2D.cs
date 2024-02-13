@@ -100,6 +100,10 @@ public class Texture2D : ShaderResource
         _texture.Dispose();
         _textureView.Dispose();
         //the sampler is not disposed here because it is a shared resource
+
+        ResourcesSample?.Dispose();
+        ResourcesRead?.Dispose();
+        ResourcesStorage?.Dispose();
     }
 
     private GPUResourceGroup CreateResourcesSample()

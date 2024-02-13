@@ -10,12 +10,10 @@ public struct BufferDescriptor
     /// </summary>
     /// <param name="size">The size of the buffer.</param>
     /// <param name="usage">The usage flags for the buffer.</param>
-    /// <param name="accessMode">The access mode for the buffer.</param>
     /// <param name="name">The name of the buffer (optional).</param>
-    public BufferDescriptor(ulong size, BufferUsage usage, AccessMode accessMode, string name = "Unnamed GPU buffer")
+    public BufferDescriptor(ulong size, BufferUsage usage, string name = "Unnamed GPU buffer")
     {
         Size = size;
-        AccessMode = accessMode;
         Usage = usage;
         Name = name;
     }
@@ -33,10 +31,6 @@ public struct BufferDescriptor
     /// </summary>
     public required ulong Size { get; init; }
 
-    /// <summary>
-    /// The access mode for the buffer.
-    /// </summary>
-    public AccessMode AccessMode { get; init; } = AccessMode.None;
 
     /// <summary>
     /// The usage flags for the buffer.

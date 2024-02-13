@@ -39,6 +39,9 @@ public class Game : GameEngine
     private GPUPipeline _graphicsPipeline;
     private GPUPipeline _computePipeline;
     private GPUResourceGroup _resourceGroupBuffer;
+
+    // resources for copmute shader
+    private VRamBuffer<int> _iterationBuffer;
     private Texture2D _image;
     private Texture2D _renderTarget;
 
@@ -66,16 +69,11 @@ public class Game : GameEngine
 
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
+        _iterationBuffer = GraphicsDevice.CreateTypedUniformBuffer<int>(8);
 
         //box blur texture
 
-        _commandBuffer.Begin();
-        _commandBuffer.SetComputePipeline(_computePipeline);
-        _commandBuffer.SetComputeResources(0, _image.ResourcesRead);
-        _commandBuffer.SetComputeResources(1, _renderTarget.ResourcesStorage);
-        _commandBuffer.DispatchCompute(_image.Width / 8, _image.Hieght / 8, 1);
-        _commandBuffer.End();
-        GraphicsDevice.Submit(_commandBuffer);
+
     }
 
     protected override void OnUpdate(float delta)
@@ -84,12 +82,32 @@ public class Game : GameEngine
         {
             Stop();
         }
+
+        if (Input.IsKeyDown(Key.Left))
+        {
+            _iterationBuffer.Value = _iterationBuffer.Value - 1;
+        }
+
+        if (Input.IsKeyDown(Key.Right))
+        {
+            _iterationBuffer.Value = _iterationBuffer.Value + 1;
+        }
     }
 
     protected override void OnDraw(float delta)
     {
         _timer += delta;
 
+
+        //_iterationBuffer.Value = 16;
+        _commandBuffer.Begin();
+        _commandBuffer.SetComputePipeline(_computePipeline);
+        _commandBuffer.SetComputeResources(0, _image.ResourcesRead);
+        _commandBuffer.SetComputeResources(1, _renderTarget.ResourcesStorage);
+        _commandBuffer.SetComputeResources(2, _iterationBuffer.Resources);
+        _commandBuffer.DispatchCompute(_image.Width / 8, _image.Hieght / 8, 1);
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
@@ -183,7 +201,7 @@ public class Game : GameEngine
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
-            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupStorageTexture2D },
+            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupStorageTexture2D, GraphicsDevice.BindGroupBuffer },
             "box_blur_pipeline"
         );
 

@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3-TextureBinding", "Sandbox
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "4-ComputeShader", "Sandbox\4-ComputeShader\4-ComputeShader.csproj", "{25812F60-FA28-45E5-A870-5DEC9FA6F34D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "5-Instancing", "Sandbox\5-Instancing\5-Instancing.csproj", "{33A985AB-8077-4B9D-AEA6-19FB754CF7A9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -75,6 +77,10 @@ Global
 		{25812F60-FA28-45E5-A870-5DEC9FA6F34D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{25812F60-FA28-45E5-A870-5DEC9FA6F34D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{25812F60-FA28-45E5-A870-5DEC9FA6F34D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33A985AB-8077-4B9D-AEA6-19FB754CF7A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33A985AB-8077-4B9D-AEA6-19FB754CF7A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33A985AB-8077-4B9D-AEA6-19FB754CF7A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33A985AB-8077-4B9D-AEA6-19FB754CF7A9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -90,5 +96,6 @@ Global
 		{AB84EC5E-BC42-4905-9E80-90F4F931E097} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{26244DA0-154E-4A2C-89D2-B9D21A288C56} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{25812F60-FA28-45E5-A870-5DEC9FA6F34D} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{33A985AB-8077-4B9D-AEA6-19FB754CF7A9} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal

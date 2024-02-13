@@ -7,6 +7,10 @@ namespace Vocore.Graphics;
 
 public static class DeviceResourceExtension
 {
+
+    // ============== Texture2D ==============
+
+
     public unsafe static Texture2D CreateTexture2DEmpty(
         this GPUDevice device,
         uint width,
@@ -144,7 +148,6 @@ public static class DeviceResourceExtension
     }
 
 
-
     private static uint GetPixelSize(ColorComponents components)
     {
         switch (components)
@@ -160,5 +163,66 @@ public static class DeviceResourceExtension
             default:
                 throw new NotSupportedException("The color components is not supported");
         }
+    }
+
+
+    // ============== UniformBuffer ==============
+
+    public static VRamBuffer CreateUniformBuffer(
+        this GPUDevice device,
+        uint size,
+        string name = "uniform_buffer"
+    )
+    {
+        return new VRamBuffer(
+            device,
+            device.CreateBuffer(
+                new BufferDescriptor
+                {
+                    Name = name,
+                    Size = size,
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                }
+            )
+        );
+    }
+
+    public unsafe static VRamBuffer<T> CreateTypedUniformBuffer<T>(
+        this GPUDevice device,
+        string name = "uniform_buffer"
+    ) where T : unmanaged
+    {
+        return new VRamBuffer<T>(
+            device,
+            device.CreateBuffer(
+                new BufferDescriptor
+                {
+                    Name = name,
+                    Size = (ulong)sizeof(T),
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                }
+            ),
+            default(T)
+        );
+    }
+    public unsafe static VRamBuffer<T> CreateTypedUniformBuffer<T>(
+        this GPUDevice device,
+        T value,
+        string name = "uniform_buffer"
+    ) where T : unmanaged
+    {
+        return new VRamBuffer<T>(
+            device,
+            device.CreateBuffer(
+                new BufferDescriptor
+                {
+                    Name = name,
+                    Size = (ulong)sizeof(T),
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                },
+                value
+            ),
+            value
+        );
     }
 }

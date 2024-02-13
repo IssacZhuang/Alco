@@ -16,7 +16,4 @@
       <Visible>False</Visible>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <Content Update="Assets\BoxBlur.wgsl" Link="Assets\BoxBlur.wgsl" />
-  </ItemGroup>
 </Project>
