@@ -121,6 +121,18 @@ public class Game : GameEngine
         GraphicsDevice.Submit(_commandBuffer);
     }
 
+    protected override void OnStop()
+    {
+        _vertexBuffer.Dispose();
+        _indexBuffer.Dispose();
+        _colorBuffer.Dispose();
+        _graphicsPipeline.Dispose();
+        _resourceGroupBuffer.Dispose();
+        _image.Dispose();
+        _renderTarget.Dispose();
+        _iterationBuffer.Dispose();
+    }
+
     private GPUBuffer CreateIndexBuffer()
     {
         return GraphicsDevice.CreateBuffer(new BufferDescriptor

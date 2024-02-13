@@ -5,7 +5,7 @@ namespace Vocore.Graphics
         public ComputePipelineDescriptor(
             ShaderStageSource computeShader,
             GPUBindGroup[] bindGroups,
-            string name = "Unnamed Compute Pipeline")
+            string name = "unnamed_compute_pipeline")
         {
             Name = name;
             BindGroups = bindGroups;
@@ -14,7 +14,7 @@ namespace Vocore.Graphics
 
         public ShaderStageSource Source { get; init; }
         public GPUBindGroup[] BindGroups { get; init; }
-        public string Name { get; init; } = "Unnamed Compute Pipeline";
+        public string Name { get; init; } = "unnamed_compute_pipeline";
 
 
     }

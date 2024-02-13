@@ -11,7 +11,7 @@ public struct BufferDescriptor
     /// <param name="size">The size of the buffer.</param>
     /// <param name="usage">The usage flags for the buffer.</param>
     /// <param name="name">The name of the buffer (optional).</param>
-    public BufferDescriptor(ulong size, BufferUsage usage, string name = "Unnamed GPU buffer")
+    public BufferDescriptor(ulong size, BufferUsage usage, string name = "unnamed_gpu_buffer")
     {
         Size = size;
         Usage = usage;
@@ -29,7 +29,7 @@ public struct BufferDescriptor
     /// <summary>
     /// The size of the buffer.
     /// </summary>
-    public required ulong Size { get; init; }
+    public ulong Size { get; init; }
 
 
     /// <summary>
@@ -40,5 +40,5 @@ public struct BufferDescriptor
     /// <summary>
     /// The name of the buffer.
     /// </summary>
-    public string Name { get; init; } = "Unnamed GPU buffer";
+    public string Name { get; init; } = "unnamed_gpu_buffer";
 }

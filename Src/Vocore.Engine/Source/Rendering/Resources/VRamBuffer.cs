@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
+using Vocore.Graphics;
 
-namespace Vocore.Graphics;
+namespace Vocore.Engine;
 
 public class VRamBuffer : ShaderResource
 {

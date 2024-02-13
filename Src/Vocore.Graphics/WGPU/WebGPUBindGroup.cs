@@ -9,18 +9,22 @@ internal class WebGPUBindGroup : GPUBindGroup
     #region Properties
     private readonly WGPUBindGroupLayout _native;
     private readonly BindGroupEntry[] _bindings;
-
+    
     #endregion
 
     #region Abstract Implementation
 
-    public override IReadOnlyList<BindGroupEntry> Bindings => _bindings;
+    public override IReadOnlyList<BindGroupEntry> Bindings
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _bindings;
+    }
 
-    public override string Name => throw new NotImplementedException();
+    public override string Name { get; }
 
     protected override void Dispose(bool disposing)
     {
-        throw new NotImplementedException();
+        wgpuBindGroupLayoutReference(_native);
     }
 
     #endregion
@@ -36,6 +40,7 @@ internal class WebGPUBindGroup : GPUBindGroup
     public unsafe WebGPUBindGroup(WGPUDevice nativeDevice, BindGroupDescriptor descriptor)
     {
         BindGroupEntry[] entries = descriptor.Bindings;
+        Name = descriptor.Name;
         WGPUBindGroupLayoutEntry* nativeEntries = stackalloc WGPUBindGroupLayoutEntry[entries.Length];
         for (int i = 0; i < entries.Length; i++)
         {

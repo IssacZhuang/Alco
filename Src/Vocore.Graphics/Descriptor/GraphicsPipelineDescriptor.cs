@@ -11,7 +11,7 @@ public struct GraphicsPipelineDescriptor
         DepthStencilState depthStencilState,
         PixelFormat[] colorFormats,
         PixelFormat? depthStencilFormat,
-        string name = "Unnamed Graphics Pipeline"
+        string name = "unnamed_graphics_pipeline"
         )
     {
         BindGroups = bindGroups;
@@ -34,5 +34,5 @@ public struct GraphicsPipelineDescriptor
     public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.DepthNone;
     public PixelFormat[] ColorFormats { get; init; }
     public PixelFormat? DepthStencilFormat { get; init; }
-    public string Name { get; init; } = "Unnamed Graphics Pipeline";
+    public string Name { get; init; } = "unnamed_graphics_pipeline";
 }

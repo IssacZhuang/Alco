@@ -1,9 +1,10 @@
 using System.Numerics;
 using StbImageSharp;
+using Vocore.Graphics;
 
 using static Vocore.Graphics.UtilsInterop;
 
-namespace Vocore.Graphics;
+namespace Vocore.Engine;
 
 public static class DeviceResourceExtension
 {

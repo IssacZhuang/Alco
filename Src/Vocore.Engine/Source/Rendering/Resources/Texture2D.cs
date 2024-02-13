@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
+using Vocore.Graphics;
 
-namespace Vocore.Graphics;
+namespace Vocore.Engine;
 
 /// <summary>
 /// A GPUTexture with a TextureView which the dimension is 2D
@@ -101,9 +102,9 @@ public class Texture2D : ShaderResource
         _textureView.Dispose();
         //the sampler is not disposed here because it is a shared resource
 
-        ResourcesSample?.Dispose();
-        ResourcesRead?.Dispose();
-        ResourcesStorage?.Dispose();
+        _resourcesSample?.Dispose();
+        _resourcesRead?.Dispose();
+        _resourcesStorage?.Dispose();
     }
 
     private GPUResourceGroup CreateResourcesSample()

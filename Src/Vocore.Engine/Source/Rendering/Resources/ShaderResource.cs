@@ -1,4 +1,6 @@
-namespace Vocore.Graphics;
+using Vocore.Graphics;
+
+namespace Vocore.Engine;
 
 public abstract class ShaderResource : BaseGPUObject
 {

@@ -9,7 +9,7 @@ public struct TextureViewDescriptor
         uint mipLevelCount = 1,
         uint baseArrayLayer = 0,
         uint arrayLayerCount = 1,
-        string name = "Unnamed texture view")
+        string name = "unnamed_texture_view")
     {
         Name = name;
         Dimension = dimension;

@@ -10,7 +10,7 @@ internal class WebGPUTexture : WebGPUTextureBase
     private readonly WGPUDevice _nativeDevice;
     private readonly WGPUTexture _nativeTexture;
     private readonly WGPUExtent3D _size;
-    private readonly WGPUTextureView _defaultView;
+    private readonly WGPUTextureView _defaultView; //nullable
     private readonly uint _mipLevelCount;
 
     #endregion
@@ -39,7 +39,12 @@ internal class WebGPUTexture : WebGPUTextureBase
     {
         wgpuTextureDestroy(_nativeTexture);
         wgpuTextureRelease(_nativeTexture);
-        wgpuTextureViewRelease(_defaultView);
+
+        //only wgpu internal creation has the default view
+        if (_defaultView != WGPUTextureView.Null)
+        {
+            wgpuTextureViewRelease(_defaultView);
+        }
     }
 
     #endregion
@@ -98,6 +103,7 @@ internal class WebGPUTexture : WebGPUTextureBase
         };
 
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+        _defaultView = WGPUTextureView.Null;
     }
 
     #endregion

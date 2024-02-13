@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-
 using WebGPU;
 
 using static WebGPU.WebGPU;
@@ -10,18 +9,23 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
 {
     #region Properties
     private readonly WGPUBindGroup _native;
+    private readonly IGPUBindableResource[] _resources;
 
     #endregion
 
     #region Abstract Implementation
 
-    public override IReadOnlyList<IGPUBindableResource> Resources { get => throw new NotImplementedException(); }
+    public override IReadOnlyList<IGPUBindableResource> Resources
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _resources;
+    }
 
-    public override string Name => throw new NotImplementedException();
+    public override string Name { get; }
 
     protected override void Dispose(bool disposing)
     {
-        throw new NotImplementedException();
+        wgpuBindGroupRelease(_native);
     }
 
     #endregion
@@ -36,6 +40,14 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
 
     public WebGPUResourceGroup(WGPUDevice nativeDevice, ResourceGroupDescriptor descriptor)
     {
+        Name = descriptor.Name;
+        _resources = new IGPUBindableResource[descriptor.Resources.Length];
+
+        for (int i = 0; i < descriptor.Resources.Length; i++)
+        {
+            _resources[i] = descriptor.Resources[i].Resource;
+        }
+
         WGPUBindGroupEntry* entries = stackalloc WGPUBindGroupEntry[descriptor.Resources.Length];
         for (int i = 0; i < descriptor.Resources.Length; i++)
         {
