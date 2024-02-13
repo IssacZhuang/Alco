@@ -46,11 +46,6 @@ namespace Vocore.Engine
             get => _input;
         }
 
-        public EngineGraphics Graphics
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _graphics;
-        }
 
         #endregion
 
@@ -136,7 +131,7 @@ namespace Vocore.Engine
         public GameEngine(GameEngineSetting setting)
         {
 
-            WebGPULogger.RegisterLogger();
+            GraphicsLogger.RegisterLogger();
             if (Instance != null)
             {
                 throw new Exception("The GameEngine can only have one instance.");
@@ -146,19 +141,6 @@ namespace Vocore.Engine
 
             if (_setting.HasGraphics)
             {
-                // GlfwInput.RegisterPlatform();
-                // GlfwWindowing.RegisterPlatform();
-
-                // VeldridWindow.CreateWindowAndGraphicsDevice(WindowOptions.Default with
-                // {
-                //     Position = new Vector2D<int>(100, 100),
-                //     Size = new Vector2D<int>(_setting.Width, _setting.Height),
-                //     Title = _setting.WindowName
-                // }, new GraphicsDeviceOptions
-                // {
-                //     SwapchainDepthFormat = CompatibilityHelper.GetPlatformDepthTestingFormat(),
-                // }, _setting.GraphicsAPI, out IWindow window, out GraphicsDevice graphicsDevice);
-
                 GraphicsWindow.CreateGraphicsDeviceWithWindow(new WindowSetting
                 {
                     Width = _setting.Width,
@@ -177,10 +159,12 @@ namespace Vocore.Engine
                 {
                     _graphicsDevice.ResizeSurface((uint)size.X, (uint)size.Y);
 
-                    Log.Info($"Window Resized {size.X}x{size.Y}");
                     _setting.Width = size.X;
                     _setting.Height = size.Y;
                 };
+
+
+                RenderingService.GraphicsDevice = graphicsDevice;
             }
             else
             {

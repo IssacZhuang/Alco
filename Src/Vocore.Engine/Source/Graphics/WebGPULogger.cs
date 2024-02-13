@@ -3,13 +3,13 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
-    internal static class WebGPULogger
+    internal static class GraphicsLogger
     {
         internal static void RegisterLogger()
         {
-            GraphicsLogger.ErrorCallback = LogError;
-            GraphicsLogger.WarningCallback = LogWarning;
-            GraphicsLogger.InfoCallback = LogInfo;
+            Graphics.GraphicsLogger.ErrorCallback = LogError;
+            Graphics.GraphicsLogger.WarningCallback = LogWarning;
+            Graphics.GraphicsLogger.InfoCallback = LogInfo;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

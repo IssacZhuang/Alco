@@ -6,14 +6,11 @@ using static Vocore.Graphics.UtilsInterop;
 
 namespace Vocore.Engine;
 
-public static class DeviceResourceExtension
+public static partial class RenderingService
 {
-
     // ============== Texture2D ==============
 
-
     public unsafe static Texture2D CreateTexture2DEmpty(
-        this GPUDevice device,
         uint width,
         uint height,
         ColorFloat color,
@@ -24,7 +21,6 @@ public static class DeviceResourceExtension
         Color32* data = Alloc<Color32>(length);
         Memset(data, length, color.ToColor32());
         Texture2D texture = CreateTexture2DFromData(
-            device,
             (byte*)data,
             (uint)sizeof(Color32) * width * height,
             width,
@@ -37,7 +33,6 @@ public static class DeviceResourceExtension
     }
 
     public static Texture2D CreateTexture2DFromFile(
-        this GPUDevice device,
         Stream stream,
         ImageLoadOption? option = null
     )
@@ -47,7 +42,6 @@ public static class DeviceResourceExtension
         ImageResult image = ImageResult.FromStream(stream, targetComponents);
 
         return CreateTexture2DFromData(
-            device,
             image.Data,
             (uint)image.Width,
             (uint)image.Height,
@@ -57,7 +51,6 @@ public static class DeviceResourceExtension
     }
 
     public static Texture2D CreateTexture2DFromFile(
-        this GPUDevice device,
         byte[] data,
         ImageLoadOption? option = null
     )
@@ -66,7 +59,6 @@ public static class DeviceResourceExtension
         ImageResult image = ImageResult.FromMemory(data, targetComponents);
 
         return CreateTexture2DFromData(
-            device,
             image.Data,
             (uint)image.Width,
             (uint)image.Height,
@@ -76,7 +68,6 @@ public static class DeviceResourceExtension
     }
 
     public unsafe static Texture2D CreateTexture2DFromData(
-        this GPUDevice device,
         byte[] data,
         uint width,
         uint height,
@@ -87,7 +78,6 @@ public static class DeviceResourceExtension
         fixed (byte* ptr = data)
         {
             return CreateTexture2DFromData(
-                device,
                 ptr,
                 (uint)data.Length,
                 width,
@@ -99,7 +89,6 @@ public static class DeviceResourceExtension
     }
 
     public unsafe static Texture2D CreateTexture2DFromData(
-        this GPUDevice device,
         byte* data,
         uint size,
         uint width,
@@ -122,9 +111,9 @@ public static class DeviceResourceExtension
             optionReal.Name
         );
 
-        GPUTexture texture = device.CreateTexture(textureDescriptor);
+        GPUTexture texture = GraphicsDevice.CreateTexture(textureDescriptor);
 
-        device.WriteTexture(
+        GraphicsDevice.WriteTexture(
             texture,
             data,
             size,
@@ -138,13 +127,13 @@ public static class DeviceResourceExtension
 
         textureDescriptor.Name = optionReal.Name;
 
-        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
+        GPUTextureView textureView = GraphicsDevice.CreateTextureView(textureViewDescriptor);
 
         return new Texture2D(
-            device,
+            GraphicsDevice,
             texture,
             textureView,
-            device.SamplerLinearRepeat
+            GraphicsDevice.SamplerLinearRepeat
         );
     }
 
@@ -166,64 +155,4 @@ public static class DeviceResourceExtension
         }
     }
 
-
-    // ============== UniformBuffer ==============
-
-    public static VRamBuffer CreateUniformBuffer(
-        this GPUDevice device,
-        uint size,
-        string name = "uniform_buffer"
-    )
-    {
-        return new VRamBuffer(
-            device,
-            device.CreateBuffer(
-                new BufferDescriptor
-                {
-                    Name = name,
-                    Size = size,
-                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
-                }
-            )
-        );
-    }
-
-    public unsafe static VRamBuffer<T> CreateTypedUniformBuffer<T>(
-        this GPUDevice device,
-        string name = "uniform_buffer"
-    ) where T : unmanaged
-    {
-        return new VRamBuffer<T>(
-            device,
-            device.CreateBuffer(
-                new BufferDescriptor
-                {
-                    Name = name,
-                    Size = (ulong)sizeof(T),
-                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
-                }
-            ),
-            default(T)
-        );
-    }
-    public unsafe static VRamBuffer<T> CreateTypedUniformBuffer<T>(
-        this GPUDevice device,
-        T value,
-        string name = "uniform_buffer"
-    ) where T : unmanaged
-    {
-        return new VRamBuffer<T>(
-            device,
-            device.CreateBuffer(
-                new BufferDescriptor
-                {
-                    Name = name,
-                    Size = (ulong)sizeof(T),
-                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
-                },
-                value
-            ),
-            value
-        );
-    }
 }
