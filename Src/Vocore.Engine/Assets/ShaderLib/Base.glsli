@@ -1,0 +1,13 @@
+#extension GL_EXT_samplerless_texture_functions : enable
+
+#define STRCUT(slot, name) layout(set = slot, binding = 0) uniform name
+#define STORAGE_BUFFER(slot, name) layout(set = slot, binding = 0) buffer name
+#define SAMPLED_TEXTURE(slot, name) layout(set = slot, binding = 0) uniform texture2D name; layout(set = slot, binding = 1) uniform sampler name##Sampler
+
+#define INPUT(slot, type, name) layout(location = slot) in type name
+#define OUTPUT(slot, type, name) layout(location = slot) out type name
+
+
+#define READ_TEXTURE(slot, name) layout(set = slot, binding = 0) uniform texture2D name
+#define STORAGE_TEXTURE(slot, format, name) layout(set = slot, binding = 0, format) uniform writeonly image2D name
+#define COMPUTE_THREADS(x, y, z) layout(local_size_x = x, local_size_y = y, local_size_z = z) in

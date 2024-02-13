@@ -1,2 +1,18 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using Vocore;
+using Vocore.Engine;
+
+GameEngineSetting setting = GameEngineSetting.Default with
+{
+    StopWhenError = true,
+    RenderingSetting = RenderingSetting.ForwardNoDepth,
+    Width = 400,
+    Height = 400
+};
+setting.WindowName = "Instancing";
+
+using (Game game = new Game(setting))
+{
+    game.RegisterPlugin<PluginBuiltInShader>();
+    game.RegisterPlugin<PluginRuntimeInfo>();
+    game.Run();
+}

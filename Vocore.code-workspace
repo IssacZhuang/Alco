@@ -11,6 +11,9 @@
 			"**/obj": true,
 			"**/Properties": true
 		},
-		"xml.format.preserveAttributeLineBreaks": false
+		"xml.format.preserveAttributeLineBreaks": false,
+		"files.associations": {
+			"*.glsli": "glsl"
+		}
 	}
 }

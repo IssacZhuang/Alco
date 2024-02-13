@@ -8,7 +8,7 @@ GameEngineSetting setting = GameEngineSetting.Default with
     Width = 400,
     Height = 400
 };
-setting.WindowName = "Texture Binding";
+setting.WindowName = "Compute Shader";
 
 using (Game game = new Game(setting))
 {

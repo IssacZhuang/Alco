@@ -26,5 +26,5 @@ public struct TextureViewDescriptor
     public uint BaseArrayLayer { get; init; } = 0;
     public uint ArrayLayerCount { get; init; } = 1;
     public GPUTexture Texture { get; init; }
-    public string Name { get; init; } = "Unnamed texture view";
+    public string Name { get; init; } = "unnamed_texture_view";
 }
