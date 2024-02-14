@@ -4,11 +4,8 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    RenderingSetting = RenderingSetting.ForwardNoDepth,
-    Width = 400,
-    Height = 400
 };
-setting.WindowName = "Instancing";
+setting.WindowName = "Transform2D";
 
 using (Game game = new Game(setting))
 {

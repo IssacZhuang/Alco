@@ -12,7 +12,7 @@ namespace Vocore.Engine
     public class EngineGraphics
     {
         private static readonly float TimeLimit = math.pow(2, 24);
-        public ICamera? Camera { get; set; }
+        public ICamera3D? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
         private readonly GPUDevice _device;
 

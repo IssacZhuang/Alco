@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine
 {
-    public abstract class BaseCamera:ICamera
+    public abstract class BaseCamera : ICamera3D
     {
         public const float DefaultNear = 0.1f;
         public const float DefaultFar = 1000f;
@@ -43,24 +43,6 @@ namespace Vocore.Engine
             get
             {
                 return Matrix4x4.CreateLookAt(tranform.position, tranform.position + Vector3.Transform(Vector3.UnitZ, tranform.rotation), Vector3.UnitY);
-            }
-        }
-
-        public Vector3 Position
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return tranform.position;
-            }
-        }
-
-        public Quaternion Rotation
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return tranform.rotation;
             }
         }
 

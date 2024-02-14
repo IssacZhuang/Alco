@@ -1,5 +1,4 @@
-﻿using Veldrid;
-using Vocore;
+﻿using Vocore;
 using Vocore.Engine;
 
 GameEngineSetting setting = GameEngineSetting.Default with{

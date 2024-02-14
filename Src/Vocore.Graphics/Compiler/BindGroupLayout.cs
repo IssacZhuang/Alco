@@ -22,4 +22,9 @@ public struct BindGroupLayout
 
         return builder.ToString();
     }
+
+    public BindGroupDescriptor ToDescriptor(string name = "unnamed_bind_group")
+    {
+        return new BindGroupDescriptor(Bindings, name);
+    }
 }

@@ -24,7 +24,7 @@ namespace Vocore.Engine
 
         #region  Resources
         private readonly GPUDevice _graphicsDevice;
-        private readonly AssetManager _assets = new AssetManager();
+        private readonly AssetManager _assets;
         private readonly IWindow _window;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
@@ -93,7 +93,7 @@ namespace Vocore.Engine
             get => AppDomain.CurrentDomain.BaseDirectory;
         }
 
-        public ICamera? Camera
+        public ICamera3D? Camera
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _graphics.Camera;

@@ -15,18 +15,18 @@ public unsafe static class ShaderCompilerShaderc
     //glsl
 
     public static ShaderStageSource CrearteSpirvSourceFromGlsl(
-        string hlslCode,
+        string glslCode,
         ShaderStage stage,
         string entry,
         string filename = "unnamed_shader.glsl",
         ShaderMacroDefine[]? defines = null)
     {
-        byte[] spirv = ConvetGlslToSpirv(hlslCode, stage, entry, filename, defines);
+        byte[] spirv = ConvetGlslToSpirv(glslCode, stage, entry, filename, defines);
         return new ShaderStageSource(stage, ShaderLanguage.SPIRV, spirv, entry);
     }
 
     public static byte[] ConvetGlslToSpirv(
-        string hlslCode,
+        string glslCode,
         ShaderStage stage,
         string entry,
         string filename = "unnamed_shader.glsl",
@@ -51,7 +51,7 @@ public unsafe static class ShaderCompilerShaderc
             macroDefines.Add(new ShaderMacroDefine(GLSL_MACRO_COMPUTE_STAGE, GLSL_TRUE));
         }
 
-        return ConvetShaderToSpirv(hlslCode, stage, entry, SourceLanguage.Glsl, filename, macroDefines.ToArray());
+        return ConvetShaderToSpirv(glslCode, stage, entry, SourceLanguage.Glsl, filename, macroDefines.ToArray());
     }
 
     //hlsl
