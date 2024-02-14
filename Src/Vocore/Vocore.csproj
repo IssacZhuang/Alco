@@ -3,7 +3,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Vocore</RootNamespace>
     <AssemblyName>Vocore</AssemblyName>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Vocore.Test" />
