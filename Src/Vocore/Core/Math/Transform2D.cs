@@ -19,7 +19,7 @@ namespace Vocore
         /// </summary>
         public Vector2 scale;
 
-        public static readonly Transform2D Default = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One);
+        public static readonly Transform2D Identity = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One);
 
         public Transform2D(Vector2 pos)
         {
@@ -64,7 +64,7 @@ namespace Vocore
             }
         }
 
-        public Matrix3x2 Matrix
+        public Matrix3x3 Matrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -73,7 +73,7 @@ namespace Vocore
             }
         }
 
-        public Matrix3x2 MatrixTranslation
+        public Matrix3x3 MatrixTranslation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -82,7 +82,7 @@ namespace Vocore
             }
         }
 
-        public Matrix3x2 MatrixRotation
+        public Matrix3x3 MatrixRotation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -91,7 +91,7 @@ namespace Vocore
             }
         }
 
-        public Matrix3x2 MatrixScale
+        public Matrix3x3 MatrixScale
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get

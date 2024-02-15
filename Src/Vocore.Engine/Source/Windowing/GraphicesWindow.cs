@@ -30,7 +30,7 @@ namespace Vocore.Engine
 
             DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
             {
-                Debug = false,
+                Debug = true,
                 VSync = false,
                 Backend = GraphicsBackend.Auto,
                 SurfaceSource = surfaceSource,

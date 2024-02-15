@@ -8,11 +8,11 @@
 #define OUTPUT(slot, type, name) layout(location = slot) out type name
 
 STRUCT_UNIFORM(0, Camera){
-    mat3x2 viewProj;
+    mat3x3 viewProj;
 };
 
 STRUCT_UNIFORM(1, Obj){
-    mat3x2 model;
+    mat3x3 model;
 };
 
 TEXTURE_SAMPLE(2, image);
@@ -25,7 +25,7 @@ INPUT(1, vec2, uv);
 OUTPUT(0, vec2, fragUv);
 
 void main(){
-    vec2 pos = viewProj*vec3(position,1);
+    vec3 pos = viewProj*vec3(position,1);
     gl_Position = vec4(pos.xy,0,1);
     fragUv = uv;
 }

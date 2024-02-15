@@ -458,7 +458,7 @@ public partial class WebGPUDevice : GPUDevice
             Name = "default_bind_group_buffer",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Fragment|ShaderStage.Compute, BindingType.UniformBuffer),
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
             },
         });
 
@@ -467,8 +467,8 @@ public partial class WebGPUDevice : GPUDevice
             Name = "default_bind_group_texture",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Vertex|ShaderStage.Fragment|ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
-                new BindGroupEntry(1, ShaderStage.Vertex|ShaderStage.Fragment|ShaderStage.Compute, BindingType.Sampler),
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
             },
         });
 

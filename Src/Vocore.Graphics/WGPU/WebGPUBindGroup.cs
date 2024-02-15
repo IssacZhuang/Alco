@@ -47,13 +47,17 @@ internal class WebGPUBindGroup : GPUBindGroup
             nativeEntries[i] = entries[i].ConvertToWebGPU();
         }
 
-        WGPUBindGroupLayoutDescriptor nativeDescriptor = new WGPUBindGroupLayoutDescriptor()
+        fixed (sbyte* ptrName = Name.GetUtf8Span())
         {
-            entryCount = (uint)entries.Length,
-            entries = nativeEntries,
-        };
+            WGPUBindGroupLayoutDescriptor nativeDescriptor = new WGPUBindGroupLayoutDescriptor()
+            {
+                entryCount = (uint)entries.Length,
+                entries = nativeEntries,
+                label = ptrName,
+            };
+            _native = wgpuDeviceCreateBindGroupLayout(nativeDevice, &nativeDescriptor);
+        }
 
-        _native = wgpuDeviceCreateBindGroupLayout(nativeDevice, &nativeDescriptor);
 
         _bindings = new BindGroupEntry[entries.Length];
         Array.Copy(entries, _bindings, entries.Length);

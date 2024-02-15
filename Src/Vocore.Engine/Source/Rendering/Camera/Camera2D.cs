@@ -9,7 +9,7 @@ public class Camera2D : ICamera2D
 
     public Camera2D()
     {
-        transform = Transform2D.Default;
+        transform = Transform2D.Identity;
     }
 
     public ref Vector2 Size
@@ -18,19 +18,19 @@ public class Camera2D : ICamera2D
         get => ref transform.scale;
     }
 
-    public Matrix3x2 ViewMatrix
+    public Matrix3x3 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => math.matrix3translation(-transform.position) * math.matrix3rotation(math.inverse(transform.rotation));
     }
 
-    public Matrix3x2 ProjectionMatrix
+    public Matrix3x3 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => math.matrix3scale(math.reciprocal(transform.scale));
     }
 
-    public Matrix3x2 ViewProjectionMatrix
+    public Matrix3x3 ViewProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ViewMatrix * ProjectionMatrix;

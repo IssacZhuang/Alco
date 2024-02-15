@@ -13,4 +13,5 @@ public enum ShaderStage
     Geometry = 1 << 3,
     Fragment = 1 << 4,
     Compute = 1 << 5,
+    Standard = Vertex | Fragment | Compute
 }

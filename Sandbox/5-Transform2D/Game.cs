@@ -32,47 +32,52 @@ public class Game : GameEngine
     private Camera2D camera;
 
     private GPUCommandBuffer _commandBuffer;
+    private GPUBuffer _vertexBuffer;
+    private GPUBuffer _indexBuffer;
+    private VRamBuffer<Matrix3x3> _cameraBuffer;
+    private VRamBuffer<Matrix3x3> _modelBuffer;
     private GPUPipeline _pipeline;
     private Texture2D _texBlue;
     private Texture2D _texRed;
     private Texture2D _texGreen;
 
-
+    private Transform2D _transform;
 
     private float _timer = 0.0f;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        Transform2D transform = new Transform2D(Vector2.One*2, Rotation2D.CreateByDegree(45), Vector2.One*3);
-        Log.Info(GetMatrixString(transform.MatrixTranslation));
-        Log.Info(GetMatrixString(transform.MatrixRotation));
-        Log.Info(GetMatrixString(Matrix3x2.CreateRotation(math.radians(45))));
-        Log.Info(GetMatrixString(transform.MatrixScale));
-        Log.Info(GetMatrixString(transform.Matrix));
-        Log.Info(Vector2.Transform(new Vector2(3, 3), transform.Matrix));
-
-
-
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _pipeline = CreatePipeline();
+
+        _vertexBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Vertex Buffer",
+            Size = (uint)(Marshal.SizeOf<Vertex>() * Vertices.Length),
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+        }, Vertices);
+
+        _indexBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Index Buffer",
+            Size = (uint)(sizeof(ushort) * Indices.Length),
+            Usage = BufferUsage.Index | BufferUsage.CopyDst,
+        }, Indices);
+
+        _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix3x3>("camera_buffer");
+        _modelBuffer = RenderingService.CreateTypedVRamBuffer<Matrix3x3>("model_buffer");
 
         _texBlue = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 0, 1, 1));
         _texRed = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 0, 0, 1));
         _texGreen = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 1, 0, 1));
 
         camera = new Camera2D();
+        camera.transform.position = new Vector2(2, 2);
+        camera.Size = new Vector2(16, 9);
+        Log.Info(camera.ViewProjectionMatrix);
 
+        _transform = Transform2D.Identity;
 
-
-    }
-
-    private static string GetMatrixString(Matrix3x2 matrix)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine($"[ {matrix.M11}, {matrix.M12}");
-        sb.AppendLine($"  {matrix.M21}, {matrix.M22}");
-        sb.AppendLine($"  {matrix.M31}, {matrix.M32} ]");
-        return sb.ToString();
     }
 
     protected override void OnUpdate(float delta)
@@ -81,12 +86,26 @@ public class Game : GameEngine
         {
             Stop();
         }
+
+        _cameraBuffer.Value = camera.ViewProjectionMatrix;
+        _modelBuffer.Value = _transform.Matrix;
     }
 
     protected override void OnDraw(float delta)
     {
         _timer += delta;
 
+        _commandBuffer.Begin();
+        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
+        _commandBuffer.SetGraphicsPipeline(_pipeline);
+        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(2, _texGreen.ResourcesSample);
+        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
     }
 
     protected override void OnStop()
@@ -103,7 +122,9 @@ public class Game : GameEngine
         ShaderStageSource vertSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
         ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
 
-        ShaderReflectionInfo info = UtilsShaderRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source);
+        ShaderReflectionInfo info = UtilsShaderRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
+
+        Log.Info(info);
 
         GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
         for (int i = 0; i < info.BindGroups.Length; i++)

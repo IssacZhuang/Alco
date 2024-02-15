@@ -4,7 +4,7 @@ namespace Vocore.Engine;
 
 public static partial class RenderingService
 {
-    public static VRamBuffer CreateUniformBuffer(
+    public static VRamBuffer CreateVRamBuffer(
         uint size,
         string name = "uniform_buffer"
     )
@@ -22,7 +22,7 @@ public static partial class RenderingService
         );
     }
 
-    public unsafe static VRamBuffer<T> CreateTypedUniformBuffer<T>(
+    public unsafe static VRamBuffer<T> CreateTypedVRamBuffer<T>(
         string name = "uniform_buffer"
     ) where T : unmanaged
     {
@@ -39,7 +39,7 @@ public static partial class RenderingService
             default(T)
         );
     }
-    public unsafe static VRamBuffer<T> CreateTypedUniformBuffer<T>(
+    public unsafe static VRamBuffer<T> CreateTypedVRamBuffer<T>(
         T value,
         string name = "uniform_buffer"
     ) where T : unmanaged

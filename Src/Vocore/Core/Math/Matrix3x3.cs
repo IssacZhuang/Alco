@@ -14,12 +14,15 @@ public struct Matrix3x3
     public float M11;
     public float M12;
     public float M13;
+    private float M14;// unused, just for memory alignment
     public float M21;
     public float M22;
     public float M23;
+    private float M24;// unused, just for memory alignment
     public float M31;
     public float M32;
     public float M33;
+    private float M34;// unused, just for memory alignment
 
     public Matrix3x3(float m11, float m12, float m13,
        float m21, float m22, float m23,

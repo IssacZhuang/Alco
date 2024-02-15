@@ -7,10 +7,17 @@ public static class UtilsShaderRelfection
 {
     private static readonly Reflect API = Reflect.GetApi();
 
-    public static ShaderReflectionInfo GetSpirvReflection(byte[] vertexSpirv, byte[] fragmentSpirv)
+    public static ShaderReflectionInfo GetSpirvReflection(byte[] vertexSpirv, byte[] fragmentSpirv, bool useStandardStage = false)
     {
         ShaderReflectionInfo vertex = GetSpirvReflection(vertexSpirv);
         ShaderReflectionInfo fragment = GetSpirvReflection(fragmentSpirv);
+
+        if (useStandardStage)
+        {
+            SetToStandardVisibility(vertex);
+            SetToStandardVisibility(fragment);
+        }
+
         return MergeReflectionInfo(vertex, fragment);
     }
 
@@ -37,6 +44,20 @@ public static class UtilsShaderRelfection
         API.DestroyShaderModule(&module);
 
         return info;
+    }
+
+    public static void SetToStandardVisibility(ShaderReflectionInfo info)
+    {
+        for (int i = 0; i < info.BindGroups.Length; i++)
+        {
+            for (int j = 0; j < info.BindGroups[i].Bindings.Length; j++)
+            {
+                if ((info.BindGroups[i].Bindings[j].Stage & ShaderStage.Vertex) != 0 || (info.BindGroups[i].Bindings[j].Stage & ShaderStage.Fragment) != 0)
+                {
+                    info.BindGroups[i].Bindings[j].Stage = ShaderStage.Standard;
+                }
+            }
+        }
     }
 
     public static ShaderReflectionInfo MergeReflectionInfo(ShaderReflectionInfo vertex, ShaderReflectionInfo fragment)

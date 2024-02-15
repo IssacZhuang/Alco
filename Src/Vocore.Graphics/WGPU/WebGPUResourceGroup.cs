@@ -78,14 +78,20 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
             entries[i] = nativeEntry;
         }
 
-        WGPUBindGroupDescriptor nativeDescriptor = new WGPUBindGroupDescriptor
+        fixed (sbyte* ptrName = Name.GetUtf8Span())
         {
-            entryCount = (uint)descriptor.Resources.Length,
-            entries = entries,
-            layout = ((WebGPUBindGroup)descriptor.Layout).Native,
-        };
+            WGPUBindGroupDescriptor nativeDescriptor = new WGPUBindGroupDescriptor
+            {
+                entryCount = (uint)descriptor.Resources.Length,
+                entries = entries,
+                layout = ((WebGPUBindGroup)descriptor.Layout).Native,
+                label = ptrName,
+            };
+            _native = wgpuDeviceCreateBindGroup(nativeDevice, &nativeDescriptor);
+        }
 
-        _native = wgpuDeviceCreateBindGroup(nativeDevice, &nativeDescriptor);
+
+
     }
 
 
