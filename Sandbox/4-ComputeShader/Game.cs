@@ -173,7 +173,7 @@ public class Game : GameEngine
 
         RasterizerState rasterizer = RasterizerState.CullNone;
         BlendState blend = BlendState.NonPremultipliedAlpha;
-        DepthStencilState depthStencil = DepthStencilState.DepthNone;
+        DepthStencilState depthStencil = DepthStencilState.Default;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },

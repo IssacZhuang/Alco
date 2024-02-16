@@ -25,6 +25,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     // cached state from outside
     private WGPURenderPipeline _graphicsPipeline;
     private WGPUComputePipeline _computePipeline;
+    private WebGPUFrameBufferBase? _frameBuffer;
 
     // create on end(), can be reused
     private WGPUCommandBuffer _buffer;
@@ -78,8 +79,8 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     // end the encoder
     protected unsafe override void EndCore()
     {
-        TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
+        TryFinishCurrentRenderPass();
 
         WGPUCommandBufferDescriptor descriptor = new WGPUCommandBufferDescriptor
         {
@@ -90,6 +91,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 
         _graphicsPipeline = WGPURenderPipeline.Null;
         _computePipeline = WGPUComputePipeline.Null;
+        _frameBuffer = null;
 
         // release encoder
         wgpuCommandEncoderRelease(_encoder);
@@ -99,11 +101,62 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     protected override unsafe void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
-
+        _frameBuffer = nativeFrameBuffer;
         TryFinishCurrentRenderPass();
         //TryFinishCurrentComputePass();
         WGPURenderPassDescriptor descriptor = nativeFrameBuffer.Native;
         _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptor);
+    }
+
+    protected override void ClearFrameCore(ColorFloat color, float depth, uint stencil)
+    {
+        if (_frameBuffer == null)
+        {
+            throw new GraphicsException("Framebuffer must be setted before ClearColor");
+        }
+
+        WGPUColor colorValue = new WGPUColor
+        {
+            r = color.R,
+            g = color.G,
+            b = color.B,
+            a = color.A
+        };
+
+        WGPURenderPassDescriptor descriptor = _frameBuffer.Native;
+        WGPURenderPassDescriptor descriptorClear = new WGPURenderPassDescriptor();
+
+        WGPURenderPassColorAttachment* colors = stackalloc WGPURenderPassColorAttachment[(int)descriptor.colorAttachmentCount];
+
+        for (uint i = 0; i < descriptor.colorAttachmentCount; i++)
+        {
+            colors[i] = descriptor.colorAttachments[i];
+            colors[i].loadOp = WGPULoadOp.Clear;
+            colors[i].storeOp = WGPUStoreOp.Store;
+            colors[i].clearValue = colorValue;
+        }
+
+        descriptorClear.colorAttachmentCount = descriptor.colorAttachmentCount;
+        descriptorClear.colorAttachments = colors;
+
+        WGPURenderPassDepthStencilAttachment* depthStencil = stackalloc WGPURenderPassDepthStencilAttachment[1];
+        if (descriptor.depthStencilAttachment != null)
+        {
+            *depthStencil = new WGPURenderPassDepthStencilAttachment{
+                view = descriptor.depthStencilAttachment->view,
+                depthLoadOp = WGPULoadOp.Clear,
+                depthStoreOp = WGPUStoreOp.Store,
+                depthClearValue = depth,
+                stencilLoadOp = WGPULoadOp.Clear,
+                stencilStoreOp = WGPUStoreOp.Store,
+                stencilClearValue = stencil
+            };
+            descriptorClear.depthStencilAttachment = depthStencil;
+        }
+
+        WGPURenderPassEncoder clearPass = wgpuCommandEncoderBeginRenderPass(_encoder, &descriptorClear);
+        wgpuRenderPassEncoderEnd(clearPass);
+        wgpuRenderPassEncoderRelease(clearPass);
     }
 
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
@@ -137,8 +190,6 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
         wgpuRenderPassEncoderSetIndexBuffer(_renderPass, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
     }
-
-
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
@@ -334,6 +385,5 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    
     #endregion
 }

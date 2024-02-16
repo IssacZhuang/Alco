@@ -136,10 +136,10 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
                 view = _depthTexture.DefaultView,
-                depthLoadOp = WGPULoadOp.Clear,
+                depthLoadOp = WGPULoadOp.Load,
                 depthStoreOp = WGPUStoreOp.Store,
                 depthClearValue = depthInfo.clearDepth,
-                stencilLoadOp = WGPULoadOp.Clear,
+                stencilLoadOp = WGPULoadOp.Load,
                 stencilStoreOp = WGPUStoreOp.Store,
                 stencilClearValue = depthInfo.clearStencil,
             };

@@ -106,7 +106,7 @@ public class Game : GameEngine
 
         RasterizerState rasterizer = RasterizerState.CullNone;
         BlendState blend = BlendState.Opaque;
-        DepthStencilState depthStencil = DepthStencilState.DepthNone;
+        DepthStencilState depthStencil = DepthStencilState.Default;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             Array.Empty<GPUBindGroup>(),

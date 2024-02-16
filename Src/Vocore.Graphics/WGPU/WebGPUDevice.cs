@@ -356,7 +356,7 @@ public partial class WebGPUDevice : GPUDevice
         if (descriptor.DepthFormat.HasValue)
         {
             _preferredDepthStencilFormat = descriptor.DepthFormat;
-            new DepthAttachment()
+            depth = new DepthAttachment()
             {
                 Format = descriptor.DepthFormat.Value,
                 ClearDepth = 1.0f,
@@ -374,7 +374,7 @@ public partial class WebGPUDevice : GPUDevice
                 },
             },
             depth,
-            "Surface Render Pass"
+            "surface_render_pass"
         );
 
 

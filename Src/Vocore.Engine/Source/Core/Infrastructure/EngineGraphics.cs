@@ -15,12 +15,13 @@ namespace Vocore.Engine
         public ICamera3D? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
         private readonly GPUDevice _device;
+        private readonly GPUCommandBuffer _commandBuffer;
 
         public EngineGraphics(GameEngine engine, Vector2 screenSize)
         {
             // TODO : implement with new graphics module
             _device = engine.GraphicsDevice;
-            //_commandList = _device.ResourceFactory.CreateCommandList();
+            _commandBuffer = _device.CreateCommandBuffer();
             Camera = null;
             ScreenSize = screenSize;
 
@@ -33,13 +34,12 @@ namespace Vocore.Engine
         public void BeginFrameUpdate(float delta)
         {
             // TODO : implement with new graphics module
-            return;
             // _shaderTimer += delta;
             // if (_shaderTimer >= TimeLimit)
             // {
             //     _shaderTimer -= TimeLimit;
             // }
-            
+
             // GlobalShaderData data = _globalShaderData.Value;
             // data.deltaTime = delta;
             // data.time = _shaderTimer;
@@ -53,13 +53,11 @@ namespace Vocore.Engine
 
             // _globalShaderData.Value = data;
 
-            // _commandList.Begin();
-            // _commandList.SetFramebuffer(_device.SwapchainFramebuffer);
-            // _commandList.ClearColorTarget(0, RgbaFloat.Black);
-            // _commandList.ClearDepthStencil(1f);
-            // _commandList.UpdateBuffer(_globalShaderData);
-            // _commandList.End();
-            // _device.SubmitCommands(_commandList);
+            _commandBuffer.Begin();
+            _commandBuffer.SetFrameBuffer(_device.SwapChainFrameBuffer);
+            _commandBuffer.ClearFrame(new Vector4(0, 0, 0, 1));
+            _commandBuffer.End();
+            _device.Submit(_commandBuffer);
         }
 
 

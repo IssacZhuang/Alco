@@ -100,6 +100,7 @@ internal class WebGPURenderPass : GPURenderPass
 
         if (descriptor.Depth.HasValue)
         {
+
             DepthAttachment depth = descriptor.Depth.Value;
             _depthInfo = new WGPUDepthAttachmentInfo
             {

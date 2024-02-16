@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Vocore.Graphics;
@@ -36,6 +37,12 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetFrameBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetFrameBufferCore(frameBuffer);
+    }
+
+    public void ClearFrame(ColorFloat color, float depth = 1.0f, uint stencil = 0)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearColor, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        ClearFrameCore(color, depth, stencil);
     }
 
     public void SetGraphicsPipeline(GPUPipeline pipeline)
@@ -163,6 +170,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void BeginCore();
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
+    protected abstract void ClearFrameCore(ColorFloat color, float depth, uint stencil);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);

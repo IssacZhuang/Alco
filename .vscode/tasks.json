@@ -2,19 +2,11 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "Build Release",
             "type": "shell",
-            "command": "./build.bat",
+            "command": "dotnet build -c Release",
             "args": [],
             "group": "build",
-            "presentation": {},
-        },
-        {
-            "label": "test",
-            "type": "shell",
-            "command": "./test.bat",
-            "args": [],
-            "group": "test",
             "presentation": {},
         }
     ]
