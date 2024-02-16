@@ -106,10 +106,10 @@ public class Game : GameEngine
         _commandBuffer.SetComputeResources(1, _renderTarget.ResourcesStorage);
         _commandBuffer.SetComputeResources(2, _iterationBuffer.Resources);
         _commandBuffer.DispatchCompute(_image.Width / 8, _image.Hieght / 8, 1);
-        _commandBuffer.End();
-        GraphicsDevice.Submit(_commandBuffer);
+        // _commandBuffer.End();
+        // GraphicsDevice.Submit(_commandBuffer);
 
-        _commandBuffer.Begin();
+        // _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);

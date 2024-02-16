@@ -114,7 +114,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         {
             view = surfaceTexture.DefaultView,
             resolveTarget = WGPUTextureView.Null,
-            loadOp = WGPULoadOp.Clear,
+            loadOp = WGPULoadOp.Load,
             storeOp = WGPUStoreOp.Store,
             clearValue = colorInfo.clearColor,
         };

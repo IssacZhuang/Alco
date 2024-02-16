@@ -25,7 +25,7 @@ INPUT(1, vec2, uv);
 OUTPUT(0, vec2, fragUv);
 
 void main(){
-    vec3 pos = viewProj*vec3(position,1);
+    vec3 pos = viewProj*model*vec3(position,1);
     gl_Position = vec4(pos.xy,0,1);
     fragUv = uv;
 }

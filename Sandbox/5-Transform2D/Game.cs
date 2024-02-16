@@ -41,9 +41,13 @@ public class Game : GameEngine
     private Texture2D _texRed;
     private Texture2D _texGreen;
 
-    private Transform2D _transform;
+    private Transform2D _transform1;
+    private Transform2D _transform2;
+    private Transform2D _transform3;
 
     private float _timer = 0.0f;
+
+    private float _timeMove = 0.0f;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -72,23 +76,42 @@ public class Game : GameEngine
         _texGreen = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 1, 0, 1));
 
         camera = new Camera2D();
-        camera.transform.position = new Vector2(2, 2);
+        camera.transform.position = new Vector2(0, 2);
         camera.Size = new Vector2(16, 9);
         Log.Info(camera.ViewProjectionMatrix);
 
-        _transform = Transform2D.Identity;
+        _transform1 = Transform2D.Identity;
+        _transform2 = Transform2D.Identity;
+        _transform3 = Transform2D.Identity;
+
+        _transform1.position.X = -4;
+        _transform2.position.X = 0;
+        _transform3.position.X = 4;
 
     }
 
     protected override void OnUpdate(float delta)
     {
+        _timer += delta;
         if (Input.IsKeyDown(Key.Escape))
         {
             Stop();
         }
 
+        if (Input.IsKeyDown(Key.Space))
+        {
+            _timeMove = _timer;
+        }
+
+
+        float t = math.clamp((_timer - _timeMove) * 2, 0, 1);
+        float movement = t * (1 - t) * 4;
+        _transform1.position.Y = movement;
+        _transform2.rotation = new Rotation2D(math.radians(45 * movement));
+        _transform3.scale = new Vector2(1 + movement, 1 + movement);
+
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
-        _modelBuffer.Value = _transform.Matrix;
+        _modelBuffer.Value = _transform1.Matrix;
     }
 
     protected override void OnDraw(float delta)
@@ -103,6 +126,32 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
         _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
         _commandBuffer.SetGraphicsResources(2, _texGreen.ResourcesSample);
+        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
+
+        _modelBuffer.Value = _transform2.Matrix;
+        _commandBuffer.Begin();
+        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
+        _commandBuffer.SetGraphicsPipeline(_pipeline);
+        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(2, _texRed.ResourcesSample);
+        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
+
+        _modelBuffer.Value = _transform3.Matrix;
+        _commandBuffer.Begin();
+        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
+        _commandBuffer.SetGraphicsPipeline(_pipeline);
+        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(2, _texBlue.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

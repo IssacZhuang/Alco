@@ -174,7 +174,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
-
+        
     }
 
     protected unsafe override void SetComputePipelineCore(GPUPipeline pipeline)
