@@ -7,7 +7,13 @@ namespace Vocore
 {
     public struct BoundingBox3D
     {
+        /// <summary>
+        /// The left bottom corner of the box
+        /// </summary>
         public Vector3 min;
+        /// <summary>
+        /// The right top corner of the box
+        /// </summary>
         public Vector3 max;
 
         public BoundingBox3D(Vector3 min, Vector3 max)

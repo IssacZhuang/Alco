@@ -4,39 +4,50 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
+    /// <summary>
+    /// A 2D rectangle
+    /// </summary>
     public struct Rect
     {
-        public Vector2 positon;
+        public Vector2 origin;
         public Vector2 size;
 
         public Rect(Vector2 positon, Vector2 size)
         {
-            this.positon = positon;
+            this.origin = positon;
             this.size = size;
         }
 
         public Rect(float x, float y, float width, float height)
         {
-            this.positon = new Vector2(x, y);
+            this.origin = new Vector2(x, y);
             this.size = new Vector2(width, height);
         }
 
+
+        public Vector2 Center
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => origin + size / 2;
+        }
+
+
+        /// <summary>
+        /// the origin of the rectangle
+        /// </summary>
         public Vector2 Min
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return positon;
-            }
+            get => origin;
         }
 
+        /// <summary>
+        /// origin + size
+        /// </summary>
         public Vector2 Max
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return positon + size;
-            }
+            get => origin + size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

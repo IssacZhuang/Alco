@@ -5,7 +5,13 @@ namespace Vocore
 {
     public struct BoundingBox2D
     {
+        /// <summary>
+        /// The left bottom corner of the box
+        /// </summary>
         public Vector2 min;
+        /// <summary>
+        /// The right top corner of the box
+        /// </summary>
         public Vector2 max;
         public BoundingBox2D(Vector2 min, Vector2 max)
         {
