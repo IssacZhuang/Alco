@@ -1,46 +1,38 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Vocore
 {
     public struct AtlasPackResult
     {
-        public uint width;
-        public uint height;
+        public int width;
+        public int height;
         public RectInt[] uvRects;
         public int numOutside;
     }
 
     public static class AlgoAtlasPacking{
-        private struct AtlasSize
+
+        private static readonly int2[] AltasSize = new int2[]
         {
-            public AtlasSize(uint width, uint height)
-            {
-                this.width = width;
-                this.height = height;
-            }
-            public uint width;
-            public uint height;
-        }
-        private static readonly AtlasSize[] AltasSize = new AtlasSize[]
-        {
-            new AtlasSize(16,16),
-            new AtlasSize(32,16),
-            new AtlasSize(32,32),
-            new AtlasSize(64,32),
-            new AtlasSize(64,64),
-            new AtlasSize(128,64),
-            new AtlasSize(128,128),
-            new AtlasSize(256,128),
-            new AtlasSize(256,256),
-            new AtlasSize(512,256),
-            new AtlasSize(512,512),
-            new AtlasSize(1024,512),
-            new AtlasSize(1024,1024),
-            new AtlasSize(2048,1024),
-            new AtlasSize(2048,2048),
-            new AtlasSize(4096,2048),
-            new AtlasSize(4096,4096),// max
+            new int2(16,16),
+            new int2(32,16),
+            new int2(32,32),
+            new int2(64,32),
+            new int2(64,64),
+            new int2(128,64),
+            new int2(128,128),
+            new int2(256,128),
+            new int2(256,256),
+            new int2(512,256),
+            new int2(512,512),
+            new int2(1024,512),
+            new int2(1024,1024),
+            new int2(2048,1024),
+            new int2(2048,2048),
+            new int2(4096,2048),
+            new int2(4096,4096),// max
         };
         public static AtlasPackResult PackTiled(int widthPerTile, int heightPerTile, int count, int padding = 0)
         {
@@ -60,14 +52,14 @@ namespace Vocore
             }
 
             //find the best size
-            AtlasSize bestSize = AltasSize[0];
+            int2 bestSize = AltasSize[0];
             int countPerRow = 1;
             int countPerCol = 1;
             for (int i = 0; i < AltasSize.Length; i++)
             {
-                AtlasSize size = AltasSize[i];
-                countPerRow = (int)(size.width / (widthPerTile + padding));
-                countPerCol = (int)(size.height / (heightPerTile + padding));
+                int2 size = AltasSize[i];
+                countPerRow = size.x / (widthPerTile + padding);
+                countPerCol = size.y / (heightPerTile + padding);
 
                 bestSize = size;
                 if (countPerRow * countPerCol >= count)
@@ -81,8 +73,8 @@ namespace Vocore
             //pack
             AtlasPackResult result = new AtlasPackResult
             {
-                width = bestSize.width,
-                height = bestSize.height,
+                width = bestSize.x,
+                height = bestSize.y,
                 uvRects = new RectInt[numPacked],
                 numOutside = count - numPacked
             };
@@ -97,6 +89,56 @@ namespace Vocore
                 int y = indexInCol * (heightPerTile + padding);
                 result.uvRects[i] = new RectInt(x, y, widthPerTile, heightPerTile);
             }
+
+            return result;
+        }
+
+        public static AtlasPackResult PackBinSimple(int2[] imageSizes)
+        {
+            if (imageSizes == null || imageSizes.Length == 0)
+            {
+                throw new ArgumentException("imageSizes is null or empty");
+            }
+
+            SimplePacker packer = new SimplePacker();
+            List<BinPacker.RectNode> nodes = new List<BinPacker.RectNode>();
+            for (int i = 0; i < imageSizes.Length; i++)
+            {
+                nodes.Add(new BinPacker.RectNode(imageSizes[i]));
+            }
+
+            AtlasPackResult result = new AtlasPackResult
+            {
+                width = packer.Bounds.x,
+                height = packer.Bounds.y,
+                uvRects = packer.Fit(nodes, out int numOutside),
+                numOutside = numOutside
+            };
+
+            return result;
+        }
+
+        public static AtlasPackResult PackBinAdvanced(int2[] imageSizes)
+        {
+            if (imageSizes == null || imageSizes.Length == 0)
+            {
+                throw new ArgumentException("imageSizes is null or empty");
+            }
+
+            AdvancedPacker packer = new AdvancedPacker();
+            List<BinPacker.RectNode> nodes = new List<BinPacker.RectNode>();
+            for (int i = 0; i < imageSizes.Length; i++)
+            {
+                nodes.Add(new BinPacker.RectNode(imageSizes[i]));
+            }
+
+            AtlasPackResult result = new AtlasPackResult
+            {
+                width = packer.Bounds.x,
+                height = packer.Bounds.y,
+                uvRects = packer.Fit(nodes, out int numOutside),
+                numOutside = numOutside
+            };
 
             return result;
         }
