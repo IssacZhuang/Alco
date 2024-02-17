@@ -6,18 +6,18 @@ namespace Vocore
 {
     public struct RectInt
     {
-        public int2 positon;
+        public int2 origin;
         public int2 size;
 
         public RectInt(int2 positon, int2 size)
         {
-            this.positon = positon;
+            this.origin = positon;
             this.size = size;
         }
 
         public RectInt(int x, int y, int width, int height)
         {
-            this.positon = new int2(x, y);
+            this.origin = new int2(x, y);
             this.size = new int2(width, height);
         }
 
@@ -26,7 +26,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return positon;
+                return origin;
             }
         }
 
@@ -35,7 +35,7 @@ namespace Vocore
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return positon + size;
+                return origin + size;
             }
         }
 

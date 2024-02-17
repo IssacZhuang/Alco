@@ -7,7 +7,8 @@ namespace Vocore
     {
         public uint width;
         public uint height;
-        public Rect[] uvRects;
+        public RectInt[] uvRects;
+        public int numOutside;
     }
 
     public static class AlgoAtlasPacking{
@@ -41,45 +42,60 @@ namespace Vocore
             new AtlasSize(4096,2048),
             new AtlasSize(4096,4096),// max
         };
-        public static AtlasPackResult PackTiled(uint widthPerTile, uint heightPerTile, int count, uint padding = 0)
+        public static AtlasPackResult PackTiled(int widthPerTile, int heightPerTile, int count, int padding = 0)
         {
+            if (count <= 0)
+            {
+                throw new ArgumentException("count must be greater than 0");
+            }
+
+            if (widthPerTile <= 0 || heightPerTile <= 0)
+            {
+                throw new ArgumentException("widthPerTile and heightPerTile must be greater than 0");
+            }
+
+            if (padding < 0)
+            {
+                throw new ArgumentException("padding must be greater than or equal to 0");
+            }
+
             //find the best size
             AtlasSize bestSize = AltasSize[0];
             int countPerRow = 1;
+            int countPerCol = 1;
             for (int i = 0; i < AltasSize.Length; i++)
             {
                 AtlasSize size = AltasSize[i];
                 countPerRow = (int)(size.width / (widthPerTile + padding));
-                int countPerCol = (int)(size.height / (heightPerTile + padding));
+                countPerCol = (int)(size.height / (heightPerTile + padding));
+
+                bestSize = size;
                 if (countPerRow * countPerCol >= count)
                 {
-                    bestSize = size;
                     break;
                 }
             }
+
+            int numPacked = countPerRow * countPerCol;
 
             //pack
             AtlasPackResult result = new AtlasPackResult
             {
                 width = bestSize.width,
                 height = bestSize.height,
-                uvRects = new Rect[count]
+                uvRects = new RectInt[numPacked],
+                numOutside = count - numPacked
             };
 
-            float widthF = bestSize.width;
-            float heightF = bestSize.height;
-
-            float uvWidth = widthPerTile / widthF;
-            float uvHeight = heightPerTile / heightF;
 
             //the rects is uvRects, the origin is (0,0)
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < numPacked; i++)
             {
                 int indexInRow = i % countPerRow;
                 int indexInCol = i / countPerRow;
-                float x = indexInRow * (widthPerTile + padding) / widthF;
-                float y = indexInCol * (heightPerTile + padding) / heightF;
-                result.uvRects[i] = new Rect(x, y, uvWidth, uvHeight);
+                int x = indexInRow * (widthPerTile + padding);
+                int y = indexInCol * (heightPerTile + padding);
+                result.uvRects[i] = new RectInt(x, y, widthPerTile, heightPerTile);
             }
 
             return result;
