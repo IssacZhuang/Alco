@@ -8,6 +8,14 @@
             "args": [],
             "group": "build",
             "presentation": {},
+        },
+        {
+            "label": "Clear Build",
+            "type": "shell",
+            "command": "rm -r Bin/*",
+            "args": [],
+            "group": "build",
+            "presentation": {},
         }
     ]
 }

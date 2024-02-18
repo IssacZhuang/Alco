@@ -15,12 +15,14 @@ namespace Vocore.Engine
     // };
     public struct GlobalShaderData
     {
-        public Matrix4x4 viewProjMatrix;
         public Vector2 screenSize;
+        public Vector2 screenSizeInv;
         public float time;
         public float deltaTime;
         public float sinTime;
         public float cosTime;
+        public Matrix4x4 camera3D;
+        public Matrix3x3 camera2D;
 
     }
 
