@@ -1,8 +1,15 @@
 Texture2D<float4> inputTexture : register(t0, space0);
 
-[[vk::image_format("rgba8")]]
-[[vk::ext_decorate(25)]]
-RWTexture2D<float4> outputTexture: register(u0, space1);
+//dxc macro
+// #define readonly [[vk::ext_decorate(25)]]
+// #define rgba8 [[vk::image_format("rgba8")]]
+
+//shaderc macro
+#define readonly [[spv::nonreadable]]
+#define rgba8 [[spv::format_rgba8]]
+
+
+readonly rgba8 RWTexture2D<float4> outputTexture: register(u0, space1);
 
 cbuffer Constants : register(b0, space2) { int iterations; };
 
