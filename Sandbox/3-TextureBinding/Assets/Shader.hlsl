@@ -25,7 +25,7 @@ VertexOutput vs_main(VertexInput model) {
 }
 
 float4 fs_main(VertexOutput input) : SV_Target0 {
-    float4 result = float4(color, 1.0) * image.Sample(imageSampler, input.texCoord);
+    float4 result =  image.Sample(imageSampler, input.texCoord);
     // inverse gamma correction
     result = pow(result, float4(2.2, 2.2, 2.2, 2.2));
     return result;

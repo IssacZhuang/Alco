@@ -96,7 +96,8 @@ public unsafe static class ShaderCompilerShaderc
             }
         }
 
-        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Zero);
+        API.CompileOptionsSetPreserveBindings(options, true);
+        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
         API.CompileOptionsSetWarningsAsErrors(options);
         API.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
         

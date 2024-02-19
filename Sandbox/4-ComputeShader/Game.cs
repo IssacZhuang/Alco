@@ -198,11 +198,11 @@ public class Game : GameEngine
         //ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         //shaderc hlsl
-        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         //shaderc glsl
-        string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
-        ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(ShaderCode, ShaderStage.Compute, "main", "BoxBlur.glsl");
+        // string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
+        // ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(ShaderCode, ShaderStage.Compute, "main", "BoxBlur.glsl");
 
 
         // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
@@ -210,6 +210,7 @@ public class Game : GameEngine
 
         ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Source);
         Log.Info(reflectionInfo);
+        DebugSaveFile("BoxBlur.spv", computeShader.Source);
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
@@ -258,5 +259,14 @@ public class Game : GameEngine
     private static byte[] LoadFile(string path)
     {
         return File.ReadAllBytes(Path.Combine("Assets", path));
+    }
+
+    private static void DebugSaveFile(string path, byte[] data)
+    {
+        if (!Directory.Exists(".Debug"))
+        {
+            Directory.CreateDirectory(".Debug");
+        }
+        File.WriteAllBytes(Path.Combine(".Debug", path), data);
     }
 }

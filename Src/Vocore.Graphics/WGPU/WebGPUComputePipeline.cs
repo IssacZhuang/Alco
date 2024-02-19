@@ -53,6 +53,7 @@ public class WebGPUComputePipeline : GPUPipeline
                 constants = null
             };
 
+
             WGPUBindGroupLayout* bindGroupLayouts = stackalloc WGPUBindGroupLayout[descriptor.BindGroups.Length];
 
             for (int i = 0; i < descriptor.BindGroups.Length; i++)

@@ -113,17 +113,17 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
 
         //dxc
-        // ShaderStageSource vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        // ShaderStageSource fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        ShaderStageSource vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         //shaderc hlsl
         // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
         // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         //shaderc glsl
-        shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
-        ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
-        ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
+        // shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
+        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
+        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
 
 
         ShaderReflectionInfo vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader.Source);

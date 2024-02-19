@@ -1,17 +1,24 @@
-[[vk::binding(0,0)]] Texture2D<float4> inputTexture;
-[[vk::image_format("rgba8")]] [[vk::binding(0,1)]] RWTexture2D<float4> outputTexture;
+Texture2D<float4> inputTexture : register(t0, space0);
 
-[numthreads(8, 8, 1)]
-void cs_main(uint3 id : SV_DispatchThreadID) {
-    //box blur
-    float4 color = inputTexture[id.xy];
-    for (int i = -1; i < 2; i++) {
-        for (int j = -1; j < 2; j++) {
-            int2 pos = id.xy + int2(i, j);
-            color = color + inputTexture[pos];
-        }
+[[spv::format_rgba8]] 
+[[spv::nonreadable]] 
+RWTexture2D<float4> outputTexture: register(u0, space1);
+
+cbuffer Constants : register(b0, space2) { int iterations; };
+
+[numthreads(8, 8, 1)] void cs_main(uint3 id
+                                   : SV_DispatchThreadID) {
+  // box blur
+   float4 color = inputTexture[id.xy];
+
+  int size = iterations;
+  for (int i = -size; i <= size; i++) {
+    for (int j = -size; j <= size; j++) {
+      int2 pos = int2(id.xy) + int2(i, j);
+      color = color + inputTexture[pos];
     }
+  }
 
-    color /= 9.0;
-    outputTexture[id.xy] = float4(1,1,1,1);//color;
+  color /= (2 * size + 1) * (2 * size + 1);
+  outputTexture[id.xy] =  color;
 }

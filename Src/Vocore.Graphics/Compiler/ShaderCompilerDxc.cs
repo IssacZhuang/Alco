@@ -1,3 +1,4 @@
+using System.Text;
 using Vortice.Dxc;
 
 namespace Vocore.Graphics;
@@ -16,9 +17,15 @@ public static class ShaderCompilerDxc
         IDxcResult result = DxcCompiler.Compile(ConvertShaderStage(stage), hlslCode, entry, new DxcCompilerOptions()
         {
             GenerateSpirv = true,
-            SkipOptimizations = false
-        }, filename, ShaderMacroDefine.ToDxcMacro(defines), null, new string[] { BuildOptArgs() });
-        
+            SkipOptimizations = false,
+            OptimizationLevel = 3,
+        }, filename, ShaderMacroDefine.ToDxcMacro(defines), null,
+        new string[] {
+            //BuildOptArgs(),
+            BuildExtesionArgs(),
+            "-fspv-preserve-interface"
+            });
+
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
         {
 
@@ -27,7 +34,7 @@ public static class ShaderCompilerDxc
 
         return result.GetObjectBytecodeArray();
     }
-
+   
     private static DxcShaderStage ConvertShaderStage(ShaderStage stage)
     {
         return stage switch
@@ -93,5 +100,14 @@ public static class ShaderCompilerDxc
         "--eliminate-dead-branches",
         "--merge-blocks",
         "--simplify-instructions"
+    };
+
+    private static string BuildExtesionArgs()
+    {
+        return "fspv-extension=" + string.Join(",", SpirvExtesion);
+    }
+
+    private static string[] SpirvExtesion = new string[] {
+        "GL_EXT_samplerless_texture_functions"
     };
 }
