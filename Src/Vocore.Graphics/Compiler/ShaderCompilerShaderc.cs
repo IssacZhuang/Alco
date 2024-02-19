@@ -96,11 +96,18 @@ public unsafe static class ShaderCompilerShaderc
             }
         }
 
-        API.CompileOptionsSetPreserveBindings(options, true);
-        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
-        API.CompileOptionsSetWarningsAsErrors(options);
-        API.CompileOptionsSetTargetEnv(options, TargetEnv.Webgpu, 0);
         
+        API.CompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
+        API.CompileOptionsSetPreserveBindings(options, true);
+        API.CompileOptionsSetWarningsAsErrors(options);
+        API.CompileOptionsSetHlslIoMapping(options, true);
+        API.CompileOptionsSetAutoBindUniforms(options, true);
+        //API.CompileOptionsSetGenerateDebugInfo(options);
+
+        //API.CompileOptionsSetTargetSpirv(options, SpirvVersion.Shaderc13);
+        API.CompileOptionsSetTargetEnv(options, TargetEnv.Vulkan, (uint)EnvVersion.Vulkan11);
+        //API.CompileOptionsSetTargetSpirv(options, SpirvVersion.Shaderc11);
+
         Compiler* compiler = API.CompilerInitialize();
 
         CompilationResult* result = API.CompileIntoSpv(compiler, hlslCode, GetShaderKind(stage), filename, entry, options);

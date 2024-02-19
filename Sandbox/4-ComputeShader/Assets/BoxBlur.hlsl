@@ -1,15 +1,15 @@
 Texture2D<float4> inputTexture : register(t0, space0);
 
-[[spv::format_rgba8]] 
-[[spv::nonreadable]] 
+[[vk::image_format("rgba8")]]
+[[vk::ext_decorate(25)]]
 RWTexture2D<float4> outputTexture: register(u0, space1);
 
 cbuffer Constants : register(b0, space2) { int iterations; };
 
-[numthreads(8, 8, 1)] void cs_main(uint3 id
-                                   : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] 
+void cs_main(uint3 id: SV_DispatchThreadID) {
   // box blur
-   float4 color = inputTexture[id.xy];
+   float4 color = inputTexture[int2(id.xy)];
 
   int size = iterations;
   for (int i = -size; i <= size; i++) {

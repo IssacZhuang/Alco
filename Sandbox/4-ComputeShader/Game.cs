@@ -195,10 +195,10 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
 
         //dxc
-        //ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         //shaderc hlsl
-        ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         //shaderc glsl
         // string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
@@ -208,9 +208,10 @@ public class Game : GameEngine
         // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
         // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
 
+        DebugSaveFile("BoxBlur.spv", computeShader.Source);
         ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Source);
         Log.Info(reflectionInfo);
-        DebugSaveFile("BoxBlur.spv", computeShader.Source);
+        
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
