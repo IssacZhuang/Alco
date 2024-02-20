@@ -49,7 +49,8 @@ namespace Vocore.Engine
                 Resources = new ResourceBindingEntry[]
                 {
                     new ResourceBindingEntry(0, buffer),
-                }
+                },
+                Name = buffer.Name
             });
         }
 

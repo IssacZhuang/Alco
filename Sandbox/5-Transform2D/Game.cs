@@ -124,8 +124,8 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texGreen.ResourcesSample);
+        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _texGreen.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -137,7 +137,7 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
         _commandBuffer.SetGraphicsResources(2, _texRed.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
@@ -150,8 +150,8 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texBlue.ResourcesSample);
+        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _texBlue.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -167,13 +167,27 @@ public class Game : GameEngine
 
     private GPUPipeline CreatePipeline()
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
-        ShaderStageSource vertSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
-        ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
+        //shaderc glsl
+        // string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
+        // ShaderStageSource vertSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
+        // ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
+
+        //shaderc hlsl
+        // string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
+        // ShaderStageSource vertSource = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        // ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+
+        //dxc hlsl
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
+        ShaderStageSource vertSource = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderStageSource fragSource = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         ShaderReflectionInfo info = UtilsShaderRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
 
         Log.Info(info);
+
+        DebugSaveFile("vertex.spv", vertSource.Source);
+        DebugSaveFile("fragment.spv", fragSource.Source);
 
         GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
         for (int i = 0; i < info.BindGroups.Length; i++)
@@ -203,5 +217,14 @@ public class Game : GameEngine
     private static byte[] LoadFile(string path)
     {
         return File.ReadAllBytes(Path.Combine("Assets", path));
+    }
+
+    private static void DebugSaveFile(string path, byte[] data)
+    {
+        if (!Directory.Exists(".Debug"))
+        {
+            Directory.CreateDirectory(".Debug");
+        }
+        File.WriteAllBytes(Path.Combine(".Debug", path), data);
     }
 }

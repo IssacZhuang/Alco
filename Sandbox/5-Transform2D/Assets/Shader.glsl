@@ -7,6 +7,10 @@
 #define INPUT(slot, type, name) layout(location = slot) in type name
 #define OUTPUT(slot, type, name) layout(location = slot) out type name
 
+layout(push_constant) uniform PushConstant{
+    mat3x3 constModel;
+};
+
 STRUCT_UNIFORM(0, Camera){
     mat3x3 viewProj;
 };
@@ -25,7 +29,7 @@ INPUT(1, vec2, uv);
 OUTPUT(0, vec2, fragUv);
 
 void main(){
-    vec3 pos = viewProj*model*vec3(position,1);
+    vec3 pos = viewProj*constModel*vec3(position,1);
     gl_Position = vec4(pos.xy,0,1);
     fragUv = uv;
 }

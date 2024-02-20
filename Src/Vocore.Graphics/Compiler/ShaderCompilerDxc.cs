@@ -19,11 +19,13 @@ public static class ShaderCompilerDxc
             GenerateSpirv = true,
             SkipOptimizations = false,
             OptimizationLevel = 3,
+            //EnableDebugInfoSlimFormat = true
         }, filename, ShaderMacroDefine.ToDxcMacro(defines), null,
         new string[] {
             //BuildOptArgs(),
-            BuildExtesionArgs(),
-            "-fspv-preserve-interface"
+            //BuildExtesionArgs(),
+            "-fspv-preserve-interface",
+            //"-fspv-reflect"
             });
 
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
