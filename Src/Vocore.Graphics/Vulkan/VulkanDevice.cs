@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
@@ -15,6 +16,9 @@ internal unsafe class VulkanDevice : GPUDevice
     private readonly VkQueue _graphicsQueue;
     private readonly VkQueue _presentQueue;
 
+    private PixelFormat _prefferedSurfaceFomat;
+    private PixelFormat? _prefferedDepthStencilFormat;
+
 
     #endregion
 
@@ -23,9 +27,17 @@ internal unsafe class VulkanDevice : GPUDevice
 
     public override GPUFrameBuffer SwapChainFrameBuffer => throw new NotImplementedException();
 
-    public override PixelFormat PrefferedSurfaceFomat => throw new NotImplementedException();
+    public override PixelFormat PrefferedSurfaceFomat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedSurfaceFomat;
+    }
 
-    public override PixelFormat? PrefferedDepthStencilFormat => throw new NotImplementedException();
+    public override PixelFormat? PrefferedDepthStencilFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedDepthStencilFormat;
+    }
 
     public override bool VSync { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
@@ -216,6 +228,10 @@ internal unsafe class VulkanDevice : GPUDevice
             {
                 GraphicsLogger.Warning("Validation layers are requested but not available found.");
             }
+            else
+            {
+                GraphicsLogger.Info("Validation layers enabled: " + string.Join(",", validationLayers));
+            }
         }
 
         using VkStringArray layers = new VkStringArray(validationLayers);
@@ -332,6 +348,11 @@ internal unsafe class VulkanDevice : GPUDevice
         vkGetDeviceQueue(_native, presentQueueIndex, 0, out _presentQueue);
 
         GraphicsLogger.Info("Device created");
+
+        //create swap chain
+        SwapChainSupportDetails swapChainSupportDetails = UtilsVulkan.GetSwapChainSupportDetails(_physicalDevice, _surface);
+        VkFormat surfaceFormat = UtilsVulkan.GetPreferredSurfaceFormat(swapChainSupportDetails.Formats);
+        VkPresentModeKHR presentMode = UtilsVulkan.GetPreferredPresentMode(swapChainSupportDetails.PresentModes, descriptor.VSync);
     }
 
     private static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
@@ -343,11 +364,8 @@ internal unsafe class VulkanDevice : GPUDevice
         if (presentFamily == VK_QUEUE_FAMILY_IGNORED)
             return false;
 
-        VkSurfaceCapabilitiesKHR vkSurfaceCapabilities; 
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &vkSurfaceCapabilities).CheckResult();
-        ReadOnlySpan<VkSurfaceFormatKHR> formats = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface);
-        ReadOnlySpan<VkPresentModeKHR> presentModes = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface);
-        return !formats.IsEmpty && !presentModes.IsEmpty;
+        SwapChainSupportDetails supportDetails = UtilsVulkan.GetSwapChainSupportDetails(physicalDevice, surface);
+        return !supportDetails.Formats.IsEmpty && !supportDetails.PresentModes.IsEmpty;
     }
 
     private static (uint graphicsFamily, uint presentFamily) FindQueueIndex(

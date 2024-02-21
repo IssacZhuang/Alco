@@ -113,6 +113,52 @@ internal unsafe static partial class UtilsVulkan
         return Array.Empty<string>();
     }
 
+    public static SwapChainSupportDetails GetSwapChainSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
+    {
+        SwapChainSupportDetails details = new SwapChainSupportDetails();
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &details.Capabilities).CheckResult();
+        details.Formats = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface);
+        details.PresentModes = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface);
+        return details;
+    }
+
+    public static VkFormat GetPreferredSurfaceFormat(ReadOnlySpan<VkSurfaceFormatKHR> formats)
+    {
+        foreach (VkSurfaceFormatKHR format in formats)
+        {
+            if (format.format == VkFormat.B8G8R8A8Srgb && format.colorSpace == VkColorSpaceKHR.SrgbNonLinear)
+            {
+                return format.format;
+            }
+        }
+
+        return formats[0].format;
+    }
+
+    public static VkPresentModeKHR GetPreferredPresentMode(ReadOnlySpan<VkPresentModeKHR> presentModes, bool vSync)
+    {
+        foreach (VkPresentModeKHR mode in presentModes)
+        {
+            if (vSync && mode == VkPresentModeKHR.Fifo)
+            {
+                return mode;
+            }
+
+            //prefer immediate than mailbox when vSync is off
+            if (!vSync && mode == VkPresentModeKHR.Immediate)
+            {
+                return mode;
+            }
+
+            if (!vSync && mode == VkPresentModeKHR.Mailbox)
+            {
+                return mode;
+            }
+        }
+
+        return VkPresentModeKHR.Fifo;
+    }
+
     private static bool ValidateLayers(string[] required, string[] availableLayers)
     {
         foreach (string layer in required)
