@@ -122,17 +122,17 @@ internal unsafe static partial class UtilsVulkan
         return details;
     }
 
-    public static VkFormat GetPreferredSurfaceFormat(ReadOnlySpan<VkSurfaceFormatKHR> formats)
+    public static VkSurfaceFormatKHR GetPreferredSurfaceFormat(ReadOnlySpan<VkSurfaceFormatKHR> formats)
     {
         foreach (VkSurfaceFormatKHR format in formats)
         {
             if (format.format == VkFormat.B8G8R8A8Srgb && format.colorSpace == VkColorSpaceKHR.SrgbNonLinear)
             {
-                return format.format;
+                return format;
             }
         }
 
-        return formats[0].format;
+        return formats[0];
     }
 
     public static VkPresentModeKHR GetPreferredPresentMode(ReadOnlySpan<VkPresentModeKHR> presentModes, bool vSync)

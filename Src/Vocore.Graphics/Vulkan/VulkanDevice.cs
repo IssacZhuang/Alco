@@ -19,6 +19,9 @@ internal unsafe class VulkanDevice : GPUDevice
     private PixelFormat _prefferedSurfaceFomat;
     private PixelFormat? _prefferedDepthStencilFormat;
 
+    //managed
+    private VulkanSwapChainFrameBuffer _swapChainFrameBuffer;
+
 
     #endregion
 
@@ -309,9 +312,11 @@ internal unsafe class VulkanDevice : GPUDevice
 
         var (graphicsQueueIndex, presentQueueIndex) = FindQueueIndex(_physicalDevice, _surface);
         int queueCount = graphicsQueueIndex == presentQueueIndex ? 1 : 2;
+        bool isQueuesSame = graphicsQueueIndex == presentQueueIndex;
+        uint* queueFamilyIndices = stackalloc uint[queueCount];
+
         VkDeviceQueueCreateInfo* queueCreateInfo = stackalloc VkDeviceQueueCreateInfo[queueCount];
         
-
         float priority = 1.0f;
         queueCreateInfo[0] = new VkDeviceQueueCreateInfo
         {
@@ -319,8 +324,9 @@ internal unsafe class VulkanDevice : GPUDevice
             queueCount = 1,
             pQueuePriorities = &priority
         };
+        queueFamilyIndices[0] = graphicsQueueIndex;
 
-        if (queueCount >= 2)
+        if (queueCount == 2)
         {
             queueCreateInfo[1] = new VkDeviceQueueCreateInfo
             {
@@ -328,6 +334,7 @@ internal unsafe class VulkanDevice : GPUDevice
                 queueCount = 1,
                 pQueuePriorities = &priority
             };
+            queueFamilyIndices[1] = presentQueueIndex;
         }
 
         //use no extensions for now
@@ -351,8 +358,28 @@ internal unsafe class VulkanDevice : GPUDevice
 
         //create swap chain
         SwapChainSupportDetails swapChainSupportDetails = UtilsVulkan.GetSwapChainSupportDetails(_physicalDevice, _surface);
-        VkFormat surfaceFormat = UtilsVulkan.GetPreferredSurfaceFormat(swapChainSupportDetails.Formats);
+        VkSurfaceFormatKHR surfaceFormat = UtilsVulkan.GetPreferredSurfaceFormat(swapChainSupportDetails.Formats);
         VkPresentModeKHR presentMode = UtilsVulkan.GetPreferredPresentMode(swapChainSupportDetails.PresentModes, descriptor.VSync);
+        VkSwapchainCreateInfoKHR swapChainCreateInfo = new VkSwapchainCreateInfoKHR
+        {
+            surface = _surface,
+            minImageCount = swapChainSupportDetails.GetPrefferedImageCount(2),
+            imageFormat = surfaceFormat.format,
+            imageColorSpace = surfaceFormat.colorSpace,
+            imageExtent = new VkExtent2D(descriptor.InitialSurfaceSizeWidth, descriptor.InitialSurfaceSizeHeight),
+            imageArrayLayers = 1,
+            imageUsage = VkImageUsageFlags.ColorAttachment,
+            imageSharingMode = isQueuesSame? VkSharingMode.Exclusive : VkSharingMode.Concurrent,
+            queueFamilyIndexCount = (uint)(isQueuesSame ? 0 : 2),
+            pQueueFamilyIndices = isQueuesSame ? null : queueFamilyIndices,
+            presentMode = presentMode,
+            preTransform = swapChainSupportDetails.Capabilities.currentTransform,
+            compositeAlpha = VkCompositeAlphaFlagsKHR.Opaque,
+            clipped = true,
+            oldSwapchain = VkSwapchainKHR.Null
+        };
+
+        _swapChainFrameBuffer = new VulkanSwapChainFrameBuffer(_native, swapChainCreateInfo);
     }
 
     private static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)

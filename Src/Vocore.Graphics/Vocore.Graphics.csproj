@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <UseVulkan>false</UseVulkan>
+    <UseVulkan>true</UseVulkan>
     <UseWebGPU>true</UseWebGPU>
 
     <DefineConstants Condition="'$(UseVulkan)' == 'true'">$(DefineConstants);USE_VULKAN</DefineConstants>

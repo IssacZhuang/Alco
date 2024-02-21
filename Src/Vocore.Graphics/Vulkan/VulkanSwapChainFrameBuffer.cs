@@ -8,7 +8,7 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 {
     #region Members
 
-    private readonly VkFramebuffer _native;
+    private readonly VkSwapchainKHR _native;
     private readonly VkDevice _nativeDevice;
 
     #endregion
@@ -28,22 +28,21 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 
     protected override void Dispose(bool disposing)
     {
-        vkDestroyFramebuffer(_nativeDevice, _native, null);
+        vkDestroySwapchainKHR(_nativeDevice, _native, null);
     }
 
     #endregion
 
     #region Vulkan Implementation
 
-    public VkFramebuffer Native
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _native;
-    }
 
-    public VulkanSwapChainFrameBuffer()
+    //called by device
+    internal VulkanSwapChainFrameBuffer(VkDevice nativeDevice, VkSwapchainCreateInfoKHR createInfo)
     {
         Name = "SwapChain FrameBuffer";
+        _nativeDevice = nativeDevice;
+
+        vkCreateSwapchainKHR(nativeDevice, &createInfo, null, out VkSwapchainKHR _native).CheckResult();
     }
 
 
