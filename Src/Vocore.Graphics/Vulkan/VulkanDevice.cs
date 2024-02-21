@@ -8,6 +8,18 @@ namespace Vocore.Graphics.Vulkan;
 internal unsafe class VulkanDevice : GPUDevice
 {
     #region Members
+    private static readonly string[] RequiredInstanceExtension = new string[]
+    {
+        VK_KHR_SURFACE_EXTENSION_NAME, //VK_KHR_surface
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME, //VK_EXT_debug_utils
+        VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, //VK_EXT_swapchain_colorspace
+    };
+
+    private static readonly string[] RequiredDeviceExtension = new string[]
+    {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME, //VK_KHR_swapchain
+    };
+
     private readonly VkDebugUtilsMessengerEXT _debugMessenger = VkDebugUtilsMessengerEXT.Null;
     private readonly VkInstance _instance;
     private readonly VkSurfaceKHR _surface;
@@ -239,7 +251,27 @@ internal unsafe class VulkanDevice : GPUDevice
 
         using VkStringArray layers = new VkStringArray(validationLayers);
 
-        string[] instanceExtensions = UtilsVulkan.GetInstanceExtensions();
+        string[] availableInstanceExtensions = UtilsVulkan.GetInstanceExtensions();
+        List<string> instanceExtensions = new List<string>();
+
+        foreach (string extension in availableInstanceExtensions)
+        {
+            for (int i = 0; i < RequiredInstanceExtension.Length; i++)
+            {
+                if (extension == RequiredInstanceExtension[i])
+                {
+                    instanceExtensions.Add(extension);
+                    break;
+                }
+            }
+        }
+
+        string? surfaceExtension = UtilsVulkan.GetSurfaceExtesion(descriptor.SurfaceSource);
+        if (surfaceExtension != null)
+        {
+            instanceExtensions.Add(surfaceExtension);
+        }
+
         using VkStringArray extensions = new VkStringArray(instanceExtensions);
 
         VkInstanceCreateInfo instanceInfo = new VkInstanceCreateInfo
@@ -247,7 +279,7 @@ internal unsafe class VulkanDevice : GPUDevice
             pApplicationInfo = &applicationInfo,
             enabledLayerCount = (uint)validationLayers.Length,
             ppEnabledLayerNames = layers,
-            enabledExtensionCount = (uint)instanceExtensions.Length,
+            enabledExtensionCount = (uint)instanceExtensions.Count,
             ppEnabledExtensionNames = extensions
         };
 
@@ -264,6 +296,11 @@ internal unsafe class VulkanDevice : GPUDevice
         }
 
         vkCreateInstance(&instanceInfo, null, out _instance).CheckResult("Failed to create Vulkan instance");
+
+        foreach (string extension in instanceExtensions)
+        {
+            GraphicsLogger.Info("Instance extension: " + extension);
+        }
         vkLoadInstanceOnly(_instance);
 
         //create debug messenger
@@ -314,10 +351,10 @@ internal unsafe class VulkanDevice : GPUDevice
         int queueCount = graphicsQueueIndex == presentQueueIndex ? 1 : 2;
         bool isQueuesSame = graphicsQueueIndex == presentQueueIndex;
         uint* queueFamilyIndices = stackalloc uint[queueCount];
-
-        VkDeviceQueueCreateInfo* queueCreateInfo = stackalloc VkDeviceQueueCreateInfo[queueCount];
-        
         float priority = 1.0f;
+
+        VkDeviceQueueCreateInfo* queueCreateInfo = stackalloc VkDeviceQueueCreateInfo[2];
+        
         queueCreateInfo[0] = new VkDeviceQueueCreateInfo
         {
             queueFamilyIndex = graphicsQueueIndex,
@@ -337,13 +374,17 @@ internal unsafe class VulkanDevice : GPUDevice
             queueFamilyIndices[1] = presentQueueIndex;
         }
 
+        List<string> enabledDeviceExtensions = new List<string>(RequiredDeviceExtension);
+
+        using VkStringArray deviceExtensions = new VkStringArray(enabledDeviceExtensions);
+
         //use no extensions for now
         VkDeviceCreateInfo deviceCreateInfo = new VkDeviceCreateInfo
         {
             queueCreateInfoCount = (uint)queueCount,
             pQueueCreateInfos = queueCreateInfo,
-            enabledExtensionCount = 0,
-            ppEnabledExtensionNames = null,
+            enabledExtensionCount = deviceExtensions.Length,
+            ppEnabledExtensionNames = deviceExtensions,
             pEnabledFeatures = null
         };
 

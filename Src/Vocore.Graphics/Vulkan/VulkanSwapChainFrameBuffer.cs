@@ -41,8 +41,7 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
     {
         Name = "SwapChain FrameBuffer";
         _nativeDevice = nativeDevice;
-
-        vkCreateSwapchainKHR(nativeDevice, &createInfo, null, out VkSwapchainKHR _native).CheckResult();
+        vkCreateSwapchainKHR(nativeDevice, &createInfo, null, out _native).CheckResult();
     }
 
 

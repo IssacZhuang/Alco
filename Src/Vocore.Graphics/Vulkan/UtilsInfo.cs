@@ -59,6 +59,28 @@ internal unsafe static partial class UtilsVulkan
         return extensions;
     }
 
+    public static string? GetSurfaceExtesion(SurfaceSource surfaceSource)
+    {
+        switch (surfaceSource)
+        {
+            case AndroidWindowSurfaceSource androidWindowSurface:
+                return VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+            case MetalLayerSurfaceHandle metalLayerSurface:
+                //TODO: Mac OS implementation
+                return null;
+            case Win32SurfaceSource win32Surface:
+                return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+            case WaylandSurfaceSource waylandSurface:
+                return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
+            case XcbWindowSurfaceSource xcbWindowSurface:
+                return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+            case XlibWindowSurfaceSource xlibWindowSurface:
+                return VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
+            default:
+                return null;
+        }
+    }
+
     public static string[] GetOptimalValidationLayers()
     {
         string[] availableLayers = GetInstanceLayers();
