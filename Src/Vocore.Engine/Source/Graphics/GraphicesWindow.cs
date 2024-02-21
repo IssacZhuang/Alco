@@ -4,13 +4,12 @@ using Silk.NET.Core.Contexts;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Vocore.Graphics;
-using Vocore.Graphics.WebGPU;
 
 namespace Vocore.Engine
 {
     public static class GraphicsWindow
     {
-        public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, out GPUDevice device, out IWindow window)
+        public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, GraphicsBackend backend, out GPUDevice device, out IWindow window)
         {
             WindowOptions silkWindowOptions = WindowOptions.Default;
             silkWindowOptions.API = GraphicsAPI.None;
@@ -32,7 +31,7 @@ namespace Vocore.Engine
             {
                 Debug = true,
                 VSync = false,
-                Backend = GraphicsBackend.Auto,
+                Backend = backend,
                 SurfaceSource = surfaceSource,
                 InitialSurfaceSizeWidth = (uint)setting.Width,
                 InitialSurfaceSizeHeight = (uint)setting.Height,
@@ -41,7 +40,18 @@ namespace Vocore.Engine
                 Name = setting.Title
             };
 
-            device = new WebGPUDevice(deviceDescriptor);
+
+            if (backend == GraphicsBackend.Vulkan)
+            {
+                GraphicsLogger.RegisterLogger("[Vulkan]");
+                device = GraphicsFactory.CreateVulkanDevice(deviceDescriptor);
+            }
+            else
+            {
+                GraphicsLogger.RegisterLogger("[WebGPU]");
+                device = GraphicsFactory.CreateWebGPUDevice(deviceDescriptor);
+            }
+
         }
 
         public static SurfaceSource GetSurfaceSource(INativeWindow? window)

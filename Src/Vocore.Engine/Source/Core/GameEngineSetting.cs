@@ -5,8 +5,11 @@ namespace Vocore.Engine
 {
     public struct GameEngineSetting
     {
+        public bool HasGraphics
+        {
+            get => GraphicsAPI != GraphicsBackend.None;
+        }
         public GraphicsBackend GraphicsAPI;
-        public bool HasGraphics;
         public string WindowName;
         public int Width;
         public int Height;
@@ -16,7 +19,6 @@ namespace Vocore.Engine
 
         public readonly static GameEngineSetting Default = new GameEngineSetting
         {
-            HasGraphics = true,
             GraphicsAPI = GraphicsBackend.Auto,
             WindowName = "Vocore",
             Width = 640,
@@ -28,7 +30,6 @@ namespace Vocore.Engine
 
         public readonly static GameEngineSetting WithGraphics = new GameEngineSetting
         {
-            HasGraphics = true,
             GraphicsAPI = GraphicsBackend.Auto,
             WindowName = "Vocore",
             Width = 640,
@@ -39,7 +40,7 @@ namespace Vocore.Engine
 
         public readonly static GameEngineSetting NoGraphics = new GameEngineSetting
         {
-            HasGraphics = false,
+            GraphicsAPI = GraphicsBackend.None,
             GametTickRate = 30,
         };
     }

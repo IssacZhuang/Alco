@@ -130,8 +130,6 @@ namespace Vocore.Engine
 
         public GameEngine(GameEngineSetting setting)
         {
-
-            GraphicsLogger.RegisterLogger();
             if (Instance != null)
             {
                 throw new Exception("The GameEngine can only have one instance.");
@@ -146,7 +144,10 @@ namespace Vocore.Engine
                     Width = _setting.Width,
                     Height = _setting.Height,
                     Title = _setting.WindowName
-                }, out GPUDevice graphicsDevice, out IWindow window);
+                }, 
+                _setting.GraphicsAPI,
+                out GPUDevice graphicsDevice, 
+                out IWindow window);
                 
                 _window = window;
 

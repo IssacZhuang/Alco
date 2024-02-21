@@ -5,8 +5,11 @@ namespace Vocore.Engine
 {
     internal static class GraphicsLogger
     {
-        internal static void RegisterLogger()
+        private static string Prefix = "[Graphics]";
+
+        internal static void RegisterLogger(string prefix)
         {
+            Prefix = prefix;
             Graphics.GraphicsLogger.ErrorCallback = LogError;
             Graphics.GraphicsLogger.WarningCallback = LogWarning;
             Graphics.GraphicsLogger.InfoCallback = LogInfo;
@@ -15,19 +18,19 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void LogError(string message)
         {
-            Log.Error("[WGPU Error]" + message);
+            Log.Error(Prefix, message);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void LogWarning(string message)
         {
-            Log.Warning("[WGPU Warning]" + message);
+            Log.Warning(Prefix, message);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void LogInfo(string message)
         {
-            Log.Info("[WGPU Info]" + message);
+            Log.Info(Prefix, message);
         }
     }
 }

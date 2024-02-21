@@ -30,12 +30,12 @@ SLOT(1,1) SamplerState imageSampler;
 
 V2F vs_main(Vertex2D input){
     
-    float3 position = float3(input.position, 1.0f);
+    float4 position = float4(input.position, 0.0f, 1.0f);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
 
     V2F output = (V2F)0;
-    output.position = float4(position, 1.0f);
+    output.position = position;
     output.uv = input.uv;
     return output;
 }

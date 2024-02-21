@@ -1,8 +1,10 @@
 ﻿using Vocore;
 using Vocore.Engine;
+using Vocore.Graphics;
 
 GameEngineSetting setting = GameEngineSetting.Default with{
     StopWhenError = true,
+    GraphicsAPI = GraphicsBackend.Vulkan,
 };
 setting.WindowName = "Basic Window";
 
