@@ -11,8 +11,7 @@ internal unsafe class VulkanRenderPass : GPURenderPass
     private readonly VkRenderPass _native;
     private readonly VkDevice _nativeDevice;
 
-    private readonly VkAttachmentDescription[] _colorAttachments;
-    private readonly VkAttachmentDescription? _depthAttachment;
+    private readonly RenderPassDescriptor _descriptor;
 
     #endregion
 
@@ -46,21 +45,27 @@ internal unsafe class VulkanRenderPass : GPURenderPass
         get => _native;
     }
 
-    public VkAttachmentDescription[] VulkanColorAttachments
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _colorAttachments;
-    }
-
-    public VkAttachmentDescription? VulkanDepthAttachment
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthAttachment;
-    }
-
     public VulkanRenderPass(VkDevice nativeDevice, RenderPassDescriptor descriptor)
     {
         Name = descriptor.Name;
+        _nativeDevice = nativeDevice;
+        _descriptor = descriptor;
+
+        VkAttachmentDescription* colors = stackalloc VkAttachmentDescription[descriptor.Colors.Length + (descriptor.Depth.HasValue ? 1 : 0)];
+
+        for (int i = 0; i < descriptor.Colors.Length; i++)
+        {
+            colors[i] = new VkAttachmentDescription
+            {
+                format = UtilsVulkan.PixelFormatToVulkan(descriptor.Colors[i].Format),
+                samples = VkSampleCountFlags.Count1,
+                loadOp = VkAttachmentLoadOp.Clear,
+                storeOp = VkAttachmentStoreOp.Store,
+            };
+        }
+
+        VkAttachmentReference* colorRefs = stackalloc VkAttachmentReference[descriptor.Colors.Length];
+
         
     }
 
