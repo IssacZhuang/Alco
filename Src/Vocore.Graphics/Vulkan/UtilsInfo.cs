@@ -157,6 +157,44 @@ internal unsafe static partial class UtilsVulkan
         return formats[0];
     }
 
+    public static VkSurfaceFormatKHR[] GetDepthFormats(VkPhysicalDevice physicalDevice, ReadOnlySpan<VkSurfaceFormatKHR> formats)
+    {
+        List<VkSurfaceFormatKHR> depthFormats = new List<VkSurfaceFormatKHR>();
+        foreach (VkSurfaceFormatKHR format in formats)
+        {
+            VkFormatProperties properties;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, format.format, &properties);
+            if ((properties.bufferFeatures & VkFormatFeatureFlags.DepthStencilAttachment) == VkFormatFeatureFlags.DepthStencilAttachment)
+            {
+                depthFormats.Add(format);
+            }
+        }
+
+        return depthFormats.ToArray();
+    }
+
+    public static VkFormat? GetPreferredDepthFormat(VkPhysicalDevice physicalDevice, ReadOnlySpan<VkSurfaceFormatKHR> formats)
+    {
+        VkSurfaceFormatKHR[] depthFormats = GetDepthFormats(physicalDevice, formats);
+
+        //prefer 32 bit format
+        foreach (VkSurfaceFormatKHR format in depthFormats)
+        {
+            if (format.format == VkFormat.D24UnormS8Uint)
+            {
+                return format.format;
+            }
+        }
+
+        if (depthFormats.Length > 0)
+        {
+            return depthFormats[0].format;
+        }
+
+        return null;
+    }
+
+
     public static VkPresentModeKHR GetPreferredPresentMode(ReadOnlySpan<VkPresentModeKHR> presentModes, bool vSync)
     {
         foreach (VkPresentModeKHR mode in presentModes)

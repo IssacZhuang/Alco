@@ -19,11 +19,19 @@ internal unsafe class VulkanRenderPass : GPURenderPass
 
     public override string Name { get; }
 
-    public override IReadOnlyList<ColorAttachment> Colors => throw new NotImplementedException();
+    public override IReadOnlyList<ColorAttachment> Colors
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _descriptor.Colors;
+    }
 
-    public override DepthAttachment? Depth => throw new NotImplementedException();
+    public override DepthAttachment? Depth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _descriptor.Depth;
+    }
 
-    
+
     public override GPUFrameBuffer CreateFrameBuffer(uint width, uint height, string? name = null)
     {
         throw new NotImplementedException();
@@ -61,12 +69,80 @@ internal unsafe class VulkanRenderPass : GPURenderPass
                 samples = VkSampleCountFlags.Count1,
                 loadOp = VkAttachmentLoadOp.Clear,
                 storeOp = VkAttachmentStoreOp.Store,
+                stencilLoadOp = VkAttachmentLoadOp.Clear,
+                stencilStoreOp = VkAttachmentStoreOp.Store,
+                initialLayout = VkImageLayout.Undefined,
+                finalLayout = VkImageLayout.PresentSrcKHR
             };
         }
 
-        VkAttachmentReference* colorRefs = stackalloc VkAttachmentReference[descriptor.Colors.Length];
+        if (descriptor.Depth.HasValue)
+        {
+            colors[descriptor.Colors.Length] = new VkAttachmentDescription
+            {
+                format = UtilsVulkan.PixelFormatToVulkan(descriptor.Depth.Value.Format),
+                samples = VkSampleCountFlags.Count1,
+                loadOp = VkAttachmentLoadOp.Clear,
+                storeOp = VkAttachmentStoreOp.Store,
+                stencilLoadOp = VkAttachmentLoadOp.DontCare,
+                stencilStoreOp = VkAttachmentStoreOp.DontCare,
+                initialLayout = VkImageLayout.Undefined,
+                finalLayout = VkImageLayout.DepthStencilAttachmentOptimal
+            };
+        }
 
-        
+        VkAttachmentReference* colorAttachmentRefs = stackalloc VkAttachmentReference[descriptor.Colors.Length];
+        for (int i = 0; i < descriptor.Colors.Length; i++)
+        {
+            colorAttachmentRefs[i] = new VkAttachmentReference
+            {
+                attachment = (uint)i,
+                layout = VkImageLayout.ColorAttachmentOptimal
+            };
+        }
+
+        VkAttachmentReference depthAttachmentRef = default;
+        if (descriptor.Depth.HasValue)
+        {
+            depthAttachmentRef = new VkAttachmentReference
+            {
+                attachment = (uint)descriptor.Colors.Length,
+                layout = VkImageLayout.DepthStencilAttachmentOptimal
+            };
+        }
+
+        VkSubpassDescription subpass = new VkSubpassDescription
+        {
+            pipelineBindPoint = VkPipelineBindPoint.Graphics,
+            colorAttachmentCount = (uint)descriptor.Colors.Length,
+            pColorAttachments = colorAttachmentRefs,
+        };
+
+        if (descriptor.Depth.HasValue)
+        {
+            subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        }
+
+        //TODO: set correct dependency
+        VkSubpassDependency dependency = new VkSubpassDependency
+        {
+            srcSubpass = 0,
+            dstSubpass = 1,
+            srcStageMask = VkPipelineStageFlags.ColorAttachmentOutput,
+            srcAccessMask = 0,
+            dstStageMask = VkPipelineStageFlags.ColorAttachmentOutput,
+            dstAccessMask = VkAccessFlags.ColorAttachmentRead | VkAccessFlags.ColorAttachmentWrite
+        };
+
+        VkRenderPassCreateInfo renderPassCreateInfo = new VkRenderPassCreateInfo
+        {
+            attachmentCount = (uint)(descriptor.Colors.Length + (descriptor.Depth.HasValue ? 1 : 0)),
+            pAttachments = colors,
+            subpassCount = 1,
+            pSubpasses = &subpass,
+        };
+
+        vkCreateRenderPass(_nativeDevice, &renderPassCreateInfo, null, out _native).CheckResult("Failed to create render pass");
     }
 
     #endregion

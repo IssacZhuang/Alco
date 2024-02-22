@@ -400,6 +400,23 @@ internal unsafe class VulkanDevice : GPUDevice
         //create swap chain
         SwapChainSupportDetails swapChainSupportDetails = UtilsVulkan.GetSwapChainSupportDetails(_physicalDevice, _surface);
         VkSurfaceFormatKHR surfaceFormat = UtilsVulkan.GetPreferredSurfaceFormat(swapChainSupportDetails.Formats);
+
+
+        //get preffered surface format
+        VkFormat nativePrefferedSurfaceFormat = UtilsVulkan.GetPreferredSurfaceFormat(swapChainSupportDetails.Formats).format;
+        _prefferedSurfaceFomat = UtilsVulkan.PixelFormatToAbstract(nativePrefferedSurfaceFormat);
+
+        //get preffered depth format
+        VkFormat? nativePrefferedDepthFormat = UtilsVulkan.GetPreferredDepthFormat(_physicalDevice, swapChainSupportDetails.Formats);
+        if (nativePrefferedDepthFormat.HasValue)
+        {
+            _prefferedDepthStencilFormat = UtilsVulkan.PixelFormatToAbstract(nativePrefferedDepthFormat.Value);
+        }
+        else if (descriptor.DepthFormat.HasValue)
+        {
+            GraphicsLogger.Warning("Requested depth format is not supported, falling back to default");
+        }
+
         VkPresentModeKHR presentMode = UtilsVulkan.GetPreferredPresentMode(swapChainSupportDetails.PresentModes, descriptor.VSync);
         VkSwapchainCreateInfoKHR swapChainCreateInfo = new VkSwapchainCreateInfoKHR
         {
@@ -421,6 +438,9 @@ internal unsafe class VulkanDevice : GPUDevice
         };
 
         _swapChainFrameBuffer = new VulkanSwapChainFrameBuffer(_native, swapChainCreateInfo);
+
+        GraphicsLogger.Info("Swap chain created");
+        
     }
 
     private static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)

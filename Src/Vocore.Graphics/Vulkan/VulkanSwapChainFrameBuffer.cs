@@ -8,7 +8,8 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 {
     #region Members
 
-    private readonly VkSwapchainKHR _native;
+    private readonly VkFramebuffer _native;
+    private readonly VkSwapchainKHR _swapChain;
     private readonly VkDevice _nativeDevice;
 
     private readonly VulkanSwapChainTexture[] _colorTextures; //with default view
@@ -33,7 +34,7 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 
     protected override void Dispose(bool disposing)
     {
-        vkDestroySwapchainKHR(_nativeDevice, _native, null);
+        vkDestroySwapchainKHR(_nativeDevice, _swapChain, null);
     }
 
     #endregion
@@ -46,13 +47,13 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
     {
         Name = "SwapChain FrameBuffer";
         _nativeDevice = nativeDevice;
-        vkCreateSwapchainKHR(nativeDevice, &createInfo, null, out _native).CheckResult();
+        vkCreateSwapchainKHR(nativeDevice, &createInfo, null, out _swapChain).CheckResult();
 
         //get swapchain images
         uint count = 0;
-        vkGetSwapchainImagesKHR(nativeDevice, _native, &count, null).CheckResult();
+        vkGetSwapchainImagesKHR(nativeDevice, _swapChain, &count, null).CheckResult();
         VkImage* images = stackalloc VkImage[(int)count];
-        vkGetSwapchainImagesKHR(nativeDevice, _native, &count, images).CheckResult();
+        vkGetSwapchainImagesKHR(nativeDevice, _swapChain, &count, images).CheckResult();
 
         _colorTextures = new VulkanSwapChainTexture[count];
         for (int i = 0; i < count; i++)
