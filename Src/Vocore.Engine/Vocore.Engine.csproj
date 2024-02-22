@@ -6,6 +6,7 @@
     <AssemblyName>Vocore.Engine</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />

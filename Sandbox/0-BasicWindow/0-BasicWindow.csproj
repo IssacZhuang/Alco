@@ -9,5 +9,4 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
   </ItemGroup>
-
 </Project>

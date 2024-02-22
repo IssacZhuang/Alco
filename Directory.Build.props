@@ -23,6 +23,7 @@
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
+    <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -36,10 +37,7 @@
       $(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 
-  <!-- <ItemDefinitionGroup>
-    <ReferenceCopyLocalPaths>
-      <DestinationSubDirectory>Lib\</DestinationSubDirectory>
-    </ReferenceCopyLocalPaths>
-  </ItemDefinitionGroup> -->
+
+
 
 </Project>
