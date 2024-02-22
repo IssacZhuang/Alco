@@ -306,7 +306,6 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<TextureViewDimension, WGPUTextureViewDimension>[] TextureViewDimensionCast = new Tuple<TextureViewDimension, WGPUTextureViewDimension>[]
     {
-        new(TextureViewDimension.Undefined, WGPUTextureViewDimension.Undefined),
         new(TextureViewDimension.Texture1D, WGPUTextureViewDimension._1D),
         new(TextureViewDimension.Texture2D, WGPUTextureViewDimension._2D),
         new(TextureViewDimension.Texture2DArray, WGPUTextureViewDimension._2DArray),
