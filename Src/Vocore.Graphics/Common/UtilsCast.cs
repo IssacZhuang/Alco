@@ -2,6 +2,19 @@ namespace Vocore.Graphics;
 
 internal static class UtilsCast
 {
+    public static Func<TA, TB> GenerateCastFunc<TA, TB>(Dictionary<TA, TB> castTable) where TA : notnull where TB : notnull
+    {
+        return (a) =>
+        {
+            if (castTable.TryGetValue(a, out var b))
+            {
+                return b;
+            }
+            throw new GraphicsException($"Cannot cast {typeof(TA).Name}:{a} to {typeof(TB).Name}");
+        };
+    }
+    
+    // Tuple
     public static void GenerateCastTable<TA, TB>(IEnumerable<Tuple<TA, TB>> castList, out Dictionary<TA, TB> aToB, out Dictionary<TB, TA> bToA) where TA : notnull where TB : notnull
     {
         aToB = new Dictionary<TA, TB>();
@@ -32,8 +45,34 @@ internal static class UtilsCast
 
     }
 
-    public static Func<TA, TB> GenerateCastFunc<TA, TB>(Dictionary<TA, TB> castTable) where TA : notnull where TB : notnull
+
+    public static void GenerateCastFunc<TA, TB>(IEnumerable<Tuple<TA, TB>> castList, out Func<TA, TB> aToB, out Func<TB, TA> bToA) where TA : notnull where TB : notnull
     {
+        GenerateCastTable(castList, out var aToBTable, out var bToATable);
+        aToB = GenerateCastFunc(aToBTable);
+        bToA = GenerateCastFunc(bToATable);
+    }
+
+    //ValueTuple
+    public static void GenerateCastTable<TA, TB>(IEnumerable<ValueTuple<TA, TB>> castList, out Dictionary<TA, TB> aToB, out Dictionary<TB, TA> bToA) where TA : notnull where TB : notnull
+    {
+        aToB = new Dictionary<TA, TB>();
+        bToA = new Dictionary<TB, TA>();
+        foreach (var (a, b) in castList)
+        {
+            aToB.Add(a, b);
+            bToA.Add(b, a);
+        }
+    }
+
+    public static Func<TA, TB> GenerateCastFunc<TA, TB>(IEnumerable<ValueTuple<TA, TB>> castList) where TA : notnull where TB : notnull
+    {
+        Dictionary<TA, TB> castTable = new Dictionary<TA, TB>();
+        foreach (var (a, b) in castList)
+        {
+            castTable.Add(a, b);
+        }
+
         return (a) =>
         {
             if (castTable.TryGetValue(a, out var b))
@@ -42,9 +81,10 @@ internal static class UtilsCast
             }
             throw new GraphicsException($"Cannot cast {typeof(TA).Name}:{a} to {typeof(TB).Name}");
         };
+
     }
 
-    public static void GenerateCastFunc<TA, TB>(IEnumerable<Tuple<TA, TB>> castList, out Func<TA, TB> aToB, out Func<TB, TA> bToA) where TA : notnull where TB : notnull
+    public static void GenerateCastFunc<TA, TB>(IEnumerable<ValueTuple<TA, TB>> castList, out Func<TA, TB> aToB, out Func<TB, TA> bToA) where TA : notnull where TB : notnull
     {
         GenerateCastTable(castList, out var aToBTable, out var bToATable);
         aToB = GenerateCastFunc(aToBTable);

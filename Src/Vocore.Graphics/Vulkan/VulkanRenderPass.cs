@@ -11,6 +11,9 @@ internal unsafe class VulkanRenderPass : GPURenderPass
     private readonly VkRenderPass _native;
     private readonly VkDevice _nativeDevice;
 
+    private readonly VkAttachmentDescription[] _colorAttachments;
+    private readonly VkAttachmentDescription? _depthAttachment;
+
     #endregion
 
     #region Abstract Implementation
@@ -27,12 +30,11 @@ internal unsafe class VulkanRenderPass : GPURenderPass
         throw new NotImplementedException();
     }
 
+
     protected override void Dispose(bool disposing)
     {
         vkDestroyRenderPass(_nativeDevice, _native, null);
     }
-
-
 
     #endregion
 
@@ -44,7 +46,17 @@ internal unsafe class VulkanRenderPass : GPURenderPass
         get => _native;
     }
 
-    
+    public VkAttachmentDescription[] VulkanColorAttachments
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorAttachments;
+    }
+
+    public VkAttachmentDescription? VulkanDepthAttachment
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthAttachment;
+    }
 
     public VulkanRenderPass(VkDevice nativeDevice, RenderPassDescriptor descriptor)
     {

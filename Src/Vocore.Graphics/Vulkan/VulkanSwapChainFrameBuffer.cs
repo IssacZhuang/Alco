@@ -11,7 +11,10 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
     private readonly VkSwapchainKHR _native;
     private readonly VkDevice _nativeDevice;
 
-    private readonly VulkanSwapChainTexture[] _textures;
+    private readonly VulkanSwapChainTexture[] _colorTextures; //with default view
+
+    private readonly VulkanTexture? _depthTexture;
+    private readonly VkImageView _depthView = VkImageView.Null; //nullable
 
     #endregion
 
@@ -51,11 +54,13 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
         VkImage* images = stackalloc VkImage[(int)count];
         vkGetSwapchainImagesKHR(nativeDevice, _native, &count, images).CheckResult();
 
-        _textures = new VulkanSwapChainTexture[count];
+        _colorTextures = new VulkanSwapChainTexture[count];
         for (int i = 0; i < count; i++)
         {
-            _textures[i] = new VulkanSwapChainTexture(nativeDevice, images[i], createInfo.imageFormat);
+            _colorTextures[i] = new VulkanSwapChainTexture(nativeDevice, images[i], createInfo.imageFormat);
         }
+
+                
     }
 
 
