@@ -4,7 +4,7 @@ using Vocore.Graphics;
 
 GameEngineSetting setting = GameEngineSetting.Default with{
     StopWhenError = true,
-    GraphicsAPI = GraphicsBackend.Vulkan,
+    //GraphicsAPI = GraphicsBackend.Vulkan,
 };
 setting.WindowName = "Basic Window";
 

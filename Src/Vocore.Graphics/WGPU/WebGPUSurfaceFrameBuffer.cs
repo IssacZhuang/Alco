@@ -11,9 +11,10 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     // use list for the abstraction but only one element inside
     private readonly WGPUSurface _surface;
     private readonly WGPURenderPassDescriptor _descriptor;
-    private readonly WebGPUSurfaceTexture[] _colorTextures;
+    private readonly WebGPUSurfaceTexture[] _colorTextures; // the surface texture has default view
     private readonly WebGPURenderPass _renderPass;
     private WebGPUTexture? _depthTexture;
+    private WGPUTextureView _depthView = WGPUTextureView.Null;
 
 
     // native memory, need to be manually released
@@ -68,8 +69,18 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         }
 
         _depthTexture?.Dispose();
+
+        if(_depthView != WGPUTextureView.Null)
+        {
+            wgpuTextureViewRelease(_depthView);
+        }
+        
         Free(_colorAttachments);
-        Free(_depthAttachment);
+        if (_depthAttachment != null)
+        {
+            Free(_depthAttachment);
+        }
+
     }
 
     #endregion
@@ -132,10 +143,12 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                 BuildTextureDescriptor(depthInfo.format, _width, _height),
                 "Depth Texture");
 
+            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
+
             // pointer attention !!
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
-                view = _depthTexture.DefaultView,
+                view = _depthView,
                 depthLoadOp = WGPULoadOp.Load,
                 depthStoreOp = WGPUStoreOp.Store,
                 depthClearValue = depthInfo.clearDepth,
@@ -175,11 +188,13 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         if (_renderPass.WebGPUDepthInfo.HasValue)
         {
             _depthTexture?.Dispose();
+            wgpuTextureViewRelease(_depthView);
             _depthTexture = new WebGPUTexture(
                 _renderPass.NativeDevice,
                 BuildTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height),
                 "Depth Texture");
-            (*_depthAttachment).view = _depthTexture.DefaultView;
+            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
+            (*_depthAttachment).view = _depthView;
         }
     }
 
@@ -263,7 +278,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => _texture;
         }
 
-        public override WGPUTextureView DefaultView
+        public WGPUTextureView DefaultView
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _defaultView;

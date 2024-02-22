@@ -12,7 +12,9 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
     private readonly uint _height;
 
     private readonly WebGPUTexture[] _colorTextures;
+    private readonly WGPUTextureView[] _colorViews;
     private readonly WebGPUTexture? _depthTexture;
+    private readonly WGPUTextureView _depthView = WGPUTextureView.Null;
     private readonly WebGPURenderPass _renderPass;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
@@ -62,10 +64,24 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             texture.Dispose();
         }
 
+        foreach (var view in _colorViews)
+        {
+            wgpuTextureViewRelease(view);
+        }
+
         _depthTexture?.Dispose();
+        
+        if(_depthView != WGPUTextureView.Null)
+        {
+            wgpuTextureViewRelease(_depthView);
+        }
+        
 
         Free(_colorAttachments);
-        Free(_depthAttachment);
+        if (_depthAttachment != null)
+        {
+            Free(_depthAttachment);
+        }
     }
 
     #endregion
@@ -87,6 +103,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _height = height;
 
         _colorTextures = new WebGPUTexture[renderPass.Colors.Count];
+        _colorViews = new WGPUTextureView[renderPass.Colors.Count];
         _descriptor = new WGPURenderPassDescriptor
         {
             colorAttachmentCount = (uint)renderPass.Colors.Count,
@@ -102,9 +119,11 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 BuildTextureDescriptor(colorInfo.format, width, height),
                 $"Color Texture {i}");
 
+            _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
+
             _colorAttachments[i] = new WGPURenderPassColorAttachment
             {
-                view = _colorTextures[i].DefaultView,
+                view = _colorViews[i],
                 loadOp = WGPULoadOp.Clear,
                 storeOp = WGPUStoreOp.Store,
                 clearValue = colorInfo.clearColor,
@@ -119,11 +138,14 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 renderPass.NativeDevice,
                 BuildTextureDescriptor(depthInfo.format, width, height),
                 "Depth Texture");
+
+            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
+
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
 
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
-                view = _depthTexture.DefaultView,
+                view = _depthView,
                 depthLoadOp = WGPULoadOp.Clear,
                 depthStoreOp = WGPUStoreOp.Store,
                 depthClearValue = depthInfo.clearDepth,

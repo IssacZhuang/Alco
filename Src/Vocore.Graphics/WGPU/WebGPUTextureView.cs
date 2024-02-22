@@ -46,6 +46,15 @@ public class WebGPUTextureView : GPUTextureView
         get => _native;
     }
 
+    //used for framebuffer
+    internal unsafe WebGPUTextureView(WebGPUTexture texture, string name)
+    {
+        Name = name;
+        _texture = texture;
+        _dimension = TextureViewDimension.Texture2D;
+        _native = wgpuTextureCreateView(texture.Native, null);
+    }
+
     public unsafe WebGPUTextureView(WGPUDevice device, in TextureViewDescriptor descriptor)
     {
         Name = descriptor.Name;
