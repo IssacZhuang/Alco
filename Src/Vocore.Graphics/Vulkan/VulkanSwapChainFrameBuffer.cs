@@ -11,7 +11,7 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
     private readonly VulkanDevice _device;
     private readonly VulkanRenderPass _renderPass;
 
-    private readonly VkFramebuffer _native;
+    private readonly VkFramebuffer[] _buffers;
     private readonly VkSwapchainKHR _swapChain;
 
 
@@ -59,7 +59,27 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 
     protected override void Dispose(bool disposing)
     {
+        //release textures
+        for (int i = 0; i < _colorTextures.Length; i++)
+        {
+            _colorTextures[i].Dispose();
+        }
+
+        if (_depthTexture != null)
+        {
+            _depthTexture.Dispose();
+            vkDestroyImageView(_device.Native, _depthView, null);
+        }
+
         vkDestroySwapchainKHR(_device.Native, _swapChain, null);
+
+        //release framebuffers
+        for (int i = 0; i < _buffers.Length; i++)
+        {
+            vkDestroyFramebuffer(_device.Native, _buffers[i], null);
+        }
+
+        _renderPass.Dispose();
     }
 
     #endregion
@@ -117,6 +137,8 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
                     layerCount = 1
                 }
             };
+
+            vkCreateImageView(device.Native, &depthViewInfo, null, out _depthView).CheckResult();
         }
 
         RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
@@ -128,6 +150,29 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
         );
 
         _renderPass = new VulkanRenderPass(device.Native, renderPassDescriptor);
+
+        _buffers = new VkFramebuffer[count];
+
+        for (int i = 0; i < count; i++)
+        {
+#pragma warning disable CA2014
+            VkImageView* attachments = stackalloc VkImageView[2];
+#pragma warning restore CA2014
+            attachments[0] = _colorTextures[i].DefaultView;
+            attachments[1] = _depthView;
+
+            VkFramebufferCreateInfo frameBufferCreateInfo = new VkFramebufferCreateInfo
+            {
+                renderPass = _renderPass.Native,
+                attachmentCount = depth.HasValue ? 2u : 1u,
+                pAttachments = attachments,
+                width = createInfo.imageExtent.width,
+                height = createInfo.imageExtent.height,
+                layers = 1
+            };
+
+            vkCreateFramebuffer(device.Native, &frameBufferCreateInfo, null, out _buffers[i]).CheckResult();
+        }
 
     }
 
