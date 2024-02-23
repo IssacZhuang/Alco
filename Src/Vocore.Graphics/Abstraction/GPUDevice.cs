@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vocore.Graphics;
 
 /// <summary>
@@ -27,6 +29,12 @@ public abstract class GPUDevice : BaseGPUObject
     public abstract GPUBindGroup BindGroupTexture2DSampled { get; }
     public abstract GPUBindGroup BindGroupTexture2DRead { get; }
     public abstract GPUBindGroup BindGroupStorageTexture2D { get; }
+
+    public bool HasDepth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => PrefferedDepthStencilFormat.HasValue;
+    }
 
 
     /// <summary>

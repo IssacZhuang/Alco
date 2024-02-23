@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
+using static Vortice.Vulkan.Vma;
 
 namespace Vocore.Graphics.Vulkan;
 
@@ -8,8 +9,11 @@ internal unsafe class VulkanTexture : GPUTexture
 {
     #region Members
 
-    private readonly VkImage _native;
     private readonly VulkanDevice _device;
+
+    private readonly VkImage _native;
+    private readonly VmaAllocation _allocation;
+
 
     private readonly VkExtent3D _extent;
     private readonly uint _mipLevelCount;
@@ -46,7 +50,8 @@ internal unsafe class VulkanTexture : GPUTexture
 
     protected override void Dispose(bool disposing)
     {
-        vkDestroyImage(_device.Native, _native, null);
+        //vkDestroyImage(_device.Native, _native, null);
+        vmaDestroyImage(_device.Allocator, _native, _allocation);
     }
 
     #endregion
@@ -80,11 +85,18 @@ internal unsafe class VulkanTexture : GPUTexture
             sharingMode = VkSharingMode.Exclusive,
         };
 
-        
+        VmaAllocationInfo allocationInfo = default;
+        VmaAllocationCreateInfo memoryInfo = new()
+        {
+            usage = VmaMemoryUsage.Auto
+        };
 
-        
-
-        
+        vmaCreateImage(device.Allocator,
+            &createInfo,
+            &memoryInfo,
+            out _native,
+            out _allocation,
+            &allocationInfo).CheckResult("Failed to create image.");
     }
 
     #endregion

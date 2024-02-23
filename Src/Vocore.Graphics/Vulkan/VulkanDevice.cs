@@ -222,6 +222,12 @@ internal unsafe class VulkanDevice : GPUDevice
         get => _native;
     }
 
+    public VmaAllocator Allocator
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _allocator;
+    }
+
     public VulkanDevice(DeviceDescriptor descriptor)
     {
         if (!IsVulkanSupported())
@@ -451,7 +457,8 @@ internal unsafe class VulkanDevice : GPUDevice
         _prefferedSurfaceFomat = UtilsVulkan.PixelFormatToAbstract(nativePrefferedSurfaceFormat);
 
         //get preffered depth format
-        VkFormat? nativePrefferedDepthFormat = UtilsVulkan.GetPreferredDepthFormat(_physicalDevice, swapChainSupportDetails.Formats);
+        VkFormat? nativePrefferedDepthFormat = UtilsVulkan.GetPreferredDepthFormat(_physicalDevice, VkImageTiling.Optimal);
+       
         if (nativePrefferedDepthFormat.HasValue)
         {
             _prefferedDepthStencilFormat = UtilsVulkan.PixelFormatToAbstract(nativePrefferedDepthFormat.Value);
@@ -481,7 +488,7 @@ internal unsafe class VulkanDevice : GPUDevice
             oldSwapchain = VkSwapchainKHR.Null
         };
 
-        _swapChainFrameBuffer = new VulkanSwapChainFrameBuffer(_native, swapChainCreateInfo);
+        _swapChainFrameBuffer = new VulkanSwapChainFrameBuffer(this, swapChainCreateInfo, _prefferedSurfaceFomat, _prefferedDepthStencilFormat);
 
         GraphicsLogger.Info("Swap chain created");
         

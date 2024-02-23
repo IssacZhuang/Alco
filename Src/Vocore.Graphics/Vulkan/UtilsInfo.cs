@@ -7,6 +7,15 @@ namespace Vocore.Graphics.Vulkan;
 
 internal unsafe static partial class UtilsVulkan
 {
+    public static readonly VkFormat[] AllDepthFormats = new VkFormat[]
+    {
+        VkFormat.D16Unorm,
+        VkFormat.D16UnormS8Uint,
+        VkFormat.D24UnormS8Uint,
+        VkFormat.D32Sfloat,
+        VkFormat.D32SfloatS8Uint,
+    };
+
     public static string[] GetInstanceLayers()
     {
         uint count = 0;
@@ -157,39 +166,28 @@ internal unsafe static partial class UtilsVulkan
         return formats[0];
     }
 
-
-    public static VkSurfaceFormatKHR[] GetDepthFormats(VkPhysicalDevice physicalDevice, ReadOnlySpan<VkSurfaceFormatKHR> formats)
+    public static VkFormat? GetPreferredDepthFormat(VkPhysicalDevice physicalDevice, VkImageTiling tiling)
     {
-        List<VkSurfaceFormatKHR> depthFormats = new List<VkSurfaceFormatKHR>();
-        foreach (VkSurfaceFormatKHR format in formats)
-        {
-            VkFormatProperties properties;
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, format.format, &properties);
-            if ((properties.bufferFeatures & VkFormatFeatureFlags.DepthStencilAttachment) == VkFormatFeatureFlags.DepthStencilAttachment)
-            {
-                depthFormats.Add(format);
-            }
-        }
-
-        return depthFormats.ToArray();
-    }
-
-    public static VkFormat? GetPreferredDepthFormat(VkPhysicalDevice physicalDevice, ReadOnlySpan<VkSurfaceFormatKHR> formats)
-    {
-        VkSurfaceFormatKHR[] depthFormats = GetDepthFormats(physicalDevice, formats);
 
         //prefer 32 bit format
-        foreach (VkSurfaceFormatKHR format in depthFormats)
+        VkFormat? found = null;
+        foreach (VkFormat format in AllDepthFormats)
         {
-            if (format.format == VkFormat.D24UnormS8Uint)
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+            if (tiling == VkImageTiling.Linear && (props.linearTilingFeatures & VkFormatFeatureFlags.DepthStencilAttachment) == VkFormatFeatureFlags.DepthStencilAttachment)
             {
-                return format.format;
+                found = format;
             }
-        }
+            else if (tiling == VkImageTiling.Optimal && (props.optimalTilingFeatures & VkFormatFeatureFlags.DepthStencilAttachment) == VkFormatFeatureFlags.DepthStencilAttachment)
+            {
+                found = format;
+            }
 
-        if (depthFormats.Length > 0)
-        {
-            return depthFormats[0].format;
+            if (found.HasValue && found.Value == VkFormat.D24UnormS8Uint)
+            {
+                return found;
+            }
         }
 
         return null;
