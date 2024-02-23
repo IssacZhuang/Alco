@@ -9,7 +9,7 @@ internal unsafe class VulkanTexture : GPUTexture
     #region Members
 
     private readonly VkImage _native;
-    private readonly VkDevice _nativeDevice;
+    private readonly VulkanDevice _device;
 
     private readonly VkExtent3D _extent;
     private readonly uint _mipLevelCount;
@@ -46,7 +46,7 @@ internal unsafe class VulkanTexture : GPUTexture
 
     protected override void Dispose(bool disposing)
     {
-        vkDestroyImage(_nativeDevice, _native, null);
+        vkDestroyImage(_device.Native, _native, null);
     }
 
     #endregion
@@ -59,16 +59,32 @@ internal unsafe class VulkanTexture : GPUTexture
         get => _native;
     }
 
-    public VulkanTexture(VkDevice _nativeDevice, TextureDescriptor descriptor)
+    public VulkanTexture(VulkanDevice device, TextureDescriptor descriptor)
     {
         Name = descriptor.Name;
         _extent = new VkExtent3D(descriptor.Width, descriptor.Height, descriptor.DepthOrArrayLayer);
         _mipLevelCount = descriptor.MipLevels;
+        _device = device;
 
         VkImageCreateInfo createInfo = new VkImageCreateInfo
         {
-            
+            format = UtilsVulkan.PixelFormatToVulkan(descriptor.Format),
+            imageType = UtilsVulkan.TextureDimensionToVulkan(descriptor.Dimension),
+            usage = UtilsVulkan.ConvertTextureUsage(descriptor.Usage),
+            extent = _extent,
+            mipLevels = _mipLevelCount,
+            arrayLayers = descriptor.DepthOrArrayLayer,
+            samples = (VkSampleCountFlags)descriptor.SampleCount,
+            tiling = VkImageTiling.Optimal,
+            initialLayout = VkImageLayout.Undefined,
+            sharingMode = VkSharingMode.Exclusive,
         };
+
+        
+
+        
+
+        
     }
 
     #endregion

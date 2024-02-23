@@ -20,9 +20,13 @@ public enum TextureUsage
     /// </summary>
     StorageBinding = 1 << 3,
     /// <summary>
-    /// Used as a render target, color attachment or depth stencil attachment.
+    /// Used for color attachment operations.
     /// </summary>
-    RenderAttachment = 1 << 4,
+    ColorAttachment = 1 << 4,   
+    /// <summary>
+    /// Used for depth attachment operations.
+    ///  
+    DepthAttachment = 1 << 5,
     /// <summary>
     /// Read | Write | TextureBinding
     /// </summary>

@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
+using static Vortice.Vulkan.Vma;
 
 namespace Vocore.Graphics.Vulkan;
 
@@ -27,6 +28,9 @@ internal unsafe class VulkanDevice : GPUDevice
     private readonly VkDevice _native;
     private readonly VkQueue _graphicsQueue;
     private readonly VkQueue _presentQueue;
+
+    private readonly PhysicalDeviceExtensions _physicalExtensions;
+    private readonly VmaAllocator _allocator;
 
     private PixelFormat _prefferedSurfaceFomat;
     private PixelFormat? _prefferedDepthStencilFormat;
@@ -212,6 +216,12 @@ internal unsafe class VulkanDevice : GPUDevice
 
     #region Vulkan Specific
 
+    public VkDevice Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _native;
+    }
+
     public VulkanDevice(DeviceDescriptor descriptor)
     {
         if (!IsVulkanSupported())
@@ -347,6 +357,8 @@ internal unsafe class VulkanDevice : GPUDevice
             }
         }
 
+        _physicalExtensions = UtilsVulkan.QueryPhysicalDeviceExtensions(_physicalDevice);
+
         var (graphicsQueueIndex, presentQueueIndex) = FindQueueIndex(_physicalDevice, _surface);
         int queueCount = graphicsQueueIndex == presentQueueIndex ? 1 : 2;
         bool isQueuesSame = graphicsQueueIndex == presentQueueIndex;
@@ -396,6 +408,38 @@ internal unsafe class VulkanDevice : GPUDevice
         vkGetDeviceQueue(_native, presentQueueIndex, 0, out _presentQueue);
 
         GraphicsLogger.Info("Device created");
+
+        //create allocator
+        VmaAllocatorCreateInfo allocatorCreateInfo;
+        allocatorCreateInfo.vulkanApiVersion = VkVersion.Version_1_3;
+        allocatorCreateInfo.physicalDevice = _physicalDevice;
+        allocatorCreateInfo.device = _native;
+        allocatorCreateInfo.instance = _instance;
+
+        // Core in 1.1
+        allocatorCreateInfo.flags = VmaAllocatorCreateFlags.KHRDedicatedAllocation | VmaAllocatorCreateFlags.KHRBindMemory2;
+
+        if (_physicalExtensions.MemoryBudget)
+        {
+            allocatorCreateInfo.flags |= VmaAllocatorCreateFlags.EXTMemoryBudget;
+        }
+
+        if (_physicalExtensions.AMD_DeviceCoherentMemory)
+        {
+            allocatorCreateInfo.flags |= VmaAllocatorCreateFlags.AMDDeviceCoherentMemory;
+        }
+
+        // if (PhysicalDeviceFeatures1_2.bufferDeviceAddress)
+        // {
+        //     allocatorCreateInfo.flags = VmaAllocatorCreateFlags.BufferDeviceAddress;
+        // }
+
+        if (_physicalExtensions.MemoryPriority)
+        {
+            allocatorCreateInfo.flags |= VmaAllocatorCreateFlags.EXTMemoryPriority;
+        }
+
+        vmaCreateAllocator(&allocatorCreateInfo, out _allocator).CheckResult();
 
         //create swap chain
         SwapChainSupportDetails swapChainSupportDetails = UtilsVulkan.GetSwapChainSupportDetails(_physicalDevice, _surface);

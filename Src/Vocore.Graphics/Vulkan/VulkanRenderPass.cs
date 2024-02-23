@@ -34,6 +34,7 @@ internal unsafe class VulkanRenderPass : GPURenderPass
 
     public override GPUFrameBuffer CreateFrameBuffer(uint width, uint height, string? name = null)
     {
+        //TODO
         throw new NotImplementedException();
     }
 
@@ -123,24 +124,30 @@ internal unsafe class VulkanRenderPass : GPURenderPass
             subpass.pDepthStencilAttachment = &depthAttachmentRef;
         }
 
-        //TODO: set correct dependency
-        VkSubpassDependency dependency = new VkSubpassDependency
-        {
-            srcSubpass = 0,
-            dstSubpass = 1,
-            srcStageMask = VkPipelineStageFlags.ColorAttachmentOutput,
-            srcAccessMask = 0,
-            dstStageMask = VkPipelineStageFlags.ColorAttachmentOutput,
-            dstAccessMask = VkAccessFlags.ColorAttachmentRead | VkAccessFlags.ColorAttachmentWrite
-        };
-
         VkRenderPassCreateInfo renderPassCreateInfo = new VkRenderPassCreateInfo
         {
             attachmentCount = (uint)(descriptor.Colors.Length + (descriptor.Depth.HasValue ? 1 : 0)),
             pAttachments = colors,
             subpassCount = 1,
             pSubpasses = &subpass,
+            dependencyCount = 0,
         };
+
+        VkSubpassDependency dependency = default;
+        if (descriptor.Depth.HasValue)
+        {
+            dependency = new VkSubpassDependency
+            {
+                srcSubpass = VK_SUBPASS_EXTERNAL,
+                dstSubpass = 0,
+                srcStageMask = VkPipelineStageFlags.ColorAttachmentOutput | VkPipelineStageFlags.LateFragmentTests,
+                srcAccessMask = VkAccessFlags.DepthStencilAttachmentWrite,
+                dstStageMask = VkPipelineStageFlags.ColorAttachmentOutput | VkPipelineStageFlags.EarlyFragmentTests,
+                dstAccessMask = VkAccessFlags.ColorAttachmentWrite | VkAccessFlags.DepthStencilAttachmentWrite
+            };
+            renderPassCreateInfo.dependencyCount = 1;
+            renderPassCreateInfo.pDependencies = &dependency;
+        }
 
         vkCreateRenderPass(_nativeDevice, &renderPassCreateInfo, null, out _native).CheckResult("Failed to create render pass");
     }

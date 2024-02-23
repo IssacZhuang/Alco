@@ -47,10 +47,15 @@ internal static partial class UtilsWebGPU
         {
             result |= WGPUTextureUsage.StorageBinding;
         }
-        if ((usage & TextureUsage.RenderAttachment) != 0)
+        if ((usage & TextureUsage.ColorAttachment) != 0)
         {
             result |= WGPUTextureUsage.RenderAttachment;
         }
+        if ((usage & TextureUsage.DepthAttachment) != 0)
+        {
+            result |= WGPUTextureUsage.RenderAttachment;
+        }
+
         return result;
     }
 
