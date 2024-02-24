@@ -88,10 +88,11 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 
 
     //called by device
-    internal VulkanSwapChainFrameBuffer(VulkanDevice device, VkSwapchainCreateInfoKHR createInfo, PixelFormat colorFormat, PixelFormat? depth)
+    internal VulkanSwapChainFrameBuffer(VulkanDevice device, VulkanRenderPass renderPass, VkSwapchainCreateInfoKHR createInfo)
     {
         Name = "SwapChain FrameBuffer";
         _device = device;
+        _renderPass = renderPass;
         _width = createInfo.imageExtent.width;
         _height = createInfo.imageExtent.height;
         vkCreateSwapchainKHR(device.Native, &createInfo, null, out _swapChain).CheckResult();
@@ -108,12 +109,14 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
             _colorTextures[i] = new VulkanSwapChainTexture(device.Native, images[i], createInfo.imageFormat);
         }
 
-        if (depth.HasValue)
+        if (renderPass.Depth.HasValue)
         {
+
+            PixelFormat depthFormat = renderPass.Depth.Value.Format;
             _depthTexture = new VulkanTexture(device, new TextureDescriptor
             {
                 Dimension = TextureDimension.Texture2D,
-                Format = depth.Value,
+                Format = depthFormat,
                 Width = createInfo.imageExtent.width,
                 Height = createInfo.imageExtent.height,
                 DepthOrArrayLayer = 1,
@@ -126,7 +129,7 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
             {
                 image = _depthTexture.Native,
                 viewType = VkImageViewType.Image2D,
-                format = UtilsVulkan.PixelFormatToVulkan(depth.Value),
+                format = UtilsVulkan.PixelFormatToVulkan(depthFormat),
                 components = VkComponentMapping.Identity,
                 subresourceRange = new VkImageSubresourceRange
                 {
@@ -141,15 +144,7 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
             vkCreateImageView(device.Native, &depthViewInfo, null, out _depthView).CheckResult();
         }
 
-        RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
-            new ColorAttachment[]
-            {
-                new ColorAttachment(colorFormat)
-            },
-            depth.HasValue ? new DepthAttachment(depth.Value) : null
-        );
 
-        _renderPass = new VulkanRenderPass(device.Native, renderPassDescriptor);
 
         _buffers = new VkFramebuffer[count];
 
@@ -163,8 +158,8 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 
             VkFramebufferCreateInfo frameBufferCreateInfo = new VkFramebufferCreateInfo
             {
-                renderPass = _renderPass.Native,
-                attachmentCount = depth.HasValue ? 2u : 1u,
+                renderPass = renderPass.Native,
+                attachmentCount = renderPass.Depth.HasValue ? 2u : 1u,
                 pAttachments = attachments,
                 width = createInfo.imageExtent.width,
                 height = createInfo.imageExtent.height,

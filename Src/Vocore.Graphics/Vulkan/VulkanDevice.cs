@@ -32,11 +32,12 @@ internal unsafe class VulkanDevice : GPUDevice
     private readonly PhysicalDeviceExtensions _physicalExtensions;
     private readonly VmaAllocator _allocator;
 
-    private PixelFormat _prefferedSurfaceFomat;
-    private PixelFormat? _prefferedDepthStencilFormat;
+    private readonly PixelFormat _prefferedSurfaceFomat;
+    private readonly PixelFormat? _prefferedDepthStencilFormat;
 
     //managed
-    private VulkanSwapChainFrameBuffer _swapChainFrameBuffer;
+    private readonly VulkanRenderPass _swapChainRenderPass;
+    private VulkanSwapChainFrameBuffer _swapChainFrameBuffer; // recreate on resize
 
 
     #endregion
@@ -182,10 +183,7 @@ internal unsafe class VulkanDevice : GPUDevice
         throw new NotImplementedException();
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        throw new NotImplementedException();
-    }
+
 
     protected override void ResizeSurfaceCore(uint width, uint height)
     {
@@ -210,6 +208,20 @@ internal unsafe class VulkanDevice : GPUDevice
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel)
     {
         throw new NotImplementedException();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        //destroy managed
+        _swapChainFrameBuffer.Dispose();
+        _swapChainRenderPass.Dispose();
+
+        //destroy native
+        vkDestroyDevice(_native, null);
+        vmaDestroyAllocator(_allocator);
+        vkDestroySurfaceKHR(_instance, _surface, null);
+        vkDestroyDebugUtilsMessengerEXT(_instance, _debugMessenger, null);
+        vkDestroyInstance(_instance, null);
     }
 
     #endregion
@@ -468,6 +480,17 @@ internal unsafe class VulkanDevice : GPUDevice
             GraphicsLogger.Warning("Requested depth format is not supported, falling back to default");
         }
 
+
+        RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
+            new ColorAttachment[]
+            {
+                new ColorAttachment(_prefferedSurfaceFomat)
+            },
+            descriptor.DepthFormat.HasValue ? new DepthAttachment(descriptor.DepthFormat.Value) : null
+        );
+
+        _swapChainRenderPass = new VulkanRenderPass(_native, renderPassDescriptor);
+
         VkPresentModeKHR presentMode = UtilsVulkan.GetPreferredPresentMode(swapChainSupportDetails.PresentModes, descriptor.VSync);
         VkSwapchainCreateInfoKHR swapChainCreateInfo = new VkSwapchainCreateInfoKHR
         {
@@ -488,7 +511,7 @@ internal unsafe class VulkanDevice : GPUDevice
             oldSwapchain = VkSwapchainKHR.Null
         };
 
-        _swapChainFrameBuffer = new VulkanSwapChainFrameBuffer(this, swapChainCreateInfo, _prefferedSurfaceFomat, _prefferedDepthStencilFormat);
+        _swapChainFrameBuffer = new VulkanSwapChainFrameBuffer(this, _swapChainRenderPass, swapChainCreateInfo);
 
         GraphicsLogger.Info("Swap chain created");
         
