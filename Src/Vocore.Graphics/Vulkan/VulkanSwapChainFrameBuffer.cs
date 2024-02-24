@@ -4,7 +4,7 @@ using static Vortice.Vulkan.Vulkan;
 
 namespace Vocore.Graphics.Vulkan;
 
-internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
+internal unsafe class VulkanSwapChainFrameBuffer : VulkanFramebufferBase
 {
     #region Members
 
@@ -14,13 +14,15 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
     private readonly VkFramebuffer[] _buffers;
     private readonly VkSwapchainKHR _swapChain;
 
-
     private readonly VulkanSwapChainTexture[] _colorTextures; //with default view
 
     private readonly VulkanTexture? _depthTexture;
     private readonly VkImageView _depthView = VkImageView.Null; //nullable
     private readonly uint _width;
     private readonly uint _height;
+
+    private VkFramebuffer _currentBuffer;
+    private int _frameIndex;
 
     #endregion
 
@@ -86,11 +88,17 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
 
     #region Vulkan Implementation
 
+    private VkRenderPassBeginInfo _passBegineInfo;
+    public override VkRenderPassBeginInfo PassBegineInfo
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _passBegineInfo;
+    }
 
     //called by device
     internal VulkanSwapChainFrameBuffer(VulkanDevice device, VulkanRenderPass renderPass, VkSwapchainCreateInfoKHR createInfo)
     {
-        Name = "SwapChain FrameBuffer";
+        Name = "swapChain_frameBuffer";
         _device = device;
         _renderPass = renderPass;
         _width = createInfo.imageExtent.width;
@@ -169,6 +177,29 @@ internal unsafe class VulkanSwapChainFrameBuffer : GPUFrameBuffer
             vkCreateFramebuffer(device.Native, &frameBufferCreateInfo, null, out _buffers[i]).CheckResult();
         }
 
+
+        SetFrame(0);
+    }
+
+    private void SetFrame(int index)
+    {
+        _frameIndex = index;
+        _currentBuffer = _buffers[_frameIndex];
+        _passBegineInfo = new VkRenderPassBeginInfo
+        {
+            renderPass = _renderPass.Native,
+            framebuffer = _currentBuffer,
+            renderArea = new VkRect2D
+            {
+                extent = new VkExtent2D(_width, _height),
+                offset = new VkOffset2D(0, 0)
+            }
+        };
+    }
+
+    private void Swap()
+    {
+        SetFrame((_frameIndex + 1) % _buffers.Length);
     }
 
 

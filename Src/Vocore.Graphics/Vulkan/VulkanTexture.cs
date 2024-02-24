@@ -5,7 +5,7 @@ using static Vortice.Vulkan.Vma;
 
 namespace Vocore.Graphics.Vulkan;
 
-internal unsafe class VulkanTexture : GPUTexture
+internal unsafe class VulkanTexture : VulkanTextureBase
 {
     #region Members
 
@@ -58,7 +58,7 @@ internal unsafe class VulkanTexture : GPUTexture
 
     #region Vulkan Implementation
 
-    public VkImage Native
+    public override VkImage Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;

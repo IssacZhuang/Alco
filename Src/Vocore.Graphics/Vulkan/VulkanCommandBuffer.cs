@@ -4,11 +4,15 @@ using static Vortice.Vulkan.Vulkan;
 
 namespace Vocore.Graphics.Vulkan;
 
-internal class VulkanCommandBuffer: GPUCommandBuffer
+internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
 {
     #region Members
-    private readonly VkCommandBuffer _native;
-    private readonly VkDevice _nativeDevice;
+    private const int FrameCount = 2;
+    private readonly VkCommandBuffer[] _buffers;
+    private readonly VkCommandPool[] _pools;
+    private readonly VulkanDevice _device;
+    private int _frameIndex;
+    private VkCommandBuffer _currentBuffer;
 
     #endregion
 
@@ -20,8 +24,22 @@ internal class VulkanCommandBuffer: GPUCommandBuffer
 
     protected override void BeginCore()
     {
-        throw new NotImplementedException();
+        VkCommandBufferBeginInfo beginInfo = new VkCommandBufferBeginInfo
+        {
+            flags = VkCommandBufferUsageFlags.None,
+            pInheritanceInfo = null
+        };
+
+        vkBeginCommandBuffer(_currentBuffer, &beginInfo).CheckResult("Failed to begin command buffer");
     }
+
+    protected override void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
+    {
+        VulkanFramebufferBase vulkanFrameBuffer = (VulkanFramebufferBase)frameBuffer;
+        VkRenderPassBeginInfo passBeginInfo = vulkanFrameBuffer.PassBegineInfo;
+        vkCmdBeginRenderPass(_currentBuffer, &passBeginInfo, VkSubpassContents.Inline);
+    }
+
 
     protected override void ClearFrameCore(ColorFloat color, float depth, uint stencil)
     {
@@ -78,11 +96,6 @@ internal class VulkanCommandBuffer: GPUCommandBuffer
         throw new NotImplementedException();
     }
 
-    protected override void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
-    {
-        throw new NotImplementedException();
-    }
-
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         throw new NotImplementedException();
@@ -112,9 +125,42 @@ internal class VulkanCommandBuffer: GPUCommandBuffer
 
     #region Vulkan Specific
 
-    public VulkanCommandBuffer(VkDevice device, CommandBufferDescriptor descriptor)
+    public VulkanCommandBuffer(VulkanDevice device, CommandBufferDescriptor descriptor)
     {
-        
+        _buffers = new VkCommandBuffer[FrameCount];
+        _pools = new VkCommandPool[FrameCount];
+        _device = device;
+
+        for (var i = 0; i < FrameCount; i++)
+        {
+            VkCommandPoolCreateInfo poolCreateInfo = new VkCommandPoolCreateInfo
+            {
+                queueFamilyIndex = device.GraphicsQueueIndex,
+                flags = VkCommandPoolCreateFlags.ResetCommandBuffer
+            };
+
+            vkCreateCommandPool(device.Native, &poolCreateInfo, null, out _pools[i]).CheckResult();
+
+            VkCommandBufferAllocateInfo allocateInfo = new VkCommandBufferAllocateInfo
+            {
+                commandPool = _pools[i],
+                level = VkCommandBufferLevel.Primary,
+                commandBufferCount = 1
+            };
+
+            VkCommandBuffer tmp;
+            vkAllocateCommandBuffers(device.Native, &allocateInfo, &tmp).CheckResult();
+            _buffers[i] = tmp;
+        }
+
+        _frameIndex = 0;
+        _currentBuffer = _buffers[_frameIndex];
+    }
+
+    private void Swap()
+    {
+        _frameIndex = (_frameIndex + 1) % FrameCount;
+        _currentBuffer = _buffers[_frameIndex];
     }
     #endregion
 }

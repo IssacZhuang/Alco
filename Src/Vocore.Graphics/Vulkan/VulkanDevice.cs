@@ -35,6 +35,9 @@ internal unsafe class VulkanDevice : GPUDevice
     private readonly PixelFormat _prefferedSurfaceFomat;
     private readonly PixelFormat? _prefferedDepthStencilFormat;
 
+    private readonly uint _graphicsQueueIndex;
+    private readonly uint _presentQueueIndex;
+
     //managed
     private readonly VulkanRenderPass _swapChainRenderPass;
     private VulkanSwapChainFrameBuffer _swapChainFrameBuffer; // recreate on resize
@@ -240,6 +243,18 @@ internal unsafe class VulkanDevice : GPUDevice
         get => _allocator;
     }
 
+    public uint GraphicsQueueIndex
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _graphicsQueueIndex;
+    }
+
+    public uint PresentQueueIndex
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _presentQueueIndex;
+    }
+
     public VulkanDevice(DeviceDescriptor descriptor)
     {
         if (!IsVulkanSupported())
@@ -382,6 +397,9 @@ internal unsafe class VulkanDevice : GPUDevice
         bool isQueuesSame = graphicsQueueIndex == presentQueueIndex;
         uint* queueFamilyIndices = stackalloc uint[queueCount];
         float priority = 1.0f;
+
+        _graphicsQueueIndex = graphicsQueueIndex;
+        _presentQueueIndex = presentQueueIndex;
 
         VkDeviceQueueCreateInfo* queueCreateInfo = stackalloc VkDeviceQueueCreateInfo[2];
         
