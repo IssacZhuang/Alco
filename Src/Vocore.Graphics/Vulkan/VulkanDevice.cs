@@ -98,7 +98,7 @@ internal unsafe class VulkanDevice : GPUDevice
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
-        throw new NotImplementedException();
+        return new VulkanCommandBuffer(this, descriptor);
     }
 
     protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
@@ -195,7 +195,8 @@ internal unsafe class VulkanDevice : GPUDevice
 
     protected override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
-        throw new NotImplementedException();
+        VulkanCommandBuffer vulkanCommandBuffer = (VulkanCommandBuffer)commandBuffer;
+        
     }
 
     protected override void SwapBuffersCore()

@@ -11,6 +11,7 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
     private readonly VkCommandBuffer[] _buffers;
     private readonly VkCommandPool[] _pools;
     private readonly VulkanDevice _device;
+    private bool _isRenderPassBegin;
     private int _frameIndex;
     private VkCommandBuffer _currentBuffer;
 
@@ -20,7 +21,7 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     public override bool HasBuffer => throw new NotImplementedException();
 
-    public override string Name => throw new NotImplementedException();
+    public override string Name { get; }
 
     protected override void BeginCore()
     {
@@ -33,17 +34,23 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
         vkBeginCommandBuffer(_currentBuffer, &beginInfo).CheckResult("Failed to begin command buffer");
     }
 
+    protected override void EndCore()
+    {
+        TryEndRenderPass();
+        vkEndCommandBuffer(_currentBuffer).CheckResult("Failed to end command buffer");
+        SwapBuffer();
+    }
+
     protected override void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         VulkanFramebufferBase vulkanFrameBuffer = (VulkanFramebufferBase)frameBuffer;
-        VkRenderPassBeginInfo passBeginInfo = vulkanFrameBuffer.PassBegineInfo;
-        vkCmdBeginRenderPass(_currentBuffer, &passBeginInfo, VkSubpassContents.Inline);
+        BeginRenderPass(vulkanFrameBuffer.PassBegineInfo);
     }
 
 
     protected override void ClearFrameCore(ColorFloat color, float depth, uint stencil)
     {
-        throw new NotImplementedException();
+        //TODO 
     }
 
     protected override void DispatchComputeCore(uint x, uint y, uint z)
@@ -81,10 +88,7 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
         throw new NotImplementedException();
     }
 
-    protected override void EndCore()
-    {
-        throw new NotImplementedException();
-    }
+
 
     protected override void SetComputePipelineCore(GPUPipeline pipeline)
     {
@@ -125,8 +129,9 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     #region Vulkan Specific
 
-    public VulkanCommandBuffer(VulkanDevice device, CommandBufferDescriptor descriptor)
+    public VulkanCommandBuffer(VulkanDevice device, CommandBufferDescriptor? descriptor)
     {
+        Name = descriptor?.Name ?? "unamed_command_buffer";
         _buffers = new VkCommandBuffer[FrameCount];
         _pools = new VkCommandPool[FrameCount];
         _device = device;
@@ -157,10 +162,27 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
         _currentBuffer = _buffers[_frameIndex];
     }
 
-    private void Swap()
+    private void SwapBuffer()
     {
         _frameIndex = (_frameIndex + 1) % FrameCount;
         _currentBuffer = _buffers[_frameIndex];
     }
+
+    private void BeginRenderPass(VkRenderPassBeginInfo passBeginInfo)
+    {
+        vkCmdBeginRenderPass(_currentBuffer, &passBeginInfo, VkSubpassContents.Inline);
+        _isRenderPassBegin = true;
+    }
+
+    private void TryEndRenderPass()
+    {
+        if (_isRenderPassBegin)
+        {
+            vkCmdEndRenderPass(_currentBuffer);
+            _isRenderPassBegin = false;
+        }
+    }
+
+
     #endregion
 }
