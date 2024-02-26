@@ -55,7 +55,8 @@ namespace Vocore.Engine
 
             _commandBuffer.Begin();
             _commandBuffer.SetFrameBuffer(_device.SwapChainFrameBuffer);
-            _commandBuffer.ClearFrame(new Vector4(0, 0, 0, 1));
+            _commandBuffer.ClearColor(new Vector4(0, 0, 0, 1));
+            _commandBuffer.ClearDepthStencil(1.0f, 0);
             _commandBuffer.End();
             _device.Submit(_commandBuffer);
         }

@@ -48,9 +48,14 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
     }
 
 
-    protected override void ClearFrameCore(ColorFloat color, float depth, uint stencil)
+    protected override void ClearColorCore(ColorFloat color, int index)
     {
-        //TODO 
+        //Todo
+    }
+
+    protected override void ClearDepthStencilCore(float depth, uint stencil)
+    {
+        //Todo
     }
 
     protected override void DispatchComputeCore(uint x, uint y, uint z)
@@ -182,7 +187,6 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
             _isRenderPassBegin = false;
         }
     }
-
 
     #endregion
 }
