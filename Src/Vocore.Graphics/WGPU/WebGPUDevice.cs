@@ -14,6 +14,7 @@ internal partial class WebGPUDevice : GPUDevice
     public static readonly WGPUFeatureName[] features = new WGPUFeatureName[]
         {
             WGPUFeatureName.BGRA8UnormStorage,
+            (WGPUFeatureName)WGPUNativeFeature.PushConstants,
         };
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
