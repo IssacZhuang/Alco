@@ -18,19 +18,19 @@ public class Camera2D : ICamera2D
         get => ref transform.scale;
     }
 
-    public Matrix3x3 ViewMatrix
+    public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => math.matrix3translation(-transform.position) * math.matrix3rotation(math.inverse(transform.rotation));
+        get => math.matrix4translation(-transform.position) * math.matrix4rotation(math.inverse(transform.rotation));
     }
 
-    public Matrix3x3 ProjectionMatrix
+    public Matrix4x4 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => math.matrix3scale(math.reciprocal(transform.scale));
+        get => math.matrix4scale(math.reciprocal(transform.scale));
     }
 
-    public Matrix3x3 ViewProjectionMatrix
+    public Matrix4x4 ViewProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ViewMatrix * ProjectionMatrix;

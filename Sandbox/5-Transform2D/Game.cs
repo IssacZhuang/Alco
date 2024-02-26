@@ -34,8 +34,8 @@ public class Game : GameEngine
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
-    private VRamBuffer<Matrix3x3> _cameraBuffer;
-    private VRamBuffer<Matrix3x3> _modelBuffer;
+    private VRamBuffer<Matrix4x4> _cameraBuffer;
+    private VRamBuffer<Matrix4x4> _modelBuffer;
     private GPUPipeline _pipeline;
     private Texture2D _texBlue;
     private Texture2D _texRed;
@@ -68,8 +68,8 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix3x3>("camera_buffer");
-        _modelBuffer = RenderingService.CreateTypedVRamBuffer<Matrix3x3>("model_buffer");
+        _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("camera_buffer");
+        _modelBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("model_buffer");
 
         _texBlue = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 0, 1, 1));
         _texRed = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 0, 0, 1));
@@ -124,8 +124,8 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _texGreen.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(2, _texGreen.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -137,7 +137,7 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
         _commandBuffer.SetGraphicsResources(2, _texRed.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
@@ -150,8 +150,8 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _texBlue.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(2, _texBlue.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

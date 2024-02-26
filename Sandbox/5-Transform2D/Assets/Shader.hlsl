@@ -23,15 +23,15 @@ SLOT(1,0) cbuffer Model{
     float4x4 model;
 };
 
-SLOT(1,0) Texture2D image;
-SLOT(1,1) SamplerState imageSampler;
+SLOT(2,0) Texture2D image;
+SLOT(2,1) SamplerState imageSampler;
 
-[[vk::push_constant]] Constants constants;
+//[[vk::push_constant]] Constants constants;
 
 V2F vs_main(Vertex2D input){
     
     float4 position = float4(input.position, 0.0f, 1.0f);
-    position = mul(constants.model, position);
+    position = mul(model, position);
     position = mul(viewProjection, position);
 
     V2F output = (V2F)0;

@@ -64,39 +64,39 @@ namespace Vocore
             }
         }
 
-        public Matrix3x3 Matrix
+        public Matrix4x4 Matrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix3trs(position, rotation, scale);
+                return math.matrix4trs(position, rotation, scale);
             }
         }
 
-        public Matrix3x3 MatrixTranslation
+        public Matrix4x4 MatrixTranslation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix3translation(position);
+                return math.matrix4translation(position);
             }
         }
 
-        public Matrix3x3 MatrixRotation
+        public Matrix4x4 MatrixRotation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix3rotation(rotation);
+                return math.matrix4rotation(rotation);
             }
         }
 
-        public Matrix3x3 MatrixScale
+        public Matrix4x4 MatrixScale
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix3scale(scale);
+                return math.matrix4scale(scale);
             }
         }
 
