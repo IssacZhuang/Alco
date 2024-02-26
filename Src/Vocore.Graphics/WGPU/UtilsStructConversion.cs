@@ -175,6 +175,26 @@ internal static partial class UtilsWebGPU
                 return wgpuDeviceCreateShaderModule(device, &shaderDesc);
             }
         }
+        else if (source.Language == ShaderLanguage.GLSL)
+        {
+            string code = Encoding.UTF8.GetString(source.Source);
+            fixed (sbyte* ptr = code.GetUtf8Span())
+            {
+                WGPUShaderModuleGLSLDescriptor descriptor = new WGPUShaderModuleGLSLDescriptor()
+                {
+                    code = ptr,
+                    chain = new WGPUChainedStruct()
+                    {
+                        next = null,
+                        sType = (WGPUSType)WGPUNativeSType.ShaderModuleGLSLDescriptor,
+                    },
+                };
+
+                shaderDesc.nextInChain = &descriptor.chain;
+
+                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+            }
+        }
 
         throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV and WGSL are supported. Try compiling your shader to SPIRV if you are using HLSL or GLSL.");
     }
