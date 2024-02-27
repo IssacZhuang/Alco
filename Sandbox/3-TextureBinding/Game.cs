@@ -61,6 +61,9 @@ public class Game : GameEngine
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
 
         _texture = CreateTexture();
+
+
+        
     }
 
     protected override void OnUpdate(float delta)
@@ -185,7 +188,7 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.png");
 
-        return GraphicsDevice.CreateTexture2DFromFile(data);
+        return RenderingService.CreateTexture2DFromFile(data);
     }
 
     private void UpdateColor(Vector3 color)

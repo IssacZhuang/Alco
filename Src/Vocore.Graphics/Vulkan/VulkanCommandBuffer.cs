@@ -125,9 +125,9 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
         throw new NotImplementedException();
     }
 
-    protected override unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
-        throw new NotImplementedException();
+        
     }
 
     #endregion

@@ -99,10 +99,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
-    public unsafe void UpdateBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while UpdateBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        UpdateBufferCore(buffer, bufferOffset, data, size);
+        PushConstantsCore(stage, bufferOffset, data, size);
     }
 
     //compute
@@ -143,35 +143,6 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         SetIndexBuffer(buffer, format, 0, buffer.Size);
     }
 
-    public unsafe void UpdateBuffer(GPUBuffer buffer, byte* data, uint size)
-    {
-        UpdateBuffer(buffer, 0, data, size);
-    }
-
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T data) where T : unmanaged
-    {
-        UpdateBuffer(buffer, bufferOffset, (byte*)&data, (uint)sizeof(T));
-    }
-
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T data) where T : unmanaged
-    {
-        UpdateBuffer(buffer, 0, (byte*)&data, (uint)sizeof(T));
-    }
-
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
-    {
-        fixed (T* ptr = data)
-        {
-            UpdateBuffer(buffer, bufferOffset, (byte*)ptr, (uint)(sizeof(T) * data.Length));
-        }
-    }
-
-    public unsafe void UpdateBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
-    {
-        UpdateBuffer(buffer, 0, data);
-    }
-
-
     // need to be implemented for each backend
     protected abstract void BeginCore();
     protected abstract void EndCore();
@@ -193,5 +164,5 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     /// <summary>
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>
-    protected abstract unsafe void UpdateBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
 }
