@@ -114,7 +114,7 @@ public class Game : GameEngine
         _modelBuffer.Value = _transform1.Matrix;
     }
 
-    protected override void OnDraw(float delta)
+    protected unsafe override void OnDraw(float delta)
     {
         _timer += delta;
 
@@ -124,8 +124,8 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texGreen.ResourcesSample);
+        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _texGreen.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -137,21 +137,23 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texRed.ResourcesSample);
+        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _texRed.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
         _modelBuffer.Value = _transform3.Matrix;
+        Matrix4x4 model = _transform3.Matrix;
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.PushConstants(ShaderStage.Vertex, 0, (byte*)&model, (uint)sizeof(Matrix4x4));
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texBlue.ResourcesSample);
+        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+        _commandBuffer.SetGraphicsResources(1, _texBlue.ResourcesSample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -165,7 +167,7 @@ public class Game : GameEngine
         _texGreen.Dispose();
     }
 
-    private GPUPipeline CreatePipeline()
+    private unsafe GPUPipeline CreatePipeline()
     {
         //shaderc glsl
         // string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
@@ -208,7 +210,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
             GraphicsDevice.PrefferedDepthStencilFormat,
-            null,
+            new PushConstantsRange[] { new PushConstantsRange(ShaderStage.Vertex, 0, (uint)sizeof(Matrix4x4)) },
             "quad_pipline"
         );
 

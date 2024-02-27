@@ -166,7 +166,8 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
             GraphicsDevice.PrefferedDepthStencilFormat,
-            "Quad Pipeline"
+            null,
+            "quad_pipeline"
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(pipelineDescriptor);

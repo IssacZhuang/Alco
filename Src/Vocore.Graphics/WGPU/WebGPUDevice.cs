@@ -334,9 +334,37 @@ internal partial class WebGPUDevice : GPUDevice
             };
 
             WGPUDevice device = WGPUDevice.Null;
+
+            //TODO: replace with push constant enabled
+            if (true)
+            {
+                WGPUNativeLimits limits = new WGPUNativeLimits
+                {
+                    maxPushConstantSize = 64,
+                };
+
+                WGPURequiredLimitsExtras requiredLimitsExtras = new WGPURequiredLimitsExtras
+                {
+                    chain = new WGPUChainedStruct
+                    {
+                        sType = (WGPUSType)WGPUNativeSType.RequiredLimitsExtras,
+                        next = null,
+                    },
+                    limits = limits,
+                };
+
+                WGPURequiredLimits requiredLimits = new WGPURequiredLimits
+                {
+                    nextInChain = &requiredLimitsExtras.chain,
+                };
+
+                deviceDescriptor.requiredLimits = &requiredLimits;
+            }
+
             wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, new nint(&device));
             Device = device;
         }
+
         wgpuDeviceSetUncapturedErrorCallback(Device, &OnUnhandleError);
 
         //get queue

@@ -11,6 +11,7 @@ public struct GraphicsPipelineDescriptor
         DepthStencilState depthStencilState,
         PixelFormat[] colorFormats,
         PixelFormat? depthStencilFormat,
+        PushConstantsRange[]? pushConstantsRanges = null,
         string name = "unnamed_graphics_pipeline"
         )
     {
@@ -22,6 +23,7 @@ public struct GraphicsPipelineDescriptor
         VertexInputLayouts = vertexInputLayouts;
         ColorFormats = colorFormats;
         DepthStencilFormat = depthStencilFormat;
+        PushConstantsRanges = pushConstantsRanges;
         Name = name;
     }
 
@@ -34,5 +36,6 @@ public struct GraphicsPipelineDescriptor
     public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.DepthNone;
     public PixelFormat[] ColorFormats { get; init; }
     public PixelFormat? DepthStencilFormat { get; init; }
+    public PushConstantsRange[]? PushConstantsRanges { get; init; }
     public string Name { get; init; } = "unnamed_graphics_pipeline";
 }

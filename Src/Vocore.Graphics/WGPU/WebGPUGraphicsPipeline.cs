@@ -168,6 +168,34 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                 bindGroupLayouts = bindGroupLayouts,
             };
 
+            if (descriptor.PushConstantsRanges != null)
+            {
+                WGPUPushConstantRange* pushConstants = stackalloc WGPUPushConstantRange[descriptor.PushConstantsRanges.Length];
+                for (int i = 0; i < descriptor.PushConstantsRanges.Length; i++)
+                {
+                    PushConstantsRange range = descriptor.PushConstantsRanges[i];
+                    pushConstants[i] = new WGPUPushConstantRange
+                    {
+
+                        stages = UtilsWebGPU.ConvertShaderStage(range.Stage),
+                        start = range.Start,
+                        end = range.End
+                    };
+                }
+                WGPUPipelineLayoutExtras extras = new WGPUPipelineLayoutExtras
+                {
+                    chain = new WGPUChainedStruct
+                    {
+                        sType = (WGPUSType)WGPUNativeSType.PipelineLayoutExtras,
+                        next = null,
+                    },
+                    pushConstantRangeCount = (uint)descriptor.PushConstantsRanges.Length,
+                    pushConstantRanges = pushConstants,
+                };
+
+                pipelineLayoutDescriptor.nextInChain = &extras.chain;
+            }
+
             WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(nativeDevice, &pipelineLayoutDescriptor);
 
 
@@ -225,8 +253,6 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
 
                 pipelineDescriptor.depthStencil = &depthStencilState;
             }
-
-
 
             _graphicsipeline = wgpuDeviceCreateRenderPipeline(nativeDevice, &pipelineDescriptor);
 

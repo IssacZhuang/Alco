@@ -69,7 +69,7 @@ public class Game : GameEngine
 
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
-        _iterationBuffer = GraphicsDevice.CreateTypedUniformBuffer<int>(8);
+        _iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
 
         //box blur texture
 
@@ -184,6 +184,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
             GraphicsDevice.PrefferedDepthStencilFormat,
+            null,
             "Quad Pipeline"
         );
 
@@ -238,12 +239,12 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.jpg");
 
-        return GraphicsDevice.CreateTexture2DFromFile(data);
+        return RenderingService.CreateTexture2DFromFile(data);
     }
 
     private Texture2D CreateRenderTarget(uint width, uint height)
     {
-        return GraphicsDevice.CreateTexture2DEmpty(width, height, new Vector4(1, 1, 1, 1), new ImageLoadOption
+        return RenderingService.CreateTexture2DEmpty(width, height, new Vector4(1, 1, 1, 1), new ImageLoadOption
         {
             IsSRGB = false,
             MipLevels = 1,
