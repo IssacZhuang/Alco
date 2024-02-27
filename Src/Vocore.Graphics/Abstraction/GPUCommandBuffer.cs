@@ -133,14 +133,28 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     // polymorphism
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetVertexBuffer(uint slot, GPUBuffer buffer)
     {
         SetVertexBuffer(slot, buffer, 0, buffer.Size);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format)
     {
         SetIndexBuffer(buffer, format, 0, buffer.Size);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+    {
+        PushConstants(stage, bufferOffset, (byte*)&data, (uint)Unsafe.SizeOf<T>());
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
+    {
+        PushConstants(stage, 0, data);
     }
 
     // need to be implemented for each backend

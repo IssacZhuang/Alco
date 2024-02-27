@@ -124,37 +124,19 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+
         _commandBuffer.SetGraphicsResources(1, _texGreen.ResourcesSample);
+        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
-        _commandBuffer.End();
-        GraphicsDevice.Submit(_commandBuffer);
 
-        _modelBuffer.Value = _transform2.Matrix;
-        _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
         _commandBuffer.SetGraphicsResources(1, _texRed.ResourcesSample);
+        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform2.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
-        _commandBuffer.End();
-        GraphicsDevice.Submit(_commandBuffer);
-
-        _modelBuffer.Value = _transform3.Matrix;
-        Matrix4x4 model = _transform3.Matrix;
-        _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.PushConstants(ShaderStage.Vertex, 0, (byte*)&model, (uint)sizeof(Matrix4x4));
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        //_commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
+  
         _commandBuffer.SetGraphicsResources(1, _texBlue.ResourcesSample);
+        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform3.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }

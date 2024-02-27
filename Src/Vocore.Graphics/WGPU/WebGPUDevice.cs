@@ -16,6 +16,40 @@ internal partial class WebGPUDevice : GPUDevice
             WGPUFeatureName.BGRA8UnormStorage,
             (WGPUFeatureName)WGPUNativeFeature.PushConstants,
         };
+
+    public static readonly WGPULimits DefaultLimits = new WGPULimits
+    {
+        maxTextureDimension1D = 8192,
+        maxTextureDimension2D = 8192,
+        maxTextureDimension3D = 2048,
+        maxTextureArrayLayers = 256,
+        maxBindGroups = 4,
+        maxBindingsPerBindGroup = 1000,
+        maxDynamicUniformBuffersPerPipelineLayout = 8,
+        maxDynamicStorageBuffersPerPipelineLayout = 4,
+        maxSampledTexturesPerShaderStage = 16,
+        maxSamplersPerShaderStage = 16,
+        maxStorageBuffersPerShaderStage = 8,
+        maxStorageTexturesPerShaderStage = 4,
+        maxUniformBuffersPerShaderStage = 12,
+        maxUniformBufferBindingSize = 16 * 1024,
+        maxStorageBufferBindingSize = 128 * 1024 * 1024,
+        maxVertexBuffers = 8,
+        maxBufferSize = 256 * 1024 * 1024,
+        maxVertexAttributes = 16,
+        maxVertexBufferArrayStride = 2048,
+        minUniformBufferOffsetAlignment = 256,
+        minStorageBufferOffsetAlignment = 256,
+        maxInterStageShaderComponents = 60,
+        maxInterStageShaderVariables = 60,
+        maxComputeWorkgroupStorageSize = 16352,
+        maxComputeInvocationsPerWorkgroup = 256,
+        maxComputeWorkgroupSizeX = 256,
+        maxComputeWorkgroupSizeY = 256,
+        maxComputeWorkgroupSizeZ = 64,
+        maxComputeWorkgroupsPerDimension = 65535,
+    };
+
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
     public readonly WGPUSurface Surface;
@@ -356,6 +390,7 @@ internal partial class WebGPUDevice : GPUDevice
                 WGPURequiredLimits requiredLimits = new WGPURequiredLimits
                 {
                     nextInChain = &requiredLimitsExtras.chain,
+                    limits = DefaultLimits
                 };
 
                 deviceDescriptor.requiredLimits = &requiredLimits;
