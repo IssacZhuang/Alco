@@ -35,7 +35,7 @@ public class Game : GameEngine
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
     private VRamBuffer<Matrix4x4> _cameraBuffer;
-    private VRamBuffer<Matrix4x4> _modelBuffer;
+
     private GPUPipeline _pipeline;
     private Texture2D _texBlue;
     private Texture2D _texRed;
@@ -69,7 +69,6 @@ public class Game : GameEngine
         }, Indices);
 
         _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("camera_buffer");
-        _modelBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("model_buffer");
 
         _texBlue = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 0, 1, 1));
         _texRed = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 0, 0, 1));
@@ -111,7 +110,6 @@ public class Game : GameEngine
         _transform3.scale = new Vector2(1 + movement, 1 + movement);
 
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
-        _modelBuffer.Value = _transform1.Matrix;
     }
 
     protected unsafe override void OnDraw(float delta)
