@@ -2,7 +2,7 @@ using System.Numerics;
 using StbImageSharp;
 using Vocore.Graphics;
 
-using static Vocore.Graphics.UtilsInterop;
+using static Vocore.Unsafe.UtilsMemory;
 
 namespace Vocore.Engine;
 

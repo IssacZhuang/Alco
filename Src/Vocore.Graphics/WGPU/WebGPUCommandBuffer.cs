@@ -23,7 +23,8 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     private WGPUComputePassEncoder _computePass;
 
     // cached state from outside
-    private WGPURenderPassDescriptor? _renderPassDescriptor;
+    private UnsafeArray<WGPURenderPassColorAttachment> _colorAttachmentsCache;
+    private WGPURenderPassDepthStencilAttachment? _depthStencilAttachmentCache;
     private WGPURenderPipeline _graphicsPipeline;
     private WGPUComputePipeline _computePipeline;
     private WebGPUFrameBufferBase? _frameBuffer;
@@ -58,6 +59,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         ReleaseCommandEncoder();
 
         UtilsInterop.Free(_nativeName);
+        _colorAttachmentsCache.Dispose();
     }
 
     // begin the encoder
@@ -81,12 +83,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     protected unsafe override void EndCore()
     {
         //check if there is any render pass descriptor is set but not start
-        if (_renderPassDescriptor.HasValue && _renderPass == WGPURenderPassEncoder.Null)
-        {
-            //start render pass
-            WGPURenderPassDescriptor tmp = _renderPassDescriptor.Value;
-            _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &tmp);
-        }
+        CheckRenderPass(false);
 
         TryFinishCurrentComputePass();
         TryFinishCurrentRenderPass();
@@ -101,7 +98,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         _graphicsPipeline = WGPURenderPipeline.Null;
         _computePipeline = WGPUComputePipeline.Null;
         _frameBuffer = null;
-        _renderPassDescriptor = null;
+        _depthStencilAttachmentCache = null;
 
         // release encoder
         wgpuCommandEncoderRelease(_encoder);
@@ -114,13 +111,28 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         _frameBuffer = nativeFrameBuffer;
         TryFinishCurrentRenderPass();
         //TryFinishCurrentComputePass();
-        _renderPassDescriptor = nativeFrameBuffer.Native;
+        WGPURenderPassDescriptor tmpDescriptor = nativeFrameBuffer.Native;
+        _colorAttachmentsCache.EnsureCapacity((int)tmpDescriptor.colorAttachmentCount);
+
+        for (uint i = 0; i < tmpDescriptor.colorAttachmentCount; i++)
+        {
+            _colorAttachmentsCache[i] = tmpDescriptor.colorAttachments[i];
+        }
+
+        if (tmpDescriptor.depthStencilAttachment != null)
+        {
+            _depthStencilAttachmentCache = *tmpDescriptor.depthStencilAttachment;
+        }
+        else
+        {
+            _depthStencilAttachmentCache = null;
+        }
     }
 
-    protected override void ClearColorCore(ColorFloat color, int index)
+    protected override void ClearColorCore(ColorFloat color, uint index)
     {
 
-        if (!_renderPassDescriptor.HasValue)
+        if (_frameBuffer == null)
         {
             throw new GraphicsException("Framebuffer must be setted before ClearDepthStencil");
         }
@@ -130,7 +142,12 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
             throw new GraphicsException("The pipeline is already set, can not clear color");
         }
 
-        WGPURenderPassColorAttachment attachment = _renderPassDescriptor.Value.colorAttachments[index];
+        if (index >= _frameBuffer.Native.colorAttachmentCount)
+        {
+            throw new GraphicsException("The index is out of range of color attachment");
+        }
+
+        WGPURenderPassColorAttachment attachment = _colorAttachmentsCache[index];
         attachment.loadOp = WGPULoadOp.Clear;
         attachment.storeOp = WGPUStoreOp.Store;
         attachment.clearValue = new WGPUColor
@@ -140,12 +157,12 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
             b = color.B,
             a = color.A
         };
-        _renderPassDescriptor.Value.colorAttachments[index] = attachment;
+        _colorAttachmentsCache[index] = attachment;
     }
 
     protected override void ClearDepthStencilCore(float depth, uint stencil)
     {
-        if (!_renderPassDescriptor.HasValue)
+        if (_frameBuffer == null)
         {
             throw new GraphicsException("Framebuffer must be setted before ClearDepthStencil");
         }
@@ -155,25 +172,25 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
             throw new GraphicsException("The pipeline is already set, can not clear depth stencil");
         }
 
-        if (_renderPassDescriptor.Value.depthStencilAttachment == null)
+        if (!_depthStencilAttachmentCache.HasValue)
         {
             //no depth stencil attachment
             return;
         }
 
-        WGPURenderPassDepthStencilAttachment attachment = *_renderPassDescriptor.Value.depthStencilAttachment;
+        WGPURenderPassDepthStencilAttachment attachment = _depthStencilAttachmentCache.Value;
         attachment.depthLoadOp = WGPULoadOp.Clear;
         attachment.depthStoreOp = WGPUStoreOp.Store;
         attachment.depthClearValue = depth;
         attachment.stencilLoadOp = WGPULoadOp.Clear;
         attachment.stencilStoreOp = WGPUStoreOp.Store;
         attachment.stencilClearValue = stencil;
-        *_renderPassDescriptor.Value.depthStencilAttachment = attachment;
+        _depthStencilAttachmentCache = attachment;
     }
 
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
-        CheckRenderPass();
+        CheckRenderPass(true);
 
         _graphicsPipeline = ((WebGPUGraphicsPipeline)pipeline).Native;
         wgpuRenderPassEncoderSetPipeline(_renderPass, _graphicsPipeline);
@@ -311,6 +328,8 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
             _nativeName = UtilsInterop.Alloc<sbyte>(nameSpan.Length + 1);
             UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
         }
+
+        _colorAttachmentsCache = new UnsafeArray<WGPURenderPassColorAttachment>(8);
     }
 
     private void ReleaseCommandEncoder()
@@ -353,26 +372,40 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    private void CheckRenderPass()
+    private void CheckRenderPass(bool throwIfNotExist = false)
     {
         if (_renderPass != WGPURenderPassEncoder.Null)
         {
             return;
         }
 
-        if (_renderPassDescriptor.HasValue)
+        if (_frameBuffer != null)
         {
-            WGPURenderPassDescriptor tmp = _renderPassDescriptor.Value;//stackalloc for pointer
+            WGPURenderPassDescriptor tmp = new WGPURenderPassDescriptor
+            {
+                colorAttachmentCount = _frameBuffer.Native.colorAttachmentCount,
+                colorAttachments = _colorAttachmentsCache.Ptr,
+            };
+
+            if (_depthStencilAttachmentCache.HasValue)
+            {
+                //stackalloc
+                WGPURenderPassDepthStencilAttachment depthStencilAttachment = _depthStencilAttachmentCache.Value;
+                tmp.depthStencilAttachment = &depthStencilAttachment;
+            }
+
             _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &tmp);
             return;
         }
 
-        throw ExceptionNoFramebuffer;
+        if (throwIfNotExist)
+        {
+            throw ExceptionNoFramebuffer;
+        }
     }
 
 
     //debug validate
-
 
     [Conditional("DEBUG")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

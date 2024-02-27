@@ -39,7 +39,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         SetFrameBufferCore(frameBuffer);
     }
 
-    public void ClearColor(ColorFloat color, int index = 0)
+    public void ClearColor(ColorFloat color, uint index = 0)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearColor, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         ClearColorCore(color, index);
@@ -176,7 +176,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void BeginCore();
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
-    protected abstract void ClearColorCore(ColorFloat color, int index);
+    protected abstract void ClearColorCore(ColorFloat color, uint index);
     protected abstract void ClearDepthStencilCore(float depth, uint stencil);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);

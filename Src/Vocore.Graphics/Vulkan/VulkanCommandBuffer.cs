@@ -48,7 +48,7 @@ internal unsafe class VulkanCommandBuffer : GPUCommandBuffer
     }
 
 
-    protected override void ClearColorCore(ColorFloat color, int index)
+    protected override void ClearColorCore(ColorFloat color, uint index)
     {
         //Todo
     }

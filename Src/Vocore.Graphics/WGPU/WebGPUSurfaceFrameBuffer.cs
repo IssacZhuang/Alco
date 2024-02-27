@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
 using static Vocore.Graphics.UtilsInterop;
+using System.Runtime.InteropServices;
 
 namespace Vocore.Graphics.WebGPU;
 
@@ -94,7 +95,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     }
     internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config)
     {
-        Name = "SwapChain FrameBuffer";
+        Name = "swapchain_frameBuffer";
         _renderPass = renderPass;
 
         // configure the surface

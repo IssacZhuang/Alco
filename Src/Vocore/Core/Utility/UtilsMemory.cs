@@ -19,6 +19,17 @@ namespace Vocore.Unsafe
 #endif
         }
 
+        public static T* Alloc<T>(int count) where T : unmanaged
+        {
+#if DEBUG
+            IntPtr ptr = Marshal.AllocHGlobal(sizeof(T) * count);
+            PointerTracker.AddAllocated(ptr, sizeof(T) * count, Environment.StackTrace);
+            return (T*)ptr.ToPointer();
+#else
+            return (T*)Marshal.AllocHGlobal(sizeof(T) * count).ToPointer();
+#endif
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Free(void* ptr)
         {
@@ -37,6 +48,7 @@ namespace Vocore.Unsafe
             Marshal.FreeHGlobal(ptr);
         }
 
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IntPtr ToRef<T>(T value) where T : unmanaged
         {
@@ -49,7 +61,7 @@ namespace Vocore.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Memset(void* ptr, byte value, long size)
+        public static void Memset(void* ptr, long size, byte value)
         {
             byte* ptr2 = (byte*)ptr;
             for (long i = 0; i < size; i++)
@@ -58,8 +70,7 @@ namespace Vocore.Unsafe
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Memset<T>(T* ptr, T value, long size) where T : unmanaged
+        public static void Memset<T>(T* ptr, long size, T value) where T : unmanaged
         {
             for (long i = 0; i < size; i++)
             {

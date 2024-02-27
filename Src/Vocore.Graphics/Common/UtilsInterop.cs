@@ -3,7 +3,7 @@ using Silk.NET.Core.Native;
 
 namespace Vocore.Graphics;
 
-public unsafe static class UtilsInterop
+internal unsafe static class UtilsInterop
 {
 
     public static T* Alloc<T>(int count) where T : unmanaged
