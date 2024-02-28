@@ -190,7 +190,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
             GraphicsDevice.PrefferedDepthStencilFormat,
-            new PushConstantsRange[] { new PushConstantsRange(ShaderStage.Vertex, 0, (uint)sizeof(Matrix4x4)) },
+            info.PushConstantsRanges,
             "quad_pipline"
         );
 

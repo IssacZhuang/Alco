@@ -33,11 +33,14 @@ public static class UtilsShaderRelfection
             }
         }
 
+
+
         //TODO: implement reflection info
         ShaderReflectionInfo info = new ShaderReflectionInfo
         {
             BindGroups = GetBindgGroupLayouts(module),
             VertexLayouts = new VertexInputLayout[] { GetVertexInputLayout(module) },
+            PushConstantsRanges = GetPushConstants(module),
             Size = GetThreadGroupSize(module)
         };
 
@@ -58,6 +61,29 @@ public static class UtilsShaderRelfection
                 }
             }
         }
+    }
+
+    public unsafe static PushConstantsRange[] GetPushConstants(ReflectShaderModule shaderModule)
+    {
+        if (shaderModule.PushConstantBlockCount == 0)
+        {
+            return Array.Empty<PushConstantsRange>();
+        }
+
+        ShaderStage stage = UtilsRelfectType.ConvertShaderStage(shaderModule.ShaderStage);
+        PushConstantsRange[] ranges = new PushConstantsRange[shaderModule.PushConstantBlockCount];
+        for (int i = 0; i < shaderModule.PushConstantBlockCount; i++)
+        {
+            BlockVariable block = shaderModule.PushConstantBlocks[i];
+            ranges[i] = new PushConstantsRange
+            {
+                Stage = stage,
+                Start = block.Offset,
+                End = block.Offset + block.Size
+            };
+        }
+
+        return ranges;
     }
 
     public static ShaderReflectionInfo MergeReflectionInfo(ShaderReflectionInfo vertex, ShaderReflectionInfo fragment)
@@ -85,10 +111,37 @@ public static class UtilsShaderRelfection
             }
         }
 
+        
+        PushConstantsRange[] maxRangesList;
+        PushConstantsRange[] minRangesList;
+        if (vertex.PushConstantsRanges.Length >= fragment.PushConstantsRanges.Length)
+        {
+            maxRangesList = vertex.PushConstantsRanges;
+            minRangesList = fragment.PushConstantsRanges;
+        }
+        else
+        {
+            maxRangesList = fragment.PushConstantsRanges;
+            minRangesList = vertex.PushConstantsRanges;
+        }
+
+        PushConstantsRange[] ranges = new PushConstantsRange[maxRangesList.Length];
+        for (int i = 0; i < maxRangesList.Length; i++)
+        {
+            ranges[i] = maxRangesList[i];
+        }
+
+        for (int i = 0; i < minRangesList.Length; i++)
+        {
+            ranges[i].Stage |= minRangesList[i].Stage;
+        }
+
+
         return new ShaderReflectionInfo
         {
             BindGroups = bindGroups.Values.ToArray(),
-            VertexLayouts = vertex.VertexLayouts
+            VertexLayouts = vertex.VertexLayouts,
+            PushConstantsRanges = ranges,
         };
     }
 

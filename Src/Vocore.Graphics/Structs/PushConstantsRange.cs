@@ -11,4 +11,9 @@ public struct PushConstantsRange
     public ShaderStage Stage;
     public uint Start { get; init; }
     public uint End { get; init; }
+
+    public override string ToString()
+    {
+        return $"Start: {Start}, End: {End}";
+    }
 }

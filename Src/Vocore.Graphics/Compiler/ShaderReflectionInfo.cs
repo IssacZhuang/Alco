@@ -6,6 +6,7 @@ public struct ShaderReflectionInfo
 {
     public VertexInputLayout[] VertexLayouts;
     public BindGroupLayout[] BindGroups;
+    public PushConstantsRange[] PushConstantsRanges;
     /// <summary>
     /// Thread group size for compute shader
     /// </summary>
@@ -50,6 +51,20 @@ public struct ShaderReflectionInfo
         if (Size != ThreadGroupSize.Default)
         {
             builder.AppendLine(Size.ToString());
+        }
+
+        builder.AppendLine("[Push Constants]");
+
+        if (PushConstantsRanges.Length == 0)
+        {
+            builder.AppendLine("No push constants");
+        }
+        else
+        {
+            foreach (var range in PushConstantsRanges)
+            {
+                builder.AppendLine(range.ToString());
+            }
         }
 
         return builder.ToString();
