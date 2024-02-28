@@ -11,11 +11,6 @@ internal partial class WebGPUDevice : GPUDevice
 
     #region Properties
 
-    public static readonly WGPUFeatureName[] features = new WGPUFeatureName[]
-        {
-            WGPUFeatureName.BGRA8UnormStorage,
-            (WGPUFeatureName)WGPUNativeFeature.PushConstants,
-        };
 
     public static readonly WGPULimits DefaultLimits = new WGPULimits
     {
@@ -349,10 +344,17 @@ internal partial class WebGPUDevice : GPUDevice
         Adapter = adapter;
 
 
-        WGPUFeatureName* features = stackalloc WGPUFeatureName[WebGPUDevice.features.Length];
-        for (int i = 0; i < WebGPUDevice.features.Length; i++)
+        List<WGPUFeatureName> featuresList = new List<WGPUFeatureName>();
+        bool isPushConstantEnabled = descriptor.PushConstantsSize > 0;
+        if (isPushConstantEnabled)
         {
-            features[i] = WebGPUDevice.features[i];
+            featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
+        }
+
+        WGPUFeatureName* features = stackalloc WGPUFeatureName[featuresList.Count];
+        for (int i = 0; i < featuresList.Count; i++)
+        {
+            features[i] = featuresList[i];
         }
 
         // create device
@@ -363,18 +365,18 @@ internal partial class WebGPUDevice : GPUDevice
                 nextInChain = null,
                 label = name,
                 requiredLimits = null,
-                requiredFeatureCount = (uint)WebGPUDevice.features.Length,
+                requiredFeatureCount = (uint)featuresList.Count,
                 requiredFeatures = features,
             };
 
             WGPUDevice device = WGPUDevice.Null;
 
             //TODO: replace with push constant enabled
-            if (true)
+            if (isPushConstantEnabled)
             {
                 WGPUNativeLimits limits = new WGPUNativeLimits
                 {
-                    maxPushConstantSize = 64,
+                    maxPushConstantSize = 256,
                 };
 
                 WGPURequiredLimitsExtras requiredLimitsExtras = new WGPURequiredLimitsExtras

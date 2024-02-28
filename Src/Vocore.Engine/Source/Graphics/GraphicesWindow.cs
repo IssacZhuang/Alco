@@ -37,6 +37,7 @@ namespace Vocore.Engine
                 InitialSurfaceSizeHeight = (uint)setting.Height,
                 SurfaceClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
                 DepthFormat = PixelFormat.Depth24PlusStencil8,
+                PushConstantsSize = 256,
                 Name = setting.Title
             };
 

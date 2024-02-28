@@ -14,6 +14,7 @@ namespace Vocore.Graphics
             uint initialSurfaceSizeWidth = 640,
             uint initialSurfaceSizeHeight = 360,
             PixelFormat? depthFormat = null,
+            uint pushConstantsSize = 256,
             string name = "Vocore Graphics Device"
         )
         {
@@ -25,6 +26,7 @@ namespace Vocore.Graphics
             InitialSurfaceSizeWidth = initialSurfaceSizeWidth;
             InitialSurfaceSizeHeight = initialSurfaceSizeHeight;
             DepthFormat = depthFormat;
+            PushConstantsSize = pushConstantsSize;
             Name = name;
         }
 
@@ -32,6 +34,10 @@ namespace Vocore.Graphics
         public SurfaceSource SurfaceSource { get; init; }
         public bool VSync { get; init; } = false;
         public bool Debug { get; init; } = false;
+        /// <summary>
+        /// The size of the push constants buffer in bytes. Put 0 to disable.
+        /// </summary> 
+        public uint PushConstantsSize { get; init; } = 256;
         
         public uint InitialSurfaceSizeWidth { get; init; }
         public uint InitialSurfaceSizeHeight { get; init; }
