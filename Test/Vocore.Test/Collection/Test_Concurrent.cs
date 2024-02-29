@@ -4,13 +4,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using TestFramework;
 using Vocore;
 
 namespace Vocore.Test
 {
     public class Test_Concurrent
     {
-        [Test("Test Circular Working Stealing Deque Push&Pop")]
+        [Test(Description = "Circular Working Stealing Deque Push&Pop")]
         public void Test_CircularSinglePushPop()
         {
             int count = 1000000;
@@ -18,7 +19,7 @@ namespace Vocore.Test
 
             for (int i = 0; i < count; i++)
             {
-                //UnitTest.PrintBlue("Push: " + i);
+                //TestContext.WriteLine("Push: " + i);
                 deque.Push(i);
             }
             HashSet<int> result = new HashSet<int>();
@@ -32,7 +33,7 @@ namespace Vocore.Test
                     result.Add(value);
                 }
             }
-            UnitTest.PrintBlue("Poped: " + poped);
+            TestContext.WriteLine("Poped: " + poped);
             int success = 0;
             for (int i = 0; i < count; i++)
             {
@@ -41,11 +42,11 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
         }
 
-        [Test("Test Circular Working Stealing Deque Single Push&Steal")]
+        [Test(Description = "Circular Working Stealing Deque Single Push&Steal")]
         public void Test_CircularSingleSteal()
         {
             int count = 1000000;
@@ -53,10 +54,10 @@ namespace Vocore.Test
 
             for (int i = 0; i < count; i++)
             {
-                //UnitTest.PrintBlue("Push: " + i);
+                //TestContext.WriteLine("Push: " + i);
                 deque.Push(i);
             }
-            UnitTest.PrintBlue("Pushed: " + count);
+            TestContext.WriteLine("Pushed: " + count);
             Dictionary<int, bool> result = new Dictionary<int, bool>();
             int poped = 0;
             for (int i = 0; i < count; i++)
@@ -68,7 +69,7 @@ namespace Vocore.Test
                     result.TryAdd(value, true);
                 }
             }
-            UnitTest.PrintBlue("Poped: " + poped);
+            TestContext.WriteLine("Poped: " + poped);
             int success = 0;
             for (int i = 0; i < count; i++)
             {
@@ -77,11 +78,11 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
         }
 
-        [Test("Test Circular Working Stealing Single Push & Concurrent Steal")]
+        [Test(Description = "Circular Working Stealing Single Push & Concurrent Steal")]
         public void Test_CircularConcurrentSteal()
         {
             int count = 1000000;
@@ -89,10 +90,10 @@ namespace Vocore.Test
 
             for (int i = 0; i < count; i++)
             {
-                //UnitTest.PrintBlue("Push: " + i);
+                //TestContext.WriteLine("Push: " + i);
                 deque.Push(i);
             }
-            UnitTest.PrintBlue("Pushed: " + count);
+            TestContext.WriteLine("Pushed: " + count);
             ConcurrentDictionary<int, bool> result = new ConcurrentDictionary<int, bool>();
             int poped = 0;
             int stealCount = 0;
@@ -113,8 +114,8 @@ namespace Vocore.Test
                     }
                 }
             });
-            UnitTest.PrintBlue("Poped: " + poped);
-            UnitTest.PrintBlue("Steal hit rate: " + ((float)poped)/stealCount);
+            TestContext.WriteLine("Poped: " + poped);
+            TestContext.WriteLine("Steal hit rate: " + ((float)poped)/stealCount);
             int success = 0;
             for (int i = 0; i < count; i++)
             {
@@ -123,34 +124,35 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
         }
 
-        [Test("Test Circular Working Stealing Deque vs .Net concurrent queue")]
+        [Test(Description ="Circular Working Stealing Deque vs .Net concurrent queue")]
         public void Test_WorkStealingDequeVsConcurrentQueue()
         {
             int count = 1000000;
             CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
             ConcurrentQueue<int> queue = new ConcurrentQueue<int>();
 
-            UnitTest.CheckGCAlloc("CircularWorkStealingDeque<int>.Push", () =>
+            UtilsTest.CheckGCAlloc(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     deque.Push(i);
                 }
-            });
+            }, "CircularWorkStealingDeque<int>.Push alloc:");
 
-            UnitTest.CheckGCAlloc("ConcurrentQueue<int>.Enqueue", () =>
+
+            UtilsTest.CheckGCAlloc(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     queue.Enqueue(i);
                 }
-            });
+            }, "ConcurrentQueue<int>.Enqueue alloc:");
 
-            UnitTest.Benchmark("CircularWorkStealingDeque<int>.TrySteal", () =>
+            UtilsTest.Benchmark(() =>
             {
                 Parallel.For(0, count, (i) =>
                 {
@@ -163,9 +165,20 @@ namespace Vocore.Test
                         }
                     }
                 });
-            });
+            }, "CircularWorkStealingDeque<int>.TrySteal benchmark: ");
 
-            UnitTest.Benchmark("ConcurrentQueue<int>.TryDequeue", () =>
+            // UnitTest.Benchmark("ConcurrentQueue<int>.TryDequeue", () =>
+            // {
+            //     Parallel.For(0, count, (i) =>
+            //     {
+            //         while (queue.TryDequeue(out int value))
+            //         {
+
+            //         }
+            //     });
+            // });
+
+            UtilsTest.Benchmark(() =>
             {
                 Parallel.For(0, count, (i) =>
                 {
@@ -174,12 +187,12 @@ namespace Vocore.Test
 
                     }
                 });
-            });
+            }, "ConcurrentQueue<int>.TryDequeue benchmark: ");
 
 
         }
 
-        [Test("Test Index Working Stealing Deque Pop&Steal")]
+        [Test(Description ="Index Working Stealing Deque Pop&Steal")]
         public void Test_IndexWorkStealing()
         {
             int count = 1000000;
@@ -202,8 +215,8 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
 
             deque.Set(0, count);
             result.Clear();
@@ -223,8 +236,8 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
 
             //multi thread steal
             deque.Set(0, count);
@@ -255,9 +268,9 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("steal: " + stealCount);
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("steal: " + stealCount);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
 
             deque.Set(0, count);
             result.Clear();
@@ -319,10 +332,10 @@ namespace Vocore.Test
                     success++;
                 }
             }
-            UnitTest.PrintBlue("steal: " + stealed);
-            UnitTest.PrintBlue("pop: " + poped);
-            UnitTest.PrintBlue("success: " + success);
-            UnitTest.AssertTrue(success == count);
+            TestContext.WriteLine("steal: " + stealed);
+            TestContext.WriteLine("pop: " + poped);
+            TestContext.WriteLine("success: " + success);
+            Assert.IsTrue(success == count);
 
         }
 

@@ -10,112 +10,112 @@ namespace Vocore.Test
     {
         ParseHelper _parseHelper = ParseHelper.Default;
 
-        [Test("test UtilsParse.ToInt")]
+        [Test(Description = "UtilsParse.ToInt")]
         public void Test_ToInt()
         {
             string str = "123";
             int i = _parseHelper.StrToInt(str);
-            UnitTest.AssertFalse(i != 123);
-            UnitTest.AssertFalse(str != _parseHelper.IntToStr(i));
+            Assert.IsFalse(i != 123);
+            Assert.IsFalse(str != _parseHelper.IntToStr(i));
         }
 
-        [Test("test UtilsParse.ToFloat")]
+        [Test(Description = "UtilsParse.ToFloat")]
         public void Test_ToFloat()
         {
             string str = "123.456";
             float f = _parseHelper.StrToFloat(str);
-            UnitTest.AssertFalse(f != 123.456f);
-            UnitTest.AssertFalse(str != _parseHelper.FloatToStr(f));
+            Assert.IsFalse(f != 123.456f);
+            Assert.IsFalse(str != _parseHelper.FloatToStr(f));
         }
 
-        [Test("test UtilsParse.ToBool")]
+        [Test(Description = "UtilsParse.ToBool")]
         public void Test_ToBool()
         {
             string str = "True";
             bool b = _parseHelper.StrToBool(str);
-            UnitTest.AssertFalse(b != true);
-            UnitTest.AssertFalse(str != _parseHelper.BoolToStr(b));
+            Assert.IsFalse(b != true);
+            Assert.IsFalse(str != _parseHelper.BoolToStr(b));
         }
 
-        [Test("test UtilsParse.ToLong")]
+        [Test(Description = "UtilsParse.ToLong")]
         public void Test_ToLong()
         {
             string str = "1234567890";
             long l = _parseHelper.StrToLong(str);
-            UnitTest.AssertFalse(l != 1234567890);
-            UnitTest.AssertFalse(str != _parseHelper.LongToStr(l));
+            Assert.IsFalse(l != 1234567890);
+            Assert.IsFalse(str != _parseHelper.LongToStr(l));
         }
 
-        [Test("test UtilsParse.ToDouble")]
+        [Test(Description = "UtilsParse.ToDouble")]
         public void Test_ToDouble()
         {
             string str = "123.456789";
             double d = _parseHelper.StrToDouble(str);
-            UnitTest.AssertFalse(d != 123.4567890);
-            UnitTest.AssertFalse(str != _parseHelper.DoubleToStr(d));
+            Assert.IsFalse(d != 123.4567890);
+            Assert.IsFalse(str != _parseHelper.DoubleToStr(d));
         }
 
-        [Test("test UtilsParse.ToSByte")]
+        [Test(Description = "UtilsParse.ToSByte")]
         public void Test_ToSByte()
         {
             string str = "123";
             sbyte sb = _parseHelper.StrToSByte(str);
-            UnitTest.AssertFalse(sb != 123);
-            UnitTest.AssertFalse(str != _parseHelper.SByteToStr(sb));
+            Assert.IsFalse(sb != 123);
+            Assert.IsFalse(str != _parseHelper.SByteToStr(sb));
         }
 
-        [Test("test UtilsParse.ToByte")]
+        [Test(Description = "UtilsParse.ToByte")]
         public void Test_ToByte()
         {
             string str = "123";
             byte b = _parseHelper.StrToByte(str);
-            UnitTest.AssertFalse(b != 123);
-            UnitTest.AssertFalse(str != _parseHelper.ByteToStr(b));
+            Assert.IsFalse(b != 123);
+            Assert.IsFalse(str != _parseHelper.ByteToStr(b));
         }
 
-        [Test("test UtilsParse.ToVector2")]
+        [Test(Description = "UtilsParse.ToVector2")]
         public void Test_ToVector2()
         {
             string str = "(123.456,789.012)";
             Vector2 v = _parseHelper.StrToFloat2(str);
-            UnitTest.AssertFalse(!v.Equals(new Vector2(123.456f, 789.012f)));
-            UnitTest.AssertFalse(str != _parseHelper.Float2ToStr(v));
+            Assert.IsFalse(!v.Equals(new Vector2(123.456f, 789.012f)));
+            Assert.IsFalse(str != _parseHelper.Float2ToStr(v));
         }
 
-        [Test("test UtilsParse.ToVector3")]
+        [Test(Description = "UtilsParse.ToVector3")]
         public void Test_ToVector3()
         {
             string str = "(123.456,789.012,345.678)";
             Vector3 v = _parseHelper.StrToVector3(str);
-            UnitTest.AssertFalse(!v.Equals(new Vector3(123.456f, 789.012f, 345.678f)));
-            UnitTest.AssertFalse(str != _parseHelper.Vector3ToStr(v));
+            Assert.IsFalse(!v.Equals(new Vector3(123.456f, 789.012f, 345.678f)));
+            Assert.IsFalse(str != _parseHelper.Vector3ToStr(v));
         }
 
-        [Test("test UtilsParse.ToVector4Adaptive")]
+        [Test(Description = "UtilsParse.ToVector4Adaptive")]
         public void Test_ToVector4Adaptive()
         {
             string str = "(123.456,789.012,345.678,901.234)";
             Vector4 v = _parseHelper.StrToFloat4Adaptive(str);
-            UnitTest.AssertFalse(!v.Equals(new Vector4(123.456f, 789.012f, 345.678f, 901.234f)));
-            UnitTest.AssertFalse(str != _parseHelper.Float4ToStr(v));
+            Assert.IsFalse(!v.Equals(new Vector4(123.456f, 789.012f, 345.678f, 901.234f)));
+            Assert.IsFalse(str != _parseHelper.Float4ToStr(v));
         }
 
-        [Test("test UtilsParse.ToQuaternion")]
+        [Test(Description = "UtilsParse.ToQuaternion")]
         public void Test_ToQuaternion()
         {
             string str = "(123.456,789.012,345.678,901.234)";
             Quaternion q = _parseHelper.StrToQuaternion(str);
-            UnitTest.AssertFalse(!q.Equals(new Quaternion(123.456f, 789.012f, 345.678f, 901.234f)));
-            UnitTest.AssertFalse(str != _parseHelper.QuaternionToStr(q));
+            Assert.IsFalse(!q.Equals(new Quaternion(123.456f, 789.012f, 345.678f, 901.234f)));
+            Assert.IsFalse(str != _parseHelper.QuaternionToStr(q));
         }
 
-        [Test("test UtilsParse.ToType")]
+        [Test(Description = "UtilsParse.ToType")]
         public void Test_ToType()
         {
             string str = "System.Int32";
             Type t = _parseHelper.StrToType(str);
-            UnitTest.AssertFalse(t != typeof(int));
-            UnitTest.AssertFalse(str != _parseHelper.TypeToStr(t));
+            Assert.IsFalse(t != typeof(int));
+            Assert.IsFalse(str != _parseHelper.TypeToStr(t));
         }
 
 

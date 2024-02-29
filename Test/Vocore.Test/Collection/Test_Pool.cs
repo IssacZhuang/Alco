@@ -2,7 +2,7 @@ namespace Vocore.Test
 {
     public class Test_Pool
     {
-        [Test("Test_ArrayPool")]
+        [Test(Description = "ArrayPool")]
         public void Test_ArrayPool()
         {
             ArrayPool<object> pool = new ArrayPool<object>(10);
@@ -25,13 +25,13 @@ namespace Vocore.Test
                 object item = pool.Get();
                 if (item != array[i])
                 {
-                    UnitTest.AddFailed();
-                    UnitTest.PrintRed("Test_ArrayPool return failed");
+                    //UnitTest.AddFailed();
+                    Assert.Fail("ArrayPool get failed");
                     return;
                 }
             }
 
-            UnitTest.AssertFalse(pool.Get() != null, "Test_ArrayPool get failed");
+            Assert.IsFalse(pool.Get() != null, "ArrayPool get failed");
 
         }
     }

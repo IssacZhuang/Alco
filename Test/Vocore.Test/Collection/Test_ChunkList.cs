@@ -1,11 +1,13 @@
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using TestFramework;
 
 namespace Vocore.Test
 {
     public class Test_ChunkList
     {
-        [Test("ChunkList add")]
+        [Test(Description = "chunkList add")]
         public void TestAdd()
         {
             ChunkList<int> list = new ChunkList<int>();
@@ -27,10 +29,10 @@ namespace Vocore.Test
                 index++;
             }
 
-            UnitTest.AssertFalse(!result);
+            Assert.IsFalse(!result);
         }
 
-        [Test("ChunkList remove")]
+        [Test(Description = "chunkList remove")]
         public void TestRemove()
         {
             ChunkList<int> list = new ChunkList<int>();
@@ -53,10 +55,10 @@ namespace Vocore.Test
                 index++;
             }
 
-            UnitTest.AssertFalse(!result);
+            Assert.IsFalse(!result);
         }
 
-        [Test("ChunkList vs List add element")]
+        [Test(Description = "chunkList vs List add element performance")]
         public void TestVsList()
         {
             int count = 10000000;
@@ -65,7 +67,7 @@ namespace Vocore.Test
 
             ChunkList<int> chunkList = new ChunkList<int>();
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -73,7 +75,7 @@ namespace Vocore.Test
                 }
             }, "List add element");
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -83,7 +85,7 @@ namespace Vocore.Test
 
         }
 
-        [Test("ChunkList vs List remove element")]
+        [Test(Description = "chunkList vs List remove element performance")]
         public void TestVsListRemove()
         {
             int count = 100000;
@@ -98,7 +100,7 @@ namespace Vocore.Test
                 chunkList.Add(i);
             }
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -106,7 +108,7 @@ namespace Vocore.Test
                 }
             }, "List remove element");
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -118,4 +120,3 @@ namespace Vocore.Test
 
     }
 }
-

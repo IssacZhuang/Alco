@@ -7,7 +7,7 @@ namespace Vocore.Test
 {
     public class Test_Curve
     {
-        [Test("Test linear vs hermite vs cache performance")]
+        [Test(Description = "linear vs hermite vs cache performance")]
         public void Test_CurvePerformance()
         {
             int pointCount = 100000;
@@ -30,7 +30,7 @@ namespace Vocore.Test
                 curveLinear.Evaluate(i);
             }
             sw.Stop();
-            UnitTest.PrintBlue("Linear: " + sw.ElapsedMilliseconds);
+            TestContext.WriteLine("Linear: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
             for (int i = 0; i < pointCount; i++)
@@ -38,7 +38,7 @@ namespace Vocore.Test
                 curveHermite.Evaluate(i);
             }
             sw.Stop();
-            UnitTest.PrintBlue("Hermite: " + sw.ElapsedMilliseconds);
+            TestContext.WriteLine("Hermite: " + sw.ElapsedMilliseconds);
 
             sw.Restart();
             for (int i = 0; i < pointCount; i++)
@@ -46,23 +46,9 @@ namespace Vocore.Test
                 curveCache.Evaluate(i);
             }
             sw.Stop();
-            UnitTest.PrintBlue("Cache: " + sw.ElapsedMilliseconds);
+            TestContext.WriteLine("Cache: " + sw.ElapsedMilliseconds);
         }
 
-        //disabled
-        //[Test("Draw curve")]
-        public void Test_DrawCurve()
-        {
-            //create a cubic spline curve
-            float[] x = { -3, 8, 16 };
-            float[] y = { 3, 16, 0 };
-            var curveHermite = new CurveHermite(x, y);
-            var curveLinear = new CurveLinear(x, y);
-            var curveCached = new CurveCache(curveHermite, 3);
-            CurveDrawer.Draw(curveLinear, "Linear");
-            CurveDrawer.Draw(curveHermite, "Hermite");
-            CurveDrawer.Draw(curveCached, "Hermite Cache");
-        }
     }
 }
 

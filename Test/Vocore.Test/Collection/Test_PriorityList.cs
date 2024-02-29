@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-
+using TestFramework;
 using Vocore;
 
 namespace Vocore.Test
 {
     public class Test_PriorityList
     {
-        [Test("Test_PriorityList add")]
+        [Test(Description = "Test_PriorityList add")]
         public void Test_Add()
         {
             PriorityList<int> list = new PriorityList<int>();
@@ -26,8 +26,7 @@ namespace Vocore.Test
 
             if (list.Count != result.Length)
             {
-                UnitTest.AddFailed();
-                UnitTest.PrintRed("Test_PriorityList add failed");
+                Assert.Fail("PriorityList add failed");
                 return;
             }
 
@@ -35,14 +34,13 @@ namespace Vocore.Test
             {
                 if (list[i] != result[i])
                 {
-                    UnitTest.AddFailed();
-                    UnitTest.PrintRed("Test_PriorityList add failed");
+                    Assert.Fail("PriorityList add failed");
                     return;
                 }
             }
         }
 
-        [Test("Test_PriorityList remove")]
+        [Test(Description = "Test_PriorityList remove")]
         public void Test_Remove()
         {
             PriorityList<int> list = new PriorityList<int>();
@@ -66,8 +64,7 @@ namespace Vocore.Test
 
             if (list.Count != result.Length)
             {
-                UnitTest.AddFailed();
-                UnitTest.PrintRed("Test_PriorityList add failed");
+                Assert.Fail("PriorityList remove failed");
                 return;
             }
 
@@ -75,14 +72,13 @@ namespace Vocore.Test
             {
                 if (list[i] != result[i])
                 {
-                    UnitTest.AddFailed();
-                    UnitTest.PrintRed("Test_PriorityList remove failed");
+                    Assert.Fail("PriorityList remove failed");
                     return;
                 }
             }
         }
 
-        [Test("Benckmark PriorityList vs List add element")]
+        [Test(Description = "Benckmark PriorityList vs List add element")]
         public void Test_VsList()
         {
             PriorityList<int> list = new PriorityList<int>();
@@ -90,24 +86,24 @@ namespace Vocore.Test
 
             int count = 1000000;
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     list.Add(i);
                 }
-            }, "PriorityList add");
+            }, "PriorityList add benchmark: ");
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     list2.Add(i);
                 }
-            }, "List add");
+            }, "List add benchmark:");
         }
 
-        [Test("Benckmark PriorityList vs List remove element")]
+        [Test(Description = "PriorityList vs List remove element benchmark:")]
         public void Test_VsList2()
         {
             PriorityList<int> list = new PriorityList<int>();
@@ -121,21 +117,21 @@ namespace Vocore.Test
                 list2.Add(i);
             }
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     list.Remove(i);
                 }
-            }, "PriorityList remove");
+            }, "PriorityList remove benchmark:");
 
-            UnitTest.Benchmark(() =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     list2.Remove(i);
                 }
-            }, "List remove");
+            }, "List remove benchmark:");
         }
     }
 }

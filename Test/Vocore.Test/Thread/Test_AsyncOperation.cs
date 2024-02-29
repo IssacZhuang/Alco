@@ -10,7 +10,7 @@ namespace Vocore.Test
 {
     public class Test_AsyncOperation
     {
-        [Test("AsyncOperationBatch vs Task+Lock")]
+        [Test(Description = "AsyncOperationBatch vs Task+Lock")]
         public void TestThread()
         {
             List<string> targetList = new List<string>();
@@ -32,7 +32,7 @@ namespace Vocore.Test
             }
             Task.WaitAll(tasks);
             stopwatch.Stop();
-            UnitTest.PrintBlue("Task+Lock: " + stopwatch.ElapsedMilliseconds);
+            TestContext.WriteLine("Task+Lock: " + stopwatch.ElapsedMilliseconds);
             AsyncOperationBatch<string> batch = new AsyncOperationBatch<string>();
             stopwatch.Restart();
             for (int i = 0; i < count; i++)
@@ -47,7 +47,7 @@ namespace Vocore.Test
             }
             batch.Run();
             stopwatch.Stop();
-            UnitTest.PrintBlue("AsyncOperationBatch: " + stopwatch.ElapsedMilliseconds);
+            TestContext.WriteLine("AsyncOperationBatch: " + stopwatch.ElapsedMilliseconds);
 
         }
     }

@@ -12,7 +12,7 @@ namespace Vocore.Test
 
     public class TestBvh2D
     {
-        [Test("Benchmark build BVH tree 2D")]
+        [Test(Description = "Benchmark build BVH tree 2D")]
         public unsafe void TestBuildTree()
         {
             NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(8);
@@ -65,7 +65,7 @@ namespace Vocore.Test
 
             colliders.Clear();
 
-            UnitTest.Benchmark("add coliider", () =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < boxs.Length; i++)
                 {
@@ -76,9 +76,9 @@ namespace Vocore.Test
                 {
                     colliders.Add(ColliderRef2D.Create(ptrSphere + i));
                 }
-            });
+            }, "Add coliider benchmark:");
 
-            // UnitTest.Benchmark("sort coliider", () =>
+            // UtilsTest.Benchmark("sort coliider", () =>
             // {
             //     colliders.Sort(default(ComparerX));
             // });
@@ -86,25 +86,25 @@ namespace Vocore.Test
             //warm up
             bvh.BuildTree(colliders);
 
-            UnitTest.Benchmark("Build BVH tree", () =>
+            UtilsTest.Benchmark(() =>
             {
                 bvh.BuildTree(colliders);
-            });
+            }, "Build BVH tree benchmark: ");
 
-            UnitTest.PrintBlue(bvh.Size + "," + bvh.Capacity);
+            TestContext.WriteLine(bvh.Size + "," + bvh.Capacity);
 
             //warm up
             bvh.CastBatchRay(rays);
-            UnitTest.Benchmark("Ray cast bvh", () =>
+            UtilsTest.Benchmark(() =>
             {
                 bvh.CastBatchRay(rays);
-            });
+            }, "Ray cast bvh benckmark: ");
 
             bvh.CastBatchRayFast(rays);
-            UnitTest.CheckGCAlloc("Ray cast bvh fast", () =>
+            UtilsTest.CheckGCAlloc(() =>
             {
                 bvh.CastBatchRayFast(rays);
-            });
+            }, "Ray cast bvh fast benckmark: ");
 
             boxs.Dispose();
             spheres.Dispose();
@@ -113,7 +113,7 @@ namespace Vocore.Test
             bvh.Dispose();
         }
 
-        [Test("Test BVH ray collision 2D")]
+        [Test(Description = "BVH ray collision 2D")]
         public unsafe void TestRayCollision()
         {
             NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(8);
@@ -177,16 +177,16 @@ namespace Vocore.Test
 
             //RayCastResult result = bvh.CastRay(ray);
 
-            //UnitTest.AssertFalse(result.hit);
+            //Assert.IsFalse(result.hit);
 
 
             ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
 
             RayCastResult2D result = bvh.CastRay(ray);
 
-            UnitTest.AssertFalse(!result.hit);
-            UnitTest.PrintBlue(result.hitInfo.fraction);
-            UnitTest.PrintBlue(result.hitInfo.point);
+            Assert.IsFalse(!result.hit);
+            TestContext.WriteLine(result.hitInfo.fraction);
+            TestContext.WriteLine(result.hitInfo.point);
 
             boxs.Dispose();
             spheres.Dispose();
@@ -195,7 +195,7 @@ namespace Vocore.Test
 
         }
 
-        [Test("Test BVH collider collision 2D")]
+        [Test(Description = "BVH collider collision 2D")]
         public unsafe void TestColliderCollision()
         {
             NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(8);
@@ -256,11 +256,11 @@ namespace Vocore.Test
                 shape = new ShapeSphere2D(new Vector2(-1.2f, 0), 1f)
             };
 
-            UnitTest.AssertFalse(bvh.CastColliderBox(ref boxCast1).hit);
-            UnitTest.AssertFalse(!bvh.CastColliderBox(ref boxCast2).hit);
+            Assert.IsFalse(bvh.CastColliderBox(ref boxCast1).hit);
+            Assert.IsFalse(!bvh.CastColliderBox(ref boxCast2).hit);
 
-            UnitTest.AssertFalse(bvh.CastColliderSphere(ref sphereCast1).hit);
-            UnitTest.AssertFalse(!bvh.CastColliderSphere(ref sphereCast2).hit);
+            Assert.IsFalse(bvh.CastColliderSphere(ref sphereCast1).hit);
+            Assert.IsFalse(!bvh.CastColliderSphere(ref sphereCast2).hit);
 
             boxs.Dispose();
             spheres.Dispose();

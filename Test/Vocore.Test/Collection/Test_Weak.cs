@@ -15,7 +15,7 @@ namespace Vocore.Test
             }
         }
 
-        [Test("Test WeakReference")]
+        [Test(Description = "WeakReference")]
         public void Test_WeakReference()
         {
             TestObject obj = new TestObject(){
@@ -27,7 +27,7 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
 
-            UnitTest.AssertTrue(reference.IsAlive);
+            Assert.IsTrue(reference.IsAlive);
             //refer the object to keep it alive
             Log.Info(obj.Value);
 
@@ -36,10 +36,10 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
 
-            UnitTest.AssertFalse(reference.IsAlive);
+            Assert.IsFalse(reference.IsAlive);
         }
 
-        [Test("Test WeakCache")]
+        [Test(Description = "WeakCache")]
         public void Test_WeakCache()
         {
             WeakCache<TestObject> cache = new WeakCache<TestObject>();
@@ -52,7 +52,7 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
 
-            UnitTest.AssertTrue(cache.TryGet("test", out TestObject resutl) && resutl != null);
+            Assert.IsTrue(cache.TryGet("test", out TestObject resutl) && resutl != null);
             //refer the object to keep it alive
             Log.Info(obj.Value);
 
@@ -61,7 +61,7 @@ namespace Vocore.Test
             GC.WaitForFullGCComplete();
             GC.WaitForPendingFinalizers();
 
-            UnitTest.AssertFalse(cache.TryGet("test", out resutl) && resutl != null);
+            Assert.IsFalse(cache.TryGet("test", out resutl) && resutl != null);
         }
     }
 }

@@ -77,7 +77,7 @@ namespace Vocore.Test
 
     public class Test_XmlParser
     {
-        [Test("Test_LoadXmlFile")]
+        [Test(Description = "Test_LoadXmlFile")]
         public void Test_LoadXmlFile()
         {
             //load xml file from current assembly
@@ -85,16 +85,16 @@ namespace Vocore.Test
 
             TestEnum e = TestEnum.Primary | TestEnum.Secondary;
 
-            UnitTest.PrintBlue("TestEnum: " + (e | TestEnum.Tertiary));
+            TestContext.WriteLine("TestEnum: " + (e | TestEnum.Tertiary));
 
             //iterate all file in current assembly
             foreach (var fileName in currentAssembly.GetManifestResourceNames())
             {
-                UnitTest.PrintGray(fileName + " loaded");
+                TestContext.WriteLine(fileName + " loaded");
             }
         }
 
-        [Test("Test_ParseXml")]
+        [Test(Description = "Test_ParseXml")]
         public void Test_ParseXml()
         {
             //load xml file from current assembly
@@ -120,14 +120,7 @@ namespace Vocore.Test
                     // parse xml content
                     TestCls testClass = parser.ParseToObject(xmlNode) as TestCls;
 
-                    if (testClass == null)
-                    {
-                        UnitTest.AddFailed();
-                        UnitTest.PrintRed("testClass is null");
-                        return;
-                    }
-
-                    UnitTest.AddSuccess();
+                    Assert.IsFalse(testClass == null, "ParseXml failed");
 
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
@@ -135,7 +128,7 @@ namespace Vocore.Test
         }
 
 
-        [Test("Test_ParseXml - Missing Content")]
+        [Test(Description = "ParseXml - Missing Content")]
         public void Test_ParseXml_MissingContent()
         {
             //load xml file from current assembly
@@ -163,14 +156,7 @@ namespace Vocore.Test
                     // parse xml content
                     TestCls testClass = parser.ParseToObject(xmlNode) as TestCls;
 
-                    if (testClass == null)
-                    {
-                        UnitTest.AddFailed();
-                        UnitTest.PrintRed("testClass is null");
-                        return;
-                    }
-
-                    UnitTest.AddSuccess();
+                    Assert.IsFalse(testClass == null, "ParseXml MissingContent failed");
 
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
@@ -178,7 +164,7 @@ namespace Vocore.Test
         }
 
 
-        [Test("Test_ParseXml - Child")]
+        [Test(Description = "Test_ParseXml - Child")]
         public void Test_ParseXml_Child()
         {
             //load xml file from current assembly
@@ -204,14 +190,7 @@ namespace Vocore.Test
                     // parse xml content
                     TestClassChild testClass = parser.ParseToObject(xmlNode) as TestClassChild;
 
-                    if (testClass == null)
-                    {
-                        UnitTest.AddFailed();
-                        UnitTest.PrintRed("testClass is null");
-                        return;
-                    }
-
-                    UnitTest.AddSuccess();
+                    Assert.IsFalse(testClass == null, "ParseXml Child failed");
 
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }

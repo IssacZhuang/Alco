@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-
+using TestFramework;
 using Vocore;
 
 namespace Vocore.Test
@@ -11,6 +11,8 @@ namespace Vocore.Test
         public static EventId TestEvent = EventGenerator.Generate("TestEvent");
         public static EventId TestEvent2 = EventGenerator.Generate("TestEvent2");
         private EventTracker _tracker;
+        public bool success1 = false;
+        public bool success2 = false;
 
         public EventTestObject()
         {
@@ -18,15 +20,13 @@ namespace Vocore.Test
             _tracker.Subscribe<int>(TestEvent, OnEvent);
             _tracker.Subscribe<float>(TestEvent2, (float value) =>
             {
-                UnitTest.PrintColor("Event data: " + value, ConsoleColor.Green);
-                UnitTest.AddSuccess();
+                success2 = true;
             });
         }
 
         public void OnEvent(int data)
         {
-            UnitTest.PrintColor("Event data: " + data, ConsoleColor.Green);
-            UnitTest.AddSuccess();
+            success1 = true;
         }
 
         public void ClearEvent()
@@ -70,7 +70,7 @@ namespace Vocore.Test
     }
     public class Test_Event
     {
-        [Test("Event send and recieve")]
+        [Test(Description ="Event send and recieve")]
         public void Test_Send()
         {
             EventTestObject obj = new EventTestObject();
@@ -79,22 +79,25 @@ namespace Vocore.Test
             obj.InvokeEvent(EventTestObject.TestEvent, "3");
             obj.InvokeEvent(EventTestObject.TestEvent, new object());
             obj.InvokeEvent(EventGenerator.Generate("TmpEvent"), 1);
+
+            Assert.IsTrue(obj.success1, "Event send and recieve failed");
+            Assert.IsTrue(obj.success2, "Event send and recieve failed");
         }
 
-        [Test("Bechmark event send and recieve")]
+        [Test(Description ="Bechmark event send and recieve")]
         public void Test_Send_Benchmark()
         {
             EventTestObject2 obj = new EventTestObject2();
             EventId evt = EventGenerator.Generate("TestEvent");
             int count = 1000000;
 
-            UnitTest.Benchmark("Bechmark event", () =>
+            UtilsTest.Benchmark(() =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     obj.InvokeEvent(evt, i);
                 }
-            });
+            }, "Event Invoke benchmark: ");
 
         }
     }

@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "5-Transform2D", "Sandbox\5-
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "6-PushConstants", "Sandbox\6-PushConstants\6-PushConstants.csproj", "{01F9949B-E63C-400A-8A6A-546994B6012E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestFramework", "Test\TestFramework\TestFramework.csproj", "{5B24F416-AC9E-4675-B092-6D59B983709E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -81,6 +83,10 @@ Global
 		{01F9949B-E63C-400A-8A6A-546994B6012E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{01F9949B-E63C-400A-8A6A-546994B6012E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{01F9949B-E63C-400A-8A6A-546994B6012E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B24F416-AC9E-4675-B092-6D59B983709E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B24F416-AC9E-4675-B092-6D59B983709E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B24F416-AC9E-4675-B092-6D59B983709E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B24F416-AC9E-4675-B092-6D59B983709E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +103,6 @@ Global
 		{25812F60-FA28-45E5-A870-5DEC9FA6F34D} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{2EDE03D1-F559-4012-969D-EE3683B3B608} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{01F9949B-E63C-400A-8A6A-546994B6012E} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{5B24F416-AC9E-4675-B092-6D59B983709E} = {13EA6E4E-2EBB-42E5-9211-2AAC68B87B6E}
 	EndGlobalSection
 EndGlobal
