@@ -344,7 +344,9 @@ internal partial class WebGPUDevice : GPUDevice
         Adapter = adapter;
 
 
-        List<WGPUFeatureName> featuresList = new List<WGPUFeatureName>();
+        List<WGPUFeatureName> featuresList = new List<WGPUFeatureName>(){
+            (WGPUFeatureName)WGPUNativeFeature.VertexWritableStorage
+        };
         bool isPushConstantEnabled = descriptor.PushConstantsSize > 0;
         if (isPushConstantEnabled)
         {

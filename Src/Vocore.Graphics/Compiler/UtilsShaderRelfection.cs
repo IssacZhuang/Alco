@@ -137,9 +137,24 @@ public static class UtilsShaderRelfection
         }
 
 
+        KeyValuePair<uint, BindGroupLayout>[] bindGroupsArray = bindGroups.ToArray();
+
+        Array.Sort(bindGroupsArray, (a, b) =>
+        {
+            return a.Key.CompareTo(b.Key);
+        });
+
+        BindGroupLayout[] layouts = new BindGroupLayout[bindGroupsArray.Length];
+
+        for (int i = 0; i < bindGroupsArray.Length; i++)
+        {
+            layouts[i] = bindGroupsArray[i].Value;
+        }
+        
+
         return new ShaderReflectionInfo
         {
-            BindGroups = bindGroups.Values.ToArray(),
+            BindGroups = layouts,
             VertexLayouts = vertex.VertexLayouts,
             PushConstantsRanges = ranges,
         };

@@ -22,10 +22,7 @@ public static class ShaderCompilerDxc
             //EnableDebugInfoSlimFormat = true
         }, filename, ShaderMacroDefine.ToDxcMacro(defines), null,
         new string[] {
-            //BuildOptArgs(),
-            //BuildExtesionArgs(),
             "-fspv-preserve-interface",
-            //"-fspv-reflect"
             });
 
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)

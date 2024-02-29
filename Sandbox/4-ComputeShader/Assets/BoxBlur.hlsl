@@ -1,10 +1,10 @@
 //dxcompiler macro
-#define readonly [[vk::ext_decorate(25)]]
+#define writeonly [[vk::ext_decorate(25)]]
 #define rgba8 [[vk::image_format("rgba8")]]
 
 
 Texture2D inputTexture : register(t0, space0);
-readonly rgba8 RWTexture2D<float4> outputTexture: register(u0, space1);
+writeonly rgba8 RWTexture2D<float4> outputTexture: register(u0, space1);
 
 cbuffer Constants : register(b0, space2) { int iterations; };
 
