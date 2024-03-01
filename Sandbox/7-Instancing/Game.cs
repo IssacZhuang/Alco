@@ -41,10 +41,6 @@ public class Game : GameEngine
 
     private Transform2D _transform1;
 
-    private float _timer = 0.0f;
-
-    private float _timeMove = 0.0f;
-
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
@@ -81,7 +77,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _timer += delta;
         if (Input.IsKeyDown(Key.Escape))
         {
             Stop();
@@ -92,8 +87,6 @@ public class Game : GameEngine
 
     protected unsafe override void OnDraw(float delta)
     {
-        _timer += delta;
-
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
@@ -142,7 +135,7 @@ public class Game : GameEngine
         GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
         for (int i = 0; i < info.BindGroups.Length; i++)
         {
-            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor());
+            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
         }
 
         RasterizerState rasterizer = RasterizerState.CullNone;
