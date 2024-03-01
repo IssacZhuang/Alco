@@ -9,6 +9,7 @@ stages:
 - stage: Build
   jobs:
   - job: Build
+    timeoutInMinutes: 30
   
     variables:
       macOS: macOS-latest
