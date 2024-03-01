@@ -1,8 +1,9 @@
 trigger:
 - main
 
-variables:
-  buildConfiguration: 'Release'
+resources:
+- repo: self
+
 
 stages:
 - stage: Build
@@ -37,7 +38,7 @@ stages:
           mode: Release
     
     pool:
-      vmImage: ${{ variables.image }}
+      vmImage: ${{ image }}
 
     steps:
     - checkout: self
