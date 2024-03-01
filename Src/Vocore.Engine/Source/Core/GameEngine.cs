@@ -163,9 +163,6 @@ namespace Vocore.Engine
                     _setting.Width = size.X;
                     _setting.Height = size.Y;
                 };
-
-
-                RenderingService.GraphicsDevice = graphicsDevice;
             }
             else
             {
