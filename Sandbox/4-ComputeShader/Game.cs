@@ -69,7 +69,8 @@ public class Game : GameEngine
 
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
-        _iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
+        //_iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
+        _iterationBuffer = new GraphicsBuffer<int>(8, "iteration_buffer");
 
         //box blur texture
 

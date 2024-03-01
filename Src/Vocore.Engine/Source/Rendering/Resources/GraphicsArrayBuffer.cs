@@ -5,6 +5,7 @@ namespace Vocore.Engine;
 
 public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
 {
+    public const uint MaxInstanceCount = 500;
     private readonly GPUDevice _device;
     private readonly GPUBuffer _buffer;
     private readonly GPUResourceGroup _resources;
@@ -37,18 +38,26 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
         }
     }
 
-    internal GraphicsArrayBuffer(GPUDevice device, GPUBuffer buffer, int length)
+    public unsafe GraphicsArrayBuffer(int length, string name = "unnamed_graphics_array_buffer")
     {
-        _device = device;
-        _buffer = buffer;
-        Name = buffer.Name;
+        _device = GetDevice();
+        _buffer = _device.CreateBuffer(
+            new BufferDescriptor
+            {
+                Name = name,
+                Size = (ulong)(sizeof(T) * length),
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+            },
+            length
+        );
+        Name = name;
 
-        _resources = device.CreateResourceGroup(new ResourceGroupDescriptor
+        _resources = _device.CreateResourceGroup(new ResourceGroupDescriptor
         {
-            Layout = device.BindGroupBuffer,
+            Layout = _device.BindGroupBuffer,
             Resources = new ResourceBindingEntry[]
             {
-                new ResourceBindingEntry(0, buffer),
+                new ResourceBindingEntry(0, _buffer),
             }
         });
 

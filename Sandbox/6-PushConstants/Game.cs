@@ -68,7 +68,7 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("camera_buffer");
+        _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
 
         _texBlue = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 0, 1, 1));
         _texRed = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 0, 0, 1));

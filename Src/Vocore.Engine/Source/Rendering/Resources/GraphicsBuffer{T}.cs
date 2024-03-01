@@ -35,22 +35,34 @@ namespace Vocore.Engine
             }
         }
 
-        internal GraphicsBuffer(GPUDevice device, GPUBuffer buffer, T value)
+        public unsafe GraphicsBuffer(string name = "unnamed_graphics_buffer") : this(default, name)
         {
-            _device = device;
-            _buffer = buffer;
-            Name = buffer.Name;
+        }
+
+        public unsafe GraphicsBuffer(T value = default, string name = "unnamed_graphics_buffer")
+        {
+            _device = GetDevice();
+            _buffer = _device.CreateBuffer(
+                new BufferDescriptor
+                {
+                    Name = name,
+                    Size = (ulong)sizeof(T),
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                }
+            );
+
+            Name = name;
 
             _value = value;
 
-            _resources = device.CreateResourceGroup(new ResourceGroupDescriptor
+            _resources = _device.CreateResourceGroup(new ResourceGroupDescriptor
             {
-                Layout = device.BindGroupBuffer,
+                Layout = _device.BindGroupBuffer,
                 Resources = new ResourceBindingEntry[]
                 {
-                    new ResourceBindingEntry(0, buffer),
+                    new ResourceBindingEntry(0, _buffer),
                 },
-                Name = buffer.Name
+                Name = _buffer.Name
             });
         }
 

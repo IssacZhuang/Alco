@@ -16,18 +16,26 @@ public class GraphicsBuffer : ShaderResource
         get => _resources;
     }
 
-    internal GraphicsBuffer(GPUDevice device, GPUBuffer buffer)
+    internal GraphicsBuffer(string name = "unnamed_graphics_buffer")
     {
-        _device = device;
-        _buffer = buffer;
-        Name = buffer.Name;
-
-        _resources = device.CreateResourceGroup(new ResourceGroupDescriptor
+        _device = GetDevice();
+        
+        _buffer = _device.CreateBuffer(new BufferDescriptor
         {
-            Layout = device.BindGroupBuffer,
+            Usage = BufferUsage.Uniform | BufferUsage.Storage,
+            Size = 0,
+            Name = name
+        });
+
+
+        Name = name;
+
+        _resources = _device.CreateResourceGroup(new ResourceGroupDescriptor
+        {
+            Layout = _device.BindGroupBuffer,
             Resources = new ResourceBindingEntry[]
             {
-                new ResourceBindingEntry(0, buffer),
+                new ResourceBindingEntry(0, _buffer),
             }
         });
     }

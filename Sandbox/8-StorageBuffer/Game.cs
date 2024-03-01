@@ -81,7 +81,7 @@ public class Game : GameEngine
             Name = "positions"
         });
 
-        _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("camera_buffer");
+        _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
 
         _texWhite = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 1, 1, 1));
 
