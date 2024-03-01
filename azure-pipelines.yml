@@ -58,7 +58,7 @@ stages:
         publishTestResults: true
       displayName: 'Test'
     
-    - script: dotnet build --configuration $(mode) --output $(outputDir)
+    - script: dotnet build --configuration $(mode)
       displayName: 'Build'
 
     - script: ls -R $(outputDir)
