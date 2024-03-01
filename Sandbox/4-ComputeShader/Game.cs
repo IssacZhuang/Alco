@@ -41,7 +41,7 @@ public class Game : GameEngine
     private GPUResourceGroup _resourceGroupBuffer;
 
     // resources for copmute shader
-    private VRamBuffer<int> _iterationBuffer;
+    private GraphicsBuffer<int> _iterationBuffer;
     private Texture2D _image;
     private Texture2D _renderTarget;
 

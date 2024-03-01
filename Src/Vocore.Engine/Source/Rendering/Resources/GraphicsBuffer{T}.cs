@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
-    public class VRamBuffer<T> : ShaderResource where T : unmanaged
+    public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
     {
         private readonly GPUDevice _device;
         private readonly GPUBuffer _buffer;
@@ -35,7 +35,7 @@ namespace Vocore.Engine
             }
         }
 
-        internal VRamBuffer(GPUDevice device, GPUBuffer buffer, T value)
+        internal GraphicsBuffer(GPUDevice device, GPUBuffer buffer, T value)
         {
             _device = device;
             _buffer = buffer;

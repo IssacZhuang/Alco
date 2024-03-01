@@ -34,7 +34,7 @@ public class Game : GameEngine
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
-    private VRamBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsBuffer<Matrix4x4> _cameraBuffer;
     private GraphicsArrayBuffer<Vector4> _positionsBuffer;
 
     private GPUPipeline _pipeline;
@@ -90,7 +90,7 @@ public class Game : GameEngine
         _timer += delta;
         for (int i = 0; i < 500; i++)
         {
-            _positionsBuffer[i] = new Vector4(i, (float)Math.Cos(_timer + i * 0.1f) * 5, 0, 1);
+            _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
         }
     }
 

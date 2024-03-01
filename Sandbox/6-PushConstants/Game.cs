@@ -34,7 +34,7 @@ public class Game : GameEngine
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
-    private VRamBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsBuffer<Matrix4x4> _cameraBuffer;
 
     private GPUPipeline _pipeline;
     private Texture2D _texBlue;

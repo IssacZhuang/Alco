@@ -4,12 +4,12 @@ namespace Vocore.Engine;
 
 public static partial class RenderingService
 {
-    public static VRamBuffer CreateVRamBuffer(
+    public static GraphicsBuffer CreateVRamBuffer(
         uint size,
         string name = "uniform_buffer"
     )
     {
-        return new VRamBuffer(
+        return new GraphicsBuffer(
             GraphicsDevice,
             GraphicsDevice.CreateBuffer(
                 new BufferDescriptor
@@ -22,11 +22,11 @@ public static partial class RenderingService
         );
     }
 
-    public unsafe static VRamBuffer<T> CreateTypedVRamBuffer<T>(
+    public unsafe static GraphicsBuffer<T> CreateTypedVRamBuffer<T>(
         string name = "uniform_buffer"
     ) where T : unmanaged
     {
-        return new VRamBuffer<T>(
+        return new GraphicsBuffer<T>(
             GraphicsDevice,
             GraphicsDevice.CreateBuffer(
                 new BufferDescriptor
@@ -39,12 +39,12 @@ public static partial class RenderingService
             default(T)
         );
     }
-    public unsafe static VRamBuffer<T> CreateTypedVRamBuffer<T>(
+    public unsafe static GraphicsBuffer<T> CreateTypedVRamBuffer<T>(
         T value,
         string name = "uniform_buffer"
     ) where T : unmanaged
     {
-        return new VRamBuffer<T>(
+        return new GraphicsBuffer<T>(
             GraphicsDevice,
             GraphicsDevice.CreateBuffer(
                 new BufferDescriptor
