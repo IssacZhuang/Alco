@@ -1,0 +1,24 @@
+trigger:
+- main
+
+
+variables:
+  buildConfiguration: 'Release'
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+  
+    variables:
+      macOS: macOS-latest
+      linux: Ubuntu-latest
+      windows: windows-2022
+  
+    strategy:
+        matrix:
+          Windows_Debug: 
+            image: ${{ variables.windows }}
+            mode: Debug
+          
+
