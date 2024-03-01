@@ -240,12 +240,12 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.jpg");
 
-        return RenderingService.CreateTexture2DFromFile(data);
+        return Texture2D.CreateFromFile(data);
     }
 
     private Texture2D CreateRenderTarget(uint width, uint height)
     {
-        return RenderingService.CreateTexture2DEmpty(width, height, new Vector4(1, 1, 1, 1), new ImageLoadOption
+        return Texture2D.CreateEmpty(width, height, new Vector4(1, 1, 1, 1), new ImageLoadOption
         {
             IsSRGB = false,
             MipLevels = 1,

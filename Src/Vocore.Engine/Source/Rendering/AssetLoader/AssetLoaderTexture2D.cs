@@ -26,7 +26,7 @@ public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
 
         try
         {
-            asset = RenderingService.CreateTexture2DFromFile(data, new ImageLoadOption
+            asset = Texture2D.CreateFromFile(data, new ImageLoadOption
             {
                 IsSRGB = false,
                 MipLevels = 1,

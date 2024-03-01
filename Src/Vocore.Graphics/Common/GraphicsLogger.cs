@@ -8,6 +8,8 @@ public static class GraphicsLogger
     public static Action<string>? WarningCallback { get; set; }
     public static Action<string>? InfoCallback { get; set; }
 
+    private static bool _muteWarning;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Info(string message)
     {
@@ -17,6 +19,10 @@ public static class GraphicsLogger
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Warning(string message)
     {
+        if (_muteWarning)
+        {
+            return;
+        }
         WarningCallback?.Invoke(message);
     }
 
@@ -24,5 +30,15 @@ public static class GraphicsLogger
     public static void Error(string message)
     {
         ErrorCallback?.Invoke(message);
+    }
+
+    public static void MuteWarning(bool mute)
+    {
+        _muteWarning = mute;
+    }
+
+    public static void ResetWarning()
+    {
+        _muteWarning = false;
     }
 }
