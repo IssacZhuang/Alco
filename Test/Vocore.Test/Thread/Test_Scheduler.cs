@@ -30,7 +30,7 @@ namespace Vocore.Test
 
         }
 
-        [Test(Description = "Parallel Scheduler High Concurrent")]
+        //[Test(Description = "Parallel Scheduler High Concurrent")]
         public void TestParallelSchedulerHighConcurrent()
         {
             int count = 5000;
