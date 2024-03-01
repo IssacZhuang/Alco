@@ -48,6 +48,14 @@ stages:
     - task: UseDotNet@2
       inputs:
         version: '8.x'
+      
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: test
+        projects: '**/Vocore.Test.csproj'
+        arguments: '--configuration $(mode)'
+        publishTestResults: true
+      displayName: 'Test'
     
     - script: dotnet build --configuration $(mode) --output $(outputDir)
       displayName: 'Build'
