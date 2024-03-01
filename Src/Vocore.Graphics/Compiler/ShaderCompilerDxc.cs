@@ -19,11 +19,9 @@ public static class ShaderCompilerDxc
             GenerateSpirv = true,
             SkipOptimizations = false,
             OptimizationLevel = 3,
-            //EnableDebugInfoSlimFormat = true
-        }, filename, ShaderMacroDefine.ToDxcMacro(defines), null,
-        new string[] {
-            "-fspv-preserve-interface",
-            });
+            SpvPreserveInterface = true,
+            SpvPreserveBindings = true,
+        }, filename, ShaderMacroDefine.ToDxcMacro(defines));
 
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
         {
@@ -46,67 +44,4 @@ public static class ShaderCompilerDxc
             _ => throw new NotSupportedException("Unsupported shader stage")
         };
     }
-
-
-    public static string BuildOptArgs()
-    {
-        return "-Oconfig=" + string.Join(",", OptimizationQueue);
-    }
-
-    // modified from spirv-opt -O
-    private static readonly string[] OptimizationQueue = new string[]{
-        "--wrap-opkill",
-        "--eliminate-dead-branches",
-        "--merge-return",
-        "--inline-entry-points-exhaustive",
-        "--eliminate-dead-functions",
-        "--eliminate-dead-code-aggressive",
-        "--private-to-local",
-        "--eliminate-local-single-block",
-        "--eliminate-local-single-store",
-        "--eliminate-dead-code-aggressive",
-        "--scalar-replacement=100",
-        "--convert-local-access-chains",
-        "--eliminate-local-single-block",
-        "--eliminate-local-single-store",
-        "--eliminate-dead-code-aggressive",
-        "--ssa-rewrite",
-        "--eliminate-dead-code-aggressive",
-        "--ccp",
-        "--eliminate-dead-code-aggressive",
-        "--loop-unroll",
-        "--eliminate-dead-branches",
-        "--redundancy-elimination",
-        "--combine-access-chains",
-        "--simplify-instructions",
-        "--scalar-replacement=100",
-        "--convert-local-access-chains",
-        "--eliminate-local-single-block",
-        "--eliminate-local-single-store",
-        // "--eliminate-dead-code-aggressive",
-        "--ssa-rewrite",
-        // "--eliminate-dead-code-aggressive",
-        "--vector-dce",
-        "--eliminate-dead-inserts",
-        "--eliminate-dead-branches",
-        "--simplify-instructions",
-         "--if-conversion",
-        "--copy-propagate-arrays",
-        "--reduce-load-size",
-        // "--eliminate-dead-code-aggressive",
-        "--merge-blocks",
-        "--redundancy-elimination",
-        "--eliminate-dead-branches",
-        "--merge-blocks",
-        "--simplify-instructions"
-    };
-
-    private static string BuildExtesionArgs()
-    {
-        return "fspv-extension=" + string.Join(",", SpirvExtesion);
-    }
-
-    private static string[] SpirvExtesion = new string[] {
-        "GL_EXT_samplerless_texture_functions"
-    };
 }

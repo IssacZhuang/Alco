@@ -215,6 +215,16 @@ public static partial class DxcCompiler
                 arguments.Add($"{options.VkUAVShift}");
                 arguments.Add($"{options.VkUAVShiftSet}");
             }
+
+            if (options.SpvPreserveBindings)
+            {
+                arguments.Add("-fspv-preserve-bindings");
+            }
+
+            if (options.SpvPreserveInterface)
+            {
+                arguments.Add("-fspv-preserve-interface");
+            }
         }
         else
         {

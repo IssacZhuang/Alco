@@ -49,4 +49,6 @@ public sealed class DxcCompilerOptions
     public bool SpvReflect { get; set; } = false;
     public int SpvTargetEnvMajor { get; set; } = 1;
     public int SpirvTargetEnvMinor { get; set; } = 1;
+    public bool SpvPreserveBindings { get; set; } = false;
+    public bool SpvPreserveInterface { get; set; } = false;
 }
