@@ -123,9 +123,9 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texGreen.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
+        _commandBuffer.SetGraphicsResources(2, _texGreen.EntrySample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -136,9 +136,9 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texRed.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
+        _commandBuffer.SetGraphicsResources(2, _texRed.EntrySample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -149,9 +149,9 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.Resources);
-        _commandBuffer.SetGraphicsResources(2, _texBlue.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
+        _commandBuffer.SetGraphicsResources(2, _texBlue.EntrySample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

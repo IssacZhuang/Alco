@@ -36,18 +36,14 @@ public class Game : GameEngine
     private GPUBuffer _indexBuffer;
     private VRamBuffer<Matrix4x4> _cameraBuffer;
 
+    private Vector4[] _positions = new Vector4[500];
+    private GPUBuffer _positionsBuffer;
+    private GPUResourceGroup _positionsResource;
+
     private GPUPipeline _pipeline;
-    private Texture2D _texBlue;
-    private Texture2D _texRed;
-    private Texture2D _texGreen;
+    private Texture2D _texWhite;
 
     private Transform2D _transform1;
-    private Transform2D _transform2;
-    private Transform2D _transform3;
-
-    private float _timer = 0.0f;
-
-    private float _timeMove = 0.0f;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -68,11 +64,26 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
+        _positionsBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Positions Buffer",
+            Size = (uint)(Marshal.SizeOf<Vector4>() * 500),
+            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+        });
+
+        _positionsResource = GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor
+        {
+            Layout = GraphicsDevice.BindGroupBuffer,
+            Resources = new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, _positionsBuffer),
+            },
+            Name = "positions"
+        });
+
         _cameraBuffer = RenderingService.CreateTypedVRamBuffer<Matrix4x4>("camera_buffer");
 
-        _texBlue = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 0, 1, 1));
-        _texRed = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 0, 0, 1));
-        _texGreen = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(0, 1, 0, 1));
+        _texWhite = RenderingService.CreateTexture2DEmpty(16, 16, new Vector4(1, 1, 1, 1));
 
         camera = new Camera2D();
         camera.transform.position = new Vector2(0, 2);
@@ -80,42 +91,33 @@ public class Game : GameEngine
         Log.Info(camera.ViewProjectionMatrix);
 
         _transform1 = Transform2D.Identity;
-        _transform2 = Transform2D.Identity;
-        _transform3 = Transform2D.Identity;
 
-        _transform1.position.X = -4;
-        _transform2.position.X = 0;
-        _transform3.position.X = 4;
+        _transform1.position.X = -16;
 
     }
 
     protected override void OnUpdate(float delta)
     {
-        _timer += delta;
         if (Input.IsKeyDown(Key.Escape))
         {
             Stop();
         }
 
-        if (Input.IsKeyDown(Key.Space))
-        {
-            _timeMove = _timer;
-        }
-
-
-        float t = math.clamp((_timer - _timeMove) * 2, 0, 1);
-        float movement = t * (1 - t) * 4;
-        _transform1.position.Y = movement;
-        _transform2.rotation = new Rotation2D(math.radians(45 * movement));
-        _transform3.scale = new Vector2(1 + movement, 1 + movement);
-
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
+
+        for (int i = 0; i < _positions.Length; i++)
+        {
+            _positions[i] = new Vector4(i, MathF.Cos(i * 0.3f) * 3, 0, 0);
+        }
     }
 
     protected unsafe override void OnDraw(float delta)
     {
-        _timer += delta;
 
+        fixed (Vector4* ptr = _positions)
+        {
+            GraphicsDevice.WriteBuffer(_positionsBuffer, 0, (byte*)ptr, (uint)(Marshal.SizeOf<Vector4>() * _positions.Length));
+        }
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
@@ -123,17 +125,10 @@ public class Game : GameEngine
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
 
-        _commandBuffer.SetGraphicsResources(1, _texGreen.EntrySample);
+        _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
+        _commandBuffer.SetGraphicsResources(2, _positionsResource);
         _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
-
-        _commandBuffer.SetGraphicsResources(1, _texRed.EntrySample);
-        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform2.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
-
-        _commandBuffer.SetGraphicsResources(1, _texBlue.EntrySample);
-        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform3.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
 
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
@@ -142,9 +137,7 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _commandBuffer.Dispose();
-        _texBlue.Dispose();
-        _texRed.Dispose();
-        _texGreen.Dispose();
+        _texWhite.Dispose();
     }
 
     private unsafe GPUPipeline CreatePipeline()
@@ -174,8 +167,15 @@ public class Game : GameEngine
         GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
         for (int i = 0; i < info.BindGroups.Length; i++)
         {
-            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor());
+            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
         }
+
+        // bindGroups[bindGroups.Length-1] = GraphicsDevice.CreateBindGroup(new BindGroupDescriptor{
+        //    Name= "Positions",
+        //    Bindings = new BindGroupEntry[]{
+        //         new BindGroupEntry(0, ShaderStage.Vertex, BindingType.StorageBuffer)
+        //    }
+        // });
 
         RasterizerState rasterizer = RasterizerState.CullNone;
         BlendState blend = BlendState.NonPremultipliedAlpha;

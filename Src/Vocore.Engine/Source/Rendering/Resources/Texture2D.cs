@@ -25,7 +25,7 @@ public class Texture2D : ShaderResource
 
     public override string Name { get; }
 
-    public GPUResourceGroup ResourcesSample
+    public GPUResourceGroup EntrySample
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -39,7 +39,7 @@ public class Texture2D : ShaderResource
         }
     }
 
-    public GPUResourceGroup ResourcesRead
+    public GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -53,7 +53,7 @@ public class Texture2D : ShaderResource
         }
     }
 
-    public GPUResourceGroup ResourcesStorage
+    public GPUResourceGroup EntryWriteable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get

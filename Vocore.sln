@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestFramework", "Test\TestF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "7-Instancing", "Sandbox\7-Instancing\7-Instancing.csproj", "{0448CF4E-A1D9-4633-9556-8F9CCEC02954}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "8-StorageBuffer", "Sandbox\8-StorageBuffer\8-StorageBuffer.csproj", "{2CA48739-30CF-4F6C-AF42-F9B9A9780895}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -93,6 +95,10 @@ Global
 		{0448CF4E-A1D9-4633-9556-8F9CCEC02954}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0448CF4E-A1D9-4633-9556-8F9CCEC02954}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0448CF4E-A1D9-4633-9556-8F9CCEC02954}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2CA48739-30CF-4F6C-AF42-F9B9A9780895}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2CA48739-30CF-4F6C-AF42-F9B9A9780895}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2CA48739-30CF-4F6C-AF42-F9B9A9780895}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2CA48739-30CF-4F6C-AF42-F9B9A9780895}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -111,5 +117,6 @@ Global
 		{01F9949B-E63C-400A-8A6A-546994B6012E} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{5B24F416-AC9E-4675-B092-6D59B983709E} = {13EA6E4E-2EBB-42E5-9211-2AAC68B87B6E}
 		{0448CF4E-A1D9-4633-9556-8F9CCEC02954} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{2CA48739-30CF-4F6C-AF42-F9B9A9780895} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal

@@ -35,11 +35,13 @@ public class Game : GameEngine
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
     private VRamBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsArrayBuffer<Vector4> _positionsBuffer;
 
     private GPUPipeline _pipeline;
     private Texture2D _texWhite;
 
     private Transform2D _transform1;
+    private float _timer = 0.0f;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -69,6 +71,8 @@ public class Game : GameEngine
         camera.Size = new Vector2(16, 9);
         Log.Info(camera.ViewProjectionMatrix);
 
+        _positionsBuffer = RenderingService.CreateGraphicsArrayBuffer<Vector4>(500, "positions_buffer");
+
         _transform1 = Transform2D.Identity;
 
         _transform1.position.X = -16;
@@ -83,6 +87,11 @@ public class Game : GameEngine
         }
 
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
+        _timer += delta;
+        for (int i = 0; i < 500; i++)
+        {
+            _positionsBuffer[i] = new Vector4(i, (float)Math.Cos(_timer + i * 0.1f) * 5, 0, 1);
+        }
     }
 
     protected unsafe override void OnDraw(float delta)
@@ -92,9 +101,10 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.Resources);
-  
-        _commandBuffer.SetGraphicsResources(1, _texWhite.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+
+        _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
+        _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
         _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
 

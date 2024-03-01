@@ -58,4 +58,24 @@ public static partial class RenderingService
             value
         );
     }
+    
+    public unsafe static GraphicsArrayBuffer<T> CreateGraphicsArrayBuffer<T>(
+        int length,
+        string name = "array_buffer"
+    ) where T : unmanaged
+    {
+        return new GraphicsArrayBuffer<T>(
+            GraphicsDevice,
+            GraphicsDevice.CreateBuffer(
+                new BufferDescriptor
+                {
+                    Name = name,
+                    Size = (ulong)(sizeof(T) * length),
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                },
+                length
+            ),
+            length
+        );
+    }
 }

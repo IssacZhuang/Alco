@@ -10,7 +10,7 @@ public class VRamBuffer : ShaderResource
     private readonly GPUResourceGroup _resources;
 
     public override string Name { get; }
-    public GPUResourceGroup Resources
+    public GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _resources;

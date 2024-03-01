@@ -102,9 +102,9 @@ public class Game : GameEngine
         //_iterationBuffer.Value = 16;
         _commandBuffer.Begin();
         _commandBuffer.SetComputePipeline(_computePipeline);
-        _commandBuffer.SetComputeResources(0, _image.ResourcesRead);
-        _commandBuffer.SetComputeResources(1, _renderTarget.ResourcesStorage);
-        _commandBuffer.SetComputeResources(2, _iterationBuffer.Resources);
+        _commandBuffer.SetComputeResources(0, _image.EntryReadonly);
+        _commandBuffer.SetComputeResources(1, _renderTarget.EntryWriteable);
+        _commandBuffer.SetComputeResources(2, _iterationBuffer.EntryReadonly);
         _commandBuffer.DispatchCompute(_image.Width / 8, _image.Hieght / 8, 1);
         // _commandBuffer.End();
         // GraphicsDevice.Submit(_commandBuffer);
@@ -115,7 +115,7 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _renderTarget.ResourcesSample);
+        _commandBuffer.SetGraphicsResources(1, _renderTarget.EntrySample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

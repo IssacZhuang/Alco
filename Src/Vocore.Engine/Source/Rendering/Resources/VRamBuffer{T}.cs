@@ -25,7 +25,7 @@ namespace Vocore.Engine
         }
 
         public override string Name { get; }
-        public GPUResourceGroup Resources
+        public GPUResourceGroup EntryReadonly
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
