@@ -38,7 +38,7 @@ stages:
           mode: Release
     
     pool:
-      vmImage: ${{ image }}
+      vmImage: $(image)
 
     steps:
     - checkout: self
