@@ -1,7 +1,6 @@
 trigger:
 - main
 
-
 variables:
   buildConfiguration: 'Release'
 
@@ -14,11 +13,46 @@ stages:
       macOS: macOS-latest
       linux: Ubuntu-latest
       windows: windows-2022
+      outputDir: '$(Build.SourcesDirectory)/Bin'
   
     strategy:
-        matrix:
-          Windows_Debug: 
-            image: ${{ variables.windows }}
-            mode: Debug
+      matrix:
+        Windows_Debug: 
+          image: ${{ variables.windows }}
+          mode: Debug
+        Windows_Release:
+          image: ${{ variables.windows }}
+          mode: Release
+        Linux_Debug:
+          image: ${{ variables.linux }}
+          mode: Debug
+        Linux_Release:
+          image: ${{ variables.linux }}
+          mode: Release
+        MacOS_Debug:
+          image: ${{ variables.macOS }}
+          mode: Debug
+        MacOS_Release:
+          image: ${{ variables.macOS }}
+          mode: Release
+    
+    pool:
+      vmImage: ${{ variables.image }}
+
+    steps:
+    - checkout: self
+      clean: true
+      submodules: true
+    
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.0'
+    
+    - script: dotnet build --configuration $(mode) --output $(outputDir)
+      displayName: 'Build'
+
+    - script: ls -R $(outputDir)
+      displayName: 'List files'
           
 
