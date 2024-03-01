@@ -61,7 +61,7 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
             {
                 Name = name,
                 Size = (ulong)(sizeof(T) * length),
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.Storage,
             },
             length
         );
@@ -98,7 +98,7 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
     {
         return _device.CreateResourceGroup(new ResourceGroupDescriptor
         {
-            Layout = _device.BindGroupUniformBuffer,
+            Layout = _device.BindGroupStorageBuffer,
             Resources = new ResourceBindingEntry[]
             {
                 new ResourceBindingEntry(0, _buffer),

@@ -35,20 +35,21 @@ public class Game : GameEngine
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
     private GraphicsBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsBuffer<float> _timerBuffer;
+    private GraphicsArrayBuffer<Vector4> _positionsBuffer;
 
-    private Vector4[] _positions = new Vector4[500];
-    private GPUBuffer _positionsBuffer;
-    private GPUResourceGroup _positionsResource;
-
-    private GPUPipeline _pipeline;
+    private GPUPipeline _graphicsPipeline;
+    private GPUPipeline _computePipeline;
     private Texture2D _texWhite;
 
     private Transform2D _transform1;
+    private float _timer = 0.0f;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
-        _pipeline = CreatePipeline();
+        _graphicsPipeline = CreateGraphicsPipeline();
+        _computePipeline = CreateComputePipeline();
 
         _vertexBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
         {
@@ -64,23 +65,6 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _positionsBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
-        {
-            Name = "Positions Buffer",
-            Size = (uint)(Marshal.SizeOf<Vector4>() * 500),
-            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-        });
-
-        _positionsResource = GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor
-        {
-            Layout = GraphicsDevice.BindGroupUniformBuffer,
-            Resources = new ResourceBindingEntry[]
-            {
-                new ResourceBindingEntry(0, _positionsBuffer),
-            },
-            Name = "positions"
-        });
-
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
 
         _texWhite = Texture2D.CreateEmpty(16, 16, new Vector4(1, 1, 1, 1));
@@ -89,6 +73,9 @@ public class Game : GameEngine
         camera.transform.position = new Vector2(0, 2);
         camera.Size = new Vector2(16, 9);
         Log.Info(camera.ViewProjectionMatrix);
+
+        _positionsBuffer = new GraphicsArrayBuffer<Vector4>(500, "positions_buffer");
+        _timerBuffer = new GraphicsBuffer<float>("timer_buffer");
 
         _transform1 = Transform2D.Identity;
 
@@ -104,29 +91,32 @@ public class Game : GameEngine
         }
 
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
-
-        for (int i = 0; i < _positions.Length; i++)
-        {
-            _positions[i] = new Vector4(i, MathF.Cos(i * 0.3f) * 3, 0, 0);
-        }
+        _timer += delta;
+        _timerBuffer.Value = _timer;
+        // use compute shader instead
+        // for (int i = 0; i < 500; i++)
+        // {
+        //     _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
+        // }
     }
 
     protected unsafe override void OnDraw(float delta)
     {
-
-        fixed (Vector4* ptr = _positions)
-        {
-            GraphicsDevice.WriteBuffer(_positionsBuffer, 0, (byte*)ptr, (uint)(Marshal.SizeOf<Vector4>() * _positions.Length));
-        }
         _commandBuffer.Begin();
+
+        _commandBuffer.SetComputePipeline(_computePipeline);
+        _commandBuffer.SetComputeResources(0, _positionsBuffer.EntryReadWrite);
+        _commandBuffer.SetComputeResources(1, _timerBuffer.EntryReadonly);
+        _commandBuffer.DispatchCompute((500 / 8) + 1, 1, 1);
+
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
+        _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
 
         _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
-        _commandBuffer.SetGraphicsResources(2, _positionsResource);
+        _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
         _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
 
@@ -140,18 +130,8 @@ public class Game : GameEngine
         _texWhite.Dispose();
     }
 
-    private unsafe GPUPipeline CreatePipeline()
+    private unsafe GPUPipeline CreateGraphicsPipeline()
     {
-        //shaderc glsl
-        // string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
-        // ShaderStageSource vertSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
-        // ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
-
-        //shaderc hlsl
-        // string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
-        // ShaderStageSource vertSource = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        // ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
-
         //dxc hlsl
         string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
         ShaderStageSource vertSource = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
@@ -169,13 +149,6 @@ public class Game : GameEngine
         {
             bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
         }
-
-        // bindGroups[bindGroups.Length-1] = GraphicsDevice.CreateBindGroup(new BindGroupDescriptor{
-        //    Name= "Positions",
-        //    Bindings = new BindGroupEntry[]{
-        //         new BindGroupEntry(0, ShaderStage.Vertex, BindingType.StorageBuffer)
-        //    }
-        // });
 
         RasterizerState rasterizer = RasterizerState.CullNone;
         BlendState blend = BlendState.NonPremultipliedAlpha;
@@ -195,6 +168,32 @@ public class Game : GameEngine
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(descriptor);
+    }
+
+    private GPUPipeline CreateComputePipeline()
+    {
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("ComputePosition.hlsl"));
+        ShaderStageSource computeSource = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "ComputePosition.hlsl");
+
+        ShaderReflectionInfo info = UtilsShaderRelfection.GetSpirvReflection(computeSource.Source, true);
+
+        Log.Info(info);
+
+        DebugSaveFile("compute.spv", computeSource.Source);
+
+        GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
+        for (int i = 0; i < info.BindGroups.Length; i++)
+        {
+            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
+        }
+
+        ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
+            computeSource,
+            bindGroups,
+            "compute_pipline"
+        );
+
+        return GraphicsDevice.CreateComputePipeline(descriptor);
     }
 
     private static byte[] LoadFile(string path)

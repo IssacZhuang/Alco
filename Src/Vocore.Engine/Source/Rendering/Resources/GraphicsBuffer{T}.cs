@@ -62,7 +62,7 @@ namespace Vocore.Engine
                 {
                     Name = name,
                     Size = (ulong)sizeof(T),
-                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.Storage,
                 }
             );
 

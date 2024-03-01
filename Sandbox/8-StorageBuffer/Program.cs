@@ -7,7 +7,7 @@ GameEngineSetting setting = GameEngineSetting.Default with
     Width = 640,
     Height = 360,
 };
-setting.WindowName = "Instancing";
+setting.WindowName = "Compute Buffer";
 
 using (Game game = new Game(setting))
 {

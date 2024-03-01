@@ -9,19 +9,14 @@ public static class UtilsShaderRelfection
 
     public static ShaderReflectionInfo GetSpirvReflection(byte[] vertexSpirv, byte[] fragmentSpirv, bool useStandardStage = false)
     {
-        ShaderReflectionInfo vertex = GetSpirvReflection(vertexSpirv);
-        ShaderReflectionInfo fragment = GetSpirvReflection(fragmentSpirv);
+        ShaderReflectionInfo vertex = GetSpirvReflection(vertexSpirv, useStandardStage);
+        ShaderReflectionInfo fragment = GetSpirvReflection(fragmentSpirv, useStandardStage);
 
-        if (useStandardStage)
-        {
-            SetToStandardVisibility(vertex);
-            SetToStandardVisibility(fragment);
-        }
 
         return MergeReflectionInfo(vertex, fragment);
     }
 
-    public unsafe static ShaderReflectionInfo GetSpirvReflection(byte[] spirv)
+    public unsafe static ShaderReflectionInfo GetSpirvReflection(byte[] spirv, bool useStandardStage = false)
     {
         ReflectShaderModule module = new ReflectShaderModule();
         fixed (byte* ptr = spirv)
@@ -46,6 +41,11 @@ public static class UtilsShaderRelfection
 
         API.DestroyShaderModule(&module);
 
+        if (useStandardStage)
+        {
+            SetToStandardVisibility(info);
+        }
+
         return info;
     }
 
@@ -55,7 +55,7 @@ public static class UtilsShaderRelfection
         {
             for (int j = 0; j < info.BindGroups[i].Bindings.Length; j++)
             {
-                if ((info.BindGroups[i].Bindings[j].Stage & ShaderStage.Vertex) != 0 || (info.BindGroups[i].Bindings[j].Stage & ShaderStage.Fragment) != 0)
+                if ((info.BindGroups[i].Bindings[j].Stage & ShaderStage.Vertex) != 0 || (info.BindGroups[i].Bindings[j].Stage & ShaderStage.Fragment) != 0 || (info.BindGroups[i].Bindings[j].Stage & ShaderStage.Compute) != 0)
                 {
                     info.BindGroups[i].Bindings[j].Stage = ShaderStage.Standard;
                 }

@@ -36,7 +36,7 @@ public class GraphicsBuffer : ShaderResource
         
         _buffer = _device.CreateBuffer(new BufferDescriptor
         {
-            Usage = BufferUsage.Uniform | BufferUsage.Storage,
+            Usage = BufferUsage.Uniform | BufferUsage.Storage | BufferUsage.CopyDst,
             Size = 0,
             Name = name
         });
