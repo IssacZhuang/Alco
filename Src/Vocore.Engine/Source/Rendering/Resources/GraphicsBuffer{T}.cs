@@ -7,7 +7,8 @@ namespace Vocore.Engine
     {
         private readonly GPUDevice _device;
         private readonly GPUBuffer _buffer;
-        private readonly GPUResourceGroup _resources;
+        private readonly GPUResourceGroup _resourcesReadOnly; // for uniform buffer
+        private GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
 
         //status
         private T _value;
@@ -31,7 +32,21 @@ namespace Vocore.Engine
             get
             {
                 UpdateBuffer();
-                return _resources;
+                return _resourcesReadOnly;
+            }
+        }
+
+        public GPUResourceGroup EntryReadWrite
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                UpdateBuffer();
+                if (_resourcesReadWrite == null)
+                {
+                    _resourcesReadWrite = CreateResourceReadWrite();
+                }
+                return _resourcesReadWrite;
             }
         }
 
@@ -55,15 +70,7 @@ namespace Vocore.Engine
 
             _value = value;
 
-            _resources = _device.CreateResourceGroup(new ResourceGroupDescriptor
-            {
-                Layout = _device.BindGroupBuffer,
-                Resources = new ResourceBindingEntry[]
-                {
-                    new ResourceBindingEntry(0, _buffer),
-                },
-                Name = _buffer.Name
-            });
+            _resourcesReadOnly = CreateResourceReadonly();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -76,10 +83,35 @@ namespace Vocore.Engine
             }
         }
 
+        private GPUResourceGroup CreateResourceReadonly()
+        {
+            return _device.CreateResourceGroup(new ResourceGroupDescriptor
+            {
+                Layout = _device.BindGroupUniformBuffer,
+                Resources = new ResourceBindingEntry[]
+                {
+                new ResourceBindingEntry(0, _buffer),
+                }
+            });
+        }
+
+        private GPUResourceGroup CreateResourceReadWrite()
+        {
+            return _device.CreateResourceGroup(new ResourceGroupDescriptor
+            {
+                Layout = _device.BindGroupUniformBuffer,
+                Resources = new ResourceBindingEntry[]
+                {
+                new ResourceBindingEntry(0, _buffer),
+                }
+            });
+        }
+
         protected override void Dispose(bool disposing)
         {
             _buffer.Dispose();
-            _resources.Dispose();
+            _resourcesReadOnly.Dispose();
+            _resourcesReadWrite?.Dispose();
         }
     }
 }

@@ -25,7 +25,8 @@ public abstract class GPUDevice : BaseGPUObject
     public abstract GPUSampler SamplerLinearMirrorRepeat { get; }
 
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
-    public abstract GPUBindGroup BindGroupBuffer { get; }
+    public abstract GPUBindGroup BindGroupUniformBuffer { get; }
+    public abstract GPUBindGroup BindGroupStorageBuffer { get; }
     public abstract GPUBindGroup BindGroupTexture2DSampled { get; }
     public abstract GPUBindGroup BindGroupTexture2DRead { get; }
     public abstract GPUBindGroup BindGroupStorageTexture2D { get; }

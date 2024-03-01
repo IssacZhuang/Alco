@@ -73,7 +73,7 @@ public class Game : GameEngine
 
         _positionsResource = GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor
         {
-            Layout = GraphicsDevice.BindGroupBuffer,
+            Layout = GraphicsDevice.BindGroupUniformBuffer,
             Resources = new ResourceBindingEntry[]
             {
                 new ResourceBindingEntry(0, _positionsBuffer),

@@ -116,7 +116,8 @@ internal partial class WebGPUDevice : GPUDevice
     public override GPUSampler SamplerLinearMirrorRepeat { get; }
 
     //default bind groups
-    public override GPUBindGroup BindGroupBuffer { get; }
+    public override GPUBindGroup BindGroupUniformBuffer { get; }
+    public override GPUBindGroup BindGroupStorageBuffer { get; }
     public override GPUBindGroup BindGroupTexture2DSampled { get; }
     public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupStorageTexture2D { get; }
@@ -132,6 +133,20 @@ internal partial class WebGPUDevice : GPUDevice
     {
         _surfaceFrameBuffer.Dispose();
         _surfaceRenderPass.Dispose();
+
+        //dispose default resources
+        SamplerNearestRepeat.Dispose();
+        SamplerLinearRepeat.Dispose();
+        SamplerNearestClamp.Dispose();
+        SamplerLinearClamp.Dispose();
+        SamplerNearestMirrorRepeat.Dispose();
+        SamplerLinearMirrorRepeat.Dispose();
+
+        BindGroupUniformBuffer.Dispose();
+        BindGroupStorageBuffer.Dispose();
+        BindGroupTexture2DSampled.Dispose();
+        BindGroupTexture2DRead.Dispose();
+        BindGroupStorageTexture2D.Dispose();
 
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
@@ -521,12 +536,21 @@ internal partial class WebGPUDevice : GPUDevice
         });
 
         //create default bind groups
-        BindGroupBuffer = CreateBindGroup(new BindGroupDescriptor
+        BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
         {
             Name = "default_bind_group_buffer",
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
+            },
+        });
+
+        BindGroupStorageBuffer = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_storage_buffer",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
             },
         });
 

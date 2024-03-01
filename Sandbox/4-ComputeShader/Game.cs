@@ -63,9 +63,9 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupBuffer, GraphicsDevice.BindGroupTexture2DSampled);
+        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
         _computePipeline = CreateComputePipeline();
-        _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupBuffer, _colorBuffer);
+        _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
@@ -217,7 +217,7 @@ public class Game : GameEngine
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
-            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupStorageTexture2D, GraphicsDevice.BindGroupBuffer },
+            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupStorageTexture2D, GraphicsDevice.BindGroupUniformBuffer },
             "box_blur_pipeline"
         );
 
