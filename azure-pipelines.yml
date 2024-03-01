@@ -47,7 +47,7 @@ stages:
     
     - task: UseDotNet@2
       inputs:
-        useGlobalJson: true
+        version: '8.x'
     
     - script: dotnet build --configuration $(mode) --output $(outputDir)
       displayName: 'Build'
