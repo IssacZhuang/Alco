@@ -138,14 +138,54 @@ namespace Hebron.Runtime
 			return realloc(a, (long)newSize);
 		}
 
+		public static float fabs(double a)
+		{
+			return (float)Math.Abs(a);
+		}
+
+		public static float fabs(float a)
+		{
+			return MathF.Abs(a);
+		}
+
+		public static float floor(float a)
+		{
+			return MathF.Floor(a);
+		}
+
+		public static float ceil(float a)
+		{
+			return MathF.Ceiling(a);
+		}
+
+		public static float sqrt(float val)
+		{
+			return MathF.Sqrt(val);
+		}
+
+		public static float cos(float value)
+		{
+			return MathF.Cos(value);
+		}
+
+		public static float acos(float value)
+		{
+			return MathF.Acos(value);
+		}
+
+		public static float sin(float value)
+		{
+			return MathF.Sin(value);
+		}
+
 		public static int abs(int v)
 		{
 			return Math.Abs(v);
 		}
 
-		public static double pow(double a, double b)
+		public static float pow(float a, float b)
 		{
-			return Math.Pow(a, b);
+			return MathF.Pow(a, b);
 		}
 
 		public static void SetArray<T>(T[] data, T value)
@@ -154,9 +194,9 @@ namespace Hebron.Runtime
 				data[i] = value;
 		}
 
-		public static double ldexp(double number, int exponent)
+		public static float ldexp(float number, int exponent)
 		{
-			return number * Math.Pow(2, exponent);
+			return number * MathF.Pow(2, exponent);
 		}
 
 		public static int strcmp(sbyte* src, string token)
@@ -220,6 +260,21 @@ namespace Hebron.Runtime
 			}
 
 			return result;
+		}
+
+		public static float fmod(float x, float y)
+		{
+			return x % y;
+		}
+
+		public static ulong strlen(sbyte* str)
+		{
+			var ptr = str;
+
+			while (*ptr != '\0')
+				ptr++;
+
+			return (ulong)ptr - (ulong)str - 1;
 		}
 	}
 }

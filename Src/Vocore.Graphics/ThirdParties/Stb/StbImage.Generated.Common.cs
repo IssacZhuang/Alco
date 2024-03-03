@@ -172,7 +172,7 @@ namespace StbImageSharp
 			for (i = 0; i < x * y; ++i)
 				for (k = 0; k < n; ++k)
 					output[i * comp + k] =
-						(float)(CRuntime.pow(data[i * comp + k] / 255.0f, stbi__l2h_gamma) * stbi__l2h_scale);
+						CRuntime.pow(data[i * comp + k] / 255.0f, stbi__l2h_gamma) * stbi__l2h_scale;
 			if (n < comp)
 				for (i = 0; i < x * y; ++i)
 					output[i * comp + n] = data[i * comp + n] / 255.0f;
