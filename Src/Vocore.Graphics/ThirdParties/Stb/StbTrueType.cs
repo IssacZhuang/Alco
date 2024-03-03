@@ -102,7 +102,7 @@ namespace StbTrueTypeSharp
 		/// <param name="data"></param>
 		/// <param name="offset"></param>
 		/// <returns>null if the data was invalid</returns>
-		public static stbtt_fontinfo? CreateFont(byte[] data, int offset)
+		public static bool TryCreateFont(byte[] data, int offset, out stbtt_fontinfo fontinfo)
 		{
 			var dataCopy = (byte*)CRuntime.malloc(data.Length);
 			Marshal.Copy(data, 0, new IntPtr(dataCopy), data.Length);
@@ -115,10 +115,15 @@ namespace StbTrueTypeSharp
 			if (stbtt_InitFont_internal(info, dataCopy, offset) == 0)
 			{
 				info.Dispose();
-				return null;
+#pragma warning disable CS8625
+				fontinfo = null;
+#pragma warning restore CS8625
+				return false;
 			}
 
-			return info;
+			fontinfo = info;
+
+			return true;
 		}
 	}
 }
