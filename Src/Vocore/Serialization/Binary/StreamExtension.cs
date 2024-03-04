@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
-    public static class StreamExtension
+    internal static class StreamExtension
     {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

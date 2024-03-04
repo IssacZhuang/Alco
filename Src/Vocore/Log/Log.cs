@@ -42,7 +42,7 @@ namespace Vocore{
                 ConsolePrint(Null, ConsoleColor.White);
                 return;
             }
-            ConsolePrint(message.ToString(), ConsoleColor.White);
+            ConsolePrint(message.ToString()??string.Empty, ConsoleColor.White);
         }
 
         public static void Info<T1, T2> (T1 message1, T2 message2)
@@ -111,7 +111,7 @@ namespace Vocore{
                 ConsolePrint(Null, ConsoleColor.Yellow);
                 return;
             }
-            ConsolePrint(message.ToString(), ConsoleColor.Yellow);
+            ConsolePrint(message.ToString()??string.Empty, ConsoleColor.Yellow);
         }
 
         public static void Warning<T1, T2> (T1 message1, T2 message2)
@@ -180,7 +180,7 @@ namespace Vocore{
                 ConsolePrint(Null, ConsoleColor.Red);
                 return;
             }
-            ConsolePrint(message.ToString(), ConsoleColor.Red);
+            ConsolePrint(message.ToString()??string.Empty, ConsoleColor.Red);
         }
 
         public static void Error<T1, T2> (T1 message1, T2 message2)

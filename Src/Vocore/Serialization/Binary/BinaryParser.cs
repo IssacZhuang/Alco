@@ -8,7 +8,7 @@ namespace Vocore
 {
     public class BinaryParser
     {
-        public static int SizeInt32 = Marshal.SizeOf<int>();
+        public readonly static int SizeInt32 = Marshal.SizeOf<int>();
 
         public static byte[] Encode(BinaryTable data, out long length)
         {
@@ -38,40 +38,36 @@ namespace Vocore
             }
         }
 
-        private static void EncodeElement(MemoryStream stream, string name, BinaryValue value)
+        private static void EncodeElement(MemoryStream stream, string name, BaseBinaryValue value)
         {
-            switch (value.Type)
+            switch (value)
             {
-                case BinaryValueType.Null:
-                    WriteType(stream, BinaryValueType.Null);
+                case BinaryValue binaryValue:
+                    WriteType(stream, BinaryValueType.Value);
                     EncodeFieldName(stream, name);
+                    EncodeBinary(stream, binaryValue.Bytes);
                     return;
-                case BinaryValueType.Binary:
-                    WriteType(stream, BinaryValueType.Binary);
-                    EncodeFieldName(stream, name);
-                    EncodeBinary(stream, value.Bytes);
-                    return;
-                case BinaryValueType.Array:
+                case BinaryArray array:
                     WriteType(stream, BinaryValueType.Array);
                     EncodeFieldName(stream, name);
-                    EncodeArray(stream, value as BinaryArray);
+                    EncodeArray(stream, array);
                     return;
-                case BinaryValueType.Table:
+                case BinaryTable table:
                     WriteType(stream, BinaryValueType.Table);
                     EncodeFieldName(stream, name);
-                    EncodeTable(stream, value as BinaryTable);
+                    EncodeTable(stream, table);
                     return;
+                default:
+                    throw new Exception(string.Format("Don't know elementType={0}", value.GetType().Name));
             };
         }
 
-        private static BinaryValue DecodeElement(MemoryStream stream, out string name)
+        private static BaseBinaryValue DecodeElement(MemoryStream stream, out string name)
         {
             BinaryValueType type = ReadType(stream);
             name = DecodeFieldName(stream);
             switch(type){
-                case BinaryValueType.Null:
-                    return new BinaryValue();
-                case BinaryValueType.Binary:
+                case BinaryValueType.Value:
                     return DecodeBinary(stream);
                 case BinaryValueType.Array:
                     return DecodeArray(stream);
@@ -113,7 +109,7 @@ namespace Vocore
             int i = (int)stream.Position;
             while (stream.Position < i + length - 1)
             {
-                BinaryValue value = DecodeElement(stream, out string name);
+                BaseBinaryValue value = DecodeElement(stream, out string name);
                 table.Add(name, value);
             }
 
@@ -145,7 +141,7 @@ namespace Vocore
             int i = (int)stream.Position;
             while (stream.Position < i + length - 1)
             {
-                BinaryValue value = DecodeElement(stream, out string _);
+                BaseBinaryValue value = DecodeElement(stream, out string _);
                 array.Add(value);
             }
 

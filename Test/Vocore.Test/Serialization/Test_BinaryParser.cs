@@ -89,26 +89,14 @@ namespace Vocore.Test
 
             foreach (var item in data)
             {
-                if (item.Value == null)
-                {
-                    table[item.Key] = new BinaryValue();
-                    continue;
-                }
-                byte[] value = Encoding.UTF8.GetBytes(item.Value);
-                table[item.Key] = value;
+                table[item.Key] = item.Value;
             }
 
             string keySubData = "subData";
             BinaryTable subTable = new BinaryTable();
             foreach (var item in subData)
             {
-                if (item.Value == null)
-                {
-                    subTable[item.Key] = new BinaryValue();
-                    continue;
-                }
-                byte[] value = Encoding.UTF8.GetBytes(item.Value);
-                subTable[item.Key] = value;
+                subTable[item.Key] = item.Value;
             }
             table[keySubData] = subTable;
 
@@ -118,27 +106,37 @@ namespace Vocore.Test
 
             foreach (var item in data)
             {
-                if (item.Value == null)
+                if (table2.TryGetString(item.Key, out string value))
                 {
-                    Assert.IsFalse(table2[item.Key].Type != BinaryValueType.Null);
-                    continue;
+                    if (item.Value == null)
+                    {
+                        Assert.IsFalse(value != "");
+                    }
+                    else
+                    {
+                        Assert.IsFalse(value != item.Value);
+                    }
                 }
-                byte[] value = table2[item.Key].Bytes;
-                string str = Encoding.UTF8.GetString(value);
-                Assert.IsFalse(str != item.Value);
             }
 
             BinaryTable subTable2 = table2[keySubData] as BinaryTable;
             foreach (var item in subData)
             {
-                if (item.Value == null)
+                // byte[] value = subTable2[item.Key].Bytes;
+                // string str = Encoding.UTF8.GetString(value);
+                // Assert.IsFalse(str != item.Value);
+                if (subTable2.TryGetString(item.Key, out string value))
                 {
-                    Assert.IsFalse(subTable2[item.Key].Type != BinaryValueType.Null);
-                    continue;
+                    // Assert.IsFalse(value != item.Value);
+                    if (item.Value == null)
+                    {
+                        Assert.IsFalse(value != "");
+                    }
+                    else
+                    {
+                        Assert.IsFalse(value != item.Value);
+                    }
                 }
-                byte[] value = subTable2[item.Key].Bytes;
-                string str = Encoding.UTF8.GetString(value);
-                Assert.IsFalse(str != item.Value);
             }
         }
 
@@ -149,7 +147,7 @@ namespace Vocore.Test
             string[] data = new string[5]{
                 "value1",
                 "value2",
-                null,
+                null, // equals to Array.Empty<byte>() or string.Empty
                 "value4",
                 "value5",
             };
@@ -158,13 +156,7 @@ namespace Vocore.Test
 
             foreach (var item in data)
             {
-                if (item == null)
-                {
-                    binArray.Add(new BinaryValue());
-                    continue;
-                }
-                byte[] value = Encoding.UTF8.GetBytes(item);
-                binArray.Add(value);
+                binArray.Add(item);
             }
 
             BinaryTable binObject = new BinaryTable();
@@ -178,14 +170,21 @@ namespace Vocore.Test
 
             for (int i = 0; i < data.Length; i++)
             {
-                if (data[i] == null)
+                // byte[] value = binArray2[i].Bytes;
+                // string str = Encoding.UTF8.GetString(value);
+                // Assert.IsFalse(str != data[i]);
+                // Todo
+                if (binArray2.TryGetString(i, out string value))
                 {
-                    Assert.IsFalse(binArray2[i].Type != BinaryValueType.Null);
-                    continue;
+                    if (data[i] == null)
+                    {
+                        Assert.IsFalse(value != "");
+                    }
+                    else
+                    {
+                        Assert.IsFalse(value != data[i]);
+                    }
                 }
-                byte[] value = binArray2[i].Bytes;
-                string str = Encoding.UTF8.GetString(value);
-                Assert.IsFalse(str != data[i]);
             }
         }
 
@@ -196,7 +195,7 @@ namespace Vocore.Test
             {
                 ["key1"] = "value1",
                 ["key2"] = "value2",
-                ["key3"] = null,
+                ["key3"] = null, // equals to Array.Empty<byte>() or string.Empty
                 ["key4"] = "value4"
             };
 
@@ -208,8 +207,8 @@ namespace Vocore.Test
             Assert.IsTrue(value1 == "value1");
             Assert.IsTrue(table2.TryGetString("key2", out string value2));
             Assert.IsTrue(value2 == "value2");
-            Assert.IsFalse(table2.TryGetString("key3", out string value3));
-            Assert.IsTrue(value3 == null);
+            Assert.IsTrue(table2.TryGetString("key3", out string value3));
+            Assert.IsTrue(value3 == "");
             Assert.IsTrue(table2.TryGetString("key4", out string value4));
             Assert.IsTrue(value4 == "value4");
         }

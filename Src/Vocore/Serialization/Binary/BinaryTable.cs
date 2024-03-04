@@ -1,19 +1,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 
 namespace Vocore
 {
-    public class BinaryTable : BinaryValue, IEnumerable
+    public class BinaryTable : BaseBinaryValue, IEnumerable
     {
-        private readonly Dictionary<string, BinaryValue> _map = new Dictionary<string, BinaryValue>();
-
-        public BinaryTable()
-            : base(BinaryValueType.Table)
-        {
-        }
+        private readonly Dictionary<string, BaseBinaryValue> _map = new Dictionary<string, BaseBinaryValue>();
 
         //
         // Properties
@@ -23,26 +19,28 @@ namespace Vocore
             get { return _map.Keys; }
         }
 
-        public ICollection<BinaryValue> Values
+        public ICollection<BaseBinaryValue> Values
         {
             get { return _map.Values; }
         }
 
-        public ICollection<KeyValuePair<string, BinaryValue>> Entries
+        public ICollection<KeyValuePair<string, BaseBinaryValue>> Entries
         {
             get { return _map; }
         }
 
         public int Count { get { return _map.Count; } }
 
+        public override BinaryValueType Type => BinaryValueType.Table;
+
         //
         // Indexer
         //
-        public BinaryValue this[string key]
+        public BaseBinaryValue? this[string key]
         {
             get
             {
-                if (_map.TryGetValue(key, out BinaryValue v))
+                if (_map.TryGetValue(key, out BaseBinaryValue? v))
                 {
                     return v;
                 }
@@ -59,52 +57,63 @@ namespace Vocore
             }
         }
 
-        public bool TryGetString(string key, out string value)
+        public bool TryGetString(string key, [NotNullWhen(true)] out string? value)
         {
-            if (_map.TryGetValue(key, out BinaryValue v))
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
             {
-                return v.TryGetString(out value);
+                return binaryValue.TryGetString(out value);
             }
             value = null;
             return false;
         }
 
-        public bool TryGetValue<T>(string key, out T value) where T : unmanaged
+        public bool TryGetValue<T>(string key, [NotNullWhen(true)] out T value) where T : unmanaged
         {
-            if (_map.TryGetValue(key, out BinaryValue v))
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
             {
-                return v.TryGetValue(out value);
+                return binaryValue.TryGetValue(out value);
             }
             value = default;
             return false;
         }
 
-        public bool TryGetTable(string key, out BinaryTable value)
+        public bool TryGetTable(string key, [NotNullWhen(true)] out BinaryTable? value)
         {
-            if (_map.TryGetValue(key, out BinaryValue v))
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryTable binaryTable)
             {
-                if (v.Type == BinaryValueType.Table && v is BinaryTable table)
-                {
-                    value = table;
-                    return true;
-                }
+                value = binaryTable;
+                return true;
             }
             value = null;
             return false;
         }
 
-        public bool TryGetArray(string key, out BinaryArray value)
+        public bool TryGetArray(string key, [NotNullWhen(true)] out BinaryArray? value)
         {
-            if (_map.TryGetValue(key, out BinaryValue v))
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryArray binaryArray)
             {
-                if (v.Type == BinaryValueType.Array && v is BinaryArray array)
-                {
-                    value = array;
-                    return true;
-                }
+
+                value = binaryArray;
+                return true;
             }
             value = null;
             return false;
+        }
+
+        public bool TryGetBinary(string key, [NotNullWhen(true)] out byte[]? value)
+        {
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
+            {
+                value = binaryValue.Bytes;
+                return true;
+            }
+            value = null;
+            return false;
+        }
+
+        public bool TryGetValue(string key, [NotNullWhen(true)] out BaseBinaryValue? value)
+        {
+            return _map.TryGetValue(key, out value);
         }
 
 
@@ -115,7 +124,7 @@ namespace Vocore
         {
             _map.Clear();
         }
-        public void Add(string key, BinaryValue value)
+        public void Add(string key, BaseBinaryValue value)
         {
             _map.Add(key, value);
         }
@@ -135,10 +144,7 @@ namespace Vocore
             return _map.Remove(key);
         }
 
-        public bool TryGetValue(string key, out BinaryValue value)
-        {
-            return _map.TryGetValue(key, out value);
-        }
+        
 
 
         IEnumerator IEnumerable.GetEnumerator()
