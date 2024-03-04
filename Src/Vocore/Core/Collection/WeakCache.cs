@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore
 {
@@ -19,7 +20,7 @@ namespace Vocore
             }
         }
 
-        public bool TryGet(string key, out T target)
+        public bool TryGet(string key, [NotNullWhen(true)] out T? target)
         {
             if (_cache.TryGetValue(key, out var reference))
             {
@@ -34,41 +35,6 @@ namespace Vocore
                 }
             }
             target = null;
-            return false;
-        }
-    }
-
-    public class WeakCache
-    {
-        private readonly Dictionary<string, WeakReference> _cache = new Dictionary<string, WeakReference>();
-
-        public void Set(string key, object value)
-        {
-            if (_cache.TryGetValue(key, out var reference))
-            {
-                reference.Target = value;
-            }
-            else
-            {
-                _cache.Add(key, new WeakReference(value));
-            }
-        }
-
-        public bool TryGet(string key, out object obj)
-        {
-            if (_cache.TryGetValue(key, out var reference))
-            {
-                if (reference.IsAlive)
-                {
-                    obj = reference.Target;
-                    return true;
-                }
-                else
-                {
-                    _cache.Remove(key);
-                }
-            }
-            obj = null;
             return false;
         }
     }

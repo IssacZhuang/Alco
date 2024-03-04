@@ -62,6 +62,7 @@ namespace Vocore.Test
             GC.WaitForPendingFinalizers();
 
             Assert.IsFalse(cache.TryGet("test", out resutl) && resutl != null);
+            Log.Info(cache.TryGet("test", out resutl), resutl == null);
         }
     }
 }

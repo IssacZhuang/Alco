@@ -7,7 +7,7 @@ namespace Vocore
     {
         private readonly T[] _stack;
         private int _index = -1;
-        private readonly Func<T> _create;
+        private readonly Func<T>? _create;
         public int Count => _index + 1;
 
         public ArrayPool(int size)
@@ -21,20 +21,22 @@ namespace Vocore
             _create = create;
         }
 
-        public T Get()
+        public bool TryGet(out T result)
         {
             if (_index < 0)
             {
                 if (_create != null)
                 {
-                    return _create();
+                    result = _create();
+                    return true;
                 }
-                return null;
+                result = null;
+                return false;
             }
-            T result = _stack[_index];
+            result = _stack[_index];
             _stack[_index] = null;
             _index--;
-            return result;
+            return true;
         }
 
         public void Return(T item)

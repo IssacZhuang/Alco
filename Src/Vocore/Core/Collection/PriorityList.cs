@@ -28,7 +28,7 @@ namespace Vocore
             }
         }
 
-        public PriorityList(Comparison<T> comparer = null)
+        public PriorityList(Comparison<T>? comparer = null)
         {
             if (comparer == null)
             {
@@ -40,7 +40,7 @@ namespace Vocore
             }
         }
 
-        public PriorityList(IList<T> source, Comparison<T> comparer = null)
+        public PriorityList(IList<T> source, Comparison<T>? comparer = null)
         {
             _innerList = new List<T>(source);
 

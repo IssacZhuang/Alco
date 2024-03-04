@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Vocore
 {
 
-    public class LRUCache<K, V>
+    public class LRUCache<K, V> where K:notnull
     {
         private struct KeyValuePair
         {
@@ -78,7 +78,7 @@ namespace Vocore
 
         private void RemoveLeastUsed()
         {
-            LinkedListNode<KeyValuePair> first = _leastRecentList.First;
+            LinkedListNode<KeyValuePair>? first = _leastRecentList.First;
             if (first != null)
             {
                 _leastRecentList.RemoveFirst();

@@ -7,7 +7,7 @@ namespace Vocore.Engine
     public class AssetManager
     {
         // key: filename, value: asset
-        private readonly WeakCache _weakCache = new WeakCache();
+        private readonly WeakCache<object> _weakCache = new WeakCache<object>();
         // key: filename, value: asset
         private readonly Dictionary<string, object> _strongCache = new Dictionary<string, object>();
         // key: extension, value: asset loader

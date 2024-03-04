@@ -17,7 +17,7 @@ namespace Vocore
 
         public unsafe static string ReadString(byte* ptrString)
         {
-           return Marshal.PtrToStringAnsi((IntPtr)ptrString);
+            return Marshal.PtrToStringAnsi((IntPtr)ptrString) ?? string.Empty;
         }
     }
 }

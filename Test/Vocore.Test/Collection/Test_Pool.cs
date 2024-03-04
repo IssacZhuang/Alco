@@ -22,16 +22,31 @@ namespace Vocore.Test
 
             for (int i = array.Length - 1; i >= 0; i--)
             {
-                object item = pool.Get();
-                if (item != array[i])
+                // object item = pool.Get();
+                // if (item != array[i])
+                // {
+                //     //UnitTest.AddFailed();
+                //     Assert.Fail("ArrayPool get failed");
+                //     return;
+                // }
+                if(pool.TryGet(out object item))
                 {
-                    //UnitTest.AddFailed();
+                    if (item != array[i])
+                    {
+                        Assert.Fail("ArrayPool get failed");
+                    }
+                }
+                else
+                {
                     Assert.Fail("ArrayPool get failed");
-                    return;
                 }
             }
 
-            Assert.IsFalse(pool.Get() != null, "ArrayPool get failed");
+            //Assert.IsFalse(pool.Get() != null, "ArrayPool get failed");
+            if(pool.TryGet(out object item2))
+            {
+                Assert.Fail("ArrayPool get failed");
+            }
 
         }
     }
