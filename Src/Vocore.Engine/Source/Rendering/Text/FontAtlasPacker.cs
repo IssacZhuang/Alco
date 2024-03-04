@@ -47,7 +47,7 @@ public unsafe class FontAtlasPacker : IDisposable
         _bitmap = new NativeBuffer<byte>(width * height);
         _glyphs = new GlyphInfo[MaxArrayLength];
         _context = new stbtt_pack_context();
-        stbtt_PackBegin(_context, _bitmap.DataPtr, width, height, width, 1, null);
+        stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, 1, null);
     }
 
     public void Add(byte[] ttf, float fontSize, IEnumerable<int2> characterRanges)

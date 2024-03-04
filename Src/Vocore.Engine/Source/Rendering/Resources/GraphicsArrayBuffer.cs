@@ -77,7 +77,7 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
     {
         if (_isDirty)
         {
-            _device.WriteBuffer(_buffer, (byte*)_data.VoidPtr, (uint)_data.Length * (uint)sizeof(T));
+            _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer, (uint)_data.Length * (uint)sizeof(T));
             _isDirty = false;
         }
     }

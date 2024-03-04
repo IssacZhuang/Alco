@@ -10,28 +10,20 @@ namespace Vocore
     public unsafe struct NativeBuffer<T> : IReadOnlyList<T>, IDisposable where T : unmanaged
     {
         private void* _ptrBuffer;
-        private int _size;
+        private int _length;
         private bool _isDisposed;
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
-        public int Length => _size;
-        public unsafe T* DataPtr
+        public int Length => _length;
+
+        public unsafe T* UnsafePointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (T*)_ptrBuffer;
         }
-        public unsafe void* VoidPtr
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _ptrBuffer;
-        }
-        public unsafe IntPtr IntPtr
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (IntPtr)_ptrBuffer;
-        }
+
         public int Stride => _stride;
-        public int Count => _size;
+        public int Count => _length;
         public bool IsDisposed => _isDisposed;
 
         public T this[int index]
@@ -54,18 +46,26 @@ namespace Vocore
             }
         }
 
+        public MemoryRef<T> MemoryRef
+        {
+            get
+            {
+                return new MemoryRef<T>((T*)_ptrBuffer, _length);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(int index)
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
-            return DataPtr[index];
+            return UnsafePointer[index];
         }
 
         public NativeBuffer(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
-            _size = size;
+            _length = size;
             _isDisposed = false;
         }
 
@@ -79,7 +79,7 @@ namespace Vocore
 
         public IEnumerator<T> GetEnumerator()
         {
-            for (int i = 0; i < _size; i++)
+            for (int i = 0; i < _length; i++)
             {
                 yield return this[i];
             }
@@ -93,35 +93,35 @@ namespace Vocore
         public void EnsureSizeNoCopy(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-            if (size <= _size) return;
+            if (size <= _length) return;
             FreeMemory();
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
-            _size = size;
+            _length = size;
         }
 
         public void EnsureSize(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-            if (size <= _size) return;
+            if (size <= _length) return;
             Resize(size);
         }
 
         public void Resize(int size)
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
-            if (size == _size) return;
+            if (size == _length) return;
             void* ptr = UtilsMemory.Alloc(size * _stride);
-            int min = Math.Min(size, _size);
+            int min = Math.Min(size, _length);
             UtilsMemory.MemCopy(_ptrBuffer, ptr, min * _stride);
             FreeMemory();
             _ptrBuffer = ptr;
-            _size = size;
+            _length = size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<T> GetReadOnlySpan()
         {
-            return new ReadOnlySpan<T>(DataPtr, _size);
+            return new ReadOnlySpan<T>(UnsafePointer, _length);
         }
 
         private void FreeMemory()
@@ -130,22 +130,22 @@ namespace Vocore
             {
                 UtilsMemory.Free(_ptrBuffer);
                 _ptrBuffer = null;
-                _size = 0;
+                _length = 0;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool NotInRange(int index)
         {
-            return index < 0 || index >= _size;
+            return index < 0 || index >= _length;
         }
 
         public void CopyToArray(T[] array)
         {
-            if (array.Length < _size) throw ExceptionCollection.SizeIsEmpty;
-            if(array.Length == _size) throw ExceptionCollection.LengthNotEqual;
+            if (array.Length < _length) throw ExceptionCollection.SizeIsEmpty;
+            if(array.Length == _length) throw ExceptionCollection.LengthNotEqual;
             
-            for (int i = 0; i < _size; i++)
+            for (int i = 0; i < _length; i++)
             {
                 array[i] = this[i];
             }
@@ -155,7 +155,7 @@ namespace Vocore
         {
             fixed (T* ptr = array)
             {
-                UtilsMemory.MemCopy(_ptrBuffer, ptr, _size * _stride);
+                UtilsMemory.MemCopy(_ptrBuffer, ptr, _length * _stride);
             }
         }
 

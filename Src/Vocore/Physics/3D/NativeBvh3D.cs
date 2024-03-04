@@ -55,8 +55,8 @@ namespace Vocore
             JobCastRayFast job = new JobCastRayFast
             {
                 bvh = this,
-                rays = rays.DataPtr,
-                results = _batchRayCastResult.DataPtr
+                rays = rays.UnsafePointer,
+                results = _batchRayCastResult.UnsafePointer
             };
             job.RunParallel(rays.Length);
 
@@ -69,8 +69,8 @@ namespace Vocore
             JobCastRay job = new JobCastRay
             {
                 bvh = this,
-                rays = rays.DataPtr,
-                results = _batchRayCastResult.DataPtr
+                rays = rays.UnsafePointer,
+                results = _batchRayCastResult.UnsafePointer
             };
             job.RunParallel(rays.Length);
             return _batchRayCastResult;
@@ -82,8 +82,8 @@ namespace Vocore
             JobCastColliderBox job = new JobCastColliderBox
             {
                 bvh = this,
-                colliderBoxes = colliders.DataPtr,
-                results = _batchColliderBoxCastResult.DataPtr
+                colliderBoxes = colliders.UnsafePointer,
+                results = _batchColliderBoxCastResult.UnsafePointer
             };
             job.RunParallel(colliders.Length);
             return _batchColliderBoxCastResult;
@@ -95,8 +95,8 @@ namespace Vocore
             JobCastColliderSphere job = new JobCastColliderSphere
             {
                 bvh = this,
-                colliderSpheres = colliders.DataPtr,
-                results = _batchColliderSphereCastResult.DataPtr
+                colliderSpheres = colliders.UnsafePointer,
+                results = _batchColliderSphereCastResult.UnsafePointer
             };
             job.RunParallel(colliders.Length);
             return _batchColliderSphereCastResult;
@@ -117,7 +117,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Node GetNode(int index)
         {
-            return _nodes.DataPtr[index];
+            return _nodes.UnsafePointer[index];
         }
 
         private RayCastResult3D CastRayFast(ref Ray3D ray, Node node)
@@ -343,7 +343,7 @@ namespace Vocore
             int start = 0;
             int end = _nodeSize;
 
-            Node* ptr = _nodes.DataPtr;
+            Node* ptr = _nodes.UnsafePointer;
 
             while (start < end - 2)
             {
@@ -408,7 +408,7 @@ namespace Vocore
 
         private void StartJobBuildLeaf(NativeArrayList<ColliderRef3D> colliders)
         {
-            Node* ptr = _nodes.DataPtr;
+            Node* ptr = _nodes.UnsafePointer;
 
             for (int i = 0; i < colliders.Length; i++)
             {
@@ -446,7 +446,7 @@ namespace Vocore
             {
                 return;
             }
-            _nodes.DataPtr[_nodeSize] = node;
+            _nodes.UnsafePointer[_nodeSize] = node;
             _nodeSize++;
         }
 

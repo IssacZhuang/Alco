@@ -12,33 +12,30 @@ namespace Vocore
         private const int DefaultSize = 4;
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
         private void* _ptrBuffer;
-        private int _size;
+        private int _length;
         private int _capacity;
         private int _preAllocSize;
         private bool _isDisposed;
         private bool _autoCompress;
         public bool AutoCompress { get => _autoCompress; set => _autoCompress = value; }
-        public int Length => _size;
+        public int Length => _length;
 
-        public unsafe T* DataPtr
+        public unsafe T* UnsafePointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (T*)_ptrBuffer;
         }
 
-        public unsafe void* VoidPtr
+        public MemoryRef<T> MemoryRef
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _ptrBuffer;
+            get
+            {
+                return new MemoryRef<T>((T*)_ptrBuffer, _length);
+            }
         }
 
-        public unsafe IntPtr IntPtr
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (IntPtr)_ptrBuffer;
-        }
         public int Stride => _stride;
-        public int Count => _size;
+        public int Count => _length;
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
         public int DefaultCapacity
@@ -82,7 +79,7 @@ namespace Vocore
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             _ptrBuffer = UtilsMemory.Alloc(_stride * size);
-            _size = 0;
+            _length = 0;
             _capacity = size;
             _preAllocSize = size;
             _isDisposed = false;
@@ -93,7 +90,7 @@ namespace Vocore
         {
             if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
             _ptrBuffer = UtilsMemory.Alloc(_stride * size);
-            _size = 0;
+            _length = 0;
             _capacity = size;
             _preAllocSize = size;
             _isDisposed = false;
@@ -102,31 +99,31 @@ namespace Vocore
 
         public void Add(T value)
         {
-            EnsureSize(_size + 1);
-            _size++;
-            this[_size - 1] = value;
+            EnsureSize(_length + 1);
+            _length++;
+            this[_length - 1] = value;
         }
 
         public void Insert(int index, T value)
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
-            EnsureSize(_size + 1);
-            UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, _stride * (_size - index));
-            _size++;
+            EnsureSize(_length + 1);
+            UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, _stride * (_length - index));
+            _length++;
             this[index] = value;
         }
 
         public unsafe void UnsafeAdd(T value)
         {
-            EnsureSize(_size + 1);
-            _size++;
-            DataPtr[_size - 1] = value;
+            EnsureSize(_length + 1);
+            _length++;
+            UnsafePointer[_length - 1] = value;
         }
 
 
         public bool Remove(T value)
         {
-            for (int i = 0; i < _size; i++)
+            for (int i = 0; i < _length; i++)
             {
                 if (this[i].Equals(value))
                 {
@@ -140,14 +137,14 @@ namespace Vocore
         public void RemoveAt(int index)
         {
             if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
-            UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, _stride * (_size - index - 1));
-            EnsureSize(_size - 1);
-            _size--;
+            UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, _stride * (_length - index - 1));
+            EnsureSize(_length - 1);
+            _length--;
         }
 
         public int IndexOf(T value)
         {
-            for (int i = 0; i < _size; i++)
+            for (int i = 0; i < _length; i++)
             {
                 if (this[i].Equals(value))
                 {
@@ -160,7 +157,7 @@ namespace Vocore
 
         public bool Contains(T value)
         {
-            for (int i = 0; i < _size; i++)
+            for (int i = 0; i < _length; i++)
             {
                 if (this[i].Equals(value))
                 {
@@ -173,25 +170,25 @@ namespace Vocore
         public void Clear()
         {
             if (AutoCompress) Resize(DefaultCapacity);
-            _size = 0;
+            _length = 0;
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
             if (arrayIndex < 0) throw ExceptionCollection.OutOfRange;
-            if (array.Length - arrayIndex < _size) throw ExceptionCollection.OutOfRange;
+            if (array.Length - arrayIndex < _length) throw ExceptionCollection.OutOfRange;
             unsafe
             {
                 fixed (T* ptr = array)
                 {
-                    UtilsMemory.MemCopy(ptr + arrayIndex, _ptrBuffer, _stride * _size);
+                    UtilsMemory.MemCopy(ptr + arrayIndex, _ptrBuffer, _stride * _length);
                 }
             }
         }
 
         public IEnumerator<T> GetEnumerator()
         {
-            for (int i = 0; i < _size; i++)
+            for (int i = 0; i < _length; i++)
             {
                 yield return this[i];
             }
@@ -218,7 +215,7 @@ namespace Vocore
 
             if (_ptrBuffer != null)
             {
-                UtilsMemory.MemCopy(_ptrBuffer, tmpPtr, _stride * _size);
+                UtilsMemory.MemCopy(_ptrBuffer, tmpPtr, _stride * _length);
                 UtilsMemory.Free(_ptrBuffer);
             }
 
@@ -242,7 +239,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool NotInRange(int index)
         {
-            return index < 0 || index >= _size;
+            return index < 0 || index >= _length;
         }
     }
 }
