@@ -3,7 +3,7 @@ using static StbTrueTypeSharp.StbTrueType;
 
 namespace Vocore.Engine;
 
-public unsafe class FontData
+public unsafe class FontAtlasPacker : IDisposable
 {
     public static readonly int2 RangeBasicLatin = new int2(0x0020, 0x007F);
     public static readonly int2 RangeLatin1Supplement = new int2(0x00A0, 0x00FF);
@@ -26,13 +26,28 @@ public unsafe class FontData
     public static readonly int2 RangeHangulSyllables = new int2(0xAC00, 0xD7AF);
 
     private static readonly int MaxArrayLength = 0xD7AF;
-    private stbtt_pack_context _context;
+    private readonly stbtt_pack_context _context;
     private readonly GlyphInfo[] _glyphs;
+    private readonly NativeBuffer<byte> _bitmap;
 
-    public FontData()
+    public GlyphInfo[] Glyphs => _glyphs;
+
+    public FontAtlasPacker(int width, int height)
     {
+        if (width <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width));
+        }
+
+        if (height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(height));
+        }
+
+        _bitmap = new NativeBuffer<byte>(width * height);
         _glyphs = new GlyphInfo[MaxArrayLength];
         _context = new stbtt_pack_context();
+        stbtt_PackBegin(_context, _bitmap.DataPtr, width, height, width, 1, null);
     }
 
     public void Add(byte[] ttf, float fontSize, IEnumerable<int2> characterRanges)
@@ -95,8 +110,21 @@ public unsafe class FontData
                 _glyphs[i + range.x] = glyphInfo;
             }
         }
-
-
     }
 
+    public void WriteTexture(Texture2D texture)
+    {
+        if (texture == null)
+        {
+            throw new ArgumentNullException(nameof(texture));
+        }
+
+        
+    }
+
+    public void Dispose()
+    {
+        _bitmap.Dispose();
+        stbtt_PackEnd(_context);
+    }
 }

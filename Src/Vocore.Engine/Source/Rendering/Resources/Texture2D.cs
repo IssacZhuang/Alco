@@ -299,6 +299,47 @@ public class Texture2D : ShaderResource
         );
     }
 
+    public unsafe static Texture2D CreateByFormat(
+        uint width,
+        uint height,
+        PixelFormat format,
+        uint mipLevel,
+        TextureUsage usage = TextureUsage.Standard,
+        string name = "unnamed_texture"
+    )
+    {
+        GPUDevice device = GetDevice();
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            format,
+            width,
+            height,
+            1,
+            mipLevel,
+            usage,
+            1,
+            name
+        );
+
+        GPUTexture texture = device.CreateTexture(textureDescriptor);
+
+        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
+            texture,
+            TextureViewDimension.Texture2D
+        );
+
+        textureDescriptor.Name = name;
+
+        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
+
+        return new Texture2D(
+            device,
+            texture,
+            textureView,
+            device.SamplerLinearRepeat
+        );
+    }
+
 
     private static uint GetPixelSize(ColorComponents components)
     {
