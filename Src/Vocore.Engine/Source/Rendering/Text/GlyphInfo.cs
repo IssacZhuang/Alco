@@ -1,9 +1,11 @@
+using System.Numerics;
+
 namespace Vocore.Engine;
 
 public struct GlyphInfo
 {
-    public int2 Position;
-    public int2 Size;
-    public int2 Offset;
-    public int Advance;
+    public Vector2 Position;
+    public Vector2 Size;
+    public Vector2 Offset;
+    public float Advance;
 }

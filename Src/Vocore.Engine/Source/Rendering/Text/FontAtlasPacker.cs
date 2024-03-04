@@ -1,3 +1,4 @@
+using System.Numerics;
 using StbTrueTypeSharp;
 using static StbTrueTypeSharp.StbTrueType;
 
@@ -107,10 +108,10 @@ public unsafe class FontAtlasPacker : IDisposable
 
                 var glyphInfo = new GlyphInfo
                 {
-                    Position = new int2(packedchar[i].x0, packedchar[i].y0),
-                    Size = new int2(packedchar[i].x1 - packedchar[i].x0, packedchar[i].y1 - packedchar[i].y0),
-                    Offset = new int2((int)packedchar[i].xoff, (int)Math.Round(yOff)),
-                    Advance = (int)Math.Round(packedchar[i].xadvance)
+                    Position = new Vector2(packedchar[i].x0, packedchar[i].y0),
+                    Size = new Vector2(packedchar[i].x1 - packedchar[i].x0, packedchar[i].y1 - packedchar[i].y0),
+                    Offset = new Vector2((int)packedchar[i].xoff, (int)Math.Round(yOff)),
+                    Advance = Math.Round(packedchar[i].xadvance)
                 };
 
                 _glyphs[i + range.x] = glyphInfo;

@@ -75,6 +75,9 @@ public class Game : GameEngine
 
         _fontAtlas = CreateFontAtlas();
         _scale = 1.0f;
+
+        GC.Collect();
+        GC.WaitForFullGCComplete();
     }
 
     protected override void OnUpdate(float delta)
@@ -165,7 +168,7 @@ public class Game : GameEngine
     private static FontAtlas CreateFontAtlas()
     {
         byte[] fontFile = LoadFile("Font.ttf");
-        FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
+        using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
 
         packer.Add(fontFile, 32, new int2[]{
             FontAtlasPacker.RangeBasicLatin,
