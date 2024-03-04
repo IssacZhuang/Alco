@@ -25,15 +25,18 @@ public unsafe class FontAtlasPacker : IDisposable
     public static readonly int2 RangeDevanagari = new int2(0x0900, 0x097F);
     public static readonly int2 RangeHangulSyllables = new int2(0xAC00, 0xD7AF);
 
-    private static readonly int MaxArrayLength = 0xD7AF;
+    private static readonly int MaxArrayLength = 0xD7AF + 1;
     private readonly stbtt_pack_context _context;
     private readonly GlyphInfo[] _glyphs;
     private readonly NativeBuffer<byte> _bitmap;
+    private int _width;
+    private int _height;
 
     public GlyphInfo[] Glyphs => _glyphs;
 
     public FontAtlasPacker(int width, int height)
     {
+
         if (width <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(width));
@@ -43,6 +46,9 @@ public unsafe class FontAtlasPacker : IDisposable
         {
             throw new ArgumentOutOfRangeException(nameof(height));
         }
+
+        _width = width;
+        _height = height;
 
         _bitmap = new NativeBuffer<byte>(width * height);
         _glyphs = new GlyphInfo[MaxArrayLength];
@@ -112,14 +118,9 @@ public unsafe class FontAtlasPacker : IDisposable
         }
     }
 
-    public void WriteTexture(Texture2D texture)
+    public FontAtlas Build()
     {
-        if (texture == null)
-        {
-            throw new ArgumentNullException(nameof(texture));
-        }
-
-        
+        return new FontAtlas(_bitmap.MemoryRef, _width, _height, _glyphs);
     }
 
     public void Dispose()

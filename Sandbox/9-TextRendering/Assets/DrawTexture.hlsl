@@ -37,6 +37,8 @@ V2F vs_main(Vertex2D input){
 }
 
 float4 fs_main(V2F input) : SV_TARGET{
-    return image.Sample(imageSampler, input.uv);
+    float value = image.Sample(imageSampler, input.uv).r;
+
+    return float4(value, value, value, 1.0f);
 }
 

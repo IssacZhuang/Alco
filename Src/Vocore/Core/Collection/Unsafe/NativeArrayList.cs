@@ -30,7 +30,7 @@ namespace Vocore
         {
             get
             {
-                return new MemoryRef<T>((T*)_ptrBuffer, _length);
+                return new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
             }
         }
 

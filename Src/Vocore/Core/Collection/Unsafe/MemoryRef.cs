@@ -5,13 +5,13 @@ namespace Vocore
     /// </summary>
     public unsafe readonly struct MemoryRef
     {
-        public MemoryRef(void* pointer, int size)
+        public MemoryRef(void* pointer, uint size)
         {
             Pointer = pointer;
             Size = size;
         }
         public readonly void* Pointer { get; }
-        public readonly int Size { get; }
+        public readonly uint Size { get; }
     }
 
     /// <summary>
@@ -19,12 +19,12 @@ namespace Vocore
     /// </summary>
     public unsafe readonly struct MemoryRef<T> where T : unmanaged
     {
-        public MemoryRef(T* pointer, int length)
+        public MemoryRef(T* pointer, uint length)
         {
             Pointer = pointer;
             Length = length;
         }
         public readonly T* Pointer { get; }
-        public readonly int Length { get; }
+        public readonly uint Length { get; }
     }
 }

@@ -7,7 +7,7 @@ using Vocore.Unsafe;
 
 namespace Vocore
 {
-    public unsafe struct NativeBuffer<T> : IReadOnlyList<T>, IDisposable where T : unmanaged
+    public unsafe struct NativeBuffer<T> : IDisposable where T : unmanaged
     {
         private void* _ptrBuffer;
         private int _length;
@@ -23,7 +23,6 @@ namespace Vocore
         }
 
         public int Stride => _stride;
-        public int Count => _length;
         public bool IsDisposed => _isDisposed;
 
         public T this[int index]
@@ -50,9 +49,10 @@ namespace Vocore
         {
             get
             {
-                return new MemoryRef<T>((T*)_ptrBuffer, _length);
+                return new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
             }
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(int index)
@@ -67,6 +67,10 @@ namespace Vocore
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
             _length = size;
             _isDisposed = false;
+        }
+
+        public NativeBuffer(uint size) : this((int)size)
+        {
         }
 
         public void Dispose()
@@ -85,10 +89,6 @@ namespace Vocore
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
 
         public void EnsureSizeNoCopy(int size)
         {
