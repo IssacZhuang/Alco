@@ -5,6 +5,7 @@
     <AssemblyName>Vocore</AssemblyName>
     <TargetFramework>net8.0</TargetFramework>
     <PublishSingleFile>false</PublishSingleFile>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Vocore.Test" />

@@ -92,55 +92,5 @@ namespace Vocore
 
             return result;
         }
-
-        public static AtlasPackResult PackBinSimple(int2[] imageSizes)
-        {
-            if (imageSizes == null || imageSizes.Length == 0)
-            {
-                throw new ArgumentException("imageSizes is null or empty");
-            }
-
-            SimplePacker packer = new SimplePacker();
-            List<BinPacker.RectNode> nodes = new List<BinPacker.RectNode>();
-            for (int i = 0; i < imageSizes.Length; i++)
-            {
-                nodes.Add(new BinPacker.RectNode(imageSizes[i]));
-            }
-
-            AtlasPackResult result = new AtlasPackResult
-            {
-                width = packer.Bounds.x,
-                height = packer.Bounds.y,
-                uvRects = packer.Fit(nodes, out int numOutside),
-                numOutside = numOutside
-            };
-
-            return result;
-        }
-
-        public static AtlasPackResult PackBinAdvanced(int2[] imageSizes)
-        {
-            if (imageSizes == null || imageSizes.Length == 0)
-            {
-                throw new ArgumentException("imageSizes is null or empty");
-            }
-
-            AdvancedPacker packer = new AdvancedPacker();
-            List<BinPacker.RectNode> nodes = new List<BinPacker.RectNode>();
-            for (int i = 0; i < imageSizes.Length; i++)
-            {
-                nodes.Add(new BinPacker.RectNode(imageSizes[i]));
-            }
-
-            AtlasPackResult result = new AtlasPackResult
-            {
-                width = packer.Bounds.x,
-                height = packer.Bounds.y,
-                uvRects = packer.Fit(nodes, out int numOutside),
-                numOutside = numOutside
-            };
-
-            return result;
-        }
     }
 }

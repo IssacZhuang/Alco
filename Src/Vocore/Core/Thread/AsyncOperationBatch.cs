@@ -12,21 +12,22 @@ namespace Vocore
         {
             public Func<T> action;
             public Action<T> success;
-            public Action<Exception> fail;
+            public Action<Exception>? fail;
         }
 
         private List<AsyncOperation> _operations = new List<AsyncOperation>();
 
-        private T[] _results;
-        private Exception[] _exceptions;
+        private T[]? _results;
+        private Exception[]? _exceptions;
 
-        public void Enqueue(Func<T> action, Action<T> success, Action<Exception> fail = null)
+        public void Enqueue(Func<T> action, Action<T> success, Action<Exception>? fail = null)
         {
             AsyncOperation operation = new AsyncOperation();
             operation.action = action;
             operation.success = success;
             operation.fail = fail;
             _operations.Add(operation);
+            
         }
 
         public void Run()
@@ -60,9 +61,10 @@ namespace Vocore
 
             for (int i = 0; i < _operations.Count; i++)
             {
-                if (_exceptions[i] != null && _operations[i].fail != null)
+                AsyncOperation operation = _operations[i];
+                if (_exceptions[i] != null && operation.fail != null)
                 {
-                    _operations[i].fail(_exceptions[i]);
+                    operation.fail(_exceptions[i]);
                     continue;
                 }
 
@@ -72,9 +74,9 @@ namespace Vocore
                 }
                 catch (Exception e)
                 {
-                    if (_operations[i].fail != null)
+                    if (operation.fail != null)
                     {
-                        _operations[i].fail(e);
+                        operation.fail(e);
                     }
                 }
             }

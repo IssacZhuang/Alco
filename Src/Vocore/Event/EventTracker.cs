@@ -20,7 +20,7 @@ namespace Vocore
         {
             if (_events.ContainsKey(evt))
             {
-                Log.Error(Text_Event.DuplicatedEvent(evt.ToString()));
+                Log.Error($"EventTracker.Subscribe: event {evt} already subscribed");
                 return false;
             }
 

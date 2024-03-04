@@ -7,24 +7,13 @@ namespace Vocore
     {
         public static Comparison<T> DefaultComparer<T>()
         {
-            return (a, b) =>
-            {
-                return Comparer<T>.Default.Compare(a, b);
-            };
-        }
-
-        public static Comparison<T> HashComparer<T>()
-        {
-            return (a, b) =>
-            {
-                return a.GetHashCode().CompareTo(b.GetHashCode());
-            };
+            return Comparer<T>.Default.Compare;
         }
 
         /// <summary>
         /// Binary search.
         /// </summary>
-        public static int BinarySearch<T>(IReadOnlyList<T> list, T item, Comparison<T> comparer = null)
+        public static int BinarySearch<T>(IReadOnlyList<T> list, T item, Comparison<T>? comparer = null)
         {
             if (comparer == null)
             {
@@ -81,7 +70,7 @@ namespace Vocore
         /// <summary>
         /// Binary search, return the index of the first element that is lower than or equal to the item.
         /// </summary>
-        public static int BinarySearchFloor<T>(IReadOnlyList<T> list, T item, Comparison<T> comparer = null)
+        public static int BinarySearchFloor<T>(IReadOnlyList<T> list, T item, Comparison<T>? comparer = null)
         {
             if (comparer == null)
             {
@@ -146,7 +135,7 @@ namespace Vocore
         /// <summary>
         /// Binary search, return the index of the first element that is greater than or equal to the item.
         /// </summary>
-        public static int BinarySearchCeil<T>(IReadOnlyList<T> list, T item, Comparison<T> comparer = null)
+        public static int BinarySearchCeil<T>(IReadOnlyList<T> list, T item, Comparison<T>? comparer = null)
         {
             if (comparer == null)
             {

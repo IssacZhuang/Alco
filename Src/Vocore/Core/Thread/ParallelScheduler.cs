@@ -3,6 +3,7 @@ using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 
+#pragma warning disable CS8618
 
 namespace Vocore
 {
@@ -52,7 +53,6 @@ namespace Vocore
                 _threads[i].Name = $"{threadPrefix} {i}";
                 _threads[i].Start();
             }
-
         }
 
         ~ParallelScheduler()
