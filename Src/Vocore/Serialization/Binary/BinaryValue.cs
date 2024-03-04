@@ -6,9 +6,9 @@ namespace Vocore
 {
     public enum BinaryValueType : byte
     {
-        Value = 0x01,
-        Array = 0x02,
-        Table = 0x03,
+        Value = 0x00,
+        Array = 0x01,
+        Table = 0x02,
     };
 
     public class BinaryValue : BaseBinaryValue

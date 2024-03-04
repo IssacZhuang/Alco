@@ -38,7 +38,7 @@ namespace Vocore
             }
         }
 
-        private static void EncodeElement(MemoryStream stream, string name, BaseBinaryValue value)
+        private static void EncodeTableElement(MemoryStream stream, string name, BaseBinaryValue value)
         {
             switch (value)
             {
@@ -62,7 +62,7 @@ namespace Vocore
             };
         }
 
-        private static BaseBinaryValue DecodeElement(MemoryStream stream, out string name)
+        private static BaseBinaryValue DecodeTableElement(MemoryStream stream, out string name)
         {
             BinaryValueType type = ReadType(stream);
             name = DecodeFieldName(stream);
@@ -90,7 +90,7 @@ namespace Vocore
 
             foreach (var entry in table.Entries)
             {
-                EncodeElement(stream, entry.Key, entry.Value);
+                EncodeTableElement(stream, entry.Key, entry.Value);
             }
 
             int positionEnd = (int)stream.Position;
@@ -109,11 +109,47 @@ namespace Vocore
             int i = (int)stream.Position;
             while (stream.Position < i + length - 1)
             {
-                BaseBinaryValue value = DecodeElement(stream, out string name);
+                BaseBinaryValue value = DecodeTableElement(stream, out string name);
                 table.Add(name, value);
             }
 
             return table;
+        }
+
+        private static void EncodeArrayElement(MemoryStream stream, BaseBinaryValue value)
+        {
+            switch (value)
+            {
+                case BinaryValue binaryValue:
+                    WriteType(stream, BinaryValueType.Value);
+                    EncodeBinary(stream, binaryValue.Bytes);
+                    return;
+                case BinaryArray array:
+                    WriteType(stream, BinaryValueType.Array);
+                    EncodeArray(stream, array);
+                    return;
+                case BinaryTable table:
+                    WriteType(stream, BinaryValueType.Table);
+                    EncodeTable(stream, table);
+                    return;
+                default:
+                    throw new Exception(string.Format("Don't know elementType={0}", value.GetType().Name));
+            };
+        }
+
+        private static BaseBinaryValue DecodeArrayElement(MemoryStream stream)
+        {
+            BinaryValueType type = ReadType(stream);
+            switch(type){
+                case BinaryValueType.Value:
+                    return DecodeBinary(stream);
+                case BinaryValueType.Array:
+                    return DecodeArray(stream);
+                case BinaryValueType.Table:
+                    return DecodeTable(stream);
+            }
+
+            throw new Exception(string.Format("Don't know elementType={0}", type));
         }
 
         private static void EncodeArray(MemoryStream stream, BinaryArray list)
@@ -123,7 +159,7 @@ namespace Vocore
 
             for (int i = 0; i < list.Count; i++)
             {
-                EncodeElement(stream, Convert.ToString(i), list[i]);
+                EncodeArrayElement(stream, list[i]);
             }
 
             int positionEnd = (int)stream.Position;
@@ -141,7 +177,7 @@ namespace Vocore
             int i = (int)stream.Position;
             while (stream.Position < i + length - 1)
             {
-                BaseBinaryValue value = DecodeElement(stream, out string _);
+                BaseBinaryValue value = DecodeArrayElement(stream);
                 array.Add(value);
             }
 
