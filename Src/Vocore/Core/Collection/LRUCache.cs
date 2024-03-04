@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore
 {
@@ -34,7 +35,7 @@ namespace Vocore
             this._capacity = capacity;
         }
 
-        public bool TryGetValue(K key, out V result)
+        public bool TryGetValue(K key, [NotNullWhen(true)]out V? result)
         {
             if (_index.TryGetValue(key, out var value))
             {

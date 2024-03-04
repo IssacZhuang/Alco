@@ -1,25 +1,26 @@
 using System;
+using System.Threading;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
 
 namespace Vocore
 {
-    /// <summary>
-    /// An object pool implmented by array. Not thread safe. Use <see cref="ConcurrentPool{T}"/> if you need thread safe.
-    /// </summary>
-    public class Pool<T> where T : class
+    public class ConcurrentPool<T> where T : class
     {
         private readonly T?[] _stack;
         private int _index = -1;
         private readonly Func<T>? _create;
-        public int Count => _index + 1;
 
-        public Pool(int size)
+        public int Count
+        {
+            get { return Interlocked.CompareExchange(ref _index, 0, 0) + 1; }
+        }
+
+        public ConcurrentPool(int size)
         {
             _stack = new T[size];
         }
 
-        public Pool(int size, Func<T> create)
+        public ConcurrentPool(int size, Func<T> create)
         {
             _stack = new T[size];
             _create = create;
@@ -27,30 +28,37 @@ namespace Vocore
 
         public bool TryGet([NotNullWhen(true)] out T? result)
         {
-            if (_index < 0)
+            int localIndex = Interlocked.Decrement(ref _index) + 1;
+
+            if (localIndex < 0)
             {
+                Interlocked.Increment(ref _index);
                 return TryCreate(out result);
             }
-            result = _stack[_index];
+
+            result = _stack[localIndex];
+            _stack[localIndex] = null;
 
             if (result == null)
             {
+                Interlocked.Increment(ref _index);
                 return TryCreate(out result);
             }
 
-            _stack[_index] = null;
-            _index--;
             return true;
         }
 
         public bool TryReturn(T item)
         {
-            if (_index >= _stack.Length - 1)
+            int localIndex = Interlocked.Increment(ref _index);
+
+            if (localIndex >= _stack.Length)
             {
+                Interlocked.Decrement(ref _index);
                 return false;
             }
-            _index++;
-            _stack[_index] = item;
+
+            _stack[localIndex] = item;
             return true;
         }
 
@@ -71,9 +79,8 @@ namespace Vocore
             {
                 _stack[i] = null;
             }
-            _index = -1;
+            Interlocked.Exchange(ref _index, -1);
         }
     }
 }
-
 

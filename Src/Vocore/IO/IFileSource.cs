@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore
 {
@@ -16,7 +17,7 @@ namespace Vocore
         /// <summary>
         /// Try get data from this file source
         /// </summary>
-        bool TryGetData(string path, out byte[] data);
+        bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data);
     }
 }
 

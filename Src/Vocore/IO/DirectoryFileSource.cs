@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore
 {
@@ -27,7 +28,7 @@ namespace Vocore
 
         public virtual int Order => 3;
 
-        public bool TryGetData(string path, out byte[] data)
+        public bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data)
         {
             try
             {
