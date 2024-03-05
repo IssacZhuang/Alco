@@ -38,7 +38,7 @@ public class Game : GameEngine
 
     #endregion
 
-    private Camera2D camera;
+    private Camera2D _camera;
 
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
@@ -80,10 +80,10 @@ public class Game : GameEngine
 
         _texBlue = Texture2D.CreateEmpty(16, 16, new Vector4(0, 0, 1, 1));
 
-        camera = new Camera2D();
+        _camera = new Camera2D();
 
-        camera.Size = new Vector2(640, 360);
-        _cameraBuffer.Value = camera.ViewProjectionMatrix;
+        _camera.Size = new Vector2(640, 360);
+        _cameraBuffer.Value = _camera.ViewProjectionMatrix;
 
         _transform1 = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One * 9);
 
@@ -135,7 +135,12 @@ public class Game : GameEngine
 
         //TODO: bug here, 1 unit should be 1 pixel, but it's 1*_fontSize now
         DrawString("Hello World !!!", new Vector2(0, 0), new Vector4(1, 1, 1, 1), _fontSize);
-        DrawString("cn: 中文", new Vector2(0, 1), new Vector4(1, 1, 1, 1), _fontSize);
+        DrawString("cn: 中文", new Vector2(0, _fontSize), new Vector4(1, 1, 1, 1), _fontSize);
+        DrawString("jp: こんにちは", new Vector2(0, _fontSize * 2), new Vector4(1, 1, 1, 1), _fontSize);
+        DrawString("kr: 안녕하세요", new Vector2(0, _fontSize * 3), new Vector4(1, 1, 1, 1), _fontSize);
+        DrawString("ru: Привет", new Vector2(0, _fontSize * 4), new Vector4(1, 1, 1, 1), _fontSize);
+        DrawString("gr: Γειά σας", new Vector2(0, _fontSize * 5), new Vector4(1, 1, 1, 1), _fontSize);
+        
     }
 
 
@@ -148,8 +153,8 @@ public class Game : GameEngine
 
     private void DrawString(string text, Vector2 position, Vector4 color, float size, float lineSpacing = 1.0f)
     {
-        float x = position.X;
-        float y = position.Y;
+        float x = position.X / _camera.Size.X;
+        float y = position.Y / _camera.Size.Y;
 
         Transform2D transform = new Transform2D(position, Rotation2D.Identity, Vector2.One * size);
 
