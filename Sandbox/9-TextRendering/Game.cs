@@ -30,8 +30,8 @@ public class Game : GameEngine
     {
         new Vertex {Position = new Vector2(0, 0), TexCoord = new Vector2(0, 0)},
         new Vertex {Position = new Vector2(1, 0), TexCoord = new Vector2(1, 0)},
-        new Vertex {Position = new Vector2(1, 1), TexCoord = new Vector2(1, 1)},
-        new Vertex {Position = new Vector2(0, 1), TexCoord = new Vector2(0, 1)}
+        new Vertex {Position = new Vector2(1, -1), TexCoord = new Vector2(1, 1)},
+        new Vertex {Position = new Vector2(0, -1), TexCoord = new Vector2(0, 1)}
     };
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
