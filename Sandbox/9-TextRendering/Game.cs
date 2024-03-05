@@ -18,12 +18,20 @@ public class Game : GameEngine
     }
 
 
+    // private static readonly Vertex[] Vertices =
+    // {
+    //     new Vertex {Position = new Vector2(-0.5f, 0.5f), TexCoord = new Vector2(0, 0)},
+    //     new Vertex {Position = new Vector2(0.5f, 0.5f), TexCoord = new Vector2(1, 0)},
+    //     new Vertex {Position = new Vector2(0.5f, -0.5f), TexCoord = new Vector2(1, 1)},
+    //     new Vertex {Position = new Vector2(-0.5f, -0.5f), TexCoord = new Vector2(0, 1)}
+    // };
+
     private static readonly Vertex[] Vertices =
     {
-        new Vertex {Position = new Vector2(-0.5f, 0.5f), TexCoord = new Vector2(0, 0)},
-        new Vertex {Position = new Vector2(0.5f, 0.5f), TexCoord = new Vector2(1, 0)},
-        new Vertex {Position = new Vector2(0.5f, -0.5f), TexCoord = new Vector2(1, 1)},
-        new Vertex {Position = new Vector2(-0.5f, -0.5f), TexCoord = new Vector2(0, 1)}
+        new Vertex {Position = new Vector2(0, 0), TexCoord = new Vector2(0, 0)},
+        new Vertex {Position = new Vector2(1, 0), TexCoord = new Vector2(1, 0)},
+        new Vertex {Position = new Vector2(1, 1), TexCoord = new Vector2(1, 1)},
+        new Vertex {Position = new Vector2(0, 1), TexCoord = new Vector2(0, 1)}
     };
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
@@ -44,6 +52,7 @@ public class Game : GameEngine
 
     private Transform2D _transform1;
     private FontAtlas _fontAtlas;
+    private float _fontSize = 32;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -93,27 +102,21 @@ public class Game : GameEngine
             Stop();
         }
 
-        // if (Input.IsKeyPressing(Key.Up))
-        // {
-        //     _scale -= delta;
-        // }
+        if (Input.IsKeyPressing(Key.Up))
+        {
+            _fontSize += delta * 10;
+        }
 
-        // if (Input.IsKeyPressing(Key.Down))
-        // {
-        //     _scale += delta;
-        // }
+        if (Input.IsKeyPressing(Key.Down))
+        {
+            _fontSize -= delta * 10;
+        }
 
 
     }
 
     protected unsafe override void OnDraw(float delta)
     {
-        // _commandBuffer.Begin();
-        // _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        // _commandBuffer.ClearColor(new Vector4(0.1f, 0.2f, 0.3f, 1), 0);
-        // _commandBuffer.ClearDepthStencil(1, 0);
-        // _commandBuffer.End();
-        // GraphicsDevice.Submit(_commandBuffer);
 
         //draw font atlas
         // _commandBuffer.Begin();
@@ -130,7 +133,9 @@ public class Game : GameEngine
         // _commandBuffer.End();
         // GraphicsDevice.Submit(_commandBuffer);
 
-        DrawString("Hello World !!!", new Vector2(0, 0), new Vector4(1, 1, 1, 1), 64);
+        //TODO: bug here, 1 unit should be 1 pixel, but it's 1*_fontSize now
+        DrawString("Hello World !!!", new Vector2(0, 0), new Vector4(1, 1, 1, 1), _fontSize);
+        DrawString("cn: 中文", new Vector2(0, 1), new Vector4(1, 1, 1, 1), _fontSize);
     }
 
 
@@ -148,13 +153,13 @@ public class Game : GameEngine
 
         Transform2D transform = new Transform2D(position, Rotation2D.Identity, Vector2.One * size);
 
-        uint drawCount = 1;
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
             if (c == ' ')
             {
                 x += 0.5f;
+                _textDataBuffer[i] = new TextData();
                 continue;
             }
 
@@ -162,10 +167,11 @@ public class Game : GameEngine
             {
                 x = position.X;
                 y += lineSpacing;
+                _textDataBuffer[i] = new TextData();
                 continue;
             }
 
-            drawCount++;
+
 
             GlyphInfo glyph = _fontAtlas.GetGlyph(c);
 
@@ -173,8 +179,7 @@ public class Game : GameEngine
             {
                 UVRect = glyph.UVRect,
                 Color = color,
-                Offset = new Vector2(x - glyph.Offset.X, y - glyph.Offset.Y),
-                //Offset = new Vector2(x, y),
+                Offset = new Vector2(x, y) + glyph.Offset,
                 Size = glyph.Size
             };
 
@@ -193,7 +198,7 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsResources(1, _fontAtlas.Texture.EntrySample);
         _commandBuffer.SetGraphicsResources(2, _textDataBuffer.EntryReadonly);
         _commandBuffer.PushConstants(ShaderStage.Vertex, transform.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, drawCount, 0, 0, 0);
+        _commandBuffer.DrawIndexed((uint)Indices.Length, (uint)text.Length, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }

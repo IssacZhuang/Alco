@@ -52,10 +52,9 @@ cbuffer TextBuffer
 V2F vs_main(Vertex2D input)
 {
     //float4 position = float4(input.position + Positions[input.instanceId].xy, 0.0f, 1.0f);
-    float2 vertexPos = input.position;
-    vertexPos.x *= Data[input.instanceId].size.x;
-    vertexPos.y *= Data[input.instanceId].size.y;
+    float2 vertexPos = input.position * Data[input.instanceId].size;
     float4 position = float4(vertexPos + Data[input.instanceId].offset, 0.0f, 1.0f);
+    position.y = -position.y;
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
 

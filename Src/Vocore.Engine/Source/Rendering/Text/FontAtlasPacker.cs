@@ -79,10 +79,15 @@ public unsafe class FontAtlasPacker : IDisposable
             throw new InvalidOperationException("Failed to create font from ttf data");
         }
 
+        float invWidth = 1 / (float)_width;
+        float invHeight = 1 / (float)_height;
+        float invfontSize = 1 / (float)fontSize;
 
         float scale = stbtt_ScaleForPixelHeight(font, fontSize);
         int ascent, descent, lineGap;
         stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
+
+        Log.Info(ascent, scale);
 
         foreach (var range in characterRanges)
         {
@@ -100,9 +105,7 @@ public unsafe class FontAtlasPacker : IDisposable
                     packedchars.UnsafePointer);
             
 
-            float invWidth = 1/(float)_width;
-            float invHeight = 1 / (float)_height;
-            float invfontSize = 1/(float)fontSize;
+            
 
             for (int i = 0; i < packedchars.Length; ++i)
             {
