@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine
 {
-    public abstract class BaseCamera : ICamera3D
+    public abstract class BaseCamera3D : ICamera
     {
         public const float DefaultNear = 0.1f;
         public const float DefaultFar = 1000f;
@@ -50,7 +50,7 @@ namespace Vocore.Engine
 
         public virtual Matrix4x4 ViewProjectionMatrix => throw new NotImplementedException();
 
-        public BaseCamera(float near = DefaultNear, float far = DefaultFar)
+        public BaseCamera3D(float near = DefaultNear, float far = DefaultFar)
         {
             _near = near;
             _far = far;

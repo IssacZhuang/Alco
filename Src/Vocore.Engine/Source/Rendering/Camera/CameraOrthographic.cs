@@ -5,78 +5,51 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine
 {
-    public class CameraOrthographic : BaseCamera
+    /// <summary>
+    /// The mathmatical representation of a 3D Orthographic camera.
+    /// </summary>
+    public struct CameraOrthographic
     {
-        
-        public const float DefaultWidth = 16f/9f;
+        public const float DefaultWidth = 16f / 9f;
         public const float DefaultHeight = 1f;
-        private float _width;
-        private float _height;
-        
-        private Matrix4x4 _projectionMatrix;
-        
-        public float Width
+        public const float DefaultNear = 0.1f;
+        public const float DefaultFar = 1000f;
+
+
+        public Transform3D tranform;
+        public float near;
+        public float far;
+        public float width;
+        public float height;
+
+        public Matrix4x4 ViewMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _width;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                _width = value;
-                _isProjectionMatrixDirty = true;
-            }
+            get => Matrix4x4.CreateLookAt(tranform.position, tranform.position + Vector3.Transform(Vector3.UnitZ, tranform.rotation), Vector3.UnitY);
         }
 
-        public float Height
+
+        public Matrix4x4 ProjectionMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _height;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                _height = value;
-                _isProjectionMatrixDirty = true;
-            }
+            get => Matrix4x4.CreateOrthographic(width, height, near, far);
         }
 
-        public override Matrix4x4 ProjectionMatrix
+        public Matrix4x4 ViewProjectionMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_isProjectionMatrixDirty)
-                {
-                    UpdateProjectionMatrix();
-                    _isProjectionMatrixDirty = false;
-                }
-                return _projectionMatrix;
-            }
-        }
+            get => ViewMatrix * ProjectionMatrix;
 
-        public override Matrix4x4 ViewProjectionMatrix
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return ViewMatrix * ProjectionMatrix;
-            }
         }
 
         public CameraOrthographic(float width = DefaultWidth, float height = DefaultHeight, float near = DefaultNear, float far = DefaultFar)
         {
-            _width = width;
-            _height = height;
-            _near = near;
-            _far = far;
-            _isProjectionMatrixDirty = true;
+            this.width = width;
+            this.height = height;
+            this.near = near;
+            this.far = far;
+
             tranform = Transform3D.Default;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateProjectionMatrix()
-        {
-            _projectionMatrix = Matrix4x4.CreateOrthographic(_width, _height, _near, _far);
         }
     }
 }

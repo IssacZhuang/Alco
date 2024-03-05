@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace Vocore.Engine
 {
-    public interface ICamera3D
+    public interface ICamera
     {
         public Matrix4x4 ViewMatrix { get; }
         public Matrix4x4 ProjectionMatrix { get; }

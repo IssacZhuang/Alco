@@ -4,42 +4,35 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine
 {
-    public class CameraPerspective : BaseCamera
+    /// <summary>
+    /// The mathmatical representation of a 3D perspective camera.
+    /// </summary>
+    public struct CameraPerspective
     {
         public const float DefaultFov = 0.83f;
-        private float _fov;
-        private float _aspectRatio;
-        private Matrix4x4 _projectionMatrix;
+        public const float DefaultNear = 0.1f;
+        public const float DefaultFar = 1000f;
 
-        public float FieldOfView
+        public Transform3D tranform;
+        public float near;
+        public float far;
+        public float fov;
+        public float aspectRatio;
+
+        public Matrix4x4 ViewMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _fov;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                _fov = value;
-                _isProjectionMatrixDirty = true;
-            }
+            get =>Matrix4x4.CreateLookAt(tranform.position, tranform.position + Vector3.Transform(Vector3.UnitZ, tranform.rotation), Vector3.UnitY);
         }
 
 
-        public override Matrix4x4 ProjectionMatrix
+        public Matrix4x4 ProjectionMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_isProjectionMatrixDirty)
-                {
-                    UpdateProjectionMatrix();
-                    _isProjectionMatrixDirty = false;
-                }
-                return _projectionMatrix;
-            }
-
+            get => Matrix4x4.CreatePerspectiveFieldOfView(fov, aspectRatio, near, far);
         }
 
-        public override Matrix4x4 ViewProjectionMatrix
+        public Matrix4x4 ViewProjectionMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -50,26 +43,12 @@ namespace Vocore.Engine
 
         public CameraPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar, float aspectRatio = 16/9f)
         {
-            _fov = fov;
-            _near = near;
-            _far = far;
-            _aspectRatio = aspectRatio;
+            this.fov = fov;
+            this.near = near;
+            this.far = far;
+            this.aspectRatio = aspectRatio;
 
             tranform = Transform3D.Default;
-
-            _isProjectionMatrixDirty = true;
-        }
-
-        public void SetAspectRatio(float aspectRatio)
-        {
-            _aspectRatio = aspectRatio;
-            _isProjectionMatrixDirty = true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateProjectionMatrix()
-        {
-            _projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(_fov, _aspectRatio, _near, _far);
         }
     }
 }

@@ -3,7 +3,11 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine;
 
-public class Camera2D : ICamera2D
+
+/// <summary>
+/// The mathmatical representation of a 2D camera. Can be used in 2D scenes and UI.
+/// </summary>
+public struct Camera2D : ICamera
 {
     public Transform2D transform;
 
@@ -12,10 +16,12 @@ public class Camera2D : ICamera2D
         transform = Transform2D.Identity;
     }
 
-    public ref Vector2 Size
+    public Vector2 Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ref transform.scale;
+        get => transform.scale;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => transform.scale = value;
     }
 
     public Matrix4x4 ViewMatrix

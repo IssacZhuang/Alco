@@ -93,14 +93,6 @@ namespace Vocore.Engine
             get => AppDomain.CurrentDomain.BaseDirectory;
         }
 
-        public ICamera3D? Camera
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _graphics.Camera;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => _graphics.Camera = value;
-        }
-
         /// <summary>
         /// The graphics device of the game<br/>
         /// Which provides the low level graphics API,<br/>

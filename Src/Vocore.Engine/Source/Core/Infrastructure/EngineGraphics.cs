@@ -12,7 +12,6 @@ namespace Vocore.Engine
     public class EngineGraphics
     {
         private static readonly float TimeLimit = math.pow(2, 24);
-        public ICamera3D? Camera { get; set; }
         public Vector2 ScreenSize { get; set; }
         private readonly GPUDevice _device;
         private readonly GPUCommandBuffer _commandBuffer;
@@ -22,7 +21,6 @@ namespace Vocore.Engine
             // TODO : implement with new graphics module
             _device = engine.GraphicsDevice;
             _commandBuffer = _device.CreateCommandBuffer();
-            Camera = null;
             ScreenSize = screenSize;
 
            // _renderTarget = OffscreenBuffer.CreateBySwapchainFramebuffer(_device);
