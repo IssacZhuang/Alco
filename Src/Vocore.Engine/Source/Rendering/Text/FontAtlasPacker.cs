@@ -91,31 +91,35 @@ public unsafe class FontAtlasPacker : IDisposable
                 continue;
             }
 
-            stbtt_packedchar[] packedchar = new stbtt_packedchar[range.y - range.x + 1];
+            //stbtt_packedchar[] packedchar = new stbtt_packedchar[range.y - range.x + 1];
+            NativeBuffer<stbtt_packedchar> packedchar = new NativeBuffer<stbtt_packedchar>(range.y - range.x + 1);
 
-            fixed (stbtt_packedchar* packedcharPtr = packedchar)
-            {
-                stbtt_PackFontRange(_context, font.data, 0, fontSize,
-                        range.x,
-                        range.y - range.x + 1,
-                        packedcharPtr);
-            }
+            stbtt_PackFontRange(_context, font.data, 0, fontSize,
+                    range.x,
+                    range.y - range.x + 1,
+                    packedchar.UnsafePointer);
+            
 
-            for (var i = 0; i < packedchar.Length; ++i)
+            float invWidth = 1/(float)_width;
+            float invHeight = 1 / (float)_height;
+
+            for (int i = 0; i < packedchar.Length; ++i)
             {
-                var yOff = packedchar[i].yoff;
+                float yOff = packedchar[i].yoff;
                 yOff += ascent * scale;
 
-                var glyphInfo = new GlyphInfo
+                GlyphInfo glyphInfo = new GlyphInfo
                 {
-                    Position = new Vector2(packedchar[i].x0, packedchar[i].y0),
-                    Size = new Vector2(packedchar[i].x1 - packedchar[i].x0, packedchar[i].y1 - packedchar[i].y0),
-                    Offset = new Vector2((int)packedchar[i].xoff, (int)Math.Round(yOff)),
-                    Advance = Math.Round(packedchar[i].xadvance)
+                    Position = new Vector2(packedchar[i].x0 *invWidth, packedchar[i].y0 * invHeight),
+                    Size = new Vector2((packedchar[i].x1 - packedchar[i].x0)* invWidth, (packedchar[i].y1 - packedchar[i].y0)* invHeight),
+                    Offset = new Vector2(packedchar[i].xoff* invWidth, yOff* invHeight),
+                    Advance = packedchar[i].xadvance/(float)fontSize
                 };
 
                 _glyphs[i + range.x] = glyphInfo;
             }
+
+            packedchar.Dispose();
         }
     }
 
