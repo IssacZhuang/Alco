@@ -11,5 +11,6 @@ public struct TextData
 {
     public Vector4 UVRect;
     public Vector4 Color;
-    public Vector4 Offset; //the z and w components are unused but for memory alignment
+    public Vector2 Offset; 
+    public Vector2 Size;
 }

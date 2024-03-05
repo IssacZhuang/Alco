@@ -20,10 +20,10 @@ public class Game : GameEngine
 
     private static readonly Vertex[] Vertices =
     {
-        new Vertex {Position = new Vector2(-1f, 1f), TexCoord = new Vector2(0, 0)},
-        new Vertex {Position = new Vector2(1f, 1f), TexCoord = new Vector2(1, 0)},
-        new Vertex {Position = new Vector2(1f, -1f), TexCoord = new Vector2(1, 1)},
-        new Vertex {Position = new Vector2(-1f, -1f), TexCoord = new Vector2(0, 1)}
+        new Vertex {Position = new Vector2(-0.5f, 0.5f), TexCoord = new Vector2(0, 0)},
+        new Vertex {Position = new Vector2(0.5f, 0.5f), TexCoord = new Vector2(1, 0)},
+        new Vertex {Position = new Vector2(0.5f, -0.5f), TexCoord = new Vector2(1, 1)},
+        new Vertex {Position = new Vector2(-0.5f, -0.5f), TexCoord = new Vector2(0, 1)}
     };
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
@@ -79,6 +79,8 @@ public class Game : GameEngine
         _transform1 = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One * 9);
 
         _fontAtlas = CreateFontAtlas();
+        Log.Info(_fontAtlas.GetGlyph('l'));
+        Log.Info(_fontAtlas.GetGlyph('!'));
 
         GC.Collect();
         GC.WaitForFullGCComplete();
@@ -106,12 +108,12 @@ public class Game : GameEngine
 
     protected unsafe override void OnDraw(float delta)
     {
-        _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        _commandBuffer.ClearColor(new Vector4(0.1f, 0.2f, 0.3f, 1), 0);
-        _commandBuffer.ClearDepthStencil(1, 0);
-        _commandBuffer.End();
-        GraphicsDevice.Submit(_commandBuffer);
+        // _commandBuffer.Begin();
+        // _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
+        // _commandBuffer.ClearColor(new Vector4(0.1f, 0.2f, 0.3f, 1), 0);
+        // _commandBuffer.ClearDepthStencil(1, 0);
+        // _commandBuffer.End();
+        // GraphicsDevice.Submit(_commandBuffer);
 
         //draw font atlas
         // _commandBuffer.Begin();
@@ -128,7 +130,7 @@ public class Game : GameEngine
         // _commandBuffer.End();
         // GraphicsDevice.Submit(_commandBuffer);
 
-        DrawString("Hello World", new Vector2(0, 0), new Vector4(1, 1, 1, 1), 32);
+        DrawString("Hello World !!!", new Vector2(0, 0), new Vector4(1, 1, 1, 1), 64);
     }
 
 
@@ -146,20 +148,20 @@ public class Game : GameEngine
 
         Transform2D transform = new Transform2D(position, Rotation2D.Identity, Vector2.One * size);
 
-        uint drawCount = 0;
+        uint drawCount = 1;
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
             if (c == ' ')
             {
-                x += size * 0.5f;
+                x += 0.5f;
                 continue;
             }
 
             if (c == '\n' || c == '\r')
             {
                 x = position.X;
-                y += size * lineSpacing;
+                y += lineSpacing;
                 continue;
             }
 
@@ -169,21 +171,17 @@ public class Game : GameEngine
 
             TextData data = new TextData
             {
-                UVRect = new Vector4
-                {
-                    X = glyph.Position.X,
-                    Y = glyph.Position.Y,
-                    Z = glyph.Size.X,
-                    W = glyph.Size.Y
-                },
+                UVRect = glyph.UVRect,
                 Color = color,
-                Offset = new Vector4(x + glyph.Offset.X * size, y + glyph.Offset.Y * size, 0, 0)
+                Offset = new Vector2(x - glyph.Offset.X, y - glyph.Offset.Y),
+                //Offset = new Vector2(x, y),
+                Size = glyph.Size
             };
 
             _textDataBuffer[i] = data;
 
-            x += glyph.Advance ;
-            
+            x += glyph.Advance;
+
         }
 
         _commandBuffer.Begin();
