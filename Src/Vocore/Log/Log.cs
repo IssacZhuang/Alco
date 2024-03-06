@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore{
     public static class Log
@@ -12,7 +13,9 @@ namespace Vocore{
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+#pragma warning disable CS8603      
                 return _builder.Value;
+#pragma warning restore CS8603
             }
         }
         public const string ColorWhite = "#ffffff";

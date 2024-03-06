@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
+#nullable disable
+
 namespace Vocore
 {
     public class ChunkList<T> : ICollection<T>
@@ -21,6 +23,11 @@ namespace Vocore
 
         public void Add(T element)
         {
+            if (element == null)
+            {
+                throw new ArgumentNullException(nameof(element));
+            }
+
             if (_count % Chunk.MaxCount == 0)
             {
                 _chunks.Add(Chunk.Create());
@@ -46,6 +53,18 @@ namespace Vocore
             }
 
             return false;
+        }
+
+        public void Remove(int index)
+        {
+            if (index >= _count)
+            {
+                throw new IndexOutOfRangeException(nameof(index));
+            }
+
+            int chunkIndex = index / Chunk.MaxCount;
+            int elementIndex = index % Chunk.MaxCount;
+            Remove(chunkIndex, elementIndex);
         }
 
         public bool Contains(T item)
@@ -74,18 +93,6 @@ namespace Vocore
         public void CopyTo(T[] array, int arrayIndex)
         {
 
-        }
-
-        private void Remove(int index)
-        {
-            if (index >= _count)
-            {
-                throw ExceptionCollection.OutOfRange;
-            }
-
-            int chunkIndex = index / Chunk.MaxCount;
-            int elementIndex = index % Chunk.MaxCount;
-            Remove(chunkIndex, elementIndex);
         }
 
         private void Remove(int chunkIndex, int elementIndex)
@@ -145,9 +152,10 @@ namespace Vocore
 
             public void Add(T element)
             {
+                //it will not happen if the code is correct
                 if (_count >= MaxCount)
                 {
-                    throw ExceptionCollection.Full;
+                    throw new InvalidOperationException("Chunk is full");
                 }
 
                 _elements[_count] = element;
@@ -156,9 +164,10 @@ namespace Vocore
 
             public T RemoveTail()
             {
+                //it will not happen if the code is correct
                 if (_count == 0)
                 {
-                    throw ExceptionCollection.Empty;
+                    throw new InvalidOperationException("Chunk is empty");
                 }
 
                 T reuslt = _elements[_count - 1];
@@ -171,7 +180,7 @@ namespace Vocore
             {
                 if (index >= _count)
                 {
-                    throw ExceptionCollection.OutOfRange;
+                    throw new IndexOutOfRangeException(nameof(index));
                 }
 
                 if (index == _count - 1)

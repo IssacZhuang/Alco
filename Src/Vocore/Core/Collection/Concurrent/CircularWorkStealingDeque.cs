@@ -5,7 +5,7 @@ using System.Threading;
 namespace Vocore
 {
     
-    public class CircularWorkStealingDeque<T>
+    public class CircularWorkStealingDeque<T> where T : struct
     {
         private int _bottom = 0;
         private int _top = 0;
