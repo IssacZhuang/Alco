@@ -5,9 +5,9 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class BaseCurve2D<T> : ICurve2D where T : ICurve
+    public class BaseCurve2D<T> : ICurve2D where T : ICurve, new()
     {
-        private List<CurvePoint<Vector2>> _points = new List<CurvePoint<Vector2>>();
+        private readonly List<CurvePoint<Vector2>> _points = new List<CurvePoint<Vector2>>();
 
         private T _curveX;
         private T _curveY;
@@ -30,12 +30,15 @@ namespace Vocore
 
         public BaseCurve2D()
         {
-            _curveX = (T)Activator.CreateInstance(typeof(T));
-            _curveY = (T)Activator.CreateInstance(typeof(T));
+            _curveX = new T();
+            _curveY = new T();
         }
 
         public BaseCurve2D(IList<CurvePoint<Vector2>> points)
         {
+            _curveX = new T();
+            _curveY = new T();
+
             SetPoints(points);
         }
 
@@ -57,9 +60,6 @@ namespace Vocore
                 xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.X));
                 yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Y));
             }
-
-            _curveX = (T)Activator.CreateInstance(typeof(T));
-            _curveY = (T)Activator.CreateInstance(typeof(T));
 
             _curveX.SetPoints(xPoints);
             _curveY.SetPoints(yPoints);

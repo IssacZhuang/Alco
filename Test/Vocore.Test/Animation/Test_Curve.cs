@@ -10,7 +10,7 @@ namespace Vocore.Test
         [Test(Description = "linear vs hermite vs cache performance")]
         public void Test_CurvePerformance()
         {
-            int pointCount = 100000;
+            int pointCount = 1000000;
             float[] t = new float[pointCount];
             float[] value = new float[pointCount];
             for (int i = 0; i < pointCount; i++)

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class BaseCurve4D<T>:ICurve4D where T: ICurve
+    public class BaseCurve4D<T>:ICurve4D where T: ICurve, new()
     {
         private List<CurvePoint<Vector4>> _points = new List<CurvePoint<Vector4>>();
 
@@ -33,14 +33,19 @@ namespace Vocore
 
         public BaseCurve4D()
         {
-            _curveX = (T)Activator.CreateInstance(typeof(T));
-            _curveY = (T)Activator.CreateInstance(typeof(T));
-            _curveZ = (T)Activator.CreateInstance(typeof(T));
-            _curveW = (T)Activator.CreateInstance(typeof(T));
+            _curveX = new T();
+            _curveY = new T();
+            _curveZ = new T();
+            _curveW = new T();
         }
 
         public BaseCurve4D(IList<CurvePoint<Vector4>> points)
         {
+            _curveX = new T();
+            _curveY = new T();
+            _curveZ = new T();
+            _curveW = new T();
+            
             SetPoints(points);
         }
 

@@ -6,9 +6,9 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class BaseCurve3D<T>:ICurve3D where T: ICurve
+    public class BaseCurve3D<T> : ICurve3D where T : ICurve, new()
     {
-        private List<CurvePoint<Vector3>> _points = new List<CurvePoint<Vector3>>();
+        private readonly List<CurvePoint<Vector3>> _points = new List<CurvePoint<Vector3>>();
 
         private T _curveX;
         private T _curveY;
@@ -32,14 +32,18 @@ namespace Vocore
 
         public BaseCurve3D()
         {
-            _curveX = (T)Activator.CreateInstance(typeof(T));
-            _curveY = (T)Activator.CreateInstance(typeof(T));
-            _curveZ = (T)Activator.CreateInstance(typeof(T));
+            _curveX = new T();
+            _curveY = new T();
+            _curveZ = new T();
         }
 
 
         public BaseCurve3D(IList<CurvePoint<Vector3>> points)
         {
+            _curveX = new T();
+            _curveY = new T();
+            _curveZ = new T();
+
             SetPoints(points);
         }
 
@@ -64,10 +68,6 @@ namespace Vocore
                 yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Y));
                 zPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Z));
             }
-
-            _curveX = (T)Activator.CreateInstance(typeof(T));
-            _curveY = (T)Activator.CreateInstance(typeof(T));
-            _curveZ = (T)Activator.CreateInstance(typeof(T));
 
             _curveX.SetPoints(xPoints);
             _curveY.SetPoints(yPoints);
