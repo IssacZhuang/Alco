@@ -51,7 +51,7 @@ public class Game : GameEngine
     private Texture2D _texBlue;
 
     private Transform2D _transform1;
-    private FontAtlas _fontAtlas;
+    private Font _fontAtlas;
     private float _fontSize = 32;
 
 
@@ -279,26 +279,26 @@ public class Game : GameEngine
         return GraphicsDevice.CreateGraphicsPipeline(descriptor);
     }
 
-    private static FontAtlas CreateFontAtlas()
+    private static Font CreateFontAtlas()
     {
         byte[] fontFile = LoadFile("Font.ttf");
         using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
 
         packer.Add(fontFile, 32, new int2[]{
-            FontAtlasPacker.RangeBasicLatin,
-            FontAtlasPacker.RangeLatin1Supplement,
-            FontAtlasPacker.RangeLatinExtendedA,
-            FontAtlasPacker.RangeCyrillic,
-            FontAtlasPacker.RangeGreek,
+            UtilsText.RangeBasicLatin,
+            UtilsText.RangeLatin1Supplement,
+            UtilsText.RangeLatinExtendedA,
+            UtilsText.RangeCyrillic,
+            UtilsText.RangeGreek,
             //japanese
-            FontAtlasPacker.RangeHiragana,
-            FontAtlasPacker.RangeKatakana,
+            UtilsText.RangeHiragana,
+            UtilsText.RangeKatakana,
             //chinese
-            FontAtlasPacker.RangeCjkUnifiedIdeographs,
-            FontAtlasPacker.RangeCjkSymbolsAndPunctuation,
+            UtilsText.RangeCjkUnifiedIdeographs,
+            UtilsText.RangeCjkSymbolsAndPunctuation,
             //korean
-            FontAtlasPacker.RangeHangulSyllables,
-            FontAtlasPacker.RangeHangulCompatibilityJamo,
+            UtilsText.RangeHangulSyllables,
+            UtilsText.RangeHangulCompatibilityJamo,
         });
 
 

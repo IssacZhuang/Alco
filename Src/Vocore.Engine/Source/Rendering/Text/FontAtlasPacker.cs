@@ -4,34 +4,18 @@ using static StbTrueTypeSharp.StbTrueType;
 
 namespace Vocore.Engine;
 
+/// <summary>
+/// The atlas packer is used to create a font atlas and unicode to glyph mapping from a ttf font file. <br/>
+/// Can be used to create <see cref="Font"/> instances.
+/// </summary> 
 public unsafe class FontAtlasPacker : IDisposable
 {
-    public static readonly int2 RangeBasicLatin = new int2(0x0020, 0x007F);
-    public static readonly int2 RangeLatin1Supplement = new int2(0x00A0, 0x00FF);
-    public static readonly int2 RangeLatinExtendedA = new int2(0x0100, 0x017F);
-    public static readonly int2 RangeLatinExtendedB = new int2(0x0180, 0x024F);
-    public static readonly int2 RangeCombiningDiacriticalMarks = new int2(0x0300, 0x036F);
-    public static readonly int2 RangeCyrillic = new int2(0x0400, 0x04FF);
-    public static readonly int2 RangeCyrillicSupplement = new int2(0x0500, 0x052F);
-    public static readonly int2 RangeHebrew = new int2(0x0590, 0x05FF);
-    public static readonly int2 RangeArabic = new int2(0x0600, 0x06FF);
-    public static readonly int2 RangeThai = new int2(0x0E00, 0x0E7F);
-    public static readonly int2 RangeTibetan = new int2(0x0F00, 0x0FFF);
-    public static readonly int2 RangeHiragana = new int2(0x3040, 0x309F);
-    public static readonly int2 RangeKatakana = new int2(0x30A0, 0x30FF);
-    public static readonly int2 RangeGreek = new int2(0x0370, 0x03FF);
-    public static readonly int2 RangeCjkSymbolsAndPunctuation = new int2(0x3000, 0x303F);
-    public static readonly int2 RangeCjkUnifiedIdeographs = new int2(0x4E00, 0x9FFF);
-    public static readonly int2 RangeHangulCompatibilityJamo = new int2(0x3130, 0x318F);
-    public static readonly int2 RangeDevanagari = new int2(0x0900, 0x097F);
-    public static readonly int2 RangeHangulSyllables = new int2(0xAC00, 0xD7AF);
-
     private static readonly int MaxArrayLength = 0xD7AF + 1;
     private readonly stbtt_pack_context _context;
     private readonly GlyphInfo[] _glyphs;
     private readonly NativeBuffer<byte> _bitmap;
-    private int _width;
-    private int _height;
+    private readonly int _width;
+    private readonly int _height;
 
     public GlyphInfo[] Glyphs => _glyphs;
 
@@ -57,7 +41,7 @@ public unsafe class FontAtlasPacker : IDisposable
         stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, 1, null);
     }
 
-    public void Add(byte[] ttf, float fontSize, IEnumerable<int2> characterRanges)
+    public void Add(byte[] ttf, float fontSize, IEnumerable<int2> unicodeRanges)
     {
         if (ttf == null)
         {
@@ -69,9 +53,9 @@ public unsafe class FontAtlasPacker : IDisposable
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         }
 
-        if (characterRanges == null)
+        if (unicodeRanges == null)
         {
-            throw new ArgumentNullException(nameof(characterRanges));
+            throw new ArgumentNullException(nameof(unicodeRanges));
         }
 
         if (!TryCreateFont(ttf, 0, out stbtt_fontinfo font))
@@ -87,9 +71,7 @@ public unsafe class FontAtlasPacker : IDisposable
         int ascent, descent, lineGap;
         stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
 
-        Log.Info(ascent, scale);
-
-        foreach (var range in characterRanges)
+        foreach (var range in unicodeRanges)
         {
             if (range.x < 0 || range.y > MaxArrayLength || range.x > range.y)
             {
@@ -129,9 +111,9 @@ public unsafe class FontAtlasPacker : IDisposable
         }
     }
 
-    public FontAtlas Build()
+    public Font Build()
     {
-        return new FontAtlas(_bitmap.MemoryRef, _width, _height, _glyphs);
+        return new Font(_bitmap.MemoryRef, _width, _height, _glyphs);
     }
 
     public void Dispose()

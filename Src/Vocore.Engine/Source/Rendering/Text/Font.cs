@@ -3,7 +3,10 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine;
 
-public unsafe class FontAtlas : IDisposable
+/// <summary>
+/// A font atlas texture with unicode to glyph mapping.
+/// </summary>
+public unsafe class Font : IDisposable
 {
     private readonly Texture2D _texture;
     private readonly GlyphInfo[] _glyphs;
@@ -13,7 +16,7 @@ public unsafe class FontAtlas : IDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _texture;
     }
-    internal FontAtlas(MemoryRef<byte> bitmap, int width, int height, GlyphInfo[] glyphs)
+    internal Font(MemoryRef<byte> bitmap, int width, int height, GlyphInfo[] glyphs)
     {
         _texture = Texture2D.CreateByFormat((uint)width, (uint)height, PixelFormat.R8Unorm, 1);
         _texture.SetPixels(bitmap.Pointer, bitmap.Length, 1);
@@ -27,6 +30,6 @@ public unsafe class FontAtlas : IDisposable
 
     public void Dispose()
     {
-
+        _texture.Dispose();
     }
 }
