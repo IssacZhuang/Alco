@@ -121,7 +121,9 @@ namespace Vocore.Test
                     TestCls testClass = parser.ParseToObject(xmlNode) as TestCls;
 
                     Assert.IsFalse(testClass == null, "ParseXml failed");
-
+                    Assert.IsTrue(testClass.TestStruct.Value == 222);
+                    Assert.IsTrue(testClass.RecursiveClass.RecursiveClass.Name == "Recursive obj");
+                    Assert.IsTrue(testClass.Position == new Vector3(1,2,3));
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
@@ -157,7 +159,8 @@ namespace Vocore.Test
                     TestCls testClass = parser.ParseToObject(xmlNode) as TestCls;
 
                     Assert.IsFalse(testClass == null, "ParseXml MissingContent failed");
-
+                    Assert.IsTrue(testClass.TestInt == 0);
+                    Assert.IsTrue(testClass.InnerData == null);
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }
@@ -191,7 +194,8 @@ namespace Vocore.Test
                     TestClassChild testClass = parser.ParseToObject(xmlNode) as TestClassChild;
 
                     Assert.IsFalse(testClass == null, "ParseXml Child failed");
-
+                    Assert.IsTrue(testClass.TestInt == 1);
+                    Assert.IsTrue(testClass.IntList.Count == 3);
                     //TestHelper.PrintBlue(UtilsLog.DumpToString(testClass)+"\n\n");
                 }
             }

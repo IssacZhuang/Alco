@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Globalization;
+using System;
 
 
 namespace Vocore
@@ -43,7 +44,7 @@ namespace Vocore
         {
             if (str == null)
             {
-                return null;
+                return Array.Empty<byte>();
             }
             return Encoding.UTF8.GetBytes(str);
         }
@@ -59,7 +60,7 @@ namespace Vocore
         {
             if (bytes == null)
             {
-                return null;
+                return string.Empty;
             }
             return Encoding.UTF8.GetString(bytes);
         }

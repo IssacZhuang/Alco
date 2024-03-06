@@ -8,14 +8,15 @@ namespace Vocore
     public class TypeHelper
     {
         public static readonly TypeHelper Default = new TypeHelper();
-        private Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
-        private object _lockListCache = new object();
-        private Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
-        private object _lockDictionaryCache = new object();
-        private Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
-        private object _lockTypeCache = new object();
+        private readonly Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
+        private readonly object _lockListCache = new object();
+        private readonly Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
+        private readonly object _lockDictionaryCache = new object();
+        private readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+        private readonly object _lockTypeCache = new object();
 
-        private List<string> defaultNamespaces = new List<string>{
+        private readonly List<string> defaultNamespaces = new List<string>{
+            string.Empty,
             "Vocore",
             "Vocore.Framework",
             "Vocore.Test",
@@ -73,12 +74,12 @@ namespace Vocore
             return result;
         }
 
-        public object CreateKeyValuePair(Type keyType, Type valueType, object key, object value)
+        public object? CreateKeyValuePair(Type keyType, Type valueType, object key, object value)
         {
             return Activator.CreateInstance(typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType), new object[] { key, value });
         }
 
-        public object CreateDictionaty(Type keyType, Type valueType)
+        public object? CreateDictionaty(Type keyType, Type valueType)
         {
             return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType));
         }
@@ -86,15 +87,15 @@ namespace Vocore
         /// <summary>
         /// Get the type from all loaded assemblies.
         /// </summary>
-        public Type GetTypeFromAllAssemblies(string typeName)
+        public Type? GetTypeFromAllAssemblies(string typeName)
         {
-            if (_typeCache.TryGetValue(typeName, out Type type))
+            if (_typeCache.TryGetValue(typeName, out Type? type))
             {
                 return type;
             }
 
             AppDomain appDomain = AppDomain.CurrentDomain;
-            var types = appDomain.GetAssemblies().SelectMany<Assembly, Type>((Assembly asm) => asm.GetTypes()).AsParallel().Where(t => t.FullName == typeName || (t.Name == typeName && defaultNamespaces.Contains(t.Namespace)));
+            var types = appDomain.GetAssemblies().SelectMany<Assembly, Type>((Assembly asm) => asm.GetTypes()).AsParallel().Where(t => t.FullName == typeName || (t.Name == typeName && defaultNamespaces.Contains(t.Namespace ?? string.Empty)));
 
             if (types.Count() > 1)
             {
@@ -107,11 +108,11 @@ namespace Vocore
                 throw new Exception(error);
             }
 
-            type = types.FirstOrDefault();
-            if (type != null)
+            Type? first = types.FirstOrDefault();
+            if (first != null)
             {
-                AddTypeCache(typeName, type);
-                return type;
+                AddTypeCache(typeName, first);
+                return first;
             }
 
             return null;
@@ -153,10 +154,12 @@ namespace Vocore
             }
             lock (_lockDefaultNamespaces)
             {
-                defaultNamespaces = new List<string>{
-                    "Vocore",
-                    "System"
-                };
+                defaultNamespaces.Clear();
+                defaultNamespaces.Add(string.Empty);
+                defaultNamespaces.Add("Vocore");
+                defaultNamespaces.Add("Vocore.Framework");
+                defaultNamespaces.Add("Vocore.Test");
+                defaultNamespaces.Add("System");
             }
         }
 

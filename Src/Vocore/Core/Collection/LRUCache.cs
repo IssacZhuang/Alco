@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-#nullable disable
+
 
 namespace Vocore
 {
@@ -34,7 +34,7 @@ namespace Vocore
 
         public LRUCache(int capacity)
         {
-            this._capacity = capacity;
+            _capacity = capacity;
         }
 
         public bool TryGetValue(K key, [NotNullWhen(true)]out V? result)
@@ -43,7 +43,9 @@ namespace Vocore
             {
                 result = value.Value.value;
                 WasUsed(value);
+#pragma warning disable CS8762
                 return true;
+#pragma warning restore CS8762
             }
             result = default(V);
             return false;
@@ -51,6 +53,10 @@ namespace Vocore
 
         public void Add(K key, V value)
         {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
             int weight = GetWeight(value);
             if (_sumWeight + weight > _capacity)
             {

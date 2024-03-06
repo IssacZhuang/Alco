@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 
 
@@ -58,9 +59,11 @@ namespace Vocore
         /// <summary>
         /// Register a parser for a type.
         /// </summary>
-        public void RegisterStrParser<T>(Func<string, T> parser)
+        public void RegisterStrParser<T>(Func<string, T?> parser)
         {
+#pragma warning disable CS8603
             _strParser.Add(typeof(T), (str) => parser(str));
+#pragma warning restore CS8603
         }
 
         /// <summary>
@@ -90,7 +93,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to a type.
         /// </summary>
-        public bool TryParseStr<T>(string str, out T result)
+        public bool TryParseStr<T>(string str, [NotNullWhen(true)] out T? result)
         {
             if (HasStrParser<T>())
             {
@@ -104,7 +107,7 @@ namespace Vocore
         /// <summary>
         /// Parse a string to a type.
         /// </summary>
-        public bool TryParseStr(string str, Type type, out object result)
+        public bool TryParseStr(string str, Type type, [NotNullWhen(true)] out object? result)
         {
             if (HasStrParser(type))
             {
@@ -150,8 +153,14 @@ namespace Vocore
         /// <summary>
         /// Parse a type to a string.
         /// </summary>
-        public bool TryParseValue<T>(T value, out string result)
+        public bool TryParseValue<T>(T value, [NotNullWhen(true)] out string? result)
         {
+            if (value == null)
+            {
+                result = null;
+                return false;
+            }
+
             if (HasValueParser<T>())
             {
                 result = _valueParser[typeof(T)](value);
@@ -164,8 +173,14 @@ namespace Vocore
         /// <summary>
         /// Parse a type to a string.
         /// </summary>
-        public bool TryParseValue(object value, Type type, out string result)
+        public bool TryParseValue(object value, Type type, [NotNullWhen(true)] out string? result)
         {
+            if (value == null)
+            {
+                result = null;
+                return false;
+            }
+
             if (HasValueParser(type))
             {
                 result = _valueParser[type](value);
@@ -507,14 +522,14 @@ namespace Vocore
         /// </summary>
         public string EnumToStr(object value)
         {
-            return value.ToString();
+            return value.ToString() ?? string.Empty;
         }
 
 
         /// <summary>
         /// Parse a string to Type
         /// </summary>
-        public Type StrToType(string str)
+        public Type? StrToType(string str)
         {
             return _typeHelper.GetTypeFromAllAssemblies(str);
         }
@@ -524,7 +539,7 @@ namespace Vocore
         /// </summary>
         public string TypeToStr(Type type)
         {
-            return type.FullName;
+            return type.FullName ?? type.Name;
         }
 
     }

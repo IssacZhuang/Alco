@@ -55,7 +55,7 @@ namespace Vocore
             return false;
         }
 
-        public void Remove(int index)
+        public void RemoveByIndex(int index)
         {
             if (index >= _count)
             {

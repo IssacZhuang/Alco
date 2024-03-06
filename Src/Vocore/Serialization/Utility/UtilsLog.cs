@@ -11,12 +11,12 @@ namespace Vocore
 {
     public static class UtilsLog
     {
-        public static string TAB_SPACE = "   ";
+        public const string TAB_SPACE = "   ";
 
         /// <summary>
         /// Dump all field of an object to string
         /// </summary>
-        public static string DumpToString(this object obj, string prefix = "", int recursion = 4)
+        public static string DumpToString(object? obj, string prefix = "", int recursion = 4)
         {
             if (recursion < 0)
             {
@@ -66,9 +66,9 @@ namespace Vocore
                 
                 sb.Append(prefix);
                 sb.Append("Key: ");
-                sb.Append(type.GetProperty(ConstField.Key).GetValue(obj));
+                sb.Append(type.GetProperty(ConstField.Key)?.GetValue(obj));
                 sb.Append(", Value: ");
-                sb.Append(DumpToString(type.GetProperty(ConstField.Value).GetValue(obj), prefix + TAB_SPACE, recursion - 1));
+                sb.Append(DumpToString(type.GetProperty(ConstField.Value)?.GetValue(obj), prefix + TAB_SPACE, recursion - 1));
                 return sb.ToString();
             }
 
@@ -91,7 +91,7 @@ namespace Vocore
                 sb.AppendLine();
                 foreach (FieldInfo field in obj.GetType().GetFields())
                 {
-                    Object subObj = field.GetValue(obj);
+                    object? subObj = field.GetValue(obj);
                     sb.Append(prefix);
                     sb.Append(field.Name);
                     sb.Append(": ");
@@ -117,7 +117,12 @@ namespace Vocore
             string result = "";
             for (int i = 0; i < names.Length; i++)
             {
-                if (e.HasFlag((Enum)values.GetValue(i)))
+                Enum? @enum = values.GetValue(i) as Enum;
+                if (@enum == null)
+                {
+                    continue;
+                }
+                if (e.HasFlag(@enum))
                 {
                     result += names[i] + ", ";
                 }
