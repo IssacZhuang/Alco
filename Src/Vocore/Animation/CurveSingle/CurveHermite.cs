@@ -8,8 +8,8 @@ namespace Vocore
     public class CurveHermite : ICurve
     {
 
-        private List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
-        private float[] _slopes;
+        private readonly List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
+        private readonly List<float> _slopes = new List<float>();
 
         public int PointsCount
         {
@@ -29,6 +29,7 @@ namespace Vocore
 
         public CurveHermite()
         {
+
         }
 
         public CurveHermite(IReadOnlyList<CurvePoint<float>> points)
@@ -41,7 +42,7 @@ namespace Vocore
             _points.AddRange(points);
           
             Sort();
-            RefreshSlopes();
+            CalculateSlopes(_slopes, _points);
         }
 
         public CurveHermite(float[] t, float[] value)
@@ -66,14 +67,15 @@ namespace Vocore
                 _points.Add(new CurvePoint<float>(t[i], value[i]));
             }
             Sort();
-            RefreshSlopes();
+            CalculateSlopes(_slopes, _points);
         }
 
         public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
         {
-            _points = new List<CurvePoint<float>>(points);
+            _points.Clear();
+            _points.AddRange(points);
             Sort();
-            RefreshSlopes();
+            CalculateSlopes(_slopes, _points);
         }
 
         public float Evaluate(float t)
@@ -112,10 +114,6 @@ namespace Vocore
             _points.Sort((a, b) => a.t.CompareTo(b.t));
         }
 
-        public void RefreshSlopes()
-        {
-            _slopes = CalculateSlopes(_points);
-        }
 
         private int BinarySearchFloor(float t){
             int low = 0;
@@ -139,30 +137,31 @@ namespace Vocore
             return high;
         }
 
-        private static float[] CalculateSlopes(IReadOnlyList<CurvePoint<float>> points)
+        private static void CalculateSlopes(List<float> slopes, IReadOnlyList<CurvePoint<float>> points)
         {
+            slopes.Clear();
             int count = points.Count;
-            float[] slopes = new float[count];
 
             for (int i = 0; i < count; i++)
             {
+                float slope;
                 if (i == 0)
                 {
-                    slopes[i] = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
+                    slope = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
                 }
                 else if (i == count - 1)
                 {
-                    slopes[i] = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
+                    slope = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
                 }
                 else
                 {
                     float dydx1 = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
                     float dydx2 = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
-                    slopes[i] = (dydx1 + dydx2) / 2f;
+                    slope = (dydx1 + dydx2) / 2f;
                 }
-            }
 
-            return slopes;
+                slopes.Add(slope);
+            }
         }
     }
 }

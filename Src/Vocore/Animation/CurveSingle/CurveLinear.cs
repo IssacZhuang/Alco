@@ -8,7 +8,7 @@ namespace Vocore
     public class CurveLinear : ICurve
     {
 
-        private List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
+        private readonly List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
         public int PointsCount
         {
             get
@@ -78,7 +78,8 @@ namespace Vocore
 
         public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
         {
-            _points = new List<CurvePoint<float>>(points);
+            _points.Clear();
+            _points.AddRange(points);
             Sort();
         }
 
