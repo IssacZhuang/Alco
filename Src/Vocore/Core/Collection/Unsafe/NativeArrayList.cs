@@ -61,7 +61,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
                     return ((T*)_ptrBuffer)[index];
                 }
             }
@@ -69,7 +69,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
                     ((T*)_ptrBuffer)[index] = value;
                 }
             }
@@ -106,7 +106,7 @@ namespace Vocore
 
         public void Insert(int index, T value)
         {
-            if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+            if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
             EnsureSize(_length + 1);
             UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, _stride * (_length - index));
             _length++;
@@ -136,7 +136,7 @@ namespace Vocore
 
         public void RemoveAt(int index)
         {
-            if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+            if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
             UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, _stride * (_length - index - 1));
             EnsureSize(_length - 1);
             _length--;
@@ -175,8 +175,8 @@ namespace Vocore
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            if (arrayIndex < 0) throw ExceptionCollection.OutOfRange;
-            if (array.Length - arrayIndex < _length) throw ExceptionCollection.OutOfRange;
+            if (arrayIndex < 0) throw new IndexOutOfRangeException(nameof(arrayIndex));
+            if (array.Length - arrayIndex < _length) throw new ArgumentException(nameof(arrayIndex));
             unsafe
             {
                 fixed (T* ptr = array)

@@ -31,7 +31,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
                     return ((T*)_ptrBuffer)[index];
                 }
             }
@@ -39,7 +39,7 @@ namespace Vocore
             {
                 unsafe
                 {
-                    if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+                    if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
                     ((T*)_ptrBuffer)[index] = value;
                 }
             }
@@ -57,7 +57,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(int index)
         {
-            if (NotInRange(index)) throw ExceptionCollection.OutOfRange;
+            if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
             return UnsafePointer[index];
         }
 

@@ -196,7 +196,7 @@ namespace Vocore
             {
                 if (index >= _count)
                 {
-                    throw ExceptionCollection.OutOfRange;
+                    throw new IndexOutOfRangeException(nameof(index));
                 }
 
                 _elements[index] = element;
