@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace Vocore
 {
-    public static class PointerTracker
+    public static class AllocationTracker
     {
         public struct PointerInfo
         {

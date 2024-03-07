@@ -12,7 +12,7 @@ namespace Vocore.Unsafe
         {
 #if DEBUG
             IntPtr ptr = Marshal.AllocHGlobal(size);
-            PointerTracker.AddAllocated(ptr, size, Environment.StackTrace);
+            AllocationTracker.AddAllocated(ptr, size, Environment.StackTrace);
             return ptr.ToPointer();
 #else
             return Marshal.AllocHGlobal(size).ToPointer();
@@ -23,7 +23,7 @@ namespace Vocore.Unsafe
         {
 #if DEBUG
             IntPtr ptr = Marshal.AllocHGlobal(sizeof(T) * count);
-            PointerTracker.AddAllocated(ptr, sizeof(T) * count, Environment.StackTrace);
+            AllocationTracker.AddAllocated(ptr, sizeof(T) * count, Environment.StackTrace);
             return (T*)ptr.ToPointer();
 #else
             return (T*)Marshal.AllocHGlobal(sizeof(T) * count).ToPointer();
@@ -34,7 +34,7 @@ namespace Vocore.Unsafe
         public static void Free(void* ptr)
         {
 #if DEBUG
-            PointerTracker.Remove((IntPtr)ptr);
+            AllocationTracker.Remove((IntPtr)ptr);
 #endif
             Marshal.FreeHGlobal((IntPtr)ptr);
         }
@@ -43,7 +43,7 @@ namespace Vocore.Unsafe
         public static void Free(IntPtr ptr)
         {
 #if DEBUG
-            PointerTracker.Remove(ptr);
+            AllocationTracker.Remove(ptr);
 #endif
             Marshal.FreeHGlobal(ptr);
         }
@@ -54,7 +54,7 @@ namespace Vocore.Unsafe
         {
             IntPtr ptr = Marshal.AllocHGlobal(sizeof(T));
 #if DEBUG
-            PointerTracker.AddAllocated(ptr, sizeof(T), Environment.StackTrace);
+            AllocationTracker.AddAllocated(ptr, sizeof(T), Environment.StackTrace);
 #endif
             Marshal.StructureToPtr(value, ptr, false);
             return ptr;

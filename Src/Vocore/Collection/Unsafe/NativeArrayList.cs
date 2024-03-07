@@ -7,7 +7,7 @@ using Vocore.Unsafe;
 
 namespace Vocore
 {
-    public unsafe struct NativeArrayList<T> : IList<T>, IDisposable where T : unmanaged
+    public unsafe struct NativeArrayList<T> : IDisposable where T : unmanaged
     {
         private const int DefaultSize = 4;
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
@@ -113,14 +113,6 @@ namespace Vocore
             this[index] = value;
         }
 
-        public unsafe void UnsafeAdd(T value)
-        {
-            EnsureSize(_length + 1);
-            _length++;
-            UnsafePointer[_length - 1] = value;
-        }
-
-
         public bool Remove(T value)
         {
             for (int i = 0; i < _length; i++)
@@ -171,32 +163,6 @@ namespace Vocore
         {
             if (AutoCompress) Resize(DefaultCapacity);
             _length = 0;
-        }
-
-        public void CopyTo(T[] array, int arrayIndex)
-        {
-            if (arrayIndex < 0) throw new IndexOutOfRangeException(nameof(arrayIndex));
-            if (array.Length - arrayIndex < _length) throw new ArgumentException(nameof(arrayIndex));
-            unsafe
-            {
-                fixed (T* ptr = array)
-                {
-                    UtilsMemory.MemCopy(ptr + arrayIndex, _ptrBuffer, _stride * _length);
-                }
-            }
-        }
-
-        public IEnumerator<T> GetEnumerator()
-        {
-            for (int i = 0; i < _length; i++)
-            {
-                yield return this[i];
-            }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
 
         public void Dispose()
