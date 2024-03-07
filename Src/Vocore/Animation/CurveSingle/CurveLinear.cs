@@ -54,7 +54,7 @@ namespace Vocore
             Sort();
         }
 
-        public CurveLinear(IList<CurvePoint<float>> points)
+        public CurveLinear(IReadOnlyList<CurvePoint<float>> points)
         {
             if (points == null)
             {
@@ -76,7 +76,7 @@ namespace Vocore
             }
         }
 
-        public void SetPoints(IList<CurvePoint<float>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
         {
             _points = new List<CurvePoint<float>>(points);
             Sort();

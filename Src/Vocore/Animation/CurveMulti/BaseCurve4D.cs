@@ -39,17 +39,17 @@ namespace Vocore
             _curveW = new T();
         }
 
-        public BaseCurve4D(IList<CurvePoint<Vector4>> points)
+        public BaseCurve4D(IReadOnlyList<CurvePoint<Vector4>> points)
         {
             _curveX = new T();
             _curveY = new T();
             _curveZ = new T();
             _curveW = new T();
-            
+
             SetPoints(points);
         }
 
-        public void SetPoints(IList<CurvePoint<Vector4>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint<Vector4>> points)
         {
             if (points == null)
             {

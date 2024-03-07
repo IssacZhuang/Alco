@@ -9,7 +9,7 @@ namespace Vocore
     {
         T Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IList<CurvePoint<T>> points);
+        void SetPoints(IReadOnlyList<CurvePoint<T>> points);
         IReadOnlyList <CurvePoint<T>> Points { get; }
     }
 

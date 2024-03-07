@@ -38,7 +38,7 @@ namespace Vocore
         }
 
 
-        public BaseCurve3D(IList<CurvePoint<Vector3>> points)
+        public BaseCurve3D(IReadOnlyList<CurvePoint<Vector3>> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -48,7 +48,7 @@ namespace Vocore
         }
 
 
-        public void SetPoints(IList<CurvePoint<Vector3>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint<Vector3>> points)
         {
             if (points == null)
             {

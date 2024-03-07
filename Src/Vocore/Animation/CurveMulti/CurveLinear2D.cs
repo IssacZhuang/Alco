@@ -11,7 +11,7 @@ namespace Vocore
             
         }
 
-        public CurveLinear2D(IList<CurvePoint<Vector2>> points) :base(points)
+        public CurveLinear2D(IReadOnlyList<CurvePoint<Vector2>> points) :base(points)
         {
             
         }

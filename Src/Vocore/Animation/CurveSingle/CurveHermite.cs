@@ -31,7 +31,7 @@ namespace Vocore
         {
         }
 
-        public CurveHermite(IList<CurvePoint<float>> points)
+        public CurveHermite(IReadOnlyList<CurvePoint<float>> points)
         {
             if (points == null)
             {
@@ -69,7 +69,7 @@ namespace Vocore
             RefreshSlopes();
         }
 
-        public void SetPoints(IList<CurvePoint<float>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
         {
             _points = new List<CurvePoint<float>>(points);
             Sort();
@@ -139,7 +139,7 @@ namespace Vocore
             return high;
         }
 
-        private static float[] CalculateSlopes(IList<CurvePoint<float>> points)
+        private static float[] CalculateSlopes(IReadOnlyList<CurvePoint<float>> points)
         {
             int count = points.Count;
             float[] slopes = new float[count];

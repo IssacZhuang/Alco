@@ -34,7 +34,7 @@ namespace Vocore
             _curveY = new T();
         }
 
-        public BaseCurve2D(IList<CurvePoint<Vector2>> points)
+        public BaseCurve2D(IReadOnlyList<CurvePoint<Vector2>> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -42,7 +42,7 @@ namespace Vocore
             SetPoints(points);
         }
 
-        public void SetPoints(IList<CurvePoint<Vector2>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint<Vector2>> points)
         {
             if (points == null)
             {

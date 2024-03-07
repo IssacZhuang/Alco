@@ -11,7 +11,7 @@ namespace Vocore
 
         }
 
-        public CurveLinear3D(IList<CurvePoint<Vector3>> points) : base(points)
+        public CurveLinear3D(IReadOnlyList<CurvePoint<Vector3>> points) : base(points)
         {
 
         }

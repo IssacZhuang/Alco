@@ -36,7 +36,7 @@ namespace Vocore
             _points = CacheCurve(curve, step);
         }
 
-        public void SetPoints(IList<CurvePoint<Vector4>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint<Vector4>> points)
         {
             //default use linear
             ICurve4D curve = new CurveLinear4D(points);

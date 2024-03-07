@@ -11,7 +11,7 @@ namespace Vocore
 
         }
 
-        public CurveLinear4D(IList<CurvePoint<Vector4>> points) : base(points)
+        public CurveLinear4D(IReadOnlyList<CurvePoint<Vector4>> points) : base(points)
         {
 
         }
