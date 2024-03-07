@@ -39,14 +39,14 @@ namespace Vocore
         /// <summary>
         /// Parse a XML node to an object
         /// </summary>
-        public object ParseToObject(XmlNode xml)
+        public object? ParseToObject(XmlNode xml)
         {
             if (xml == null)
             {
                 AddError("Xml node is null");
                 return null;
             }
-            Type typeNode = null;
+            Type? typeNode = null;
             try
             {
                 typeNode = _typeHelper.GetTypeFromAllAssemblies(xml.Name);
@@ -56,8 +56,8 @@ namespace Vocore
                 AddError("Error when getting type from name: " + xml.Name + "\n" + e);
                 return null;
             }
-            Type typeAttrClass = null;
-            XmlAttribute attr = xml.Attributes[ConstField.Class];
+            Type? typeAttrClass = null;
+            XmlAttribute? attr = xml.Attributes?[ConstField.Class];
 
             if (attr != null)
             {
@@ -73,19 +73,14 @@ namespace Vocore
             }
 
 
-            Type typeFinal = null;
+            Type? typeFinal = null;
             if (typeAttrClass == null)
             {
                 typeFinal = typeNode;
             }
-            else if (typeAttrClass.IsSubclassOf(typeNode))
+            else if (typeNode != null && typeAttrClass.IsSubclassOf(typeNode))
             {
                 typeFinal = typeAttrClass;
-            }
-            else
-            {
-                typeFinal = typeNode;
-                AddError("Type " + typeAttrClass.Name + " is not a subclass of " + typeNode.Name);
             }
 
             if (typeFinal == null)
@@ -100,7 +95,7 @@ namespace Vocore
         /// <summary>
         /// Parse a XML node to an object with a specific type
         /// </summary>
-        public object ObjectFromXml(Type type, XmlNode xml, int depth = 0)
+        public object? ObjectFromXml(Type type, XmlNode xml, int depth = 0)
         {
             if (depth > recursionLimit)
             {
@@ -110,7 +105,7 @@ namespace Vocore
 
             try
             {
-                if (_parseHelper.TryParseStr(xml.InnerText, type, out Object objParsed))
+                if (_parseHelper.TryParseStr(xml.InnerText, type, out object? objParsed))
                 {
                     return objParsed;
                 }
@@ -124,10 +119,17 @@ namespace Vocore
             if (_typeHelper.IsList(type))
             {
                 Type listType = type.GetGenericArguments()[0];
-                IList list = (IList)Activator.CreateInstance(type);
+                IList? list = Activator.CreateInstance(type) as IList;
+
+                if (list == null)
+                {
+                    AddError("Failed to create list for type: " + type.Name + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
+                    return null;
+                }
+
                 foreach (XmlNode child in xml.ChildNodes)
                 {
-                    object childObj = ObjectFromXml(listType, child, depth + 1);
+                    object? childObj = ObjectFromXml(listType, child, depth + 1);
                     list.Add(childObj);
                 }
                 return list;
@@ -138,14 +140,21 @@ namespace Vocore
                 Type[] genericTypes = type.GetGenericArguments();
                 Type keyType = genericTypes[0];
                 Type valueType = genericTypes[1];
-                IDictionary dict = (IDictionary)_typeHelper.CreateDictionaty(keyType, valueType);
+                IDictionary? dict = _typeHelper.CreateDictionaty(keyType, valueType) as IDictionary;
+
+                if (dict == null)
+                {
+                    AddError("Failed to create dictionary for type: " + type.Name + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
+                    return null;
+                }
+
                 foreach (XmlNode child in xml.ChildNodes)
                 {
                     try
                     {
-                        if (_parseHelper.TryParseStr(child.Name, keyType, out Object key))
+                        if (_parseHelper.TryParseStr(child.Name, keyType, out object? key))
                         {
-                            object value = ObjectFromXml(valueType, child, depth + 1);
+                            object? value = ObjectFromXml(valueType, child, depth + 1);
                             dict.Add(key, value);
                         }
                         else
@@ -166,9 +175,15 @@ namespace Vocore
                 Type[] genericTypes = type.GetGenericArguments();
                 Type keyType = genericTypes[0];
                 Type valueType = genericTypes[1];
-                if (_parseHelper.TryParseStr(xml.Name, keyType, out Object key))
+                if (_parseHelper.TryParseStr(xml.Name, keyType, out object? key))
                 {
-                    object value = ObjectFromXml(valueType, xml, depth + 1);
+                    object? value = ObjectFromXml(valueType, xml, depth + 1);
+                    if (value == null)
+                    {
+                        AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
+                        return null;
+                    }
+
                     return _typeHelper.CreateKeyValuePair(keyType, valueType, key, value);
                 }
                 AddError("Parse failed for node: '" + xml.Name + "' in type: '" + type.Name + "', value: " + xml.InnerText + "\nRaw xml text: \n" + GetXmlTextFormated(xml));
@@ -203,21 +218,26 @@ namespace Vocore
                     nodeUnused.Add(node.Name, node);
                 }
 
-                object result = Activator.CreateInstance(type);
+                object? result = Activator.CreateInstance(type);
                 foreach (FieldInfo field in type.GetFields())
                 {
-                    XmlNodeList nodes = xml.SelectNodes(field.Name);
+                    XmlNodeList? nodes = xml.SelectNodes(field.Name);
                     if (nodes == null || nodes.Count == 0)
                     {
                         continue;
                     }
 
-                    XmlNode node = nodes[0];
+                    XmlNode? node = nodes[0];
+
+                    if (node == null)
+                    {
+                        continue;
+                    }
 
                     nodeUnused.Remove(field.Name);
 
                     Type fieldType = field.FieldType;
-                    object subObj = ObjectFromXml(fieldType, node, depth + 1);
+                    object? subObj = ObjectFromXml(fieldType, node, depth + 1);
                     field.SetValue(result, subObj);
                 }
 
@@ -235,9 +255,9 @@ namespace Vocore
         /// <summary>
         /// Parse a XML node to an object with a specific type
         /// </summary>
-        public T ObjectFromXml<T>(XmlNode xml)
+        public T? ObjectFromXml<T>(XmlNode xml) where T : class
         {
-            return (T)ObjectFromXml(typeof(T), xml, 0);
+            return ObjectFromXml(typeof(T), xml, 0) as T;
         }
 
 
