@@ -40,7 +40,7 @@ namespace Vocore
             }
         }
 
-        public PriorityList(IList<T> source, Comparison<T>? comparer = null)
+        public PriorityList(IReadOnlyList<T> source, Comparison<T>? comparer = null)
         {
             _innerList = new List<T>(source);
 

@@ -8,10 +8,11 @@ namespace Vocore
         protected ICurve valueCurve;
         protected PriorityList<CurveEvent> events;
         private float _lastT = 0;
+        private bool _hasEventOnEnd = false;
+
+        protected readonly Dictionary<string, Action> eventActions = new Dictionary<string, Action>();
 
         public IEnumerable<CurveEvent> Events => events;
-
-        protected readonly Dictionary<string, List<Action>> eventActions = new Dictionary<string, List<Action>>();
 
         public float Duration
         {
@@ -21,7 +22,7 @@ namespace Vocore
             }
         }
 
-        public CurveAnimation(ICurve valueCurve, IList<CurveEvent> events = null)
+        public CurveAnimation(ICurve valueCurve, IReadOnlyList<CurveEvent>? events = null)
         {
             this.valueCurve = valueCurve;
 
@@ -47,17 +48,12 @@ namespace Vocore
 
         public bool TryInvokeEventAction(string name)
         {
-            List<Action> actions;
-            bool result = false;
-            if (eventActions.TryGetValue(name, out actions) && actions != null)
+            if (eventActions.TryGetValue(name, out Action? @event))
             {
-                for (int i = 0; i < actions.Count; i++)
-                {
-                    actions[i]();
-                    result = true;
-                }
+                @event();
+                return true;
             }
-            return result;
+            return false;
         }
 
         public bool TryInvokeEventActionInRange(float start, float end)
@@ -78,16 +74,31 @@ namespace Vocore
             }
 
             bool result = false;
+            CurveEvent curveEvent;
             for (int i = index; i < events.Count; i++)
             {
-                if (events[i].t > end)
+                if (_hasEventOnEnd)
+                {
+                    _hasEventOnEnd = false;
+                    continue;
+                }
+
+                curveEvent = events[i];
+
+                if (curveEvent.t > end)
                 {
                     break;
                 }
 
-                if (events[i].IsFollowingDirection(direction) && TryInvokeEventAction(events[i].name))
+                if (curveEvent.IsFollowingDirection(direction) && TryInvokeEventAction(curveEvent.name))
                 {
                     result = true;
+                }
+
+                if (curveEvent.t == end)
+                {
+                    _hasEventOnEnd = true;
+                    break;
                 }
             }
 
@@ -96,30 +107,24 @@ namespace Vocore
 
         public void BindEvent(string name, Action action)
         {
-            List<Action> actions;
-            if (eventActions.TryGetValue(name, out actions))
+            if (eventActions.ContainsKey(name))
             {
-                actions.Add(action);
+                eventActions[name] += action;
                 return;
             }
 
-            actions = new List<Action>();
-            actions.Add(action);
-            eventActions.Add(name, actions);
+            eventActions.Add(name, action);
         }
 
         public void UnbindEvent(string name, Action action)
         {
-            List<Action> actions;
-            if (eventActions.TryGetValue(name, out actions))
+            if (eventActions.ContainsKey(name))
             {
-                actions.Remove(action);
+#pragma warning disable CS8601
+                eventActions[name] -= action;
+#pragma warning restore CS8601
+                return;
             }
-        }
-
-        private bool TryGetEventAction(string name, out List<Action> actions)
-        {
-            return eventActions.TryGetValue(name, out actions);
         }
     }
 }

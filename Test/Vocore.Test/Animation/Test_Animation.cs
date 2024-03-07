@@ -24,42 +24,40 @@ public class Test_Animation
 
         CurveAnimation animation = new CurveAnimation(curve, events);
 
-        bool flagEvent0 = false;
-        bool flagEvent1 = false;
-        bool flagEvent2 = false;
-        bool flagEvent3 = false;
-        bool flagEvent4 = false;
-        bool flagEvent5 = false;
-        bool flagEvent6 = false;
+        int flagEvent0 = 0;
+        int flagEvent1 = 0;
+        int flagEvent2 = 0;
+        int flagEvent3 = 0;
+        int flagEvent4 = 0;
+        int flagEvent5 = 0;
+        int flagEvent6 = 0;
 
-        animation.BindEvent("event0", () => { flagEvent0 = true; });
-        animation.BindEvent("event1", () => { flagEvent1 = true; });
-        animation.BindEvent("event2", () => { flagEvent2 = true; });
-        animation.BindEvent("event3", () => { flagEvent3 = true; });
-        animation.BindEvent("event4", () => { flagEvent4 = true; });
-        animation.BindEvent("event5", () => { flagEvent5 = true; });
-        animation.BindEvent("event6", () => { flagEvent6 = true; });
+        int multiEventTriggered = 0;
+
+        animation.BindEvent("event0", () => { flagEvent0++; });
+        animation.BindEvent("event1", () => { flagEvent1++; });
+        animation.BindEvent("event2", () => { flagEvent2++; });
+        animation.BindEvent("event3", () => { flagEvent3++; TestContext.WriteLine("event trigged"); });
+        animation.BindEvent("event3", () => { multiEventTriggered++; });
+        animation.BindEvent("event3", () => { multiEventTriggered++; });
+        animation.BindEvent("event4", () => { flagEvent4++; });
+        animation.BindEvent("event5", () => { flagEvent5++; });
+        animation.BindEvent("event6", () => { flagEvent6++; });
 
         for (int i = 0; i < 10; i++)
         {
             animation.Evaluate(i);
         }
 
-        // UnitTest.AssertFalse(flagEvent0, "event0 failed");
-        // UnitTest.AssertFalse(!flagEvent1, "event1 failed");
-        // UnitTest.AssertFalse(!flagEvent2, "event2 failed");
-        // UnitTest.AssertFalse(!flagEvent3, "event3 failed");
-        // UnitTest.AssertFalse(!flagEvent4, "event4 failed");
-        // UnitTest.AssertFalse(!flagEvent5, "event5 failed");
-        // UnitTest.AssertFalse(flagEvent6, "event6 failed");
-
-        Assert.IsFalse(flagEvent0, "event0 failed");
-        Assert.IsTrue(flagEvent1, "event1 failed");
-        Assert.IsTrue(flagEvent2, "event2 failed");
-        Assert.IsTrue(flagEvent3, "event3 failed");
-        Assert.IsTrue(flagEvent4, "event4 failed");
-        Assert.IsTrue(flagEvent5, "event5 failed");
-        Assert.IsFalse(flagEvent6, "event6 failed");
+        Assert.IsFalse(flagEvent0 == 1, "event0 failed");
+        Assert.IsTrue(flagEvent1 == 1, "event1 failed");
+        Assert.IsTrue(flagEvent2 == 1, "event2 failed");
+        Assert.IsTrue(flagEvent3 == 1, "event3 failed");
+        TestContext.WriteLine("multiEventTriggered: " + multiEventTriggered);
+        Assert.IsTrue(multiEventTriggered == 2, "multi event failed");
+        Assert.IsTrue(flagEvent4 == 1, "event4 failed");
+        Assert.IsTrue(flagEvent5 == 1, "event5 failed");
+        Assert.IsFalse(flagEvent6 == 1, "event6 failed");
 
 
     }
