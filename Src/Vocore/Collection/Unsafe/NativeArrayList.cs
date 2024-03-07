@@ -77,7 +77,7 @@ namespace Vocore
 
         public NativeArrayList(int size)
         {
-            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= 0) throw new EmptySizeException(nameof(size));
             _ptrBuffer = UtilsMemory.Alloc(_stride * size);
             _length = 0;
             _capacity = size;
@@ -88,7 +88,7 @@ namespace Vocore
 
         public NativeArrayList(int size, bool autoCompress)
         {
-            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= 0) throw new EmptySizeException(nameof(size));
             _ptrBuffer = UtilsMemory.Alloc(_stride * size);
             _length = 0;
             _capacity = size;

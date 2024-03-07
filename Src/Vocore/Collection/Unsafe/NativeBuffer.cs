@@ -63,7 +63,7 @@ namespace Vocore
 
         public NativeBuffer(int size)
         {
-            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= 0) throw new EmptySizeException(nameof(size));
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
             _length = size;
             _isDisposed = false;
@@ -92,7 +92,7 @@ namespace Vocore
 
         public void EnsureSizeNoCopy(int size)
         {
-            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= 0) throw new EmptySizeException(nameof(size));
             if (size <= _length) return;
             FreeMemory();
             _ptrBuffer = UtilsMemory.Alloc(size * _stride);
@@ -101,14 +101,14 @@ namespace Vocore
 
         public void EnsureSize(int size)
         {
-            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= 0) throw new EmptySizeException(nameof(size));
             if (size <= _length) return;
             Resize(size);
         }
 
         public void Resize(int size)
         {
-            if (size <= 0) throw ExceptionCollection.SizeIsEmpty;
+            if (size <= 0) throw new EmptySizeException(nameof(size));
             if (size == _length) return;
             void* ptr = UtilsMemory.Alloc(size * _stride);
             int min = Math.Min(size, _length);
@@ -138,17 +138,6 @@ namespace Vocore
         private bool NotInRange(int index)
         {
             return index < 0 || index >= _length;
-        }
-
-        public void CopyToArray(T[] array)
-        {
-            if (array.Length < _length) throw ExceptionCollection.SizeIsEmpty;
-            if(array.Length == _length) throw ExceptionCollection.LengthNotEqual;
-            
-            for (int i = 0; i < _length; i++)
-            {
-                array[i] = this[i];
-            }
         }
 
         public unsafe void CopyToArrayUnsafe(T[] array)

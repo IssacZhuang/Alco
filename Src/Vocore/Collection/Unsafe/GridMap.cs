@@ -71,7 +71,7 @@ public unsafe struct GridMap<T> : IDisposable where T : unmanaged
         _data = new NativeBuffer<T>(width * height);
     }
 
-    void IDisposable.Dispose()
+    public void Dispose()
     {
         _data.Dispose();
     }

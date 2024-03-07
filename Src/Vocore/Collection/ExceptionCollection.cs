@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace Vocore
 {
-    public static class ExceptionCollection
+    public sealed class EmptySizeException : Exception
     {
-        public readonly static Exception SizeIsEmpty = new Exception("The size of array/list should not be 0");
-        public readonly static Exception LengthNotEqual = new Exception("The length of two arrays/lists are not equal.");
+        public EmptySizeException(string memberName) : base($"The size of array/list should not be 0 in '{memberName}'") { }
     }
 }
