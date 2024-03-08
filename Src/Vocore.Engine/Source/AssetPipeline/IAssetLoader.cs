@@ -17,10 +17,11 @@ public interface IBaseAssetLoader
 
 public interface IAssetLoader<TAsset> : IBaseAssetLoader where TAsset : class
 {
+    bool TryAsyncPreprocess(string filename, byte[] data, out object? preprocessed);
     /// <summary>
     /// Load the asset from the file
     /// </summary>
-    bool TryLoad(string filename, byte[] data, [NotNullWhen(true)]out TAsset? asset);
+    bool TryLoad(string filename, object? preprocessed, [NotNullWhen(true)]out TAsset? asset);
 }
 
 
