@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using Hebron.Runtime;
 
-#nullable disable
+
 
 namespace StbImageSharp
 {
@@ -15,11 +16,20 @@ namespace StbImageSharp
 #endif
 	class ImageResult
 	{
-		public int Width { get; set; }
-		public int Height { get; set; }
-		public ColorComponents SourceComp { get; set; }
-		public ColorComponents Comp { get; set; }
-		public byte[] Data { get; set; }
+		public int Width { get; }
+		public int Height { get; }
+		public ColorComponents SourceComp { get; }
+		public ColorComponents Comp { get; }
+		public byte[] Data { get; }
+
+		public ImageResult(byte[] data, int width, int height, ColorComponents comp, ColorComponents sourceComp)
+		{
+			Data = data;
+			Width = width;
+			Height = height;
+			Comp = comp;
+			SourceComp = sourceComp;
+		}
 
 		internal static unsafe ImageResult FromResult(byte* result, int width, int height, ColorComponents comp,
 			ColorComponents req_comp)
@@ -27,19 +37,10 @@ namespace StbImageSharp
 			if (result == null)
 				throw new InvalidOperationException(StbImage.stbi__g_failure_reason);
 
-			var image = new ImageResult
-			{
-				Width = width,
-				Height = height,
-				SourceComp = comp,
-				Comp = req_comp == ColorComponents.Default ? comp : req_comp
-			};
+			byte[] bytes = new byte[width * height * (int)req_comp];
+			Marshal.Copy(new IntPtr(result), bytes, 0, bytes.Length);
 
-			// Convert to array
-			image.Data = new byte[width * height * (int)image.Comp];
-			Marshal.Copy(new IntPtr(result), image.Data, 0, image.Data.Length);
-
-			return image;
+			return new ImageResult(bytes, width, height, req_comp, comp);
 		}
 
 		public static unsafe ImageResult FromStream(Stream stream,
