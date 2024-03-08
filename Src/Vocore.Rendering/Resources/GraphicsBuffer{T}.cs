@@ -25,7 +25,7 @@ public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
         }
     }
 
-    public override string Name { get; }
+    public string Name { get; }
     public GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -10,7 +10,7 @@ public class GraphicsBuffer : ShaderResource
     private readonly GPUResourceGroup _resourcesReadOnly; // for uniform buffer
     private GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
 
-    public override string Name { get; }
+    public string Name { get; }
     public GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

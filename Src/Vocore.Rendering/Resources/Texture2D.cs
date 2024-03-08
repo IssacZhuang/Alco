@@ -26,7 +26,7 @@ public class Texture2D : ShaderResource
     // from outside
     private readonly GPUSampler _sampler;
 
-    public override string Name { get; }
+    public string Name { get; }
 
     public GPUResourceGroup EntrySample
     {

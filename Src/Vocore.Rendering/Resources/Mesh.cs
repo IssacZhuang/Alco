@@ -9,7 +9,7 @@ public unsafe class Mesh : ShaderResource, IMesh
     protected GPUBuffer _indexBuffer;
     protected IndexFormat _indexFormat;
     protected uint _indexCount;
-    public override string Name { get; }
+    public string Name { get; }
 
     public GPUBuffer VertexBuffer
     {

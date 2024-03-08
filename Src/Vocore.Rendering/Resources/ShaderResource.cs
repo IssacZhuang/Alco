@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public abstract class ShaderResource : BaseGPUObject
+public abstract class ShaderResource : AutoDisposable
 {
     private static GPUDevice? _device;
 

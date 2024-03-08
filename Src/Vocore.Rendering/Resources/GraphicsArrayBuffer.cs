@@ -12,7 +12,7 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
     private GPUResourceGroup? _resourcesReadWrite;
     private bool _isDirty;
     private NativeBuffer<T> _data;
-    public override string Name { get; }
+    public string Name { get; }
 
     public unsafe T this[int index]
     {
