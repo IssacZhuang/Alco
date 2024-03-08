@@ -3,43 +3,42 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Vocore
+namespace Vocore.Engine;
+
+public class DirectoryFileSource : IFileSource
 {
-    public class DirectoryFileSource : IFileSource
+    private string _directoryPath;
+
+    public DirectoryFileSource(string directoryPath)
     {
-        private string _directoryPath;
+        _directoryPath = directoryPath;
+    }
 
-        public DirectoryFileSource(string directoryPath)
+    public IEnumerable<string> AllFileNames
+    {
+        get
         {
-            _directoryPath = directoryPath;
-        }
-
-        public IEnumerable<string> AllFileNames
-        {
-            get
+            //list all files in directory or sub directory with relative path
+            foreach (var file in Directory.EnumerateFiles(_directoryPath, "*", SearchOption.AllDirectories))
             {
-                //list all files in directory or sub directory with relative path
-                foreach (var file in Directory.EnumerateFiles(_directoryPath, "*", SearchOption.AllDirectories))
-                {
-                    yield return Path.GetRelativePath(_directoryPath, file);
-                }
+                yield return Path.GetRelativePath(_directoryPath, file);
             }
         }
+    }
 
-        public virtual int Order => 3;
+    public virtual int Order => 3;
 
-        public bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data)
+    public bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data)
+    {
+        try
         {
-            try
-            {
-                data = File.ReadAllBytes(Path.Combine(_directoryPath, path));
-                return true;
-            }
-            catch (Exception)
-            {
-                data = null;
-                return false;
-            }
+            data = File.ReadAllBytes(Path.Combine(_directoryPath, path));
+            return true;
+        }
+        catch (Exception)
+        {
+            data = null;
+            return false;
         }
     }
 }
