@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using Vocore.Unsafe;
@@ -22,8 +20,16 @@ namespace Vocore
             get => (T*)_ptrBuffer;
         }
 
-        public int Stride => _stride;
-        public bool IsDisposed => _isDisposed;
+        public int Stride
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _stride;
+        }
+        public bool IsDisposed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _isDisposed;
+        }
 
         public T this[int index]
         {
@@ -47,10 +53,8 @@ namespace Vocore
 
         public MemoryRef<T> MemoryRef
         {
-            get
-            {
-                return new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
         }
 
 
@@ -81,16 +85,7 @@ namespace Vocore
             GC.SuppressFinalize(this);
         }
 
-        public IEnumerator<T> GetEnumerator()
-        {
-            for (int i = 0; i < _length; i++)
-            {
-                yield return this[i];
-            }
-        }
-
-
-        public void EnsureSizeNoCopy(int size)
+        public void EnsureSizeWithoutCopy(int size)
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
             if (size <= _length) return;
@@ -118,12 +113,6 @@ namespace Vocore
             _length = size;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<T> GetReadOnlySpan()
-        {
-            return new ReadOnlySpan<T>(UnsafePointer, _length);
-        }
-
         private void FreeMemory()
         {
             if (_ptrBuffer != null)
@@ -139,14 +128,5 @@ namespace Vocore
         {
             return index < 0 || index >= _length;
         }
-
-        public unsafe void CopyToArrayUnsafe(T[] array)
-        {
-            fixed (T* ptr = array)
-            {
-                UtilsMemory.MemCopy(_ptrBuffer, ptr, _length * _stride);
-            }
-        }
-
     }
 }

@@ -28,10 +28,8 @@ namespace Vocore
 
         public MemoryRef<T> MemoryRef
         {
-            get
-            {
-                return new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
         }
 
         public int Stride => _stride;
