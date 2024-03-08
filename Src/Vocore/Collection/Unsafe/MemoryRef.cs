@@ -3,7 +3,7 @@ namespace Vocore
     /// <summary>
     /// A readonly reference to a memory block
     /// </summary>
-    public unsafe readonly struct MemoryRef
+    public unsafe readonly ref struct MemoryRef
     {
         public MemoryRef(void* pointer, uint size)
         {
@@ -17,7 +17,7 @@ namespace Vocore
     /// <summary>
     /// A readonly reference to a memory block
     /// </summary>
-    public unsafe readonly struct MemoryRef<T> where T : unmanaged
+    public unsafe readonly ref struct MemoryRef<T> where T : unmanaged
     {
         public MemoryRef(T* pointer, uint length)
         {
