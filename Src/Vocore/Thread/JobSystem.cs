@@ -5,6 +5,9 @@ using System.Runtime.CompilerServices;
 namespace Vocore
 {
 
+    /// <summary>
+    /// Used to run umnanaged jobs in parallel.
+    /// </summary>
     public static class JobSystem
     {
         internal static class JobCache<T> where T : unmanaged, IJobBatch

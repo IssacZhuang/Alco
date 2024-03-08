@@ -15,12 +15,29 @@ public interface IBaseAssetLoader
     IEnumerable<string> FileExtensions { get; }
 }
 
+
+/// <summary>
+/// Represents an asset loader for loading and preprocessing assets of type TAsset.<br/>
+/// </summary>
+/// <typeparam name="TAsset">The type of asset to load.</typeparam>
 public interface IAssetLoader<TAsset> : IBaseAssetLoader where TAsset : class
 {
-    bool TryAsyncPreprocess(string filename, byte[] data, out object? preprocessed);
     /// <summary>
-    /// Load the asset from the file
+    /// Asynchronously preprocesses the asset data.
     /// </summary>
+    /// <param name="filename">The filename of the asset.</param>
+    /// <param name="data">The raw data of the asset.</param>
+    /// <param name="preprocessed">The preprocessed asset object.</param>
+    /// <returns><c>true</c> if the preprocessing is successful; otherwise, <c>false</c>.</returns>
+    bool TryAsyncPreprocess(string filename, byte[] data, out object? preprocessed);
+
+    /// <summary>
+    /// Loads the asset from the file.
+    /// </summary>
+    /// <param name="filename">The filename of the asset.</param>
+    /// <param name="preprocessed">The preprocessed asset object.</param>
+    /// <param name="asset">The loaded asset object.</param>
+    /// <returns><c>true</c> if the loading is successful; otherwise, <c>false</c>.</returns>
     bool TryLoad(string filename, object? preprocessed, [NotNullWhen(true)]out TAsset? asset);
 }
 
