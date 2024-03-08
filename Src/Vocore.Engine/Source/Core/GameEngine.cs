@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Silk.NET.Windowing;
 using Silk.NET.Maths;
 using Vocore.Graphics;
+using Vocore.Rendering;
 
 
 
@@ -141,8 +142,9 @@ namespace Vocore.Engine
                 out GPUDevice graphicsDevice, 
                 out IWindow window);
                 
+                ShaderResource.SetGlobalDevice(graphicsDevice);
+                
                 _window = window;
-
                 _graphicsDevice = graphicsDevice;
                 _assets = new AssetManager();
 

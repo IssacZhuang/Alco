@@ -4,6 +4,7 @@ using System.Text;
 using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Engine;
+using Vocore.Rendering;
 using Vocore;
 
 public class Game : GameEngine
