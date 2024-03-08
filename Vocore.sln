@@ -41,6 +41,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "9-TextRendering", "Sandbox\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Rendering", "Src\Vocore.Rendering\Vocore.Rendering.csproj", "{D580A4CA-1D3C-4A89-9A91-93FC6DEE0677}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Engine.Test", "Test\Vocore.Engine.Test\Vocore.Engine.Test.csproj", "{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,10 @@ Global
 		{D580A4CA-1D3C-4A89-9A91-93FC6DEE0677}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D580A4CA-1D3C-4A89-9A91-93FC6DEE0677}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D580A4CA-1D3C-4A89-9A91-93FC6DEE0677}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -132,5 +138,6 @@ Global
 		{2CA48739-30CF-4F6C-AF42-F9B9A9780895} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{7FC379A6-2311-4557-B2A6-CFB24C90FC03} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{D580A4CA-1D3C-4A89-9A91-93FC6DEE0677} = {BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}
+		{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2} = {13EA6E4E-2EBB-42E5-9211-2AAC68B87B6E}
 	EndGlobalSection
 EndGlobal
