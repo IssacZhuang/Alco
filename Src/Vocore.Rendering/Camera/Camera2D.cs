@@ -7,7 +7,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The mathmatical representation of a 2D camera. Can be used in 2D scenes and UI.
 /// </summary>
-public struct Camera2D : ICamera
+public struct Camera2D
 {
     public Transform2D transform;
 

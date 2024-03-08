@@ -1,6 +1,6 @@
 namespace Vocore.Rendering;
 
-public static class UtilsText
+public static class UtilsUnicode
 {
     public static readonly int2 RangeBasicLatin = new int2(0x0020, 0x007F);
     public static readonly int2 RangeLatin1Supplement = new int2(0x00A0, 0x00FF);

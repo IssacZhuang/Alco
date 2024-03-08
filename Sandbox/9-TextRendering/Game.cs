@@ -286,20 +286,20 @@ public class Game : GameEngine
         using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
 
         packer.Add(fontFile, 32, new int2[]{
-            UtilsText.RangeBasicLatin,
-            UtilsText.RangeLatin1Supplement,
-            UtilsText.RangeLatinExtendedA,
-            UtilsText.RangeCyrillic,
-            UtilsText.RangeGreek,
+            UtilsUnicode.RangeBasicLatin,
+            UtilsUnicode.RangeLatin1Supplement,
+            UtilsUnicode.RangeLatinExtendedA,
+            UtilsUnicode.RangeCyrillic,
+            UtilsUnicode.RangeGreek,
             //japanese
-            UtilsText.RangeHiragana,
-            UtilsText.RangeKatakana,
+            UtilsUnicode.RangeHiragana,
+            UtilsUnicode.RangeKatakana,
             //chinese
-            UtilsText.RangeCjkUnifiedIdeographs,
-            UtilsText.RangeCjkSymbolsAndPunctuation,
+            UtilsUnicode.RangeCjkUnifiedIdeographs,
+            UtilsUnicode.RangeCjkSymbolsAndPunctuation,
             //korean
-            UtilsText.RangeHangulSyllables,
-            UtilsText.RangeHangulCompatibilityJamo,
+            UtilsUnicode.RangeHangulSyllables,
+            UtilsUnicode.RangeHangulCompatibilityJamo,
         });
 
 
