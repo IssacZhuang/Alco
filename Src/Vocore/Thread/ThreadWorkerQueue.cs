@@ -20,6 +20,7 @@ public class ThreadWorkerQueue<TJob> where TJob : IJob
     }
 
     private readonly WorkerData[] _threadData;
+    private readonly Thread[] _threads;
     private readonly ManualResetEvent _event;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CircularWorkStealingDeque<Task> _inputs;
@@ -42,21 +43,32 @@ public class ThreadWorkerQueue<TJob> where TJob : IJob
             };
         }
 
+        _threads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++)
         {
-            Thread thread = new Thread(() => ThreadLoop(_cancellationTokenSource.Token, i));
+            Thread thread = new Thread(ThreadWorker(i));
             thread.Name = $"{threadPrefix} {i}";
+            _threads[i] = thread;
             thread.Start();
         }
     }
+    
 
-    public void Push(TJob? job)
+    public void Push(TJob job, bool startImmediately = true)
     {
         if (job == null)
         {
             return;
         }
         _inputs.Push(new Task() { job = job });
+        if (startImmediately)
+        {
+            _event.Set();
+        }
+    }
+
+    public void Start()
+    {
         _event.Set();
     }
 
@@ -75,6 +87,10 @@ public class ThreadWorkerQueue<TJob> where TJob : IJob
 
         }
         return false;
+    }
+
+    private ThreadStart ThreadWorker(int index){
+        return () => ThreadLoop(_cancellationTokenSource.Token, index);
     }
 
     private void ThreadLoop(CancellationToken token, int index)
