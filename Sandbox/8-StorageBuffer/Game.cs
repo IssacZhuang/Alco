@@ -99,10 +99,7 @@ public class Game : GameEngine
         // {
         //     _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
         // }
-    }
 
-    protected unsafe override void OnDraw(float delta)
-    {
         _commandBuffer.Begin();
 
         _commandBuffer.SetComputePipeline(_computePipeline);

@@ -47,10 +47,7 @@ public class Game : GameEngine
         {
             Stop();
         }
-    }
 
-    protected override void OnDraw(float delta)
-    {
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);

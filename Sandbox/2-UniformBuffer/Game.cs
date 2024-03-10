@@ -63,10 +63,7 @@ public class Game : GameEngine
         {
             Stop();
         }
-    }
 
-    protected override void OnDraw(float delta)
-    {
         _timer += delta;
         UpdateColor(new Vector4(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f, 1.0f));
 

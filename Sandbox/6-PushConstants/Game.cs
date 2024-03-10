@@ -111,12 +111,9 @@ public class Game : GameEngine
         _transform3.scale = new Vector2(1 + movement, 1 + movement);
 
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
-    }
-
-    protected unsafe override void OnDraw(float delta)
-    {
         _timer += delta;
 
+        //draw
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
@@ -139,6 +136,7 @@ public class Game : GameEngine
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
+
 
     protected override void OnStop()
     {

@@ -245,20 +245,13 @@ namespace Vocore.Engine
 
 
         /// <summary>
-        /// The frame tick, which handles the frame logic such as movement lerp and animation
+        /// The frame tick, which handles the frame logic and rendering
         /// </summary>
         protected virtual void OnUpdate(float delta)
         {
 
         }
 
-        /// <summary>
-        /// The render tick, which handles the render logic such as draw calls
-        /// </summary>
-        protected virtual void OnDraw(float delta)
-        {
-
-        }
 
         /// <summary>
         /// Called when player exit the game
@@ -332,24 +325,13 @@ namespace Vocore.Engine
 
             try
             {
-                OnUpdate(updateDeltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error("[Update Error]", e);
-                TryErrorStop();
-            }
-
-            try
-            {
                 _graphics.BeginFrameUpdate(updateDeltaTime);
-                OnDraw(updateDeltaTime);
-
+                OnUpdate(updateDeltaTime);
                 _graphics.EndFrame();
             }
             catch (Exception e)
             {
-                Log.Error("[Draw Error]", e);
+                Log.Error("[Update Error]", e);
                 TryErrorStop();
             }
 

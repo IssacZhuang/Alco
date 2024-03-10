@@ -93,10 +93,8 @@ public class Game : GameEngine
         {
             _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
         }
-    }
 
-    protected unsafe override void OnDraw(float delta)
-    {
+        //draw
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
@@ -112,6 +110,7 @@ public class Game : GameEngine
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
+
 
     protected override void OnStop()
     {

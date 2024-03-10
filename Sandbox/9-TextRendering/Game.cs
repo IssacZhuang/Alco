@@ -113,38 +113,13 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
-
-    }
-
-    protected unsafe override void OnDraw(float delta)
-    {
-
-        //draw font atlas
-        // _commandBuffer.Begin();
-        // _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        // _commandBuffer.SetGraphicsPipeline(_texturePipeline);
-        // _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        // _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
-        // _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-
-        // _commandBuffer.SetGraphicsResources(1, _fontAtlas.Texture.EntrySample);
-        // _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
-        // _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
-
-        // _commandBuffer.End();
-        // GraphicsDevice.Submit(_commandBuffer);
-
-        //TODO: bug here, 1 unit should be 1 pixel, but it's 1*_fontSize now
         DrawString("Hello World !!!", new Vector2(0, 0), new Vector4(1, 1, 1, 1), _fontSize);
         DrawString("cn: 中文", new Vector2(0, _fontSize), new Vector4(1, 1, 1, 1), _fontSize);
         DrawString("jp: こんにちは", new Vector2(0, _fontSize * 2), new Vector4(1, 1, 1, 1), _fontSize);
         DrawString("kr: 안녕하세요", new Vector2(0, _fontSize * 3), new Vector4(1, 1, 1, 1), _fontSize);
         DrawString("ru: Привет", new Vector2(0, _fontSize * 4), new Vector4(1, 1, 1, 1), _fontSize);
         DrawString("gr: Γειά σας", new Vector2(0, _fontSize * 5), new Vector4(1, 1, 1, 1), _fontSize);
-        
     }
-
-
 
     protected override void OnStop()
     {

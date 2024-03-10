@@ -17,10 +17,8 @@ public class Game : GameEngine
         {
             Stop();
         }
-    }
 
-    protected override void OnDraw(float delta)
-    {
+
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.ClearColor(new Vector4(0.2f, 0.2f, 0.2f, 1.0f));

@@ -73,12 +73,8 @@ public class Game : GameEngine
         {
             Stop();
         }
-    }
 
-    protected override void OnDraw(float delta)
-    {
         _timer += delta;
-
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
@@ -91,6 +87,7 @@ public class Game : GameEngine
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
+
 
     private GPUBuffer CreateIndexBuffer()
     {

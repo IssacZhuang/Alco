@@ -94,10 +94,7 @@ public class Game : GameEngine
         {
             _iterationBuffer.Value++;
         }
-    }
 
-    protected override void OnDraw(float delta)
-    {
         _timer += delta;
 
 

@@ -113,12 +113,10 @@ public class Game : GameEngine
 
         _cameraBuffer.Value = camera.ViewProjectionMatrix;
         _modelBuffer.Value = _transform1.Matrix;
-    }
 
-    protected override void OnDraw(float delta)
-    {
         _timer += delta;
 
+        //draw
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
