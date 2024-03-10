@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace Vocore;
 
-public class ThreadWorkerQueue<TJob> where TJob : IJob
+public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 {
     private struct Task
     {
@@ -24,6 +24,7 @@ public class ThreadWorkerQueue<TJob> where TJob : IJob
     private readonly ManualResetEvent _event;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CircularWorkStealingDeque<Task> _inputs;
+    private bool _isDisposed;
 
 
     public ThreadWorkerQueue(int threadCount, string threadPrefix = "JobThread")
@@ -129,6 +130,24 @@ public class ThreadWorkerQueue<TJob> where TJob : IJob
             _event.Reset();
             Volatile.Write(ref selfData.isRunning, false);
         }
+    }
 
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _cancellationTokenSource.Cancel();
+        _event.Set();
+        foreach (var thread in _threads)
+        {
+            thread.Join();
+        }
+        _cancellationTokenSource.Dispose();
+        _event.Dispose();
+
+        _isDisposed = true;
     }
 }

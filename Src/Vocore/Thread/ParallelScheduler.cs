@@ -199,6 +199,11 @@ namespace Vocore
             {
                 _threadData[i].signal.Set();
             }
+
+            foreach (var thread in _threads)
+            {
+                thread.Join();
+            }
             _isDisposed = true;
         }
     }
