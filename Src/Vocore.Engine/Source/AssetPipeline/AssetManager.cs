@@ -157,7 +157,7 @@ namespace Vocore.Engine
             }
             
 
-            if (!assetLoaderT.TryLoad(filename, data, out var newAsset))
+            if (!assetLoaderT.OnLoad(filename, data, out var newAsset))
             {
                 Log.Warning($"Trying to get asset {filename} but the asset loader failed to load the asset");
                 asset = null;

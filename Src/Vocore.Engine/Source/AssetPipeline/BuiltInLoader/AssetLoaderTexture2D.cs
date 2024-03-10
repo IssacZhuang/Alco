@@ -27,12 +27,12 @@ public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
         get => Extensions;
     }
 
-    public bool TryAsyncPreprocess(string filename, byte[] data, out object? preprocessed)
+    public object OnAsyncPreprocess(string filename, byte[] data)
     {
         throw new NotImplementedException();
     }
 
-    public bool TryLoad(string filename, object? preprocessed, [NotNullWhen(true)] out Texture2D? asset)
+    public bool OnLoad(string filename, object? preprocessed, [NotNullWhen(true)] out Texture2D? asset)
     {
         throw new NotImplementedException();
     }
