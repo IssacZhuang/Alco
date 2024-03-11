@@ -1,3 +1,5 @@
+using Vocore.Graphics.NoGPU;
+
 #if USE_VULKAN
 using Vocore.Graphics.Vulkan;
 #endif
@@ -10,6 +12,11 @@ namespace Vocore.Graphics;
 
 public static class GraphicsFactory
 {
+    public static GPUDevice GetNoGPUDevice()
+    {
+        return new NoDevice();
+    }
+
     public static GPUDevice CreateVulkanDevice(DeviceDescriptor descriptor)
     {
 #if USE_VULKAN
