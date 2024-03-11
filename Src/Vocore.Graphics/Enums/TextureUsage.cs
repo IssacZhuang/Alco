@@ -22,10 +22,10 @@ public enum TextureUsage
     /// <summary>
     /// Used for color attachment operations.
     /// </summary>
-    ColorAttachment = 1 << 4,   
+    ColorAttachment = 1 << 4,
     /// <summary>
     /// Used for depth attachment operations.
-    ///  
+    /// </summary>
     DepthAttachment = 1 << 5,
     /// <summary>
     /// Read | Write | TextureBinding
