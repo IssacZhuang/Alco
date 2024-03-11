@@ -1,0 +1,10 @@
+apiRules:
+- exclude:
+      uidRegex: Vortice.Dxc
+      type: Namespace
+- exclude:
+      uidRegex: StbImageSharp
+      type: Namespace
+- exclude:
+      uidRegex: StbTrueTypeSharp
+      type: Namespace

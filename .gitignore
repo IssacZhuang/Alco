@@ -5,6 +5,10 @@ obj/
 .vs/Vocore/v17/.suo
 Game
 
+# Doc fx
+_site/
+Docs/api/
+
 # rust
 debug/
 target/
