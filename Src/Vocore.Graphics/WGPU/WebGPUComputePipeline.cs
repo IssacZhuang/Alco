@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public class WebGPUComputePipeline : GPUPipeline
+internal class WebGPUComputePipeline : GPUPipeline
 {
     #region Properties
     private readonly WGPUComputePipeline _native;

@@ -445,45 +445,69 @@ public abstract class GPUDevice : BaseGPUObject
         }
     }
 
+    /// <exclude />
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyBufferCore(GPUBuffer buffer);
 
+    /// <exclude />
     protected abstract GPUTexture CreateTextureCore(in TextureDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyTextureCore(GPUTexture texture);
 
+    /// <exclude />
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
+    /// <exclude />
     protected abstract void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer);
 
+    /// <exclude />
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyRenderPassCore(GPURenderPass renderPass);
 
+    /// <exclude />
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyGraphicsPipelineCore(GPUPipeline pipeline);
 
+    /// <exclude />
     protected abstract GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyComputePipelineCore(GPUPipeline pipeline);
 
+    /// <exclude />
     protected abstract GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyBindGroupCore(GPUBindGroup bindGroup);
 
+    /// <exclude />
     protected abstract GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyResourceGroupCore(GPUResourceGroup resourceGroup);
 
+    /// <exclude />
     protected abstract GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroyTextureViewCore(GPUTextureView textureView);
 
+    /// <exclude />
     protected abstract GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor);
+    /// <exclude />
     protected abstract void DestroySamplerCore(GPUSampler sampler);
 
+    /// <exclude />
     protected abstract void ResizeSurfaceCore(uint width, uint height);
 
+    /// <exclude />
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
 
+    /// <exclude />
     protected abstract void SwapBuffersCore();
-    /// <summary>
-    /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
-    /// </summary>
+
+    // Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
+    /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 
+    /// <exclude />
     protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel);
 }

@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-public class WebGPUTextureView : GPUTextureView
+internal class WebGPUTextureView : GPUTextureView
 {
 
     #region Properties
