@@ -25,7 +25,6 @@ namespace Vocore.Engine
         // Threads
         private struct AsyncPreprocessJob : IJob
         {
-            public AssetCacheMode cacheMode;
             public object? preprocessed;
             public Func<object?> onPreprocess;
             public Func<object, object?> onCreate;
@@ -183,6 +182,13 @@ namespace Vocore.Engine
             return true;
         }
 
+        /// <summary>
+        /// Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
+        /// </summary>
+        /// <typeparam name="TAsset">The type of asset.</typeparam>
+        /// <param name="filename">Path and name of the asset file.</param>
+        /// <param name="onComplete">The callback action when the asset is loaded.</param>
+        /// <param name="cacheMode">Whether to cache the asset.</param>
         public void LoadAsync<TAsset>(string filename, Action<TAsset> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
             CheckThread();
@@ -206,15 +212,15 @@ namespace Vocore.Engine
 
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
-                cacheMode = cacheMode,
-                onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT),
-                onCreate = GetOnCreateAction(filename, assetLoaderT),
-                onComplete = GetOnCompleteAction(onComplete)
+                onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT), // on worker thread
+                onCreate = GetOnCreateAction(filename, assetLoaderT, cacheMode), // on main thread
+                onComplete = GetOnCompleteAction(onComplete) // on main thread
             };
 
             _asyncLoadQueue.Push(job);
         }
 
+        //on worker thread
         private Func<object?> GetAsyncPreprocessAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
         {
             return () =>
@@ -242,7 +248,8 @@ namespace Vocore.Engine
             };
         }
 
-        private Func<object, object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+        //on main thread
+        private Func<object, object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT, AssetCacheMode cacheMode) where TAsset : class
         {
             return (object preprocessed) =>
             {
@@ -252,10 +259,20 @@ namespace Vocore.Engine
                     return null;
                 }
 
+                if (cacheMode == AssetCacheMode.Recyclable)
+                {
+                    SetWeakCache(filename, newAsset);
+                }
+                else if (cacheMode == AssetCacheMode.Persistent)
+                {
+                    SetStrongCache(filename, newAsset);
+                }
+
                 return newAsset;
             };
         }
 
+        //on main thread
         private Action<object> GetOnCompleteAction<TAsset>(Action<TAsset> action) where TAsset : class
         {
             return (object asset) =>

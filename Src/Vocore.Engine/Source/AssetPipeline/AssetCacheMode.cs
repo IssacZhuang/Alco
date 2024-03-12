@@ -2,6 +2,9 @@ using System;
 
 namespace Vocore.Engine
 {
+    /// <summary>
+    /// The cache mode of the asset
+    /// </summary>
     public enum AssetCacheMode
     {
         /// <summary>
@@ -13,7 +16,7 @@ namespace Vocore.Engine
         /// </summary>
         Recyclable,
         /// <summary>
-        /// The asset will be cached in memory and will not collect by GC
+        /// The asset will be cached in memory and never collect by GC
         /// </summary>
         Persistent
     }
