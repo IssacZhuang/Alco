@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using Silk.NET.Input;
 using Silk.NET.Windowing;
 
-using MouseButton = Silk.NET.Input.MouseButton;
+
 
 namespace Vocore.Engine
 {
@@ -165,9 +165,9 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsMouseDown(MouseButton button)
+        public bool IsMouseDown(Mouse button)
         {
-            int offset = (int)button;
+            int offset = button;
 
             if (offset < 0 || offset >= MaxMouseCount)
             {
@@ -178,9 +178,9 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsMouseUp(MouseButton button)
+        public bool IsMouseUp(Mouse button)
         {
-            int offset = (int)button;
+            int offset = button;
 
             if (offset < 0 || offset >= MaxMouseCount)
             {
@@ -191,9 +191,9 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsMousePressing(MouseButton button)
+        public bool IsMousePressing(Mouse button)
         {
-            int offset = (int)button;
+            int offset = button;
 
             if (offset < 0 || offset >= MaxMouseCount)
             {
