@@ -6,6 +6,7 @@ using Silk.NET.Windowing;
 using Silk.NET.Maths;
 using Vocore.Graphics;
 using Vocore.Rendering;
+using System.Diagnostics;
 
 
 
@@ -379,6 +380,9 @@ namespace Vocore.Engine
             _isDisposed = true;
             Instance = null;
             GraphicsDevice.Dispose();
+            _window.Close();
+            _window.Dispose();
+            Assets.Dispose();
             GC.SuppressFinalize(this);
         }
 

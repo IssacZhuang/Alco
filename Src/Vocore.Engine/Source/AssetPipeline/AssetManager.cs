@@ -367,6 +367,11 @@ namespace Vocore.Engine
             _ownerThreadId = Environment.CurrentManagedThreadId;
         }
 
+        internal void Dispose()
+        {
+            _asyncLoadQueue.Dispose();
+        }
+
         private void CheckThread()
         {
             if (!IsOwnerThread(Environment.CurrentManagedThreadId))
