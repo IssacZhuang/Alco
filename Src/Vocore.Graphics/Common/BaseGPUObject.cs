@@ -28,10 +28,6 @@ public abstract class BaseGPUObject : IDisposable
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-        else
-        {
-            throw new ObjectDisposedException($"Trying to dispose an already disposed object: {Name}");
-        }
     }
 
     protected abstract void Dispose(bool disposing);

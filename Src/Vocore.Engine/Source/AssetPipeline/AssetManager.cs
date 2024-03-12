@@ -183,7 +183,7 @@ namespace Vocore.Engine
             return true;
         }
 
-        public void LoadAsync<TAsset>(string filename, Action<TAsset> action, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        public void LoadAsync<TAsset>(string filename, Action<TAsset> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
             CheckThread();
             TryRefreshEntries();
@@ -192,7 +192,7 @@ namespace Vocore.Engine
             //try load from cache
             if (TryLoadFromCacheCore(filename, out TAsset? asset))
             {
-                action(asset);
+                onComplete(asset);
                 return;
             }
 
@@ -209,7 +209,7 @@ namespace Vocore.Engine
                 cacheMode = cacheMode,
                 onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT),
                 onCreate = GetOnCreateAction(filename, assetLoaderT),
-                onComplete = GetOnCompleteAction(action)
+                onComplete = GetOnCompleteAction(onComplete)
             };
 
             _asyncLoadQueue.Push(job);

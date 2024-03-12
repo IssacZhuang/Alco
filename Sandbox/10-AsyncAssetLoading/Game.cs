@@ -38,7 +38,6 @@ public class Game : GameEngine
     private GPUBuffer _colorBuffer;
     private GPUPipeline _pipeline;
     private GPUResourceGroup _resourceGroupBuffer;
-    private Texture2D? _texture;
     private Texture2D _textureEmpty;
     private Texture2D _selected;
 
@@ -79,12 +78,9 @@ public class Game : GameEngine
 
         if (Input.IsKeyDown(Key.Space))
         {
-            Log.Info("Start Loading Texture");
             Assets.LoadAsync<Texture2D>("test.png", (texture) =>
             {
-                Log.Info("Texture Loaded");
-                _texture = texture;
-                _selected = _texture ?? _textureEmpty;
+                _selected = texture;
             });
         }
 

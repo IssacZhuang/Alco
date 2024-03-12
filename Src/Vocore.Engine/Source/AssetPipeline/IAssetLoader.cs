@@ -3,6 +3,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine;
 
+/// <summary>
+/// The type less base asset loader interface.
+/// </summary>
 public interface IBaseAssetLoader
 {
     /// <summary>

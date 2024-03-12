@@ -32,12 +32,6 @@ public abstract class AutoDisposable : IDisposable
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-        else
-        {
-#if DEBUG
-            Log.Warning($"Trying to dispose an already disposed object: {GetType().Name}");
-#endif
-        }
     }
 
     protected abstract void Dispose(bool disposing);
