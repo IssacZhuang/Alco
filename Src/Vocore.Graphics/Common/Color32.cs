@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Vocore.Graphics;
@@ -24,5 +25,40 @@ public struct Color32
         G = g;
         B = b;
         A = 255;
+    }
+
+    public static implicit operator uint (Color32 color)
+    {
+        return (uint)(color.R << 24 | color.G << 16 | color.B << 8 | color.A);
+    }
+
+    public static implicit operator Color32(uint color)
+    {
+        return new Color32((byte)(color >> 24), (byte)(color >> 16), (byte)(color >> 8), (byte)color);
+    }
+
+    // + - * /
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Color32 operator +(Color32 a, Color32 b)
+    {
+        return new Color32((byte)(a.R + b.R), (byte)(a.G + b.G), (byte)(a.B + b.B), (byte)(a.A + b.A));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Color32 operator -(Color32 a, Color32 b)
+    {
+        return new Color32((byte)(a.R - b.R), (byte)(a.G - b.G), (byte)(a.B - b.B), (byte)(a.A - b.A));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Color32 operator *(Color32 a, Color32 b)
+    {
+        return new Color32((byte)(a.R * b.R), (byte)(a.G * b.G), (byte)(a.B * b.B), (byte)(a.A * b.A));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Color32 operator /(Color32 a, Color32 b)
+    {
+        return new Color32((byte)(a.R / b.R), (byte)(a.G / b.G), (byte)(a.B / b.B), (byte)(a.A / b.A));
     }
 }

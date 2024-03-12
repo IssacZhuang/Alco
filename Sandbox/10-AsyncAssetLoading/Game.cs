@@ -38,7 +38,9 @@ public class Game : GameEngine
     private GPUBuffer _colorBuffer;
     private GPUPipeline _pipeline;
     private GPUResourceGroup _resourceGroupBuffer;
-    private Texture2D _texture;
+    private Texture2D? _texture;
+    private Texture2D _textureEmpty;
+    private Texture2D _selected;
 
 
     private float _timer = 0.0f;
@@ -61,10 +63,11 @@ public class Game : GameEngine
         _pipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
-        _texture = CreateTexture();
+        _textureEmpty = Texture2D.CreateEmpty(16, 16, 0xffffffff);
+        _selected = _textureEmpty;
 
-
-        
+        DirectoryFileSource fileSource = new DirectoryFileSource("Assets");
+        Assets.AddFileSource(fileSource);
     }
 
     protected override void OnUpdate(float delta)
@@ -72,6 +75,17 @@ public class Game : GameEngine
         if (Input.IsKeyDown(Key.Escape))
         {
             Stop();
+        }
+
+        if (Input.IsKeyDown(Key.Space))
+        {
+            Log.Info("Start Loading Texture");
+            Assets.LoadAsync<Texture2D>("test.png", (texture) =>
+            {
+                Log.Info("Texture Loaded");
+                _texture = texture;
+                _selected = _texture ?? _textureEmpty;
+            });
         }
 
         _timer += delta;
@@ -82,7 +96,7 @@ public class Game : GameEngine
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _texture.EntrySample);
+        _commandBuffer.SetGraphicsResources(1, _selected.EntrySample);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

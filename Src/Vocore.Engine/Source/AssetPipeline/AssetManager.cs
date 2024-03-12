@@ -199,6 +199,7 @@ namespace Vocore.Engine
             // check the asset loader
             if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
             {
+                Log.Error($"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}");
                 // action(null);
                 return;
             }
@@ -265,7 +266,7 @@ namespace Vocore.Engine
                 }
                 else
                 {
-                    Log.Error($"Can not cast asset to type {typeof(TAsset).Name}");
+                    Log.Error($"Can not cast asset:{asset.GetType().Name} to type {typeof(TAsset).Name}");
                 }
             };
         }
@@ -351,7 +352,21 @@ namespace Vocore.Engine
                         continue;
                     }
 
-                    job.onComplete(job.preprocessed);
+                    try
+                    {
+                        object? asset = job.onCreate(job.preprocessed);
+                        if (asset == null)
+                        {
+                            Log.Error("The asset manager failed to create asset");
+                            continue;
+                        }
+                        job.onComplete(asset);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error($"The asset manager failed to create asset or complete the asset loading: {e}");
+                    }
+
                 }
 
                 if (result == StealingResult.Empty)

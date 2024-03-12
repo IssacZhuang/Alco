@@ -64,7 +64,6 @@ public struct ColorFloat
         return new Color32((byte)(color.R * 255), (byte)(color.G * 255), (byte)(color.B * 255), (byte)(color.A * 255));
     }
 
-
     //overload operator
 
     public static implicit operator Vector4(ColorFloat color) => color.value;

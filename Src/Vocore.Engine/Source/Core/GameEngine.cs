@@ -186,35 +186,14 @@ namespace Vocore.Engine
             InitializeAPI();
             InitializePlugins();
 
-            if (_setting.HasGraphics)
-            {
-                RunWithGraphics();
-            }
-            else
-            {
-                RunWithoutGraphics();
-            }
+            InternaleRun();
         }
 
-        /// <summary>
-        /// The loop without graphics, which is used for the server
-        /// </summary>
-        private void RunWithoutGraphics()
-        {
-            InternalStart();
-            _timer.Start();
-            while (_isRunning)
-            {
-                InternalUpdate();
-                //InternalDraw(updateDeltaTime);
-            }
-            InternalStop();
-        }
 
         /// <summary>
         /// The loop with graphics, which is used for the client
         /// </summary>
-        private void RunWithGraphics()
+        private void InternaleRun()
         {
             InternalStart();
             _timer.Start();
@@ -222,7 +201,7 @@ namespace Vocore.Engine
             while (_isRunning)
             {
                 _window.DoEvents();
-                InternalUpdateWithGraphics();
+                InternalUpdate();
             }
             InternalStop();
         }
@@ -281,34 +260,6 @@ namespace Vocore.Engine
         {
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
 
-            if (canInvokePhysicsTick)
-            {
-                try
-                {
-                    InternalTick(physicsDeltaTime);
-                }
-                catch (Exception e)
-                {
-                    Log.Error("[Tick Error]", e);
-                    TryErrorStop();
-                }
-            }
-            try
-            {
-                OnUpdate(updateDeltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error("[Update Error]", e);
-                TryErrorStop();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalUpdateWithGraphics()
-        {
-            _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
-
             _input.Update();
 
             if (canInvokePhysicsTick)
@@ -324,17 +275,21 @@ namespace Vocore.Engine
                 }
             }
 
+            _graphics.BeginFrameUpdate(updateDeltaTime);
+
             try
             {
-                _graphics.BeginFrameUpdate(updateDeltaTime);
                 OnUpdate(updateDeltaTime);
-                _graphics.EndFrame();
             }
             catch (Exception e)
             {
                 Log.Error("[Update Error]", e);
                 TryErrorStop();
             }
+
+            Assets.OnUpdate();
+
+            _graphics.EndFrame();
 
             _input.Reset();
         }
