@@ -1,8 +1,6 @@
 using System.Numerics;
-using Silk.NET.Input;
 using Vocore.Engine;
 using Vocore.Graphics;
-
 public class Game : GameEngine
 {
     private GPUCommandBuffer _commandBuffer;
@@ -13,7 +11,7 @@ public class Game : GameEngine
     
     protected override void OnUpdate(float delta)
     {
-        if(Input.IsKeyDown(Key.Escape))
+        if(Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }

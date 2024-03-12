@@ -1,7 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
-using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Engine;
 using Vocore.Rendering;
@@ -98,17 +97,17 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        if (Input.IsKeyDown(Key.Escape))
+        if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }
 
-        if (Input.IsKeyPressing(Key.Up))
+        if (Input.IsKeyPressing(KeyCode.Up))
         {
             _fontSize += delta * 10;
         }
 
-        if (Input.IsKeyPressing(Key.Down))
+        if (Input.IsKeyPressing(KeyCode.Down))
         {
             _fontSize -= delta * 10;
         }

@@ -126,9 +126,9 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsKeyDown(Key key)
+        public bool IsKeyDown(KeyCode key)
         {
-            int offset = (int)key;
+            int offset = key;
 
             if (offset < 0 || offset >= MaxKeyCount)
             {
@@ -139,9 +139,9 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsKeyUp(Key key)
+        public bool IsKeyUp(KeyCode key)
         {
-            int offset = (int)key;
+            int offset = key;
 
             if (offset < 0 || offset >= MaxKeyCount)
             {
@@ -152,9 +152,9 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsKeyPressing(Key key)
+        public bool IsKeyPressing(KeyCode key)
         {
-            int offset = (int)key;
+            int offset = key;
 
             if (offset < 0 || offset >= MaxKeyCount)
             {

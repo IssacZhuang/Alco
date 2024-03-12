@@ -1,7 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
-using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Rendering;
 using Vocore.Engine;
@@ -80,17 +79,17 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        if (Input.IsKeyDown(Key.Escape))
+        if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }
 
-        if (Input.IsKeyDown(Key.Left))
+        if (Input.IsKeyDown(KeyCode.Left))
         {
             _iterationBuffer.Value--;
         }
 
-        if (Input.IsKeyDown(Key.Right))
+        if (Input.IsKeyDown(KeyCode.Right))
         {
             _iterationBuffer.Value++;
         }

@@ -1,7 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
-using Silk.NET.Input;
 using Vocore.Graphics;
 using Vocore.Engine;
 using Vocore.Rendering;
@@ -94,12 +93,12 @@ public class Game : GameEngine
     protected override void OnUpdate(float delta)
     {
         _timer += delta;
-        if (Input.IsKeyDown(Key.Escape))
+        if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }
 
-        if (Input.IsKeyDown(Key.Space))
+        if (Input.IsKeyDown(KeyCode.Space))
         {
             _timeMove = _timer;
         }
