@@ -6,32 +6,25 @@ public abstract class BaseAssetLoader<TAsset, TPreprocessed> : IAssetLoader<TAss
 {
     public abstract string Name { get; }
 
-    public abstract IEnumerable<string> FileExtensions { get; }
+    public abstract IReadOnlyList<string> FileExtensions { get; }
 
-    protected virtual TPreprocessed AsyncPreprocess(string filename, byte[] data)
+    protected abstract bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out TPreprocessed? preprocessed);
+
+    protected abstract bool TryCreateAssetCore(string filename, TPreprocessed preprocessed, [NotNullWhen(true)] out TAsset? asset);
+
+    public bool TryAsyncPreprocess(string filename, byte[] file, [NotNullWhen(true)] out object? preprocessed)
     {
-        throw new NotImplementedException();
-    }
-
-    protected virtual bool Load(string filename, TPreprocessed preprocessed, [NotNullWhen(true)] out TAsset? asset)
-    {
-        throw new NotImplementedException();
-    }
-
-    public object OnAsyncPreprocess(string filename, byte[] data)
-    {
-        object? preprocessed = AsyncPreprocess(filename, data);
-
-        if (preprocessed == null)
+        if (TryAsyncPreprocessCore(filename, file, out var p))
         {
-            throw new Exception("Failed to preprocess asset");
+            preprocessed = p;
+            return true;
         }
-
-        return preprocessed;
+        preprocessed = null;
+        return false;
     }
 
-    public bool OnLoad(string filename, object preprocessed, [NotNullWhen(true)] out TAsset? asset)
+    public bool TryCreateAsset(string filename, object preprocessed, [NotNullWhen(true)] out TAsset? asset)
     {
-        return Load(filename, (TPreprocessed)preprocessed, out asset);
+        return TryCreateAssetCore(filename, (TPreprocessed)preprocessed, out asset);
     }
 }

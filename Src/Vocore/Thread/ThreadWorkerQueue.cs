@@ -73,21 +73,33 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         _event.Set();
     }
 
-    public bool TryGetFinishedTask([NotNullWhen(true)] out TJob? job)
+    public StealingResult TryGetFinishedTask([NotNullWhen(true)] out TJob? job)
     {
         job = default;
+        bool hasAbort = false;
         for (int i = 0; i < _threadData.Length; i++)
         {
             ref WorkerData selfData = ref _threadData[i];
+            StealingResult result = selfData.outputs.TrySteal(out Task task);
 
-            if (selfData.outputs.TrySteal(out Task task) == StealingResult.Success)
+            if (result == StealingResult.Success)
             {
                 job = task.job;
-                return true;
+                return StealingResult.Success;
+            }
+            else if (result == StealingResult.Abort)
+            {
+                hasAbort = true;
             }
 
         }
-        return false;
+
+        if (hasAbort)
+        {
+            return StealingResult.Abort;
+        }
+
+        return StealingResult.Empty;
     }
 
     private ThreadStart ThreadWorker(int index){

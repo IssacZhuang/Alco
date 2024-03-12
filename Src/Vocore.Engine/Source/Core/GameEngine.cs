@@ -146,7 +146,7 @@ namespace Vocore.Engine
                 
                 _window = window;
                 _graphicsDevice = graphicsDevice;
-                _assets = new AssetManager();
+                _assets = new AssetManager(2);
 
                 //_window.Initialize();
 

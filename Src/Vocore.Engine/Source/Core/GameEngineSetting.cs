@@ -23,7 +23,7 @@ namespace Vocore.Engine
             WindowName = "Vocore",
             Width = 640,
             Height = 360,
-            GametTickRate = 30,
+            GametTickRate = 60,
             RenderingSetting = RenderingSetting.Forward
         };
 
@@ -34,14 +34,14 @@ namespace Vocore.Engine
             WindowName = "Vocore",
             Width = 640,
             Height = 360,
-            GametTickRate = 30,
+            GametTickRate = 60,
             RenderingSetting = RenderingSetting.Forward
         };
 
         public readonly static GameEngineSetting NoGraphics = new GameEngineSetting
         {
             GraphicsAPI = GraphicsBackend.None,
-            GametTickRate = 30,
+            GametTickRate = 60,
         };
     }
 }

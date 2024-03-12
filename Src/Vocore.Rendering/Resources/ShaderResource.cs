@@ -13,7 +13,7 @@ public abstract class ShaderResource : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static GPUDevice GetDevice()
+    protected static GPUDevice GetDevice()
     {
         if (_device == null)
         {

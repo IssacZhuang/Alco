@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable CS8625
 
@@ -6,6 +7,7 @@ namespace Vocore.Engine
 {
     public class AssetManager
     {
+        private const int FetchFinishJobAttempCount = 20;
         // key: filename, value: asset
         private readonly WeakCache<object> _weakCache = new WeakCache<object>();
         // key: filename, value: asset
@@ -20,9 +22,28 @@ namespace Vocore.Engine
         private bool _isRecongizedExtensionsDirty = false;
         private int _ownerThreadId;
 
-        public AssetManager()
+        // Threads
+        private struct AsyncPreprocessJob : IJob
+        {
+            public AssetCacheMode cacheMode;
+            public object? preprocessed;
+            public Func<object?> onPreprocess;
+            public Func<object, object?> onCreate;
+            public Action<object> onComplete;
+            public void Execute()
+            {
+                preprocessed = onPreprocess();
+            }
+        }
+
+        private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
+
+        public AssetManager(int threadCount)
         {
             _ownerThreadId = Environment.CurrentManagedThreadId;
+
+            _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
+
             //built in asset loaders
             RegisterAssetLoader(new AssetLoaderTexture2D());
         }
@@ -92,78 +113,63 @@ namespace Vocore.Engine
             UpdateEntries(true);
         }
 
-        public bool TryLoad<TAsset>(string filename, out TAsset asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        public bool TryLoadFromCache<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset) where TAsset : class
+        {
+            filename = ParseEntry(filename);
+            return TryLoadFromCacheCore(filename, out asset);
+        }
+
+        public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
             CheckThread();
             TryRefreshEntries();
             filename = ParseEntry(filename);
-            if (_strongCache.TryGetValue(filename, out var strongAsset))
+
+            //try load from cache
+            if (TryLoadFromCacheCore(filename, out asset))
             {
-                if (strongAsset is TAsset strongAssetT)
-                {
-                    asset = strongAssetT;
-                    return true;
-                }
-                else
-                {
-                    Log.Warning($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {strongAsset.GetType().Name}");
-                    asset = null;
-                    return false;
-                }
-            }
-            if (_weakCache.TryGet(filename, out var weakAsset))
-            {
-                if (weakAsset is TAsset weakAssetT)
-                {
-                    asset = weakAssetT;
-                    return true;
-                }
-                else
-                {
-                    Log.Warning($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {weakAsset.GetType().Name}");
-                    asset = null;
-                    return false;
-                }
+                return true;
             }
 
-
-            if(!_fileEntries.TryGetValue(filename, out var fileSource))
+            // check the asset loader
+            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
             {
-                Log.Warning($"Trying to get asset {filename} but the file does not exist");
                 asset = null;
                 return false;
             }
 
-            if (!fileSource.TryGetData(filename, out var data))
+            // IO
+            if (!_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
             {
-                Log.Warning($"Trying to get asset {filename} but the file does not exist");
+                Log.Error($"Trying to get asset {filename} but the file does not exist");
                 asset = null;
                 return false;
             }
 
-            var extension = Path.GetExtension(filename);
-            if (!_assetLoaders.TryGetValue(extension, out var assetLoader))
+            if (!fileSource.TryGetData(filename, out byte[]? data))
             {
-                Log.Warning($"Trying to get asset {filename} but the asset loader does not exist");
+                Log.Error($"Trying to get asset {filename} but the file does not exist");
                 asset = null;
                 return false;
             }
 
-            if (assetLoader is not IAssetLoader<TAsset> assetLoaderT)
+            // preprocess the asset
+            if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
             {
-                Log.Warning($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset loader does not support this type");
-                asset = null;
-                return false;
-            }
-            
-
-            if (!assetLoaderT.OnLoad(filename, data, out var newAsset))
-            {
-                Log.Warning($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
                 asset = null;
                 return false;
             }
 
+            // create the asset
+            if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+            {
+                Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                asset = null;
+                return false;
+            }
+
+            // try add to cache
             if (cacheMode == AssetCacheMode.Recyclable)
             {
                 SetWeakCache(filename, newAsset);
@@ -177,6 +183,149 @@ namespace Vocore.Engine
             return true;
         }
 
+        public void LoadAsync<TAsset>(string filename, Action<TAsset> action, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        {
+            CheckThread();
+            TryRefreshEntries();
+            filename = ParseEntry(filename);
+
+            //try load from cache
+            if (TryLoadFromCacheCore(filename, out TAsset? asset))
+            {
+                action(asset);
+                return;
+            }
+
+            // check the asset loader
+            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+            {
+                // action(null);
+                return;
+            }
+
+            AsyncPreprocessJob job = new AsyncPreprocessJob()
+            {
+                cacheMode = cacheMode,
+                onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT),
+                onCreate = GetOnCreateAction(filename, assetLoaderT),
+                onComplete = GetOnCompleteAction(action)
+            };
+
+            _asyncLoadQueue.Push(job);
+        }
+
+        private Func<object?> GetAsyncPreprocessAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+        {
+            return () =>
+            {
+                // IO
+                if (!_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+                {
+                    Log.Error($"Trying to get asset {filename} but the file does not exist");
+                    return null;
+                }
+
+                if (!fileSource.TryGetData(filename, out byte[]? data))
+                {
+                    Log.Error($"Trying to get asset {filename} but the file does not exist");
+                    return null;
+                }
+
+                if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
+                {
+                    Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
+                    return null;
+                }
+
+                return preprocessed;
+            };
+        }
+
+        private Func<object, object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+        {
+            return (object preprocessed) =>
+            {
+                if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+                {
+                    Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                    return null;
+                }
+
+                return newAsset;
+            };
+        }
+
+        private Action<object> GetOnCompleteAction<TAsset>(Action<TAsset> action) where TAsset : class
+        {
+            return (object asset) =>
+            {
+                if (asset is TAsset newAsset)
+                {
+                    action(newAsset);
+                }
+                else
+                {
+                    Log.Error($"Can not cast asset to type {typeof(TAsset).Name}");
+                }
+            };
+        }
+
+        private bool TryLoadFromCacheCore<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset) where TAsset : class
+        {
+            if (_strongCache.TryGetValue(filename, out object? strongAsset))
+            {
+                if (strongAsset is TAsset strongAssetT)
+                {
+                    asset = strongAssetT;
+                    return true;
+                }
+                else
+                {
+                    Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {strongAsset.GetType().Name}");
+                    asset = null;
+                    return false;
+                }
+            }
+            if (_weakCache.TryGet(filename, out object? weakAsset))
+            {
+                if (weakAsset is TAsset weakAssetT)
+                {
+                    asset = weakAssetT;
+                    return true;
+                }
+                else
+                {
+                    Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {weakAsset.GetType().Name}");
+                    asset = null;
+                    return false;
+                }
+            }
+
+            asset = null;
+            return false;
+        }
+
+        private bool TryGetLoader<TAsset>(string filename, [NotNullWhen(true)] out IAssetLoader<TAsset>? loader) where TAsset : class
+        {
+            string extension = Path.GetExtension(filename);
+            if (!_assetLoaders.TryGetValue(extension, out IBaseAssetLoader? assetLoader))
+            {
+                Log.Error($"Trying to get asset {filename} but the asset loader does not exist");
+                loader = null;
+                return false;
+            }
+
+            if (assetLoader is not IAssetLoader<TAsset> assetLoaderT)
+            {
+                Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset loader does not support this type");
+                loader = null;
+                return false;
+            }
+
+            loader = assetLoaderT;
+            return true;
+        }
+
         public bool IsRecongizedExtension(string extension)
         {
             UpdateRecongizedExtensions();
@@ -186,6 +335,36 @@ namespace Vocore.Engine
         public bool IsOwnerThread(int threadId)
         {
             return _ownerThreadId == threadId;
+        }
+
+        // Only called from the GameEngine class
+        internal void OnUpdate()
+        {
+            for (int i = 0; i < FetchFinishJobAttempCount; i++)
+            {
+                StealingResult result = _asyncLoadQueue.TryGetFinishedTask(out AsyncPreprocessJob job);
+                if (result == StealingResult.Success)
+                {
+                    if (job.preprocessed == null)
+                    {
+                        Log.Error("The asset manager failed to preprocess the asset");
+                        continue;
+                    }
+
+                    job.onComplete(job.preprocessed);
+                }
+
+                if (result == StealingResult.Empty)
+                {
+                    return;
+                }
+            }
+
+        }
+
+        internal void SetMainThread()
+        {
+            _ownerThreadId = Environment.CurrentManagedThreadId;
         }
 
         private void CheckThread()

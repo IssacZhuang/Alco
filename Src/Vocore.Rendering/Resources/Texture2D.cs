@@ -341,7 +341,7 @@ public class Texture2D : ShaderResource
     }
 
 
-    private static uint GetPixelSize(ColorComponents components)
+    public static uint GetPixelSize(ColorComponents components)
     {
         switch (components)
         {
