@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-#pragma warning disable CS8625
-
 namespace Vocore.Engine
 {
     public class AssetManager
@@ -37,7 +35,7 @@ namespace Vocore.Engine
 
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
 
-        public AssetManager(int threadCount)
+        internal AssetManager(int threadCount)
         {
             _ownerThreadId = Environment.CurrentManagedThreadId;
 

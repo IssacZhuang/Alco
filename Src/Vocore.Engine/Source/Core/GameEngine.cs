@@ -185,7 +185,8 @@ namespace Vocore.Engine
             InitializeInfrastructure();
             InitializeAPI();
             InitializePlugins();
-
+            Assets.SetMainThread();
+            
             InternaleRun();
         }
 
