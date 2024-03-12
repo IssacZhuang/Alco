@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine
@@ -7,9 +8,9 @@ namespace Vocore.Engine
     {
         private const int FetchFinishJobAttempCount = 20;
         // key: filename, value: asset
-        private readonly WeakCache<object> _weakCache = new WeakCache<object>();
+        private readonly ConcurrentWeakCache<object> _weakCache = new ConcurrentWeakCache<object>();
         // key: filename, value: asset
-        private readonly Dictionary<string, object> _strongCache = new Dictionary<string, object>();
+        private readonly ConcurrentDictionary<string, object> _strongCache = new ConcurrentDictionary<string, object>();
         // key: extension, value: asset loader
         private readonly Dictionary<string, IBaseAssetLoader> _assetLoaders = new Dictionary<string, IBaseAssetLoader>();
         // key: filename, value: file source
