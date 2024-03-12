@@ -30,7 +30,7 @@ namespace Vocore.Test
             // Assert
             // Assert.IsTrue(queue.TryGetFinishedTask(out var finishedJob));
             // Assert.AreEqual(job, finishedJob);
-            while (!queue.TryGetFinishedTask(out result))
+            while (!(queue.TryGetFinishedTask(out result) == StealingResult.Success))
             {
                 // Do nothing
             }
@@ -61,7 +61,7 @@ namespace Vocore.Test
             }
             while (finishedCount < count)
             {
-                if (queue.TryGetFinishedTask(out _))
+                if (!(queue.TryGetFinishedTask(out _)== StealingResult.Success))
                 {
                     finishedCount++;
                 }
@@ -95,7 +95,7 @@ namespace Vocore.Test
             }
             while (finishedCount < count)
             {
-                if (queue.TryGetFinishedTask(out _))
+                if (queue.TryGetFinishedTask(out _) == StealingResult.Success)
                 {
                     finishedCount++;
                 }

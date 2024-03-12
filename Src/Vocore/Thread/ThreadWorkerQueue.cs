@@ -87,7 +87,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
                 job = task.job;
                 return StealingResult.Success;
             }
-            else if (result == StealingResult.Abort)
+            else if (result == StealingResult.Interrupted)
             {
                 hasAbort = true;
             }
@@ -96,7 +96,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 
         if (hasAbort)
         {
-            return StealingResult.Abort;
+            return StealingResult.Interrupted;
         }
 
         return StealingResult.Empty;
