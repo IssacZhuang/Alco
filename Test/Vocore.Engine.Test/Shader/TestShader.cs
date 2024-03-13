@@ -23,7 +23,7 @@ public class TestShader
                 ";
 
         // Act
-        ShaderPragma[] pragmas = UtilsShaderText.GetShaderPragma(shaderText);
+        ShaderPragma[] pragmas = ShaderCompiler.PreprocessText(shaderText, "test.hlsl").Pragmas;
 
         // Assert
         Assert.That(pragmas.Length, Is.EqualTo(3));
@@ -50,10 +50,61 @@ public class TestShader
                 // More comments";
 
         // Act
-        ShaderPragma[] pragmas = UtilsShaderText.GetShaderPragma(shaderText);
+        ShaderPragma[] pragmas = ShaderCompiler.PreprocessText(shaderText, "test.hlsl").Pragmas;
 
         // Assert
         Assert.That(pragmas.Length, Is.EqualTo(0));
+    }
+
+    [Test(Description = "Shader validate entries")]
+    public void TestValidationEntries()
+    {
+        string shaderText = @"";
+        ShaderPreproccessResult result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+
+        shaderText = @"
+        // no fragment entry
+        #pragma EntryVertex vs_main
+        ";
+        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+
+        shaderText = @"
+        // no vertex entry
+        #pragma EntryFragment fs_main
+        ";
+        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+
+        shaderText = @"
+        // correct
+        #pragma EntryVertex vs_main
+        #pragma EntryFragment fs_main";
+        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.DoesNotThrow(() => ShaderCompiler.ValidatePreprocessResult(result));
+        Assert.That(result.IsGraphicsShader, Is.True);
+        Assert.That(result.IsComputeShader, Is.False);
+        Assert.That(result.EntryVertex, Is.EqualTo("vs_main"));
+        Assert.That(result.EntryFragment, Is.EqualTo("fs_main"));
+
+        shaderText = @"
+        // correct
+        #pragma EntryCompute cs_main";
+        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.DoesNotThrow(() => ShaderCompiler.ValidatePreprocessResult(result));
+        Assert.That(result.IsGraphicsShader, Is.False);
+        Assert.That(result.IsComputeShader, Is.True);
+        Assert.That(result.EntryCompute, Is.EqualTo("cs_main"));
+
+        shaderText = @"
+        // conflict
+        #pragma EntryVertex vs_main
+        #pragma EntryCompute cs_main
+        #pragma EntryFragment fs_main
+        ";
+        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
     }
 
 }

@@ -26,14 +26,48 @@ public static class ShaderCompiler
     public const string PragmaKeyEntryCompute = "EntryCompute";
     public const int MaxRecursionDepth = 32;
 
-    public static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string> includeResolver)
+    public static ShaderCompileResult Comiple(string shaderText, string filename, Func<string, string>? includeResolver = null)
+    {
+        ShaderPreproccessResult preproccessed = PreprocessText(shaderText, filename, includeResolver);
+        return Compile(preproccessed);
+    }
+
+    public static ShaderCompileResult Compile(ShaderPreproccessResult preproccessed)
+    {
+        ValidatePreprocessResult(preproccessed);
+        if (preproccessed.IsGraphicsShader)
+        {
+            ShaderStageSource vertex = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename);
+            ShaderStageSource fragment = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename);
+            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, fragment.Source, true);
+            return ShaderCompileResult.CreateGraphics(vertex, fragment, preproccessed, reflectionInfo);
+        }
+        else if (preproccessed.IsComputeShader)
+        {
+            ShaderStageSource compute = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename);
+            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
+            return ShaderCompileResult.CreateCompute(compute, preproccessed, reflectionInfo);
+        }
+        else
+        {
+            throw new ShaderValidationException("No entry point found in the shader.");
+        }
+    }
+
+    public static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         return PreprocessText(shaderText, filename, includeResolver, 0);
     }
 
-    private static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string> includeResolver, int depth)
+    private static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver, int depth)
     {
+        if (includeResolver == null)
+        {
+            includeResolver = NoIncludeResolver;
+        }
+
         ShaderPreproccessResult result = new ShaderPreproccessResult();
+        result.Filename = filename;
         List<ShaderPragma> shaderPragmas = new List<ShaderPragma>();
         using StringReader reader = new StringReader(shaderText);
         StringBuilder builder = new StringBuilder();
@@ -88,6 +122,21 @@ public static class ShaderCompiler
                     {
                         result.DepthStencilState = depthStencilState;
                     }
+
+                    if (TryGetVertexEntryPoint(pragma, out string? entryPoint))
+                    {
+                        result.EntryVertex = entryPoint;
+                    }
+
+                    if (TryGetFragmentEntryPoint(pragma, out entryPoint))
+                    {
+                        result.EntryFragment = entryPoint;
+                    }
+
+                    if (TryGetComputeEntryPoint(pragma, out entryPoint))
+                    {
+                        result.EntryCompute = entryPoint;
+                    }
                 }
 
                 if (TryGetInclude(line, includeResolver, out string? includedText, out string? includeFilename))
@@ -118,17 +167,17 @@ public static class ShaderCompiler
                         throw new InvalidOperationException($"Multiple entry compute points are not allowed. 1: {filename}, 2: {includeFilename}");
                     }
 
-                    if (includedResult.EntryFragment != null)
+                    if (!string.IsNullOrEmpty(includedResult.EntryFragment))
                     {
                         result.EntryFragment = includedResult.EntryFragment;
                     }
 
-                    if (includedResult.EntryVertex != null)
+                    if (!string.IsNullOrEmpty(includedResult.EntryVertex))
                     {
                         result.EntryVertex = includedResult.EntryVertex;
                     }
 
-                    if (includedResult.EntryCompute != null)
+                    if (!string.IsNullOrEmpty(includedResult.EntryCompute))
                     {
                         result.EntryCompute = includedResult.EntryCompute;
                     }
@@ -177,7 +226,35 @@ public static class ShaderCompiler
         }
         catch (Exception e)
         {
-            throw new ShaderCompilationException(filename, shaderText, lineCount, e);
+            throw new ShaderLineException(filename, shaderText, lineCount, e);
+        }
+    }
+
+    /// <summary>
+    /// Validates the preprocess result of a shader.
+    /// </summary>
+    /// <param name="result">The shader preprocess result to validate.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the shader preprocess result is invalid.</exception>
+    public static void ValidatePreprocessResult(ShaderPreproccessResult result)
+    {
+        if (string.IsNullOrEmpty(result.EntryVertex) && string.IsNullOrEmpty(result.EntryFragment) && string.IsNullOrEmpty(result.EntryCompute))
+        {
+            throw new ShaderValidationException("No entry point found in the shader.");
+        }
+
+        if (string.IsNullOrEmpty(result.EntryFragment) && !string.IsNullOrEmpty(result.EntryVertex))
+        {
+            throw new ShaderValidationException("Missing entry fragment point in the shader.");
+        }
+
+        if (string.IsNullOrEmpty(result.EntryVertex) && !string.IsNullOrEmpty(result.EntryFragment))
+        {
+            throw new ShaderValidationException("Missing entry vertex point in the shader.");
+        }
+
+        if(!string.IsNullOrEmpty(result.EntryCompute) && (!string.IsNullOrEmpty(result.EntryVertex) || !string.IsNullOrEmpty(result.EntryFragment)))
+        {
+            throw new ShaderValidationException("No vertex or fragment entry point is allowed in the compute shader.");
         }
     }
 
@@ -330,6 +407,57 @@ public static class ShaderCompiler
         throw new NotSupportedException($"Invalid blend state pragma value count: {pragma.Values.Length}.");
     }
 
+    public static bool TryGetVertexEntryPoint(ShaderPragma pragma, [NotNullWhen(true)] out string? entryPoint)
+    {
+        if (pragma.Name != PragmaKeyEntryVertex)
+        {
+            entryPoint = null;
+            return false;
+        }
+
+        if (pragma.Values.Length != 1)
+        {
+            throw new InvalidOperationException($"Invalid vertex entry point pragma value count: {pragma.Values.Length}, required 1.");
+        }
+
+        entryPoint = pragma.Values[0];
+        return true;
+    }
+
+    public static bool TryGetFragmentEntryPoint(ShaderPragma pragma, [NotNullWhen(true)] out string? entryPoint)
+    {
+        if (pragma.Name != PragmaKeyEntryFragment)
+        {
+            entryPoint = null;
+            return false;
+        }
+
+        if (pragma.Values.Length != 1)
+        {
+            throw new InvalidOperationException($"Invalid fragment entry point pragma value count: {pragma.Values.Length}, required 1.");
+        }
+
+        entryPoint = pragma.Values[0];
+        return true;
+    }
+
+    public static bool TryGetComputeEntryPoint(ShaderPragma pragma, [NotNullWhen(true)] out string? entryPoint)
+    {
+        if (pragma.Name != PragmaKeyEntryCompute)
+        {
+            entryPoint = null;
+            return false;
+        }
+
+        if (pragma.Values.Length != 1)
+        {
+            throw new InvalidOperationException($"Invalid compute entry point pragma value count: {pragma.Values.Length}, required 1.");
+        }
+
+        entryPoint = pragma.Values[0];
+        return true;
+    }
+
     private static bool TryGetInclude(string shaderTextLine, Func<string, string> includeResolver, [NotNullWhen(true)] out string? includedText, [NotNullWhen(true)] out string? includedFilename)
     {
         if (shaderTextLine.StartsWith(KeyInclude))
@@ -351,5 +479,10 @@ public static class ShaderCompiler
         includedText = null;
         includedFilename = null;
         return false;
+    }
+
+    private static string NoIncludeResolver(string includeName)
+    {
+        throw new InvalidOperationException($"Include statement found in the shader but no include resolver is provided.");
     }
 }
