@@ -53,7 +53,7 @@ stages:
     - task: DotNetCoreCLI@2
       inputs:
         command: test
-        projects: '**/Vocore.Test.csproj'
+        projects: '**/**.csproj'
         arguments: '--configuration $(mode)'
         publishTestResults: true
       displayName: 'Test'
