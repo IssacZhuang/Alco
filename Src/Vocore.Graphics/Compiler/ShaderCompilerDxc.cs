@@ -25,8 +25,7 @@ public static class ShaderCompilerDxc
 
         if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
         {
-
-            throw new ShaderCompilationException($"Result: {result.GetStatus()}, Message: {result.GetErrors()}");
+            throw new ShaderCompilationException($"Result: {result.GetStatus()}, Desc: {result.GetStatus().Description},  Message: {result.GetErrors()}");
         }
 
         return result.GetObjectBytecodeArray();
