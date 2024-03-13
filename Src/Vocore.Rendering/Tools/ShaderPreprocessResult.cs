@@ -20,15 +20,15 @@ public struct ShaderPreproccessResult
         }
     }
     // common
-    public string ShaderText { get; init; }
-    public ShaderPragma[] Pragmas { get; init; }
+    public string ShaderText { get; set; }
+    public ShaderPragma[] Pragmas { get; set; }
     // graphics
-    public string? EntryVertex { get; init; }
-    public string? EntryFragment { get; init; }
-    public RasterizerState RasterizerState { get; init; }
-    public BlendState BlendState { get; init; }
-    public DepthStencilState DepthStencilState { get; init; }
+    public string? EntryVertex { get; set; }
+    public string? EntryFragment { get; set; }
+    public RasterizerState? RasterizerState { get; set; }
+    public BlendState? BlendState { get; set; }
+    public DepthStencilState? DepthStencilState { get; set; }
     // compute
-    public string? EntryCompute { get; init; }
+    public string? EntryCompute { get; set; }
 
 }

@@ -61,7 +61,7 @@ namespace Vocore.Test
             }
             while (finishedCount < count)
             {
-                if (!(queue.TryGetFinishedTask(out _)== StealingResult.Success))
+                if (queue.TryGetFinishedTask(out _)== StealingResult.Success)
                 {
                     finishedCount++;
                 }
