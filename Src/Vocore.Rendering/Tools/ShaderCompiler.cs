@@ -26,7 +26,7 @@ public static class ShaderCompiler
     public const string PragmaKeyEntryCompute = "EntryCompute";
     public const int MaxRecursionDepth = 32;
 
-    public static ShaderCompileResult Comiple(string shaderText, string filename, Func<string, string>? includeResolver = null)
+    public static ShaderCompileResult Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         ShaderPreproccessResult preproccessed = PreprocessText(shaderText, filename, includeResolver);
         return Compile(preproccessed);
