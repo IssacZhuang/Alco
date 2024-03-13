@@ -9,4 +9,9 @@
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
     <ProjectReference Include="..\Vocore.Graphics\Vocore.Graphics.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\**">
+      <LogicalName>%(EmbeddedResource.Identity)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

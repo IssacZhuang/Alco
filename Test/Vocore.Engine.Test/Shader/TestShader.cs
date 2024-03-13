@@ -23,7 +23,7 @@ public class TestShader
                 ";
 
         // Act
-        ShaderPragma[] pragmas = UtilsShader.GetShaderPragma(shaderText);
+        ShaderPragma[] pragmas = UtilsShaderText.GetShaderPragma(shaderText);
 
         // Assert
         Assert.That(pragmas.Length, Is.EqualTo(3));
@@ -50,7 +50,7 @@ public class TestShader
                 // More comments";
 
         // Act
-        ShaderPragma[] pragmas = UtilsShader.GetShaderPragma(shaderText);
+        ShaderPragma[] pragmas = UtilsShaderText.GetShaderPragma(shaderText);
 
         // Assert
         Assert.That(pragmas.Length, Is.EqualTo(0));
