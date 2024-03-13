@@ -1,4 +1,4 @@
-using Silk.NET.Shaderc;
+/*using Silk.NET.Shaderc;
 
 namespace Vocore.Graphics;
 
@@ -144,3 +144,5 @@ public unsafe static class ShaderCompilerShaderc
         };
     }
 }
+
+*/

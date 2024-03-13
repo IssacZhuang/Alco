@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Shaderc" Version="2.20.0" />
-    <PackageReference Include="Silk.NET.Shaderc.Native" Version="2.20.0" />
+    <!--PackageReference Include="Silk.NET.Shaderc" Version="2.20.0" /-->
+    <!-- <PackageReference Include="Silk.NET.Shaderc.Native" Version="2.20.0" /> -->
     <PackageReference Include="Silk.NET.SPIRV.Reflect" Version="2.20.0" />
     <PackageReference Include="Silk.NET.SPIRV.Reflect.Native" Version="2.20.0" />
     <PackageReference Include="SharpGen.Runtime" Version="2.1.2-beta" />

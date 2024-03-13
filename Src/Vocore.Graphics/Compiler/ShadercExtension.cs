@@ -1,4 +1,4 @@
-using System.Text;
+/*using System.Text;
 using Silk.NET.Shaderc;
 
 namespace Vocore.Graphics;
@@ -20,3 +20,4 @@ public static class ShadercExtension
         return (nuint)Encoding.UTF8.GetByteCount(str);
     }
 }
+*/
