@@ -238,7 +238,7 @@ namespace Vortice.Dxc
             return __result__;
         }
 
-        [System.Runtime.InteropServices.DllImportAttribute("dxcompiler.dll", EntryPoint = "DxcCreateInstance", CallingConvention = System.Runtime.InteropServices.CallingConvention.StdCall)]
+        [System.Runtime.InteropServices.DllImportAttribute("dxcompiler", EntryPoint = "DxcCreateInstance", CallingConvention = System.Runtime.InteropServices.CallingConvention.StdCall)]
         private unsafe static extern int DxcCreateInstance_(void* _rclsid, void* _riid, void* _ppv);
         /// <unmanaged>HRESULT DxcCreateInstance2([In] IMalloc* pMalloc, [In] const GUID&amp; rclsid, [In] const GUID&amp; riid, [Out] void** ppv)</unmanaged>
         /// <unmanaged-short>DxcCreateInstance2</unmanaged-short>
@@ -253,7 +253,7 @@ namespace Vortice.Dxc
             return __result__;
         }
 
-        [System.Runtime.InteropServices.DllImportAttribute("dxcompiler.dll", EntryPoint = "DxcCreateInstance2", CallingConvention = System.Runtime.InteropServices.CallingConvention.StdCall)]
+        [System.Runtime.InteropServices.DllImportAttribute("dxcompiler", EntryPoint = "DxcCreateInstance2", CallingConvention = System.Runtime.InteropServices.CallingConvention.StdCall)]
         private unsafe static extern int DxcCreateInstance2_(void* _malloc, void* _rclsid, void* _riid, void* _ppv);
     }
 
