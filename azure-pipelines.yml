@@ -22,21 +22,27 @@ stages:
         Windows_Debug: 
           image: ${{ variables.windows }}
           mode: Debug
+          runtime: win-x64
         Windows_Release:
           image: ${{ variables.windows }}
           mode: Release
+          runtime: win-x64
         Linux_Debug:
           image: ${{ variables.linux }}
           mode: Debug
+          runtime: linux-x64
         Linux_Release:
           image: ${{ variables.linux }}
           mode: Release
+          runtime: linux-x64
         MacOS_Debug:
           image: ${{ variables.macOS }}
           mode: Debug
+          runtime: osx-x64
         MacOS_Release:
           image: ${{ variables.macOS }}
           mode: Release
+          runtime: osx-x64
     
     pool:
       vmImage: $(image)
@@ -54,7 +60,7 @@ stages:
       inputs:
         command: test
         projects: '**/**.csproj'
-        arguments: '--configuration $(mode)'
+        arguments: '--configuration $(mode) -r $(runtime)'
         publishTestResults: true
       displayName: 'Test'
     
