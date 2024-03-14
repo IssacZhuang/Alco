@@ -15,13 +15,15 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
 
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <inheritdoc/>
     protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
     {
         //compile to spirv and get reflection info
-        preprocessed = ShaderCompiler.Compile(Encoding.UTF8.GetString(file), filename);
+        preprocessed = ShaderCompiler.Compile(Encoding.UTF8.GetString(file), filename, IncludeResolver);
         return true;
     }
 
+    /// <inheritdoc/>
     protected override bool TryCreateAssetCore(string filename, ShaderCompileResult preprocessed, [NotNullWhen(true)] out Shader? asset)
     {
         asset = Shader.CreateFromCompileResult(preprocessed); // create GPU object
@@ -30,7 +32,7 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
 
     private string IncludeResolver(string includeFilename)
     {
-        if(GameEngine.Instance.Assets.TryLoad<string>(includeFilename, out string? included)){
+        if(GameEngine.Instance.Assets.TryLoad(includeFilename, out string? included)){
             return included;
         }
         throw new AssetLoadException($"Failed to load include file '{includeFilename}'");

@@ -17,12 +17,14 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResult>
 
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <inheritdoc/>
     protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out ImageResult? preprocessed)
     {
         preprocessed = ImageResult.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
         return true;
     }
 
+    /// <inheritdoc/>
     protected override bool TryCreateAssetCore(string filename, ImageResult preprocessed, [NotNullWhen(true)] out Texture2D? asset)
     {
         asset = Texture2D.CreateFromData(preprocessed.Data, (uint)preprocessed.Width, (uint)preprocessed.Height, Texture2D.GetPixelSize(preprocessed.Comp));

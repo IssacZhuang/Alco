@@ -45,6 +45,8 @@ namespace Vocore.Engine
 
             //built in asset loaders
             RegisterAssetLoader(new AssetLoaderTexture2D());
+            RegisterAssetLoader(new AssetLoaderShaderHLSL());
+            RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
         }
 
         public IEnumerable<string> AllFileNames
@@ -124,62 +126,70 @@ namespace Vocore.Engine
             TryRefreshEntries();
             filename = ParseEntry(filename);
 
-            //try load from cache
-            if (TryLoadFromCacheCore(filename, out asset))
+            try
             {
+                //try load from cache
+                if (TryLoadFromCacheCore(filename, out asset))
+                {
+                    return true;
+                }
+
+                // check the asset loader
+                if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+                {
+                    asset = null;
+                    return false;
+                }
+
+                // IO
+                if (!_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+                {
+                    Log.Error($"Trying to get asset {filename} but the file does not exist");
+                    asset = null;
+                    return false;
+                }
+
+                if (!fileSource.TryGetData(filename, out byte[]? data))
+                {
+                    Log.Error($"Trying to get asset {filename} but the file does not exist");
+                    asset = null;
+                    return false;
+                }
+
+                // preprocess the asset
+                if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
+                {
+                    Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
+                    asset = null;
+                    return false;
+                }
+
+                // create the asset
+                if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+                {
+                    Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                    asset = null;
+                    return false;
+                }
+
+                // try add to cache
+                if (cacheMode == AssetCacheMode.Recyclable)
+                {
+                    SetWeakCache(filename, newAsset);
+                }
+                else if (cacheMode == AssetCacheMode.Persistent)
+                {
+                    SetStrongCache(filename, newAsset);
+                }
+                asset = newAsset;
                 return true;
             }
-
-            // check the asset loader
-            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+            catch (Exception ex)
             {
+                Log.Error($"Exception on loading asset '{filename}': {ex}");
                 asset = null;
                 return false;
             }
-
-            // IO
-            if (!_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
-            {
-                Log.Error($"Trying to get asset {filename} but the file does not exist");
-                asset = null;
-                return false;
-            }
-
-            if (!fileSource.TryGetData(filename, out byte[]? data))
-            {
-                Log.Error($"Trying to get asset {filename} but the file does not exist");
-                asset = null;
-                return false;
-            }
-
-            // preprocess the asset
-            if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
-            {
-                Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
-                asset = null;
-                return false;
-            }
-
-            // create the asset
-            if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
-            {
-                Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
-                asset = null;
-                return false;
-            }
-
-            // try add to cache
-            if (cacheMode == AssetCacheMode.Recyclable)
-            {
-                SetWeakCache(filename, newAsset);
-            }
-            else if (cacheMode == AssetCacheMode.Persistent)
-            {
-                SetStrongCache(filename, newAsset);
-            }
-
-            asset = newAsset;
-            return true;
         }
 
         /// <summary>

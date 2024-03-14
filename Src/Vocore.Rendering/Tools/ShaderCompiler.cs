@@ -50,7 +50,7 @@ public static class ShaderCompiler
         }
         else
         {
-            throw new ShaderValidationException("No entry point found in the shader.");
+            throw new ShaderValidationException("No entry point defined in the shader.");
         }
     }
 

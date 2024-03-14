@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Engine.Test", "Test\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "10-AsyncAssetLoading", "Sandbox\10-AsyncAssetLoading\10-AsyncAssetLoading.csproj", "{602C5CB9-7F53-443C-A3F5-D1673A3D29CF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "11-AssetLoaderHLSL", "Sandbox\11-AssetLoaderHLSL\11-AssetLoaderHLSL.csproj", "{ACFD4252-60CE-4B6F-95DA-247E1F5BEFA2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -123,6 +125,10 @@ Global
 		{602C5CB9-7F53-443C-A3F5-D1673A3D29CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{602C5CB9-7F53-443C-A3F5-D1673A3D29CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{602C5CB9-7F53-443C-A3F5-D1673A3D29CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ACFD4252-60CE-4B6F-95DA-247E1F5BEFA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ACFD4252-60CE-4B6F-95DA-247E1F5BEFA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ACFD4252-60CE-4B6F-95DA-247E1F5BEFA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ACFD4252-60CE-4B6F-95DA-247E1F5BEFA2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -146,5 +152,6 @@ Global
 		{D580A4CA-1D3C-4A89-9A91-93FC6DEE0677} = {BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}
 		{1ED7F9D8-BCDC-444D-B85A-C667DB2F12D2} = {13EA6E4E-2EBB-42E5-9211-2AAC68B87B6E}
 		{602C5CB9-7F53-443C-A3F5-D1673A3D29CF} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{ACFD4252-60CE-4B6F-95DA-247E1F5BEFA2} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal
