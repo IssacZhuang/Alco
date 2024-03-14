@@ -3,12 +3,45 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+/// <summary>
+/// The high level encapsulation of GPU pipeline
+/// </summary>
 public class Shader : ShaderResource
 {
-    private readonly GPUPipeline _pipeline;
-    private readonly ShaderReflectionInfo _reflectionInfo;
+    private GPUPipeline _pipeline;
+    private ShaderReflectionInfo _reflectionInfo;
     private readonly Dictionary<string, uint> _resourceIds = new Dictionary<string, uint>();
 
+    /// <summary>
+    /// Gets the shader stages.
+    /// </summary>
+    public ShaderStage Stages
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipeline.Stages;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this shader is a graphics shader.
+    /// </summary>
+    public bool IsGraphicsShader
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (Stages & ShaderStage.Vertex) != 0 && (Stages & ShaderStage.Fragment) != 0;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this shader is a compute shader.
+    /// </summary>
+    public bool IsComputeShader
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (Stages & ShaderStage.Compute) != 0;
+    }
+
+    /// <summary>
+    /// Gets the GPU pipeline associated with this shader.
+    /// </summary>
     public GPUPipeline Pipeline
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -23,6 +56,12 @@ public class Shader : ShaderResource
         BuildResourceIndex();
     }
 
+    /// <summary>
+    /// Tries to get the resource ID associated with the given name.
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
+    /// <returns>True if the resource ID was found, false otherwise.</returns>
     public bool TryGetResourceId(string name, out uint resourceId)
     {
         return _resourceIds.TryGetValue(name, out resourceId);
@@ -42,13 +81,54 @@ public class Shader : ShaderResource
         }
     }
 
+    internal void HotReload(GPUPipeline pipeline, ShaderReflectionInfo reflectionInfo)
+    {
+        _pipeline.Dispose();
+        _pipeline = pipeline;
+        _reflectionInfo = reflectionInfo;
+
+        BuildResourceIndex();
+    }
+
+    internal void HotReload(ShaderCompileResult result)
+    {
+        try
+        {
+            GPUPipeline? pipeline = CreatePipeline(result);
+            if (pipeline != null)
+            {
+                HotReload(pipeline, result.ReflectionInfo);
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Failed to hot reload shader: {e}");
+        }
+    }
+
     protected override void Dispose(bool disposing)
     {
         _pipeline.Dispose();
     }
 
     //creation
+    /// <summary>
+    /// Creates a shader from the compile result.
+    /// </summary>
+    /// <param name="result">The shader compile result.</param>
+    /// <returns>The created shader.</returns>
     public static Shader CreateFromCompileResult(ShaderCompileResult result)
+    {
+        GPUPipeline? pipeline = CreatePipeline(result);
+        if (pipeline != null)
+        {
+            return new Shader(pipeline, result.ReflectionInfo);
+        }
+
+        throw new InvalidOperationException("Invalid shader compile result");
+    }
+
+    private static GPUPipeline? CreatePipeline(ShaderCompileResult result)
     {
         GPUDevice device = GetDevice();
         if (result.IsGraphicsShader)
@@ -81,13 +161,12 @@ public class Shader : ShaderResource
                 filename);
 
             GPUPipeline pipeline = device.CreateGraphicsPipeline(descriptor);
-            Shader shader = new Shader(pipeline, info);
 
             foreach (var bindGroup in bindGroups)
             {
                 bindGroup.Dispose();
             }
-            return shader;
+            return pipeline;
         }
         else if (result.IsComputeShader)
         {
@@ -105,17 +184,13 @@ public class Shader : ShaderResource
                 result.PreproccessResult.Filename);
 
             GPUPipeline pipeline = device.CreateComputePipeline(descriptor);
-            Shader shader = new Shader(pipeline, info);
 
             foreach (var bindGroup in bindGroups)
             {
                 bindGroup.Dispose();
             }
-            return shader;
+            return pipeline;
         }
-
-        throw new InvalidOperationException("Invalid shader compile result");
-
-
+        return null;
     }
 }
