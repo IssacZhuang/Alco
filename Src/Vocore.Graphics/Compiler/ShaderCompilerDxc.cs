@@ -23,10 +23,10 @@ public static class ShaderCompilerDxc
             SpvPreserveBindings = true,
         }, filename, ShaderMacroDefine.ToDxcMacro(defines));
 
-        if (result.GetStatus() != SharpGen.Runtime.Result.Ok)
+        if (result.GetStatus().Failure)
         {
-            
-            throw new ShaderCompilationException($"Result Code: {result.GetStatus().Code}, U: {(uint)result.GetStatus().Code},  Message: {result.GetErrors()}");
+            DxcResultCode dxcResult = DxcResultCode.GetDxcResult(result.GetStatus().Code);
+            throw new ShaderCompilationException($"{dxcResult}  Message: {result.GetErrors()}");
         }
 
         return result.GetObjectBytecodeArray();

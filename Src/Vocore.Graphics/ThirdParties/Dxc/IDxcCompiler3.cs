@@ -5,6 +5,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using SharpGen.Runtime;
+using Vocore.Graphics;
 
 namespace Vortice.Dxc;
 
@@ -19,7 +20,25 @@ public partial class IDxcCompiler3
     public unsafe Result Compile<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(string source, string[] arguments, IDxcIncludeHandler includeHandler, out T? result) where T : ComObject
     {
         IntPtr shaderSourcePtr = Marshal.StringToHGlobalAnsi(source);
-        IntPtr* argumentsPtr = (IntPtr*)0;
+
+        // this will be wchar_t**, 2 bytes on windows, 4 bytes on unix
+        IntPtr pArgs = IntPtr.Zero;
+        int argsCount = arguments.Length;
+
+        Utf32StringArray? utf32Array = null;
+        Utf16StringArray? utf16Array = null;
+
+        if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            utf16Array = new Utf16StringArray(arguments);
+            pArgs = utf16Array.Value.Pointer;
+        }
+        else
+        {
+            utf32Array = new Utf32StringArray(arguments);
+            pArgs = utf32Array.Value.Pointer;
+        }
+        
 
         DxcBuffer buffer = new()
         {
@@ -30,14 +49,8 @@ public partial class IDxcCompiler3
 
         try
         {
-            int argumentsCount = 0;
-            if (arguments != null && arguments.Length > 0)
-            {
-                argumentsCount = arguments.Length;
-                argumentsPtr = Interop.AllocToPointers(arguments);
-            }
 
-            Result hr = Compile(ref buffer, (IntPtr)argumentsPtr, argumentsCount, includeHandler, typeof(T).GUID, out IntPtr nativePtr);
+            Result hr = Compile(ref buffer, pArgs, argsCount, includeHandler, typeof(T).GUID, out IntPtr nativePtr);
             if (hr.Failure)
             {
                 result = default;
@@ -54,10 +67,8 @@ public partial class IDxcCompiler3
                 Marshal.FreeHGlobal(shaderSourcePtr);
             }
 
-            if (argumentsPtr != null)
-            {
-                Interop.Free(argumentsPtr);
-            }
+            utf32Array?.Dispose();
+            utf16Array?.Dispose();
         }
     }
 
