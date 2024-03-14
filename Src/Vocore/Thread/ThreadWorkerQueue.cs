@@ -10,6 +10,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     private struct Task
     {
         public TJob job;
+        public Exception? exception;
     }
 
     private struct WorkerData
@@ -73,10 +74,11 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         _event.Set();
     }
 
-    public StealingResult TryGetFinishedTask([NotNullWhen(true)] out TJob? job)
+    public StealingResult TryGetFinishedTask([NotNullWhen(true)] out TJob? job, out Exception? exception)
     {
         job = default;
         bool hasAbort = false;
+        exception = null;
         for (int i = 0; i < _threadData.Length; i++)
         {
             ref WorkerData selfData = ref _threadData[i];
@@ -85,6 +87,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
             if (result == StealingResult.Success)
             {
                 job = task.job;
+                exception = task.exception;
                 return StealingResult.Success;
             }
             else if (result == StealingResult.Interrupted)
@@ -122,16 +125,17 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
                     try
                     {
                         task.job.Execute();
-                        selfData.outputs.Push(task);
                     }
                     catch (Exception e)
                     {
-                        Log.Error(e);
+                        //Log.Error(e);
+                        task.exception = e;
                     }
                     finally
                     {
-
+                        selfData.outputs.Push(task);
                     }
+    
                     continue;
                 }
                 if (status == StealingResult.Empty)

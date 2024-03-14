@@ -8,7 +8,7 @@ public class ShaderCompileResult
     {
         get
         {
-            return VertexShader != null && FragmentShader != null;
+            return VertexShader.HasValue && FragmentShader.HasValue;
         }
     }
 
@@ -16,7 +16,7 @@ public class ShaderCompileResult
     {
         get
         {
-            return ComputeShader != null;
+            return ComputeShader.HasValue;
         }
     }
     public ShaderStageSource? VertexShader { get; }

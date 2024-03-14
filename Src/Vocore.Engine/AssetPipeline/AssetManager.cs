@@ -24,6 +24,7 @@ namespace Vocore.Engine
         // Threads
         private struct AsyncPreprocessJob : IJob
         {
+            public string name;
             public object? preprocessed;
             public Func<object?> onPreprocess;
             public Func<object, object?> onCreate;
@@ -211,6 +212,7 @@ namespace Vocore.Engine
 
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
+                name = filename,
                 onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT), // on worker thread
                 onCreate = GetOnCreateAction(filename, assetLoaderT, cacheMode), // on main thread
                 onComplete = GetOnCompleteAction(onComplete) // on main thread
@@ -359,12 +361,18 @@ namespace Vocore.Engine
         {
             for (int i = 0; i < FetchFinishJobAttempCount; i++)
             {
-                StealingResult result = _asyncLoadQueue.TryGetFinishedTask(out AsyncPreprocessJob job);
+                StealingResult result = _asyncLoadQueue.TryGetFinishedTask(out AsyncPreprocessJob job, out Exception? exception);
                 if (result == StealingResult.Success)
                 {
+                    if (exception != null)
+                    {
+                        Log.Error($"Exception on loading asset '{job.name}': {exception}");
+                        continue;
+                    }
+
                     if (job.preprocessed == null)
                     {
-                        Log.Error("The asset manager failed to preprocess the asset");
+                        Log.Error($"The preprocessed asset of '{job.name}' is null, the asset manager failed to load the asset");
                         continue;
                     }
 
@@ -373,14 +381,14 @@ namespace Vocore.Engine
                         object? asset = job.onCreate(job.preprocessed);
                         if (asset == null)
                         {
-                            Log.Error("The asset manager failed to create asset");
+                            Log.Error($"Failed to create asset: {job.name}");
                             continue;
                         }
                         job.onComplete(asset);
                     }
                     catch (Exception e)
                     {
-                        Log.Error($"The asset manager failed to create asset or complete the asset loading: {e}");
+                        Log.Error($"Exception on creating asset '{job.name}': {e}");
                     }
 
                 }

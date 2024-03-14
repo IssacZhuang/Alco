@@ -30,7 +30,7 @@ namespace Vocore.Test
             // Assert
             // Assert.IsTrue(queue.TryGetFinishedTask(out var finishedJob));
             // Assert.AreEqual(job, finishedJob);
-            while (!(queue.TryGetFinishedTask(out result) == StealingResult.Success))
+            while (!(queue.TryGetFinishedTask(out result, out Exception __) == StealingResult.Success))
             {
                 // Do nothing
             }
@@ -61,7 +61,7 @@ namespace Vocore.Test
             }
             while (finishedCount < count)
             {
-                if (queue.TryGetFinishedTask(out _)== StealingResult.Success)
+                if (queue.TryGetFinishedTask(out _, out Exception __) == StealingResult.Success)
                 {
                     finishedCount++;
                 }
@@ -95,7 +95,7 @@ namespace Vocore.Test
             }
             while (finishedCount < count)
             {
-                if (queue.TryGetFinishedTask(out _) == StealingResult.Success)
+                if (queue.TryGetFinishedTask(out _, out Exception __) == StealingResult.Success)
                 {
                     finishedCount++;
                 }
@@ -105,8 +105,43 @@ namespace Vocore.Test
             {
                 Assert.IsTrue(jobs[i].value == i * 2);
             }
-
         }
+
+        [Test]
+        public void TestErrorJob()
+        {
+            ErrorJob job = new ErrorJob();
+            ThreadWorkerQueue<ErrorJob> queue = new ThreadWorkerQueue<ErrorJob>(2);
+            queue.Push(job);
+
+            Exception exception = null;
+
+            while (queue.TryGetFinishedTask(out _, out exception) != StealingResult.Success)
+            {
+                // just wait
+            }
+
+            Assert.IsNotNull(exception);
+        }
+
+        [Test]
+        public void TestNoErrorJob()
+        {
+            QuickJob job = new QuickJob();
+            ThreadWorkerQueue<QuickJob> queue = new ThreadWorkerQueue<QuickJob>(2);
+            queue.Push(job);
+
+            Exception exception = null;
+
+            while (queue.TryGetFinishedTask(out _, out exception) != StealingResult.Success)
+            {
+                // just wait
+            }
+
+            Assert.IsNull(exception);
+        }
+
+
 
         private class QuickJob : IJob
         {
@@ -125,6 +160,14 @@ namespace Vocore.Test
             {
                 Thread.Sleep(50);
                 value *= 2;
+            }
+        }
+
+        private class ErrorJob : IJob
+        {
+            public void Execute()
+            {
+                throw new Exception("Error");
             }
         }
     }
