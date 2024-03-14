@@ -8,13 +8,14 @@ namespace Vocore.Engine;
 public class DirectoryFileSource : IFileSource
 {
     private string _directoryPath;
+    public string DirectoryPath => _directoryPath;
 
     public DirectoryFileSource(string directoryPath)
     {
         _directoryPath = directoryPath;
     }
 
-    public IEnumerable<string> AllFileNames
+    public virtual IEnumerable<string> AllFileNames
     {
         get
         {
@@ -28,7 +29,7 @@ public class DirectoryFileSource : IFileSource
 
     public virtual int Order => 3;
 
-    public bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data)
+    public virtual bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data)
     {
         try
         {

@@ -7,7 +7,7 @@ using static Vocore.Unsafe.UtilsMemory;
 namespace Vocore.Rendering;
 
 /// <summary>
-/// A GPUTexture with a TextureView which the dimension is 2D
+/// High level encapsulation of a GPUTexture with a TextureView which the dimension is 2D
 /// </summary>
 public class Texture2D : ShaderResource
 {
