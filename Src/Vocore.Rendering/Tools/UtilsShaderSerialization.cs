@@ -4,6 +4,42 @@ namespace Vocore.Rendering;
 
 public static class UtilsShaderSerialization
 {
+    public static byte[] EncodeCompileResult(ShaderCompileResult result)
+    {
+        BinaryTable table = new BinaryTable
+        {
+            {"VertexShader", EncodeStageSource(result.VertexShader)},
+            {"FragmentShader", EncodeStageSource(result.FragmentShader)},
+            {"ComputeShader", EncodeStageSource(result.ComputeShader)},
+            {"PreproccessResult", EncodePreproccessResult(result.PreproccessResult)},
+            {"ReflectionInfo", EncodeReflectionInfo(result.ReflectionInfo)}
+        };
+
+        return BinaryParser.EncodeTable(table);
+    }
+
+    public static ShaderCompileResult DecodeCompileResult(byte[] bytes)
+    {
+        BinaryTable table = BinaryParser.DecodeTable(bytes);
+        if (table.TryGetBinary("VertexShader", out byte[]? vertexShaderBytes) &&
+           table.TryGetBinary("FragmentShader", out byte[]? fragmentShaderBytes) &&
+           table.TryGetBinary("ComputeShader", out byte[]? computeShaderBytes) &&
+           table.TryGetBinary("PreproccessResult", out byte[]? preproccessResultTable) &&
+           table.TryGetBinary("ReflectionInfo", out byte[]? reflectionInfoTable))
+        {
+            ShaderStageSource? vertexShader = DecodeStageSource(vertexShaderBytes);
+            ShaderStageSource? fragmentShader = DecodeStageSource(fragmentShaderBytes);
+            ShaderStageSource? computeShader = DecodeStageSource(computeShaderBytes);
+            ShaderPreproccessResult preproccessResult = DecodePreproccessResult(preproccessResultTable);
+            ShaderReflectionInfo reflectionInfo = DecodeReflectionInfo(reflectionInfoTable);
+
+            return new ShaderCompileResult(vertexShader, fragmentShader, computeShader, preproccessResult, reflectionInfo);
+        }
+
+        throw new InvalidOperationException("Invalid shader compile result");
+
+    }
+
     // shader preproccess result
 
     public static byte[] EncodePreproccessResult(ShaderPreproccessResult result)
