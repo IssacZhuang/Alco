@@ -15,7 +15,7 @@ namespace Vocore
 
             public override string ToString()
             {
-                return $"Pointer: {pointer}, Size: {size}, StackTrace: {stackTrace}";
+                return $"Address: {pointer:X16}, Size: {size}, StackTrace:\n{stackTrace}";
             }
         }
 
@@ -48,7 +48,26 @@ namespace Vocore
         {
             foreach (var item in _allocated)
             {
-                yield return item.ToString();
+                yield return item.Value.ToString();
+            }
+        }
+
+        public static void CheckAllocated(bool @throw = false)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            foreach (var item in GetAllocatedStackTrace())
+            {
+                if (@throw)
+                {
+                    throw new Exception($"Memory leak detected:\n {item}");
+                }
+                else
+                {
+                    Log.Error($"Memory leak detected:\n {item}");
+                }
             }
         }
     }

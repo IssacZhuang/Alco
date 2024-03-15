@@ -216,17 +216,18 @@ public class Texture2D : ShaderResource
         return texture;
     }
 
-    public static Texture2D CreateFromStream(
+    public unsafe static Texture2D CreateFromStream(
         Stream stream,
         ImageLoadOption? option = null
     )
     {
 
         ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        ImageResult image = ImageResult.FromStream(stream, targetComponents);
+        using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
 
         return CreateFromData(
-            image.Data,
+            image.Memory.Pointer,
+            image.Memory.Length,
             (uint)image.Width,
             (uint)image.Height,
             GetPixelSize(targetComponents),
@@ -234,16 +235,17 @@ public class Texture2D : ShaderResource
         );
     }
 
-    public static Texture2D CreateFromFile(
+    public unsafe static Texture2D CreateFromFile(
         byte[] fileBytes,
         ImageLoadOption? option = null
     )
     {
         ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        ImageResult image = ImageResult.FromMemory(fileBytes, targetComponents);
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
 
         return CreateFromData(
-            image.Data,
+            image.Memory.Pointer,
+            image.Memory.Length,
             (uint)image.Width,
             (uint)image.Height,
             GetPixelSize(targetComponents),

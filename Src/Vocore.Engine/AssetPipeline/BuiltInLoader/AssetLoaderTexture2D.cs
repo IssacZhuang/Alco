@@ -9,7 +9,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Represents an asset loader for Texture2D assets.
 /// </summary>
-public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResult>
+public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer>
 {
     private static readonly string[] Extensions = new string[] { ".png", ".jpg", ".bmp", ".tga", ".gif", ".hdr" };
 
@@ -18,16 +18,30 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResult>
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out ImageResult? preprocessed)
+    protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out ImageResultBuffer? preprocessed)
     {
-        preprocessed = ImageResult.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
+        preprocessed = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
         return true;
     }
 
     /// <inheritdoc/>
-    protected override bool TryCreateAssetCore(string filename, ImageResult preprocessed, [NotNullWhen(true)] out Texture2D? asset)
+    protected unsafe override bool TryCreateAssetCore(string filename, ImageResultBuffer preprocessed, [NotNullWhen(true)] out Texture2D? asset)
     {
-        asset = Texture2D.CreateFromData(preprocessed.Data, (uint)preprocessed.Width, (uint)preprocessed.Height, Texture2D.GetPixelSize(preprocessed.Comp));
+        try
+        {
+            asset = Texture2D.CreateFromData(preprocessed.Memory.Pointer, preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height, Texture2D.GetPixelSize(preprocessed.Comp));
+        }
+        catch (Exception e)
+        {
+            Log.Error(e);
+            asset = null;
+            return false;
+        }
+        finally
+        {
+            preprocessed.Dispose();
+        }
+
         return true;
     }
 }
