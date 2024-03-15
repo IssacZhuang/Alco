@@ -70,6 +70,7 @@ namespace Vocore.Unsafe
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Memset<T>(T* ptr, long size, T value) where T : unmanaged
         {
             for (long i = 0; i < size; i++)

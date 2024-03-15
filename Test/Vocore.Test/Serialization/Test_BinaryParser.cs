@@ -100,9 +100,9 @@ namespace Vocore.Test
             }
             table[keySubData] = subTable;
 
-            byte[] raw = BinaryParser.Encode(table);
+            byte[] raw = BinaryParser.EncodeTable(table);
 
-            BinaryTable table2 = BinaryParser.Decode(raw);
+            BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
             foreach (var item in data)
             {
@@ -163,9 +163,9 @@ namespace Vocore.Test
             binObject["noise1"] = null;
             binObject["list"] = binArray;
             binObject["noise2"] = "noise";
-            byte[] raw = BinaryParser.Encode(binObject);
+            byte[] raw = BinaryParser.EncodeTable(binObject);
 
-            BinaryTable binObject2 = BinaryParser.Decode(raw);
+            BinaryTable binObject2 = BinaryParser.DecodeTable(raw);
             BinaryArray binArray2 = binObject2["list"] as BinaryArray;
 
             for (int i = 0; i < data.Length; i++)
@@ -199,9 +199,9 @@ namespace Vocore.Test
                 ["key4"] = "value4"
             };
 
-            byte[] raw = BinaryParser.Encode(table);
+            byte[] raw = BinaryParser.EncodeTable(table);
 
-            BinaryTable table2 = BinaryParser.Decode(raw);
+            BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
             Assert.IsTrue(table2.TryGetString("key1", out string value1));
             Assert.IsTrue(value1 == "value1");
@@ -266,7 +266,7 @@ namespace Vocore.Test
                     table["strVal"] = value.strVal;
                     table["floatVal"] = value.floatVal;
                     table["boolVal"] = value.boolVal;
-                    byte[] bytes = BinaryParser.Encode(table);
+                    byte[] bytes = BinaryParser.EncodeTable(table);
                 }
             });
         }
@@ -304,7 +304,7 @@ namespace Vocore.Test
             table["strVal"] = value.strVal;
             table["floatVal"] = value.floatVal;
             table["boolVal"] = value.boolVal;
-            byte[] bytes = BinaryParser.Encode(table);
+            byte[] bytes = BinaryParser.EncodeTable(table);
 
             StructForSerialize reuslt = default;
 
@@ -328,7 +328,7 @@ namespace Vocore.Test
             {
                 for (int i = 0; i < 100000; i++)
                 {
-                    BinaryTable table2 = BinaryParser.Decode(bytes);
+                    BinaryTable table2 = BinaryParser.DecodeTable(bytes);
                     table2.TryGetValue("intVal", out reuslt.intVal);
                     table2.TryGetString("strVal", out reuslt.strVal);
                     table2.TryGetValue("floatVal", out reuslt.floatVal);
@@ -371,10 +371,10 @@ namespace Vocore.Test
             table["strVal"] = value.strVal;
             table["floatVal"] = value.floatVal;
             table["boolVal"] = value.boolVal;
-            byte[] bytes = BinaryParser.Encode(table, out long sizeBinary);
+            byte[] bytes = BinaryParser.EncodeTable(table);
 
             TestContext.WriteLine("xml: " + UtilsTest.FormatSize(sizeXml));
-            TestContext.WriteLine("binary: " + UtilsTest.FormatSize(sizeBinary));
+            TestContext.WriteLine("binary: " + UtilsTest.FormatSize(bytes.Length));
         }
     }
 }

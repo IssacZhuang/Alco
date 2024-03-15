@@ -15,7 +15,7 @@ namespace Vocore
 
             public override string ToString()
             {
-                return $"Address: {pointer:X16}, Size: {size}, StackTrace:\n{stackTrace}";
+                return $"Address: 0x{pointer:X16}, Size: {size}, StackTrace:\n{stackTrace}";
             }
         }
 

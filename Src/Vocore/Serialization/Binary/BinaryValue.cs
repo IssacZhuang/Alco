@@ -27,6 +27,14 @@ namespace Vocore
             }
         }
 
+        public bool IsNull
+        {
+            get
+            {
+                return _binary.Length == 0;
+            }
+        }
+
         public BinaryValue()
         {
             _binary = Array.Empty<byte>();
@@ -50,9 +58,10 @@ namespace Vocore
             return true;
         }
 
-
-
-
+        public static BinaryValue CreateValue<T>(T value) where T : unmanaged
+        {
+            return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
     }
 
 }

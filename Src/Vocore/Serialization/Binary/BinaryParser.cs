@@ -10,18 +10,7 @@ namespace Vocore
     {
         public readonly static int SizeInt32 = Marshal.SizeOf<int>();
 
-        public static byte[] Encode(BinaryTable data, out long length)
-        {
-            using (MemoryStream stream = new MemoryStream())
-            {
-                EncodeTable(stream, data);
-                length = (int)stream.Position;
-                // the length of the buffer is the capacity of the MemoryStream but not real length
-                return stream.GetBuffer();
-            }
-        }
-
-        public static byte[] Encode(BinaryTable data)
+        public static byte[] EncodeTable(BinaryTable data)
         {
             using (MemoryStream stream = new MemoryStream())
             {
@@ -30,13 +19,39 @@ namespace Vocore
             }
         }
 
-        public static BinaryTable Decode(byte[] bytes)
+        public static BinaryTable DecodeTable(byte[] bytes)
         {
             using (MemoryStream stream = new MemoryStream(bytes))
             {
                 return DecodeTable(stream);
             }
         }
+
+        public static BinaryTable ObjectToTable<T>(T obj) where T : ISerializable
+        {
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode();
+            obj.OnSerialize(node, SerializeMode.Save);
+            return node.Content;
+        }
+
+        public static T TableToObject<T>(BinaryTable content) where T : ISerializable, new()
+        {
+            T obj = new T();
+            obj.OnSerialize(new BinarySerializeReadNode(content), SerializeMode.Load);
+            return obj;
+        }
+
+        public static byte[] Encode<T>(T obj) where T : ISerializable
+        {
+            return EncodeTable(ObjectToTable(obj));
+        }
+
+        public static T Decode<T>(byte[] bytes) where T : ISerializable, new()
+        {
+            return TableToObject<T>(DecodeTable(bytes));
+        }
+
+        
 
         private static void EncodeTableElement(MemoryStream stream, string name, BaseBinaryValue value)
         {

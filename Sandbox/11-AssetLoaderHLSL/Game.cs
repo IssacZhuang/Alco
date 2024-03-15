@@ -59,8 +59,6 @@ public class Game : GameEngine
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        UpdateColor(new Vector3(1, 1, 1));
-
         if (Assets.TryLoad("Shader.hlsl", out Shader? shader))
         {
             _shader = shader;
@@ -73,8 +71,6 @@ public class Game : GameEngine
 
         _textureEmpty = Texture2D.CreateEmpty(16, 16, 0xffffffff);
         _selected = _textureEmpty;
-
-
     }
 
     protected override void OnUpdate(float delta)
@@ -127,8 +123,6 @@ public class Game : GameEngine
         }, Vertices);
     }
 
-
-
     private GPUResourceGroup CreateResourceGroup(GPUBindGroup bindGroup, GPUBuffer buffer)
     {
         return GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor
@@ -141,20 +135,4 @@ public class Game : GameEngine
         });
     }
 
-    private Texture2D CreateTexture()
-    {
-        byte[] data = LoadFile("test.png");
-
-        return Texture2D.CreateFromFile(data);
-    }
-
-    private void UpdateColor(Vector3 color)
-    {
-        GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
-    }
-
-    private static byte[] LoadFile(string path)
-    {
-        return File.ReadAllBytes(Path.Combine("Assets", path));
-    }
 }
