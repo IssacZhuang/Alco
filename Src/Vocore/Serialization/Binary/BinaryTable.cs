@@ -77,6 +77,16 @@ namespace Vocore
             return false;
         }
 
+        public bool TryGetNullableValue<T>(string key, [NotNullWhen(true)] out T? value) where T : unmanaged
+        {
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
+            {
+                return binaryValue.TryGetNullableValue(out value);
+            }
+            value = default;
+            return false;
+        }
+
         public bool TryGetTable(string key, [NotNullWhen(true)] out BinaryTable? value)
         {
             if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryTable binaryTable)

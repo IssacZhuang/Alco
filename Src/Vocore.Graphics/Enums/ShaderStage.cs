@@ -15,3 +15,16 @@ public enum ShaderStage
     Compute = 1 << 5,
     Standard = Vertex | Fragment | Compute
 }
+
+public static class ShaderStageExtensions
+{
+    public static bool IsGraphicsShader(this ShaderStage stage)
+    {
+        return (stage & ShaderStage.Vertex) != 0 && (stage & ShaderStage.Fragment) != 0;
+    }
+
+    public static bool IsComputeShader(this ShaderStage stage)
+    {
+        return (stage & ShaderStage.Compute) != 0;
+    }
+}

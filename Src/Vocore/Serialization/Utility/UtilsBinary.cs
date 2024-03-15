@@ -24,12 +24,33 @@ namespace Vocore
             return bytes;
         }
 
+        // Nullable<T> can be simply cast to T? but less readablity
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static byte[] EncodeNullableValue<T>(Nullable<T> value) where T : unmanaged
+        {
+            byte[] bytes = new byte[sizeof(Nullable<T>)];
+            fixed (byte* ptr = bytes)
+            {
+                *(T?*)ptr = value;
+            }
+            return bytes;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static T DecodeToValue<T>(byte[] bytes) where T : unmanaged
         {
             fixed (byte* ptr = bytes)
             {
                 return *(T*)ptr;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static Nullable<T> DecodeToNullableValue<T>(byte[] bytes) where T : unmanaged
+        {
+            fixed (byte* ptr = bytes)
+            {
+                return *(Nullable<T>*)ptr;
             }
         }
 

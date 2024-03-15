@@ -26,6 +26,8 @@ public static class ShaderCompiler
     public const string PragmaKeyEntryCompute = "EntryCompute";
     public const int MaxRecursionDepth = 32;
 
+    public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
+
     public static ShaderCompileResult Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         ShaderPreproccessResult preproccessed = PreprocessText(shaderText, filename, includeResolver);
@@ -35,14 +37,14 @@ public static class ShaderCompiler
     public static ShaderCompileResult Compile(ShaderPreproccessResult preproccessed)
     {
         ValidatePreprocessResult(preproccessed);
-        if (preproccessed.IsGraphicsShader)
+        if (preproccessed.Stages.IsGraphicsShader())
         {
             ShaderStageSource vertex = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename);
             ShaderStageSource fragment = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, fragment.Source, true);
             return ShaderCompileResult.CreateGraphics(vertex, fragment, preproccessed, reflectionInfo);
         }
-        else if (preproccessed.IsComputeShader)
+        else if (preproccessed.Stages.IsComputeShader())
         {
             ShaderStageSource compute = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
@@ -57,6 +59,24 @@ public static class ShaderCompiler
     public static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         return PreprocessText(shaderText, filename, includeResolver, 0);
+    }
+
+    public static bool HasSpirvHeader(byte[] data)
+    {
+        if (data.Length < SpirvHeader.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < SpirvHeader.Length; i++)
+        {
+            if (data[i] != SpirvHeader[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver, int depth)
@@ -126,16 +146,19 @@ public static class ShaderCompiler
                     if (TryGetVertexEntryPoint(pragma, out string? entryPoint))
                     {
                         result.EntryVertex = entryPoint;
+                        result.Stages |= ShaderStage.Vertex;
                     }
 
                     if (TryGetFragmentEntryPoint(pragma, out entryPoint))
                     {
                         result.EntryFragment = entryPoint;
+                        result.Stages |= ShaderStage.Fragment;
                     }
 
                     if (TryGetComputeEntryPoint(pragma, out entryPoint))
                     {
                         result.EntryCompute = entryPoint;
+                        result.Stages |= ShaderStage.Compute;
                     }
                 }
 
@@ -167,19 +190,22 @@ public static class ShaderCompiler
                         throw new InvalidOperationException($"Multiple entry compute points are not allowed. 1: {filename}, 2: {includeFilename}");
                     }
 
-                    if (!string.IsNullOrEmpty(includedResult.EntryFragment))
+                    if (!string.IsNullOrEmpty(includedResult.EntryFragment)&& includedResult.Stages.HasFlag(ShaderStage.Vertex))
                     {
                         result.EntryFragment = includedResult.EntryFragment;
+                        result.Stages |= ShaderStage.Fragment;
                     }
 
-                    if (!string.IsNullOrEmpty(includedResult.EntryVertex))
+                    if (!string.IsNullOrEmpty(includedResult.EntryVertex) && includedResult.Stages.HasFlag(ShaderStage.Vertex))
                     {
                         result.EntryVertex = includedResult.EntryVertex;
+                        result.Stages |= ShaderStage.Vertex;
                     }
 
-                    if (!string.IsNullOrEmpty(includedResult.EntryCompute))
+                    if (!string.IsNullOrEmpty(includedResult.EntryCompute) && includedResult.Stages.HasFlag(ShaderStage.Compute))
                     {
                         result.EntryCompute = includedResult.EntryCompute;
+                        result.Stages |= ShaderStage.Compute;
                     }
 
                     //override the states

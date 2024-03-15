@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Vocore.Graphics;
 using Vocore.Rendering;
 
 namespace Vocore.Engine.Test;
@@ -83,8 +84,8 @@ public class TestShader
         #pragma EntryFragment fs_main";
         result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
         Assert.DoesNotThrow(() => ShaderCompiler.ValidatePreprocessResult(result));
-        Assert.That(result.IsGraphicsShader, Is.True);
-        Assert.That(result.IsComputeShader, Is.False);
+        Assert.That(result.Stages.IsGraphicsShader(), Is.True);
+        Assert.That(result.Stages.IsComputeShader(), Is.False);
         Assert.That(result.EntryVertex, Is.EqualTo("vs_main"));
         Assert.That(result.EntryFragment, Is.EqualTo("fs_main"));
 
@@ -93,8 +94,8 @@ public class TestShader
         #pragma EntryCompute cs_main";
         result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
         Assert.DoesNotThrow(() => ShaderCompiler.ValidatePreprocessResult(result));
-        Assert.That(result.IsGraphicsShader, Is.False);
-        Assert.That(result.IsComputeShader, Is.True);
+        Assert.That(result.Stages.IsGraphicsShader(), Is.False);
+        Assert.That(result.Stages.IsComputeShader(), Is.True);
         Assert.That(result.EntryCompute, Is.EqualTo("cs_main"));
 
         shaderText = @"

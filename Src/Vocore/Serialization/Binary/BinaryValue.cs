@@ -52,6 +52,12 @@ namespace Vocore
             return true;
         }
 
+        public bool TryGetNullableValue<T>(out T? v) where T : unmanaged
+        {
+            v = UtilsBinary.DecodeToNullableValue<T>(_binary);
+            return true;
+        }
+
         public bool TryGetString([NotNullWhen(true)] out string? v)
         {
             v = UtilsBinary.DecodeToString(_binary);
@@ -61,6 +67,11 @@ namespace Vocore
         public static BinaryValue CreateValue<T>(T value) where T : unmanaged
         {
             return new BinaryValue(UtilsBinary.EncodeValue(value));
+        }
+
+        public static BinaryValue CreateValueNullable<T>(Nullable<T> value) where T : unmanaged
+        {
+            return new BinaryValue(UtilsBinary.EncodeNullableValue(value));
         }
     }
 
