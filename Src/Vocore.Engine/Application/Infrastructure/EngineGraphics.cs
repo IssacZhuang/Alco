@@ -5,11 +5,8 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
-    /// <summary>
-    /// The graphics module <br/>
-    /// Have only one instance in the Class Engine
-    /// </summary>
-    public class EngineGraphics
+    // the engine internal context for graphics
+    internal class EngineGraphics
     {
         private static readonly float TimeLimit = math.pow(2, 24);
         public Vector2 ScreenSize { get; set; }

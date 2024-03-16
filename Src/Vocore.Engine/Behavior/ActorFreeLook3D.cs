@@ -17,7 +17,8 @@ namespace Vocore.Engine
         {
             get
             {
-                return GameEngine.Instance.Window.SizeF;
+                int2 size = GameEngine.Instance.Window.Size;
+                return new Vector2(size.x, size.y);
             }
         }
 

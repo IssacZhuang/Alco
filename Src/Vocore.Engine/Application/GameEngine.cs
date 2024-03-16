@@ -10,8 +10,7 @@ using System.Diagnostics;
 
 
 
-#pragma warning disable CS8618
-#pragma warning disable CS8625
+
 
 namespace Vocore.Engine
 {
@@ -21,13 +20,15 @@ namespace Vocore.Engine
     /// </summary>
     public partial class GameEngine : IDisposable
     {
+#pragma warning disable CS8618
         public static GameEngine Instance { get; private set; }
+#pragma warning restore CS8618
         private GameEngineSetting _setting;
 
         #region  Resources
         private readonly GPUDevice _graphicsDevice;
+        private readonly Window _window;
         private readonly AssetManager _assets;
-        private readonly IWindow _window;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
 
@@ -35,21 +36,10 @@ namespace Vocore.Engine
         internal EngineGraphics _graphics;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
-        internal EngineInput _input;
+        internal Input _input;
 
         #endregion
 
-        #region API
-
-        public EngineAPI_Window Window { get; private set; }
-        public EngineInput Input
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _input;
-        }
-
-
-        #endregion
 
         #region  State
         private int _engineThread;
@@ -116,6 +106,18 @@ namespace Vocore.Engine
             get => _assets;
         }
 
+        public Window Window
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _window;
+        }
+
+        public Input Input
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _input;
+        }
+
         #endregion
 
         public GameEngine() : this(GameEngineSetting.Default)
@@ -140,30 +142,38 @@ namespace Vocore.Engine
                     Title = _setting.WindowName
                 }, 
                 _setting.GraphicsAPI,
-                out GPUDevice graphicsDevice, 
-                out IWindow window);
-                
+                out GPUDevice graphicsDevice,
+                out Window window);
+
                 ShaderResource.SetGlobalDevice(graphicsDevice);
                 
                 _window = window;
                 _graphicsDevice = graphicsDevice;
-                _assets = new AssetManager(2);
 
-                //_window.Initialize();
-
-                _window.Resize += (Vector2D<int> size) =>
+                _window.OnResize += (int2 size) =>
                 {
-                    _graphicsDevice.ResizeSurface((uint)size.X, (uint)size.Y);
+                    _graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
 
-                    _setting.Width = size.X;
-                    _setting.Height = size.Y;
+                    _setting.Width = size.x;
+                    _setting.Height = size.y;
+                    OnResize(size);
                 };
             }
             else
             {
-                _window = null;
-                _graphicsDevice = null;
+                _window = new NoWindow();
+                _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
             }
+
+            IWindow? silkWindow = (Window as SilkWindow)?.InternalWindow;
+            Vector2 screenSizeFloat = new Vector2(_setting.Width, _setting.Height);
+            _input = new Input(silkWindow);
+
+            _graphics = new EngineGraphics(this, screenSizeFloat);
+            
+            _timer = new EngineTimer(this);
+            _profiler = new EngineProfiler(this);
+            _assets = new AssetManager(2);
         }
 
         ~GameEngine()
@@ -182,8 +192,6 @@ namespace Vocore.Engine
             _engineThread = Environment.CurrentManagedThreadId;
             _isRunning = true;
 
-            InitializeInfrastructure();
-            InitializeAPI();
             InitializePlugins();
             Assets.SetMainThread();
             
@@ -198,10 +206,10 @@ namespace Vocore.Engine
         {
             InternalStart();
             _timer.Start();
-            _window.Initialize();
+            //_window.Initialize();
             while (_isRunning)
             {
-                _window.DoEvents();
+                _input.DoEvent();
                 InternalUpdate();
             }
             InternalStop();
@@ -229,6 +237,11 @@ namespace Vocore.Engine
         /// The frame tick, which handles the frame logic and rendering
         /// </summary>
         protected virtual void OnUpdate(float delta)
+        {
+
+        }
+
+        protected virtual void OnResize(int2 size)
         {
 
         }
@@ -334,10 +347,11 @@ namespace Vocore.Engine
         {
             if (_isDisposed) return;
             _isDisposed = true;
+#pragma warning disable CS8625
             Instance = null;
+#pragma warning restore CS8625
             GraphicsDevice.Dispose();
-            _window.Close();
-            _window.Dispose();
+            Window.Close();
             Assets.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -358,23 +372,6 @@ namespace Vocore.Engine
             }
         }
 
-        private void InitializeInfrastructure()
-        {
-            if (_setting.HasGraphics)
-            {
-                Vector2 screenSizeFloat = new Vector2(_setting.Width, _setting.Height);
-                _graphics = new EngineGraphics(this, screenSizeFloat);
-                _input = new EngineInput(_window);
-            }
-
-            _timer = new EngineTimer(this);
-            _profiler = new EngineProfiler(this);
-        }
-
-        private void InitializeAPI()
-        {
-            Window = new EngineAPI_Window(_window);
-        }
 
         #endregion
 
