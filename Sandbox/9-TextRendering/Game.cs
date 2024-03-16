@@ -52,7 +52,7 @@ public class Game : GameEngine
 
     private Transform2D _transform1;
     private Font _fontAtlas;
-    private float _fontSize = 32;
+    private float _fontSize = 16;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -78,7 +78,7 @@ public class Game : GameEngine
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
         _textDataBuffer = new GraphicsArrayBuffer<TextData>(200, "text_data_buffer");
 
-        _texBlue = Texture2D.CreateEmpty(16, 16, new Vector4(0, 0, 1, 1));
+        _texBlue = Texture2D.CreateEmpty(16, 16, new ColorFloat(0, 0, 1, 1));
 
         _camera = new Camera2D();
 

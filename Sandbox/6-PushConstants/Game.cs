@@ -70,9 +70,9 @@ public class Game : GameEngine
 
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
 
-        _texBlue = Texture2D.CreateEmpty(16, 16, new Vector4(0, 0, 1, 1));
-        _texRed = Texture2D.CreateEmpty(16, 16, new Vector4(1, 0, 0, 1));
-        _texGreen = Texture2D.CreateEmpty(16, 16, new Vector4(0, 1, 0, 1));
+        _texBlue = Texture2D.CreateEmpty(16, 16, 0x0000FFFF);
+        _texRed = Texture2D.CreateEmpty(16, 16, 0xFF0000FF);
+        _texGreen = Texture2D.CreateEmpty(16, 16, 0x00FF00FF);
 
         camera = new Camera2D();
         camera.transform.position = new Vector2(0, 2);

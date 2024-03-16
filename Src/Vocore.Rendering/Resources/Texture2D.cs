@@ -172,27 +172,6 @@ public class Texture2D : ShaderResource
 
     #region Texture Creation
 
-    public unsafe static Texture2D CreateEmpty(
-        uint width,
-        uint height,
-        ColorFloat color,
-        ImageLoadOption? option = null
-    )
-    {
-        int length = (int)(width * height);
-        Color32* data = Alloc<Color32>(length);
-        Memset(data, length, color.ToColor32());
-        Texture2D texture = CreateFromData(
-            (byte*)data,
-            (uint)sizeof(Color32) * width * height,
-            width,
-            height,
-            4,
-            option
-        );
-        Free(data);
-        return texture;
-    }
 
     public unsafe static Texture2D CreateEmpty(
         uint width,

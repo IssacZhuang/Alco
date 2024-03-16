@@ -7,6 +7,8 @@ namespace Vocore.Graphics;
 [StructLayout(LayoutKind.Sequential)]
 public struct ColorFloat
 {
+    private const float invMaxByte = 1.0f / 255.0f;
+    private static readonly Vector4 invMaxByteVec4 = new(invMaxByte);
     public Vector4 value;
 
     public ColorFloat(float r, float g, float b, float a)
@@ -66,8 +68,25 @@ public struct ColorFloat
 
     //overload operator
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator Vector4(ColorFloat color) => color.value;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator Color32(ColorFloat color) => color.ToColor32();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(Vector4 color) => new ColorFloat { value = color };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator ColorFloat(uint color)
+    {
+        return invMaxByteVec4 * new Vector4(
+            (color & 0xFF000000) >> 24,
+            (color & 0x00FF0000) >> 16,
+            (color & 0x0000FF00) >> 8,
+            color & 0x000000FF
+        );
+    }
 
     // + - * /
     public static ColorFloat operator +(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value + b.value };

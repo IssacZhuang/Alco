@@ -33,7 +33,7 @@ public struct Camera2D
     public Matrix4x4 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => math.matrix4scale(math.reciprocal(transform.scale));
+        get => math.matrix4scale(math.reciprocal(transform.scale * 0.5f));
     }
 
     public Matrix4x4 ViewProjectionMatrix
