@@ -242,7 +242,7 @@ public class Game : GameEngine
 
     private Texture2D CreateRenderTarget(uint width, uint height)
     {
-        return Texture2D.CreateEmpty(width, height, new Vector4(1, 1, 1, 1), new ImageLoadOption
+        return Texture2D.CreateEmpty(width, height, new ColorFloat(1, 1, 1, 1), new ImageLoadOption
         {
             IsSRGB = false,
             MipLevels = 1,
