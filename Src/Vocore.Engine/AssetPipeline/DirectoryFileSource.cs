@@ -22,7 +22,7 @@ public class DirectoryFileSource : IFileSource
             //list all files in directory or sub directory with relative path
             foreach (var file in Directory.EnumerateFiles(_directoryPath, "*", SearchOption.AllDirectories))
             {
-                yield return Path.GetRelativePath(_directoryPath, file);
+                yield return FixPath(Path.GetRelativePath(_directoryPath, file));
             }
         }
     }
@@ -41,5 +41,10 @@ public class DirectoryFileSource : IFileSource
             data = null;
             return false;
         }
+    }
+
+    private string FixPath(string path)
+    {
+        return path.Replace('\\', '/');
     }
 }

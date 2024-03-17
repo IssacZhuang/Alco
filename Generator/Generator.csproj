@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <Content Include="Assets\**">
-      <Link>Assets\%(Filename)%(Extension)</Link>
+      <Link>Assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>False</Visible>
     </Content>

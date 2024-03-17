@@ -5,43 +5,103 @@ using Vocore.Rendering;
 
 public class Generator : GameEngine
 {
-    private struct ShaderFile
-    {
-        public string filename;
-        public string code;
-    }
+    private const string ExtensionCompiledShader = ".scb"; //shader compile binary
+    private const string OutputVocoreRenderingAssetsFolder = "Src/Vocore.Rendering/Assets/";
+    private const string CompiledShaderFolder = "CompiledShaders";
+    private const string ShaderLibFolder = "ShaderLib";
+    
+
     private DirectoryFileSource _source;
+    private string _solutionFolder;
     public Generator(GameEngineSetting setting) : base(setting)
     {
         _source = new DirectoryFileSource("Assets");
+        if (!GetSolutionFolder(out _solutionFolder))
+        {
+            throw new Exception("Unable to find solution folder");
+        }
     }
 
     protected override void OnStart()
     {
-        IEnumerable<string> hlslFiles = _source.AllFileNames.Where(x => x.EndsWith(".hlsl"));
-
-        List<ShaderFile> hlslCodes = new List<ShaderFile>();
-        foreach (var file in hlslFiles)
+        string outputPath = Path.Combine(_solutionFolder, OutputVocoreRenderingAssetsFolder, CompiledShaderFolder);
+        if (!Directory.Exists(outputPath))
         {
-            if (_source.TryGetData(file, out byte[]? data))
+            Directory.CreateDirectory(outputPath);
+        }
+        else
+        {
+            foreach (var file in Directory.GetFiles(outputPath))
             {
-                hlslCodes.Add(new ShaderFile
-                {
-                    filename = file,
-                    code = Encoding.UTF8.GetString(data)
-                });
+                File.Delete(file);
             }
         }
 
+        Log.Info("\nCompiling shaders...");
+        IEnumerable<string> hlslFiles = _source.AllFileNames.Where(x => x.EndsWith(".hlsl"));
+
+
         List<ShaderCompileResult> shaderCompileResults = new List<ShaderCompileResult>();
-        foreach (var shader in hlslCodes)
+        foreach (var filename in hlslFiles)
         {
-            Log.Info($"Compiling {shader.filename}");
-            ShaderCompileResult result = ShaderCompiler.Compile(shader.code, shader.filename, IncludeResolver);
+            if (!_source.TryGetData(filename, out byte[]? codeData))
+            {
+                Log.Error($"Unable to read file {filename}");
+                continue;
+            }
+
+            string code = Encoding.UTF8.GetString(codeData);
+
+            Log.Info($"Compiling {filename}");
+            ShaderCompileResult result = ShaderCompiler.Compile(code, filename, IncludeResolver);
+            byte[] data = UtilsShaderSerialization.EncodeCompileResult(result);
+            string outputFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(filename) + ExtensionCompiledShader);
+            Log.Info($"Saving {outputFilename}");
+            File.WriteAllBytes(outputFilename, data);
+        }
+
+
+        Log.Info("\nCopying shader include files...");
+        //copy .hlsli files to Vocore.Rendering 
+        IEnumerable<string> hlslIncludeFiles = _source.AllFileNames.Where(x => x.EndsWith(".hlsli"));
+        string includeOutputPath = Path.Combine(_solutionFolder, OutputVocoreRenderingAssetsFolder, ShaderLibFolder);
+        if (!Directory.Exists(includeOutputPath))
+        {
+            Directory.CreateDirectory(includeOutputPath);
+        }
+
+        foreach (var filename in hlslIncludeFiles)
+        {
+            if (!_source.TryGetData(filename, out byte[]? data))
+            {
+                Log.Error($"Unable to read file {filename}");
+                continue;
+            }
+            string outputFilename = Path.Combine(includeOutputPath, Path.GetFileName(filename));
+            Log.Info($"Saving {outputFilename}");
+            File.WriteAllBytes(outputFilename, data);
         }
 
 
         Stop();
+    }
+
+    //find the directory contains .sln file in parent directories
+    private bool GetSolutionFolder(out string path)
+    {
+        string? current = Directory.GetCurrentDirectory();
+        while (current != null)
+        {
+            string[] files = Directory.GetFiles(current, "*.sln");
+            if (files.Length > 0)
+            {
+                path = current;
+                return true;
+            }
+            current = Directory.GetParent(current)?.FullName;
+        }
+        path = "";
+        return false;
     }
 
     private string IncludeResolver(string includePath)
