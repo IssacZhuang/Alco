@@ -17,7 +17,7 @@ public static class ShaderCompiler
     /// <summary>
     /// Represents the format string for a line directive in a shader file.
     /// </summary>
-    public const string FormatLine = "#line {0} {1}"; // #line line filename
+    public const string FormatLine = "#line {0} \"{1}\""; // #line line filename
     public const string PragmaKeyBlendState = "BlendState";
     public const string PragmaKeyDepthStencilState = "DepthStencilState";
     public const string PragmaKeyRasterizerState = "RasterizerState";
@@ -171,9 +171,9 @@ public static class ShaderCompiler
 
                     ShaderPreproccessResult includedResult = PreprocessText(includedText, filename, includeResolver, depth + 1);
                     shaderPragmas.AddRange(includedResult.Pragmas);
-                    builder.AppendLine(string.Format(FormatLine, 0, includeFilename));
+                    builder.AppendLine(string.Format(FormatLine, 1, includeFilename));
                     builder.AppendLine(includedResult.ShaderText);
-                    builder.AppendLine(string.Format(FormatLine, lineCount, filename));
+                    builder.AppendLine(string.Format(FormatLine, lineCount+1, filename));
 
                     if (includedResult.EntryFragment != null && result.EntryFragment == null)
                     {
