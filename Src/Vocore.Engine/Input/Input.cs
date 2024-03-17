@@ -1,276 +1,81 @@
-using System;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using Silk.NET.Input;
-using Silk.NET.Windowing;
-
-
 
 namespace Vocore.Engine;
 
-public unsafe class Input
+/// <summary>
+/// Represents an abstract base class for input handling.
+/// </summary>
+public abstract class Input
 {
-    private const int MaxKeyCount = 512;
-    private const int MaxMouseCount = 16;
-    private struct State
-    {
-        public fixed bool iskeyDown[MaxKeyCount];
-        public fixed bool iskeyUp[MaxKeyCount];
-        public fixed bool iskeyPressing[MaxKeyCount];
-        public fixed bool isMouseDown[MaxMouseCount];
-        public fixed bool isMouseUp[MaxMouseCount];
-        public fixed bool isMousePressing[MaxMouseCount];
-    }
-    private State _state;
-    private Vector2 _mousePosition;
-    private Vector2 _mouseDelta;
-    private IWindow? _window;
-    private IInputContext? _input;
-    private IMouse? _defaultMouse;
-    private IKeyboard? _defaultKeyboard;
+    /// <summary>
+    /// Gets or sets the position of the mouse.
+    /// </summary>
+    public abstract Vector2 MousePosition { get; set; }
 
-    public bool ForceMouseInScreenCenter { get; set; }
+    /// <summary>
+    /// Gets the delta movement of the mouse.
+    /// </summary>
+    public abstract Vector2 MouseDelta { get; }
 
-    public Vector2 MousePosition
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_defaultMouse == null)
-            {
-                return Vector2.Zero;
-            }
-            return _defaultMouse.Position;
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            if (_defaultMouse != null)
-            {
-                _defaultMouse.Position = value;
-            }
-        }
-    }
+    /// <summary>
+    /// Gets or sets a value indicating whether the mouse should be forced to stay in the center of the screen.
+    /// </summary>
+    public abstract bool ForceMouseInScreenCenter { get; set; }
 
-    public Vector2 MouseDelta
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _mouseDelta;
-        }
-    }
+    /// <summary>
+    /// Determines whether the specified key is currently being pressed down.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns><c>true</c> if the key is currently being pressed down; otherwise, <c>false</c>.</returns>
+    public abstract bool IsKeyDown(KeyCode key);
 
-    internal Input(IWindow? window)
-    {
-        if (window == null)
-        {
-            return;
-        }
-        _window = window;
-        _input = window.CreateInput();
-        if (_input != null)
-        {
-            _defaultMouse = _input.Mice.FirstOrDefault();
-            _defaultKeyboard = _input.Keyboards.FirstOrDefault();
-            _input.ConnectionChanged += OnConnectionChanged;
-        }
+    /// <summary>
+    /// Determines whether the specified key is currently released (not pressed down).
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns><c>true</c> if the key is currently released; otherwise, <c>false</c>.</returns>
+    public abstract bool IsKeyUp(KeyCode key);
 
-        if (_defaultMouse != null)
-        {
-            _defaultMouse.MouseDown += OnMouseDown;
-            _defaultMouse.MouseUp += OnMouseUp;
-        }
+    /// <summary>
+    /// Determines whether the specified key is currently being pressed.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns><c>true</c> if the key is currently being pressed; otherwise, <c>false</c>.</returns>
+    public abstract bool IsKeyPressing(KeyCode key);
 
-        if (_defaultKeyboard != null)
-        {
-            _defaultKeyboard.KeyDown += OnKeyDown;
-            _defaultKeyboard.KeyUp += OnKeyUp;
-        }
-    }
+    /// <summary>
+    /// Determines whether the specified mouse button is currently being pressed down.
+    /// </summary>
+    /// <param name="button">The mouse button to check.</param>
+    /// <returns><c>true</c> if the mouse button is currently being pressed down; otherwise, <c>false</c>.</returns>
+    public abstract bool IsMouseDown(Mouse button);
 
-    internal void DoEvent()
-    {
-        _window?.DoEvents();
-    }
+    /// <summary>
+    /// Determines whether the specified mouse button is currently released (not pressed down).
+    /// </summary>
+    /// <param name="button">The mouse button to check.</param>
+    /// <returns><c>true</c> if the mouse button is currently released; otherwise, <c>false</c>.</returns>
+    public abstract bool IsMouseUp(Mouse button);
 
-    internal void Reset()
-    {
-        for (int i = 0; i < MaxKeyCount; i++)
-        {
-            _state.iskeyDown[i] = false;
-            _state.iskeyUp[i] = false;
-        }
+    /// <summary>
+    /// Determines whether the specified mouse button is currently being pressed.
+    /// </summary>
+    /// <param name="button">The mouse button to check.</param>
+    /// <returns><c>true</c> if the mouse button is currently being pressed; otherwise, <c>false</c>.</returns>
+    public abstract bool IsMousePressing(Mouse button);
 
-        for (int i = 0; i < MaxMouseCount; i++)
-        {
-            _state.isMouseDown[i] = false;
-            _state.isMouseUp[i] = false;
-        }
-    }
+    /// <summary>
+    /// Updates the input state.
+    /// </summary>
+    internal abstract void Update();
 
-    internal void Update()
-    {
-        if (_defaultMouse == null)
-        {
-            return;
-        }
-        _mouseDelta = _mousePosition - _defaultMouse.Position;
-        _mousePosition = _defaultMouse.Position;
+    /// <summary>
+    /// Processes input events.
+    /// </summary>
+    internal abstract void DoEvent();
 
-        if (ForceMouseInScreenCenter)
-        {
-            _mousePosition = new Vector2(_window!.Size.X / 2, _window.Size.Y / 2);
-            _defaultMouse.Position = _mousePosition;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsKeyDown(KeyCode key)
-    {
-        int offset = key;
-
-        if (offset < 0 || offset >= MaxKeyCount)
-        {
-            return false;
-        }
-
-        return _state.iskeyDown[offset];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsKeyUp(KeyCode key)
-    {
-        int offset = key;
-
-        if (offset < 0 || offset >= MaxKeyCount)
-        {
-            return false;
-        }
-
-        return _state.iskeyUp[offset];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsKeyPressing(KeyCode key)
-    {
-        int offset = key;
-
-        if (offset < 0 || offset >= MaxKeyCount)
-        {
-            return false;
-        }
-
-        return _state.iskeyPressing[offset];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsMouseDown(Mouse button)
-    {
-        int offset = button;
-
-        if (offset < 0 || offset >= MaxMouseCount)
-        {
-            return false;
-        }
-
-        return _state.isMouseDown[offset];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsMouseUp(Mouse button)
-    {
-        int offset = button;
-
-        if (offset < 0 || offset >= MaxMouseCount)
-        {
-            return false;
-        }
-
-        return _state.isMouseUp[offset];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsMousePressing(Mouse button)
-    {
-        int offset = button;
-
-        if (offset < 0 || offset >= MaxMouseCount)
-        {
-            return false;
-        }
-
-        return _state.isMousePressing[offset];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ResetMouseToCenter()
-    {
-        if (_defaultMouse == null)
-        {
-            return;
-        }
-        _mousePosition = new Vector2(_window!.Size.X / 2, _window.Size.Y / 2);
-        _defaultMouse.Position = _mousePosition;
-        _mouseDelta = Vector2.Zero;
-    }
-
-
-
-    private void OnMouseDown(IMouse mouse, MouseButton button)
-    {
-        int offset = (int)button;
-
-        if (offset < 0 || offset >= MaxMouseCount)
-        {
-            return;
-        }
-
-        _state.isMouseDown[offset] = true;
-        _state.isMousePressing[offset] = true;
-    }
-
-    private void OnMouseUp(IMouse mouse, MouseButton button)
-    {
-        int offset = (int)button;
-
-        if (offset < 0 || offset >= MaxMouseCount)
-        {
-            return;
-        }
-
-        _state.isMouseUp[offset] = true;
-        _state.isMousePressing[offset] = false;
-    }
-
-    private void OnKeyDown(IKeyboard keyboard, Key key, int _)
-    {
-        int offset = (int)key;
-
-        if (offset < 0 || offset >= MaxKeyCount)
-        {
-            return;
-        }
-
-        _state.iskeyDown[offset] = true;
-        _state.iskeyPressing[offset] = true;
-    }
-
-    private void OnKeyUp(IKeyboard keyboard, Key key, int _)
-    {
-        int offset = (int)key;
-
-        if (offset < 0 || offset >= MaxKeyCount)
-        {
-            return;
-        }
-
-        _state.iskeyUp[offset] = true;
-        _state.iskeyPressing[offset] = false;
-    }
-
-    private void OnConnectionChanged(IInputDevice device, bool conneted)
-    {
-        Log.Info($"Device {device.Name} is {(conneted ? "connected" : "disconnected")}");
-    }
+    /// <summary>
+    /// Resets the input state.
+    /// </summary>
+    internal abstract void Reset();
 }

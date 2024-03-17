@@ -6,7 +6,7 @@ using Vocore.Graphics;
 namespace Vocore.Engine
 {
     // the engine internal context for graphics
-    internal class EngineGraphics
+    internal struct EngineGraphics
     {
         private static readonly float TimeLimit = math.pow(2, 24);
         public Vector2 ScreenSize { get; set; }

@@ -143,11 +143,12 @@ namespace Vocore.Engine
                 }, 
                 _setting.GraphicsAPI,
                 out GPUDevice graphicsDevice,
-                out Window window);
+                out SilkWindow slikWindow);
 
                 ShaderResource.SetGlobalDevice(graphicsDevice);
                 
-                _window = window;
+                _window = slikWindow;
+                _input = new SilkInput(slikWindow.InternalWindow);
                 _graphicsDevice = graphicsDevice;
 
                 _window.OnResize += (int2 size) =>
@@ -162,13 +163,11 @@ namespace Vocore.Engine
             else
             {
                 _window = new NoWindow();
+                _input  = new NoInput();
                 _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
             }
 
-            IWindow? silkWindow = (Window as SilkWindow)?.InternalWindow;
             Vector2 screenSizeFloat = new Vector2(_setting.Width, _setting.Height);
-            _input = new Input(silkWindow);
-
             _graphics = new EngineGraphics(this, screenSizeFloat);
             
             _timer = new EngineTimer(this);

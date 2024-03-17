@@ -11,7 +11,7 @@ public static class GraphicsWindow
 {
     private static string LogPrefix = "[Graphics]";
 
-    public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, GraphicsBackend backend, out GPUDevice device, out Window window)
+    public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, GraphicsBackend backend, out GPUDevice device, out SilkWindow window)
     {
         WindowOptions silkWindowOptions = WindowOptions.Default;
         silkWindowOptions.API = GraphicsAPI.None;

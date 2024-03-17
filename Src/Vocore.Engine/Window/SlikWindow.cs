@@ -1,10 +1,12 @@
-
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 
 namespace Vocore.Engine;
 
-internal class SilkWindow : Window
+/// <summary>
+/// The window implementation based on Silk.NET.
+/// </summary>
+public class SilkWindow : Window
 {
     private readonly IWindow _slikWindow;
 
@@ -16,8 +18,7 @@ internal class SilkWindow : Window
         _slikWindow.Resize += OnSilkResize;
     }
 
-
-
+    /// <inheritdoc />
     public override WindowMode WindowMode
     {
         get
@@ -30,6 +31,7 @@ internal class SilkWindow : Window
         }
     }
 
+    /// <inheritdoc />
     public override int2 Size
     {
         get
@@ -42,6 +44,7 @@ internal class SilkWindow : Window
         }
     }
 
+    /// <inheritdoc />
     public override float AspectRatio
     {
         get
@@ -50,6 +53,7 @@ internal class SilkWindow : Window
         }
     }
 
+    /// <inheritdoc />
     public override string Title
     {
         get
