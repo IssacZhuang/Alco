@@ -1,4 +1,7 @@
-#define SLOT(set, bind) [[vk::binding(bind, set)]]
+#include "ShaderLib/Core.hlsli"
+
+#pragma EntryVertex vs_main
+#pragma EntryFragment fs_main
 
 #define MAX_INSTANCE_COUNT 200
 
@@ -46,7 +49,7 @@ cbuffer TextBuffer
     TextData Data[MAX_INSTANCE_COUNT];
 }
 
-[[vk::push_constant]] Constants constants;
+PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input)
 {

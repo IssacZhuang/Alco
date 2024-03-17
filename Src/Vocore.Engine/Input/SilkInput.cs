@@ -22,11 +22,13 @@ public unsafe class SilkInput : Input
         public fixed bool isMouseUp[MaxMouseCount];
         public fixed bool isMousePressing[MaxMouseCount];
     }
+    private readonly IWindow _window;
+    private readonly IInputContext _input;
+
     private State _state;
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
-    private IWindow _window;
-    private IInputContext _input;
+
     private IMouse? _defaultMouse;
     private IKeyboard? _defaultKeyboard;
 
@@ -68,28 +70,7 @@ public unsafe class SilkInput : Input
         _input = window.CreateInput();
         _input.ConnectionChanged += OnConnectionChanged;
 
-        _defaultMouse = _input.Mice.FirstOrDefault();
-        _defaultKeyboard = _input.Keyboards.FirstOrDefault();
-
-        if (_defaultMouse != null)
-        {
-            _defaultMouse.MouseDown += OnMouseDown;
-            _defaultMouse.MouseUp += OnMouseUp;
-        }
-        else
-        {
-            Log.Warning("No mouse connected");
-        }
-
-        if (_defaultKeyboard != null)
-        {
-            _defaultKeyboard.KeyDown += OnKeyDown;
-            _defaultKeyboard.KeyUp += OnKeyUp;
-        }
-        else
-        {
-            Log.Warning("No keyboard connected");
-        }
+        RefreshDevice();
     }
 
     internal override void DoEvent()
@@ -279,8 +260,35 @@ public unsafe class SilkInput : Input
         _state.iskeyPressing[offset] = false;
     }
 
+    private void RefreshDevice()
+    {
+        _defaultMouse = _input.Mice.FirstOrDefault();
+        _defaultKeyboard = _input.Keyboards.FirstOrDefault();
+
+        if (_defaultMouse != null)
+        {
+            _defaultMouse.MouseDown += OnMouseDown;
+            _defaultMouse.MouseUp += OnMouseUp;
+        }
+        else
+        {
+            Log.Warning("No mouse connected");
+        }
+
+        if (_defaultKeyboard != null)
+        {
+            _defaultKeyboard.KeyDown += OnKeyDown;
+            _defaultKeyboard.KeyUp += OnKeyUp;
+        }
+        else
+        {
+            Log.Warning("No keyboard connected");
+        }
+    }
+
     private void OnConnectionChanged(IInputDevice device, bool conneted)
     {
         Log.Info($"Device {device.Name} is {(conneted ? "connected" : "disconnected")}");
+        RefreshDevice();
     }
 }
