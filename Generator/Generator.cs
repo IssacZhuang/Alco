@@ -44,7 +44,7 @@ public class Generator : GameEngine
         List<ShaderCompileResult> shaderCompileResults = new List<ShaderCompileResult>();
         foreach (var filename in hlslFiles)
         {
-            if (!_source.TryGetData(filename, out byte[]? codeData))
+            if (!_source.TryGetData(filename, out ReadOnlySpan<byte> codeData))
             {
                 Log.Error($"Unable to read file {filename}");
                 continue;
@@ -72,14 +72,14 @@ public class Generator : GameEngine
 
         foreach (var filename in hlslIncludeFiles)
         {
-            if (!_source.TryGetData(filename, out byte[]? data))
+            if (!_source.TryGetData(filename, out ReadOnlySpan<byte> data))
             {
                 Log.Error($"Unable to read file {filename}");
                 continue;
             }
             string outputFilename = Path.Combine(includeOutputPath, Path.GetFileName(filename));
             Log.Info($"Saving {outputFilename}");
-            File.WriteAllBytes(outputFilename, data);
+            File.WriteAllBytes(outputFilename, data.ToArray());
         }
 
 
@@ -106,7 +106,7 @@ public class Generator : GameEngine
 
     private string IncludeResolver(string includePath)
     {
-        if (_source.TryGetData(includePath, out byte[]? data))
+        if (_source.TryGetData(includePath, out ReadOnlySpan<byte> data))
         {
             return Encoding.UTF8.GetString(data);
         }
