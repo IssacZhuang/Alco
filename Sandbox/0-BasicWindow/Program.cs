@@ -4,9 +4,8 @@ using Vocore.Graphics;
 
 GameEngineSetting setting = GameEngineSetting.Default with{
     StopWhenError = true,
-    //GraphicsAPI = GraphicsBackend.Vulkan,
+    Window = new WindowSetting(640, 360, "Basic Window"),
 };
-setting.WindowName = "Basic Window";
 
 using (Game game = new Game(setting))
 {

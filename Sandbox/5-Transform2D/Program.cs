@@ -4,10 +4,8 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    Width = 640,
-    Height = 360,
+    Window = new WindowSetting(640, 360, "Transform2D"),
 };
-setting.WindowName = "Transform2D";
 
 using (Game game = new Game(setting))
 {

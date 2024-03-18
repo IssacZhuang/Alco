@@ -4,10 +4,8 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    RenderingSetting = RenderingSetting.ForwardNoDepth
+    Window = new WindowSetting(640, 360, "Draw Quad"),
 };
-
-setting.WindowName = "Basic Window";
 
 using (Game game = new Game(setting))
 {

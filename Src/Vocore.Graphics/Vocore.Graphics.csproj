@@ -28,14 +28,6 @@
 
     <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.Vulkan" Version="1.8.5" />
     <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.VulkanMemoryAllocator" Version="1.4.3" />
-    <PackageReference Condition="'$(UseWebGPU)' == 'true'" Include="Alimer.Bindings.WebGPU" Version="1.3.5" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
-      <Link>%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>False</Visible>
-    </Content>
+    <PackageReference Condition="'$(UseWebGPU)' == 'true'" Include="Alimer.Bindings.WebGPU" Version="1.4.0" />
   </ItemGroup>
 </Project>

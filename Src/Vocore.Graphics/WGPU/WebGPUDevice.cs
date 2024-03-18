@@ -53,6 +53,9 @@ internal partial class WebGPUDevice : GPUDevice
 
     private readonly DeviceDescriptor _descriptor;
 
+    // supported details
+    private readonly WGPUPresentMode[] _supportedPresentModes;
+
 
     private readonly WGPUTextureFormat _swapChainFormat;
     private readonly PixelFormat _preferredSurfaceFormat;
@@ -332,6 +335,11 @@ internal partial class WebGPUDevice : GPUDevice
         // create instance
         WGPUInstanceExtras extras = new WGPUInstanceExtras()
         {
+            chain = new WGPUChainedStruct
+            {
+                sType = (WGPUSType)WGPUNativeSType.InstanceExtras,
+                next = null,
+            },
             flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
             backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
         };
@@ -351,13 +359,27 @@ internal partial class WebGPUDevice : GPUDevice
         {
             nextInChain = null,
             compatibleSurface = Surface,
-            backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
+            //backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
         };
+
+
 
         WGPUAdapter adapter = WGPUAdapter.Null;
         wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
         Adapter = adapter;
 
+        WGPUAdapterProperties properties = default;
+        wgpuAdapterGetProperties(Adapter, &properties);
+        GraphicsLogger.Info($"Graphics backend: {properties.backendType}");
+
+        WGPUSurfaceCapabilities surfaceCapabilities = default;
+        wgpuSurfaceGetCapabilities(Surface, Adapter, &surfaceCapabilities);
+        _supportedPresentModes = new WGPUPresentMode[surfaceCapabilities.presentModeCount];
+        for (uint i = 0; i < surfaceCapabilities.presentModeCount; i++)
+        {
+            _supportedPresentModes[i] = surfaceCapabilities.presentModes[i];
+        }
+        GraphicsLogger.Info($"Supported present modes: {string.Join(", ", _supportedPresentModes)}");
 
         List<WGPUFeatureName> featuresList = new List<WGPUFeatureName>(){
             (WGPUFeatureName)WGPUNativeFeature.VertexWritableStorage
@@ -388,12 +410,11 @@ internal partial class WebGPUDevice : GPUDevice
 
             WGPUDevice device = WGPUDevice.Null;
 
-            //TODO: replace with push constant enabled
             if (isPushConstantEnabled)
             {
                 WGPUNativeLimits limits = new WGPUNativeLimits
                 {
-                    maxPushConstantSize = 256,
+                    maxPushConstantSize = 128,
                 };
 
                 WGPURequiredLimitsExtras requiredLimitsExtras = new WGPURequiredLimitsExtras
@@ -603,11 +624,34 @@ internal partial class WebGPUDevice : GPUDevice
 
     private WGPUPresentMode GetPresentMode()
     {
-        if (_descriptor.Backend == GraphicsBackend.OpenGL || _descriptor.Backend == GraphicsBackend.OpenGLES)
+        if (!_descriptor.VSync)
         {
-            return _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Mailbox;
+            if (IsPresentModeSupported(WGPUPresentMode.Immediate))
+            {
+                return WGPUPresentMode.Immediate;
+            }
+            else if (IsPresentModeSupported(WGPUPresentMode.Mailbox))
+            {
+                return WGPUPresentMode.Mailbox;
+            }
+            else
+            {
+                GraphicsLogger.Warning("VSync is off but no supported present mode found, using FIFO");
+            }
         }
-        return _vsync ? WGPUPresentMode.Fifo : WGPUPresentMode.Immediate;
+        return WGPUPresentMode.Fifo;
+    }
+
+    private bool IsPresentModeSupported(WGPUPresentMode mode)
+    {
+        for (int i = 0; i < _supportedPresentModes.Length; i++)
+        {
+            if (_supportedPresentModes[i] == mode)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     #endregion

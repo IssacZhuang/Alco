@@ -7,8 +7,9 @@ namespace Vocore.Engine
     {
         /// <summary>
         /// The format of GBffer for deferred rendering. Put null to disable deferred rendering.
+        /// <br/> !!! Unsupported currently.
         /// </summary>
-        public PixelFormat[]? GBufferColors;
+        public PixelFormat[]? GBufferColors; 
         /// <summary>
         /// The texture format for the depth buffer. Put null to disable depth stencil test.
         /// </summary>

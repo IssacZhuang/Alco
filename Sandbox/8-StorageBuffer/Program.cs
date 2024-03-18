@@ -4,10 +4,9 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    Width = 640,
-    Height = 360,
+    Window = new WindowSetting(640, 360, "Compute Buffer"),
 };
-setting.WindowName = "Compute Buffer";
+
 
 using (Game game = new Game(setting))
 {

@@ -11,15 +11,15 @@ public static class GraphicsWindow
 {
     private static string LogPrefix = "[Graphics]";
 
-    public static void CreateGraphicsDeviceWithWindow(WindowSetting setting, GraphicsBackend backend, out GPUDevice device, out SilkWindow window)
+    public static void CreateGraphicsDeviceWithWindow(GraphicsSetting graphicsSetting, WindowSetting windowSetting, out GPUDevice device, out SilkWindow window)
     {
         WindowOptions silkWindowOptions = WindowOptions.Default;
         silkWindowOptions.API = GraphicsAPI.None;
-        silkWindowOptions.Size = new Vector2D<int>(setting.Width, setting.Height);
+        silkWindowOptions.Size = new Vector2D<int>(windowSetting.Width, windowSetting.Height);
         silkWindowOptions.FramesPerSecond = 60;
         silkWindowOptions.UpdatesPerSecond = 60;
         silkWindowOptions.Position = new Vector2D<int>(100, 100);
-        silkWindowOptions.Title = setting.Title;
+        silkWindowOptions.Title = windowSetting.Title;
         silkWindowOptions.IsVisible = true;
         silkWindowOptions.ShouldSwapAutomatically = false;
         silkWindowOptions.IsContextControlDisabled = true;
@@ -32,16 +32,16 @@ public static class GraphicsWindow
 
         DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
         {
-            Debug = true,
-            VSync = false,
-            Backend = backend,
+            Debug = graphicsSetting.DebugInfo,
+            VSync = graphicsSetting.VSync,
+            Backend = graphicsSetting.Backend,
             SurfaceSource = surfaceSource,
-            InitialSurfaceSizeWidth = (uint)setting.Width,
-            InitialSurfaceSizeHeight = (uint)setting.Height,
+            InitialSurfaceSizeWidth = (uint)windowSetting.Width,
+            InitialSurfaceSizeHeight = (uint)windowSetting.Height,
             SurfaceClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
             DepthFormat = PixelFormat.Depth24PlusStencil8,
             PushConstantsSize = 256,
-            Name = setting.Title
+            Name = windowSetting.Title
         };
 
 
@@ -75,16 +75,16 @@ public static class GraphicsWindow
             return SurfaceSource.CreateWin32Window(window.Win32.Value.Hwnd, window.Win32.Value.HInstance);
         }
 
-        if (window.X11.HasValue)
-        {
-            Log.Info("Creating X11 window");
-            return SurfaceSource.CreateXlibWindow(window.X11.Value.Display, window.X11.Value.Window);
-        }
-
         if (window.Wayland.HasValue)
         {
             Log.Info("Creating Wayland window");
             return SurfaceSource.CreateWaylandSurface(window.Wayland.Value.Display, window.Wayland.Value.Surface);
+        }
+
+        if (window.X11.HasValue)
+        {
+            Log.Info("Creating X11 window");
+            return SurfaceSource.CreateXlibWindow(window.X11.Value.Display, window.X11.Value.Window);
         }
 
         if (window.Android.HasValue)

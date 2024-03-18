@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishSingleFile>false</PublishSingleFile>
+
+    <UseGLFW>false</UseGLFW>
+    <UseSDL>true</UseSDL>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
@@ -14,7 +17,9 @@
     <ProjectReference Include="..\Vocore.Rendering\Vocore.Rendering.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Input.Glfw" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.19.0" />
+    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Input.Sdl" Version="2.20.0" />
+    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Windowing.Sdl" Version="2.20.0" />
+    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Input.Glfw" Version="2.20.0" />
+    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Windowing.Glfw" Version="2.20.0" />
   </ItemGroup>
 </Project>

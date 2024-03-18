@@ -1,14 +1,12 @@
 ﻿using Vocore;
 using Vocore.Engine;
+using Vocore.Graphics;
 
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    RenderingSetting = RenderingSetting.ForwardNoDepth,
-    Width = 400,
-    Height = 400
+    Window = new WindowSetting(400, 400, "Asset Loader HLSL"),
 };
-setting.WindowName = "Asset Loader HLSL";
 
 using (Game game = new Game(setting))
 {

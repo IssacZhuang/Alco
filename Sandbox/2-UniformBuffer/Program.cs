@@ -4,10 +4,9 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    RenderingSetting = RenderingSetting.ForwardNoDepth
+    Window = new WindowSetting(640, 360, "Uniform Buffer"),
 };
 
-setting.WindowName = "Uniform Buffer";
 
 using (Game game = new Game(setting))
 {

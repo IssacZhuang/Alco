@@ -4,11 +4,8 @@ using Vocore.Engine;
 GameEngineSetting setting = GameEngineSetting.Default with
 {
     StopWhenError = true,
-    RenderingSetting = RenderingSetting.ForwardNoDepth,
-    Width = 400,
-    Height = 400
+    Window = new WindowSetting(400, 400, "Async Asset Loading"),
 };
-setting.WindowName = "Async Asset Loading";
 
 using (Game game = new Game(setting))
 {

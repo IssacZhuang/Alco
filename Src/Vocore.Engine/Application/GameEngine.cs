@@ -135,13 +135,9 @@ namespace Vocore.Engine
 
             if (_setting.HasGraphics)
             {
-                GraphicsWindow.CreateGraphicsDeviceWithWindow(new WindowSetting
-                {
-                    Width = _setting.Width,
-                    Height = _setting.Height,
-                    Title = _setting.WindowName
-                }, 
-                _setting.GraphicsAPI,
+                GraphicsWindow.CreateGraphicsDeviceWithWindow(
+                _setting.Graphics,
+                _setting.Window,
                 out GPUDevice graphicsDevice,
                 out SilkWindow slikWindow);
 
@@ -155,8 +151,8 @@ namespace Vocore.Engine
                 {
                     _graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
 
-                    _setting.Width = size.x;
-                    _setting.Height = size.y;
+                    _setting.Window.Width = size.x;
+                    _setting.Window.Height = size.y;
                     OnResize(size);
                 };
             }
@@ -167,7 +163,7 @@ namespace Vocore.Engine
                 _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
             }
 
-            Vector2 screenSizeFloat = new Vector2(_setting.Width, _setting.Height);
+            Vector2 screenSizeFloat = new Vector2(_setting.Window.Width, _setting.Window.Height);
             _graphics = new EngineGraphics(this, screenSizeFloat);
             
             _timer = new EngineTimer(this);
