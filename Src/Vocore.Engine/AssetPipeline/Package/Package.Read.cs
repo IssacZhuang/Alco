@@ -275,12 +275,12 @@ public partial class Package : IDisposable
 		for (var i = 0; i < entries; i++)
 		{
 			ArchiveMD5Entries.Add(new ArchiveMD5SectionEntry
-			{
-				ArchiveIndex = Reader.ReadUInt32(),
-				Offset = Reader.ReadUInt32(),
-				Length = Reader.ReadUInt32(),
-				Checksum = Reader.ReadBytes(16)
-			});
+			(
+				Reader.ReadUInt32(),
+				Reader.ReadUInt32(),
+				Reader.ReadUInt32(),
+				Reader.ReadBytes(16)
+			));
 		}
 	}
 
