@@ -20,6 +20,11 @@ sealed class CaseInsensitivePackageEntryComparer(StringComparison comparison) : 
 			return y is null ? 0 : -1;
 		}
 
+		if (y is null)
+		{
+			return 1;
+		}
+
 		var comp = x.FileName.Length.CompareTo(y.FileName.Length);
 
 		if (comp != 0)

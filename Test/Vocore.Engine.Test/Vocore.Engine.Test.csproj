@@ -22,4 +22,10 @@
     <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Files\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
