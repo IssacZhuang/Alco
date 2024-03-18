@@ -18,7 +18,7 @@ public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string, string>
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out string? preprocessed)
+    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out string? preprocessed)
     {
         preprocessed = Encoding.UTF8.GetString(file);
         return true;

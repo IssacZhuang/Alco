@@ -32,7 +32,7 @@ public interface IAssetLoader<TAsset> : IBaseAssetLoader where TAsset : class
     /// <param name="data">The raw data of the asset.</param>
     /// <param name="preprocessed">The preprocessed asset object.</param>
     /// <returns><c>true</c> if the preprocessing is successful; otherwise, <c>false</c>.</returns>
-    bool TryAsyncPreprocess(string filename, byte[] data, [NotNullWhen(true)]out object? preprocessed);
+    bool TryAsyncPreprocess(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)]out object? preprocessed);
 
     /// <summary>
     /// Loads the asset from the file.

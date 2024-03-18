@@ -9,7 +9,7 @@ namespace Vocore.Engine
             public int Order => 0;
             public IEnumerable<string> AllFileNames => EmbbedResources.AllFileNames;
 
-            public bool TryGetData(string path, out byte[] data)
+            public bool TryGetData(string path, out ReadOnlySpan<byte> data)
             {
                 data = EmbbedResources.GetBytes(path);
 

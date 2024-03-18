@@ -149,7 +149,7 @@ namespace Vocore.Engine
                     return false;
                 }
 
-                if (!fileSource.TryGetData(filename, out byte[]? data))
+                if (!fileSource.TryGetData(filename, out ReadOnlySpan<byte> data))
                 {
                     Log.Error($"Trying to get asset {filename} but the file does not exist");
                     asset = null;
@@ -243,7 +243,7 @@ namespace Vocore.Engine
                     return null;
                 }
 
-                if (!fileSource.TryGetData(filename, out byte[]? data))
+                if (!fileSource.TryGetData(filename, out ReadOnlySpan<byte> data))
                 {
                     Log.Error($"Trying to get asset {filename} but the file does not exist");
                     return null;

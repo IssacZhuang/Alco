@@ -29,7 +29,7 @@ public class DirectoryFileSource : IFileSource
 
     public virtual int Order => 3;
 
-    public virtual bool TryGetData(string path, [NotNullWhen(true)] out byte[]? data)
+    public virtual bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
     {
         try
         {
@@ -38,7 +38,7 @@ public class DirectoryFileSource : IFileSource
         }
         catch (Exception)
         {
-            data = null;
+            data = ReadOnlySpan<byte>.Empty;
             return false;
         }
     }

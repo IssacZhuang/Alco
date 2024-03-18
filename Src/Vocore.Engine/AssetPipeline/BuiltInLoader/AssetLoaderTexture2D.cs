@@ -18,7 +18,7 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out ImageResultBuffer? preprocessed)
+    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ImageResultBuffer? preprocessed)
     {
         preprocessed = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
         return true;

@@ -16,7 +16,7 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
+    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
     {
         //compile to spirv and get reflection info
         preprocessed = ShaderCompiler.Compile(Encoding.UTF8.GetString(file), filename, IncludeResolver);

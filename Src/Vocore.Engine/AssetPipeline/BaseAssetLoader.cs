@@ -8,7 +8,7 @@ public abstract class BaseAssetLoader<TAsset, TPreprocessed> : IAssetLoader<TAss
 
     public abstract IReadOnlyList<string> FileExtensions { get; }
 
-    protected abstract bool TryAsyncPreprocessCore(string filename, byte[] file, [NotNullWhen(true)] out TPreprocessed? preprocessed);
+    protected abstract bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out TPreprocessed? preprocessed);
 
     protected abstract bool TryCreateAssetCore(string filename, TPreprocessed preprocessed, [NotNullWhen(true)] out TAsset? asset);
 
@@ -20,7 +20,7 @@ public abstract class BaseAssetLoader<TAsset, TPreprocessed> : IAssetLoader<TAss
     /// <param name="file">The file content as a byte array.</param>
     /// <param name="preprocessed">When this method returns, contains the preprocessed object if the preprocessing was successful; otherwise, <c>null</c>.</param>
     /// <returns><c>true</c> if the preprocessing was successful; otherwise, <c>false</c>.</returns>
-    public bool TryAsyncPreprocess(string filename, byte[] file, [NotNullWhen(true)] out object? preprocessed)
+    public bool TryAsyncPreprocess(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out object? preprocessed)
     {
         if (TryAsyncPreprocessCore(filename, file, out var p))
         {

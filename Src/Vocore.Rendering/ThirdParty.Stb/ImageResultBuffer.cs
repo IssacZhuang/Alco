@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Runtime.InteropServices;
 using Hebron.Runtime;
 using Vocore;
 using Vocore.Unsafe;
@@ -81,6 +76,17 @@ namespace StbImageSharp
             using (var stream = new MemoryStream(data))
             {
                 return FromStream(stream, requiredComponents);
+            }
+        }
+
+        public static ImageResultBuffer FromMemory(ReadOnlySpan<byte> data, ColorComponents requiredComponents = ColorComponents.Default)
+        {
+            fixed (byte* ptr = data)
+            {
+                using (var stream = new UnmanagedMemoryStream(ptr, data.Length))
+                {
+                    return FromStream(stream, requiredComponents);
+                }
             }
         }
     }
