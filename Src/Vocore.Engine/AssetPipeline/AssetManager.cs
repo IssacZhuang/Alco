@@ -111,6 +111,10 @@ namespace Vocore.Engine
             _isEntryDirty = true;
         }
 
+        /// <summary>
+        /// Try to refresh the file entries and the recongized extensions if they are dirty
+        /// </summary>
+        /// <returns>True if the file entries or the recongized extensions are dirty</returns>
         public bool TryRefreshEntries()
         {
             bool result = _isEntryDirty || _isRecongizedExtensionsDirty;
@@ -119,18 +123,37 @@ namespace Vocore.Engine
             return result;
         }
 
+        /// <summary>
+        /// Force to refresh the file entries and the recongized extensions
+        /// </summary>
         public void ForceRefreshEntries()
         {
             UpdateRecongizedExtensions(true);
             UpdateEntries(true);
         }
 
+        /// <summary>
+        /// Try to load the asset from the cache
+        /// </summary>
+        /// <typeparam name="TAsset">The type of asset</typeparam>
+        /// <param name="filename">The filename of the asset</param>
+        /// <param name="asset">The asset if it is loaded successfully; otherwise, <c>null</c>.</param>
+        /// <returns>True if the asset is loaded successfully</returns>
         public bool TryLoadFromCache<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset) where TAsset : class
         {
             filename = ParseEntry(filename);
             return TryLoadFromCacheCore(filename, out asset);
         }
 
+        /// <summary>
+        /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+        /// </summary>
+        /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+        /// <param name="filename">The filename of the asset to load.</param>
+        /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+        /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+        /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
+        /// <exception cref="System.Exception">Thrown when an exception occurs during the loading process.</exception>
         public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
             CheckThread();

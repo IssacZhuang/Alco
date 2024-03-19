@@ -79,6 +79,9 @@ namespace Vocore.Engine
             get => _engineThread == Environment.CurrentManagedThreadId;
         }
 
+        /// <summary>
+        /// The directory of the game executable
+        /// </summary>
         public static string WorkingDirectory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -106,12 +109,18 @@ namespace Vocore.Engine
             get => _assets;
         }
 
+        /// <summary>
+        /// The window singleton of the game
+        /// </summary>
         public Window Window
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _window;
         }
 
+        /// <summary>
+        /// The input singleton of the game
+        /// </summary>
         public Input Input
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -222,6 +231,7 @@ namespace Vocore.Engine
         /// <summary>
         /// The game tick, which handles the game logic
         /// </summary>
+        /// <param name="delta">The time since last tick</param>
         protected virtual void OnTick(float delta)
         {
 
@@ -231,11 +241,16 @@ namespace Vocore.Engine
         /// <summary>
         /// The frame tick, which handles the frame logic and rendering
         /// </summary>
+        /// <param name="delta">The time since last frame</param>
         protected virtual void OnUpdate(float delta)
         {
 
         }
 
+        /// <summary>
+        /// Called when the window is resized
+        /// </summary>
+        /// <param name="size">The new size of the window</param>
         protected virtual void OnResize(int2 size)
         {
 
@@ -372,17 +387,30 @@ namespace Vocore.Engine
 
         #region API
 
+        /// <summary>
+        /// Check if the target thread is the main thread
+        /// </summary>
+        /// <param name="threadId">The target thread id</param>
+        /// <returns>True if the target thread is the main thread</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsMainThread(int threadId)
         {
             return threadId == _engineThread;
         }
 
+        /// <summary>
+        /// Register a plugin to the game engine. The must be called before the engine starts
+        /// </summary>
+        /// <typeparam name="T">The type of the plugin</typeparam>
         public void RegisterPlugin<T>() where T : IEnginePlugin, new()
         {
             RegisterPlugin(new T());
         }
 
+        /// <summary>
+        /// Register a plugin to the game engine. The must be called before the engine starts
+        /// </summary>
+        /// <param name="plugin">The plugin to register</param>
         public void RegisterPlugin(IEnginePlugin plugin)
         {
             if (_isRunning)
@@ -401,6 +429,9 @@ namespace Vocore.Engine
             }
         }
 
+        /// <summary>
+        /// Stop the game engine. This will stop the main loop and dispose all the runtime objects in the end of the frame
+        /// </summary>
         public void Stop()
         {
             _isRunning = false;
@@ -408,8 +439,5 @@ namespace Vocore.Engine
 
         #endregion
 
-        #region Internal
-
-        #endregion
     }
 }

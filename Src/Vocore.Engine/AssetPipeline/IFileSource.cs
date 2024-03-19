@@ -4,6 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine;
 
+/// <summary>
+/// The file source interface
+/// </summary>
 public interface IFileSource
 {
     /// <summary>
@@ -18,6 +21,9 @@ public interface IFileSource
     /// Try get data from this file source
     /// </summary>
     bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data);
+    /// <summary>
+    /// Called when the file source is unloaded
+    /// </summary>
     void OnUnload();
 }
 

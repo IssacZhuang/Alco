@@ -2,6 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine;
 
+/// <summary>
+/// A file source that reads from a package file.
+/// </summary>
 public class PackageFileSource : IFileSource
 {
     public int Order => 0;

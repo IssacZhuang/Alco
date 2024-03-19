@@ -3,6 +3,9 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine
 {
+    /// <summary>
+    /// The rendering setting
+    /// </summary>
     public struct RenderingSetting
     {
         /// <summary>
@@ -15,9 +18,14 @@ namespace Vocore.Engine
         /// </summary>
         public PixelFormat? Depth;
 
+        /// <summary>
+        /// True if the GBuffers color passes are required
+        /// </summary>
         public readonly bool IsDeferred => GBufferColors != null;
 
-        // Currently not in used because not PBR rendering in this engine
+        /// <summary>
+        /// The GBuffer passes for 3D deferred rendering
+        /// </summary>
         public static readonly RenderingSetting Deferred3D = new RenderingSetting
         {
             GBufferColors = new PixelFormat[]{
@@ -30,6 +38,9 @@ namespace Vocore.Engine
             Depth = PixelFormat.Depth24PlusStencil8
         };
 
+        /// <summary>
+        /// The GBuffer passes for 2D deferred rendering
+        /// </summary>
         public static readonly RenderingSetting Deferred2D = new RenderingSetting
         {
             GBufferColors = new PixelFormat[]{
@@ -40,12 +51,18 @@ namespace Vocore.Engine
             Depth = PixelFormat.Depth24PlusStencil8
         };
 
+        /// <summary>
+        /// The default rendering setting
+        /// </summary>
         public static readonly RenderingSetting Forward = new RenderingSetting
         {
             GBufferColors = null,
             Depth = PixelFormat.Depth24PlusStencil8
         };
 
+        /// <summary>
+        /// The rendering setting for no depth stencil test
+        /// </summary>
         public static readonly RenderingSetting ForwardNoDepth = new RenderingSetting
         {
             GBufferColors = null,

@@ -7,10 +7,22 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine;
 
+
+/// <summary>
+/// The factory class for creating graphics device with window.
+/// </summary>
 public static class GraphicsWindow
 {
     private static string LogPrefix = "[Graphics]";
 
+
+    /// <summary>
+    /// Create a graphics device with window.
+    /// </summary>
+    /// <param name="graphicsSetting">The graphics setting. </param>
+    /// <param name="windowSetting">The window setting.</param>
+    /// <param name="device">The created graphics device.</param>
+    /// <param name="window">The created window.</param>
     public static void CreateGraphicsDeviceWithWindow(GraphicsSetting graphicsSetting, WindowSetting windowSetting, out GPUDevice device, out SilkWindow window)
     {
         WindowOptions silkWindowOptions = WindowOptions.Default;
@@ -60,7 +72,7 @@ public static class GraphicsWindow
         device = GraphicsFactory.CreateWebGPUDevice(deviceDescriptor);
     }
 
-    public static SurfaceSource GetSurfaceSource(INativeWindow? window)
+    private static SurfaceSource GetSurfaceSource(INativeWindow? window)
     {
         ArgumentNullException.ThrowIfNull(window);
 

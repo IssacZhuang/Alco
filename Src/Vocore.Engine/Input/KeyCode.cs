@@ -3,6 +3,9 @@ using Silk.NET.Input;
 
 namespace Vocore.Engine;
 
+/// <summary>
+/// Represents a key code of a keyboard key.
+/// </summary>
 public readonly struct KeyCode
 {
     //copy from Silk.NET.Input.Key

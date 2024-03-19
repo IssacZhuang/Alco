@@ -307,7 +307,6 @@ public partial class Package : IDisposable
 	}
 
 	/// <summary>
-	/// This sorts <see cref="Entries"/> so that it can be searched through using binary search.
 	/// Use <see cref="StringComparison.OrdinalIgnoreCase"/> if you want <see cref="FindEntry"/> to search case insensitively.
 	/// </summary>
 	/// <remarks>
