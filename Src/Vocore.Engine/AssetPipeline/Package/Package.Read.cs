@@ -74,16 +74,16 @@ public partial class Package : IDisposable
 
 		HeaderSize = (uint)input.Position;
 
-		ReadEntries();
+		ReadEntries(Reader);
 
 		if (Version == 2)
 		{
 			// Skip over file data, if any
 			input.Position += FileDataSectionSize;
 
-			ReadArchiveMD5Section();
-			ReadOtherMD5Section();
-			ReadSignatureSection();
+			ReadArchiveMD5Section(Reader);
+			ReadOtherMD5Section(Reader);
+			ReadSignatureSection(Reader);
 		}
 	}
 
@@ -166,16 +166,15 @@ public partial class Package : IDisposable
 		}
 	}
 
-	private void ReadEntries()
+	private void ReadEntries(BinaryReader reader)
 	{
-		var stringComparer = Comparer == null ? null : StringComparer.FromComparison(Comparer.Comparison);
-		var typeEntries = new Dictionary<string, List<PackageEntry>>(stringComparer);
+
 		using var ms = new MemoryStream();
 
 		// Types
 		while (true)
 		{
-			var typeName = ReadNullTermUtf8String(ms);
+			var typeName = ReadNullTermUtf8String(ms, reader);
 
 			if (string.IsNullOrEmpty(typeName))
 			{
@@ -187,7 +186,7 @@ public partial class Package : IDisposable
 			// Directories
 			while (true)
 			{
-				var directoryName = ReadNullTermUtf8String(ms);
+				var directoryName = ReadNullTermUtf8String(ms, reader);
 
 				if (string.IsNullOrEmpty(directoryName))
 				{
@@ -197,26 +196,26 @@ public partial class Package : IDisposable
 				// Files
 				while (true)
 				{
-					var fileName = ReadNullTermUtf8String(ms);
+					var fileName = ReadNullTermUtf8String(ms, reader);
 
 					if (string.IsNullOrEmpty(fileName))
 					{
 						break;
 					}
 
-					var entry = new PackageEntry(fileName, directoryName, typeName, Reader.ReadUInt32());
+					var entry = new PackageEntry(fileName, directoryName, typeName, reader.ReadUInt32());
 					// {
 					// 	FileName = fileName,
 					// 	DirectoryName = directoryName,
 					// 	TypeName = typeName,
 					// 	CRC32 = Reader.ReadUInt32()
 					// };
-					var smallDataSize = Reader.ReadUInt16();
-					entry.ArchiveIndex = Reader.ReadUInt16();
-					entry.Offset = Reader.ReadUInt32();
-					entry.Length = Reader.ReadUInt32();
+					var smallDataSize = reader.ReadUInt16();
+					entry.ArchiveIndex = reader.ReadUInt16();
+					entry.Offset = reader.ReadUInt32();
+					entry.Length = reader.ReadUInt32();
 
-					var terminator = Reader.ReadUInt16();
+					var terminator = reader.ReadUInt16();
 
 					if (terminator != 0xFFFF)
 					{
@@ -229,7 +228,7 @@ public partial class Package : IDisposable
 
 						int bytesRead;
 						int totalRead = 0;
-						while ((bytesRead = Reader.Read(entry.SmallData, totalRead, entry.SmallData.Length - totalRead)) != 0)
+						while ((bytesRead = reader.Read(entry.SmallData, totalRead, entry.SmallData.Length - totalRead)) != 0)
 						{
 							totalRead += bytesRead;
 						}
@@ -249,18 +248,16 @@ public partial class Package : IDisposable
 				entries.Sort(Comparer);
 			}
 
-			typeEntries.Add(typeName, entries);
+			Entries.Add(typeName, entries);
 		}
 
-		Entries = typeEntries;
-
 		// Set to real size that was read for hash verification, in case it was tampered with
-		TreeSize = (uint)Reader.BaseStream.Position - HeaderSize;
+		TreeSize = (uint)reader.BaseStream.Position - HeaderSize;
 	}
 
-	private void ReadArchiveMD5Section()
+	private void ReadArchiveMD5Section(BinaryReader reader)
 	{
-		FileSizeBeforeArchiveMD5Entries = (uint)Reader.BaseStream.Position;
+		FileSizeBeforeArchiveMD5Entries = (uint)reader.BaseStream.Position;
 
 		if (ArchiveMD5SectionSize == 0)
 		{
@@ -279,37 +276,37 @@ public partial class Package : IDisposable
 		{
 			ArchiveMD5Entries.Add(new ArchiveMD5SectionEntry
 			(
-				Reader.ReadUInt32(),
-				Reader.ReadUInt32(),
-				Reader.ReadUInt32(),
-				Reader.ReadBytes(16)
+				reader.ReadUInt32(),
+				reader.ReadUInt32(),
+				reader.ReadUInt32(),
+				reader.ReadBytes(16)
 			));
 		}
 	}
 
-	private void ReadOtherMD5Section()
+	private void ReadOtherMD5Section(BinaryReader reader)
 	{
 		if (OtherMD5SectionSize != 48)
 		{
 			return;
 		}
 
-		TreeChecksum = Reader.ReadBytes(16);
-		ArchiveMD5EntriesChecksum = Reader.ReadBytes(16);
-		FileSizeBeforeWholeFileHash = (uint)Reader.BaseStream.Position;
-		WholeFileChecksum = Reader.ReadBytes(16);
+		TreeChecksum = reader.ReadBytes(16);
+		ArchiveMD5EntriesChecksum = reader.ReadBytes(16);
+		FileSizeBeforeWholeFileHash = (uint)reader.BaseStream.Position;
+		WholeFileChecksum = reader.ReadBytes(16);
 	}
 
-	private void ReadSignatureSection()
+	private void ReadSignatureSection(BinaryReader reader)
 	{
-		FileSizeBeforeSignature = (uint)Reader.BaseStream.Position;
+		FileSizeBeforeSignature = (uint)reader.BaseStream.Position;
 
 		if (SignatureSectionSize == 0)
 		{
 			return;
 		}
 
-		var publicKeySize = Reader.ReadInt32();
+		var publicKeySize = reader.ReadInt32();
 
 		if (SignatureSectionSize == 20 && publicKeySize == MAGIC)
 		{
@@ -317,10 +314,10 @@ public partial class Package : IDisposable
 			return;
 		}
 
-		PublicKey = Reader.ReadBytes(publicKeySize);
+		PublicKey = reader.ReadBytes(publicKeySize);
 
-		var signatureSize = Reader.ReadInt32();
-		Signature = Reader.ReadBytes(signatureSize);
+		var signatureSize = reader.ReadInt32();
+		Signature = reader.ReadBytes(signatureSize);
 	}
 
 	private Stream GetFileStream(ushort archiveIndex)
@@ -340,7 +337,7 @@ public partial class Package : IDisposable
 		}
 		else
 		{
-			stream = Reader.BaseStream;
+			stream = Reader!.BaseStream;
 			stream.Seek(HeaderSize + TreeSize, SeekOrigin.Begin);
 		}
 
@@ -374,7 +371,7 @@ public partial class Package : IDisposable
 			// If the package was opened by providing a file path, we can memory map non directory files
 			if (entry.ArchiveIndex == 0x7FFF)
 			{
-				if (Reader.BaseStream is FileStream fileStream)
+				if (Reader != null && Reader.BaseStream is FileStream fileStream)
 				{
 					path = fileStream.Name;
 				}
@@ -406,11 +403,11 @@ public partial class Package : IDisposable
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private string ReadNullTermUtf8String(MemoryStream ms)
+	private string ReadNullTermUtf8String(MemoryStream ms, BinaryReader reader)
 	{
 		while (true)
 		{
-			var b = Reader.ReadByte();
+			var b = reader.ReadByte();
 
 			if (b == 0x00)
 			{

@@ -24,8 +24,9 @@ public partial class Package : IDisposable
 	public const char DirectorySeparatorChar = '/';
 	private const char WindowsDirectorySeparator = '\\';
 
-	private BinaryReader Reader;
+	private BinaryReader? Reader = null;
 	private readonly Dictionary<int, MemoryMappedFile> MemoryMappedPaks = [];
+	private Dictionary<string, List<PackageEntry>>? _entries;
 
 	/// <summary>
 	/// Gets the file name.
@@ -75,17 +76,17 @@ public partial class Package : IDisposable
 	/// <summary>
 	/// Gets the MD5 checksum of the file tree.
 	/// </summary>
-	public byte[] TreeChecksum { get; private set; }
+	public byte[] TreeChecksum { get; private set; } = Array.Empty<byte>();
 
 	/// <summary>
 	/// Gets the MD5 checksum of the archive MD5 checksum section entries.
 	/// </summary>
-	public byte[] ArchiveMD5EntriesChecksum { get; private set; }
+	public byte[] ArchiveMD5EntriesChecksum { get; private set; } = Array.Empty<byte>();
 
 	/// <summary>
 	/// Gets the MD5 checksum of the complete package until the signature structure.
 	/// </summary>
-	public byte[] WholeFileChecksum { get; private set; }
+	public byte[] WholeFileChecksum { get; private set; } = Array.Empty<byte>();
 
 	/// <summary>
 	/// Gets the public key.
@@ -100,14 +101,27 @@ public partial class Package : IDisposable
 	/// <summary>
 	/// Gets the package entries.
 	/// </summary>
-	public Dictionary<string, List<PackageEntry>> Entries { get; set;}
+	public Dictionary<string, List<PackageEntry>> Entries
+	{
+		get
+		{
+			if (_entries == null)
+			{
+				var stringComparer = Comparer == null ? null : StringComparer.FromComparison(Comparer.Comparison);
+				_entries = new Dictionary<string, List<PackageEntry>>(stringComparer);
+			}
+
+			return _entries;
+		}
+
+	}
 
 	/// <summary>
 	/// Gets the archive MD5 checksum section entries. Also known as cache line hashes.
 	/// </summary>
 	public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get;} = new List<ArchiveMD5SectionEntry>();
 
-	private CaseInsensitivePackageEntryComparer Comparer;
+	private CaseInsensitivePackageEntryComparer? Comparer;
 
 	/// <summary>
 	/// Releases binary reader.
@@ -125,7 +139,7 @@ public partial class Package : IDisposable
 			if (Reader != null)
 			{
 				Reader.Dispose();
-				Reader = null;
+				Reader = null!;
 			}
 
 			foreach (var stream in MemoryMappedPaks.Values)
@@ -280,7 +294,7 @@ public partial class Package : IDisposable
 	/// <param name="comparison">Comparison method to use.</param>
 	public void OptimizeEntriesForBinarySearch(StringComparison comparison = StringComparison.Ordinal)
 	{
-		if (Entries != null)
+		if (_entries != null)
 		{
 			throw new InvalidOperationException("This method must be called before a package is read.");
 		}

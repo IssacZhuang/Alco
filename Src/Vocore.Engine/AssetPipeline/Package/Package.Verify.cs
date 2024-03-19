@@ -75,6 +75,11 @@ public partial class Package : IDisposable
 			throw new InvalidDataException("Only version 2 is supported.");
 		}
 
+		if (Reader == null)
+		{
+			throw new InvalidOperationException("No package is opened for reading.");
+		}
+
 		using var subStream = new SubStream(Reader.BaseStream, HeaderSize, (int)TreeSize);
 		var hash = MD5.HashData(subStream);
 
@@ -108,6 +113,7 @@ public partial class Package : IDisposable
 	{
 		Stream? stream = null;
 		var lastArchiveIndex = uint.MaxValue;
+
 
 		// When created by Valve, entries are sorted, and are 1MB chunks
 		var allEntries = ArchiveMD5Entries
@@ -201,6 +207,11 @@ public partial class Package : IDisposable
 		if (PublicKey == null || Signature == null)
 		{
 			return true;
+		}
+
+		if (Reader == null)
+		{
+			return false;
 		}
 
 		using var rsa = RSA.Create();

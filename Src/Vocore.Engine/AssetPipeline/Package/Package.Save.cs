@@ -82,12 +82,6 @@ public partial class Package
 		// 	ArchiveIndex = 0x7FFF,
 		// };
 
-		if (Entries == null)
-		{
-			var stringComparer = Comparer == null ? null : StringComparer.FromComparison(Comparer.Comparison);
-			Entries = new Dictionary<string, List<PackageEntry>>(stringComparer);
-		}
-
 		if (!Entries.TryGetValue(extension, out var typeEntries))
 		{
 			typeEntries = [];
