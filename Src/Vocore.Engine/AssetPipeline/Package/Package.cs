@@ -30,7 +30,7 @@ public partial class Package : IDisposable
 	/// <summary>
 	/// Gets the file name.
 	/// </summary>
-	public string FileName { get; private set; }
+	public string FileName { get; private set; } = string.Empty;
 
 	/// <summary>
 	/// Gets whether this package had "_dir" in the name, indicating it has multiple chunk files.
@@ -90,22 +90,22 @@ public partial class Package : IDisposable
 	/// <summary>
 	/// Gets the public key.
 	/// </summary>
-	public byte[] PublicKey { get; private set; }
+	public byte[]? PublicKey { get; private set; }
 
 	/// <summary>
 	/// Gets the signature.
 	/// </summary>
-	public byte[] Signature { get; private set; }
+	public byte[]? Signature { get; private set; }
 
 	/// <summary>
 	/// Gets the package entries.
 	/// </summary>
-	public Dictionary<string, List<PackageEntry>> Entries { get; private set; }
+	public Dictionary<string, List<PackageEntry>> Entries { get; set;}
 
 	/// <summary>
 	/// Gets the archive MD5 checksum section entries. Also known as cache line hashes.
 	/// </summary>
-	public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get; private set; }
+	public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get; set;}
 
 	private CaseInsensitivePackageEntryComparer Comparer;
 
@@ -167,7 +167,7 @@ public partial class Package : IDisposable
 	/// Optimized packages also support case insensitive search by using a different <see cref="StringComparison"/>.
 	/// </summary>
 	/// <param name="filePath">Full path to the file to find.</param>
-	public PackageEntry FindEntry(string filePathStr)
+	public PackageEntry? FindEntry(string filePathStr)
 	{
 		ArgumentNullException.ThrowIfNull(filePathStr);
 

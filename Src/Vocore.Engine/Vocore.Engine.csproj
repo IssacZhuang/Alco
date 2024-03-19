@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
     <ProjectReference Include="..\Vocore.Graphics\Vocore.Graphics.csproj" />
     <ProjectReference Include="..\Vocore.Rendering\Vocore.Rendering.csproj" />
+    <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>
   <ItemGroup>
      <PackageReference Include="System.IO.Hashing" Version="8.0.0" />

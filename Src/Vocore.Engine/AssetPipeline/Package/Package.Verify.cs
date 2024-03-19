@@ -140,7 +140,13 @@ public partial class Package : IDisposable
 				else
 				{
 					var offset = entry.ArchiveIndex == 0x7FFF ? HeaderSize + TreeSize : 0;
-					stream.Seek(offset, SeekOrigin.Begin);
+					stream?.Seek(offset, SeekOrigin.Begin);
+				}
+
+				
+				if (stream == null)
+				{
+					throw new InvalidDataException("Failed to open file stream");
 				}
 
 				using var subStream = new SubStream(stream, stream.Position + entry.Offset, entry.Length);

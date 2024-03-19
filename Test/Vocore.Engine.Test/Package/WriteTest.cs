@@ -96,11 +96,7 @@ namespace Tests
 			Assert.That(package.RemoveFile(package.FindEntry("test2.txt")), Is.True);
 			Assert.That(package.FindEntry("test2.txt"), Is.Null);
 			Assert.That(package.FindEntry("test1.txt"), Is.Not.Null);
-			Assert.That(package.RemoveFile(new PackageEntry
-			{
-				FileName = "test5",
-				TypeName = "txt",
-			}), Is.False);
+			Assert.That(package.RemoveFile(new PackageEntry("test5", "",".txt", 0)), Is.False);
 			Assert.That(package.Entries["txt"], Has.Count.EqualTo(3));
 			Assert.That(package.RemoveFile(package.FindEntry("test4.txt")), Is.True);
 			Assert.That(package.RemoveFile(package.FindEntry("test3.txt")), Is.True);

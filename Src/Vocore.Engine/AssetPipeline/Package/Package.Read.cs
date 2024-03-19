@@ -204,13 +204,13 @@ public partial class Package : IDisposable
 						break;
 					}
 
-					var entry = new PackageEntry
-					{
-						FileName = fileName,
-						DirectoryName = directoryName,
-						TypeName = typeName,
-						CRC32 = Reader.ReadUInt32()
-					};
+					var entry = new PackageEntry(fileName, directoryName, typeName, Reader.ReadUInt32());
+					// {
+					// 	FileName = fileName,
+					// 	DirectoryName = directoryName,
+					// 	TypeName = typeName,
+					// 	CRC32 = Reader.ReadUInt32()
+					// };
 					var smallDataSize = Reader.ReadUInt16();
 					entry.ArchiveIndex = Reader.ReadUInt16();
 					entry.Offset = Reader.ReadUInt32();
@@ -265,12 +265,15 @@ public partial class Package : IDisposable
 		if (ArchiveMD5SectionSize == 0)
 		{
 			ArchiveMD5Entries = [];
+			//ArchiveMD5Entries.Clear();
 			return;
 		}
 
 		var entries = (int)(ArchiveMD5SectionSize / 28); // 28 is sizeof(VPK_MD5SectionEntry), which is int + int + int + 16 chars
 
 		ArchiveMD5Entries = new List<ArchiveMD5SectionEntry>(entries);
+		//ArchiveMD5Entries.Clear();
+
 
 		for (var i = 0; i < entries; i++)
 		{

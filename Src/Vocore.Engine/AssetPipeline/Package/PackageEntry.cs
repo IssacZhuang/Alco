@@ -4,31 +4,50 @@ namespace Vocore.Engine;
 
 public class PackageEntry
 {
+	public PackageEntry(string fileName, string directoryName, string typeName, uint crc32)
+	{
+		FileName = fileName;
+		DirectoryName = directoryName;
+		TypeName = typeName;
+		CRC32 = crc32;
+		SmallData = Array.Empty<byte>();
+	}
+
+	public PackageEntry(string fileName, string directoryName, string typeName, uint crc32, byte[] smallData, int archiveIndex){
+		FileName = fileName;
+		DirectoryName = directoryName;
+		TypeName = typeName;
+		CRC32 = crc32;
+		SmallData = smallData;
+		ArchiveIndex = (ushort)archiveIndex;
+	}
+
+
 	/// <summary>
 	/// Gets or sets file name of this entry.
 	/// </summary>
 	/// <remarks>
 	/// This does not contain <see cref="TypeName"/>.
 	/// </remarks>
-	public string FileName { get; set; }
+	public string FileName { get; }
 
 	/// <summary>
 	/// Gets or sets the name of the directory this file is in.
 	/// '/' is always used as a dictionary separator in Valve's implementation.
 	/// Directory names are also always lower cased in Valve's implementation.
 	/// </summary>
-	public string DirectoryName { get; set; }
+	public string DirectoryName { get;}
 
 	/// <summary>
 	/// Gets or sets the file extension.
 	/// If the file has no extension, this is an empty string.
 	/// </summary>
-	public string TypeName { get; set; }
+	public string TypeName { get; }
 
 	/// <summary>
 	/// Gets or sets the CRC32 checksum of this entry.
 	/// </summary>
-	public uint CRC32 { get; set; }
+	public uint CRC32 { get;  set; }
 
 	/// <summary>
 	/// Gets or sets the length in bytes.
@@ -66,7 +85,7 @@ public class PackageEntry
 	/// <summary>
 	/// Gets or sets the preloaded bytes.
 	/// </summary>
-	public byte[] SmallData { get; set; }
+	public byte[] SmallData { get; set;}
 
 	/// <summary>
 	/// Returns the file name and extension.
@@ -97,6 +116,7 @@ public class PackageEntry
 
 		return string.Concat(DirectoryName, Package.DirectorySeparator, GetFileName());
 	}
+
 
 	public override string ToString()
 	{
