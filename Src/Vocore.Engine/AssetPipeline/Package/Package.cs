@@ -30,7 +30,7 @@ public partial class Package : IDisposable
 	/// <summary>
 	/// Gets the file name.
 	/// </summary>
-	public string FileName { get; private set; } = string.Empty;
+	public string? FileName { get; private set; }
 
 	/// <summary>
 	/// Gets whether this package had "_dir" in the name, indicating it has multiple chunk files.
@@ -105,7 +105,7 @@ public partial class Package : IDisposable
 	/// <summary>
 	/// Gets the archive MD5 checksum section entries. Also known as cache line hashes.
 	/// </summary>
-	public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get; set;}
+	public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get;} = new List<ArchiveMD5SectionEntry>();
 
 	private CaseInsensitivePackageEntryComparer Comparer;
 
