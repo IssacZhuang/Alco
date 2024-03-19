@@ -103,13 +103,12 @@ namespace Tests
 				Assert.That(package.FindEntry(" "), Is.Null);
 			});
 
-			foreach (var extension in package.Entries.Values)
+
+			foreach (var entry in package.AllEntries)
 			{
-				foreach (var entry in extension)
-				{
-					Assert.That(package.FindEntry(entry.GetFullPath()), Is.EqualTo(entry));
-				}
+				Assert.That(package.FindEntry(entry.GetFullPath()), Is.EqualTo(entry));
 			}
+			
 		}
 
 		[Test]
@@ -133,13 +132,11 @@ namespace Tests
 				Assert.That(package.FindEntry("\\addons/hello_github_reader/CHESS.vdf"), Is.Null);
 			});
 
-			foreach (var extension in package.Entries.Values)
+			foreach (var entry in package.AllEntries)
 			{
-				foreach (var entry in extension)
-				{
-					Assert.That(package.FindEntry(entry.GetFullPath()), Is.EqualTo(entry));
-				}
+				Assert.That(package.FindEntry(entry.GetFullPath()), Is.EqualTo(entry));
 			}
+			
 		}
 
 		[Test]
@@ -497,18 +494,18 @@ namespace Tests
 			using var package = new Package();
 			package.Read(path);
 
-			Assert.That(package.Entries, Has.Count.EqualTo(2));
-			Assert.That(package.Entries.Keys, Does.Contain("jpg"));
-			Assert.That(package.Entries.Keys, Does.Contain("proto"));
+			Assert.That(package.FileCount, Is.EqualTo(2));
+			Assert.That(package.Extensions, Does.Contain("jpg"));
+			Assert.That(package.Extensions, Does.Contain("proto"));
 
 			var flatEntries = new Dictionary<string, PackageEntry>();
 			var data = new Dictionary<string, string>();
 
-			foreach (var a in package.Entries)
+			foreach (var a in package.Extensions)
 			{
-				foreach (var b in a.Value)
+				foreach (var b in package.GetEntriesByExtension(a))
 				{
-					Assert.That(b.TypeName, Is.EqualTo(a.Key));
+					Assert.That(b.TypeName, Is.EqualTo(a));
 
 					flatEntries.Add(b.FileName, b);
 

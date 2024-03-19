@@ -1,6 +1,7 @@
 // modify from https://github.com/ValveResourceFormat/ValvePak
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
@@ -25,8 +26,51 @@ public partial class Package : IDisposable
 	private const char WindowsDirectorySeparator = '\\';
 
 	private BinaryReader? Reader = null;
+	private List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get; } = new List<ArchiveMD5SectionEntry>();
 	private readonly Dictionary<int, MemoryMappedFile> MemoryMappedPaks = [];
 	private Dictionary<string, List<PackageEntry>>? _entries;
+
+	/// <summary>
+	/// Gets the package entries.
+	/// </summary>
+	private Dictionary<string, List<PackageEntry>> Entries
+	{
+		get
+		{
+			if (_entries == null)
+			{
+				var stringComparer = Comparer == null ? null : StringComparer.FromComparison(Comparer.Comparison);
+				_entries = new Dictionary<string, List<PackageEntry>>(stringComparer);
+			}
+
+			return _entries;
+		}
+	}
+
+	/// <summary>
+	/// Gets the number of files in the package.
+	/// </summary>
+	public int FileCount => Entries.Count;
+	/// <summary>
+	/// Gets the extensions of the files in the package.
+	/// </summary>
+	public IEnumerable<string> Extensions => Entries.Keys;
+	/// <summary>
+	/// Gets the package entries.
+	/// </summary>
+	public IEnumerable<PackageEntry> AllEntries
+	{
+		get
+		{
+			foreach (var entries in Entries.Values)
+			{
+				foreach (var entry in entries)
+				{
+					yield return entry;
+				}
+			}
+		}
+	}
 
 	/// <summary>
 	/// Gets the file name.
@@ -98,28 +142,6 @@ public partial class Package : IDisposable
 	/// </summary>
 	public byte[]? Signature { get; private set; }
 
-	/// <summary>
-	/// Gets the package entries.
-	/// </summary>
-	public Dictionary<string, List<PackageEntry>> Entries
-	{
-		get
-		{
-			if (_entries == null)
-			{
-				var stringComparer = Comparer == null ? null : StringComparer.FromComparison(Comparer.Comparison);
-				_entries = new Dictionary<string, List<PackageEntry>>(stringComparer);
-			}
-
-			return _entries;
-		}
-
-	}
-
-	/// <summary>
-	/// Gets the archive MD5 checksum section entries. Also known as cache line hashes.
-	/// </summary>
-	public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get;} = new List<ArchiveMD5SectionEntry>();
 
 	private CaseInsensitivePackageEntryComparer? Comparer;
 
@@ -300,6 +322,16 @@ public partial class Package : IDisposable
 		}
 
 		Comparer = new CaseInsensitivePackageEntryComparer(comparison);
+	}
+
+	public IReadOnlyList<PackageEntry> GetEntriesByExtension(string extension)
+	{
+		if (Entries.TryGetValue(extension, out var entries))
+		{
+			return entries;
+		}
+
+		return Array.Empty<PackageEntry>();
 	}
 }
 

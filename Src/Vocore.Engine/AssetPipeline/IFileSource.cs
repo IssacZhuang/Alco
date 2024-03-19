@@ -18,6 +18,7 @@ public interface IFileSource
     /// Try get data from this file source
     /// </summary>
     bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data);
+    void OnUnload();
 }
 
 

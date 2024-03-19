@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine;
 
-sealed class CaseInsensitivePackageEntryComparer(StringComparison comparison) : IComparer<PackageEntry>
+internal sealed class CaseInsensitivePackageEntryComparer(StringComparison comparison) : IComparer<PackageEntry>
 {
 	public StringComparison Comparison { get; } = comparison;
 

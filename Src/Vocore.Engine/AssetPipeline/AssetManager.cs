@@ -88,15 +88,26 @@ namespace Vocore.Engine
             _isEntryDirty = true;
         }
 
+        /// <summary>
+        /// Add the file source to the asset manager
+        /// </summary>
+        /// <param name="fileSource">The file source to add</param>
         public void AddFileSource(IFileSource fileSource)
         {
             _fileSources.Add(fileSource);
             _isEntryDirty = true;
         }
 
+        /// <summary>
+        /// Remove the file source from the asset manager
+        /// </summary>
+        /// <param name="fileSource">The file source to remove</param>
         public void RemoveFileSource(IFileSource fileSource)
         {
-            _fileSources.Remove(fileSource);
+            if (_fileSources.Remove(fileSource))
+            {
+                fileSource.OnUnload();
+            }
             _isEntryDirty = true;
         }
 

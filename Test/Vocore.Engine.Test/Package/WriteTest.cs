@@ -79,7 +79,7 @@ namespace Tests
 			packageWritten.Read(output);
 			packageWritten.VerifyHashes();
 
-			Assert.That(packageWritten.Entries["txt"], Has.Count.EqualTo(1000));
+			Assert.That(packageWritten.GetEntriesByExtension("txt").Count(), Is.EqualTo(1000));
 		}
 
 		[Test]
@@ -91,17 +91,17 @@ namespace Tests
 			package.AddFile("test3.txt", []);
 			package.AddFile("test4.txt", []);
 
-			Assert.That(package.Entries.ContainsKey("txt"), Is.True);
-			Assert.That(package.Entries["txt"], Has.Count.EqualTo(4));
+			Assert.That(package.Extensions.Contains("txt"), Is.True);
+			Assert.That(package.GetEntriesByExtension("txt").Count(), Is.EqualTo(4));
 			Assert.That(package.RemoveFile(package.FindEntry("test2.txt")), Is.True);
 			Assert.That(package.FindEntry("test2.txt"), Is.Null);
 			Assert.That(package.FindEntry("test1.txt"), Is.Not.Null);
 			Assert.That(package.RemoveFile(new PackageEntry("test5", "",".txt", 0)), Is.False);
-			Assert.That(package.Entries["txt"], Has.Count.EqualTo(3));
+			Assert.That(package.GetEntriesByExtension("txt").Count(), Is.EqualTo(3));
 			Assert.That(package.RemoveFile(package.FindEntry("test4.txt")), Is.True);
 			Assert.That(package.RemoveFile(package.FindEntry("test3.txt")), Is.True);
 			Assert.That(package.RemoveFile(package.FindEntry("test1.txt")), Is.True);
-			Assert.That(package.Entries, Is.Empty);
+			Assert.That(package.AllEntries, Is.Empty);
 		}
 
 		[Test]
@@ -114,8 +114,8 @@ namespace Tests
 				Assert.That(file.TypeName, Is.EqualTo(" "));
 				Assert.That(file.DirectoryName, Is.EqualTo(" "));
 				Assert.That(file.FileName, Is.EqualTo(""));
-				Assert.That(package.Entries.ContainsKey(" "), Is.True);
-				Assert.That(package.Entries[" "][0], Is.EqualTo(file));
+				Assert.That(package.Extensions.Contains(" "), Is.True);
+				Assert.That(package.GetEntriesByExtension(" ")[0], Is.EqualTo(file));
 			});
 
 			var file2 = package.AddFile("hello", []);
