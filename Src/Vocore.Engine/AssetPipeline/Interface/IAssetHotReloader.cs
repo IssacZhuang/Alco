@@ -6,7 +6,7 @@ namespace Vocore.Engine;
 /// Represents an interface for hot reloading assets.
 /// </summary>
 /// <typeparam name="TAsset">The type of the asset.</typeparam>
-public interface IAssetHotReloader<TAsset> where TAsset : class
+public interface IAssetHotReloader<TAsset> : IBaseAssetHandler where TAsset : class
 {
     /// <summary>
     /// Asynchronously preprocesses the asset data.

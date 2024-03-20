@@ -4,6 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine
 {
+    /// <summary>
+    /// Represents an asset manager for managing runtime assets and file sources.
+    /// </summary> 
     public class AssetManager
     {
         private const int FetchFinishJobAttempCount = 20;
@@ -12,7 +15,7 @@ namespace Vocore.Engine
         // key: filename, value: asset
         private readonly ConcurrentDictionary<string, object> _strongCache = new ConcurrentDictionary<string, object>();
         // key: extension, value: asset loader
-        private readonly Dictionary<string, IBaseAssetLoader> _assetLoaders = new Dictionary<string, IBaseAssetLoader>();
+        private readonly Dictionary<string, IBaseAssetHandler> _assetLoaders = new Dictionary<string, IBaseAssetHandler>();
         // key: filename, value: file source
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
@@ -371,7 +374,7 @@ namespace Vocore.Engine
         private bool TryGetLoader<TAsset>(string filename, [NotNullWhen(true)] out IAssetLoader<TAsset>? loader) where TAsset : class
         {
             string extension = Path.GetExtension(filename);
-            if (!_assetLoaders.TryGetValue(extension, out IBaseAssetLoader? assetLoader))
+            if (!_assetLoaders.TryGetValue(extension, out IBaseAssetHandler? assetLoader))
             {
                 Log.Error($"Trying to get asset {filename} but the asset loader does not exist");
                 loader = null;

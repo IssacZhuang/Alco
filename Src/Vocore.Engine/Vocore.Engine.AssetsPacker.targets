@@ -3,6 +3,10 @@
     AssemblyFile = "$(OutputPath)Vocore.Engine.dll" />
 
   <Target Name="InvokeCustomTask" AfterTargets="AfterBuild">
-    <AssetsBuildTask />
+    <AssetsBuildTask 
+      AssetsDir = "$(ProjectDir)Assets"
+      OutputDir = "$(OutputPath)"
+      OutputName = "EngineAssets"
+    />
   </Target>
 </Project>

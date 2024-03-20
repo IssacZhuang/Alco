@@ -3,27 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine;
 
-/// <summary>
-/// The type less base asset loader interface.
-/// </summary>
-public interface IBaseAssetLoader
-{
-    /// <summary>
-    /// The name of the asset loader
-    /// </summary>
-    string Name { get; }
-    /// <summary>
-    /// The file extension of the asset loader
-    /// </summary>
-    IReadOnlyList<string> FileExtensions { get; }
-}
-
 
 /// <summary>
 /// Represents an asset loader for loading and preprocessing assets of type TAsset.<br/>
 /// </summary>
 /// <typeparam name="TAsset">The type of asset to load.</typeparam>
-public interface IAssetLoader<TAsset> : IBaseAssetLoader where TAsset : class
+public interface IAssetLoader<TAsset> : IBaseAssetHandler where TAsset : class
 {
     /// <summary>
     /// Asynchronously preprocesses the asset data.
