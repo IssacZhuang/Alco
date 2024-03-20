@@ -125,7 +125,7 @@ namespace Vocore
             if (!CASTop(t, t + 1))
             {
                 item = DefaultValue;
-                return StealingResult.Interrupted;
+                return StealingResult.CASFailed;
             }
             VolatileBottom = t + 1;
             return StealingResult.Success;
@@ -150,7 +150,7 @@ namespace Vocore
             if (!CASTop(t, t + 1))
             {
                 item = DefaultValue;
-                return StealingResult.Interrupted;
+                return StealingResult.CASFailed;
             }
             return StealingResult.Success;
         }

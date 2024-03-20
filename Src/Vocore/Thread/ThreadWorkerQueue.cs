@@ -1,9 +1,12 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Vocore;
+
 
 public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 {
@@ -26,6 +29,8 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CircularWorkStealingDeque<Task> _inputs;
     private bool _isDisposed;
+    private int _ownerThreadId;
+    private int _count;
 
 
     public ThreadWorkerQueue(int threadCount, string threadPrefix = "JobThread")
@@ -33,6 +38,8 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         _cancellationTokenSource = new CancellationTokenSource();
         _event = new ManualResetEvent(false);
         _inputs = new CircularWorkStealingDeque<Task>(512);
+        _ownerThreadId = Environment.CurrentManagedThreadId;
+        _count = 0;
 
         _threadData = new WorkerData[threadCount];
         for (int i = 0; i < threadCount; i++)
@@ -54,28 +61,45 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
             thread.Start();
         }
     }
-    
 
-    public void Push(TJob job, bool startImmediately = true)
+    /// <summary>
+    /// Set the owner thread id.
+    /// </summary>
+    /// <param name="id">The owner thread id.</param>
+    public void SetOnwerThreadId(int id)
     {
+        _ownerThreadId = id;
+    }
+
+    /// <summary>
+    /// Push a job to the queue.
+    /// <br/> This method can only be called by the owner thread.
+    /// </summary>
+    /// <param name="job">The job to do.</param>
+    /// <param name="startImmediately">Start the worker immediately.</param>
+    public void Push(TJob job)
+    {
+        CheckThread();
         if (job == null)
         {
             return;
         }
         _inputs.Push(new Task() { job = job });
-        if (startImmediately)
-        {
-            _event.Set();
-        }
-    }
-
-    public void Start()
-    {
         _event.Set();
+        _count++;
     }
 
+
+    /// <summary>
+    /// Try to get a finished task.
+    /// <br/> This method can only be called by the owner thread.
+    /// </summary>
+    /// <param name="job">The finished job.</param>
+    /// <param name="exception">The exception if the job failed.</param>
+    /// <returns><see cref="StealingResult.Success"/> if a finished task is found, <see cref="StealingResult.Empty"/> if no finished task is found, <see cref="StealingResult.CASFailed"/> if the queue is interrupted.</returns>
     public StealingResult TryGetFinishedTask([NotNullWhen(true)] out TJob? job, out Exception? exception)
     {
+        CheckThread();
         job = default;
         bool hasAbort = false;
         exception = null;
@@ -88,9 +112,10 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
             {
                 job = task.job;
                 exception = task.exception;
+                _count--;
                 return StealingResult.Success;
             }
-            else if (result == StealingResult.Interrupted)
+            else if (result == StealingResult.CASFailed)
             {
                 hasAbort = true;
             }
@@ -99,10 +124,46 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 
         if (hasAbort)
         {
-            return StealingResult.Interrupted;
+            return StealingResult.CASFailed;
         }
 
         return StealingResult.Empty;
+    }
+
+    /// <summary>
+    /// Wait for all tasks to be completed.
+    /// <br/> This method can only be called by the owner thread.
+    /// </summary>
+    /// <returns>An enumerable of the finished tasks.</returns>
+    public IEnumerable<ValueTuple<TJob, Exception?>> WaitForAllCompleted()
+    {
+        CheckThread();
+        StealingResult result;
+        while (true)
+        {
+            result = TryGetFinishedTask(out var job, out var exception);
+
+            if (result == StealingResult.Success)
+            {
+                yield return (job!, exception);
+            }
+
+            if (_count == 0)
+            {
+                break;
+            }
+        }
+
+        yield break;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CheckThread()
+    {
+        if (Environment.CurrentManagedThreadId != _ownerThreadId)
+        {
+            throw new InvalidOperationException("This method can only be called by the owner thread.");
+        }
     }
 
     private ThreadStart ThreadWorker(int index){

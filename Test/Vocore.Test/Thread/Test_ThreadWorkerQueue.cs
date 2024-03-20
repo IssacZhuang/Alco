@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 
@@ -101,6 +102,35 @@ namespace Vocore.Test
                 }
             }
 
+            for (int i = 0; i < count; i++)
+            {
+                Assert.IsTrue(jobs[i].value == i * 2);
+            }
+        }
+
+        [Test]
+        [Timeout(10000)]
+        public void TestMultiSlowJobWaitAll()
+        {
+            int count = 20;
+            SlowJob[] jobs = new SlowJob[count];
+            for (int i = 0; i < count; i++)
+            {
+                jobs[i] = new SlowJob()
+                {
+                    value = i
+                };
+            }
+            ThreadWorkerQueue<SlowJob> queue = new ThreadWorkerQueue<SlowJob>(4);
+
+            foreach (var job in jobs)
+            {
+                queue.Push(job);
+            }
+            
+            int finishedCount = queue.WaitForAllCompleted().Count();
+    
+            Assert.That(finishedCount, Is.EqualTo(count));
             for (int i = 0; i < count; i++)
             {
                 Assert.IsTrue(jobs[i].value == i * 2);

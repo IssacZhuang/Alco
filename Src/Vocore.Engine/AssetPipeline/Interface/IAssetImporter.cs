@@ -8,7 +8,6 @@ namespace Vocore.Engine;
 /// </summary>
 public interface IAssetImporter : IBaseAssetHandler
 {
-
     /// <summary>
     /// Tries to import a file.
     /// </summary>
@@ -16,10 +15,10 @@ public interface IAssetImporter : IBaseAssetHandler
     /// <param name="file">The content of the file to import.</param>
     /// <param name="importedFile">The data of the imported file</param>
     /// <param name="importedFilename">The filename of the imported file</param>
-    /// <returns><see langword="true"/> if the import was successful; otherwise, <see langword="false"/>.</returns>
+    /// <returns><c>true</c> if the import was successful</returns>
     bool TryImport(
         string filename, 
-        ReadOnlySpan<byte> file, 
-        [NotNullWhen(true)] out ReadOnlySpan<byte> importedFile, 
+        byte[] file, 
+        [NotNullWhen(true)] out byte[] importedFile, 
         [NotNullWhen(true)] out string? importedFilename);
 }

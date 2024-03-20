@@ -29,6 +29,7 @@ namespace Vocore.Engine
         private readonly GPUDevice _graphicsDevice;
         private readonly Window _window;
         private readonly AssetManager _assets;
+        private readonly Input _input;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
 
@@ -36,7 +37,6 @@ namespace Vocore.Engine
         internal EngineGraphics _graphics;
         internal EngineTimer _timer;
         internal EngineProfiler _profiler;
-        internal Input _input;
 
         #endregion
 

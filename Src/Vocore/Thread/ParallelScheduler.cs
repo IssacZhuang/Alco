@@ -146,7 +146,7 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void For(int count, ParallelForDelegate action)
         {
-            if (Thread.CurrentThread.ManagedThreadId != _ownerThreadId)
+            if (Environment.CurrentManagedThreadId != _ownerThreadId)
             {
                 throw new Exception("ScheduleParallel can only be called by the thread constructed this scheduler");
             }

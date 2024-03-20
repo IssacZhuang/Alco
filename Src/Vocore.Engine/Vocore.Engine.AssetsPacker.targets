@@ -6,7 +6,6 @@
     <AssetsBuildTask 
       AssetsDir = "$(ProjectDir)Assets"
       OutputDir = "$(OutputPath)"
-      OutputName = "EngineAssets"
     />
   </Target>
 </Project>

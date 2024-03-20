@@ -17,9 +17,11 @@ namespace Vocore
         /// </summary>
         Empty,
         /// <summary>
-        /// There is item in the queue but the stealing is interrupted by other thread.
+        /// There is item in the queue but the item cannot be stolen because of the CAS failure.<br/>
+        /// This is happened when the more than one thread try to steal the same item at the same time.
+        /// This is not an error, just try steal again.
         /// </summary>
-        Interrupted
+        CASFailed
     }
 }
 
