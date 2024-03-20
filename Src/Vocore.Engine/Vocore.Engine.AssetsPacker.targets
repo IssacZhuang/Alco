@@ -1,0 +1,8 @@
+<Project>
+    <UsingTask TaskName="Vocore.Engine.Tool.AssetsBuildTask"
+    AssemblyFile = "$(OutputPath)Vocore.Engine.dll" />
+
+  <Target Name="InvokeCustomTask" AfterTargets="AfterBuild">
+    <AssetsBuildTask />
+  </Target>
+</Project>
