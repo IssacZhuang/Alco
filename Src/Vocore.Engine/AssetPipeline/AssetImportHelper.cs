@@ -53,7 +53,8 @@ public class AssetImportHelper : IDisposable
     /// </summary>
     /// <param name="filename">The filename</param>
     /// <param name="file">The file content</param>
-    public void PushFile(string filename, byte[] file)
+    /// <returns><c>true</c> if the file can be imported</returns> 
+    public bool PushFile(string filename, byte[] file)
     {
         string ext = Path.GetExtension(filename);
         if (_importers.TryGetValue(ext, out var importer))
@@ -65,7 +66,9 @@ public class AssetImportHelper : IDisposable
                 file = file
             };
             _workerQueue.Push(job);
+            return true;
         }
+        return false;
     }
 
     /// <summary>

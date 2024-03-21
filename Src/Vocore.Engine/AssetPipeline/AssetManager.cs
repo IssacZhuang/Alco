@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Engine
@@ -78,6 +79,7 @@ namespace Vocore.Engine
                 }
                 _assetLoaders.Add(extension, assetLoader);
             }
+            
             _isRecongizedExtensionsDirty = true;
             _isEntryDirty = true;
         }

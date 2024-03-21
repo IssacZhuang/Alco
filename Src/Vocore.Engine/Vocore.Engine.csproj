@@ -18,8 +18,9 @@
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>
   <ItemGroup>
-     <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
-    <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.1" />
+     <PackageReference Include="System.IO.Hashing" Version="8.0.0" >
+      <PrivateAssets>none</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Input.Sdl" Version="2.20.0" />
@@ -33,5 +34,5 @@
     <PackageReference Include="Microsoft.Build" Version="17.9.5" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" />
   </ItemGroup>
-  <Import Project="Vocore.Engine.AssetsPacker.targets" />
+  <!-- <Import Project="Vocore.Engine.AssetsPacker.targets" /> -->
 </Project>

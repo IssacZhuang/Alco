@@ -4,8 +4,9 @@
 
   <Target Name="InvokeCustomTask" AfterTargets="AfterBuild">
     <AssetsBuildTask 
-      AssetsDir = "$(ProjectDir)Assets"
+      AssetsDir = "$(ProjectDir)/../Assets"
       OutputDir = "$(OutputPath)"
+      PackageName = "EngineAssets.vpk"
     />
   </Target>
 </Project>
