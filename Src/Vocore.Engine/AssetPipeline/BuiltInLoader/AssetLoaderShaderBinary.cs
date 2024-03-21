@@ -7,25 +7,19 @@ namespace Vocore.Engine;
 /// <summary>
 /// Convert a shader text file to a shader object. This loader will compile the shader to SPIR-V and create a GPU shader object from it
 /// </summary>
-public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult>
+public class AssetLoaderShaderBinary : BaseAssetLoader<Shader, ShaderCompileResult>
 {
-    private static readonly string[] Extensions = new string[] { FileExt.ShaderHLSL};
-    private readonly Func<string, string>? _includeResolver;
+    private static readonly string[] Extensions = new string[] { FileExt.ShaderBinary};
 
-    public override string Name => "AssetLoader.Shader.HLSL";
+    public override string Name => "AssetLoader.Shader.Binary";
 
     public override IReadOnlyList<string> FileExtensions => Extensions;
-
-    public AssetLoaderShaderHLSL(Func<string, string>? includeResolver = null)
-    {
-        _includeResolver = includeResolver;
-    }
 
     /// <inheritdoc/>
     protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
     {
-        //compile to spirv and get reflection info
-        preprocessed = ShaderCompiler.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+
+        preprocessed = UtilsShaderSerialization.DecodeCompileResult(file.ToArray());
         return true;
     }
 
@@ -35,5 +29,4 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
         asset = Shader.CreateFromCompileResult(preprocessed); // create GPU object
         return true;
     }
-
 }

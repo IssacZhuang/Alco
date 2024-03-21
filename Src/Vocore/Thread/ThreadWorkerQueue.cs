@@ -135,7 +135,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     /// <br/> This method can only be called by the owner thread.
     /// </summary>
     /// <returns>An enumerable of the finished tasks.</returns>
-    public IEnumerable<ValueTuple<TJob, Exception?>> WaitForAllCompleted()
+    public IEnumerable<JobExcuteResult<TJob>> WaitForAllCompleted()
     {
         CheckThread();
         StealingResult result;
@@ -145,7 +145,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 
             if (result == StealingResult.Success)
             {
-                yield return (job!, exception);
+                yield return new JobExcuteResult<TJob>(job!, exception);
             }
 
             if (_count == 0)
@@ -226,5 +226,6 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         _event.Dispose();
 
         _isDisposed = true;
+        GC.SuppressFinalize(this);
     }
 }

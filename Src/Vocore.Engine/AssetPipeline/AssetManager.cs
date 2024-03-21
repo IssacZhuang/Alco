@@ -48,7 +48,14 @@ namespace Vocore.Engine
 
             //built in asset loaders
             RegisterAssetLoader(new AssetLoaderTexture2D());
-            RegisterAssetLoader(new AssetLoaderShaderHLSL());
+            RegisterAssetLoader(new AssetLoaderShaderHLSL((string includeName) =>
+            {
+                if (TryLoad(includeName, out string? include))
+                {
+                    return include;
+                }
+                throw new Exception($"Can not find the include file: {includeName}");
+            }));
             RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
         }
 

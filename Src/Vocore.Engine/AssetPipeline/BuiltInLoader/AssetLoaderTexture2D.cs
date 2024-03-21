@@ -11,7 +11,14 @@ namespace Vocore.Engine;
 /// </summary>
 public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer>
 {
-    private static readonly string[] Extensions = new string[] { ".png", ".jpg", ".bmp", ".tga", ".gif", ".hdr" };
+    private static readonly string[] Extensions = new string[] {
+        FileExt.ImagePNG,
+        FileExt.ImageJPG,
+        FileExt.ImageBMP,
+        FileExt.ImageTGA,
+        FileExt.ImageGIF,
+        FileExt.ImageHDR
+        };
 
     public override string Name => "AssetLoader.Texture2D";
 

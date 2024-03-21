@@ -9,10 +9,10 @@ namespace Vocore.Engine;
 /// </summary>
 public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string, string>
 {
-    private static readonly string[] Extensions = new string[] { ".hlsli" };
+    private static readonly string[] Extensions = new string[] { FileExt.ShaderHLSLInclude };
 
     /// <inheritdoc/>
-    public override string Name => "AssetLoader.HLSLInclude";
+    public override string Name => "AssetLoader.Shader.HLSLInclude";
 
     /// <inheritdoc/>
     public override IReadOnlyList<string> FileExtensions => Extensions;
