@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishSingleFile>false</PublishSingleFile>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 
     <UseGLFW>false</UseGLFW>
     <UseSDL>true</UseSDL>
@@ -19,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
      <PackageReference Include="System.IO.Hashing" Version="8.0.0" >
-      <PrivateAssets>none</PrivateAssets>
+      <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
