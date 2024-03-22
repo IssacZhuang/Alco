@@ -27,10 +27,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <NativeLibraryLoaderVersion>1.0.13</NativeLibraryLoaderVersion>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>

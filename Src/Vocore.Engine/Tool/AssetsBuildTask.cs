@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Build.Evaluation.Context;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Silk.NET.Core.Loader;
@@ -82,7 +83,7 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
             Package package = new Package();
 
             DirectoryFileSource source = new DirectoryFileSource(AssetsDir);
-            importHelper = new AssetImportHelper(12);
+            importHelper = new AssetImportHelper(0);
             importHelper.RegisterImporter(new AssertImporterShaderHLSL((string includeName) =>
             {
                 if (source.TryGetData(includeName, out ReadOnlySpan<byte> data))
@@ -116,6 +117,9 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
                 if (result.exception == null)
                 {
                     package.AddFile(result.ImportedFilename!, result.ImportedFile!);
+                    ImportedAssetMeta meta = new ImportedAssetMeta(result.Filename, result.ImportedFilename!);
+                    string metaFilename = result.Filename + FileExt.Imported;
+                    package.AddFile(metaFilename, Encoding.UTF8.GetBytes(meta.ToJson()));
                 }
                 else
                 {

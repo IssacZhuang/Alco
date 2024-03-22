@@ -9,4 +9,10 @@
       PackageName = "EngineAssets.vpk"
     />
   </Target>
+
+  <ItemGroup>
+    <Content Include="$(OutputPath)EngineAssets.vpk">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

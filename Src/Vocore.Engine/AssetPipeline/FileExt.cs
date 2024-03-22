@@ -33,5 +33,8 @@ public static class FileExt
     public const string TextYAML = ".yaml";
     public const string TextYML = ".yml";
     public const string TextMD = ".md";
+
+    //meta
+    public const string Imported = ".imported";
     
 }
