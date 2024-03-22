@@ -71,8 +71,8 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
         Log.LogMessage(MessageImportance.High, $"\n-- Building package '{PackageName}' \npacking '{Path.GetFullPath(AssetsDir)}' \nto '{Path.GetFullPath(OutputDir)}'\n");
 
         NativeLibraryPreloader preloader = new NativeLibraryPreloader();
-
         AssetImportHelper? importHelper = null;
+        Package? package = null;
         try
         {
             // preload the native libraries otherwise Silk.NET can not resolved correctly in this task
@@ -80,7 +80,7 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
             // for UtilsShaderRelfection
             preloader.Load(Path.Combine(Path.GetFullPath(OutputDir), "spirv-reflect.dll"));
 
-            Package package = new Package();
+            package = new Package();
 
             DirectoryFileSource source = new DirectoryFileSource(AssetsDir);
             importHelper = new AssetImportHelper(0);
@@ -138,6 +138,7 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
         }
         finally
         {
+            package?.Dispose();
             importHelper?.Dispose();
             preloader.FreeAll();
         }
