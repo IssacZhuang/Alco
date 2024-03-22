@@ -1,12 +1,30 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
+using Silk.NET.Core.Loader;
 
 namespace Vocore.Engine.Tool;
 
 public class AssetsBuildTask : Microsoft.Build.Utilities.Task
 {
+    private class NativeLibraryPreloader
+    {
+        private readonly List<nint> _handles = new List<nint>();
+        public void Load(string path)
+        {
+            nint handle = NativeLibrary.Load(path);
+            _handles.Add(handle);
+        }
 
+        public void FreeAll()
+        {
+            foreach (nint handle in _handles)
+            {
+                NativeLibrary.Free(handle);
+            }
+        }
+    }
 
     [Required]
     public string? AssetsDir { get; set; }
@@ -49,9 +67,18 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
             return false;
         }
 
+        Log.LogMessage(MessageImportance.High, $"\n-- Building package '{PackageName}' \npacking '{Path.GetFullPath(AssetsDir)}' \nto '{Path.GetFullPath(OutputDir)}'\n");
+
+        NativeLibraryPreloader preloader = new NativeLibraryPreloader();
+
         AssetImportHelper? importHelper = null;
         try
         {
+            // preload the native libraries otherwise Silk.NET can not resolved correctly in this task
+
+            // for UtilsShaderRelfection
+            preloader.Load(Path.Combine(Path.GetFullPath(OutputDir), "spirv-reflect.dll"));
+
             Package package = new Package();
 
             DirectoryFileSource source = new DirectoryFileSource(AssetsDir);
@@ -88,7 +115,7 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
             {
                 if (result.exception == null)
                 {
-                    package.AddFile(result.Filename, result.ImportedFile!);
+                    package.AddFile(result.ImportedFilename!, result.ImportedFile!);
                 }
                 else
                 {
@@ -108,6 +135,7 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
         finally
         {
             importHelper?.Dispose();
+            preloader.FreeAll();
         }
     }
 }
