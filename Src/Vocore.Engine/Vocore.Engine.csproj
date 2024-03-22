@@ -30,10 +30,38 @@
     <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Windowing.Glfw" Version="2.20.0" />
   </ItemGroup>
 
+
   <!-- Aseets Packer Task-->
   <ItemGroup>
     <PackageReference Include="Microsoft.Build" Version="17.9.5" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" />
   </ItemGroup>
-  <Import Project="Vocore.Engine.AssetsPacker.targets" />
+  <PropertyGroup>
+    <!-- tmp folder with uuid -->
+    <TaskUUID>$([System.Guid]::NewGuid())</TaskUUID>
+    <TempRoot>$(MSBuildProjectDirectory)/.tmp</TempRoot>
+    <TempFolder>$(TempRoot)/$(TaskUUID)</TempFolder>
+  </PropertyGroup>
+
+  <UsingTask TaskName="Vocore.Engine.Tool.AssetsBuildTask"
+    AssemblyFile = "$(TempFolder)/Vocore.Engine.dll" />
+
+  <Target Name="PackEngineAssets" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <CopyItems Include="$(OutputPath)\**\*.*" />
+    </ItemGroup>
+    <MakeDir Directories="$(TempFolder)" />
+    <Copy SourceFiles="@(CopyItems)" DestinationFolder="$(TempFolder)" />
+    <AssetsBuildTask 
+      AssetsDir = "$(ProjectDir)/../Assets"
+      OutputDir = "$(OutputPath)"
+      PackageName = "EngineAssets.vpk" />
+  </Target>
+
+  <ItemGroup>
+    <Content Include="$(OutputPath)EngineAssets.vpk">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Vocore.Engine.Assets.targets" Pack="true" PackagePath="build" />
+  </ItemGroup>
 </Project>

@@ -12,10 +12,15 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
     private class NativeLibraryPreloader
     {
         private readonly List<nint> _handles = new List<nint>();
-        public void Load(string path)
+        public bool TryLoad(string path)
         {
-            nint handle = NativeLibrary.Load(path);
-            _handles.Add(handle);
+            if (NativeLibrary.TryLoad(path, out nint handle))
+            {
+                _handles.Add(handle);
+                return true;
+            }
+
+            return false;
         }
 
         public void FreeAll()
@@ -71,6 +76,11 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
         Log.LogMessage(MessageImportance.High, $"\n-- Building package '{PackageName}' \npacking '{Path.GetFullPath(AssetsDir)}' \nto '{Path.GetFullPath(OutputDir)}'\n");
 
         NativeLibraryPreloader preloader = new NativeLibraryPreloader();
+
+        preloader.TryLoad(Path.Combine(Path.GetFullPath(OutputDir), "spirv-reflect.dll"));//windows
+        preloader.TryLoad(Path.Combine(Path.GetFullPath(OutputDir), "libspirv-reflect.so"));//linux
+        preloader.TryLoad(Path.Combine(Path.GetFullPath(OutputDir), "libspirv-reflect.dylib"));//mac
+
         AssetImportHelper? importHelper = null;
         Package? package = null;
         try
@@ -78,12 +88,14 @@ public class AssetsBuildTask : Microsoft.Build.Utilities.Task
             // preload the native libraries otherwise Silk.NET can not resolved correctly in this task
 
             // for UtilsShaderRelfection
-            preloader.Load(Path.Combine(Path.GetFullPath(OutputDir), "spirv-reflect.dll"));
+            
+            
+
 
             package = new Package();
 
             DirectoryFileSource source = new DirectoryFileSource(AssetsDir);
-            importHelper = new AssetImportHelper(0);
+            importHelper = new AssetImportHelper(12);
             importHelper.RegisterImporter(new AssertImporterShaderHLSL((string includeName) =>
             {
                 if (source.TryGetData(includeName, out ReadOnlySpan<byte> data))
