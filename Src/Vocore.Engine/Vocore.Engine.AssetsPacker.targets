@@ -1,18 +1,30 @@
 <Project>
-    <UsingTask TaskName="Vocore.Engine.Tool.AssetsBuildTask"
-    AssemblyFile = "$(OutputPath)Vocore.Engine.dll" />
+  <PropertyGroup>
+    <TempFolder>$([System.IO.Path]::GetTempPath())$([System.Guid]::NewGuid())</TempFolder>
+  </PropertyGroup>
 
-  <Target Name="InvokeCustomTask" AfterTargets="AfterBuild">
+  <ItemGroup>
+    <_CopyItems Include="$(OutputPath)\**\*.*" />
+  </ItemGroup>
+
+  <UsingTask TaskName="Vocore.Engine.Tool.AssetsBuildTask"
+    AssemblyFile = "$(TempFolder)/Vocore.Engine.dll" />
+
+  <!-- make tmp directory -->
+  <Target Name="MakeTempFolder" AfterTargets="AfterBuild">
+    <MakeDir Directories="$(TempFolder)" />
+    <Copy SourceFiles="$(_CopyItems)" DestinationFiles="$(TempFolder)" />
     <AssetsBuildTask 
       AssetsDir = "$(ProjectDir)/../Assets"
-      OutputDir = "$(OutputPath)"
+      OutputDir = "$(TempFolder)"
       PackageName = "EngineAssets.vpk"
     />
   </Target>
 
-  <ItemGroup>
-    <Content Include="$(OutputPath)EngineAssets.vpk">
+
+  <!-- <ItemGroup>
+    <Content Include="$(TempFolder)/EngineAssets.vpk">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
+  </ItemGroup> -->
 </Project>
