@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace Vocore.Engine
 {
@@ -21,6 +22,7 @@ namespace Vocore.Engine
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
+        private readonly Dictionary<string, string> _redirects = new Dictionary<string, string>();
         private bool _isEntryDirty = false;
         private bool _isRecongizedExtensionsDirty = false;
         private int _ownerThreadId;
@@ -51,15 +53,18 @@ namespace Vocore.Engine
             RegisterAssetLoader(new AssetLoaderTexture2D());
             RegisterAssetLoader(new AssetLoaderShaderHLSL((string includeName) =>
             {
-                if (TryLoad(includeName, out string? include))
+                if (TryLoadDataFromSource(includeName, out ReadOnlySpan<byte> data))
                 {
-                    return include;
+                    return Encoding.UTF8.GetString(data);
                 }
                 throw new Exception($"Can not find the include file: {includeName}");
             }));
             RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
         }
 
+        /// <summary>
+        /// Get all the file names of the assets
+        /// </summary>
         public IEnumerable<string> AllFileNames
         {
             get
@@ -188,14 +193,7 @@ namespace Vocore.Engine
                 }
 
                 // IO
-                if (!_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
-                {
-                    Log.Error($"Trying to get asset {filename} but the file does not exist");
-                    asset = null;
-                    return false;
-                }
-
-                if (!fileSource.TryGetData(filename, out ReadOnlySpan<byte> data))
+                if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
                 {
                     Log.Error($"Trying to get asset {filename} but the file does not exist");
                     asset = null;
@@ -219,14 +217,7 @@ namespace Vocore.Engine
                 }
 
                 // try add to cache
-                if (cacheMode == AssetCacheMode.Recyclable)
-                {
-                    SetWeakCache(filename, newAsset);
-                }
-                else if (cacheMode == AssetCacheMode.Persistent)
-                {
-                    SetStrongCache(filename, newAsset);
-                }
+                SetCache(filename, newAsset, cacheMode);
                 asset = newAsset;
                 return true;
             }
@@ -277,19 +268,49 @@ namespace Vocore.Engine
             _asyncLoadQueue.Push(job);
         }
 
+        public bool TryLoadRaw(string filename, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
+        {
+            CheckThread();
+            TryRefreshEntries();
+            filename = ParseEntry(filename);
+
+            if (TryLoadDataFromSource(filename, out data))
+            {
+                return true;
+            }
+
+            Log.Error($"Trying to get asset {filename} but the file does not exist");
+            data = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Set the redirect from one file to another file.
+        /// </summary>
+        /// <param name="from">The filename to redirect from.</param>
+        /// <param name="to"> The filename to redirect to.</param>
+        public void SetRedirect(string from, string to)
+        {
+            _redirects[from] = to;
+        }
+
+        /// <summary>
+        /// Check if the file is redirected to another file and get the redirected file.
+        /// </summary>
+        /// <param name="from"> The filename to check.</param>
+        /// <param name="to"> The redirected filename if it is redirected; otherwise, <c>null</c>.</param>
+        /// <returns><c>True</c> if the file is redirected.</returns>
+        public bool TryGetRedirect(string from, [NotNullWhen(true)] out string? to)
+        {
+            return _redirects.TryGetValue(from, out to);
+        }
+
         //on worker thread
         private Func<object?> GetAsyncPreprocessAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
         {
             return () =>
             {
-                // IO
-                if (!_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
-                {
-                    Log.Error($"Trying to get asset {filename} but the file does not exist");
-                    return null;
-                }
-
-                if (!fileSource.TryGetData(filename, out ReadOnlySpan<byte> data))
+                if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
                 {
                     Log.Error($"Trying to get asset {filename} but the file does not exist");
                     return null;
@@ -316,14 +337,7 @@ namespace Vocore.Engine
                     return null;
                 }
 
-                if (cacheMode == AssetCacheMode.Recyclable)
-                {
-                    SetWeakCache(filename, newAsset);
-                }
-                else if (cacheMode == AssetCacheMode.Persistent)
-                {
-                    SetStrongCache(filename, newAsset);
-                }
+                SetCache(filename, newAsset, cacheMode);
 
                 return newAsset;
             };
@@ -377,6 +391,19 @@ namespace Vocore.Engine
             }
 
             asset = null;
+            return false;
+        }
+
+        private bool TryLoadDataFromSource(string filename, out ReadOnlySpan<byte> data)
+        {
+            if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+            {
+                if (fileSource.TryGetData(filename, out data))
+                {
+                    return true;
+                }
+            }
+            data = default;
             return false;
         }
 
@@ -475,6 +502,18 @@ namespace Vocore.Engine
             }
         }
 
+        private void SetCache(string filename, object asset, AssetCacheMode cacheMode)
+        {
+            if (cacheMode == AssetCacheMode.Recyclable)
+            {
+                SetWeakCache(filename, asset);
+            }
+            else if (cacheMode == AssetCacheMode.Persistent)
+            {
+                SetStrongCache(filename, asset);
+            }
+        }
+
         private void SetWeakCache(string filename, object asset)
         {
             _weakCache.Set(filename, asset);
@@ -521,6 +560,8 @@ namespace Vocore.Engine
                 foreach (var file in fileSource.AllFileNames)
                 {
                     string extension = Path.GetExtension(file);
+                    
+
                     if (_recongizedExtensions.Contains(extension))
                     {
                         _fileEntries.Add(file, fileSource);

@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Vocore.Engine
 {
-    public class ImportedAssetMeta
+    public struct ImportedAssetMeta
     {
         public string Filename { get; }
         public string ImportedName { get; }
