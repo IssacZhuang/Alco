@@ -11,6 +11,8 @@
 
     <UseGLFW>false</UseGLFW>
     <UseSDL>true</UseSDL>
+
+    <UseAssetsPack>false</UseAssetsPack>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
@@ -43,25 +45,36 @@
     <TempFolder>$(TempRoot)/$(TaskUUID)</TempFolder>
   </PropertyGroup>
 
-  <UsingTask TaskName="Vocore.Engine.Tool.AssetsBuildTask"
+  <UsingTask
+    Condition="'$(UseAssetsPack)' == 'true'"
+    TaskName="Vocore.Engine.Tool.AssetsBuildTask"
     AssemblyFile = "$(TempFolder)/Vocore.Engine.dll" />
 
-  <Target Name="PackEngineAssets" AfterTargets="AfterBuild">
+  <Target 
+    Condition="'$(UseAssetsPack)' == 'true'"
+    Name="PackEngineAssets" 
+    AfterTargets="AfterBuild">
     <ItemGroup>
       <CopyItems Include="$(OutputPath)\**\*.*" />
     </ItemGroup>
     <MakeDir Directories="$(TempFolder)" />
     <Copy SourceFiles="@(CopyItems)" DestinationFolder="$(TempFolder)" />
     <AssetsBuildTask 
-      AssetsDir = "$(ProjectDir)/../Assets"
+      AssetsDir = "$(ProjectDir)/Assets"
       OutputDir = "$(OutputPath)"
       PackageName = "EngineAssets.vpk" />
   </Target>
 
   <ItemGroup>
-    <Content Include="$(OutputPath)EngineAssets.vpk">
+    <Content
+      Condition="'$(UseAssetsPack)' == 'true'"
+      Include="$(OutputPath)EngineAssets.vpk">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Vocore.Engine.Assets.targets" Pack="true" PackagePath="build" />
+    <Content 
+      Condition="'$(UseAssetsPack)' == 'true'"
+      Include="Vocore.Engine.Assets.targets" 
+      Pack="true" 
+      PackagePath="build" />
   </ItemGroup>
 </Project>
