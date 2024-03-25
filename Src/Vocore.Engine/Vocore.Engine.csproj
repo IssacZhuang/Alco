@@ -45,6 +45,16 @@
     <TempFolder>$(TempRoot)/$(TaskUUID)</TempFolder>
   </PropertyGroup>
 
+  <!-- copy assets to output folder if UseAssetsPack is false -->
+  <ItemGroup>
+    <Content
+      Condition="'$(UseAssetsPack)' == 'false'"
+      Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
+      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <UsingTask
     Condition="'$(UseAssetsPack)' == 'true'"
     TaskName="Vocore.Engine.Tool.AssetsBuildTask"

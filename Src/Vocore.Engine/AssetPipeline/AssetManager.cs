@@ -23,6 +23,7 @@ namespace Vocore.Engine
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
         private readonly Dictionary<string, string> _redirects = new Dictionary<string, string>();
+        private readonly AssetWatcher _assetWatcher;
         private bool _isEntryDirty = false;
         private bool _isRecongizedExtensionsDirty = false;
         private int _ownerThreadId;
@@ -60,6 +61,8 @@ namespace Vocore.Engine
                 throw new Exception($"Can not find the include file: {includeName}");
             }));
             RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
+
+            _assetWatcher = new AssetWatcher(OnAssetChanged);
         }
 
         /// <summary>
@@ -74,6 +77,12 @@ namespace Vocore.Engine
             }
         }
 
+        /// <summary>
+        /// Register the asset loader to the asset manager
+        /// </summary>
+        /// <typeparam name="TAsset">The type of asset</typeparam>
+        /// <param name="assetLoader">The asset loader to register</param>
+        /// <exception cref="Exception">Thrown when the asset loader for the extension already exists</exception>
         public void RegisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
         {
             foreach (var extension in assetLoader.FileExtensions)
@@ -89,6 +98,11 @@ namespace Vocore.Engine
             _isEntryDirty = true;
         }
 
+        /// <summary>
+        /// Unregister the asset loader from the asset manager
+        /// </summary>
+        /// <typeparam name="TAsset">The type of asset</typeparam>
+        /// <param name="assetLoader">The asset loader to unregister</param>
         public void UnregisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
         {
             foreach (var extension in assetLoader.FileExtensions)
@@ -268,6 +282,12 @@ namespace Vocore.Engine
             _asyncLoadQueue.Push(job);
         }
 
+        /// <summary>
+        /// Try to load the raw data of the asset from the file source.
+        /// </summary>
+        /// <param name="filename">The filename of the asset.</param>
+        /// <param name="data">The raw data of the asset if it is loaded successfully; otherwise, <c>null</c>.</param>
+        /// <returns><c>True</c> if the asset is loaded successfully.</returns>
         public bool TryLoadRaw(string filename, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
         {
             CheckThread();
@@ -303,6 +323,17 @@ namespace Vocore.Engine
         public bool TryGetRedirect(string from, [NotNullWhen(true)] out string? to)
         {
             return _redirects.TryGetValue(from, out to);
+        }
+
+        public void DebugAddDirectorySourceAndWatch(DirectoryFileSource source)
+        {
+            AddFileSource(source);
+            _assetWatcher.Watch(source.DirectoryPath);
+        }
+
+        private void OnAssetChanged(string assetPath)
+        {
+
         }
 
         //on worker thread

@@ -13,7 +13,7 @@
 		},
 		"xml.format.preserveAttributeLineBreaks": false,
 		"files.associations": {
-			"*.glsli": "glsl"
+			"*.hlslinc": "hlsl"
 		}
 	}
 }
