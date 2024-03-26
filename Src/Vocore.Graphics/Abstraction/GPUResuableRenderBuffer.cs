@@ -83,11 +83,6 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
-    public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
-    {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while UpdateBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        PushConstantsCore(stage, bufferOffset, data, size);
-    }
 
 
     // polymorphism
@@ -104,18 +99,6 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
         SetIndexBuffer(buffer, format, 0, buffer.Size);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
-    {
-        PushConstants(stage, bufferOffset, (byte*)&data, (uint)Unsafe.SizeOf<T>());
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
-    {
-        PushConstants(stage, 0, data);
-    }
-
     // need to be implemented for each backend
     protected abstract void BeginCore();
     protected abstract void EndCore();
@@ -128,9 +111,4 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
     protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup);
-
-    /// <summary>
-    /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
-    /// </summary>
-    protected abstract unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
 }

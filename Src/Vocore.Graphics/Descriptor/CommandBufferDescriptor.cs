@@ -2,12 +2,10 @@ namespace Vocore.Graphics;
 
 public struct CommandBufferDescriptor
 {
-    public CommandBufferDescriptor(string name, bool isRenderCommandReuseable = false)
+    public CommandBufferDescriptor(string name)
     {
         Name = name;
-        IsRenderCommandReuseable = isRenderCommandReuseable;
     }
 
     public string Name { get; init; }
-    public bool IsRenderCommandReuseable { get; init; }
 }
