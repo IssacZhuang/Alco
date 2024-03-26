@@ -3,9 +3,12 @@ using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
+/// <summary>
+/// The loader for true type font file
+/// </summary>
 public class AssetLoaderFontTTF : BaseAssetLoader<Font, FontAtlasPacker>
 {
-    private static readonly string[] Extensions = new string[] { FileExt.TrueTypeFont };
+    private static readonly string[] Extensions = new string[] { FileExt.FontTrueType };
     public override string Name => "AssetLoader.Font.TTF";
 
     public override IReadOnlyList<string> FileExtensions => Extensions;

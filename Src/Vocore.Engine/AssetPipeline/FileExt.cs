@@ -38,6 +38,6 @@ public static class FileExt
     public const string Imported = ".imported";
 
     //font
-    public const string TrueTypeFont = ".ttf";
-    
+    public const string FontTrueType = ".ttf";
+
 }

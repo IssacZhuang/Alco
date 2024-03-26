@@ -89,88 +89,32 @@ public class TextRenderer : AutoDisposable
         char c;
         for (uint i = 0; i < drawCall; i++)
         {
+            uint offset = i * MaxTextInstancingCount;
             for (int j = 0; j < MaxTextInstancingCount; j++)
             {
-                c = str[i * MaxTextInstancingCount + j];
+                c = str[offset + j];
 
-                if (c == ' ')
-                {
-                    x += 0.5f;
-                    _textDataBuffer[j] = new TextData();
-                    continue;
-                }
-
-                if (c == '\n' || c == '\r')
-                {
-                    x = position.X;
-                    y += lineSpacing;
-                    _textDataBuffer[j] = new TextData();
-                    continue;
-                }
-
-                GlyphInfo glyph = font.GetGlyph(c);
-
-                TextData data = new TextData
-                {
-                    UVRect = glyph.UVRect,
-                    Color = color,
-                    Offset = new Vector2(x, y) + glyph.Offset,
-                    Size = glyph.Size
-                };
-
-                _textDataBuffer[j] = data;
-
-                x += glyph.Advance;
+                _textDataBuffer[j] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
             }
 
-            _command.Begin();
-            _command.SetFrameBuffer(_device.SwapChainFrameBuffer);
-            _command.SetGraphicsPipeline(_pipeline);
-            _command.SetVertexBuffer(0, _mesh.VertexBuffer);
-            _command.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.Uint16);
-            _command.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-            _command.SetGraphicsResources(1, font.Texture.EntrySample);
-            _command.SetGraphicsResources(2, _textDataBuffer.EntryReadonly);
-            _command.PushConstants(ShaderStage.Vertex, transform.Matrix);
-            _command.DrawIndexed((uint)Indices.Length, MaxTextInstancingCount, 0, 0, 0);
-            _command.End();
-            _device.Submit(_command);
+            DrawBuffer(font, MaxTextInstancingCount, transform);
         }
 
+
+        uint offset2 = drawCall * MaxTextInstancingCount;
         for (int j = 0; j < drawRemain; j++)
         {
-            c = str[drawCall * MaxTextInstancingCount + j];
+            c = str[offset2 + j];
 
-            if (c == ' ')
-            {
-                x += 0.5f;
-                _textDataBuffer[j] = new TextData();
-                continue;
-            }
-
-            if (c == '\n' || c == '\r')
-            {
-                x = position.X;
-                y += lineSpacing;
-                _textDataBuffer[j] = new TextData();
-                continue;
-            }
-
-            GlyphInfo glyph = font.GetGlyph(c);
-
-            TextData data = new TextData
-            {
-                UVRect = glyph.UVRect,
-                Color = color,
-                Offset = new Vector2(x, y) + glyph.Offset,
-                Size = glyph.Size
-            };
-
-            _textDataBuffer[j] = data;
-
-            x += glyph.Advance;
+            _textDataBuffer[j] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
         }
 
+        DrawBuffer(font, drawRemain, transform);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void DrawBuffer(Font font, uint drawCount, Transform2D transform)
+    {
         _command.Begin();
         _command.SetFrameBuffer(_device.SwapChainFrameBuffer);
         _command.SetGraphicsPipeline(_pipeline);
@@ -180,9 +124,37 @@ public class TextRenderer : AutoDisposable
         _command.SetGraphicsResources(1, font.Texture.EntrySample);
         _command.SetGraphicsResources(2, _textDataBuffer.EntryReadonly);
         _command.PushConstants(ShaderStage.Vertex, transform.Matrix);
-        _command.DrawIndexed((uint)Indices.Length, drawRemain, 0, 0, 0);
+        _command.DrawIndexed((uint)Indices.Length, drawCount, 0, 0, 0);
         _command.End();
         _device.Submit(_command);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static TextData GetTextData(char c, GlyphInfo glyph, Vector2 basePos, Vector4 color, float lineSpacing, ref float x, ref float y)
+    {
+        if (c == ' ')
+        {
+            x += 0.5f;
+            return new TextData();
+        }
+
+        if (c == '\n' || c == '\r')
+        {
+            x = basePos.X;
+            y += lineSpacing;
+            return new TextData();
+        }
+
+        TextData data = new TextData
+        {
+            UVRect = glyph.UVRect,
+            Color = color,
+            Offset = new Vector2(x, y) + glyph.Offset,
+            Size = glyph.Size
+        };
+
+        x += glyph.Advance;
+        return data;
     }
 
 
