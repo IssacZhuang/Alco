@@ -13,3 +13,7 @@ using (Game game = new Game(setting))
     game.RegisterPlugin<PluginRuntimeInfo>();
     game.Run();
 }
+
+GC.Collect();
+GC.WaitForFullGCComplete();
+AllocationTracker.CheckAllocated();

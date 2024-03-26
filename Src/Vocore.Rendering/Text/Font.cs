@@ -6,7 +6,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// A font atlas texture with unicode to glyph mapping.
 /// </summary>
-public unsafe class Font : IDisposable
+public unsafe class Font : AutoDisposable
 {
     private readonly Texture2D _texture;
     private readonly GlyphInfo[] _glyphs;
@@ -28,7 +28,7 @@ public unsafe class Font : IDisposable
         return _glyphs[c];
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
         _texture.Dispose();
     }

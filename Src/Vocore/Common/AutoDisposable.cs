@@ -3,6 +3,9 @@ using System.Threading;
 
 namespace Vocore;
 
+/// <summary>
+/// A base class for auto disposable objects. Usually used for objects that has complex life cycle.
+/// </summary> 
 public abstract class AutoDisposable : IDisposable
 {
 #if DEBUG 

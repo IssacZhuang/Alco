@@ -36,5 +36,8 @@ public static class FileExt
 
     //meta
     public const string Imported = ".imported";
+
+    //font
+    public const string TrueTypeFont = ".ttf";
     
 }

@@ -41,7 +41,7 @@ public unsafe class FontAtlasPacker : IDisposable
         stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, 1, null);
     }
 
-    public void Add(byte[] ttf, float fontSize, IEnumerable<int2> unicodeRanges)
+    public void Add(ReadOnlySpan<byte> ttf, float fontSize, IEnumerable<int2> unicodeRanges)
     {
         if (ttf == null)
         {
@@ -120,5 +120,6 @@ public unsafe class FontAtlasPacker : IDisposable
     {
         _bitmap.Dispose();
         stbtt_PackEnd(_context);
+        GC.SuppressFinalize(this);
     }
 }

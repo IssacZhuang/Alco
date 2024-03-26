@@ -125,5 +125,39 @@ namespace StbTrueTypeSharp
 
 			return true;
 		}
+
+		/// <summary>
+		///     Creates and initializes a font from ttf/otf/ttc data
+		/// </summary>
+		/// <param name="data"></param>
+		/// <param name="offset"></param>
+		/// <returns>null if the data was invalid</returns>
+		public static bool TryCreateFont(ReadOnlySpan<byte> data, int offset, out stbtt_fontinfo fontinfo)
+		{
+			var dataCopy = (byte*)CRuntime.malloc(data.Length);
+			// Marshal.Copy(data, 0, new IntPtr(dataCopy), data.Length);
+			fixed (byte* dataPtr = data)
+			{
+				CRuntime.memcpy(dataCopy, dataPtr, data.Length);
+			}
+
+			var info = new stbtt_fontinfo
+			{
+				isDataCopy = true
+			};
+
+			if (stbtt_InitFont_internal(info, dataCopy, offset) == 0)
+			{
+				info.Dispose();
+#pragma warning disable CS8625
+				fontinfo = null;
+#pragma warning restore CS8625
+				return false;
+			}
+
+			fontinfo = info;
+
+			return true;
+		}
 	}
 }

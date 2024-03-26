@@ -61,7 +61,7 @@ namespace Vocore.Engine
                 throw new Exception($"Can not find the include file: {includeName}");
             }));
             RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
-
+            RegisterAssetLoader(new AssetLoaderFontTTF());
             _assetWatcher = new AssetWatcher(OnAssetChanged);
         }
 
