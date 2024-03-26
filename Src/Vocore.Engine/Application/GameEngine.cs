@@ -127,6 +127,12 @@ namespace Vocore.Engine
             get => _input;
         }
 
+        public int FrameRate
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _profiler.FPS;
+        }
+
         #endregion
 
         public GameEngine() : this(GameEngineSetting.Default)
@@ -311,11 +317,10 @@ namespace Vocore.Engine
                 TryErrorStop();
             }
 
-            Assets.OnUpdate();
-
-            _graphics.EndFrame();
-
+            _assets.OnUpdate();
+            _profiler.Update(updateDeltaTime);
             _input.Reset();
+            _graphics.EndFrame();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

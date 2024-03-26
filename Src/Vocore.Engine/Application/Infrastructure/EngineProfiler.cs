@@ -9,6 +9,8 @@ namespace Vocore.Engine
     /// </summary>
     internal struct EngineProfiler
     {
+        private const float UpdateInterval = 0.5f;
+        private const float Mutiplier = 1.0f / UpdateInterval;
         private float _timer;
         private int _frameCount;
         private int _fps;
@@ -25,23 +27,22 @@ namespace Vocore.Engine
             _fps = 0;
         }
 
-        public void Initialize()
-        {
-            _timer = 0;
-            _frameCount = 0;
-            _fps = 0;
-        }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(float delta)
         {
             _timer += delta;
             _frameCount++;
-            if (_timer >= 1)
+            // if (_timer >= 1)
+            // {
+            //     _fps = _frameCount;
+            //     _timer -= 1;
+            //     _frameCount = 0;
+            // }
+            if (_timer >= UpdateInterval)
             {
-                _fps = _frameCount;
-                _timer -= 1;
+                _fps = (int)(_frameCount * Mutiplier);
+                _timer -= UpdateInterval;
                 _frameCount = 0;
             }
         }

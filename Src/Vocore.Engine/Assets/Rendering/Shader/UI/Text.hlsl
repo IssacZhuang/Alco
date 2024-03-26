@@ -53,9 +53,9 @@ PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input)
 {
-    //float4 position = float4(input.position + Positions[input.instanceId].xy, 0.0f, 1.0f);
-    float2 vertexPos = input.position * Data[input.instanceId].size;
-    float4 position = float4(vertexPos + Data[input.instanceId].offset, 0.0f, 1.0f);
+    TextData data = Data[input.instanceId];
+    float2 vertexPos = input.position * data.size;
+    float4 position = float4(vertexPos + data.offset, 0.0f, 1.0f);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
 
@@ -68,7 +68,8 @@ V2F vs_main(Vertex2D input)
 
 float4 fs_main(V2F input) : SV_TARGET
 {
-    float2 uv = input.uv * Data[input.instanceId].uvRect.zw + Data[input.instanceId].uvRect.xy;
+    TextData data = Data[input.instanceId];
+    float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
     float r = fontAtlas.Sample(fontAtlasSampler, uv).r;
-    return float4(r,r,r,r)* Data[input.instanceId].color;
+    return float4(r, r, r, r) * data.color;
 }

@@ -12,7 +12,7 @@ public class Game : GameEngine
     private Camera2D _camera;
 
     private GPUCommandBuffer _commandBuffer;
-    private GPUPipeline _textPipeline;
+    private Shader _shader;
     private TextRenderer _renderer;
 
     private Transform2D _transform1;
@@ -23,7 +23,15 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
-        _textPipeline = CreateTextPipeline();
+        Assets.AddFileSource(new DirectoryFileSource("Assets"));
+        if(Assets.TryLoad("Rendering/Shader/UI/Text.hlsl", out Shader? shader))
+        {
+            _shader = shader;
+        }
+        else
+        {
+            throw new Exception("Unable to load shader");
+        }
 
         _camera = new Camera2D();
 
@@ -33,7 +41,7 @@ public class Game : GameEngine
 
         _fontAtlas = CreateFontAtlas();
 
-        _renderer = new TextRenderer(GraphicsDevice, _textPipeline);
+        _renderer = new TextRenderer(GraphicsDevice, _shader.Pipeline);
         _renderer.Camera = _camera;
         Log.Info(_fontAtlas.GetGlyph('l'));
         Log.Info(_fontAtlas.GetGlyph('!'));
@@ -59,12 +67,8 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
+        _renderer.DrawString(_fontAtlas, FrameRate.ToString(), _fontSize, new Vector2(-310, 160), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_fontAtlas, "Hello World !!!", _fontSize, new Vector2(0, 0), TextAlign.Center, new Vector4(1, 1, 1, 1));
-        // DrawString("cn: 中文", new Vector2(0, _fontSize), new Vector4(1, 1, 1, 1), _fontSize);
-        // DrawString("jp: こんにちは", new Vector2(0, _fontSize * 2), new Vector4(1, 1, 1, 1), _fontSize);
-        // DrawString("kr: 안녕하세요", new Vector2(0, _fontSize * 3), new Vector4(1, 1, 1, 1), _fontSize);
-        // DrawString("ru: Привет", new Vector2(0, _fontSize * 4), new Vector4(1, 1, 1, 1), _fontSize);
-        // DrawString("gr: Γειά σας", new Vector2(0, _fontSize * 5), new Vector4(1, 1, 1, 1), _fontSize);
         _renderer.DrawString(_fontAtlas, "cn: 中文", _fontSize, new Vector2(0, _fontSize), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_fontAtlas, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_fontAtlas, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), TextAlign.Center, new Vector4(1, 1, 1, 1));
@@ -75,42 +79,6 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _commandBuffer.Dispose();
-    }
-
-    private GPUPipeline CreateTextPipeline()
-    {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("DrawText.hlsl"));
-        ShaderStageSource vertSource = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        ShaderStageSource fragSource = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
-
-        ShaderReflectionInfo info = UtilsShaderRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
-
-        GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
-        for (int i = 0; i < info.BindGroups.Length; i++)
-        {
-            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor());
-        }
-
-        Log.Info(info);
-
-        RasterizerState rasterizer = RasterizerState.CullNone;
-        BlendState blend = BlendState.NonPremultipliedAlpha;
-        DepthStencilState depthStencil = DepthStencilState.Default;
-
-        GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
-            bindGroups,
-            new ShaderStageSource[] { vertSource, fragSource },
-            info.VertexLayouts,
-            rasterizer,
-            blend,
-            depthStencil,
-            new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
-            GraphicsDevice.PrefferedDepthStencilFormat,
-            info.PushConstantsRanges,
-            "text_pipline"
-        );
-
-        return GraphicsDevice.CreateGraphicsPipeline(descriptor);
     }
 
     private static Font CreateFontAtlas()
@@ -142,14 +110,5 @@ public class Game : GameEngine
     private static byte[] LoadFile(string path)
     {
         return File.ReadAllBytes(Path.Combine("Assets", path));
-    }
-
-    private static void DebugSaveFile(string path, byte[] data)
-    {
-        if (!Directory.Exists(".Debug"))
-        {
-            Directory.CreateDirectory(".Debug");
-        }
-        File.WriteAllBytes(Path.Combine(".Debug", path), data);
     }
 }

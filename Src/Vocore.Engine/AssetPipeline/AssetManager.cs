@@ -558,10 +558,6 @@ namespace Vocore.Engine
             _strongCache[filename] = asset;
         }
 
-        private string ParseEntry(string entry)
-        {
-            return entry.Replace('/', '\\');
-        }
 
         private void UpdateRecongizedExtensions(bool forced = false)
         {
@@ -598,11 +594,18 @@ namespace Vocore.Engine
 
                     if (_recongizedExtensions.Contains(extension))
                     {
-                        _fileEntries.Add(file, fileSource);
+                        Log.Info($"Add file entry: {file}");
+                        _fileEntries.Add(ParseEntry(file), fileSource);
                     }
                 }
             }
             _isEntryDirty = false;
         }
+
+        private static string ParseEntry(string entry)
+        {
+            return entry.Replace('\\', '/');
+        }
+
     }
 }
