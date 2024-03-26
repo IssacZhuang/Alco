@@ -32,8 +32,9 @@ public class TextRenderer : AutoDisposable
     private readonly NativeBuffer<TextData> _textDataBuffer;
     private readonly GraphicsArrayBuffer<TextData> _textDataBUfferGPU;
     private readonly GraphicsBuffer<Matrix4x4> _cameraBuffer;
+    private readonly GraphicsBuffer<Matrix4x4> _positionBuffer;
 
-    private readonly GPUCommandBuffer _command;
+    private readonly GPUResuableRenderBuffer _command;
     private readonly int _threadId;
 
     private Camera2D _camera;
@@ -56,10 +57,12 @@ public class TextRenderer : AutoDisposable
     {
         _device = device;
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
+        _positionBuffer = new GraphicsBuffer<Matrix4x4>("position_buffer");
         _textDataBUfferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
+        
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
         _pipeline = textPipeline;
-        _command = _device.CreateCommandBuffer();
+        _command = _device.CreateResuableRenderBuffer();
         _threadId = Environment.CurrentManagedThreadId;
         _textDataBuffer = new NativeBuffer<TextData>(MaxTextInstancingCount);
     }
@@ -123,6 +126,7 @@ public class TextRenderer : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawBuffer(Font font, uint drawCount, Transform2D transform)
     {
+        _positionBuffer.Value = transform.Matrix;
         _command.Begin();
         _command.SetFrameBuffer(_device.SwapChainFrameBuffer);
         _command.SetGraphicsPipeline(_pipeline);
@@ -131,7 +135,7 @@ public class TextRenderer : AutoDisposable
         _command.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
         _command.SetGraphicsResources(1, font.Texture.EntrySample);
         _command.SetGraphicsResources(2, _textDataBUfferGPU.EntryReadonly);
-        _command.PushConstants(ShaderStage.Vertex, transform.Matrix);
+        _command.SetGraphicsResources(3, _positionBuffer.EntryReadonly);
         _command.DrawIndexed((uint)Indices.Length, drawCount, 0, 0, 0);
         _command.End();
         _device.Submit(_command);
@@ -180,6 +184,7 @@ public class TextRenderer : AutoDisposable
     protected override void Dispose(bool disposing)
     {
         _cameraBuffer.Dispose();
+        _positionBuffer.Dispose();
         _textDataBuffer.Dispose();
         _textDataBUfferGPU.Dispose();
         _mesh.Dispose();

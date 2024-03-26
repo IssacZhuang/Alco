@@ -132,6 +132,13 @@ internal partial class WebGPUDevice : GPUDevice
         _hasCommandSubmitted = true;
     }
 
+    protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
+    {
+        WebGPUResuableRenderBuffer buffer = (WebGPUResuableRenderBuffer)renderBuffer;
+        buffer.ExecuteBundle(Queue);
+        _hasCommandSubmitted = true;
+    }
+
     protected override void Dispose(bool disposing)
     {
         _surfaceFrameBuffer.Dispose();
@@ -166,6 +173,11 @@ internal partial class WebGPUDevice : GPUDevice
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
         return new WebGPUCommandBuffer(Native, descriptor);
+    }
+
+    protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    {
+        return new WebGPUResuableRenderBuffer(Native, descriptor);
     }
 
     protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)
@@ -217,6 +229,11 @@ internal partial class WebGPUDevice : GPUDevice
     protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
     {
         commandBuffer.Dispose();
+    }
+
+    protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
+    {
+        renderBuffer.Dispose();
     }
 
     protected override void DestroyTextureCore(GPUTexture texture)
@@ -708,8 +725,6 @@ internal partial class WebGPUDevice : GPUDevice
                 break;
         }
     }
-
-    
 
     #endregion
 }

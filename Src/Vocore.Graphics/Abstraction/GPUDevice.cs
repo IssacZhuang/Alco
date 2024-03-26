@@ -176,6 +176,25 @@ public abstract class GPUDevice : BaseGPUObject
     }
 
     /// <summary>
+    /// Creates a GPU resuable render buffer with the descriptor.
+    /// </summary>
+    /// <param name="descriptor">The descriptor for the GPU resuable render buffer.</param>
+    /// <returns>The created GPU resuable render buffer.</returns>
+    public GPUResuableRenderBuffer CreateResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor = null)
+    {
+        return CreateResuableRenderBufferCore(descriptor);
+    }
+
+    /// <summary>
+    /// Destroys the GPU resuable render buffer.
+    /// </summary>
+    /// <param name="renderBuffer">The GPU resuable render buffer to destroy.</param>
+    public void DestroyResuableRenderBuffer(GPUResuableRenderBuffer renderBuffer)
+    {
+        DestroyResuableRenderBufferCore(renderBuffer);
+    }
+
+    /// <summary>
     /// Creates a GPU render pass with the descriptor.
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU render pass.</param>
@@ -336,6 +355,20 @@ public abstract class GPUDevice : BaseGPUObject
     }
 
     /// <summary>
+    /// Submits the GPU resuable render buffer to the GPU for execution.
+    /// </summary>
+    /// <param name="commandBuffer">The GPU resuable render buffer to submit.</param>
+    public void Submit(GPUResuableRenderBuffer commandBuffer)
+    {
+        if (!commandBuffer.HasBuffer)
+        {
+            throw new GraphicsException($"Reuseable render buffer:{commandBuffer.Name} is empty, try use GPUResuableRenderBuffer.Begin() and GPUResuableRenderBuffer.End() to record commands.");
+        }
+
+        SubmitCore(commandBuffer);
+    }
+
+    /// <summary>
     /// Swaps the front and back buffers of the surface swap chain.
     /// </summary>
     public void SwapBuffers()
@@ -461,6 +494,11 @@ public abstract class GPUDevice : BaseGPUObject
     protected abstract void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer);
 
     /// <exclude />
+    protected abstract GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor);
+    /// <exclude />
+    protected abstract void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer);
+
+    /// <exclude />
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
     /// <exclude />
     protected abstract void DestroyRenderPassCore(GPURenderPass renderPass);
@@ -500,6 +538,9 @@ public abstract class GPUDevice : BaseGPUObject
 
     /// <exclude />
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
+    
+    /// <exclude />
+    protected abstract void SubmitCore(GPUResuableRenderBuffer renderBuffer);
 
     /// <exclude />
     protected abstract void SwapBuffersCore();

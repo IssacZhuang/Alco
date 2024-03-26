@@ -50,7 +50,17 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
     protected unsafe override void BeginCore()
     {
         ReleaseRenderBunleEncoder();
-        _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, null);
+        WGPUTextureFormat color = WGPUTextureFormat.BGRA8UnormSrgb;
+
+        WGPURenderBundleEncoderDescriptor descriptor = new WGPURenderBundleEncoderDescriptor
+        {
+            label = _nativeName,
+            colorFormatCount = 1,
+            colorFormats = &color,
+            depthStencilFormat = WGPUTextureFormat.Depth24PlusStencil8,
+            sampleCount = 1,
+        };
+        _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);
     }
 
     // end the encoder
@@ -62,7 +72,7 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
             label = _nativeName
         };
         _bundle = wgpuRenderBundleEncoderFinish(_renderBundleEncoder, &descriptor);
-        
+        ReleaseRenderBunleEncoder();
         _graphicsPipeline = WGPURenderPipeline.Null;
 
     }
@@ -147,7 +157,7 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
 
     #region WebGPU Implementation
 
-    public unsafe WebGPUResuableRenderBuffer(WGPUDevice nativeDevice, CommandBufferDescriptor? descriptor = null)
+    public unsafe WebGPUResuableRenderBuffer(WGPUDevice nativeDevice, ResuableRenderBufferDescriptor? descriptor = null)
     {
 
         _nativeDevice = nativeDevice;
@@ -159,8 +169,6 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
         {
             Name = "unnamed_command_buffer";
         }
-
-        _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(nativeDevice, null);
 
         ReadOnlySpan<sbyte> nameSpan = Name.GetUtf8Span();
         fixed (sbyte* ptr = nameSpan)
@@ -192,7 +200,7 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
     }
 
 
-    internal void DrawBundle(WGPUQueue queue)
+    internal void ExecuteBundle(WGPUQueue queue)
     {
         if (_bundle == WGPURenderBundle.Null)
         {

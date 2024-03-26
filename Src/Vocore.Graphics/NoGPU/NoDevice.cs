@@ -10,6 +10,7 @@ internal class NoDevice : GPUDevice
     private static readonly NoBindGroup noBindGroup = new NoBindGroup();
     private static readonly NoBuffer noBuffer = new NoBuffer();
     private static readonly NoCommandBuffer noCommandBuffer = new NoCommandBuffer();
+    private static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
     private static readonly NoPipeline noPipeline = new NoPipeline();
     private static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
 
@@ -82,6 +83,11 @@ internal class NoDevice : GPUDevice
         return noResourceGroup;
     }
 
+    protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    {
+        return noResuableRenderBuffer;
+    }
+
     protected override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
     {
         return noSampler;
@@ -132,6 +138,11 @@ internal class NoDevice : GPUDevice
         
     }
 
+    protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
+    {
+        
+    }
+
     protected override void DestroySamplerCore(GPUSampler sampler)
     {
         
@@ -158,6 +169,11 @@ internal class NoDevice : GPUDevice
     }
 
     protected override void SubmitCore(GPUCommandBuffer commandBuffer)
+    {
+        
+    }
+
+    protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
     {
         
     }
