@@ -77,7 +77,7 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
-        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-310, 160), TextAlign.Center, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), TextAlign.Center, 0xff6666);
         _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), TextAlign.Center, new Vector4(1, 1, 1, 1));
