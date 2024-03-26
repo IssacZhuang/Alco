@@ -327,13 +327,14 @@ namespace Vocore.Engine
 
         public void DebugAddDirectorySourceAndWatch(DirectoryFileSource source)
         {
+            Log.Info($"Add watcher for {source.DirectoryPath}");
             AddFileSource(source);
             _assetWatcher.Watch(source.DirectoryPath);
         }
 
         private void OnAssetChanged(string assetPath)
         {
-
+            Log.Info($"Asset changed: {assetPath}");
         }
 
         //on worker thread
@@ -512,6 +513,8 @@ namespace Vocore.Engine
                     return;
                 }
             }
+
+            _assetWatcher.Update();
 
         }
 

@@ -22,7 +22,8 @@ internal class AssetWatcher : IDisposable
         {
             Path = path,
             NotifyFilter = NotifyFilters.LastWrite,
-            Filter = "*.*"
+            Filter = "*.*",
+            IncludeSubdirectories = true
         };
 
 
