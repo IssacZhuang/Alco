@@ -108,12 +108,13 @@ public class Game : GameEngine
 
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
+
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-
         _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
         _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
+        
         _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
 

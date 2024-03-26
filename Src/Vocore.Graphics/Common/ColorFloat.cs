@@ -77,6 +77,7 @@ public struct ColorFloat
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(Vector4 color) => new ColorFloat { value = color };
 
+    // convet hex color in 8 digit to ColorFloat (rgba)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(uint color)
     {
@@ -85,6 +86,18 @@ public struct ColorFloat
             (color & 0x00FF0000) >> 16,
             (color & 0x0000FF00) >> 8,
             color & 0x000000FF
+        );
+    }
+
+    // convet hex color in 6 digit to ColorFloat (rgb with a = 1)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator ColorFloat(int color)
+    {
+        return invMaxByteVec4 * new Vector4(
+            (color & 0xFF0000) >> 16,
+            (color & 0x00FF00) >> 8,
+            color & 0x0000FF,
+            255
         );
     }
 

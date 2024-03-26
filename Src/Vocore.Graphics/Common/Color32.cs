@@ -32,9 +32,16 @@ public struct Color32
         return (uint)(color.R << 24 | color.G << 16 | color.B << 8 | color.A);
     }
 
+    // convet hex color in 8 digit to ColorFloat (rgba)
     public static implicit operator Color32(uint color)
     {
         return new Color32((byte)(color >> 24), (byte)(color >> 16), (byte)(color >> 8), (byte)color);
+    }
+
+    // convet hex color in 6 digit to ColorFloat (rgb with a = 1)
+    public static implicit operator Color32(int color)
+    {
+        return new Color32((byte)(color >> 16), (byte)(color >> 8), (byte)color);
     }
 
     // + - * /
