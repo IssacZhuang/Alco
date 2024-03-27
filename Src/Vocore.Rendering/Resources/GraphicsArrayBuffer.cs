@@ -82,6 +82,16 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void UpdateBufferRanged(uint start, uint count)
+    {
+        if (_isDirty)
+        {
+            _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer + start * (uint)sizeof(T), count * (uint)sizeof(T));
+            _isDirty = false;
+        }
+    }
+
     private GPUResourceGroup CreateResourceReadonly()
     {
         return _device.CreateResourceGroup(new ResourceGroupDescriptor

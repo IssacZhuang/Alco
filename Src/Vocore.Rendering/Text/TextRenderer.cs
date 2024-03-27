@@ -148,7 +148,7 @@ public class TextRenderer : AutoDisposable
         _indirectBuffer.UpdateBuffer();
         _positionBuffer.UpdateBuffer();
         _cameraBuffer.UpdateBuffer();
-        _textDataBUfferGPU.UpdateBuffer();
+        _textDataBUfferGPU.UpdateBufferRanged(0, drawCount);
         _device.Submit(_command);
     }
 

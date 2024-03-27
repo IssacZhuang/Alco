@@ -77,8 +77,8 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
-
-        _renderer.DrawString(FrameRate.ToString(), _fontSize, new Vector2(-320, -180), TextAlign.Center, new Vector4(1, 1, 1, 1));
+        Log.Info(FrameRate);
+       // _renderer.DrawString(FrameRate.ToString(), _fontSize, new Vector2(-320, -180), TextAlign.Center, new Vector4(1, 1, 1, 1));
         int drawCall = 400;
         for (int i = 0; i < drawCall; i++)
         {
