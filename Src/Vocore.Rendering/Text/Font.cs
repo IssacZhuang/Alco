@@ -6,20 +6,12 @@ namespace Vocore.Rendering;
 /// <summary>
 /// A font atlas texture with unicode to glyph mapping.
 /// </summary>
-public unsafe class Font : AutoDisposable
+public unsafe class Font : Texture2D
 {
-    private readonly Texture2D _texture;
     private readonly GlyphInfo[] _glyphs;
 
-    public Texture2D Texture
+    internal Font(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler, GlyphInfo[] glyphs) : base(device, texture, textureView, sampler)
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _texture;
-    }
-    internal Font(MemoryRef<byte> bitmap, int width, int height, GlyphInfo[] glyphs)
-    {
-        _texture = Texture2D.CreateByFormat((uint)width, (uint)height, PixelFormat.R8Unorm, 1);
-        _texture.SetPixels(bitmap.Pointer, bitmap.Length, 1);
         _glyphs = glyphs;
     }
 
@@ -28,8 +20,47 @@ public unsafe class Font : AutoDisposable
         return _glyphs[c];
     }
 
+    public static Font CreateFont(MemoryRef<byte> bitmap, int width, int height, GlyphInfo[] glyphs, string name = "font")
+    {
+        GPUDevice device = GetDevice();
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            PixelFormat.R8Unorm,
+            (uint)width,
+            (uint)height,
+            1,
+            1,
+            TextureUsage.Standard,
+            1,
+            name
+        );
+
+        GPUTexture texture = device.CreateTexture(textureDescriptor);
+
+        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
+            texture,
+            TextureViewDimension.Texture2D
+        );
+
+        textureDescriptor.Name = name;
+
+        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
+
+        Font font =new Font(
+            device,
+            texture,
+            textureView,
+            device.SamplerLinearClamp,
+            glyphs
+        );
+
+        font.SetPixels(bitmap.Pointer, bitmap.Length, 1);
+
+        return font;
+    }
+
     protected override void Dispose(bool disposing)
     {
-        _texture.Dispose();
+        base.Dispose();
     }
 }

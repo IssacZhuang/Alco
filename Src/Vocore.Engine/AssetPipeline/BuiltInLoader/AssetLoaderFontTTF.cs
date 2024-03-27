@@ -52,7 +52,7 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font, FontAtlasPacker>
     {
         try
         {
-            asset = preprocessed.Build();
+            asset = preprocessed.Build(filename);
             return true;
         }
         catch (Exception)

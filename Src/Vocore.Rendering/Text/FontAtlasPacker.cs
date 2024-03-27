@@ -111,9 +111,9 @@ public unsafe class FontAtlasPacker : IDisposable
         }
     }
 
-    public Font Build()
+    public Font Build(string name = "font")
     {
-        return new Font(_bitmap.MemoryRef, _width, _height, _glyphs);
+        return Font.CreateFont(_bitmap.MemoryRef, _width, _height, _glyphs);
     }
 
     public void Dispose()

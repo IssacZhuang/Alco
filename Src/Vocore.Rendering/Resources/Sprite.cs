@@ -1,0 +1,2 @@
+namespace Vocore.Rendering;
+
