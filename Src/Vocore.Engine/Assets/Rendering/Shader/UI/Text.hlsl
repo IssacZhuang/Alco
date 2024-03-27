@@ -3,7 +3,7 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
-#define MAX_INSTANCE_COUNT 200
+#define MAX_INSTANCE_COUNT 300
 
 struct Vertex2D
 {
@@ -49,20 +49,20 @@ cbuffer TextBuffer
     TextData Data[MAX_INSTANCE_COUNT];
 }
 
-SLOT(3, 0)
-cbuffer ViewProjection
-{
-    float4x4 transform;
-};
+// SLOT(3, 0)
+// cbuffer ViewProjection
+// {
+//     float4x4 transform;
+// };
 
-//PUSH_CONSTANT Constants constants;
+PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input)
 {
     TextData data = Data[input.instanceId];
     float2 vertexPos = input.position * data.size;
     float4 position = float4(vertexPos + data.offset, 0.0f, 1.0f);
-    position = mul(transform, position);
+    position = mul(constants.model, position);
     position = mul(viewProjection, position);
 
     V2F output = (V2F)0;
