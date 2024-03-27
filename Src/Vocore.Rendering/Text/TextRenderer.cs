@@ -33,6 +33,7 @@ public class TextRenderer : AutoDisposable
     private readonly GraphicsArrayBuffer<TextData> _textDataBUfferGPU;
     private readonly GraphicsBuffer<Matrix4x4> _cameraBuffer;
     private readonly GraphicsBuffer<Matrix4x4> _positionBuffer;
+    private readonly GraphicsBuffer<IndexedIndirectData> _indirectBuffer;
     private readonly Font _font;
 
     private readonly GPUResuableRenderBuffer _command;
@@ -59,6 +60,7 @@ public class TextRenderer : AutoDisposable
         _device = device;
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
         _positionBuffer = new GraphicsBuffer<Matrix4x4>("position_buffer");
+        _indirectBuffer = new GraphicsBuffer<IndexedIndirectData>("indirect_buffer");
         _textDataBUfferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
         
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
@@ -76,7 +78,7 @@ public class TextRenderer : AutoDisposable
         _command.SetGraphicsResources(1, font.Texture.EntrySample);
         _command.SetGraphicsResources(2, _textDataBUfferGPU.EntryReadonly);
         _command.SetGraphicsResources(3, _positionBuffer.EntryReadonly);
-        _command.DrawIndexed((uint)Indices.Length, MaxTextInstancingCount, 0, 0, 0);
+        _command.DrawIndexedIndirect(_indirectBuffer.Buffer, 0);
         _command.End();
         //prepare resuable buffer
 
@@ -142,6 +144,8 @@ public class TextRenderer : AutoDisposable
     private void DrawBuffer(Font font, uint drawCount, Transform2D transform)
     {
         _positionBuffer.Value = transform.Matrix;
+        _indirectBuffer.Value = new IndexedIndirectData(_mesh.IndexCount, drawCount, 1, 0, 0);
+        _indirectBuffer.UpdateBuffer();
         _positionBuffer.UpdateBuffer();
         _cameraBuffer.UpdateBuffer();
         _textDataBUfferGPU.UpdateBuffer();

@@ -50,6 +50,12 @@ public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
         }
     }
 
+    public GPUBuffer Buffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _buffer;
+    }
+
     public unsafe GraphicsBuffer(string name = "unnamed_graphics_buffer") : this(default, name)
     {
     }
@@ -62,7 +68,7 @@ public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
             {
                 Name = name,
                 Size = (ulong)sizeof(T),
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.Storage,
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.Storage | BufferUsage.Indirect,
             }
         );
 
