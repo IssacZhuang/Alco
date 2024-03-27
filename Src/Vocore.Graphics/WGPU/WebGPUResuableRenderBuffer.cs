@@ -47,17 +47,25 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
     }
 
     // begin the encoder
-    protected unsafe override void BeginCore()
+    protected unsafe override void BeginCore(GPUFrameBuffer frameBuffer)
     {
         ReleaseRenderBunleEncoder();
-        WGPUTextureFormat color = WGPUTextureFormat.BGRA8UnormSrgb;
+        _frameBuffer = (WebGPUFrameBufferBase)frameBuffer;
+
+        int colorCount = _frameBuffer.NativeColorFormats.Count;
+        WGPUTextureFormat* colors = stackalloc WGPUTextureFormat[colorCount];
+        for (int i = 0; i < colorCount; i++)
+        {
+
+            colors[i] = _frameBuffer.NativeColorFormats[i];
+        }
 
         WGPURenderBundleEncoderDescriptor descriptor = new WGPURenderBundleEncoderDescriptor
         {
             label = _nativeName,
-            colorFormatCount = 1,
-            colorFormats = &color,
-            depthStencilFormat = WGPUTextureFormat.Depth24PlusStencil8,
+            colorFormatCount = (nuint)colorCount,
+            colorFormats = colors,
+            depthStencilFormat = _frameBuffer.NativeDepthFormat.HasValue? _frameBuffer.NativeDepthFormat.Value : WGPUTextureFormat.Undefined,
             sampleCount = 1,
         };
         _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);
@@ -75,12 +83,6 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
         ReleaseRenderBunleEncoder();
         _graphicsPipeline = WGPURenderPipeline.Null;
 
-    }
-
-    protected override unsafe void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
-    {
-        WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
-        _frameBuffer = nativeFrameBuffer;
     }
 
 
@@ -218,6 +220,7 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
         
         WGPURenderBundle bundle = _bundle;
         wgpuRenderPassEncoderExecuteBundles(renderPass, 1, &bundle);
+        wgpuRenderPassEncoderEnd(renderPass);
         WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(encoder, null);
         wgpuQueueSubmit(queue, 1, &buffer);
 

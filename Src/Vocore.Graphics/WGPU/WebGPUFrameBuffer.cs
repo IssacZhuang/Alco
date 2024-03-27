@@ -21,6 +21,9 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
     private readonly WGPURenderPassColorAttachment* _colorAttachments;
     private readonly WGPURenderPassDepthStencilAttachment* _depthAttachment;
 
+    private readonly WGPUTextureFormat[] _colors;
+    private readonly WGPUTextureFormat? _depth;
+
     #endregion
 
     #region Abstract Implementation
@@ -94,6 +97,17 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _descriptor;
     }
 
+    public override IReadOnlyList<WGPUTextureFormat> NativeColorFormats
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colors;
+    }
+    public override WGPUTextureFormat? NativeDepthFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depth;
+    }
+
     internal WebGPUFrameBuffer(WebGPURenderPass renderPass, uint width, uint height, string name)
     {
         Name = name;
@@ -158,7 +172,16 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _descriptor.colorAttachments = _colorAttachments;
         _descriptor.depthStencilAttachment = _depthAttachment;
 
+        _colors = new WGPUTextureFormat[renderPass.WebGPUColorInfos.Count];
+        for (int i = 0; i < renderPass.WebGPUColorInfos.Count; i++)
+        {
+            _colors[i] = renderPass.WebGPUColorInfos[i].format;
+        }
 
+        if (renderPass.WebGPUDepthInfo.HasValue)
+        {
+            _depth = renderPass.WebGPUDepthInfo.Value.format;
+        }
     }
 
     private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height)

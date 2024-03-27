@@ -6,7 +6,7 @@ internal class NoResuableRenderBuffer : GPUResuableRenderBuffer
 
     public override string Name => "no_gpu_reusable_render_buffer";
 
-    protected override void BeginCore()
+    protected override void BeginCore(GPUFrameBuffer frameBuffer)
     {
         
     }
@@ -37,11 +37,6 @@ internal class NoResuableRenderBuffer : GPUResuableRenderBuffer
     }
 
     protected override void EndCore()
-    {
-        
-    }
-
-    protected override void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         
     }

@@ -17,6 +17,9 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private WebGPUTexture? _depthTexture;
     private WGPUTextureView _depthView = WGPUTextureView.Null;
 
+    private readonly WGPUTextureFormat[] _colors;
+    private readonly WGPUTextureFormat? _depth;
+
 
     // native memory, need to be manually released
     private readonly WGPURenderPassColorAttachment* _colorAttachments;
@@ -93,6 +96,19 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor;
     }
+
+    public override IReadOnlyList<WGPUTextureFormat> NativeColorFormats
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colors;
+    }
+
+    public override WGPUTextureFormat? NativeDepthFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depth;
+    }
+
     internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config)
     {
         Name = "swapchain_frameBuffer";
@@ -159,6 +175,14 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             };
 
             _descriptor.depthStencilAttachment = _depthAttachment;
+        }
+
+        _colors = new WGPUTextureFormat[1];
+        _colors[0] = colorInfo.format;
+
+        if (renderPass.WebGPUDepthInfo.HasValue)
+        {
+            _depth = renderPass.WebGPUDepthInfo.Value.format;
         }
     }
 

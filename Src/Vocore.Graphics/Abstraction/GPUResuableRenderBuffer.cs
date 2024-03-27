@@ -13,11 +13,11 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
         get => _isRecording;
     }
 
-    public void Begin()
+    public void Begin(GPUFrameBuffer frameBuffer)
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
-        BeginCore();
+        BeginCore(frameBuffer);
     }
 
     public void End()
@@ -28,12 +28,6 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
     }
 
     //graphics
-
-    public void SetFrameBuffer(GPUFrameBuffer frameBuffer)
-    {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetFrameBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        SetFrameBufferCore(frameBuffer);
-    }
 
     public void SetGraphicsPipeline(GPUPipeline pipeline)
     {
@@ -100,9 +94,8 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
     }
 
     // need to be implemented for each backend
-    protected abstract void BeginCore();
+    protected abstract void BeginCore(GPUFrameBuffer frameBuffer);
     protected abstract void EndCore();
-    protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);

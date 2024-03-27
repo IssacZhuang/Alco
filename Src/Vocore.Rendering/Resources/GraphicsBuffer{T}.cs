@@ -74,7 +74,7 @@ public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void UpdateBuffer()
+    public void UpdateBuffer()
     {
         if (_dirty)
         {

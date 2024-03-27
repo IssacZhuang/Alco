@@ -73,7 +73,7 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe void UpdateBuffer()
+    public unsafe void UpdateBuffer()
     {
         if (_isDirty)
         {
