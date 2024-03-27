@@ -6,8 +6,14 @@ namespace Vocore.Rendering;
 /// <summary>
 /// A font atlas texture with unicode to glyph mapping.
 /// </summary>
-public unsafe class Font : Texture2D
+public unsafe class Font : Texture
 {
+    public override bool IsReadOnly
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => true;
+    }
+
     private readonly GlyphInfo[] _glyphs;
 
     internal Font(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler, GlyphInfo[] glyphs) : base(device, texture, textureView, sampler)
@@ -45,18 +51,15 @@ public unsafe class Font : Texture2D
         textureDescriptor.Name = name;
 
         GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
+        device.WriteTexture(texture, bitmap.Pointer, bitmap.Length, 1);
 
-        Font font =new Font(
+        return new Font(
             device,
             texture,
             textureView,
             device.SamplerLinearClamp,
             glyphs
-        );
-
-        font.SetPixels(bitmap.Pointer, bitmap.Length, 1);
-
-        return font;
+        ); 
     }
 
     protected override void Dispose(bool disposing)
