@@ -8,7 +8,7 @@
 #define SLOT(set, bind) [[vk::binding(bind, set)]] // layout(binding = bind, set = set) in GLSL
 
 #define DEFINE_STRUCT(index, name) SLOT(index, 0) cbuffer name
-#define DEFINE_TEX2D_SAMPLE(index, name) SLOT(index, 0) Texture2D name; SamplerState name##Sampler
+#define DEFINE_TEX2D_SAMPLE(index, name) SLOT(index, 0) Texture2D name; SLOT(index, 1) SamplerState name##Sampler
 #define DEFINE_TEX2D_WRITE(index, name) SLOT(index, 0) WRITE_ONLY Texture2D name
 #define DEFINE_TEX2D_READ(index, name) SLOT(index, 0) READ_ONLY Texture2D name
 

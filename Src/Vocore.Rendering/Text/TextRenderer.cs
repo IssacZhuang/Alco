@@ -32,7 +32,6 @@ public class TextRenderer : AutoDisposable
     private readonly NativeBuffer<TextData> _textDataBuffer;
     private readonly GraphicsArrayBuffer<TextData> _textDataBUfferGPU;
     private readonly GraphicsBuffer<Matrix4x4> _cameraBuffer;
-    private readonly GraphicsBuffer<IndexedIndirectData> _indirectBuffer;
 
     private readonly GPUCommandBuffer _command;
     private readonly int _threadId;
@@ -61,7 +60,6 @@ public class TextRenderer : AutoDisposable
     {
         _device = device;
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
-        _indirectBuffer = new GraphicsBuffer<IndexedIndirectData>("indirect_buffer");
         _textDataBUfferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
         
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
@@ -76,8 +74,6 @@ public class TextRenderer : AutoDisposable
         _shaderId_camera = _shader.GetResourceId("_camera");
         _shaderId_textBuffer = _shader.GetResourceId("_textBuffer");
         _shaderId_font = _shader.GetResourceId("_font");
-
-        Log.Info(_shaderId_camera, _shaderId_font, _shaderId_textBuffer);
     }
 
     public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
@@ -139,8 +135,6 @@ public class TextRenderer : AutoDisposable
     //[MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawBuffer(Font font, uint drawCount, Transform2D transform)
     {
-        _indirectBuffer.Value = new IndexedIndirectData(_mesh.IndexCount, drawCount, 1, 0, 0);
-        _indirectBuffer.UpdateBuffer();
         _cameraBuffer.UpdateBuffer();
         _textDataBUfferGPU.UpdateBufferRanged(0, drawCount);
 
@@ -153,7 +147,7 @@ public class TextRenderer : AutoDisposable
         _command.SetGraphicsResources(_shaderId_textBuffer, _textDataBUfferGPU.EntryReadonly);
         _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
         _command.PushConstants(ShaderStage.Vertex, 0, transform.Matrix);
-        _command.DrawIndexedIndirect(_indirectBuffer.Buffer, 0);
+        _command.DrawIndexed(_mesh.IndexCount, drawCount, 0, 0, 0);
         _command.End();
         _device.Submit(_command);
     }
