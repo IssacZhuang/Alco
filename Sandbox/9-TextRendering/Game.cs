@@ -51,7 +51,7 @@ public class Game : GameEngine
         _transform1 = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One * 9);
 
 
-        _renderer = new TextRenderer(GraphicsDevice, _shader.Pipeline);
+        _renderer = new TextRenderer(GraphicsDevice, _shader);
         _renderer.Camera = _camera;
         Log.Info(_font.GetGlyph('l'));
         Log.Info(_font.GetGlyph('!'));

@@ -26,7 +26,15 @@ public static class ShaderCompilerDxc
         if (result.GetStatus().Failure)
         {
             DxcResultCode dxcResult = DxcResultCode.GetDxcResult(result.GetStatus().Code);
-            throw new ShaderCompilationException($"{dxcResult}  Message: {result.GetErrors()}");
+            if (dxcResult.Code != DxcResultCode.Unknown.Code)
+            {
+                throw new ShaderCompilationException($"{dxcResult}  Message: {result.GetErrors()}");
+            }
+            else
+            {
+                throw new ShaderCompilationException(result.GetErrors());
+            }
+
         }
 
         return result.GetObjectBytecodeArray();

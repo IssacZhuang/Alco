@@ -33,27 +33,22 @@ struct TextData{
 
 
 SLOT(0, 0)
-cbuffer ViewProjection
+cbuffer _camera
 {
     float4x4 viewProjection;
 };
 
 SLOT(1, 0)
-Texture2D fontAtlas;
+Texture2D _font;
 SLOT(1, 1)
-SamplerState fontAtlasSampler;
+SamplerState _fontSampler;
 
 SLOT(2, 0)
-cbuffer TextBuffer
+cbuffer _textBuffer
 {
     TextData Data[MAX_INSTANCE_COUNT];
 }
 
-// SLOT(3, 0)
-// cbuffer ViewProjection
-// {
-//     float4x4 transform;
-// };
 
 PUSH_CONSTANT Constants constants;
 
@@ -76,6 +71,6 @@ float4 fs_main(V2F input) : SV_TARGET
 {
     TextData data = Data[input.instanceId];
     float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
-    float r = fontAtlas.Sample(fontAtlasSampler, uv).r;
+    float r = _font.Sample(_fontSampler, uv).r;
     return float4(r, r, r, r) * data.color;
 }

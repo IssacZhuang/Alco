@@ -27,7 +27,7 @@ public class TextRenderer : AutoDisposable
 
     private const int MaxTextInstancingCount = 300;
     private readonly GPUDevice _device;
-    private readonly GPUPipeline _pipeline;
+    private readonly Shader _shader;
     private readonly Mesh _mesh;
     private readonly NativeBuffer<TextData> _textDataBuffer;
     private readonly GraphicsArrayBuffer<TextData> _textDataBUfferGPU;
@@ -36,6 +36,10 @@ public class TextRenderer : AutoDisposable
 
     private readonly GPUCommandBuffer _command;
     private readonly int _threadId;
+    
+    private readonly uint _shaderId_camera;
+    private readonly uint _shaderId_textBuffer;
+    private readonly uint _shaderId_font;
 
     private Camera2D _camera;
     private Vector2 _invCanvasSize;//equal to inv camera size here
@@ -53,7 +57,7 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    public TextRenderer(GPUDevice device, GPUPipeline textPipeline)
+    public TextRenderer(GPUDevice device, Shader shader)
     {
         _device = device;
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
@@ -61,13 +65,19 @@ public class TextRenderer : AutoDisposable
         _textDataBUfferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
         
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
-        _pipeline = textPipeline;
+        _shader = shader;
         _command = _device.CreateCommandBuffer();
         _threadId = Environment.CurrentManagedThreadId;
         _textDataBuffer = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
-        //prepare resuable buffer
 
+
+        //get resource ids
+        _shaderId_camera = _shader.GetResourceId("_camera");
+        _shaderId_textBuffer = _shader.GetResourceId("_textBuffer");
+        _shaderId_font = _shader.GetResourceId("_font");
+
+        Log.Info(_shaderId_camera, _shaderId_font, _shaderId_textBuffer);
     }
 
     public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
@@ -126,7 +136,7 @@ public class TextRenderer : AutoDisposable
         DrawBuffer(font, drawRemain, transform);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //[MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawBuffer(Font font, uint drawCount, Transform2D transform)
     {
         _indirectBuffer.Value = new IndexedIndirectData(_mesh.IndexCount, drawCount, 1, 0, 0);
@@ -136,12 +146,12 @@ public class TextRenderer : AutoDisposable
 
         _command.Begin();
         _command.SetFrameBuffer(_device.SwapChainFrameBuffer);
-        _command.SetGraphicsPipeline(_pipeline);
+        _command.SetGraphicsPipeline(_shader.Pipeline);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-        _command.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _command.SetGraphicsResources(1, font.Texture.EntrySample);
-        _command.SetGraphicsResources(2, _textDataBUfferGPU.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_camera, _cameraBuffer.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_textBuffer, _textDataBUfferGPU.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
         _command.PushConstants(ShaderStage.Vertex, 0, transform.Matrix);
         _command.DrawIndexedIndirect(_indirectBuffer.Buffer, 0);
         _command.End();

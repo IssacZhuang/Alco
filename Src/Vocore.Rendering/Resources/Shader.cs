@@ -67,6 +67,21 @@ public class Shader : ShaderResource
         return _resourceIds.TryGetValue(name, out resourceId);
     }
 
+    /// <summary>
+    /// Gets the resource ID associated with the given name.
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <throws>KeyNotFoundException if the resource is not found.</throws>
+    /// <returns>The resource ID.</returns>
+    public uint GetResourceId(string name)
+    {
+        if (_resourceIds.TryGetValue(name, out uint resourceId))
+        {
+            return resourceId;
+        }
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+    }
+
     private void BuildResourceIndex()
     {
         _resourceIds.Clear();
