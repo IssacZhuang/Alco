@@ -55,9 +55,10 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font, FontAtlasPacker>
             asset = preprocessed.Build(filename);
             return true;
         }
-        catch (Exception)
+        catch (Exception e)
         {
             asset = null;
+            Log.Error(e);
             return false;
         }
         finally

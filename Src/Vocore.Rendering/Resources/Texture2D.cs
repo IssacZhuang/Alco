@@ -7,16 +7,113 @@ namespace Vocore.Rendering;
 
 public class Texture2D : Texture
 {
+    // bind group include texture and sampeler
+    private GPUResourceGroup? _resourcesSample;
+
+    // bind gorup only include texture
+    private GPUResourceGroup? _resourcesRead;
+    private GPUResourceGroup? _resourcesStorage;
+
     public override bool IsReadOnly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => true;
     }
 
+    public GPUResourceGroup EntrySample
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_resourcesSample == null)
+            {
+                _resourcesSample = CreateResourcesSample();
+            }
+
+            return _resourcesSample;
+        }
+    }
+
+    public GPUResourceGroup EntryReadonly
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_resourcesRead == null)
+            {
+                _resourcesRead = CreateResourceGroupRead();
+            }
+
+            return _resourcesRead;
+        }
+    }
+
+    public GPUResourceGroup EntryWriteable
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_resourcesStorage == null)
+            {
+                _resourcesStorage = CreateResourceGroupStorage();
+            }
+
+            return _resourcesStorage;
+        }
+    }
+
     internal Texture2D(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler) : base(device, texture, textureView, sampler)
     {
 
     }
+
+    private GPUResourceGroup CreateResourcesSample()
+    {
+        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DSampled,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, _textureView),
+                new ResourceBindingEntry(1, _sampler)
+            }
+        );
+
+        return _device.CreateResourceGroup(descriptor);
+    }
+
+    private GPUResourceGroup CreateResourceGroupRead()
+    {
+        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DRead,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, _textureView),
+            }
+        );
+
+        return _device.CreateResourceGroup(descriptor);
+    }
+
+    private GPUResourceGroup CreateResourceGroupStorage()
+    {
+        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+            _device.BindGroupStorageTexture2D,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, _textureView),
+            }
+        );
+
+        return _device.CreateResourceGroup(descriptor);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        _resourcesSample?.Dispose();
+        _resourcesRead?.Dispose();
+        _resourcesStorage?.Dispose();
+    }
+
+    #region Creation
 
     public unsafe static Texture2D CreateEmpty(
         uint width,
@@ -111,7 +208,7 @@ public class Texture2D : Texture
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,
-            optionReal.IsSRGB ? PixelFormat.RGBA8UnormSrgb : PixelFormat.RGBA8Unorm,
+            optionReal.Format,
             width,
             height,
             1,
@@ -147,47 +244,6 @@ public class Texture2D : Texture
         );
     }
 
-    public unsafe static Texture2D CreateByFormat(
-        uint width,
-        uint height,
-        PixelFormat format,
-        uint mipLevel,
-        TextureUsage usage = TextureUsage.Standard,
-        string name = "unnamed_texture"
-    )
-    {
-        GPUDevice device = GetDevice();
-        TextureDescriptor textureDescriptor = new TextureDescriptor(
-            TextureDimension.Texture2D,
-            format,
-            width,
-            height,
-            1,
-            mipLevel,
-            usage,
-            1,
-            name
-        );
-
-        GPUTexture texture = device.CreateTexture(textureDescriptor);
-
-        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
-            texture,
-            TextureViewDimension.Texture2D
-        );
-
-        textureDescriptor.Name = name;
-
-        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
-
-        return new Texture2D(
-            device,
-            texture,
-            textureView,
-            device.SamplerLinearRepeat
-        );
-    }
-
 
     public static uint GetPixelSize(ColorComponents components)
     {
@@ -205,4 +261,6 @@ public class Texture2D : Texture
                 throw new NotSupportedException("The color components is not supported");
         }
     }
+
+    #endregion
 }

@@ -10,66 +10,19 @@ namespace Vocore.Rendering;
 /// </summary>
 public abstract class Texture : ShaderResource
 {
-    // bind group include texture and sampeler
-    private GPUResourceGroup? _resourcesSample;
-
-    // bind gorup only include texture
-    private GPUResourceGroup? _resourcesRead;
-    private GPUResourceGroup? _resourcesStorage;
-
-    private readonly GPUDevice _device;
+    protected readonly GPUDevice _device;
     // internal
-    private readonly GPUTexture _texture;
-    private readonly GPUTextureView _textureView;
+    protected readonly GPUTexture _texture;
+    protected readonly GPUTextureView _textureView;
 
     // from outside
-    private readonly GPUSampler _sampler;
+    protected readonly GPUSampler _sampler;
 
     public string Name { get; }
 
     public abstract bool IsReadOnly { get; }
 
-    public GPUResourceGroup EntrySample
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesSample == null)
-            {
-                _resourcesSample = CreateResourcesSample();
-            }
-
-            return _resourcesSample;
-        }
-    }
-
-    public GPUResourceGroup EntryReadonly
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesRead == null)
-            {
-                _resourcesRead = CreateResourceGroupRead();
-            }
-
-            return _resourcesRead;
-        }
-    }
-
-    public GPUResourceGroup EntryWriteable
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesStorage == null)
-            {
-                _resourcesStorage = CreateResourceGroupStorage();
-            }
-
-            return _resourcesStorage;
-        }
-    }
+    
 
 
     public uint Width
@@ -82,6 +35,12 @@ public abstract class Texture : ShaderResource
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _texture.Height;
+    }
+
+    public uint Depth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _texture.Depth;
     }
 
     internal Texture(
@@ -137,47 +96,6 @@ public abstract class Texture : ShaderResource
         _texture.Dispose();
         _textureView.Dispose();
         //the sampler is not disposed here because it is a shared resource
-
-        _resourcesSample?.Dispose();
-        _resourcesRead?.Dispose();
-        _resourcesStorage?.Dispose();
-    }
-
-    private GPUResourceGroup CreateResourcesSample()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-                new ResourceBindingEntry(1, _sampler)
-            }
-        );
-
-        return _device.CreateResourceGroup(descriptor);
-    }
-
-    private GPUResourceGroup CreateResourceGroupRead()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DRead,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-            }
-        );
-
-        return _device.CreateResourceGroup(descriptor);
-    }
-
-    private GPUResourceGroup CreateResourceGroupStorage()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupStorageTexture2D,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-            }
-        );
-
-        return _device.CreateResourceGroup(descriptor);
     }
 
 

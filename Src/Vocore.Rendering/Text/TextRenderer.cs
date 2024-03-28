@@ -140,7 +140,7 @@ public class TextRenderer : AutoDisposable
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _command.SetGraphicsResources(1, font.EntrySample);
+        _command.SetGraphicsResources(1, font.Texture.EntrySample);
         _command.SetGraphicsResources(2, _textDataBUfferGPU.EntryReadonly);
         _command.PushConstants(ShaderStage.Vertex, 0, transform.Matrix);
         _command.DrawIndexedIndirect(_indirectBuffer.Buffer, 0);

@@ -6,18 +6,21 @@ namespace Vocore.Rendering;
 /// <summary>
 /// A font atlas texture with unicode to glyph mapping.
 /// </summary>
-public unsafe class Font : Texture
+public unsafe class Font : AutoDisposable
 {
-    public override bool IsReadOnly
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => true;
-    }
-
+    
+    private readonly Texture2D _texture;
     private readonly GlyphInfo[] _glyphs;
 
-    internal Font(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler, GlyphInfo[] glyphs) : base(device, texture, textureView, sampler)
+    public Texture2D Texture
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _texture;
+    }
+
+    internal Font(Texture2D texture, GlyphInfo[] glyphs)
+    {
+        _texture = texture;
         _glyphs = glyphs;
     }
 
@@ -28,42 +31,19 @@ public unsafe class Font : Texture
 
     public static Font CreateFont(MemoryRef<byte> bitmap, int width, int height, GlyphInfo[] glyphs, string name = "font")
     {
-        GPUDevice device = GetDevice();
-        TextureDescriptor textureDescriptor = new TextureDescriptor(
-            TextureDimension.Texture2D,
-            PixelFormat.R8Unorm,
-            (uint)width,
-            (uint)height,
-            1,
-            1,
-            TextureUsage.Standard,
-            1,
-            name
-        );
-
-        GPUTexture texture = device.CreateTexture(textureDescriptor);
-
-        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
-            texture,
-            TextureViewDimension.Texture2D
-        );
-
-        textureDescriptor.Name = name;
-
-        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
-        device.WriteTexture(texture, bitmap.Pointer, bitmap.Length, 1);
+        Texture2D texture = Texture2D.CreateFromData(bitmap.Pointer, bitmap.Length, (uint)width, (uint)height, 1, ImageLoadOption.Default with {
+            Format = PixelFormat.R8Unorm,
+            Name = name
+        });
 
         return new Font(
-            device,
             texture,
-            textureView,
-            device.SamplerLinearClamp,
             glyphs
         ); 
     }
 
     protected override void Dispose(bool disposing)
     {
-        base.Dispose();
+        _texture.Dispose();
     }
 }

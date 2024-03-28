@@ -244,7 +244,7 @@ public class Game : GameEngine
     {
         return Texture2D.CreateEmpty(width, height, new ColorFloat(1, 1, 1, 1), new ImageLoadOption
         {
-            IsSRGB = false,
+            Format = PixelFormat.RGBA8Unorm,
             MipLevels = 1,
             Usage = TextureUsage.ComputeWrite,
             Name = "RenderTarget"
