@@ -29,8 +29,7 @@ public class TextRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
-    private readonly NativeBuffer<TextData> _textDataBuffer;
-    private readonly GraphicsArrayBuffer<TextData> _textDataBUfferGPU;
+    private readonly GraphicsArrayBuffer<TextData> _textDataBUffer;
     private readonly GraphicsBuffer<Matrix4x4> _cameraBuffer;
 
     private readonly GPUCommandBuffer _command;
@@ -60,15 +59,12 @@ public class TextRenderer : AutoDisposable
     {
         _device = device;
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
-        _textDataBUfferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
+        _textDataBUffer = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
         
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
         _shader = shader;
         _command = _device.CreateCommandBuffer();
         _threadId = Environment.CurrentManagedThreadId;
-        _textDataBuffer = new NativeBuffer<TextData>(MaxTextInstancingCount);
-
-
 
         //get resource ids
         _shaderId_camera = _shader.GetResourceId("_camera");
@@ -114,7 +110,7 @@ public class TextRenderer : AutoDisposable
             {
                 c = str[offset + j];
 
-                _textDataBUfferGPU[j] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
+                _textDataBUffer[j] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
             }
 
             DrawBuffer(font, MaxTextInstancingCount, transform);
@@ -126,7 +122,7 @@ public class TextRenderer : AutoDisposable
         {
             c = str[offset2 + j];
 
-            _textDataBUfferGPU[j] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
+            _textDataBUffer[j] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
         }
 
         DrawBuffer(font, drawRemain, transform);
@@ -136,7 +132,7 @@ public class TextRenderer : AutoDisposable
     private void DrawBuffer(Font font, uint drawCount, Transform2D transform)
     {
         _cameraBuffer.UpdateBuffer();
-        _textDataBUfferGPU.UpdateBufferRanged(0, drawCount);
+        _textDataBUffer.UpdateBufferRanged(0, drawCount);
 
         _command.Begin();
         _command.SetFrameBuffer(_device.SwapChainFrameBuffer);
@@ -144,7 +140,7 @@ public class TextRenderer : AutoDisposable
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(_shaderId_camera, _cameraBuffer.EntryReadonly);
-        _command.SetGraphicsResources(_shaderId_textBuffer, _textDataBUfferGPU.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_textBuffer, _textDataBUffer.EntryReadonly);
         _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
         _command.PushConstants(ShaderStage.Vertex, 0, transform.Matrix);
         _command.DrawIndexed(_mesh.IndexCount, drawCount, 0, 0, 0);
@@ -195,8 +191,7 @@ public class TextRenderer : AutoDisposable
     protected override void Dispose(bool disposing)
     {
         _cameraBuffer.Dispose();
-        _textDataBuffer.Dispose();
-        _textDataBUfferGPU.Dispose();
+        _textDataBUffer.Dispose();
         _mesh.Dispose();
         _command.Dispose();
         
