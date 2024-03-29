@@ -77,7 +77,7 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
-        _renderer.Begin();
+        _renderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
         _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), TextAlign.Center, new Vector4(1, 1, 1, 1));
 
         _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), TextAlign.Center, new Vector4(1, 1, 1, 1));

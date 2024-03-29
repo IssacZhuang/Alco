@@ -40,6 +40,8 @@ public class TextRenderer : AutoDisposable
     private readonly uint _shaderId_font;
 
     private int _instanceIndex;
+    private bool _isDrawing;
+    private GPUFrameBuffer? _renderTarget;
     private Camera2D _camera;
     private Vector2 _invCanvasSize;//equal to inv camera size here
 
@@ -73,8 +75,22 @@ public class TextRenderer : AutoDisposable
         _shaderId_font = _shader.GetResourceId("_font");
     }
 
-    public void Begin()
+    public void Begin(GPUFrameBuffer target)
     {
+        CheckThread();
+
+        if (_isDrawing)
+        {
+            throw new InvalidOperationException("TextRenderer.Begin() called twice without calling End()");
+        }
+
+        if (target == null)
+        {
+            throw new ArgumentNullException(nameof(target));
+        }
+
+        _renderTarget = target;
+        _isDrawing = true;
         _cameraBuffer.UpdateBuffer();
         BeginDraw();
         _instanceIndex = 0;
@@ -82,13 +98,22 @@ public class TextRenderer : AutoDisposable
 
     public void End()
     {
+        CheckThread();
+
+        if (!_isDrawing)
+        {
+            throw new InvalidOperationException("TextRenderer.End() called without calling Begin()");
+        }
+
         Flush();
+        _renderTarget = null;
+        _isDrawing = false;
     }
 
     private void BeginDraw()
     {
         _command.Begin();
-        _command.SetFrameBuffer(_device.SwapChainFrameBuffer);
+        _command.SetFrameBuffer(_renderTarget!);
         _command.SetGraphicsPipeline(_shader.Pipeline);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
