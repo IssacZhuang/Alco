@@ -82,7 +82,7 @@ public class Game : GameEngine
         Rotation2D rotation = Rotation2D.FromDegree(_angle);
 
         _renderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
-        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), Rotation2D.Identity, Pivot.LeftCenter, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
 
         // int drawCall = 4000;
         // for (int i = 0; i < drawCall; i++)
@@ -90,7 +90,7 @@ public class Game : GameEngine
         //     _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Anchor.LeftBottom, new Vector4(1, 1, 1, 1));
         // }
 
-        _renderer.DrawString(_font, "Hello World !!!\nThis is a line break", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
         _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));

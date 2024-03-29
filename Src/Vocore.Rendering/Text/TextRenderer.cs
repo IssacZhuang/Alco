@@ -36,6 +36,8 @@ public class TextRenderer : AutoDisposable
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
 
+    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0);
+
 
     private const int MaxTextInstancingCount = 300;
     private readonly GPUDevice _device;
@@ -168,30 +170,30 @@ public class TextRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        DrawTextCore(font, str, count, fontSize, position, rotation, align, color, lineSpacing);
+        DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
+            DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
+            DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
         }
     }
 
-    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing)
+    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         if (count == 0)
         {
@@ -223,18 +225,20 @@ public class TextRenderer : AutoDisposable
             textDataPtr[i] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
         }
 
-        Vector2 textAreaSize = new Vector2(x - startX, y - startY);
-        align.value = -align.value;
+        Vector2 textAreaSize = new Vector2(x - startX, y - startY + lineSpacing);
+        pivot.value = TrueTypePositionOffset - pivot.value;
 
-        Vector2 drawPos = position + new Vector2(halfFontSize, halfFontSize);// + align.value * textAreaSize;
-        drawPos.Y += lineSpacing * fontSize * align.value.Y;
+        Vector2 drawPos = position; //new Vector2(halfFontSize, halfFontSize);// + align.value * textAreaSize;
+        drawPos.X += halfFontSize;
 
         Transform2D transform = new Transform2D(drawPos, rotation, Vector2.One * fontSize);
 
-        Constant constant = new Constant { Model = transform.Matrix, InstanceStart = 0 };
-        
-
-        constant.VertexOffset = textAreaSize * align.value;
+        Constant constant = new Constant
+        {
+            Model = transform.Matrix,
+            InstanceStart = 0,
+            VertexOffset = textAreaSize * pivot.value
+        };
 
         while (true)
         {
