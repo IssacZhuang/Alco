@@ -203,8 +203,8 @@ public class TextRenderer : AutoDisposable
 
         _textBufferCPU.EnsureSize(count);
 
-        float x = position.X * _invCanvasSize.X;
-        float y = position.Y * _invCanvasSize.Y;
+        float x = 0;
+        float y = 0;
 
         float startX = x;
         float startY = y;
@@ -225,12 +225,11 @@ public class TextRenderer : AutoDisposable
             textDataPtr[i] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
         }
 
-        Vector2 textAreaSize = new Vector2(x - startX, y - startY + lineSpacing);
+        Vector2 textAreaSize = new Vector2(x - startX, y - startY);
         pivot.value = TrueTypePositionOffset - pivot.value;
 
         Vector2 drawPos = position; //new Vector2(halfFontSize, halfFontSize);// + align.value * textAreaSize;
-        drawPos.X += halfFontSize;
-
+        //drawPos.X += halfFontSize;
         Transform2D transform = new Transform2D(drawPos, rotation, Vector2.One * fontSize);
 
         Constant constant = new Constant
