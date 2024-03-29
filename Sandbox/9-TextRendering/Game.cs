@@ -18,6 +18,7 @@ public class Game : GameEngine
     private Transform2D _transform1;
     private Font _font;
     private float _fontSize = 16;
+    private float _angle = 0;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -77,8 +78,11 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
+        _angle += delta * 45;
+        Rotation2D rotation = Rotation2D.FromDegree(_angle);
+
         _renderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
-        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), Rotation2D.Identity, Pivot.LeftCenter, new Vector4(1, 1, 1, 1));
 
         // int drawCall = 4000;
         // for (int i = 0; i < drawCall; i++)
@@ -86,12 +90,14 @@ public class Game : GameEngine
         //     _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Anchor.LeftBottom, new Vector4(1, 1, 1, 1));
         // }
 
-        _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Pivot.LeftBottom, 0xff6666);
-        _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Pivot.RightBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "Hello World !!!\nThis is a line break", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
+        _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+
+        _renderer.DrawString(_font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
 
         _renderer.End();
     }

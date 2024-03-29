@@ -24,6 +24,7 @@ struct Constants
     float4x4 model;
     // the start of instance id in OpenGL is always 0, so use a custom instance start
     uint instanceStart;
+    float2 vertexOffset; // to offset the text to pivot point
 };
 
 struct TextData{
@@ -45,7 +46,7 @@ V2F vs_main(Vertex2D input)
 {
     TextData data = Data[constants.instanceStart + input.instanceId];
     float2 vertexPos = input.position * data.size;
-    float4 position = float4(vertexPos + data.offset, 0.0f, 1.0f);
+    float4 position = float4(vertexPos + data.offset + constants.vertexOffset, 0.0f, 1.0f);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
 

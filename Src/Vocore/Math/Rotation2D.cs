@@ -28,7 +28,7 @@ namespace Vocore
             c = cos;
         }
 
-        public static Rotation2D CreateByDegree(float degree)
+        public static Rotation2D FromDegree(float degree)
         {
             return new Rotation2D(math.radians(degree));
         }

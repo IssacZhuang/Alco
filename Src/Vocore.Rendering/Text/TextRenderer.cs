@@ -6,6 +6,9 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+/// <summary>
+/// The high performance text renderer. Can only be used in the main thread.
+/// </summary> 
 public class TextRenderer : AutoDisposable
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -14,6 +17,7 @@ public class TextRenderer : AutoDisposable
         public Matrix4x4 Model;
         // the start of instance id in OpenGL is always 0, so use a custom instance start
         public uint InstanceStart;
+        public Vector2 VertexOffset;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -55,6 +59,10 @@ public class TextRenderer : AutoDisposable
     private Camera2D _camera;
     private Vector2 _invCanvasSize;//equal to inv camera size here
 
+    /// <summary>
+    /// The camera data for rendering text.
+    /// </summary> 
+    /// <value></value>
     public Camera2D Camera
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,6 +95,12 @@ public class TextRenderer : AutoDisposable
         _shaderId_font = _shader.GetResourceId("_font");
     }
 
+    /// <summary>
+    ///  Begin drawing text on the target frame buffer.
+    /// </summary>
+    /// <param name="target">The target frame buffer to draw text on.</param>
+    /// <exception cref="InvalidOperationException">TextRenderer.Begin() called twice without calling End()</exception>
+    /// <exception cref="ArgumentNullException">The render target is null</exception>
     public void Begin(GPUFrameBuffer target)
     {
         CheckThread();
@@ -108,6 +122,9 @@ public class TextRenderer : AutoDisposable
         _instanceIndex = 0;
     }
 
+    /// <summary>
+    /// End drawing text and submit the command to GPU
+    /// </summary>
     public void End()
     {
         CheckThread();
@@ -141,36 +158,40 @@ public class TextRenderer : AutoDisposable
         _instanceIndex = 0;
     }
 
-    public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            DrawTextCore(font, p, str.Length, fontSize, position, align, color, lineSpacing);
+            DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
         }
     }
 
-    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
-        DrawTextCore(font, str, count, fontSize, position, align, color, lineSpacing);
+        DrawTextCore(font, str, count, fontSize, position, rotation, align, color, lineSpacing);
     }
 
-    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            DrawTextCore(font, p, str.Length, fontSize, position, align, color, lineSpacing);
-        }
-    }
-
-    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            DrawTextCore(font, p, str.Length, fontSize, position, align, color, lineSpacing);
+            DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
         }
     }
 
-    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        fixed (char* p = str)
+        {
+            DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
+        }
+    }
+
+    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing)
     {
         if (count == 0)
         {
@@ -202,14 +223,19 @@ public class TextRenderer : AutoDisposable
             textDataPtr[i] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
         }
 
-        Vector2 textAreaSize = new Vector2(x - startX, y - startY + lineSpacing) * fontSize;
-
+        Vector2 textAreaSize = new Vector2(x - startX, y - startY);
         align.value = -align.value;
-        Vector2 drawPos = position + new Vector2(halfFontSize, halfFontSize) + align.value * textAreaSize;
 
-        Transform2D transform = new Transform2D(drawPos, Rotation2D.Identity, Vector2.One * fontSize);
+        Vector2 drawPos = position + new Vector2(halfFontSize, halfFontSize);// + align.value * textAreaSize;
+        drawPos.Y += lineSpacing * fontSize * align.value.Y;
+
+        Transform2D transform = new Transform2D(drawPos, rotation, Vector2.One * fontSize);
 
         Constant constant = new Constant { Model = transform.Matrix, InstanceStart = 0 };
+        
+
+        constant.VertexOffset = textAreaSize * align.value;
+
         while (true)
         {
             remainInstanceCount = MaxTextInstancingCount - _instanceIndex;
@@ -258,7 +284,7 @@ public class TextRenderer : AutoDisposable
         if (c == '\n' || c == '\r')
         {
             x = basePos.X;
-            y += lineSpacing;
+            y -= lineSpacing;
             return new TextData();
         }
 
