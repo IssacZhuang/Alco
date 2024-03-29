@@ -37,12 +37,14 @@ public class TextRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
-    private readonly GraphicsArrayBuffer<TextData> _textDataBuffer;
+    private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
     private readonly GraphicsBuffer<Matrix4x4> _cameraBuffer;
 
     private readonly GPUCommandBuffer _command;
     private readonly int _threadId;
-    
+
+    private readonly NativeBuffer<TextData> _textBufferCPU;
+
     private readonly uint _shaderId_camera;
     private readonly uint _shaderId_textBuffer;
     private readonly uint _shaderId_font;
@@ -70,12 +72,14 @@ public class TextRenderer : AutoDisposable
     {
         _device = device;
         _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
-        _textDataBuffer = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
-        
+        _textBufferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
+
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
         _shader = shader;
         _command = _device.CreateCommandBuffer();
         _threadId = Environment.CurrentManagedThreadId;
+
+        _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
         //get resource ids
         _shaderId_camera = _shader.GetResourceId("_camera");
@@ -126,18 +130,18 @@ public class TextRenderer : AutoDisposable
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(_shaderId_camera, _cameraBuffer.EntryReadonly);
-        _command.SetGraphicsResources(_shaderId_textBuffer, _textDataBuffer.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadonly);
     }
 
     private void Flush()
     {
-        _textDataBuffer.UpdateBufferRanged(0, (uint)_instanceIndex);
+        _textBufferGPU.UpdateBufferRanged(0, (uint)_instanceIndex);
         _command.End();
         _device.Submit(_command);
         _instanceIndex = 0;
     }
 
-    public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -145,12 +149,12 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
     {
         DrawTextCore(font, str, count, fontSize, position, align, color, lineSpacing);
     }
 
-    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -158,7 +162,7 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -166,7 +170,7 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
     {
         if (count == 0)
         {
@@ -174,17 +178,36 @@ public class TextRenderer : AutoDisposable
         }
         //normalized position
 
+        _textBufferCPU.EnsureSize(count);
+
         float x = position.X * _invCanvasSize.X;
         float y = position.Y * _invCanvasSize.Y;
 
+        float startX = x;
+        float startY = y;
+
         float halfFontSize = fontSize * 0.5f;
-        Transform2D transform = new Transform2D(position + new Vector2(halfFontSize, halfFontSize), Rotation2D.Identity, Vector2.One * fontSize);
+
 
         char c;
         int localIndex = 0;
         int remainInstanceCount = 0;
         int remainChars = 0;
         int drawCount = 0;
+
+        TextData* textDataPtr = _textBufferCPU.UnsafePointer;
+        for (int i = 0; i < count; i++)
+        {
+            c = str[i];
+            textDataPtr[i] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
+        }
+
+        Vector2 textAreaSize = new Vector2(x - startX, y - startY + lineSpacing) * fontSize;
+
+        align.value = -align.value;
+        Vector2 drawPos = position + new Vector2(halfFontSize, halfFontSize) + align.value * textAreaSize;
+
+        Transform2D transform = new Transform2D(drawPos, Rotation2D.Identity, Vector2.One * fontSize);
 
         Constant constant = new Constant { Model = transform.Matrix, InstanceStart = 0 };
         while (true)
@@ -207,13 +230,13 @@ public class TextRenderer : AutoDisposable
 
 
             uint instanceStart = (uint)_instanceIndex;
-            //Log.Info("draw", drawCount);
+
             for (uint i = 0; i < drawCount; i++)
             {
-                c = str[localIndex + i];
-                _textDataBuffer[_instanceIndex] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
+                _textBufferGPU[_instanceIndex] = textDataPtr[localIndex + i];
                 _instanceIndex++;
             }
+
             localIndex += drawCount;
             constant.InstanceStart = instanceStart;
 
@@ -266,9 +289,9 @@ public class TextRenderer : AutoDisposable
     protected override void Dispose(bool disposing)
     {
         _cameraBuffer.Dispose();
-        _textDataBuffer.Dispose();
+        _textBufferGPU.Dispose();
         _mesh.Dispose();
         _command.Dispose();
-        
+        _textBufferCPU.Dispose();
     }
 }
