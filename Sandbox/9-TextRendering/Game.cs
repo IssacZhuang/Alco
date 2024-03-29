@@ -78,7 +78,7 @@ public class Game : GameEngine
         }
 
         _renderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
-        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), Anchor.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
 
         // int drawCall = 4000;
         // for (int i = 0; i < drawCall; i++)
@@ -86,12 +86,12 @@ public class Game : GameEngine
         //     _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Anchor.LeftBottom, new Vector4(1, 1, 1, 1));
         // }
 
-        _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Anchor.LeftBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Anchor.LeftBottom, 0xff6666);
-        _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Anchor.CenterBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Anchor.CenterBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Anchor.RightBottom, new Vector4(1, 1, 1, 1));
-        _renderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Anchor.RightBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Pivot.LeftBottom, 0xff6666);
+        _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Pivot.RightBottom, new Vector4(1, 1, 1, 1));
 
         _renderer.End();
     }

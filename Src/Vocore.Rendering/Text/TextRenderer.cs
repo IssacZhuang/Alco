@@ -141,7 +141,7 @@ public class TextRenderer : AutoDisposable
         _instanceIndex = 0;
     }
 
-    public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -149,12 +149,12 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         DrawTextCore(font, str, count, fontSize, position, align, color, lineSpacing);
     }
 
-    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -162,7 +162,7 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -170,7 +170,7 @@ public class TextRenderer : AutoDisposable
         }
     }
 
-    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Anchor align, ColorFloat color, float lineSpacing = 1.0f)
+    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         if (count == 0)
         {
