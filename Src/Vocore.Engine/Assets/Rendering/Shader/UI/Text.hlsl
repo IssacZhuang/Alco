@@ -22,6 +22,8 @@ struct V2F
 struct Constants
 {
     float4x4 model;
+    // the start of instance id in OpenGL is always 0, so use a custom instance start
+    uint instanceStart;
 };
 
 struct TextData{
@@ -41,7 +43,7 @@ PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input)
 {
-    TextData data = Data[input.instanceId];
+    TextData data = Data[constants.instanceStart + input.instanceId];
     float2 vertexPos = input.position * data.size;
     float4 position = float4(vertexPos + data.offset, 0.0f, 1.0f);
     position = mul(constants.model, position);
@@ -50,7 +52,7 @@ V2F vs_main(Vertex2D input)
     V2F output = (V2F)0;
     output.position = position;
     output.uv = input.uv;
-    output.instanceId = input.instanceId;
+    output.instanceId = constants.instanceStart + input.instanceId;
     return output;
 }
 

@@ -9,6 +9,14 @@ namespace Vocore.Rendering;
 public class TextRenderer : AutoDisposable
 {
     [StructLayout(LayoutKind.Sequential)]
+    private struct Constant
+    {
+        public Matrix4x4 Model;
+        // the start of instance id in OpenGL is always 0, so use a custom instance start
+        public uint InstanceStart;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct Vertex
     {
         public Vector2 Position;
@@ -123,7 +131,7 @@ public class TextRenderer : AutoDisposable
 
     private void Flush()
     {
-        _textDataBuffer.UpdateBuffer();
+        _textDataBuffer.UpdateBufferRanged(0, (uint)_instanceIndex);
         _command.End();
         _device.Submit(_command);
         _instanceIndex = 0;
@@ -142,6 +150,22 @@ public class TextRenderer : AutoDisposable
         DrawTextCore(font, str, count, fontSize, position, align, color, lineSpacing);
     }
 
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        fixed (char* p = str)
+        {
+            DrawTextCore(font, p, str.Length, fontSize, position, align, color, lineSpacing);
+        }
+    }
+
+    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        fixed (char* p = str)
+        {
+            DrawTextCore(font, p, str.Length, fontSize, position, align, color, lineSpacing);
+        }
+    }
+
     private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, TextAlign align, ColorFloat color, float lineSpacing = 1.0f)
     {
         if (count == 0)
@@ -158,11 +182,16 @@ public class TextRenderer : AutoDisposable
 
         char c;
         int localIndex = 0;
+        int remainInstanceCount = 0;
+        int remainChars = 0;
+        int drawCount = 0;
+
+        Constant constant = new Constant { Model = transform.Matrix, InstanceStart = 0 };
         while (true)
         {
-            int remainInstanceCount = MaxTextInstancingCount - _instanceIndex;
-            int remainChars = count - localIndex;
-            int drawCount = Math.Min(remainInstanceCount, remainChars);
+            remainInstanceCount = MaxTextInstancingCount - _instanceIndex;
+            remainChars = count - localIndex;
+            drawCount = Math.Min(remainInstanceCount, remainChars);
 
             if (remainChars <= 0)
             {
@@ -186,10 +215,11 @@ public class TextRenderer : AutoDisposable
                 _instanceIndex++;
             }
             localIndex += drawCount;
+            constant.InstanceStart = instanceStart;
 
             _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
-            _command.PushConstants(ShaderStage.Vertex, 0, transform.Matrix);
-            _command.DrawIndexed(_mesh.IndexCount, (uint)drawCount, 0, 0, instanceStart);
+            _command.PushConstants(ShaderStage.Vertex, 0, constant);
+            _command.DrawIndexed(_mesh.IndexCount, (uint)drawCount, 0, 0, 0);
         }
     }
 

@@ -27,7 +27,7 @@ internal partial class WebGPUDevice : GPUDevice
         maxStorageBuffersPerShaderStage = 8,
         maxStorageTexturesPerShaderStage = 4,
         maxUniformBuffersPerShaderStage = 12,
-        maxUniformBufferBindingSize = 16 * 1024,
+        maxUniformBufferBindingSize = 64 * 1024,
         maxStorageBufferBindingSize = 128 * 1024 * 1024,
         maxVertexBuffers = 8,
         maxBufferSize = 256 * 1024 * 1024,
