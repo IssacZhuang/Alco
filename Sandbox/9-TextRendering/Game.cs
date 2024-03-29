@@ -77,6 +77,7 @@ public class Game : GameEngine
             _fontSize -= delta * 10;
         }
 
+        _renderer.Begin();
         _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, -180), TextAlign.Center, new Vector4(1, 1, 1, 1));
 
         _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), TextAlign.Center, new Vector4(1, 1, 1, 1));
@@ -85,6 +86,8 @@ public class Game : GameEngine
         _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), TextAlign.Center, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), TextAlign.Center, new Vector4(1, 1, 1, 1));
+
+        _renderer.End();
     }
 
     protected override void OnStop()
