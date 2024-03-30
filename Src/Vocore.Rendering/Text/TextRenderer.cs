@@ -36,7 +36,7 @@ public class TextRenderer : AutoDisposable
 
     private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
 
-    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0);
+    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, -0.5f);
 
 
     private const int MaxTextInstancingCount = 300;
@@ -206,9 +206,6 @@ public class TextRenderer : AutoDisposable
         float x = 0;
         float y = 0;
 
-        float startX = x;
-        float startY = y;
-
         float halfFontSize = fontSize * 0.5f;
 
 
@@ -225,11 +222,10 @@ public class TextRenderer : AutoDisposable
             textDataPtr[i] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
         }
 
-        Vector2 textAreaSize = new Vector2(x - startX, y - startY);
+        Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
         pivot.value = TrueTypePositionOffset - pivot.value;
 
-        Vector2 drawPos = position; //new Vector2(halfFontSize, halfFontSize);// + align.value * textAreaSize;
-        //drawPos.X += halfFontSize;
+        Vector2 drawPos = position; 
         Transform2D transform = new Transform2D(drawPos, rotation, Vector2.One * fontSize);
 
         Constant constant = new Constant

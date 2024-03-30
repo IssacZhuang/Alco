@@ -15,7 +15,6 @@ public class Game : GameEngine
     private Shader _shader;
     private TextRenderer _renderer;
 
-    private Transform2D _transform1;
     private Font _font;
     private float _fontSize = 16;
     private float _angle = 0;
@@ -49,9 +48,6 @@ public class Game : GameEngine
 
         _camera.Size = new Vector2(640, 360);
 
-        _transform1 = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One * 9);
-
-
         _renderer = new TextRenderer(GraphicsDevice, _shader);
         _renderer.Camera = _camera;
         Log.Info(_font.GetGlyph('l'));
@@ -82,7 +78,7 @@ public class Game : GameEngine
         Rotation2D rotation = Rotation2D.FromDegree(_angle);
 
         _renderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
-        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
 
         // int drawCall = 4000;
         // for (int i = 0; i < drawCall; i++)
@@ -90,7 +86,7 @@ public class Game : GameEngine
         //     _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Anchor.LeftBottom, new Vector4(1, 1, 1, 1));
         // }
 
-        _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
+        _renderer.DrawString(_font, "Hello World !!!\nThis is a line break", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.LeftBottom, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
         _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
         _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
