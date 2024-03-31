@@ -32,7 +32,7 @@ public class GraphicsBuffer : ShaderResource
 
     internal GraphicsBuffer(string name = "unnamed_graphics_buffer")
     {
-        _device = GetDevice();
+        _device = RendereringContext.Device;
 
         _buffer = _device.CreateBuffer(new BufferDescriptor
         {

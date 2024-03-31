@@ -62,7 +62,7 @@ public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
 
     public unsafe GraphicsBuffer(T value = default, string name = "unnamed_graphics_buffer")
     {
-        _device = GetDevice();
+        _device = RendereringContext.Device;
         _buffer = _device.CreateBuffer(
             new BufferDescriptor
             {

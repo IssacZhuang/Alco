@@ -199,21 +199,19 @@ public class TextRenderer : AutoDisposable
         {
             return;
         }
-        //normalized position
 
         _textBufferCPU.EnsureSize(count);
 
         float x = 0;
         float y = 0;
 
-        float halfFontSize = fontSize * 0.5f;
-
-
         char c;
         int localIndex = 0;
         int remainInstanceCount = 0;
         int remainChars = 0;
         int drawCount = 0;
+
+        Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
 
         TextData* textDataPtr = _textBufferCPU.UnsafePointer;
         for (int i = 0; i < count; i++)
@@ -223,16 +221,14 @@ public class TextRenderer : AutoDisposable
         }
 
         Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
-        pivot.value = TrueTypePositionOffset - pivot.value;
 
-        Vector2 drawPos = position; 
-        Transform2D transform = new Transform2D(drawPos, rotation, Vector2.One * fontSize);
+        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
 
         Constant constant = new Constant
         {
             Model = transform.Matrix,
             InstanceStart = 0,
-            VertexOffset = textAreaSize * pivot.value
+            VertexOffset = textAreaSize * realPivot
         };
 
         while (true)
@@ -255,6 +251,7 @@ public class TextRenderer : AutoDisposable
 
 
             uint instanceStart = (uint)_instanceIndex;
+            constant.InstanceStart = instanceStart;
 
             for (uint i = 0; i < drawCount; i++)
             {
@@ -263,7 +260,6 @@ public class TextRenderer : AutoDisposable
             }
 
             localIndex += drawCount;
-            constant.InstanceStart = instanceStart;
 
             _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
             _command.PushConstants(ShaderStage.Vertex, 0, constant);
@@ -282,8 +278,8 @@ public class TextRenderer : AutoDisposable
 
         if (c == '\n' || c == '\r')
         {
-            x = basePos.X;
-            y -= lineSpacing;
+            // x = basePos.X;
+            // y -= lineSpacing;
             return new TextData();
         }
 

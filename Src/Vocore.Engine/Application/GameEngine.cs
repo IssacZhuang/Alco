@@ -156,7 +156,7 @@ namespace Vocore.Engine
                 out GPUDevice graphicsDevice,
                 out SilkWindow slikWindow);
 
-                ShaderResource.SetGlobalDevice(graphicsDevice);
+                RendereringContext.SetDevice(graphicsDevice);
                 
                 _window = slikWindow;
                 _input = new SilkInput(slikWindow.InternalWindow);

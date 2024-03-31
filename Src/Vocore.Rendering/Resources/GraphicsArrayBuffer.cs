@@ -55,7 +55,7 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
 
     public unsafe GraphicsArrayBuffer(int length, string name = "unnamed_graphics_array_buffer")
     {
-        _device = GetDevice();
+        _device = RendereringContext.Device;
         _buffer = _device.CreateBuffer(
             new BufferDescriptor
             {

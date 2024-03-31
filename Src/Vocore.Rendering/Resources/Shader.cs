@@ -145,7 +145,7 @@ public class Shader : ShaderResource
 
     private static GPUPipeline? CreatePipeline(ShaderCompileResult result)
     {
-        GPUDevice device = GetDevice();
+        GPUDevice device = RendereringContext.Device;
         if (result.IsGraphicsShader)
         {
             ShaderReflectionInfo info = result.ReflectionInfo;

@@ -204,7 +204,7 @@ public class Texture2D : Texture
         ImageLoadOption? option = null
     )
     {
-        GPUDevice device = GetDevice();
+        GPUDevice device = RendereringContext.Device;
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,

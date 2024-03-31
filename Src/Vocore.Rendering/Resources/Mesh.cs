@@ -43,7 +43,7 @@ public unsafe class Mesh : ShaderResource, IMesh
 
     public Mesh(void* vertexData, uint vertexSize, void* indexData, uint indexSize, IndexFormat indexFormat, uint indexCount, string name = "mesh")
     {
-        GPUDevice device = GetDevice();
+        GPUDevice device = RendereringContext.Device;
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = vertexSize,
