@@ -16,8 +16,9 @@ public class TextRenderer : Renderer
     {
         public Matrix4x4 Model;
         // the start of instance id in OpenGL is always 0, so use a custom instance start
-        public uint InstanceStart;
         public Vector2 VertexOffset;
+        public uint InstanceStart;
+        
     }
 
     [StructLayout(LayoutKind.Sequential)]

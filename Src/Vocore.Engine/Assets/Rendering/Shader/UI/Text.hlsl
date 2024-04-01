@@ -23,8 +23,8 @@ struct Constants
 {
     float4x4 model;
     // the start of instance id in OpenGL is always 0, so use a custom instance start
-    uint instanceStart;
     float2 vertexOffset; // to offset the text to pivot point
+    uint instanceStart;
 };
 
 struct TextData{
