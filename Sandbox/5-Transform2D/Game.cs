@@ -29,7 +29,7 @@ public class Game : GameEngine
 
     #endregion
 
-    private Camera2D camera;
+    private CameraData2D camera;
 
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
@@ -75,7 +75,7 @@ public class Game : GameEngine
         _texRed = Texture2D.CreateEmpty(16, 16, new ColorFloat(1, 0, 0, 1));
         _texGreen = Texture2D.CreateEmpty(16, 16, new ColorFloat(0, 1, 0, 1));
 
-        camera = new Camera2D();
+        camera = new CameraData2D();
         camera.transform.position = new Vector2(0, 2);
         camera.Size = new Vector2(16, 9);
         Log.Info(camera.ViewProjectionMatrix);

@@ -58,14 +58,14 @@ public class TextRenderer : AutoDisposable
     private int _instanceIndex;
     private bool _isDrawing;
     private GPUFrameBuffer? _renderTarget;
-    private Camera2D _camera;
+    private CameraData2D _camera;
     private Vector2 _invCanvasSize;//equal to inv camera size here
 
     /// <summary>
     /// The camera data for rendering text.
     /// </summary> 
     /// <value></value>
-    public Camera2D Camera
+    public CameraData2D Camera
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _camera;

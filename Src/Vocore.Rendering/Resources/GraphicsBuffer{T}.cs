@@ -89,6 +89,14 @@ public class GraphicsBuffer<T> : ShaderResource where T : unmanaged
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void UpdateBuffer(T value)
+    {
+        _value = value;
+        _device.WriteBuffer(_buffer, _value);
+        _dirty = false;
+    }
+
     private GPUResourceGroup CreateResourceReadonly()
     {
         return _device.CreateResourceGroup(new ResourceGroupDescriptor

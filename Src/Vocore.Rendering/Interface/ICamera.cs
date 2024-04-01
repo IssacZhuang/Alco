@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
 public interface ICamera
 {
-    public Matrix4x4 ViewMatrix { get; }
-    public Matrix4x4 ProjectionMatrix { get; }
-    public Matrix4x4 ViewProjectionMatrix { get; }
+    /// <summary>
+    /// The view projection matrix of the camera.
+    /// </summary>
+    /// <value> The GPU resource group containing the GPU buffer of the view projection matrix. </value>
+    public GPUResourceGroup ViewProjectionBuffer { get; }
 }
 
 

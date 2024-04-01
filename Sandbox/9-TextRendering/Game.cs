@@ -9,7 +9,7 @@ using Vocore;
 public class Game : GameEngine
 {
 
-    private Camera2D _camera;
+    private CameraData2D _camera;
 
     private GPUCommandBuffer _commandBuffer;
     private Shader _shader;
@@ -44,7 +44,7 @@ public class Game : GameEngine
 
 
 
-        _camera = new Camera2D();
+        _camera = new CameraData2D();
 
         _camera.Size = new Vector2(640, 360);
 
