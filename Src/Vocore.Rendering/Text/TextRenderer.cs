@@ -9,7 +9,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The high performance text renderer. Can only be used in the main thread.
 /// </summary> 
-public class TextRenderer : AutoDisposable
+public class TextRenderer : Renderer
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -44,10 +44,9 @@ public class TextRenderer : AutoDisposable
     private readonly Shader _shader;
     private readonly Mesh _mesh;
     private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
-    private readonly GraphicsBuffer<Matrix4x4> _cameraBuffer;
+
 
     private readonly GPUCommandBuffer _command;
-    private readonly int _threadId;
 
     private readonly NativeBuffer<TextData> _textBufferCPU;
 
@@ -58,36 +57,15 @@ public class TextRenderer : AutoDisposable
     private int _instanceIndex;
     private bool _isDrawing;
     private GPUFrameBuffer? _renderTarget;
-    private CameraData2D _camera;
-    private Vector2 _invCanvasSize;//equal to inv camera size here
 
-    /// <summary>
-    /// The camera data for rendering text.
-    /// </summary> 
-    /// <value></value>
-    public CameraData2D Camera
+    public TextRenderer(ICamera camera, Shader shader):base(camera)
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _camera;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            _camera = value;
-            _invCanvasSize = math.reciprocal(_camera.Size);
-            _cameraBuffer.Value = _camera.ViewProjectionMatrix;
-        }
-    }
-
-    public TextRenderer(GPUDevice device, Shader shader)
-    {
-        _device = device;
-        _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
+        _device = RendereringContext.Device;
         _textBufferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
 
         _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
         _shader = shader;
         _command = _device.CreateCommandBuffer();
-        _threadId = Environment.CurrentManagedThreadId;
 
         _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
@@ -119,7 +97,6 @@ public class TextRenderer : AutoDisposable
 
         _renderTarget = target;
         _isDrawing = true;
-        _cameraBuffer.UpdateBuffer();
         BeginDraw();
         _instanceIndex = 0;
     }
@@ -148,7 +125,7 @@ public class TextRenderer : AutoDisposable
         _command.SetGraphicsPipeline(_shader.Pipeline);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-        _command.SetGraphicsResources(_shaderId_camera, _cameraBuffer.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.ViewProjectionBuffer);
         _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadonly);
     }
 
@@ -295,21 +272,8 @@ public class TextRenderer : AutoDisposable
         return data;
     }
 
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [Conditional("DEBUG")]
-    private void CheckThread()
-    {
-
-        if (_threadId != Environment.CurrentManagedThreadId)
-        {
-            throw new InvalidOperationException("TextRenderer can only call on main thread");
-        }
-    }
-
     protected override void Dispose(bool disposing)
     {
-        _cameraBuffer.Dispose();
         _textBufferGPU.Dispose();
         _mesh.Dispose();
         _command.Dispose();

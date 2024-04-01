@@ -9,7 +9,7 @@ using Vocore;
 public class Game : GameEngine
 {
 
-    private CameraData2D _camera;
+    private Camera2D _camera;
 
     private GPUCommandBuffer _commandBuffer;
     private Shader _shader;
@@ -44,12 +44,12 @@ public class Game : GameEngine
 
 
 
-        _camera = new CameraData2D();
+        _camera = new Camera2D
+        {
+            Size = new Vector2(640, 360)
+        };
 
-        _camera.Size = new Vector2(640, 360);
-
-        _renderer = new TextRenderer(GraphicsDevice, _shader);
-        _renderer.Camera = _camera;
+        _renderer = new TextRenderer(_camera, _shader);
         Log.Info(_font.GetGlyph('l'));
         Log.Info(_font.GetGlyph('!'));
 
