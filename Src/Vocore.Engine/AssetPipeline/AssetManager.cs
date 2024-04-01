@@ -182,15 +182,16 @@ namespace Vocore.Engine
         /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
         /// <param name="filename">The filename of the asset to load.</param>
         /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+        /// <param name="failedReason">When this method returns, contains the reason why the asset failed to load if unsuccessful; otherwise, <c>null</c>.</param>
         /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
         /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
-        /// <exception cref="System.Exception">Thrown when an exception occurs during the loading process.</exception>
-        public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
         {
             CheckThread();
             TryRefreshEntries();
             filename = ParseEntry(filename);
 
+            failedReason = string.Empty;
             try
             {
                 //try load from cache
@@ -209,7 +210,7 @@ namespace Vocore.Engine
                 // IO
                 if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
                 {
-                    Log.Error($"Trying to get asset {filename} but the file does not exist");
+                    failedReason = $"Trying to get asset {filename} but the file does not exist";
                     asset = null;
                     return false;
                 }
@@ -217,7 +218,7 @@ namespace Vocore.Engine
                 // preprocess the asset
                 if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
                 {
-                    Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
+                    failedReason = $"Trying to get asset {filename} but the asset loader failed to preprocess the asset";
                     asset = null;
                     return false;
                 }
@@ -225,7 +226,7 @@ namespace Vocore.Engine
                 // create the asset
                 if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
                 {
-                    Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                    failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
                     asset = null;
                     return false;
                 }
@@ -237,11 +238,42 @@ namespace Vocore.Engine
             }
             catch (Exception ex)
             {
-                Log.Error($"Exception on loading asset '{filename}': {ex}");
+                failedReason = $"Exception on loading asset '{filename}': {ex}";
                 asset = null;
                 return false;
             }
         }
+
+        /// <summary>
+        /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+        /// </summary>
+        /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+        /// <param name="filename">The filename of the asset to load.</param>
+        /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+        /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+        /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
+        public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        {
+            return TryLoad(filename, out asset, out _, cacheMode);
+        }
+
+        /// <summary>
+        /// Load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+        /// </summary>
+        /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+        /// <param name="filename">The filename of the asset to load.</param>
+        /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+        /// <returns>The loaded asset.</returns>
+        /// <exception cref="Exception">Thrown when the asset failed to load.</exception>
+        public TAsset Load<TAsset>(string filename, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+        {
+            if (TryLoad<TAsset>(filename, out TAsset? asset, out string? failedReason, cacheMode))
+            {
+                return asset;
+            }
+            throw new Exception(failedReason);
+        }
+
 
         /// <summary>
         /// Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
