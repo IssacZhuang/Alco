@@ -10,6 +10,7 @@ namespace Vocore.Rendering;
 public struct CameraData2D: ICameraData
 {
     public Transform2D transform;
+    public float depth;
 
     public CameraData2D()
     {
@@ -33,7 +34,8 @@ public struct CameraData2D: ICameraData
     public Matrix4x4 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => math.matrix4scale(math.reciprocal(transform.scale * 0.5f));
+        get =>math.matrix4scale(math.reciprocal(new Vector3(transform.scale * 0.5f, depth)));
+
     }
 
     public Matrix4x4 ViewProjectionMatrix

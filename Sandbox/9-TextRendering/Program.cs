@@ -7,7 +7,7 @@ GameEngineSetting setting = GameEngineSetting.Default with
     StopWhenError = true,
     Window = new WindowSetting(640, 360, "Text Rendering"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.OpenGL,
+        Backend = GraphicsBackend.Vulkan,
     }
 };
 

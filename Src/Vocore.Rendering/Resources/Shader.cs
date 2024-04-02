@@ -79,7 +79,7 @@ public class Shader : ShaderResource
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_pipeline.Name}");
     }
 
     private void BuildResourceIndex()

@@ -18,4 +18,14 @@ public class Camera2D : BaseCamera<CameraData2D>
             _dirty = true;
         }
     }
+
+    public float Depth
+    {
+        get => _data.depth;
+        set
+        {
+            _data.depth = value;
+            _dirty = true;
+        }
+    }
 }

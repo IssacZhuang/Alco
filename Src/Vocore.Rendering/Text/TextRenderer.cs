@@ -138,6 +138,8 @@ public class TextRenderer : Renderer
         _instanceIndex = 0;
     }
 
+    #region  Draw 2d
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void DrawString(Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
@@ -162,8 +164,23 @@ public class TextRenderer : Renderer
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawChars(Font font, char[] str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    #endregion 
+
+    #region Draw 3d
+    public unsafe void DrawString(Font font, string str, float fontSize, Vector3 position, Quaternion rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        fixed (char* p = str)
+        {
+            DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
+        }
+    }
+
+    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
+    }
+
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
@@ -171,7 +188,54 @@ public class TextRenderer : Renderer
         }
     }
 
+    #endregion
+
+    #region Draw by matrix
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawString(Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        fixed (char* p = str)
+        {
+            DrawTextCore(font, p, str.Length, matrix, align, color, lineSpacing);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawChars(Font font, char* str, int count, float fontSize, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        DrawTextCore(font, str, count, matrix, pivot, color, lineSpacing);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    {
+        fixed (char* p = str)
+        {
+            DrawTextCore(font, p, str.Length, matrix, pivot, color, lineSpacing);
+        }
+    }
+
+    #endregion
+
+    //draw 2d
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    {
+        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
+    }
+
+    //draw 3d
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe void DrawTextCore(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    {
+        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
+        DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
+    }
+
+    //draw by matrix
+    private unsafe void DrawTextCore(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         if (count == 0)
         {
@@ -195,16 +259,16 @@ public class TextRenderer : Renderer
         for (int i = 0; i < count; i++)
         {
             c = str[i];
-            textDataPtr[i] = GetTextData(c, font.GetGlyph(c), position, color, lineSpacing, ref x, ref y);
+            textDataPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
         }
 
         Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
 
-        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        //Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
 
         Constant constant = new Constant
         {
-            Model = transform.Matrix,
+            Model = matrix,
             InstanceStart = 0,
             VertexOffset = textAreaSize * realPivot
         };
@@ -246,7 +310,7 @@ public class TextRenderer : Renderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static TextData GetTextData(char c, GlyphInfo glyph, Vector2 basePos, Vector4 color, float lineSpacing, ref float x, ref float y)
+    private static TextData GetTextData(char c, GlyphInfo glyph, Vector4 color, float lineSpacing, ref float x, ref float y)
     {
         if (c == ' ')
         {
