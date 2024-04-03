@@ -48,8 +48,8 @@ public class SpriteRenderer : Renderer
         _shader = shader;
         _mesh = Mesh.Create(Vertices, Indices);
 
-        _shaderId_camera = _shader.GetResourceId("Camera");
-        _shaderId_texture = _shader.GetResourceId("Texture");
+        _shaderId_camera = _shader.GetResourceId("_camera");
+        _shaderId_texture = _shader.GetResourceId("_texture");
     }
 
     public void Begin(GPUFrameBuffer target)
