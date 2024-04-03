@@ -3,20 +3,32 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+/// <summary>
+/// The encapsulation of a GPU buffer object and its binding resource group.
+/// </summary>
 public class GraphicsBuffer : ShaderResource
 {
-    private readonly GPUDevice _device;
-    private readonly GPUBuffer _buffer;
+    protected readonly GPUDevice _device;
+    protected readonly GPUBuffer _buffer;
     private readonly GPUResourceGroup _resourcesReadOnly; // for uniform buffer
     private GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
 
     public string Name { get; }
+
+    /// <summary>
+    /// The entry for binding the buffer as uniform buffer.
+    /// </summary>
+    /// <value>The GPU resource group to bind.</value>
     public GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _resourcesReadOnly;
     }
 
+    /// <summary>
+    /// The entry for binding the buffer as storage buffer.
+    /// </summary>
+    /// <value>The GPU resource group to bind.</value>
     public GPUResourceGroup EntryReadWrite
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -30,37 +42,57 @@ public class GraphicsBuffer : ShaderResource
         }
     }
 
-    internal GraphicsBuffer(string name = "unnamed_graphics_buffer")
+    /// <summary>
+    /// The internal abstracted GPU buffer object.
+    /// </summary>
+    /// <value></value>
+    public GPUBuffer Buffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _buffer;
+    }
+
+    public GraphicsBuffer(uint size, string name = "unnamed_graphics_buffer")
     {
         _device = RendereringContext.Device;
 
         _buffer = _device.CreateBuffer(new BufferDescriptor
         {
-            Usage = BufferUsage.Uniform | BufferUsage.Storage | BufferUsage.CopyDst,
-            Size = 0,
+            Usage = BufferUsage.Uniform | BufferUsage.Storage | BufferUsage.CopyDst | BufferUsage.Indirect,
+            Size = size,
             Name = name
         });
 
 
         Name = name;
-
         _resourcesReadOnly = CreateResourceReadonly();
     }
 
-    public void Update<T>(T data) where T : unmanaged
+    /// <summary>
+    /// Update the data to GPU immediately.
+    /// </summary>
+    /// <param name="data">The data to update. </param>
+    /// <param name="offset">The offset in GPU memory. </param>
+    /// <typeparam name="T">The type of the data.</typeparam>
+    public unsafe void UpdateBuffer<T>(T[] data, uint offset = 0) where T : unmanaged
     {
-        _device.WriteBuffer(_buffer, data);
+        fixed (T* ptr = data)
+        {
+            _device.WriteBuffer(_buffer, offset, (byte*)ptr, (uint)(data.Length * sizeof(T)));
+        }
     }
 
-    public void Update(byte[] data)
+    /// <summary>
+    /// Update the data to GPU immediately.
+    /// </summary>
+    /// <param name="data">The pointer to the data. </param>
+    /// <param name="size">The size of the data. </param>
+    /// <param name="offset">The offset in GPU memory. </param>
+    public unsafe void UpdateBuffer(byte* data, uint size, uint offset = 0)
     {
-        _device.WriteBuffer(_buffer, data);
+        _device.WriteBuffer(_buffer, offset, data, size);
     }
 
-    public unsafe void Update(byte* data, uint size)
-    {
-        _device.WriteBuffer(_buffer, data, size);
-    }
 
     private GPUResourceGroup CreateResourceReadonly()
     {
@@ -78,7 +110,7 @@ public class GraphicsBuffer : ShaderResource
     {
         return _device.CreateResourceGroup(new ResourceGroupDescriptor
         {
-            Layout = _device.BindGroupUniformBuffer,
+            Layout = _device.BindGroupStorageBuffer,
             Resources = new ResourceBindingEntry[]
             {
                 new ResourceBindingEntry(0, _buffer),

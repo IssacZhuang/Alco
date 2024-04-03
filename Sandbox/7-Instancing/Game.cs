@@ -34,7 +34,7 @@ public class Game : GameEngine
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
-    private GraphicsBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsValueBuffer<Matrix4x4> _cameraBuffer;
     private GraphicsArrayBuffer<Vector4> _positionsBuffer;
 
     private GPUPipeline _pipeline;
@@ -62,7 +62,7 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
+        _cameraBuffer = new GraphicsValueBuffer<Matrix4x4>("camera_buffer");
 
         _texWhite = Texture2D.CreateEmpty(16, 16, new ColorFloat(1, 1, 1, 1));
 
@@ -86,12 +86,14 @@ public class Game : GameEngine
             Stop();
         }
 
-        _cameraBuffer.Value = camera.ViewProjectionMatrix;
+        _cameraBuffer.UpdateBuffer(camera.ViewProjectionMatrix);
         _timer += delta;
         for (int i = 0; i < 500; i++)
         {
             _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
         }
+
+        _positionsBuffer.UpdateBuffer();
 
         //draw
         _commandBuffer.Begin();

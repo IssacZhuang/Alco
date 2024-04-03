@@ -2,18 +2,21 @@ using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
-
-public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
+/// <summary>
+/// The encapsulation of a GPU buffer object and its binding resource group.
+/// <br/>The buffer is operated as an array.
+/// </summary>
+/// <typeparam name="T">The type of the value to store in the buffer.</typeparam>
+public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
 {
     public const uint MaxInstanceCount = 500;
-    private readonly GPUDevice _device;
-    private readonly GPUBuffer _buffer;
-    private readonly GPUResourceGroup _resourcesReadOnly;
-    private GPUResourceGroup? _resourcesReadWrite;
-    private bool _isDirty;
-    private NativeBuffer<T> _data;
-    public string Name { get; }
 
+    private NativeBuffer<T> _data;
+
+    /// <summary>
+    /// The indexer for the array buffer in CPU.
+    /// </summary>
+    /// <value>The value of the array at the specified index.</value>
     public unsafe T this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -25,102 +28,57 @@ public class GraphicsArrayBuffer<T> : ShaderResource where T : unmanaged
         set
         {
             _data[index] = value;
-            _isDirty = true;
         }
     }
 
-    public GPUResourceGroup EntryReadonly
+    /// <summary>
+    /// Create a graphics array buffer with a specified length.
+    /// </summary>
+    /// <param name="length">The length of the array. </param>
+    /// <param name="name">The name of the buffer. </param>
+    public unsafe GraphicsArrayBuffer(int length, string name = "unnamed_graphics_array_buffer") : base((uint)(length * sizeof(T)), name)
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            UpdateBuffer();
-            return _resourcesReadOnly;
-        }
-    }
-
-    public GPUResourceGroup EntryReadWrite
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            UpdateBuffer();
-            if (_resourcesReadWrite == null)
-            {
-                _resourcesReadWrite = CreateResourceReadWrite();
-            }
-            return _resourcesReadWrite;
-        }
-    }
-
-    public unsafe GraphicsArrayBuffer(int length, string name = "unnamed_graphics_array_buffer")
-    {
-        _device = RendereringContext.Device;
-        _buffer = _device.CreateBuffer(
-            new BufferDescriptor
-            {
-                Name = name,
-                Size = (ulong)(sizeof(T) * length),
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.Storage,
-            },
-            length
-        );
-        Name = name;
-
-        _resourcesReadOnly = CreateResourceReadonly();
-
         _data = new NativeBuffer<T>(length);
     }
 
+    /// <summary>
+    /// Create a graphics array buffer with a initial data.
+    /// </summary>
+    /// <param name="initialData">The initial data of the array. </param>
+    /// <param name="name">The name of the buffer. </param>
+    public unsafe GraphicsArrayBuffer(IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") : base((uint)(initialData.Count * sizeof(T)), name)
+    {
+        _data = new NativeBuffer<T>(initialData.Count);
+        for (int i = 0; i < initialData.Count; i++)
+        {
+            _data[i] = initialData[i];
+        }
+        UpdateBuffer();
+    }
+
+    /// <summary>
+    /// Update the array from CPU to GPU.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void UpdateBuffer()
     {
-        if (_isDirty)
-        {
-            _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer, (uint)_data.Length * (uint)sizeof(T));
-            _isDirty = false;
-        }
+        _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer, (uint)_data.Length * (uint)sizeof(T));
     }
 
+    /// <summary>
+    /// Update the value from CPU to GPU with a specified range.
+    /// </summary>
+    /// <param name="start">The start index of the array. </param>
+    /// <param name="count">The count of the elements to update. </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void UpdateBufferRanged(uint start, uint count)
     {
-        if (_isDirty)
-        {
-            _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer + start * (uint)sizeof(T), count * (uint)sizeof(T));
-            _isDirty = false;
-        }
-    }
-
-    private GPUResourceGroup CreateResourceReadonly()
-    {
-        return _device.CreateResourceGroup(new ResourceGroupDescriptor
-        {
-            Layout = _device.BindGroupUniformBuffer,
-            Resources = new ResourceBindingEntry[]
-            {
-                new ResourceBindingEntry(0, _buffer),
-            }
-        });
-    }
-
-    private GPUResourceGroup CreateResourceReadWrite()
-    {
-        return _device.CreateResourceGroup(new ResourceGroupDescriptor
-        {
-            Layout = _device.BindGroupStorageBuffer,
-            Resources = new ResourceBindingEntry[]
-            {
-                new ResourceBindingEntry(0, _buffer),
-            }
-        });
+        _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer + start * (uint)sizeof(T), count * (uint)sizeof(T));
     }
 
     protected override void Dispose(bool disposing)
     {
-        _buffer.Dispose();
-        _resourcesReadOnly.Dispose();
-        _resourcesReadWrite?.Dispose();
+        base.Dispose(disposing);
         _data.Dispose();
     }
 }

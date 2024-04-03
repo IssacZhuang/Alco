@@ -34,8 +34,8 @@ public class Game : GameEngine
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
-    private GraphicsBuffer<Matrix4x4> _cameraBuffer;
-    private GraphicsBuffer<Matrix4x4> _modelBuffer;
+    private GraphicsValueBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsValueBuffer<Matrix4x4> _modelBuffer;
     private GPUPipeline _pipeline;
     private Texture2D _texBlue;
     private Texture2D _texRed;
@@ -68,8 +68,8 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _cameraBuffer = new GraphicsBuffer<Matrix4x4>("camera_buffer");
-        _modelBuffer = new GraphicsBuffer<Matrix4x4>("model_buffer");
+        _cameraBuffer = new GraphicsValueBuffer<Matrix4x4>("camera_buffer");
+        _modelBuffer = new GraphicsValueBuffer<Matrix4x4>("model_buffer");
 
         _texBlue = Texture2D.CreateEmpty(16, 16, new ColorFloat(0, 0, 1, 1));
         _texRed = Texture2D.CreateEmpty(16, 16, new ColorFloat(1, 0, 0, 1));
@@ -110,8 +110,8 @@ public class Game : GameEngine
         _transform2.rotation = new Rotation2D(math.radians(45 * movement));
         _transform3.scale = new Vector2(1 + movement, 1 + movement);
 
-        _cameraBuffer.Value = camera.ViewProjectionMatrix;
-        _modelBuffer.Value = _transform1.Matrix;
+        _cameraBuffer.UpdateBuffer(camera.ViewProjectionMatrix);
+        _modelBuffer.UpdateBuffer(_transform1.Matrix);
 
         _timer += delta;
 
@@ -128,7 +128,7 @@ public class Game : GameEngine
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
-        _modelBuffer.Value = _transform2.Matrix;
+        _modelBuffer.UpdateBuffer(_transform2.Matrix);
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
@@ -141,7 +141,7 @@ public class Game : GameEngine
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
-        _modelBuffer.Value = _transform3.Matrix;
+        _modelBuffer.UpdateBuffer(_transform3.Matrix);
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
