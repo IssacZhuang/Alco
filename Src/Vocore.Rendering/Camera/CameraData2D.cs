@@ -15,6 +15,7 @@ public struct CameraData2D: ICameraData
     public CameraData2D()
     {
         transform = Transform2D.Identity;
+        depth = 1;
     }
 
     public Vector2 Size
