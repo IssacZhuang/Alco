@@ -19,7 +19,7 @@ public class Game : GameEngine
     {
         Assets.AddFileSource(new DirectoryFileSource("Assets"));
 
-        _shader = Assets.Load<Shader>("Rendering/Shader/UI/Text.hlsl");
+        _shader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _font = Assets.Load<Font>("Font.ttf");
         
         _camera = new Camera2D

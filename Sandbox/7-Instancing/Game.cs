@@ -68,14 +68,14 @@ public class Game : GameEngine
 
         camera = new CameraData2D();
         camera.transform.position = new Vector2(0, 2);
-        camera.Size = new Vector2(16, 9);
+        camera.Size = new Vector2(160, 90);
         Log.Info(camera.ViewProjectionMatrix);
 
         _positionsBuffer = new GraphicsArrayBuffer<Vector4>(500, "positions_buffer");
 
         _transform1 = Transform2D.Identity;
 
-        _transform1.position.X = -16;
+        _transform1.position.X = -32;
 
     }
 

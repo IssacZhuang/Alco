@@ -4,14 +4,18 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseAssetsPack>false</UseAssetsPack>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
     <ProjectReference Include="..\Vocore.Graphics\Vocore.Graphics.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Assets\**">
-      <LogicalName>%(EmbeddedResource.Identity)</LogicalName>
-    </EmbeddedResource>
+   <ItemGroup>
+    <Content
+      Condition="'$(UseAssetsPack)' == 'false'"
+      Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
+      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
