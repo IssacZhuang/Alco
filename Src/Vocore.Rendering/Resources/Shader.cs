@@ -48,6 +48,22 @@ public class Shader : ShaderResource
         get => _pipeline;
     }
 
+    /// <summary>
+    /// The amount of bind groups in the shader.
+    /// </summary>
+    /// <value>The bind group count.</value>
+    public int BindGroupCount
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _reflectionInfo.BindGroups.Length;
+    }
+
+    internal ShaderReflectionInfo Reflections
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _reflectionInfo;
+    }
+
     internal Shader(GPUPipeline pipeline, ShaderReflectionInfo reflectionInfo)
     {
         _pipeline = pipeline;

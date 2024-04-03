@@ -13,6 +13,10 @@ public class GraphicsBuffer : ShaderResource
     private readonly GPUResourceGroup _resourcesReadOnly; // for uniform buffer
     private GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
 
+    /// <summary>
+    /// The name of the buffer.
+    /// </summary>
+    /// <value>The name of the buffer.</value>
     public string Name { get; }
 
     /// <summary>

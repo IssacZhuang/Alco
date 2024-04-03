@@ -16,6 +16,7 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
     /// <summary>
     /// The indexer for the array buffer in CPU.
     /// </summary>
+    /// <param name="index">The index in the array. </param>
     /// <value>The value of the array at the specified index.</value>
     public unsafe T this[int index]
     {
