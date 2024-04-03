@@ -46,14 +46,14 @@
   </PropertyGroup>
 
   <!-- copy assets to output folder if UseAssetsPack is false -->
-  <!-- <ItemGroup>
+  <ItemGroup>
     <Content
       Condition="'$(UseAssetsPack)' == 'false'"
       Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup> -->
+  </ItemGroup>
 
   <UsingTask
     Condition="'$(UseAssetsPack)' == 'true'"
