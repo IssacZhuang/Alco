@@ -148,7 +148,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
     {
-        PushConstants(stage, bufferOffset, (byte*)&data, (uint)Unsafe.SizeOf<T>());
+        PushConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
