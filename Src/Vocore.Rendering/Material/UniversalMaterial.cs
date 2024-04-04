@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class Material
+public class UniversalMaterial : Material
 {
     private struct Slot
     {
@@ -11,6 +11,7 @@ public class Material
         public GPUResourceGroup? group;
         public object? owner;//prevent GC to collect the owner of GPUResourceGroup
     }
+
     private readonly Shader _shader;
     private readonly Slot[] _slots;
 
@@ -20,7 +21,7 @@ public class Material
         get => _shader;
     }
 
-    public Material(Shader shader)
+    public UniversalMaterial(Shader shader)
     {
         _shader = shader;
         _slots = new Slot[shader.BindGroupCount];
@@ -311,7 +312,7 @@ public class Material
 
     #endregion
 
-    public void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    public override void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
     {
         for (uint i = 0; i < _slots.Length; i++)
         {

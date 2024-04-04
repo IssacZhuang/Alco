@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 
@@ -10,7 +11,7 @@ public class Shader : ShaderResource
 {
     private GPUPipeline _pipeline;
     private ShaderReflectionInfo _reflectionInfo;
-    private readonly Dictionary<string, uint> _resourceIds = new Dictionary<string, uint>();
+    private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
 
     /// <summary>
     /// Gets the shader stages.
@@ -100,16 +101,19 @@ public class Shader : ShaderResource
 
     private void BuildResourceIndex()
     {
-        _resourceIds.Clear();
+        Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
+        resourceIds.Clear();
         for (uint i = 0; i < _reflectionInfo.BindGroups.Length; i++)
         {
             BindGroupLayout bindGroup = _reflectionInfo.BindGroups[i];
             if (bindGroup.Bindings != null
             && bindGroup.Bindings.Length > 0)
             {
-                _resourceIds[bindGroup.Bindings[0].Name] = i;
+                resourceIds[bindGroup.Bindings[0].Name] = i;
             }
         }
+
+        _resourceIds = resourceIds.ToFrozenDictionary();
     }
 
     internal void HotReload(GPUPipeline pipeline, ShaderReflectionInfo reflectionInfo)

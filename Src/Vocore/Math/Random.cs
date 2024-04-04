@@ -36,6 +36,12 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint NextUint()
+        {
+            return NextState();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat()
         {
             return asfloat(0x3f800000 | (NextState() >> 9)) - 1.0f;

@@ -157,7 +157,7 @@ public class SpriteRenderer : Renderer
         };
 
         _command.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
-        _command.PushConstants(ShaderStage.Vertex, constant);
+        _command.PushConstants(ShaderStage.Vertex|ShaderStage.Fragment, constant);
         _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
     }
 

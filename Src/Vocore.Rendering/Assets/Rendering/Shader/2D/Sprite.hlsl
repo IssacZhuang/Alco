@@ -3,6 +3,8 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
+#pragma BlendState NonPremultipliedAlpha
+
 struct Vertex2D {
   float2 position : POSITION;
   float2 uv : TEXCOORD0;

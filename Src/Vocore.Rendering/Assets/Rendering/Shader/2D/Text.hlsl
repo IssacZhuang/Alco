@@ -3,7 +3,10 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
+#pragma BlendState NonPremultipliedAlpha
+
 #define MAX_INSTANCE_COUNT 300
+
 
 struct Vertex2D {
   float2 position : POSITION;
