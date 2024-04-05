@@ -71,14 +71,14 @@ public class SpriteRenderer : Renderer
     #region  Draw 3D
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, Vector4 color)
+    public void Draw(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, ColorFloat color)
     {
         Transform3D transform = new Transform3D(position, rotation, scale);
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, Rect uvRect, Vector4 color)
+    public void Draw(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, Rect uvRect, ColorFloat color)
     {
         Transform3D transform = new Transform3D(position, rotation, scale);
         DrawCore(texture, uvRect, transform.Matrix, color);
@@ -86,13 +86,13 @@ public class SpriteRenderer : Renderer
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Transform3D transform, Vector4 color)
+    public void Draw(Texture2D texture, Transform3D transform, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Transform3D transform, Rect uvRect, Vector4 color)
+    public void Draw(Texture2D texture, Transform3D transform, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
@@ -102,14 +102,14 @@ public class SpriteRenderer : Renderer
     #region Draw 2D
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, Vector4 color)
+    public void Draw(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, ColorFloat color)
     {
         Transform2D transform = new Transform2D(position, rotation, scale);
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, Rect uvRect, Vector4 color)
+    public void Draw(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, Rect uvRect, ColorFloat color)
     {
         Transform2D transform = new Transform2D(position, rotation, scale);
         DrawCore(texture, uvRect, transform.Matrix, color);
@@ -117,13 +117,13 @@ public class SpriteRenderer : Renderer
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Transform2D transform, Vector4 color)
+    public void Draw(Texture2D texture, Transform2D transform, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Transform2D transform, Rect uvRect, Vector4 color)
+    public void Draw(Texture2D texture, Transform2D transform, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
@@ -134,20 +134,20 @@ public class SpriteRenderer : Renderer
     #region Draw by matrix
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Matrix4x4 matrix, Vector4 color)
+    public void Draw(Texture2D texture, Matrix4x4 matrix, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Draw(Texture2D texture, Matrix4x4 matrix, Rect uvRect, Vector4 color)
+    public void Draw(Texture2D texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, matrix, color);
     }
 
     #endregion
 
-    private void DrawCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, Vector4 color)
+    private void DrawCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, ColorFloat color)
     {
         Constant constant = new Constant
         {

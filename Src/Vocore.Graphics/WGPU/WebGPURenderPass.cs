@@ -9,9 +9,6 @@ namespace Vocore.Graphics.WebGPU;
 internal class WebGPURenderPass : GPURenderPass
 {
 
-
-
-
     #region Properties
     private readonly WGPUDevice _nativeDevice;
     private readonly RenderPassDescriptor _descriptor;
@@ -45,16 +42,6 @@ internal class WebGPURenderPass : GPURenderPass
     protected override void Dispose(bool disposing)
     {
         // Nothing to do because only meta data inside
-    }
-
-    public override GPUFrameBuffer CreateFrameBuffer(uint width, uint height, string? name = null)
-    {
-        if (name == null)
-        {
-            name = $"{Name} - FrameBuffer";
-        }
-
-        return new WebGPUFrameBuffer(this, width, height, name);
     }
 
     #endregion

@@ -108,8 +108,13 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUFrameBuffer(WebGPURenderPass renderPass, uint width, uint height, string name)
+    internal WebGPUFrameBuffer(in FrameBufferDescriptor descriptor)
     {
+        WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.RenderPass;
+        string name = descriptor.Name;
+        uint width = descriptor.Width;
+        uint height = descriptor.Height;
+
         Name = name;
         _renderPass = renderPass;
 

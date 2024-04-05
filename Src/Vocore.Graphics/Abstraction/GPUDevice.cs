@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace Vocore.Graphics;
 
 /// <summary>
-/// The main interface to do the operations on the GPU. It is the entry point to create the GPU resources and submit the commands to the GPU.
+/// The low-level interface to do the operations on the GPU. It is the entry point to create the GPU resources and submit the commands to the GPU.
 /// <br/> !Attention: The GPUDevice is not thread-safe, it should only be used in the main thread or use the synchronization mechanism to protect the access.
 /// </summary> 
 public abstract class GPUDevice : BaseGPUObject
@@ -211,6 +211,28 @@ public abstract class GPUDevice : BaseGPUObject
     public void DestroyRenderPass(GPURenderPass renderPass)
     {
         DestroyRenderPassCore(renderPass);
+    }
+
+    /// <summary>
+    /// Creates a GPU frame buffer with the render pass, width, and height.
+    /// </summary>
+    /// <param name="renderPass"> The render pass of the frame buffer.</param>
+    /// <param name="width"> The width of the frame buffer.</param>
+    /// <param name="height"> The height of the frame buffer.</param>
+    /// <param name="name"> The name of the frame buffer.</param>
+    /// <returns></returns>
+    public GPUFrameBuffer CreateFrameBuffer(in FrameBufferDescriptor descriptor)
+    {
+        return CreateFrameBufferCore(descriptor);
+    }
+
+    /// <summary>
+    /// Destroys the GPU frame buffer.
+    /// </summary>
+    /// <param name="frameBuffer">The GPU frame buffer to destroy.</param>
+    public void DestroyFrameBuffer(GPUFrameBuffer frameBuffer)
+    {
+        DestroyFrameBufferCore(frameBuffer);
     }
 
     /// <summary>
@@ -502,6 +524,11 @@ public abstract class GPUDevice : BaseGPUObject
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
     /// <exclude />
     protected abstract void DestroyRenderPassCore(GPURenderPass renderPass);
+
+    /// <exclude />
+    protected abstract GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor);
+    /// <exclude />
+    protected abstract void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer);
 
     /// <exclude />
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);

@@ -189,6 +189,12 @@ internal partial class WebGPUDevice : GPUDevice
     {
         return new WebGPURenderPass(Native, descriptor);
     }
+
+    protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
+    {
+        return new WebGPUFrameBuffer(descriptor);
+    }
+
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
     {
         return new WebGPUGraphicsPipeline(Native, descriptor);
@@ -244,6 +250,11 @@ internal partial class WebGPUDevice : GPUDevice
     protected override void DestroyRenderPassCore(GPURenderPass renderPass)
     {
         renderPass.Dispose();
+    }
+
+    protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
+    {
+        frameBuffer.Dispose();
     }
 
     protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)

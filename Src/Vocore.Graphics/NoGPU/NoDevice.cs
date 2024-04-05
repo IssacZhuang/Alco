@@ -13,6 +13,7 @@ internal class NoDevice : GPUDevice
     private static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
     private static readonly NoPipeline noPipeline = new NoPipeline();
     private static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
+    
 
     public override GPURenderPass SwapChainRenderPass => noRenderPass;
 
@@ -68,6 +69,11 @@ internal class NoDevice : GPUDevice
         return noPipeline;
     }
 
+    protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
+    {
+        return noFrameBuffer;
+    }
+
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
     {
         return noPipeline;
@@ -119,6 +125,11 @@ internal class NoDevice : GPUDevice
     }
 
     protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
+    {
+        
+    }
+
+    protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         
     }
