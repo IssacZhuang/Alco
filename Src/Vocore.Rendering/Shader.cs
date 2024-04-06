@@ -7,7 +7,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The high level encapsulation of GPU pipeline
 /// </summary>
-public class Shader : ShaderResource
+public class Shader : AutoDisposable
 {
     private GPUPipeline _pipeline;
     private ShaderReflectionInfo _reflectionInfo;
