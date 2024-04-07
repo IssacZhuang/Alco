@@ -20,9 +20,16 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer
         FileExt.ImageHDR
         };
 
+    private readonly RenderingSystem _renderingSystem;
+
     public override string Name => "AssetLoader.Texture2D";
 
     public override IReadOnlyList<string> FileExtensions => Extensions;
+
+    public AssetLoaderTexture2D(RenderingSystem renderingSystem)
+    {
+        _renderingSystem = renderingSystem;
+    }
 
     /// <inheritdoc/>
     protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ImageResultBuffer? preprocessed)
@@ -36,7 +43,7 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer
     {
         try
         {
-            asset = Texture2D.CreateFromData(preprocessed.Memory.Pointer, preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height, Texture2D.GetPixelSize(preprocessed.Comp));
+            asset = _renderingSystem.CreateTexture2D(preprocessed.Memory.Pointer, preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height, Texture2D.GetPixelSize(preprocessed.Comp));
         }
         catch (Exception e)
         {

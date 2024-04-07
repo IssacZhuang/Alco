@@ -44,15 +44,15 @@ namespace Vocore.Engine
 
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
 
-        internal AssetManager(int threadCount)
+        internal AssetManager(GameEngine engine, int threadCount)
         {
             _ownerThreadId = Environment.CurrentManagedThreadId;
 
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
 
             //built in asset loaders
-            RegisterAssetLoader(new AssetLoaderTexture2D());
-            RegisterAssetLoader(new AssetLoaderShaderHLSL((string includeName) =>
+            RegisterAssetLoader(new AssetLoaderTexture2D(engine.Rendering));
+            RegisterAssetLoader(new AssetLoaderShaderHLSL(engine.Rendering, (string includeName) =>
             {
                 if (TryLoadDataFromSource(includeName, out ReadOnlySpan<byte> data))
                 {

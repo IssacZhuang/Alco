@@ -11,9 +11,15 @@ public class AssetLoaderShaderBinary : BaseAssetLoader<Shader, ShaderCompileResu
 {
     private static readonly string[] Extensions = new string[] { FileExt.ShaderBinary};
 
+    private readonly RenderingSystem _renderingSystem;
     public override string Name => "AssetLoader.Shader.Binary";
 
     public override IReadOnlyList<string> FileExtensions => Extensions;
+
+    public AssetLoaderShaderBinary(RenderingSystem renderingSystem)
+    {
+        _renderingSystem = renderingSystem;
+    }
 
     /// <inheritdoc/>
     protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
@@ -26,7 +32,7 @@ public class AssetLoaderShaderBinary : BaseAssetLoader<Shader, ShaderCompileResu
     /// <inheritdoc/>
     protected override bool TryCreateAssetCore(string filename, ShaderCompileResult preprocessed, [NotNullWhen(true)] out Shader? asset)
     {
-        asset = Shader.CreateFromCompileResult(preprocessed); // create GPU object
+        asset = _renderingSystem.CreateShader(preprocessed); // create GPU object
         return true;
     }
 }

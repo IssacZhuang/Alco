@@ -194,7 +194,7 @@ namespace Vocore.Engine
 
             _timer = new EngineTimer(this);
             _profiler = new EngineProfiler(this);
-            _assets = new AssetManager(2);
+            _assets = new AssetManager(this, 2);
         }
 
         ~GameEngine()
