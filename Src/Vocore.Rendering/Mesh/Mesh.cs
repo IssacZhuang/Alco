@@ -10,6 +10,8 @@ public unsafe class Mesh : ShaderResource, IMesh
     protected GPUBuffer _indexBuffer;
     protected IndexFormat _indexFormat;
     protected uint _indexCount;
+    protected uint _vertexCount;
+    protected uint _vertexStride;
     public string Name { get; }
 
     public GPUBuffer VertexBuffer
@@ -36,31 +38,34 @@ public unsafe class Mesh : ShaderResource, IMesh
         get => _indexCount;
     }
 
-    public uint SubMeshCount
+    public virtual uint SubMeshCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => 1;
     }
 
-    internal Mesh(GPUDevice device, uint vertexSize, uint indexCount, IndexFormat indexFormat, string name = "mesh")
+    internal Mesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
     {
         _device = device;
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
-            Size = vertexSize,
+            Size = vertexCount * vertexStride,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
-            Name = "vertex_buffer"
+            Name = $"{name}_vertex_buffer"
         });
 
         _indexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = indexCount * GetIndexSize(indexFormat),
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
-            Name = "index_buffer"
+            Name = $"{name}_index_buffer"
         });
 
         _indexFormat = indexFormat;
         _indexCount = indexCount;
+
+        _vertexCount = vertexCount;
+        _vertexStride = vertexStride;
 
         Name = name;
     }
@@ -146,7 +151,7 @@ public unsafe class Mesh : ShaderResource, IMesh
         fixed (void* vertexData = vertices)
         fixed (void* indexData = indices)
         {
-            Mesh mesh = new Mesh(RendereringContext.Device, (uint)(vertices.Length * sizeof(TVertex)), (uint)indices.Length, IndexFormat.Uint32, name);
+            Mesh mesh = new Mesh(RendereringContext.Device, (uint)vertices.Length , (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.Uint32, name);
             mesh.UpdateVertex(vertexData, (uint)(vertices.Length * sizeof(TVertex)));
             mesh.UpdateIndex(indexData, (uint)(indices.Length * sizeof(uint)));
             return mesh;
@@ -158,7 +163,7 @@ public unsafe class Mesh : ShaderResource, IMesh
         fixed (void* vertexData = vertices)
         fixed (void* indexData = indices)
         {
-            Mesh mesh = new Mesh(RendereringContext.Device, (uint)(vertices.Length * sizeof(TVertex)), (uint)indices.Length, IndexFormat.Uint16, name);
+            Mesh mesh = new Mesh(RendereringContext.Device, (uint)vertices.Length , (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.Uint16, name);
             mesh.UpdateVertex(vertexData, (uint)(vertices.Length * sizeof(TVertex)));
             mesh.UpdateIndex(indexData, (uint)(indices.Length * sizeof(ushort)));
             return mesh;

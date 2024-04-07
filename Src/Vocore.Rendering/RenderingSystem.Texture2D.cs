@@ -7,7 +7,45 @@ namespace Vocore.Rendering;
 
 public partial class RenderingSystem
 {
-    public unsafe Texture2D CreateEmpty(
+
+    public unsafe Texture2D CreateTexture2DFromStream(
+        Stream stream,
+        ImageLoadOption? option = null
+    )
+    {
+
+        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
+        using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
+
+        return CreateTexture2D(
+            image.Memory.Pointer,
+            image.Memory.Length,
+            (uint)image.Width,
+            (uint)image.Height,
+            GetPixelSize(targetComponents),
+            option
+        );
+    }
+
+    public unsafe Texture2D CreateTexture2DFromFile(
+        byte[] fileBytes,
+        ImageLoadOption? option = null
+    )
+    {
+        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
+
+        return CreateTexture2D(
+            image.Memory.Pointer,
+            image.Memory.Length,
+            (uint)image.Width,
+            (uint)image.Height,
+            GetPixelSize(targetComponents),
+            option
+        );
+    }
+
+    public unsafe Texture2D CreateTexture2D(
         uint width,
         uint height,
         Color32 color,
@@ -17,7 +55,7 @@ public partial class RenderingSystem
         int length = (int)(width * height);
         Color32* data = Alloc<Color32>(length);
         Memset(data, length, color);
-        Texture2D texture = CreateFromData(
+        Texture2D texture = CreateTexture2D(
             (byte*)data,
             (uint)sizeof(Color32) * width * height,
             width,
@@ -29,44 +67,7 @@ public partial class RenderingSystem
         return texture;
     }
 
-    public unsafe Texture2D CreateFromStream(
-        Stream stream,
-        ImageLoadOption? option = null
-    )
-    {
-
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
-
-        return CreateFromData(
-            image.Memory.Pointer,
-            image.Memory.Length,
-            (uint)image.Width,
-            (uint)image.Height,
-            GetPixelSize(targetComponents),
-            option
-        );
-    }
-
-    public unsafe Texture2D CreateFromFile(
-        byte[] fileBytes,
-        ImageLoadOption? option = null
-    )
-    {
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
-
-        return CreateFromData(
-            image.Memory.Pointer,
-            image.Memory.Length,
-            (uint)image.Width,
-            (uint)image.Height,
-            GetPixelSize(targetComponents),
-            option
-        );
-    }
-
-    public unsafe Texture2D CreateFromData(
+    public unsafe Texture2D CreateTexture2D(
         byte[] data,
         uint width,
         uint height,
@@ -76,7 +77,7 @@ public partial class RenderingSystem
     {
         fixed (byte* ptr = data)
         {
-            return CreateFromData(
+            return CreateTexture2D(
                 ptr,
                 (uint)data.Length,
                 width,
@@ -87,7 +88,7 @@ public partial class RenderingSystem
         }
     }
 
-    public unsafe Texture2D CreateFromData(
+    public unsafe Texture2D CreateTexture2D(
         byte* data,
         uint size,
         uint width,

@@ -9,7 +9,7 @@ public partial class RenderingSystem
     /// </summary>
     /// <param name="result">The shader compile result.</param>
     /// <returns>The created shader.</returns>
-    public Shader CreateFromCompileResult(ShaderCompileResult result)
+    public Shader CreateShader(ShaderCompileResult result)
     {
         GPUPipeline? pipeline = CreatePipeline(result);
         if (pipeline != null)

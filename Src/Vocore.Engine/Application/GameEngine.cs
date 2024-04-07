@@ -30,6 +30,7 @@ namespace Vocore.Engine
         private readonly Window _window;
         private readonly AssetManager _assets;
         private readonly Input _input;
+        private readonly RenderingSystem _rendering;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
 
@@ -90,7 +91,7 @@ namespace Vocore.Engine
 
         /// <summary>
         /// The graphics device of the game<br/>
-        /// Which provides the low level graphics API,<br/>
+        /// Which provides the low-level graphics API,<br/>
         /// It is dangerous to use if you not familiar with graphics programming
         /// </summary>
         public GPUDevice GraphicsDevice
@@ -125,6 +126,15 @@ namespace Vocore.Engine
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _input;
+        }
+
+        /// <summary>
+        /// The high-level graphics API of the game<br/>
+        /// </summary>
+        public RenderingSystem Rendering
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rendering;
         }
 
         public int FrameRate
@@ -180,7 +190,8 @@ namespace Vocore.Engine
 
             Vector2 screenSizeFloat = new Vector2(_setting.Window.Width, _setting.Window.Height);
             _graphics = new EngineGraphics(this, screenSizeFloat);
-            
+            _rendering = new RenderingSystem(_graphicsDevice);
+
             _timer = new EngineTimer(this);
             _profiler = new EngineProfiler(this);
             _assets = new AssetManager(2);
