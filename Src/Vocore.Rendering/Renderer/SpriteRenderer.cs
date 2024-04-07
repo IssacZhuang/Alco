@@ -15,22 +15,6 @@ public class SpriteRenderer : Renderer
         public Rect UvRect;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Vertex
-    {
-        public Vector2 Position;
-        public Vector2 TexCoord;
-    }
-
-    private static readonly Vertex[] Vertices =
-   {
-        new Vertex {Position = new Vector2(-0.5f, 0.5f), TexCoord = new Vector2(0, 0)},
-        new Vertex {Position = new Vector2(0.5f, 0.5f), TexCoord = new Vector2(1, 0)},
-        new Vertex {Position = new Vector2(0.5f, -0.5f), TexCoord = new Vector2(1, 1)},
-        new Vertex {Position = new Vector2(-0.5f, -0.5f), TexCoord = new Vector2(0, 1)}
-    };
-
-    private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
     private static readonly Rect DefaultUvRect = new Rect(0, 0, 1, 1);
 
     private readonly GPUCommandBuffer _command;
@@ -41,12 +25,12 @@ public class SpriteRenderer : Renderer
     private readonly uint _shaderId_camera;
     private readonly uint _shaderId_texture;
 
-    public SpriteRenderer(ICamera camera, Shader shader) : base(camera)
+    internal SpriteRenderer(GPUDevice device, Mesh mesh, ICamera camera, Shader shader) : base(camera)
     {
-        _device = RendereringContext.Device;
+        _device = device;
         _command = _device.CreateCommandBuffer();
         _shader = shader;
-        _mesh = Mesh.Create(Vertices, Indices);
+        _mesh = mesh;
 
         _shaderId_camera = _shader.GetResourceId("_camera");
         _shaderId_texture = _shader.GetResourceId("_texture");
@@ -164,6 +148,5 @@ public class SpriteRenderer : Renderer
     protected override void Dispose(bool disposing)
     {
         _command.Dispose();
-        _mesh.Dispose();
     }
 }

@@ -28,7 +28,7 @@ public class Game : GameEngine
             Depth = 100
         };
 
-        _renderer = new TextRenderer(_camera, _shader);
+        _renderer = Rendering.CreateTextRenderer(_camera, _shader);
     }
 
     protected override void OnUpdate(float delta)

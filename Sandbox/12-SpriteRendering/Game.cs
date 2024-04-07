@@ -37,8 +37,8 @@ public class Game : GameEngine
             Depth = 100
         };
 
-        _textRenderer = new TextRenderer(_camera, _textShader);
-        _spriteRenderer = new SpriteRenderer(_camera, _spriteShader);
+        _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
+        _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
 
 
         _positions = new Vector2[DrawCount];

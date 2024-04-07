@@ -18,24 +18,7 @@ public class TextRenderer : Renderer
         // the start of instance id in OpenGL is always 0, so use a custom instance start
         public Vector2 VertexOffset;
         public uint InstanceStart;
-        
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Vertex
-    {
-        public Vector2 Position;
-        public Vector2 TexCoord;
-    }
-    private static readonly Vertex[] Vertices =
-    {
-        new Vertex {Position = new Vector2(0, 0), TexCoord = new Vector2(0, 0)},
-        new Vertex {Position = new Vector2(1, 0), TexCoord = new Vector2(1, 0)},
-        new Vertex {Position = new Vector2(1, -1), TexCoord = new Vector2(1, 1)},
-        new Vertex {Position = new Vector2(0, -1), TexCoord = new Vector2(0, 1)}
-    };
-
-    private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
 
     public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, -0.5f);
 
@@ -59,12 +42,12 @@ public class TextRenderer : Renderer
     private bool _isDrawing;
     private GPUFrameBuffer? _renderTarget;
 
-    public TextRenderer(ICamera camera, Shader shader):base(camera)
+    internal TextRenderer(GPUDevice device, Mesh mesh, ICamera camera, Shader shader):base(camera)
     {
-        _device = RendereringContext.Device;
+        _device = device;
         _textBufferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
 
-        _mesh = Mesh.Create(Vertices, Indices, "text_mesh");
+        _mesh = mesh;
         _shader = shader;
         _command = _device.CreateCommandBuffer();
 
@@ -340,7 +323,6 @@ public class TextRenderer : Renderer
     protected override void Dispose(bool disposing)
     {
         _textBufferGPU.Dispose();
-        _mesh.Dispose();
         _command.Dispose();
         _textBufferCPU.Dispose();
     }
