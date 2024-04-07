@@ -11,6 +11,12 @@ public partial class RenderingSystem
 {
     private GPUDevice _device;
 
+    public GPUDevice GraphicsDevice
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _device;
+    }
+
     public RenderingSystem(GPUDevice device)
     {
         _device = device;

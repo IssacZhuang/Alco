@@ -42,10 +42,10 @@ public class TextRenderer : Renderer
     private bool _isDrawing;
     private GPUFrameBuffer? _renderTarget;
 
-    internal TextRenderer(GPUDevice device, Mesh mesh, ICamera camera, Shader shader):base(camera)
+    internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, ICamera camera, Shader shader):base(camera)
     {
-        _device = device;
-        _textBufferGPU = new GraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
+        _device = renderingSystem.GraphicsDevice;
+        _textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
 
         _mesh = mesh;
         _shader = shader;

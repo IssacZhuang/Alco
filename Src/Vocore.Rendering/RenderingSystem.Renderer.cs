@@ -6,7 +6,7 @@ public partial class RenderingSystem
 {
     public TextRenderer CreateTextRenderer(ICamera camera, Shader shader)
     {
-        return new TextRenderer(_device, TrueTypeMesh, camera, shader);
+        return new TextRenderer(this, TrueTypeMesh, camera, shader);
     }
 
     public SpriteRenderer CreateSpriteRenderer(ICamera camera, Shader shader)

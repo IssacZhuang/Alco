@@ -32,22 +32,12 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         }
     }
 
-    /// <summary>
-    /// Create a graphics array buffer with a specified length.
-    /// </summary>
-    /// <param name="length">The length of the array. </param>
-    /// <param name="name">The name of the buffer. </param>
-    public unsafe GraphicsArrayBuffer(int length, string name = "unnamed_graphics_array_buffer") : base((uint)(length * sizeof(T)), name)
+    internal unsafe GraphicsArrayBuffer(GPUDevice device, int length, string name = "unnamed_graphics_array_buffer") : base(device, (uint)(length * sizeof(T)), name)
     {
         _data = new NativeBuffer<T>(length);
     }
 
-    /// <summary>
-    /// Create a graphics array buffer with a initial data.
-    /// </summary>
-    /// <param name="initialData">The initial data of the array. </param>
-    /// <param name="name">The name of the buffer. </param>
-    public unsafe GraphicsArrayBuffer(IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") : base((uint)(initialData.Count * sizeof(T)), name)
+    internal unsafe GraphicsArrayBuffer(GPUDevice device, IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") : base(device, (uint)(initialData.Count * sizeof(T)), name)
     {
         _data = new NativeBuffer<T>(initialData.Count);
         for (int i = 0; i < initialData.Count; i++)

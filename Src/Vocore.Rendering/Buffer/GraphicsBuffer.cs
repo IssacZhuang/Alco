@@ -56,9 +56,9 @@ public class GraphicsBuffer : ShaderResource
         get => _buffer;
     }
 
-    public GraphicsBuffer(uint size, string name = "unnamed_graphics_buffer")
+    internal GraphicsBuffer(GPUDevice device, uint size, string name = "unnamed_graphics_buffer")
     {
-        _device = RendereringContext.Device;
+        _device = device;
 
         _buffer = _device.CreateBuffer(new BufferDescriptor
         {
