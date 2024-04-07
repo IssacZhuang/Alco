@@ -10,9 +10,14 @@ namespace Vocore.Rendering;
 /// <typeparam name="T"> The type of the camera data. </typeparam>
 public abstract class BaseCamera<T> : AutoDisposable, ICamera where T : unmanaged, ICameraData
 {
-    private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionBuffer = new GraphicsValueBuffer<Matrix4x4>("camera_buffer");
+    private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionBuffer;
     protected T _data;
     protected bool _dirty;
+
+    public BaseCamera(RenderingSystem renderingSystem)
+    {
+        _viewProjectionBuffer = renderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
+    }
 
     public GPUResourceGroup ViewProjectionBuffer
     {

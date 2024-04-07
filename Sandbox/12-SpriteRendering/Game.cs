@@ -31,11 +31,7 @@ public class Game : GameEngine
         _font = Assets.Load<Font>("Font/Default.ttf");
         _star = Assets.Load<Texture2D>("Star.png");
 
-        _camera = new Camera2D
-        {
-            Size = new Vector2(640, 360),
-            Depth = 100
-        };
+        _camera = Rendering.CreateCamera2D(640, 360, 100);
 
         _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
         _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);

@@ -21,12 +21,8 @@ public class Game : GameEngine
 
         _shader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _font = Assets.Load<Font>("Font.ttf");
-        
-        _camera = new Camera2D
-        {
-            Size = new Vector2(640, 360),
-            Depth = 100
-        };
+
+        _camera = Rendering.CreateCamera2D(640, 360, 100);
 
         _renderer = Rendering.CreateTextRenderer(_camera, _shader);
     }

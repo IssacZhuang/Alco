@@ -62,7 +62,7 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _cameraBuffer = new GraphicsValueBuffer<Matrix4x4>("camera_buffer");
+        _cameraBuffer = Rendering.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
 
         _texWhite = Rendering.CreateTexture2D(16, 16, new ColorFloat(1, 1, 1, 1));
 
@@ -71,7 +71,7 @@ public class Game : GameEngine
         camera.Size = new Vector2(160, 90);
         Log.Info(camera.ViewProjectionMatrix);
 
-        _positionsBuffer = new GraphicsArrayBuffer<Vector4>(500, "positions_buffer");
+        _positionsBuffer = Rendering.CreateGraphicsArrayBuffer<Vector4>(500, "positions_buffer");
 
         _transform1 = Transform2D.Identity;
 

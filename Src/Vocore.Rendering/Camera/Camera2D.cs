@@ -4,7 +4,7 @@ namespace Vocore.Rendering;
 
 public class Camera2D : BaseCamera<CameraData2D>
 {
-    public Camera2D()
+    internal Camera2D(RenderingSystem renderingSystem) : base(renderingSystem)
     {
         _data = new CameraData2D();
     }
@@ -15,6 +15,26 @@ public class Camera2D : BaseCamera<CameraData2D>
         set
         {
             _data.Size = value;
+            _dirty = true;
+        }
+    }
+
+    public float Width
+    {
+        get => _data.Size.X;
+        set
+        {
+            _data.Size = new Vector2(value, _data.Size.Y);
+            _dirty = true;
+        }
+    }
+
+    public float Height
+    {
+        get => _data.Size.Y;
+        set
+        {
+            _data.Size = new Vector2(_data.Size.X, value);
             _dirty = true;
         }
     }
