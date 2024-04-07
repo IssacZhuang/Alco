@@ -1,5 +1,6 @@
 namespace Vocore.Rendering;
 
+using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 
 /// <summary>
@@ -9,6 +10,7 @@ using Vocore.Graphics;
 public partial class RenderingSystem
 {
     private GPUDevice _device;
+
     public RenderingSystem(GPUDevice device)
     {
         _device = device;

@@ -5,6 +5,7 @@ namespace Vocore.Rendering;
 
 public unsafe class Mesh : ShaderResource, IMesh
 {
+    protected GPUDevice _device;
     protected GPUBuffer _vertexBuffer;
     protected GPUBuffer _indexBuffer;
     protected IndexFormat _indexFormat;
@@ -41,24 +42,22 @@ public unsafe class Mesh : ShaderResource, IMesh
         get => 1;
     }
 
-    public Mesh(void* vertexData, uint vertexSize, void* indexData, uint indexSize, IndexFormat indexFormat, uint indexCount, string name = "mesh")
+    internal Mesh(GPUDevice device, uint vertexSize, uint indexCount, IndexFormat indexFormat, string name = "mesh")
     {
-        GPUDevice device = RendereringContext.Device;
+        _device = device;
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = vertexSize,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
             Name = "vertex_buffer"
         });
-        device.WriteBuffer(_vertexBuffer, (byte*)vertexData, vertexSize);
 
         _indexBuffer = device.CreateBuffer(new BufferDescriptor
         {
-            Size = indexSize,
+            Size = indexCount * GetIndexSize(indexFormat),
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
             Name = "index_buffer"
         });
-        device.WriteBuffer(_indexBuffer, (byte*)indexData, indexSize);
 
         _indexFormat = indexFormat;
         _indexCount = indexCount;
@@ -66,7 +65,52 @@ public unsafe class Mesh : ShaderResource, IMesh
         Name = name;
     }
 
-    public SubMeshData GetSubMesh(int index)
+    public void UpdateVertex(void* data, uint size, uint offset = 0)
+    {
+        _device.WriteBuffer(_vertexBuffer, offset, (byte*)data, size);
+    }
+
+    public void UpdateVertex<T>(T[] data, uint offset = 0) where T : unmanaged
+    {
+        fixed (void* ptr = data)
+        {
+            UpdateVertex(ptr, (uint)(data.Length * sizeof(T)), offset);
+        }
+    }
+
+    public void UpdateIndex(void* data, uint size, uint offset = 0)
+    {
+        _device.WriteBuffer(_indexBuffer, offset, (byte*)data, size);
+    }
+
+
+    public void UpdateIndex(uint[] indices, uint offset = 0)
+    {
+        if (_indexFormat != IndexFormat.Uint32)
+        {
+            throw new InvalidOperationException($"Index format mismatch. Required: Uint32(uint), Actual: {_indexFormat}");
+        }
+
+        fixed (void* ptr = indices)
+        {
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset);
+        }
+    }
+
+    public void UpdateIndex(ushort[] indices, uint offset = 0)
+    {
+        if (_indexFormat != IndexFormat.Uint16)
+        {
+            throw new InvalidOperationException("Index format mismatch. Required: Uint16(ushort), Actual: " + _indexFormat);
+        }
+
+        fixed (void* ptr = indices)
+        {
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset);
+        }
+    }
+
+    public virtual SubMeshData GetSubMesh(int index)
     {
         //no submeshes,, return hole mesh
         return new SubMeshData
@@ -85,6 +129,16 @@ public unsafe class Mesh : ShaderResource, IMesh
         _vertexBuffer.Dispose();
     }
 
+    private static uint GetIndexSize(IndexFormat format)
+    {
+        return format switch
+        {
+            IndexFormat.Uint16 => sizeof(ushort),
+            IndexFormat.Uint32 => sizeof(uint),
+            _ => throw new InvalidOperationException("Invalid index format.")
+        };
+    }
+
     #region Creation
 
     public static Mesh Create<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
@@ -92,7 +146,10 @@ public unsafe class Mesh : ShaderResource, IMesh
         fixed (void* vertexData = vertices)
         fixed (void* indexData = indices)
         {
-            return new Mesh(vertexData, (uint)(vertices.Length * sizeof(TVertex)), indexData, (uint)(indices.Length * sizeof(uint)), IndexFormat.Uint32, (uint)indices.Length, name);
+            Mesh mesh = new Mesh(RendereringContext.Device, (uint)(vertices.Length * sizeof(TVertex)), (uint)indices.Length, IndexFormat.Uint32, name);
+            mesh.UpdateVertex(vertexData, (uint)(vertices.Length * sizeof(TVertex)));
+            mesh.UpdateIndex(indexData, (uint)(indices.Length * sizeof(uint)));
+            return mesh;
         }
     }
 
@@ -101,7 +158,10 @@ public unsafe class Mesh : ShaderResource, IMesh
         fixed (void* vertexData = vertices)
         fixed (void* indexData = indices)
         {
-            return new Mesh(vertexData, (uint)(vertices.Length * sizeof(TVertex)), indexData, (uint)(indices.Length * sizeof(ushort)), IndexFormat.Uint16, (uint)indices.Length, name);
+            Mesh mesh = new Mesh(RendereringContext.Device, (uint)(vertices.Length * sizeof(TVertex)), (uint)indices.Length, IndexFormat.Uint16, name);
+            mesh.UpdateVertex(vertexData, (uint)(vertices.Length * sizeof(TVertex)));
+            mesh.UpdateIndex(indexData, (uint)(indices.Length * sizeof(ushort)));
+            return mesh;
         }
     }
 
