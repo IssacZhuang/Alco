@@ -8,7 +8,7 @@ namespace Vocore.Rendering;
 /// The atlas packer is used to create a font atlas and unicode to glyph mapping from a ttf font file. <br/>
 /// Can be used to create <see cref="Font"/> instances.
 /// </summary> 
-public unsafe class FontAtlasPacker : IDisposable
+public unsafe class FontAtlasPacker : AutoDisposable
 {
     private static readonly int MaxArrayLength = 0xD7AF + 1;
     private readonly stbtt_pack_context _context;
@@ -18,10 +18,12 @@ public unsafe class FontAtlasPacker : IDisposable
     private readonly int _height;
 
     public GlyphInfo[] Glyphs => _glyphs;
+    public ReadOnlySpan<byte> Bitmap => _bitmap.MemoryRef.Span;
+    public int Width => _width;
+    public int Height => _height;
 
     public FontAtlasPacker(int width, int height)
     {
-
         if (width <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(width));
@@ -111,12 +113,7 @@ public unsafe class FontAtlasPacker : IDisposable
         }
     }
 
-    public Font Build(string name = "font")
-    {
-        return Font.CreateFont(_bitmap.MemoryRef, _width, _height, _glyphs);
-    }
-
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
         _bitmap.Dispose();
         stbtt_PackEnd(_context);

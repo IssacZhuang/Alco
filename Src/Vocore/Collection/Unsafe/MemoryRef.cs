@@ -1,3 +1,5 @@
+using System;
+
 namespace Vocore
 {
     /// <summary>
@@ -5,6 +7,7 @@ namespace Vocore
     /// </summary>
     public unsafe readonly ref struct MemoryRef
     {
+        public readonly Span<byte> Span => new((byte*)Pointer, (int)Size);
         public MemoryRef(void* pointer, uint size)
         {
             Pointer = pointer;
@@ -19,6 +22,7 @@ namespace Vocore
     /// </summary>
     public unsafe readonly ref struct MemoryRef<T> where T : unmanaged
     {
+        public ReadOnlySpan<T> Span => new(Pointer, (int)Length);
         public MemoryRef(T* pointer, uint length)
         {
             Pointer = pointer;

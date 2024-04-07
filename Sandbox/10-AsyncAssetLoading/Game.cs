@@ -61,7 +61,7 @@ public class Game : GameEngine
         _pipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
-        _textureEmpty = Texture2D.CreateEmpty(16, 16, 0xffffffff);
+        _textureEmpty = Rendering.CreateTexture2D(16, 16, 0xffffffff);
         _selected = _textureEmpty;
 
         DirectoryFileSource fileSource = new DirectoryFileSource("Assets");
@@ -185,13 +185,6 @@ public class Game : GameEngine
                 new ResourceBindingEntry(0, buffer),
             }
         });
-    }
-
-    private Texture2D CreateTexture()
-    {
-        byte[] data = LoadFile("test.png");
-
-        return Texture2D.CreateFromFile(data);
     }
 
     private void UpdateColor(Vector3 color)

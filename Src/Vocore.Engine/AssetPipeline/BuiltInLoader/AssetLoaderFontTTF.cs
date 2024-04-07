@@ -9,9 +9,15 @@ namespace Vocore.Engine;
 public class AssetLoaderFontTTF : BaseAssetLoader<Font, FontAtlasPacker>
 {
     private static readonly string[] Extensions = new string[] { FileExt.FontTrueType };
+    private readonly RenderingSystem _renderingSystem;
+    
     public override string Name => "AssetLoader.Font.TTF";
-
     public override IReadOnlyList<string> FileExtensions => Extensions;
+
+    public AssetLoaderFontTTF(RenderingSystem renderingSystem)
+    {
+        _renderingSystem = renderingSystem;
+    }
 
     protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out FontAtlasPacker? preprocessed)
     {
@@ -52,7 +58,12 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font, FontAtlasPacker>
     {
         try
         {
-            asset = preprocessed.Build(filename);
+            ReadOnlySpan<byte> bitmap = preprocessed.Bitmap;
+            int width = preprocessed.Width;
+            int height = preprocessed.Height;
+            GlyphInfo[] glyphs = preprocessed.Glyphs;
+
+            asset = _renderingSystem.CreateFont(bitmap, width, height, glyphs);
             return true;
         }
         catch (Exception e)

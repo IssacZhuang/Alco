@@ -186,7 +186,7 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.png");
 
-        return Texture2D.CreateFromFile(data);
+        return Rendering.CreateTexture2DFromFile(data);
     }
 
     private void UpdateColor(Vector3 color)

@@ -51,7 +51,9 @@ namespace Vocore.Engine
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
 
             //built in asset loaders
+            RegisterAssetLoader(new AssetLoaderFontTTF(engine.Rendering));
             RegisterAssetLoader(new AssetLoaderTexture2D(engine.Rendering));
+            RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
             RegisterAssetLoader(new AssetLoaderShaderHLSL(engine.Rendering, (string includeName) =>
             {
                 if (TryLoadDataFromSource(includeName, out ReadOnlySpan<byte> data))
@@ -60,8 +62,8 @@ namespace Vocore.Engine
                 }
                 throw new Exception($"Can not find the include file: {includeName}");
             }));
-            RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
-            RegisterAssetLoader(new AssetLoaderFontTTF());
+            
+            
             _assetWatcher = new AssetWatcher(OnAssetChanged);
         }
 

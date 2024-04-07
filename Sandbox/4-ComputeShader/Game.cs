@@ -237,12 +237,12 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.jpg");
 
-        return Texture2D.CreateFromFile(data);
+        return Rendering.CreateTexture2DFromFile(data);
     }
 
     private Texture2D CreateRenderTarget(uint width, uint height)
     {
-        return Texture2D.CreateEmpty(width, height, new ColorFloat(1, 1, 1, 1), new ImageLoadOption
+        return Rendering.CreateTexture2D(width, height, new ColorFloat(1, 1, 1, 1), new ImageLoadOption
         {
             Format = PixelFormat.RGBA8Unorm,
             MipLevels = 1,

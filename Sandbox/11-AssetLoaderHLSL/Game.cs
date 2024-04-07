@@ -69,7 +69,7 @@ public class Game : GameEngine
         }
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
-        _textureEmpty = Texture2D.CreateEmpty(16, 16, 0xffffffff);
+        _textureEmpty = Rendering.CreateTexture2D(16, 16, 0xffffffff);
         _selected = _textureEmpty;
     }
 
