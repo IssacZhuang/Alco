@@ -28,8 +28,8 @@ namespace Vocore.Engine
         #region  Resources
         private readonly GPUDevice _graphicsDevice;
         private readonly Window _window;
-        private readonly AssetManager _assets;
-        private readonly Input _input;
+        private readonly AssetSystem _assets;
+        private readonly InputSystem _input;
         private readonly RenderingSystem _rendering;
         private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
         #endregion
@@ -104,7 +104,7 @@ namespace Vocore.Engine
         /// The asset manager of the game<br/>
         /// Which provides the asset loading and caching
         /// </summary>
-        public AssetManager Assets
+        public AssetSystem Assets
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _assets;
@@ -122,7 +122,7 @@ namespace Vocore.Engine
         /// <summary>
         /// The input singleton of the game
         /// </summary>
-        public Input Input
+        public InputSystem Input
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _input;
@@ -169,7 +169,7 @@ namespace Vocore.Engine
                 RendereringContext.SetDevice(graphicsDevice);
                 
                 _window = slikWindow;
-                _input = new SilkInput(slikWindow.InternalWindow);
+                _input = new SilkInputSystem(slikWindow.InternalWindow);
                 _graphicsDevice = graphicsDevice;
 
                 _window.OnResize += (int2 size) =>
@@ -184,7 +184,7 @@ namespace Vocore.Engine
             else
             {
                 _window = new NoWindow();
-                _input  = new NoInput();
+                _input  = new NoInputSystem();
                 _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
             }
 
@@ -194,7 +194,7 @@ namespace Vocore.Engine
 
             _timer = new EngineTimer(this);
             _profiler = new EngineProfiler(this);
-            _assets = new AssetManager(this, 2);
+            _assets = new AssetSystem(this, 2);
         }
 
         ~GameEngine()

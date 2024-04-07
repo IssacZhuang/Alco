@@ -5,7 +5,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Represents an abstract base class for input handling.
 /// </summary>
-public abstract class Input
+public abstract class InputSystem
 {
     /// <summary>
     /// Gets or sets the position of the mouse.

@@ -9,7 +9,7 @@ namespace Vocore.Engine
     /// <summary>
     /// Represents an asset manager for managing runtime assets and file sources.
     /// </summary> 
-    public class AssetManager
+    public class AssetSystem
     {
         private const int FetchFinishJobAttempCount = 20;
         // key: filename, value: asset
@@ -44,7 +44,7 @@ namespace Vocore.Engine
 
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
 
-        internal AssetManager(GameEngine engine, int threadCount)
+        internal AssetSystem(GameEngine engine, int threadCount)
         {
             _ownerThreadId = Environment.CurrentManagedThreadId;
 

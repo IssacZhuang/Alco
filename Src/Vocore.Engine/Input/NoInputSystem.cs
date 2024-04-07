@@ -5,7 +5,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// The input class for no mouse and keyboard input. Usually used for testing and server environments.
 /// </summary>
-public class NoInput : Input
+public class NoInputSystem : InputSystem
 {
     /// <inheritdoc />
     public override Vector2 MousePosition { get; set; }

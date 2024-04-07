@@ -9,7 +9,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// The input class for Silk.NET mouse and keyboard input.
 /// </summary>
-public unsafe class SilkInput : Input
+public unsafe class SilkInputSystem : InputSystem
 {
     private const int MaxKeyCount = 512;
     private const int MaxMouseCount = 16;
@@ -64,7 +64,7 @@ public unsafe class SilkInput : Input
         get => _mouseDelta;
     }
 
-    internal SilkInput(IWindow window)
+    internal SilkInputSystem(IWindow window)
     {
         _window = window;
         _input = window.CreateInput();
