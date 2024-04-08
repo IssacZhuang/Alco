@@ -12,6 +12,7 @@ public class Game : GameEngine
     private Font _font;
     private Shader _textShader;
     private Shader _spriteShader;
+    private Shader _u2ToneMappingShader;
     private Texture2D _star;
     private TextRenderer _textRenderer;
     private SpriteRenderer _spriteRenderer;
@@ -24,6 +25,8 @@ public class Game : GameEngine
 
         _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _spriteShader = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
+        _u2ToneMappingShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/Uncharted2Tonemap.hlsl");
+
         _font = Assets.Load<Font>("Font/Default.ttf");
         _star = Assets.Load<Texture2D>("Star.png");
 
