@@ -49,6 +49,20 @@ public class Game : GameEngine
 
     }
 
+    protected override void OnResize(int2 size)
+    {
+        base.OnResize(size);
+        _hdrFrameBuffer.Dispose();
+        FrameBufferDescriptor descriptor = new FrameBufferDescriptor
+        {
+            RenderPass = _hdrPass,
+            Width = (uint)size.x,
+            Height = (uint)size.y,
+        };
+
+        _hdrFrameBuffer = GraphicsDevice.CreateFrameBuffer(descriptor);
+    }
+
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))

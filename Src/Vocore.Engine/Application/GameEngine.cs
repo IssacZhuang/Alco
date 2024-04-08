@@ -46,6 +46,7 @@ namespace Vocore.Engine
         private int _engineThread;
         private bool _isDisposed = false;
         private bool _isRunning = false;
+        private bool _shouldResize = false;
 
         #endregion
 
@@ -174,11 +175,12 @@ namespace Vocore.Engine
 
                 _window.OnResize += (int2 size) =>
                 {
+                    //this actually resize the surface of after swap frame buffer
                     _graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
 
                     _setting.Window.Width = size.x;
                     _setting.Window.Height = size.y;
-                    OnResize(size);
+                    _shouldResize = true;
                 };
             }
             else
@@ -330,8 +332,14 @@ namespace Vocore.Engine
 
             _assets.OnUpdate();
             _profiler.Update(updateDeltaTime);
-            _input.Reset();
-            _graphics.EndFrame();
+            _input.Reset();//reset input state
+            _graphics.EndFrame();//swap buffer
+
+            if (_shouldResize)
+            {
+                OnResize(new int2(_setting.Window.Width, _setting.Window.Height));
+                _shouldResize = false;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
