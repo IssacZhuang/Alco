@@ -2,8 +2,8 @@
 
 #pragma EntryCompute cs_main
 
-DEFINE_TEX2D_READ(0, inputHDR);
-DEFINE_TEX2D_WRITE(1, outputLDR, "rgba8");
+DEFINE_TEX2D_READ(0, input); // should be HDR image
+DEFINE_TEX2D_WRITE(1, output, "rgba8"); // should be LDR image
 DEFINE_STRUCT(2, uncharted2Data){
     float A;
     float B;
@@ -22,7 +22,7 @@ float3 Uncharted2Tonemap(float3 x) {
 
 [numthreads(16, 16, 1)]
 void cs_main(uint3 id : SV_DispatchThreadID) {
-    float3 hdrColor =  max(0, GET_PIXEL_TEX2D(inputHDR, id.xy).rgb - 0.004);
+    float3 hdrColor =  max(0, GET_PIXEL_TEX2D(input, id.xy).rgb - 0.004);
     float3 ldrColor = Uncharted2Tonemap(hdrColor);
 
     //white scale
@@ -33,5 +33,5 @@ void cs_main(uint3 id : SV_DispatchThreadID) {
     ldrColor = pow(ldrColor, 1.0 / Gamma);
 
     float4 color = float4(ldrColor, 1.0);
-    outputLDR[id.xy] = color;
+    output[id.xy] = color;
 }

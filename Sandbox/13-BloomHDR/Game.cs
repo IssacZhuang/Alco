@@ -16,6 +16,8 @@ public class Game : GameEngine
     private Texture2D _star;
     private TextRenderer _textRenderer;
     private SpriteRenderer _spriteRenderer;
+    private GPURenderPass _hdrPass;
+    private GPUFrameBuffer _hdrFrameBuffer;
     private Vector2 _size = Vector2.One * 20;
 
 
@@ -23,8 +25,18 @@ public class Game : GameEngine
     {
         Assets.AddFileSource(new DirectoryFileSource("Assets"));
 
+        _hdrPass = Rendering.RegisterRenderPass("HDR", [PixelFormat.RGBA16Float], PixelFormat.Depth24PlusStencil8);
+        FrameBufferDescriptor descriptor = new FrameBufferDescriptor
+        {
+            RenderPass = _hdrPass,
+            Width = 640,
+            Height = 360,
+        };
+
+        _hdrFrameBuffer = GraphicsDevice.CreateFrameBuffer(descriptor);
+
         _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
-        _spriteShader = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
+        _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
         _u2ToneMappingShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/Uncharted2Tonemap.hlsl");
 
         _font = Assets.Load<Font>("Font/Default.ttf");
@@ -48,7 +60,7 @@ public class Game : GameEngine
         _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
         _textRenderer.End();
 
-        _spriteRenderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
+        _spriteRenderer.Begin(_hdrFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
         _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One*100, 0xffffff);

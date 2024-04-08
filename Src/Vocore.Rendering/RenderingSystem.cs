@@ -54,7 +54,7 @@ public partial class RenderingSystem
         _renderPasses.Add(name, renderPass);
     }
 
-    public void RegisterRenderPass(string name, PixelFormat[] colors, PixelFormat? depthStencil)
+    public GPURenderPass RegisterRenderPass(string name, PixelFormat[] colors, PixelFormat? depthStencil)
     {
         if (_renderPasses.ContainsKey(name))
         {
@@ -76,6 +76,7 @@ public partial class RenderingSystem
         RenderPassDescriptor descriptor = new RenderPassDescriptor(colorAttachments, depthAttachment, name);
         GPURenderPass renderPass = _device.CreateRenderPass(descriptor);
         RegisterRenderPass(name, renderPass);
+        return renderPass;
     }
 
     public bool HasRenderPass(string name)
