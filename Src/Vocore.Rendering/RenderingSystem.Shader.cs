@@ -40,6 +40,20 @@ public partial class RenderingSystem
 
             string filename = result.PreproccessResult.Filename;
 
+            PixelFormat[] colors;
+            PixelFormat? depthStencilFormat;
+            if (result.PreproccessResult.RenderPass.IsNullOrEmpty())
+            {
+                colors = new PixelFormat[] { device.PrefferedSurfaceFomat };
+                depthStencilFormat = device.PrefferedDepthStencilFormat;
+            }
+            else
+            {
+                GPURenderPass renderPass = GetRenderPass(result.PreproccessResult.RenderPass!);
+                colors = renderPass.Colors.Select(x => x.Format).ToArray();
+                depthStencilFormat = renderPass.Depth?.Format;
+            }
+
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,
                 new ShaderStageSource[] { vertex, fragment },
@@ -47,8 +61,8 @@ public partial class RenderingSystem
                 rasterizer,
                 blend,
                 depthStencil,
-                new PixelFormat[] { device.PrefferedSurfaceFomat },
-                device.PrefferedDepthStencilFormat,
+                colors,
+                depthStencilFormat,
                 info.PushConstantsRanges,
                 filename);
 

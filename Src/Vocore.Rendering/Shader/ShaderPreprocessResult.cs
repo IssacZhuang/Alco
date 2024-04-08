@@ -14,6 +14,8 @@ public struct ShaderPreproccessResult
     public string EntryVertex { get; set; }
     public string EntryFragment { get; set; }
 
+    public string RenderPass { get; set; }
+
     public RasterizerState? RasterizerState { get; set; }
     public BlendState? BlendState { get; set; }
     public DepthStencilState? DepthStencilState { get; set; }

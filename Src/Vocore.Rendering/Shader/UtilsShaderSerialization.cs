@@ -60,6 +60,7 @@ public static class UtilsShaderSerialization
             {"EntryVertex", result.EntryVertex},
             {"EntryFragment", result.EntryFragment},
             {"EntryCompute", result.EntryCompute},
+            {"RenderPass", result.RenderPass},
             {"Pragmas", binaryPragmas },
         };
 
@@ -75,6 +76,7 @@ public static class UtilsShaderSerialization
             table.TryGetString("EntryVertex", out string? entryVertex) &&
             table.TryGetString("EntryFragment", out string? entryFragment) &&
             table.TryGetString("EntryCompute", out string? entryCompute) &&
+            table.TryGetString("RenderPass", out string? renderPass) &&
             table.TryGetNullableValue("RasterizerState", out RasterizerState? rasterizerState) &&
             table.TryGetNullableValue("BlendState", out BlendState? blendState) &&
             table.TryGetNullableValue("DepthStencilState", out DepthStencilState? depthStencilState) &&
@@ -97,6 +99,7 @@ public static class UtilsShaderSerialization
                 EntryVertex = entryVertex,
                 EntryFragment = entryFragment,
                 EntryCompute = entryCompute,
+                RenderPass = renderPass,
                 RasterizerState = rasterizerState,
                 BlendState = blendState,
                 DepthStencilState = depthStencilState,

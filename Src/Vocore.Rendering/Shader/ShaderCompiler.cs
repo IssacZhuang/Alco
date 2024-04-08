@@ -24,6 +24,7 @@ public static class ShaderCompiler
     public const string PragmaKeyEntryVertex = "EntryVertex";
     public const string PragmaKeyEntryFragment = "EntryFragment";
     public const string PragmaKeyEntryCompute = "EntryCompute";
+    public const string PragmaKeyRenderPass = "RenderPass";
     public const int MaxRecursionDepth = 32;
 
     public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
@@ -159,6 +160,11 @@ public static class ShaderCompiler
                     {
                         result.EntryCompute = entryPoint;
                         result.Stages |= ShaderStage.Compute;
+                    }
+
+                    if (TryGetRenderPass(pragma, out string? renderPass))
+                    {
+                        result.RenderPass = renderPass;
                     }
                 }
 
@@ -481,6 +487,23 @@ public static class ShaderCompiler
         }
 
         entryPoint = pragma.Values[0];
+        return true;
+    }
+
+    public static bool TryGetRenderPass(ShaderPragma pragma, [NotNullWhen(true)] out string? renderPass)
+    {
+        if (pragma.Name != PragmaKeyRenderPass)
+        {
+            renderPass = null;
+            return false;
+        }
+
+        if (pragma.Values.Length != 1)
+        {
+            throw new InvalidOperationException($"Invalid render pass pragma value count: {pragma.Values.Length}, required 1.");
+        }
+
+        renderPass = pragma.Values[0];
         return true;
     }
 
