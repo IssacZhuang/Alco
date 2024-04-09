@@ -8,7 +8,6 @@ GameEngineSetting setting = GameEngineSetting.Default with
     Window = new WindowSetting(640, 360, "Bloom HDR"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
-        VSync = true
     }
 };
 

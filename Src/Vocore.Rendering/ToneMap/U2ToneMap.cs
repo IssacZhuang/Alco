@@ -14,7 +14,7 @@ public class U2ToneMap : ToneMap
         _buffer.Value = U2ToneMapData.Default;
     }
 
-    protected override void OnSetComptueResources(GPUCommandBuffer command)
+    protected override void OnSetGraphicsResources(GPUCommandBuffer command)
     {
         _buffer.UpdateBuffer();
         command.SetGraphicsResources(_shaderId_buffer, _buffer.EntryReadonly);

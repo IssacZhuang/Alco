@@ -171,15 +171,7 @@ namespace Vocore.Engine
                 _input = new SilkInputSystem(slikWindow.InternalWindow);
                 _graphicsDevice = graphicsDevice;
 
-                _window.OnResize += (int2 size) =>
-                {
-                    //this actually resize the surface of after swap frame buffer
-                    _graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
-
-                    _setting.Window.Width = size.x;
-                    _setting.Window.Height = size.y;
-                    _shouldResize = true;
-                };
+                _window.OnResize += InternalResize;
             }
             else
             {
@@ -335,7 +327,37 @@ namespace Vocore.Engine
 
             if (_shouldResize)
             {
-                OnResize(new int2(_setting.Window.Width, _setting.Window.Height));
+                int2 size = new int2(_setting.Window.Width, _setting.Window.Height);
+                InternalDelayResize(size);
+            }
+        }
+
+        //called when window push the resize event
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void InternalResize(int2 size)
+        {
+            //this actually resize the surface of after swap frame buffer
+            _graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
+
+            _setting.Window.Width = size.x;
+            _setting.Window.Height = size.y;
+            _shouldResize = true;
+        }
+
+        //called after swap frame buffer
+        private void InternalDelayResize(int2 size)
+        {
+            try
+            {
+                OnResize(size);
+                _rendering.OnResize(size);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Resize Error]", e);
+            }
+            finally
+            {
                 _shouldResize = false;
             }
         }

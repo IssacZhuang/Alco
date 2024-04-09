@@ -64,6 +64,7 @@ public class Game : GameEngine
         };
 
         _hdrFrameBuffer = GraphicsDevice.CreateFrameBuffer(descriptor);
+        _toneMap.SetInput(_hdrFrameBuffer);
     }
 
     protected override void OnUpdate(float delta)

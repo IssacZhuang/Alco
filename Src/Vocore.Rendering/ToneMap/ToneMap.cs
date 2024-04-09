@@ -71,13 +71,13 @@ public abstract class ToneMap:AutoDisposable
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_shader.Pipeline);
         _command.SetGraphicsResources(_shaderId_input, _inputGroup!);
-        OnSetComptueResources(_command);
+        OnSetGraphicsResources(_command);
         _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
         _command.End();
         _device.Submit(_command);
     }
 
-    protected virtual void OnSetComptueResources(GPUCommandBuffer command)
+    protected virtual void OnSetGraphicsResources(GPUCommandBuffer command)
     {
         
     }

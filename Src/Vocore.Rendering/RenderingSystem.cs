@@ -13,6 +13,11 @@ public partial class RenderingSystem
     private readonly GPUDevice _device;
     private readonly Dictionary<string, GPURenderPass> _renderPasses;
 
+    private GPURenderPass? _mainRenderPass;
+    private GPUFrameBuffer? _mainFrameBuffer;
+    private ToneMap? _mainPassToSwapChain;
+
+
 
     public GPUDevice GraphicsDevice
     {
@@ -42,6 +47,17 @@ public partial class RenderingSystem
     {
         _device = device;
         _renderPasses = new Dictionary<string, GPURenderPass>();
+    }
+
+    /// <summary>
+    /// Use a custom render pass to create a frame buffer that used to replace the swap chain frame buffer. Usually used for post-processing and HDR rendering.
+    /// </summary>
+    /// <param name="renderPass">The custom render pass</param>
+    /// <param name="toneMap">The tone mapping to convert color of custom render pass to the swap chain frame buffer</param>
+    public void SetMainRenderPass(GPURenderPass renderPass, ToneMap toneMap)
+    {
+        _mainRenderPass = renderPass;
+        _mainPassToSwapChain = toneMap;
     }
 
     public void RegisterRenderPass(string name, GPURenderPass renderPass)
@@ -107,5 +123,10 @@ public partial class RenderingSystem
         }
 
         _renderPasses.Remove(name);
+    }
+
+    internal void OnResize(int2 size)
+    {
+
     }
 }
