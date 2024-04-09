@@ -10,7 +10,7 @@ public partial class RenderingSystem
     /// <returns>The created graphics buffer.</returns>
     public GraphicsBuffer CreateGraphicsBuffer(uint size,string name = "unnamed_graphics_buffer")
     {
-        return new GraphicsBuffer(_device, size, name);
+        return new GraphicsBuffer(this, size, name);
     }
 
     /// <summary>
@@ -21,7 +21,7 @@ public partial class RenderingSystem
     /// <returns> The created graphics value buffer. </returns>
     public unsafe GraphicsValueBuffer<T> CreateGraphicsValueBuffer<T>(string name = "unnamed_graphics_value_buffer") where T : unmanaged
     {
-        return new GraphicsValueBuffer<T>(_device, name);
+        return new GraphicsValueBuffer<T>(this, name);
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public partial class RenderingSystem
     /// <returns> The created graphics value buffer. </returns>
     public unsafe GraphicsValueBuffer<T> CreateGraphicsValueBuffer<T>(T value, string name = "unnamed_graphics_value_buffer") where T : unmanaged
     {
-        return new GraphicsValueBuffer<T>(_device, value, name);
+        return new GraphicsValueBuffer<T>(this, value, name);
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public partial class RenderingSystem
     /// <returns> The created graphics array buffer. </returns>
     public unsafe GraphicsArrayBuffer<T> CreateGraphicsArrayBuffer<T>(int length, string name = "unnamed_graphics_array_buffer") where T : unmanaged
     {
-        return new GraphicsArrayBuffer<T>(_device, length, name);
+        return new GraphicsArrayBuffer<T>(this, length, name);
     }
 
     /// <summary>
@@ -57,6 +57,6 @@ public partial class RenderingSystem
     /// <returns> The created graphics array buffer. </returns>
     public unsafe GraphicsArrayBuffer<T> CreateGraphicsArrayBuffer<T>(IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") where T : unmanaged
     {
-        return new GraphicsArrayBuffer<T>(_device, initialData, name);
+        return new GraphicsArrayBuffer<T>(this, initialData, name);
     }
 }

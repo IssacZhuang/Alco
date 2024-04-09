@@ -20,11 +20,11 @@ public class GraphicsValueBuffer<T> : GraphicsBuffer where T : unmanaged
     }
 
 
-    internal unsafe GraphicsValueBuffer(GPUDevice device, string name = "unnamed_graphics_buffer") : this(device, default, name)
+    internal unsafe GraphicsValueBuffer(RenderingSystem renderingSystem, string name = "unnamed_graphics_buffer") : this(renderingSystem, default, name)
     {
     }
 
-    internal unsafe GraphicsValueBuffer(GPUDevice device, T value = default, string name = "unnamed_graphics_buffer") : base(device, (uint)sizeof(T), name)
+    internal unsafe GraphicsValueBuffer(RenderingSystem renderingSystem, T value = default, string name = "unnamed_graphics_buffer") : base(renderingSystem, (uint)sizeof(T), name)
     {
         _value = value;
         UpdateBuffer();

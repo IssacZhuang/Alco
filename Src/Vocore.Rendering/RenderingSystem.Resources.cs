@@ -24,8 +24,19 @@ public partial class RenderingSystem
 
     private static readonly ushort[] IndicesTrueTypeQuad = { 0, 1, 2, 0, 2, 3 };
 
+    private static readonly Vertex2D[] VerticesFullScreenQuad =
+    {
+        new(new Vector2(-1f, 1f), new Vector2(0, 0)),
+        new(new Vector2(1f, 1f), new Vector2(1, 0)),
+        new(new Vector2(1f, -1f), new Vector2(1, 1)),
+        new(new Vector2(-1f, -1f), new Vector2(0, 1))
+    };
+
+    private static readonly ushort[] IndicesFullScreenQuad = { 0, 1, 2, 0, 2, 3 };
+
     private Mesh? _spriteMesh;
     private Mesh? _trueTypeMesh;
+    private Mesh? _fullScreenMesh;
 
     public Mesh SpriteMesh
     {
@@ -33,7 +44,7 @@ public partial class RenderingSystem
         {
             if (_spriteMesh == null)
             {
-                _spriteMesh = CreateSpriteMesh();
+                _spriteMesh = CreateMesh(VerticesSpriteQuad, IndicesSpriteQuad, "sprite_mesh");
             }
             return _spriteMesh;
         }
@@ -45,20 +56,24 @@ public partial class RenderingSystem
         {
             if (_trueTypeMesh == null)
             {
-                _trueTypeMesh = CreateTrueTypeMesh();
+                _trueTypeMesh = CreateMesh(VerticesTrueTypeQuad, IndicesTrueTypeQuad, "true_type_mesh");
             }
             return _trueTypeMesh;
         }
     }
 
-    private Mesh CreateSpriteMesh()
+    public Mesh FullScreenMesh
     {
-        return CreateMesh(VerticesSpriteQuad, IndicesSpriteQuad);
+        get
+        {
+            if (_fullScreenMesh == null)
+            {
+                _fullScreenMesh = CreateMesh(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
+            }
+            return _fullScreenMesh;
+        }
     }
 
-    private Mesh CreateTrueTypeMesh()
-    {
-        return CreateMesh(VerticesTrueTypeQuad, IndicesTrueTypeQuad);
-    }
+    
 
 }

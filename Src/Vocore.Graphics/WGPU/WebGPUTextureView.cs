@@ -12,7 +12,7 @@ internal class WebGPUTextureView : GPUTextureView
 
     private readonly WGPUTextureView _native;
     private readonly TextureViewDimension _dimension;
-    private readonly WebGPUTexture _texture;
+    private readonly WebGPUTextureBase _texture;
 
     #endregion
 
@@ -59,7 +59,7 @@ internal class WebGPUTextureView : GPUTextureView
     {
         Name = descriptor.Name;
 
-        _texture = (WebGPUTexture)descriptor.Texture;
+        _texture = (WebGPUTextureBase)descriptor.Texture;
         _dimension = descriptor.Dimension;
 
         fixed (sbyte* ptrName = descriptor.Name.GetUtf8Span())

@@ -37,7 +37,7 @@ namespace Vocore.Test
             }
 
             Assert.That(result, Is.EqualTo(job));
-            Assert.IsTrue(job.value == 4);
+            Assert.That(job.value, Is.EqualTo(4));
         }
 
 
@@ -70,7 +70,7 @@ namespace Vocore.Test
 
             for (int i = 0; i < count; i++)
             {
-                Assert.IsTrue(jobs[i].value == i * 2);
+                Assert.That(jobs[i].value, Is.EqualTo(i * 2));
             }
 
         }
@@ -133,7 +133,7 @@ namespace Vocore.Test
             Assert.That(finishedCount, Is.EqualTo(count));
             for (int i = 0; i < count; i++)
             {
-                Assert.IsTrue(jobs[i].value == i * 2);
+                Assert.That(jobs[i].value, Is.EqualTo(i * 2));
             }
         }
 

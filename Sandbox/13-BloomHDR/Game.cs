@@ -18,6 +18,7 @@ public class Game : GameEngine
     private SpriteRenderer _spriteRenderer;
     private GPURenderPass _hdrPass;
     private GPUFrameBuffer _hdrFrameBuffer;
+    private U2ToneMap _toneMap;
     private Vector2 _size = Vector2.One * 20;
 
 
@@ -40,13 +41,15 @@ public class Game : GameEngine
         _u2ToneMappingShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/Uncharted2Tonemap.hlsl");
 
         _font = Assets.Load<Font>("Font/Default.ttf");
-        _star = Assets.Load<Texture2D>("Star.png");
+        _star = Rendering.CreateTexture2D(4,4,new ColorFloat(1,0.2f, 0.2f, 1));
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
 
         _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
         _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
 
+        _toneMap = Rendering.CreateU2ToneMap(_u2ToneMappingShader);
+        _toneMap.SetInput(_hdrFrameBuffer);
     }
 
     protected override void OnResize(int2 size)
@@ -80,6 +83,8 @@ public class Game : GameEngine
         _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One*100, 0xffffff);
 
         _spriteRenderer.End();
+
+        _toneMap.Blit(GraphicsDevice.SwapChainFrameBuffer);
     }
 
     protected override void OnStop()

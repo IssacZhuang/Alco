@@ -24,7 +24,7 @@ public struct U2ToneMapData
         E = 0.02f,
         F = 0.30f,
         W = 11.2f,
-        Exposure = 1.0f,
-        Gamma = 2.2f
+        Exposure = 2.0f,
+        Gamma = 1
     };
 }

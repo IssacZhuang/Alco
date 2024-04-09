@@ -32,12 +32,12 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         }
     }
 
-    internal unsafe GraphicsArrayBuffer(GPUDevice device, int length, string name = "unnamed_graphics_array_buffer") : base(device, (uint)(length * sizeof(T)), name)
+    internal unsafe GraphicsArrayBuffer(RenderingSystem renderingSystem, int length, string name = "unnamed_graphics_array_buffer") : base(renderingSystem, (uint)(length * sizeof(T)), name)
     {
         _data = new NativeBuffer<T>(length);
     }
 
-    internal unsafe GraphicsArrayBuffer(GPUDevice device, IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") : base(device, (uint)(initialData.Count * sizeof(T)), name)
+    internal unsafe GraphicsArrayBuffer(RenderingSystem renderingSystem, IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") : base(renderingSystem, (uint)(initialData.Count * sizeof(T)), name)
     {
         _data = new NativeBuffer<T>(initialData.Count);
         for (int i = 0; i < initialData.Count; i++)
