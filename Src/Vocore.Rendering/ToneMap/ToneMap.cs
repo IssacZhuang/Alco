@@ -20,7 +20,7 @@ public abstract class ToneMap:AutoDisposable
     {
         if (!toneMapShader.IsGraphicsShader)
         {
-            throw new InvalidOperationException("ToneMap shader must be a compute shader.");
+            throw new InvalidOperationException("ToneMap shader must be a graphics shader.");
         }
 
         _device = renderingSystem.GraphicsDevice;
@@ -36,15 +36,6 @@ public abstract class ToneMap:AutoDisposable
         _inputGroup?.Dispose();
 
         _input = input;
-        TextureViewDescriptor viewDescriptor = new TextureViewDescriptor
-        {
-            Texture = input.Colors[0],
-            Dimension = TextureViewDimension.Texture2D,
-            BaseArrayLayer = 0,
-            BaseMipLevel = 0,
-            ArrayLayerCount = 1,
-            MipLevelCount = 1
-        };
 
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
             _device.BindGroupTexture2DSampled,
