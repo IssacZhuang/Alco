@@ -11,7 +11,6 @@ public abstract class ToneMap:AutoDisposable
     private readonly uint _shaderId_input;
 
     private GPUFrameBuffer? _input;
-    private GPUTextureView? _inputView;
     private GPUResourceGroup? _inputGroup;
 
 
@@ -34,7 +33,6 @@ public abstract class ToneMap:AutoDisposable
 
     public virtual void SetInput(GPUFrameBuffer input)
     {
-        _inputView?.Dispose();
         _inputGroup?.Dispose();
 
         _input = input;
@@ -48,12 +46,10 @@ public abstract class ToneMap:AutoDisposable
             MipLevelCount = 1
         };
 
-        _inputView = _device.CreateTextureView(viewDescriptor);
-
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
             _device.BindGroupTexture2DSampled,
             new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _inputView),
+                new ResourceBindingEntry(0, _input.ColorViews[0]),
                 new ResourceBindingEntry(1, _device.SamplerNearestClamp)
             }
         );
@@ -88,7 +84,6 @@ public abstract class ToneMap:AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        _inputView?.Dispose();
         _inputGroup?.Dispose();
         _command.Dispose();
     }

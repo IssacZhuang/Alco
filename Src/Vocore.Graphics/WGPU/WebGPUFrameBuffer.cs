@@ -13,8 +13,10 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     private readonly WebGPUTexture[] _colorTextures;
     private readonly WGPUTextureView[] _colorViews;
+    private readonly WebGPUTextureViewWrapper[] _colorViewsWrapper;
     private readonly WebGPUTexture? _depthTexture;
     private readonly WGPUTextureView _depthView = WGPUTextureView.Null;
+    private readonly WebGPUTextureViewWrapper? _depthViewWrapper;
     private readonly WebGPURenderPass _renderPass;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
@@ -57,6 +59,18 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _height;
+    }
+
+    public override IReadOnlyList<GPUTextureView> ColorViews
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorViewsWrapper;
+    }
+
+    public override GPUTextureView? DepthView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthViewWrapper;
     }
 
     protected override void Dispose(bool disposing)
@@ -123,6 +137,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
         _colorTextures = new WebGPUTexture[renderPass.Colors.Count];
         _colorViews = new WGPUTextureView[renderPass.Colors.Count];
+        _colorViewsWrapper = new WebGPUTextureViewWrapper[renderPass.Colors.Count];
         _descriptor = new WGPURenderPassDescriptor
         {
             colorAttachmentCount = (uint)renderPass.Colors.Count,
@@ -139,6 +154,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 $"Color Texture {i}");
 
             _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
+            _colorViewsWrapper[i] = new WebGPUTextureViewWrapper(_colorTextures[i], _colorViews[i]);
 
             _colorAttachments[i] = new WGPURenderPassColorAttachment
             {
@@ -156,9 +172,10 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             _depthTexture = new WebGPUTexture(
                 renderPass.NativeDevice,
                 BuildTextureDescriptor(depthInfo.format, width, height),
-                "Depth Texture");
+                "depth_texture");
 
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
+            _depthViewWrapper = new WebGPUTextureViewWrapper(_depthTexture, _depthView);
 
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
 

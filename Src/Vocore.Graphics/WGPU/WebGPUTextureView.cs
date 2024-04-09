@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUTextureView : GPUTextureView
+internal class WebGPUTextureView : WebGPUTextureViewBase
 {
 
     #region Properties
@@ -40,19 +40,10 @@ internal class WebGPUTextureView : GPUTextureView
 
     #region WebGPU Implementation
 
-    public WGPUTextureView Native
+    public override WGPUTextureView Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
-    }
-
-    //used for framebuffer
-    internal unsafe WebGPUTextureView(WebGPUTexture texture, string name)
-    {
-        Name = name;
-        _texture = texture;
-        _dimension = TextureViewDimension.Texture2D;
-        _native = wgpuTextureCreateView(texture.Native, null);
     }
 
     public unsafe WebGPUTextureView(WGPUDevice device, in TextureViewDescriptor descriptor)

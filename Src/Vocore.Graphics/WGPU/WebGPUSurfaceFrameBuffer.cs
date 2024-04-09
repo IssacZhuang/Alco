@@ -13,9 +13,11 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private readonly WGPUSurface _surface;
     private readonly WGPURenderPassDescriptor _descriptor;
     private readonly WebGPUSurfaceTexture[] _colorTextures; // the surface texture has default view
+    private readonly WebGPUTextureViewWrapper[] _colorViewsWrapper; // only one element but use list for the abstraction
     private readonly WebGPURenderPass _renderPass;
     private WebGPUTexture? _depthTexture;
     private WGPUTextureView _depthView = WGPUTextureView.Null;
+    private readonly WebGPUTextureViewWrapper? _depthViewWrapper;
 
     private readonly WGPUTextureFormat[] _colors;
     private readonly WGPUTextureFormat? _depth;
@@ -62,6 +64,18 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _height;
+    }
+
+    public override IReadOnlyList<GPUTextureView> ColorViews
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorViewsWrapper;
+    }
+
+    public override GPUTextureView? DepthView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthViewWrapper;
     }
 
     protected override void Dispose(bool disposing)
@@ -146,6 +160,10 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             storeOp = WGPUStoreOp.Store,
             clearValue = colorInfo.clearColor,
         };
+
+        _colorViewsWrapper = new WebGPUTextureViewWrapper[1];
+        _colorViewsWrapper[0] = new WebGPUTextureViewWrapper(surfaceTexture, surfaceTexture.DefaultView);
+
         _descriptor.colorAttachments = _colorAttachments;
 
         _width = surfaceTexture.Width;
@@ -173,6 +191,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                 stencilStoreOp = WGPUStoreOp.Store,
                 stencilClearValue = depthInfo.clearStencil,
             };
+
+            _depthViewWrapper = new WebGPUTextureViewWrapper(_depthTexture, _depthView);
 
             _descriptor.depthStencilAttachment = _depthAttachment;
         }

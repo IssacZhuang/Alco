@@ -70,7 +70,7 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
                     nativeEntry.sampler = sampler.Native;
                     break;
                 case BindableResourceType.TextureView:
-                    WebGPUTextureView textureView = (WebGPUTextureView)entry.Resource;
+                    WebGPUTextureViewBase textureView = (WebGPUTextureViewBase)entry.Resource;
                     nativeEntry.textureView = textureView.Native;
                     break;
             }
