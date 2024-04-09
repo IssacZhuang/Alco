@@ -41,7 +41,7 @@ public class Game : GameEngine
         _u2ToneMappingShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/Uncharted2Tonemap.hlsl");
 
         _font = Assets.Load<Font>("Font/Default.ttf");
-        _star = Rendering.CreateTexture2D(4,4,new ColorFloat(1,0.2f, 0.2f, 1));
+        _star = Rendering.CreateTexture2D(4,4, 0xffffff);
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
 
@@ -80,7 +80,7 @@ public class Game : GameEngine
         _spriteRenderer.Begin(_hdrFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One*100, 0xffffff);
+        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One*100, new ColorFloat(1, 0.1f,0.1f,1));
 
         _spriteRenderer.End();
 

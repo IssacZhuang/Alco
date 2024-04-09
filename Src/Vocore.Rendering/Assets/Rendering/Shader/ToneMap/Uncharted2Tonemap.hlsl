@@ -57,11 +57,11 @@ V2F vs_main(Vertex2D input) {
 
 float4 fs_main(V2F input) : SV_TARGET {
     float3 hdrColor = max(0, SAMPLE_TEX2D(texture, input.uv).rgb - 0.004);
-    float3 ldrColor = Uncharted2Tonemap(hdrColor);
+    float3 ldrColor = Uncharted2Tonemap(hdrColor * Exposure);
 
     //white scale
     float3 whiteScale = 1.0 / Uncharted2Tonemap(W);
-    ldrColor *= whiteScale * Exposure;
+    ldrColor *= whiteScale;
 
     //gamma correction
     ldrColor = pow(ldrColor, 1.0 / Gamma);
