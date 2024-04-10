@@ -91,6 +91,9 @@ public class Bloom : PostProcess
         uint targetWidth = (uint)(_targetDownSampleHeight * aspectRatio);
 
         CreateFrameBuffer(targetWidth, _targetDownSampleHeight, $"bloom_down_sample_frame{downSampleCount - 1}", out _downSampleFrames[downSampleCount - 1], out _downSampleGroups[downSampleCount - 1]);
+
+        //print all size
+
     }
 
     public override void Blit(GPUFrameBuffer target)
@@ -132,8 +135,6 @@ public class Bloom : PostProcess
             _commandDownSample.SetGraphicsResources(ShaderId_Input, _downSampleGroups![i - 1]);
             _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
-
-            _tmpFrame = _downSampleFrames[i];
         }
         _commandDownSample.End();
         _device.Submit(_commandDownSample);
@@ -146,6 +147,8 @@ public class Bloom : PostProcess
         _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         for (int i = 0; i < _downSampleFrames.Length; i++)
         {
+            invFrameSize = new Vector2(1f) / new Vector2(target.Width, target.Height);
+            _commandBlit.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandBlit.SetGraphicsResources(ShaderId_Input, _downSampleGroups![i]);
             _commandBlit.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }
