@@ -21,6 +21,7 @@ public class ReinhardLuminanceToneMap : ToneMap
     protected override void OnSetGraphicsResources(GPUCommandBuffer command)
     {
         _data.UpdateBuffer();
+
         command.SetGraphicsResources(_shaderId_data, _data.EntryReadonly);
     }
 

@@ -44,6 +44,6 @@ float4 fs_main(V2F input) : SV_TARGET {
   float new_luminance = numerator / (1.0 + old_luminance);
 
   float3 ldrColor = change_luminance(source.rgb, new_luminance);
-  //ldrColor = pow(ldrColor, 1.0 / Gamma);
+  ldrColor = pow(ldrColor, 1.0 / Gamma);
   return float4(ldrColor, 1.0);
 }

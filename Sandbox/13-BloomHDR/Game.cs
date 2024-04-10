@@ -12,7 +12,7 @@ public class Game : GameEngine
     private Font _font;
     private Shader _textShader;
     private Shader _spriteShader;
-    private Shader _ToneMapShader;
+    private Shader _toneMapShader;
     private Texture2D _star;
     private TextRenderer _textRenderer;
     private SpriteRenderer _spriteRenderer;
@@ -25,8 +25,8 @@ public class Game : GameEngine
     {
         Assets.AddFileSource(new DirectoryFileSource("Assets"));
 
-        _ToneMapShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
-        _toneMap = Rendering.CreateReinhardLuminanceToneMap(_ToneMapShader);
+        _toneMapShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
+        _toneMap = Rendering.CreateReinhardLuminanceToneMap(_toneMapShader);
 
         RenderPassDescriptor descriptor = new RenderPassDescriptor
         (

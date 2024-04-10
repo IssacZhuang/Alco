@@ -41,7 +41,7 @@ public abstract class ToneMap:AutoDisposable
             _device.BindGroupTexture2DSampled,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, _input.ColorViews[0]),
-                new ResourceBindingEntry(1, _device.SamplerNearestClamp)
+                new ResourceBindingEntry(1, _device.SamplerLinearClamp)
             }
         );
 
