@@ -108,7 +108,7 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One * 100, new ColorFloat(1.5f, _white, _white, 1));
+        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One * 32, new ColorFloat(2f, 2f, 2f, 1));
 
         _spriteRenderer.End();
 

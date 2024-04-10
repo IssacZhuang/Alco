@@ -352,8 +352,8 @@ namespace Vocore.Engine
         {
             try
             {
-                OnResize(size);
                 _rendering.OnResize(size);
+                OnResize(size);
             }
             catch (Exception e)
             {

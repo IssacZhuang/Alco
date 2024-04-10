@@ -86,7 +86,13 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             wgpuTextureViewRelease(view);
         }
 
+        foreach (var view in _colorViewsWrapper)
+        {
+            view.Dispose();
+        }
+
         _depthTexture?.Dispose();
+        _depthViewWrapper?.Dispose();
         
         if(_depthView != WGPUTextureView.Null)
         {

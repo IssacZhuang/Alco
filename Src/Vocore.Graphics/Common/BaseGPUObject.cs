@@ -14,9 +14,6 @@ public abstract class BaseGPUObject : IDisposable
         //On GC
         if (!IsDisposed)
         {
-#if DEBUG
-            GraphicsLogger.Warning($"The GPU Object {Name} is been GC collected, try release it manually to improve performance");
-#endif
             Dispose();
         }
     }

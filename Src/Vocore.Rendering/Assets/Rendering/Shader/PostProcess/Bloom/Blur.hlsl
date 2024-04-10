@@ -30,21 +30,17 @@ V2F vs_main(Vertex2D input) {
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  //box blur 1 pixel
-  float4 source = SAMPLE_TEX2D(texture, input.uv);
-  float4 sum = float4(0, 0, 0, 0);
   float2 invTextureSize = constants.invTextureSize;
+  float4 sum = float4(0, 0, 0, 0);
+  float weights[5] = {0.07027, 0.316216, 0.227027, 0.316216, 0.07027}; // Gaussian weights for a 5x5 kernel
 
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, -1) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(0, -1) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, -1) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, 0) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(0, 0) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, 0) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, 1) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(0, 1) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, 1) * invTextureSize);
+  // Apply the weights from the Gaussian kernel
+  for (int i = -2; i <= 2; ++i) {
+    for (int j = -2; j <= 2; ++j) {
+      float weight = weights[i + 2] * weights[j + 2];
+      sum += weight * SAMPLE_TEX2D(texture, input.uv + float2(i, j) * invTextureSize);
+    }
+  }
 
-
-  return sum / 9;
+  return sum;
 }
