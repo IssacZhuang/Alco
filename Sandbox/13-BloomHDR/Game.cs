@@ -53,7 +53,7 @@ public class Game : GameEngine
         _clampShader = Assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Clamp.hlsl");
         _blurShader = Assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Blur.hlsl");
         _blitShader = Assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Blit.hlsl");
-        _bloom = Rendering.CreateBloom(_blitShader, _clampShader, _blurShader, 256);
+        _bloom = Rendering.CreateBloom(_blitShader, _clampShader, _blurShader, 32);
         _bloom.SetInput(Rendering.DefaultFrameBuffer);
 
         //scene

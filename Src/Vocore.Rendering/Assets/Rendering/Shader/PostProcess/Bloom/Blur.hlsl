@@ -3,6 +3,8 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
+#pragma DepthStencilState None
+
 struct Constants {
   float2 invTextureSize;
 };
@@ -28,15 +30,21 @@ V2F vs_main(Vertex2D input) {
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  //blur 1 pixel
+  //box blur 1 pixel
   float4 source = SAMPLE_TEX2D(texture, input.uv);
-  float4 sum = source;
+  float4 sum = float4(0, 0, 0, 0);
   float2 invTextureSize = constants.invTextureSize;
 
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, 0) * invTextureSize);
-  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, 0) * invTextureSize);
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, -1) * invTextureSize);
   sum += SAMPLE_TEX2D(texture, input.uv + float2(0, -1) * invTextureSize);
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, -1) * invTextureSize);
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, 0) * invTextureSize);
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(0, 0) * invTextureSize);
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, 0) * invTextureSize);
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(-1, 1) * invTextureSize);
   sum += SAMPLE_TEX2D(texture, input.uv + float2(0, 1) * invTextureSize);
-  
-  return sum / 5;
+  sum += SAMPLE_TEX2D(texture, input.uv + float2(1, 1) * invTextureSize);
+
+
+  return sum / 9;
 }

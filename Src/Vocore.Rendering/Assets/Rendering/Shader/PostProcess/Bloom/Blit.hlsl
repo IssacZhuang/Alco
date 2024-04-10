@@ -3,6 +3,8 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
+#pragma BlendState NonPremultipliedAlpha
+#pragma DepthStencilState Default
 
 DEFINE_TEX2D_SAMPLE(0, texture); 
 
@@ -24,6 +26,13 @@ V2F vs_main(Vertex2D input) {
   return output;
 }
 
+float luminance(float3 color) {
+  return dot(color, float3(0.2126, 0.7152, 0.0722));
+}
+
 float4 fs_main(V2F input) : SV_TARGET {
-  return SAMPLE_TEX2D(texture, input.uv);
+  // use luminance as alpha
+  float4 source = SAMPLE_TEX2D(texture, input.uv);
+  float intensityBase = 8;
+  return float4(source.rgb * intensityBase, luminance(source.rgb));
 }

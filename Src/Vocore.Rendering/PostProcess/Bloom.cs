@@ -1,3 +1,4 @@
+using System.Numerics;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
@@ -5,7 +6,8 @@ namespace Vocore.Rendering;
 public class Bloom : PostProcess
 {
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _command;
+    private readonly GPUCommandBuffer _commandDownSample;
+    private readonly GPUCommandBuffer _commandBlit;
     private readonly GPURenderPass _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
 
@@ -18,6 +20,7 @@ public class Bloom : PostProcess
     private readonly Shader _downSampleShader;
     private readonly uint _targetDownSampleHeight;
     private GPUFrameBuffer? _tmpFrame;//used for HDR clamp
+    private GPUResourceGroup? _tmpGroup;
     private GPUFrameBuffer[]? _downSampleFrames;
     private GPUResourceGroup[]? _downSampleGroups;
     internal Bloom(RenderingSystem renderingSystem, Shader blitShader, Shader clampShader, Shader downSampleShader, uint targetDownSampleHeight) : base(renderingSystem, blitShader)
@@ -41,7 +44,8 @@ public class Bloom : PostProcess
 
         _downSampleShader = downSampleShader;
 
-        _command = _device.CreateCommandBuffer();
+        _commandDownSample = _device.CreateCommandBuffer();
+        _commandBlit = _device.CreateCommandBuffer();
     }
 
     public override void SetInput(GPUFrameBuffer input)
@@ -49,14 +53,9 @@ public class Bloom : PostProcess
         base.SetInput(input);
 
         _tmpFrame?.Dispose();
+        _tmpGroup?.Dispose();
 
-        FrameBufferDescriptor _tmpFrameDesc = new FrameBufferDescriptor(
-           _backBufferPass,
-           input.Width,
-           input.Height
-        );
-
-        _tmpFrame = _device.CreateFrameBuffer(_tmpFrameDesc);
+        CreateFrameBuffer(input.Width, input.Height, "bloom_tmp_frame", out _tmpFrame, out _tmpGroup);
 
         //dispose old downsample framebuffers
         if (_downSampleFrames != null)
@@ -84,14 +83,14 @@ public class Bloom : PostProcess
             uint width = input.Width >> i;
             uint height = input.Height >> i;
 
-            CreateDownSampleFrameBuffer( width, height, out _downSampleFrames[i], out _downSampleGroups[i]);
+            CreateFrameBuffer(width, height, $"bloom_down_sample_frame{i}", out _downSampleFrames[i], out _downSampleGroups[i]);
         }
 
         //last height is equal to target height
         float aspectRatio = (float)input.Width / input.Height;
         uint targetWidth = (uint)(_targetDownSampleHeight * aspectRatio);
 
-        CreateDownSampleFrameBuffer( targetWidth, _targetDownSampleHeight, out _downSampleFrames[downSampleCount - 1], out _downSampleGroups[downSampleCount - 1]);
+        CreateFrameBuffer(targetWidth, _targetDownSampleHeight, $"bloom_down_sample_frame{downSampleCount - 1}", out _downSampleFrames[downSampleCount - 1], out _downSampleGroups[downSampleCount - 1]);
     }
 
     public override void Blit(GPUFrameBuffer target)
@@ -103,25 +102,64 @@ public class Bloom : PostProcess
 
         Mesh mesh = FullScreenMesh;
 
-        _command.Begin();
+        _commandDownSample.Begin();
         //clamp
-        _command.SetFrameBuffer(_tmpFrame!);
-        _command.SetGraphicsPipeline(_clampShader.Pipeline);
-        _command.SetVertexBuffer(0, mesh.VertexBuffer);
-        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-        _command.SetGraphicsResources(ShaderId_Input, Input!);
-        _command.SetGraphicsResources(_shaderId_threshold, _threshold.EntryReadonly);
-        _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
-        _command.End();
-        _device.Submit(_command);
+        _commandDownSample.SetFrameBuffer(_tmpFrame!);
+        _commandDownSample.SetGraphicsPipeline(_clampShader.Pipeline);
+        _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
+        _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        _commandDownSample.SetGraphicsResources(ShaderId_Input, Input!);
+        _commandDownSample.SetGraphicsResources(_shaderId_threshold, _threshold.EntryReadonly);
+        _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+
+        Vector2 invFrameSize = new Vector2(1f) / new Vector2(_tmpFrame!.Width, _tmpFrame.Height);
+        //downsample tmpFrame to first downsample frame
+        _commandDownSample.SetFrameBuffer(_downSampleFrames![0]);
+        _commandDownSample.SetGraphicsPipeline(_downSampleShader.Pipeline);
+        _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
+        _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        _commandDownSample.SetGraphicsResources(ShaderId_Input, _tmpGroup!);
+        _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
+        _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+
+        for (int i = 1; i < _downSampleFrames!.Length; i++)
+        {
+            invFrameSize = new Vector2(1f) / new Vector2(_downSampleFrames[i].Width, _downSampleFrames[i].Height);
+            _commandDownSample.SetFrameBuffer(_downSampleFrames[i]);
+            _commandDownSample.SetGraphicsPipeline(_downSampleShader.Pipeline);
+            _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
+            _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+            _commandDownSample.SetGraphicsResources(ShaderId_Input, _downSampleGroups![i - 1]);
+            _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
+            _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+
+            _tmpFrame = _downSampleFrames[i];
+        }
+        _commandDownSample.End();
+        _device.Submit(_commandDownSample);
+
+        //blit all downsampled frames to tmpFrame
+        _commandBlit.Begin();
+        _commandBlit.SetFrameBuffer(target);
+        _commandBlit.SetGraphicsPipeline(BlitShader.Pipeline);
+        _commandBlit.SetVertexBuffer(0, mesh.VertexBuffer);
+        _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        for (int i = 0; i < _downSampleFrames.Length; i++)
+        {
+            _commandBlit.SetGraphicsResources(ShaderId_Input, _downSampleGroups![i]);
+            _commandBlit.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        }
+        _commandBlit.End();
+        _device.Submit(_commandBlit);
     }
 
-    private void CreateDownSampleFrameBuffer( uint width, uint height, out GPUFrameBuffer frameBuffer, out GPUResourceGroup group)
+    private void CreateFrameBuffer(uint width, uint height, string name, out GPUFrameBuffer frameBuffer, out GPUResourceGroup group)
     {
         FrameBufferDescriptor desc = new FrameBufferDescriptor(
             _backBufferPass,
             width,
-            height
+            height,
+            name
         );
 
         frameBuffer = _device.CreateFrameBuffer(desc);
@@ -150,7 +188,7 @@ public class Bloom : PostProcess
 
     protected override void Dispose(bool disposing)
     {
-        _command.Dispose();
+        _commandDownSample.Dispose();
         _tmpFrame?.Dispose();
         if (_downSampleFrames != null)
         {
