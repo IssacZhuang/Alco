@@ -2,11 +2,11 @@ namespace Vocore.Graphics;
 
 public struct DepthStencilState
 {
-    public static readonly DepthStencilState DepthNone = new(false, CompareFunction.Never);
+    public static readonly DepthStencilState None = new(false, CompareFunction.Never);
 
-    public static readonly DepthStencilState DepthWrite = new(true, CompareFunction.LessEqual);
+    public static readonly DepthStencilState Write = new(true, CompareFunction.LessEqual);
 
-    public static readonly DepthStencilState DepthRead = new(false, CompareFunction.LessEqual);
+    public static readonly DepthStencilState Read = new(false, CompareFunction.LessEqual);
     public static readonly DepthStencilState Default = new(false, CompareFunction.LessEqual);
     public DepthStencilState(bool depthWriteEnabled, CompareFunction depthCompare)
     {

@@ -53,9 +53,16 @@ public partial class RenderingSystem
                 renderPass = GetRenderPass(result.PreproccessResult.RenderPass!);
             }
 
-            Log.Info(renderPass.Name);
             colors = renderPass.Colors.Select(x => x.Format).ToArray();
-            depthStencilFormat = renderPass.Depth?.Format;
+            
+            if(depthStencil.DepthCompare != CompareFunction.Never)
+            {
+                depthStencilFormat = renderPass.Depth?.Format;
+            }
+            else
+            {
+                depthStencilFormat = null;
+            }
 
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,

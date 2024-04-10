@@ -321,7 +321,24 @@ public static class ShaderCompiler
         // built-in depth stencil states
         if (pragma.Values.Length == 1)
         {
-
+            string pargmaValue = pragma.Values[0];
+            switch (pargmaValue)
+            {
+                case "Default":
+                    depthStencilState = DepthStencilState.Default;
+                    return true;
+                case "Read":
+                    depthStencilState = DepthStencilState.Read;
+                    return true;
+                case "Write":
+                    depthStencilState = DepthStencilState.Write;
+                    return true;
+                case "None":
+                    depthStencilState = DepthStencilState.None;
+                    return true;
+                default:
+                    throw new NotSupportedException($"Depth stencil state {pargmaValue} is not built-in depth stencil state, required 1(built-in) or 2(custom).");
+            }
         }
 
         if (pragma.Values.Length == 2)

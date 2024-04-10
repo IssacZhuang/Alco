@@ -33,7 +33,7 @@ public struct GraphicsPipelineDescriptor
     public RasterizerState RasterizerState { get; init; } = RasterizerState.CullNone;
     public PrimitiveTopology PrimitiveTopology { get; init; } = PrimitiveTopology.TriangleList;
     public BlendState BlendState { get; init; }
-    public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.DepthNone;
+    public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.None;
     public PixelFormat[] ColorFormats { get; init; }
     public PixelFormat? DepthStencilFormat { get; init; }
     public PushConstantsRange[]? PushConstantsRanges { get; init; }
