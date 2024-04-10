@@ -42,17 +42,20 @@ public partial class RenderingSystem
 
             PixelFormat[] colors;
             PixelFormat? depthStencilFormat;
+            GPURenderPass renderPass;
             if (result.PreproccessResult.RenderPass.IsNullOrEmpty())
             {
-                colors = new PixelFormat[] { device.PrefferedSurfaceFomat };
-                depthStencilFormat = device.PrefferedDepthStencilFormat;
+                renderPass = DefaultRenderPass;
+                
             }
             else
             {
-                GPURenderPass renderPass = GetRenderPass(result.PreproccessResult.RenderPass!);
-                colors = renderPass.Colors.Select(x => x.Format).ToArray();
-                depthStencilFormat = renderPass.Depth?.Format;
+                renderPass = GetRenderPass(result.PreproccessResult.RenderPass!);
             }
+
+            Log.Info(renderPass.Name);
+            colors = renderPass.Colors.Select(x => x.Format).ToArray();
+            depthStencilFormat = renderPass.Depth?.Format;
 
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,

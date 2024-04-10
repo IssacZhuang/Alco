@@ -4,6 +4,8 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
+#pragma RenderPass Surface
+
 DEFINE_TEX2D_SAMPLE(0, texture); // should be HDR image
 DEFINE_STRUCT(1, data){
     float A;

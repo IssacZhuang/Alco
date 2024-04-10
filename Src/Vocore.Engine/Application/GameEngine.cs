@@ -323,6 +323,7 @@ namespace Vocore.Engine
             _assets.OnUpdate();
             _profiler.Update(updateDeltaTime);
             _input.Reset();//reset input state
+            _rendering.RenderToSwapChain();
             _graphics.EndFrame();//swap buffer
 
             if (_shouldResize)

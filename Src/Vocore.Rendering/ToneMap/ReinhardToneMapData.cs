@@ -8,8 +8,7 @@ public struct ReinhardToneMapData
 
     public static readonly ReinhardToneMapData Default = new ReinhardToneMapData
     {
-        MaxLuminance = 2f,
-        Exposure = 1.0f,
+        MaxLuminance = 1f,
         Gamma = 1 / 2.2f
     };
 }

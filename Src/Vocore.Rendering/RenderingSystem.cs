@@ -16,8 +16,7 @@ public partial class RenderingSystem
     private GPURenderPass? _mainRenderPass;
     private GPUFrameBuffer? _mainFrameBuffer;
     private ToneMap? _mainPassToSwapChain;
-
-
+    private GPUFrameBuffer _selectedFrameBuffer;
 
     public GPUDevice GraphicsDevice
     {
@@ -30,7 +29,7 @@ public partial class RenderingSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            return _device.SwapChainRenderPass;
+            return _selectedFrameBuffer.RenderPass;
         }
     }
 
@@ -39,7 +38,7 @@ public partial class RenderingSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            return _device.SwapChainFrameBuffer;
+            return _selectedFrameBuffer;
         }
     }
 
@@ -47,6 +46,9 @@ public partial class RenderingSystem
     {
         _device = device;
         _renderPasses = new Dictionary<string, GPURenderPass>();
+        _selectedFrameBuffer = device.SwapChainFrameBuffer;
+
+        RegisterRenderPass("Surface", device.SwapChainFrameBuffer.RenderPass);
     }
 
     /// <summary>
@@ -58,6 +60,17 @@ public partial class RenderingSystem
     {
         _mainRenderPass = renderPass;
         _mainPassToSwapChain = toneMap;
+
+        UpdateMainFrameBuffer();
+    }
+
+    public void ResetMainRenderPass()
+    {
+        _mainRenderPass = null;
+        _mainPassToSwapChain = null;
+        _mainFrameBuffer?.Dispose();
+        _mainFrameBuffer = null;
+        _selectedFrameBuffer = _device.SwapChainFrameBuffer;
     }
 
     public void RegisterRenderPass(string name, GPURenderPass renderPass)
@@ -70,30 +83,6 @@ public partial class RenderingSystem
         _renderPasses.Add(name, renderPass);
     }
 
-    public GPURenderPass RegisterRenderPass(string name, PixelFormat[] colors, PixelFormat? depthStencil)
-    {
-        if (_renderPasses.ContainsKey(name))
-        {
-            throw new ArgumentException($"The render pass with name '{name}' has already been registered.");
-        }
-
-        if (colors.Length == 0)
-        {
-            throw new ArgumentException("The color attachment count must be greater than 0.");
-        }
-
-        ColorAttachment[] colorAttachments = new ColorAttachment[colors.Length];
-        for (int i = 0; i < colors.Length; i++)
-        {
-            colorAttachments[i] = new ColorAttachment(colors[i]);
-        }
-
-        DepthAttachment? depthAttachment = depthStencil.HasValue ? new DepthAttachment(depthStencil.Value) : null;
-        RenderPassDescriptor descriptor = new RenderPassDescriptor(colorAttachments, depthAttachment, name);
-        GPURenderPass renderPass = _device.CreateRenderPass(descriptor);
-        RegisterRenderPass(name, renderPass);
-        return renderPass;
-    }
 
     public bool HasRenderPass(string name)
     {
@@ -125,8 +114,43 @@ public partial class RenderingSystem
         _renderPasses.Remove(name);
     }
 
+    private void UpdateMainFrameBuffer()
+    {
+        if(_mainRenderPass == null)
+        {
+            return;
+        }
+
+        if(_mainPassToSwapChain == null)
+        {
+            return;
+        }
+
+        _mainFrameBuffer?.Dispose();
+
+        uint width = _device.SwapChainFrameBuffer.Width;
+        uint height = _device.SwapChainFrameBuffer.Height;
+
+        FrameBufferDescriptor descriptor = new FrameBufferDescriptor
+        {
+            RenderPass = _mainRenderPass,
+            Width = width,
+            Height = height,
+            Name = "main_frame_buffer"
+        };
+
+        _mainFrameBuffer = _device.CreateFrameBuffer(descriptor);
+        _mainPassToSwapChain.SetInput(_mainFrameBuffer);
+        _selectedFrameBuffer = _mainFrameBuffer;
+    }
+
+    internal void RenderToSwapChain()
+    {
+        _mainPassToSwapChain?.Blit(_device.SwapChainFrameBuffer);
+    }
+
     internal void OnResize(int2 size)
     {
-
+        UpdateMainFrameBuffer();
     }
 }

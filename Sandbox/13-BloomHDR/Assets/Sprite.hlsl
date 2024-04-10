@@ -5,8 +5,6 @@
 
 #pragma BlendState NonPremultipliedAlpha
 
-#pragma RenderPass HDR
-
 struct Vertex2D {
   float2 position : POSITION;
   float2 uv : TEXCOORD0;

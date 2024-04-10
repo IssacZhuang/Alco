@@ -147,7 +147,6 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         for (int i = 0; i < renderPass.WebGPUColorInfos.Count; i++)
         {
             WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
-
             _colorTextures[i] = new WebGPUTexture(
                 renderPass.NativeDevice,
                 BuildTextureDescriptor(colorInfo.format, width, height),
@@ -159,7 +158,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             _colorAttachments[i] = new WGPURenderPassColorAttachment
             {
                 view = _colorViews[i],
-                loadOp = WGPULoadOp.Clear,
+                loadOp = WGPULoadOp.Load,
                 storeOp = WGPUStoreOp.Store,
                 clearValue = colorInfo.clearColor,
             };
@@ -182,10 +181,10 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
                 view = _depthView,
-                depthLoadOp = WGPULoadOp.Clear,
+                depthLoadOp = WGPULoadOp.Load,
                 depthStoreOp = WGPUStoreOp.Store,
                 depthClearValue = depthInfo.clearDepth,
-                stencilLoadOp = WGPULoadOp.Clear,
+                stencilLoadOp = WGPULoadOp.Load,
                 stencilStoreOp = WGPUStoreOp.Store,
                 stencilClearValue = depthInfo.clearStencil,
             };

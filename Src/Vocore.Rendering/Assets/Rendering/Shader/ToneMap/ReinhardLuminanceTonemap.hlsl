@@ -3,10 +3,11 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
+#pragma RenderPass Surface
+
 DEFINE_TEX2D_SAMPLE(0, texture); // should be HDR image
 DEFINE_STRUCT(1, data){
     float MaxLuminance;
-    float Exposure;
     float Gamma;
 };
 
@@ -42,7 +43,7 @@ float4 fs_main(V2F input) : SV_TARGET {
   float numerator = old_luminance * (1.0 + (old_luminance/(MaxLuminance*MaxLuminance)));
   float new_luminance = numerator / (1.0 + old_luminance);
 
-  float3 ldrColor = change_luminance(source.rgb, new_luminance) * Exposure;
-  ldrColor = pow(ldrColor, 1.0 / Gamma);
+  float3 ldrColor = change_luminance(source.rgb, new_luminance);
+  //ldrColor = pow(ldrColor, 1.0 / Gamma);
   return float4(ldrColor, 1.0);
 }
