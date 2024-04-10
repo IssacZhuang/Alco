@@ -5,7 +5,7 @@
 #pragma EntryFragment fs_main
 
 DEFINE_TEX2D_SAMPLE(0, texture); // should be HDR image
-DEFINE_STRUCT(1, uncharted2Data){
+DEFINE_STRUCT(1, data){
     float A;
     float B;
     float C;

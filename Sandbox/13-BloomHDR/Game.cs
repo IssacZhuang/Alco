@@ -18,8 +18,9 @@ public class Game : GameEngine
     private SpriteRenderer _spriteRenderer;
     private GPURenderPass _hdrPass;
     private GPUFrameBuffer _hdrFrameBuffer;
-    private U2ToneMap _toneMap;
+    private ReinhardLuminanceToneMap _toneMap;
     private Vector2 _size = Vector2.One * 20;
+    private float _white = 0;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -38,7 +39,7 @@ public class Game : GameEngine
 
         _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
-        _u2ToneMappingShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/Uncharted2Tonemap.hlsl");
+        _u2ToneMappingShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
 
         _font = Assets.Load<Font>("Font/Default.ttf");
         _star = Rendering.CreateTexture2D(4,4, 0xffffff);
@@ -48,7 +49,7 @@ public class Game : GameEngine
         _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
         _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
 
-        _toneMap = Rendering.CreateU2ToneMap(_u2ToneMappingShader);
+        _toneMap = Rendering.CreateReinhardLuminanceToneMap(_u2ToneMappingShader);
         _toneMap.SetInput(_hdrFrameBuffer);
     }
 
@@ -74,18 +75,44 @@ public class Game : GameEngine
             Stop();
         }
 
-        _textRenderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
-        _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        _textRenderer.End();
+        if (Input.IsKeyDown(KeyCode.Up))
+        {
+            _white += 0.1f;
+            Log.Info(_white);
+        }
+
+        if (Input.IsKeyDown(KeyCode.Down))
+        {
+            _white -= 0.1f;
+            Log.Info(_white);
+        }
+
+        if (Input.IsKeyDown(KeyCode.W))
+        {
+            _toneMap.Data.MaxLuminance += 1f;
+            Log.Info(_toneMap.Data.MaxLuminance);
+        }
+
+        if (Input.IsKeyDown(KeyCode.S))
+        {
+            _toneMap.Data.MaxLuminance -= 1f;
+            Log.Info(_toneMap.Data.MaxLuminance);
+        }
+
+
 
         _spriteRenderer.Begin(_hdrFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One*100, new ColorFloat(1, 0.1f,0.1f,1));
+        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One * 100, new ColorFloat(1, _white, _white, 1));
 
         _spriteRenderer.End();
 
         _toneMap.Blit(GraphicsDevice.SwapChainFrameBuffer);
+
+        _textRenderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
+        _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+        _textRenderer.End();
     }
 
     protected override void OnStop()
