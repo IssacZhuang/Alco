@@ -181,12 +181,14 @@ namespace Vocore.Engine
             }
 
             Vector2 screenSizeFloat = new Vector2(_setting.Window.Width, _setting.Window.Height);
-            _graphics = new EngineGraphics(this, screenSizeFloat);
+            
             _rendering = new RenderingSystem(_graphicsDevice);
+            _assets = new AssetSystem(this, 2);
 
+            _graphics = new EngineGraphics(this);
             _timer = new EngineTimer(this);
             _profiler = new EngineProfiler(this);
-            _assets = new AssetSystem(this, 2);
+            
         }
 
         ~GameEngine()

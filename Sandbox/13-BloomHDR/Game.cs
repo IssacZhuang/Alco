@@ -18,7 +18,6 @@ public class Game : GameEngine
     private SpriteRenderer _spriteRenderer;
     private GPURenderPass _hdrPass;
     private ReinhardLuminanceToneMap _toneMap;
-    private Vector2 _size = Vector2.One * 20;
     private float _white = 0;
 
 
