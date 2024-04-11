@@ -41,7 +41,7 @@ public class Game : GameEngine
 
         RenderPassDescriptor descriptor = new RenderPassDescriptor
         (
-            [new(PixelFormat.RGBA16Float)],
+            [new(GraphicsDevice.PrefferedHDRFormat)],
             new(PixelFormat.Depth24PlusStencil8),
             "hdr_pass"
         );

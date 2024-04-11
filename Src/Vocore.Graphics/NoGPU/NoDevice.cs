@@ -22,6 +22,7 @@ internal class NoDevice : GPUDevice
     public override PixelFormat PrefferedSurfaceFomat => PixelFormat.RGBA8Unorm;
 
     public override PixelFormat? PrefferedDepthStencilFormat => null;
+    public override PixelFormat PrefferedHDRFormat => PixelFormat.RGBA16Float;
 
     public override bool VSync { get; set; }
 

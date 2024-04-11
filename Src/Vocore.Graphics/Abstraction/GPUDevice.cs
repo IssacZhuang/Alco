@@ -28,6 +28,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <summary>
     /// Enable or disable the vertical synchronization. The frame rate will be limited to the refresh rate of the monitor if enabled.
     /// </summary>
+    public abstract PixelFormat PrefferedHDRFormat { get; }
     public abstract bool VSync { get; set; }
 
 

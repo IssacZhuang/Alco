@@ -30,7 +30,7 @@ public class Bloom : PostProcess
         _targetDownSampleHeight = targetDownSampleHeight;
 
         RenderPassDescriptor descriptor = new RenderPassDescriptor(
-            [new(PixelFormat.RGBA16Float)],
+            [new(_device.PrefferedHDRFormat)],
             null
         );
 

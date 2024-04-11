@@ -60,6 +60,7 @@ internal partial class WebGPUDevice : GPUDevice
     private readonly WGPUTextureFormat _swapChainFormat;
     private readonly PixelFormat _preferredSurfaceFormat;
     private readonly PixelFormat? _preferredDepthStencilFormat;
+    private readonly PixelFormat _preferredHDRFormat;
     private uint _width;
     private uint _height;
     private bool _vsync;
@@ -101,6 +102,13 @@ internal partial class WebGPUDevice : GPUDevice
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredSurfaceFormat;
     }
+
+    public override PixelFormat PrefferedHDRFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _preferredHDRFormat;
+    }
+
     public override bool VSync
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -409,14 +417,32 @@ internal partial class WebGPUDevice : GPUDevice
         }
         GraphicsLogger.Info($"Supported present modes: {string.Join(", ", _supportedPresentModes)}");
 
+        nuint supportedFeaturesCount = wgpuAdapterEnumerateFeatures(Adapter, null);
+        WGPUFeatureName* supportedFeatures = stackalloc WGPUFeatureName[(int)supportedFeaturesCount];
+        wgpuAdapterEnumerateFeatures(Adapter, supportedFeatures);
+
         List<WGPUFeatureName> featuresList = new List<WGPUFeatureName>(){
             (WGPUFeatureName)WGPUNativeFeature.VertexWritableStorage
         };
-        bool isPushConstantEnabled = descriptor.PushConstantsSize > 0;
-        if (isPushConstantEnabled)
+
+        if (!IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.PushConstants, supportedFeatures, supportedFeaturesCount))
         {
-            featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
+            throw new GraphicsException("Push constants are not supported which is required");
         }
+
+        featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
+
+        // why RG11B10Ufloat is slower than RGBA16Float ???
+        // if (IsFeatureSupported(WGPUFeatureName.RG11B10UfloatRenderable, supportedFeatures, supportedFeaturesCount))
+        // {
+        //     featuresList.Add(WGPUFeatureName.RG11B10UfloatRenderable);
+        //     _preferredHDRFormat = PixelFormat.RG11B10Ufloat;
+        // }
+        // else
+        // {
+        //     _preferredHDRFormat = PixelFormat.RGBA16Float;
+        // }
+        _preferredHDRFormat = PixelFormat.RGBA16Float;
 
         WGPUFeatureName* features = stackalloc WGPUFeatureName[featuresList.Count];
         for (int i = 0; i < featuresList.Count; i++)
@@ -438,31 +464,30 @@ internal partial class WebGPUDevice : GPUDevice
 
             WGPUDevice device = WGPUDevice.Null;
 
-            if (isPushConstantEnabled)
+
+            WGPUNativeLimits limits = new WGPUNativeLimits
             {
-                WGPUNativeLimits limits = new WGPUNativeLimits
-                {
-                    maxPushConstantSize = 128,
-                };
+                maxPushConstantSize = 128,
+            };
 
-                WGPURequiredLimitsExtras requiredLimitsExtras = new WGPURequiredLimitsExtras
+            WGPURequiredLimitsExtras requiredLimitsExtras = new WGPURequiredLimitsExtras
+            {
+                chain = new WGPUChainedStruct
                 {
-                    chain = new WGPUChainedStruct
-                    {
-                        sType = (WGPUSType)WGPUNativeSType.RequiredLimitsExtras,
-                        next = null,
-                    },
-                    limits = limits,
-                };
+                    sType = (WGPUSType)WGPUNativeSType.RequiredLimitsExtras,
+                    next = null,
+                },
+                limits = limits,
+            };
 
-                WGPURequiredLimits requiredLimits = new WGPURequiredLimits
-                {
-                    nextInChain = &requiredLimitsExtras.chain,
-                    limits = DefaultLimits
-                };
+            WGPURequiredLimits requiredLimits = new WGPURequiredLimits
+            {
+                nextInChain = &requiredLimitsExtras.chain,
+                limits = DefaultLimits
+            };
 
-                deviceDescriptor.requiredLimits = &requiredLimits;
-            }
+            deviceDescriptor.requiredLimits = &requiredLimits;
+
 
             wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, new nint(&device));
             Device = device;
@@ -735,6 +760,18 @@ internal partial class WebGPUDevice : GPUDevice
                 GraphicsLogger.Info(message);
                 break;
         }
+    }
+
+    private unsafe static bool IsFeatureSupported(WGPUFeatureName feature, WGPUFeatureName* supportedFeatures, nuint supportedFeaturesCount)
+    {
+        for (nuint i = 0; i < supportedFeaturesCount; i++)
+        {
+            if (supportedFeatures[i] == feature)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     #endregion
