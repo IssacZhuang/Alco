@@ -105,10 +105,14 @@ public class Game : GameEngine
             Log.Info(_toneMap.Data.MaxLuminance);
         }
 
+        Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);
+        Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
+        spritePosition.Y = -spritePosition.Y;
+
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, Vector2.Zero, Rotation2D.Identity, Vector2.One * 32, new ColorFloat(2f, 1.5f, 1.5f, 1));
+        _spriteRenderer.Draw(_star, spritePosition, Rotation2D.Identity, Vector2.One * 32, new ColorFloat(4f, 1.5f, 1.5f, 1));
 
         _spriteRenderer.End();
 

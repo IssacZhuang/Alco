@@ -147,8 +147,6 @@ public class Bloom : PostProcess
         _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         for (int i = 0; i < _downSampleFrames.Length; i++)
         {
-            invFrameSize = new Vector2(1f) / new Vector2(target.Width, target.Height);
-            _commandBlit.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandBlit.SetGraphicsResources(ShaderId_Input, _downSampleGroups![i]);
             _commandBlit.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }

@@ -6,12 +6,8 @@
 #pragma BlendState Additive
 #pragma DepthStencilState Default
 
-struct Constants {
-  float2 invTextureSize;
-};
 
 DEFINE_TEX2D_SAMPLE(0, texture); 
-PUSH_CONSTANT Constants constants;
 
 struct Vertex2D {
   float2 position : POSITION;
@@ -38,17 +34,6 @@ float4 fs_main(V2F input) : SV_TARGET {
   // use luminance as alpha
   float4 source = SAMPLE_TEX2D(texture, input.uv);
   float intensityBase = 1;
-  float2 invTextureSize = constants.invTextureSize;
-  float4 sum = float4(0, 0, 0, 0);
-  float weights[5] = {0.07027, 0.316216, 0.227027, 0.316216, 0.07027}; // Gaussian weights for a 5x5 kernel
 
-  // Apply the weights from the Gaussian kernel
-  for (int i = -2; i <= 2; ++i) {
-    for (int j = -2; j <= 2; ++j) {
-      float weight = weights[i + 2] * weights[j + 2];
-      sum += weight * SAMPLE_TEX2D(texture, input.uv + float2(i, j) * invTextureSize);
-    }
-  }
-
-  return float4(sum.rgb * intensityBase, luminance(source.rgb));
+  return float4(source.rgb * intensityBase, luminance(source.rgb));
 }
