@@ -6,8 +6,15 @@ namespace Vocore.Engine
     /// <summary>
     /// The game engine setting
     /// </summary>
-    public struct GameEngineSetting
+    public class GameEngineSetting
     {
+        public GameEngineSetting()
+        {
+            GametTickRate = 60;
+            Window = WindowSetting.Default;
+            Graphics = GraphicsSetting.Default;
+        }
+
         /// <summary>
         /// Check if the game engine requires GPU interface
         /// </summary>
@@ -35,17 +42,6 @@ namespace Vocore.Engine
         /// The graphics setting 
         /// </summary>
         public GraphicsSetting Graphics;
-
-        /// <summary>
-        /// The default game engine setting
-        /// </summary>
-        public readonly static GameEngineSetting Default = new GameEngineSetting
-        {
-            GametTickRate = 60,
-            Window = WindowSetting.Default,
-            Graphics = GraphicsSetting.Default,
-        };
-
 
         /// <summary>
         /// The default game engine setting but no GPU interface required

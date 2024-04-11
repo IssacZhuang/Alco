@@ -136,10 +136,6 @@ namespace Vocore.Engine
 
         #endregion
 
-        public GameEngine() : this(GameEngineSetting.Default)
-        {
-        }
-
         public GameEngine(GameEngineSetting setting)
         {
             if (Instance != null)

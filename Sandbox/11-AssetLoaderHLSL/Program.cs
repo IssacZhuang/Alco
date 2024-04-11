@@ -2,7 +2,7 @@
 using Vocore.Engine;
 using Vocore.Graphics;
 
-GameEngineSetting setting = GameEngineSetting.Default with
+GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     Window = new WindowSetting(400, 400, "Asset Loader HLSL"),

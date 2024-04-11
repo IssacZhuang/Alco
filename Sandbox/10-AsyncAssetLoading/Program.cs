@@ -1,7 +1,7 @@
 ﻿using Vocore;
 using Vocore.Engine;
 
-GameEngineSetting setting = GameEngineSetting.Default with
+GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     Window = new WindowSetting(400, 400, "Async Asset Loading"),

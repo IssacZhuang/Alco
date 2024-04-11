@@ -2,7 +2,8 @@
 using Vocore.Engine;
 using Vocore.Graphics;
 
-GameEngineSetting setting = GameEngineSetting.Default with{
+GameEngineSetting setting = new GameEngineSetting
+{
     StopWhenError = true,
     Window = new WindowSetting(640, 360, "Basic Window"),
 };

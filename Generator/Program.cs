@@ -4,7 +4,7 @@ using Vocore.Graphics;
 
 
 
-GameEngineSetting setting = GameEngineSetting.Default with
+GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     Graphics = GraphicsSetting.NoGPU
