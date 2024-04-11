@@ -14,7 +14,7 @@ namespace Vocore.Engine
         /// Called when the engine is in the initialization stage.
         /// Used for modifying the engine state/settings and adding components.
         /// </summary>
-        void OnInitilize(GameEngine engine, ref GameEngineSetting setting);
+        void OnInitilize(GameEngine engine);
 
         /// <summary>
         /// Called when the engine starts running.

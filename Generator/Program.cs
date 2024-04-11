@@ -12,6 +12,5 @@ GameEngineSetting setting = GameEngineSetting.Default with
 
 using (Generator game = new Generator(setting))
 {
-    game.RegisterPlugin<PluginRuntimeInfo>();
     game.Run();
 }

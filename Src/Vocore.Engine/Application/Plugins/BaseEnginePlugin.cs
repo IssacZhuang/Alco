@@ -6,7 +6,7 @@ namespace Vocore.Engine
     {
         public virtual int Priority => 0;
 
-        public virtual void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
+        public virtual void OnInitilize(GameEngine engine)
         {
 
         }

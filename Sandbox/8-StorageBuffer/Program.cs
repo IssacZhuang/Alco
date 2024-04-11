@@ -10,7 +10,5 @@ GameEngineSetting setting = GameEngineSetting.Default with
 
 using (Game game = new Game(setting))
 {
-    game.RegisterPlugin<PluginBuiltInShader>();
-    game.RegisterPlugin<PluginRuntimeInfo>();
     game.Run();
 }

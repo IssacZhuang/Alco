@@ -7,7 +7,7 @@ namespace Vocore.Engine{
     {
         public override int Priority => -1000;
 
-        public override void OnInitilize(GameEngine engine, ref GameEngineSetting setting)
+        public override void OnInitilize(GameEngine engine)
         {
             GPUDevice device = engine.GraphicsDevice;
 

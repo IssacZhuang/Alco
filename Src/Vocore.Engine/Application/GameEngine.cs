@@ -54,16 +54,6 @@ namespace Vocore.Engine
         #region Properties
 
         /// <summary>
-        /// The setting of the game engine<br/>
-        /// Can only set in the constructor and modify by plugins before the engine starts
-        /// </summary>
-        public GameEngineSetting Setting
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _setting;
-        }
-
-        /// <summary>
         /// The main thread of the game main loop
         /// </summary>
         public int MainThread
@@ -102,6 +92,15 @@ namespace Vocore.Engine
         }
 
         /// <summary>
+        /// The window singleton of the game
+        /// </summary>
+        public Window Window
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _window;
+        }
+
+        /// <summary>
         /// The asset manager of the game<br/>
         /// Which provides the asset loading and caching
         /// </summary>
@@ -109,15 +108,6 @@ namespace Vocore.Engine
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _assets;
-        }
-
-        /// <summary>
-        /// The window singleton of the game
-        /// </summary>
-        public Window Window
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _window;
         }
 
         /// <summary>
@@ -180,8 +170,6 @@ namespace Vocore.Engine
                 _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
             }
 
-            Vector2 screenSizeFloat = new Vector2(_setting.Window.Width, _setting.Window.Height);
-            
             _rendering = new RenderingSystem(_graphicsDevice);
             _assets = new AssetSystem(this, 2);
 
@@ -419,7 +407,7 @@ namespace Vocore.Engine
             {
                 try
                 {
-                    _plugins[i].OnInitilize(this, ref _setting);
+                    _plugins[i].OnInitilize(this);
                 }
                 catch (Exception e)
                 {
@@ -443,37 +431,6 @@ namespace Vocore.Engine
         public bool IsMainThread(int threadId)
         {
             return threadId == _engineThread;
-        }
-
-        /// <summary>
-        /// Register a plugin to the game engine. The must be called before the engine starts
-        /// </summary>
-        /// <typeparam name="T">The type of the plugin</typeparam>
-        public void RegisterPlugin<T>() where T : IEnginePlugin, new()
-        {
-            RegisterPlugin(new T());
-        }
-
-        /// <summary>
-        /// Register a plugin to the game engine. The must be called before the engine starts
-        /// </summary>
-        /// <param name="plugin">The plugin to register</param>
-        public void RegisterPlugin(IEnginePlugin plugin)
-        {
-            if (_isRunning)
-            {
-                Log.Error("Cannot register plugin when the engine is running.");
-            }
-
-            try
-            {
-                _plugins.Add(plugin);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when register plugin {plugin.GetType().Name}: ");
-                Log.Error(e);
-            }
         }
 
         /// <summary>
