@@ -51,7 +51,7 @@ public static class GraphicsWindow
             InitialSurfaceSizeWidth = (uint)windowSetting.Width,
             InitialSurfaceSizeHeight = (uint)windowSetting.Height,
             SurfaceClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-            DepthFormat = PixelFormat.Depth24PlusStencil8,
+            DepthFormat = graphicsSetting.SwapChainDepthFormat,
             PushConstantsSize = 256,
             Name = windowSetting.Title
         };

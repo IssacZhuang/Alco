@@ -37,11 +37,6 @@ namespace Vocore.Engine
         public GraphicsSetting Graphics;
 
         /// <summary>
-        /// The rendering setting
-        /// </summary>
-        public RenderingSetting Rendering;
-
-        /// <summary>
         /// The default game engine setting
         /// </summary>
         public readonly static GameEngineSetting Default = new GameEngineSetting
@@ -49,7 +44,6 @@ namespace Vocore.Engine
             GametTickRate = 60,
             Window = WindowSetting.Default,
             Graphics = GraphicsSetting.Default,
-            Rendering = RenderingSetting.Forward
         };
 
 

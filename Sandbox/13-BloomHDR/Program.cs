@@ -8,6 +8,7 @@ GameEngineSetting setting = GameEngineSetting.Default with
     Window = new WindowSetting(1280, 720, "Bloom HDR"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
+        SwapChainDepthFormat = null
     },
 };
 
