@@ -14,10 +14,6 @@ public class Game : GameEngine
     private readonly Shader _blurShader;
     private readonly Bloom _bloom;
     
-    //tone map
-    private readonly Shader _toneMapShader;
-    private readonly GPURenderPass _hdrPass;
-    private readonly ReinhardLuminanceToneMap _toneMap;
 
 
     //scence
@@ -33,22 +29,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        Assets.AddFileSource(new DirectoryFileSource("Assets"));
-
-        //tone map
-        _toneMapShader = Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
-        _toneMap = Rendering.CreateReinhardLuminanceToneMap(_toneMapShader);
-
-        RenderPassDescriptor descriptor = new RenderPassDescriptor
-        (
-            [new(GraphicsDevice.PrefferedHDRFormat)],
-            new(PixelFormat.Depth24PlusStencil8),
-            "hdr_pass"
-        );
-
-        _hdrPass = GraphicsDevice.CreateRenderPass(descriptor);
-        Rendering.SetMainRenderPass(_hdrPass, _toneMap);
-
         //bloom
         _clampShader = Assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Clamp.hlsl");
         _blurShader = Assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/GuassionBlur5x5.hlsl");
@@ -115,18 +95,6 @@ public class Game : GameEngine
         {
             _white -= 0.1f;
             Log.Info(_white);
-        }
-
-        if (Input.IsKeyDown(KeyCode.W))
-        {
-            _toneMap.Data.MaxLuminance += 1f;
-            Log.Info(_toneMap.Data.MaxLuminance);
-        }
-
-        if (Input.IsKeyDown(KeyCode.S))
-        {
-            _toneMap.Data.MaxLuminance -= 1f;
-            Log.Info(_toneMap.Data.MaxLuminance);
         }
 
         Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);

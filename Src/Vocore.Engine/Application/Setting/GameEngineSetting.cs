@@ -8,6 +8,10 @@ namespace Vocore.Engine
     /// </summary>
     public class GameEngineSetting
     {
+        private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Order.CompareTo(y.Order));
+
+        public IReadOnlyList<IEnginePlugin> Plugins => _plugins;
+
         public GameEngineSetting()
         {
             GametTickRate = 60;
@@ -52,5 +56,17 @@ namespace Vocore.Engine
             Window = WindowSetting.Default,
             Graphics = GraphicsSetting.NoGPU,
         };
+
+        public GameEngineSetting With(IEnginePlugin plugin)
+        {
+            _plugins.Add(plugin);
+            return this;
+        }
+
+        public GameEngineSetting With<T>() where T : IEnginePlugin, new()
+        {
+            _plugins.Add(new T());
+            return this;
+        }
     }
 }

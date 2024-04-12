@@ -10,7 +10,9 @@ GameEngineSetting setting = new GameEngineSetting
         Backend = GraphicsBackend.Vulkan,
         SwapChainDepthFormat = null
     },
-};
+}.
+With<PluginDefaultAssets>().
+With<PluginHDR>();
 
 using (Game game = new Game(setting))
 {

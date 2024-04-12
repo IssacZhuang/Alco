@@ -31,7 +31,7 @@ namespace Vocore.Engine
         private readonly AssetSystem _assets;
         private readonly InputSystem _input;
         private readonly RenderingSystem _rendering;
-        private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Priority.CompareTo(y.Priority));
+        private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
         #endregion
 
         #region  Internal
@@ -172,7 +172,8 @@ namespace Vocore.Engine
             _graphics = new EngineGraphics(this);
             _timer = new EngineTimer(this);
             _profiler = new EngineProfiler(this);
-            
+
+            InitializePlugins(_setting.Plugins);
         }
 
         ~GameEngine()
@@ -191,7 +192,6 @@ namespace Vocore.Engine
             _engineThread = Environment.CurrentManagedThreadId;
             _isRunning = true;
 
-            InitializePlugins();
             Assets.SetMainThread();
             
             InternaleRun();
@@ -261,20 +261,6 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InternalTick(float delta)
-        {
-            try
-            {
-                OnTick(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error("[Tick Error]", e);
-                Stop();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalUpdate()
         {
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
@@ -285,13 +271,15 @@ namespace Vocore.Engine
             {
                 try
                 {
-                    InternalTick(physicsDeltaTime);
+                    OnTick(physicsDeltaTime);
                 }
                 catch (Exception e)
                 {
                     Log.Error("[Tick Error]", e);
                     TryErrorStop();
                 }
+
+                OnSystemTick(physicsDeltaTime);
             }
 
             _graphics.BeginFrameUpdate(updateDeltaTime);
@@ -305,6 +293,8 @@ namespace Vocore.Engine
                 Log.Error("[Update Error]", e);
                 TryErrorStop();
             }
+
+            OnSystemUpdate(updateDeltaTime);
 
             _assets.OnUpdate();
             _profiler.Update(updateDeltaTime);
@@ -338,6 +328,7 @@ namespace Vocore.Engine
             {
                 _rendering.OnResize(size);
                 OnResize(size);
+                OnSystemResize(size);
             }
             catch (Exception e)
             {
@@ -361,11 +352,15 @@ namespace Vocore.Engine
                 Log.Error("[Start Error]", e);
                 TryErrorStop();
             }
+
+            OnSystemStart();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalStop()
         {
+            OnSystemStop();
+
             try
             {
                 OnStop();
@@ -391,27 +386,132 @@ namespace Vocore.Engine
 #pragma warning disable CS8625
             Instance = null;
 #pragma warning restore CS8625
+            DisposePlugins(_setting.Plugins);
             GraphicsDevice.Dispose();
             Window.Close();
             Assets.Dispose();
             GC.SuppressFinalize(this);
         }
 
-        private void InitializePlugins()
+        private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)
         {
-            for (int i = 0; i < _plugins.Count; i++)
+            for (int i = 0; i < plugins.Count; i++)
             {
                 try
                 {
-                    _plugins[i].OnInitilize(this);
+                    plugins[i].OnInitilize(this);
                 }
                 catch (Exception e)
                 {
-                    Log.Error($"Error when initialize plugin {_plugins[i].GetType().Name}: ");
+                    Log.Error($"Error when initialize plugin {plugins[i].GetType().Name}: ");
                     Log.Error(e);
+                    TryErrorStop();
                 }
             }
         }
+
+        private void DisposePlugins(IReadOnlyList<IEnginePlugin> plugins)
+        {
+            for (int i = 0; i < plugins.Count; i++)
+            {
+                try
+                {
+                    plugins[i].Dispose();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when dispose plugin {plugins[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemStart()
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnStart();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when start system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemTick(float delta)
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnTick(delta);
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when tick system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemUpdate(float delta)
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnUpdate(delta);
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when update system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemResize(int2 size)
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnResize(size);
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when resize system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemStop()
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnStop();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when stop system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
 
 
         #endregion
