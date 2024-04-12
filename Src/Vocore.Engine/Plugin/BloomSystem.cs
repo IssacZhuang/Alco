@@ -1,0 +1,50 @@
+
+using Vocore.Graphics;
+using Vocore.Rendering;
+
+namespace Vocore.Engine;
+
+public class BloomSystem : BaseEngineSystem
+{
+
+    private readonly RenderingSystem _rendering;
+    private readonly Shader _blitShader;
+    private readonly Shader _clampShader;
+    private readonly Shader _blurShader;
+    private readonly Bloom _bloom;
+
+    public override int Order => 900;
+
+    public BloomSystem(GameEngine engine)
+    {
+        RenderingSystem rendering = engine.Rendering;
+        AssetSystem assets = engine.Assets;
+
+        _rendering = rendering;
+
+        _clampShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Clamp.hlsl");
+        _blurShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/GuassionBlur5x5.hlsl");
+        _blitShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Blit.hlsl");
+        _bloom = rendering.CreateBloom(_blitShader, _clampShader, _blurShader, 32);
+        _bloom.SetInput(rendering.DefaultFrameBuffer);
+    }
+
+    public override void OnPostUpdate(float delta)
+    {
+        _bloom.Blit(_rendering.DefaultFrameBuffer);
+    }
+
+    public override void OnResize(int2 size)
+    {
+        _bloom.SetInput(_rendering.DefaultFrameBuffer);
+    }
+
+    public override void Dispose()
+    {
+        _bloom.Dispose();
+        _clampShader.Dispose();
+        _blurShader.Dispose();
+        _blitShader.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}

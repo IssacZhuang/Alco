@@ -9,7 +9,7 @@ GameEngineSetting setting = new GameEngineSetting
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
     }
-};
+}.With<PluginDefaultAssets>();
 
 using (Game game = new Game(setting))
 {

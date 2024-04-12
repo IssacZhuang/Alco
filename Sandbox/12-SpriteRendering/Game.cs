@@ -24,8 +24,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        Assets.AddFileSource(new DirectoryFileSource("Assets"));
-
         _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _spriteShader = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
@@ -57,11 +55,11 @@ public class Game : GameEngine
             Stop();
         }
 
-        _textRenderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
+        _textRenderer.Begin(Rendering.DefaultFrameBuffer);
         _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
         _textRenderer.End();
 
-        _spriteRenderer.Begin(GraphicsDevice.SwapChainFrameBuffer);
+        _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
         for (int i = 0; i < DrawCount; i++)

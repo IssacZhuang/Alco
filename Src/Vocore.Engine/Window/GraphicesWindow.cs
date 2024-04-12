@@ -126,7 +126,7 @@ public static class GraphicsWindow
     {
         LogPrefix = prefix;
         Graphics.GraphicsLogger.ErrorCallback = LogError;
-        Graphics.GraphicsLogger.WarningCallback = LogWarning;
+        //Graphics.GraphicsLogger.WarningCallback = LogWarning;
         Graphics.GraphicsLogger.InfoCallback = LogInfo;
     }
 

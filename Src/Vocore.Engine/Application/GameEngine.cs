@@ -269,6 +269,8 @@ namespace Vocore.Engine
 
             if (canInvokePhysicsTick)
             {
+                OnSystemTick(physicsDeltaTime);
+
                 try
                 {
                     OnTick(physicsDeltaTime);
@@ -279,10 +281,12 @@ namespace Vocore.Engine
                     TryErrorStop();
                 }
 
-                OnSystemTick(physicsDeltaTime);
+                OnSystemPostTick(physicsDeltaTime);
             }
 
             _graphics.BeginFrameUpdate(updateDeltaTime);
+
+            OnSystemUpdate(updateDeltaTime);
 
             try
             {
@@ -294,7 +298,7 @@ namespace Vocore.Engine
                 TryErrorStop();
             }
 
-            OnSystemUpdate(updateDeltaTime);
+            OnSystemPostUpdate(updateDeltaTime);
 
             _assets.OnUpdate();
             _profiler.Update(updateDeltaTime);
@@ -461,6 +465,23 @@ namespace Vocore.Engine
             }
         }
 
+        private void OnSystemPostTick(float delta)
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnPostTick(delta);
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when post tick system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
         private void OnSystemUpdate(float delta)
         {
             for (int i = 0; i < _systems.Count; i++)
@@ -472,6 +493,23 @@ namespace Vocore.Engine
                 catch (Exception e)
                 {
                     Log.Error($"Error when update system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemPostUpdate(float delta)
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnPostUpdate(delta);
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
                     Log.Error(e);
                     TryErrorStop();
                 }
@@ -535,6 +573,16 @@ namespace Vocore.Engine
         public void Stop()
         {
             _isRunning = false;
+        }
+
+        public void AddSystem(IEngineSystem system)
+        {
+            _systems.Add(system);
+        }
+
+        public void RemoveSystem(IEngineSystem system)
+        {
+            _systems.Remove(system);
         }
 
         #endregion
