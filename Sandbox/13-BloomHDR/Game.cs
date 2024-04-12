@@ -34,7 +34,7 @@ public class Game : GameEngine
         _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
         _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
     }
-    
+
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -61,7 +61,7 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, spritePosition, Rotation2D.Identity, Vector2.One * 32, new ColorFloat(4f, 1.5f, 1.5f, 1));
+        _spriteRenderer.Draw(_star, spritePosition, Rotation2D.Identity, Vector2.One * 32, new ColorFloat(4f, 2f, 2f, 1));
 
         _spriteRenderer.End();
 
