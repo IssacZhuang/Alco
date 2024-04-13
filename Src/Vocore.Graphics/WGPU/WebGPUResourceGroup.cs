@@ -62,8 +62,16 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
                 case BindableResourceType.Buffer:
                     WebGPUBuffer buffer = (WebGPUBuffer)entry.Resource;
                     nativeEntry.buffer = buffer.Native;
-                    nativeEntry.offset = 0;
-                    nativeEntry.size = buffer.Size;
+                    if (entry.UseOffset)
+                    {
+                        nativeEntry.offset = entry.Offset;
+                        nativeEntry.size = entry.Size;
+                    }
+                    else
+                    {
+                        nativeEntry.offset = 0;
+                        nativeEntry.size = buffer.Size;
+                    }
                     break;
                 case BindableResourceType.Sampler:
                     WebGPUSampler sampler = (WebGPUSampler)entry.Resource;
