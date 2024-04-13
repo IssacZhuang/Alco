@@ -10,7 +10,8 @@ public class BloomSystem : BaseEngineSystem
     private readonly RenderingSystem _rendering;
     private readonly Shader _blitShader;
     private readonly Shader _clampShader;
-    private readonly Shader _blurShader;
+    private readonly Shader _downSampleShader;
+    private readonly Shader _upSampleShader;
     private readonly Bloom _bloom;
 
     public override int Order => 900;
@@ -23,9 +24,10 @@ public class BloomSystem : BaseEngineSystem
         _rendering = rendering;
 
         _clampShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Clamp.hlsl");
-        _blurShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/GuassionBlur5x5.hlsl");
+        _downSampleShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/DownSample.hlsl");
+        _upSampleShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/UpSample.hlsl");
         _blitShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Blit.hlsl");
-        _bloom = rendering.CreateBloom(_blitShader, _clampShader, _blurShader, 32);
+        _bloom = rendering.CreateBloom(_blitShader, _clampShader, _downSampleShader, _upSampleShader, 16);
         _bloom.SetInput(rendering.DefaultFrameBuffer);
     }
 
@@ -43,7 +45,7 @@ public class BloomSystem : BaseEngineSystem
     {
         _bloom.Dispose();
         _clampShader.Dispose();
-        _blurShader.Dispose();
+        _downSampleShader.Dispose();
         _blitShader.Dispose();
         GC.SuppressFinalize(this);
     }

@@ -2,8 +2,8 @@ namespace Vocore.Rendering;
 
 public partial class RenderingSystem
 {
-    public Bloom CreateBloom(Shader blitShader, Shader clampShader, Shader downSampleShader, uint targetDownSampleHeight)
+    public Bloom CreateBloom(Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight)
     {
-        return new Bloom(this, blitShader, clampShader, downSampleShader, targetDownSampleHeight);
+        return new Bloom(this, blitShader, clampShader, downSampleShader, upSampleShader, targetDownSampleHeight);
     }
 }

@@ -30,17 +30,26 @@ V2F vs_main(Vertex2D input) {
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  float2 invTextureSize = constants.invTextureSize*1.667;
+  float2 invTextureSize = constants.invTextureSize;
   float4 sum = float4(0, 0, 0, 0);
-  float weights[3] = {0.227027, 0.316216, 0.227027}; // Gaussian weights for a 5x5 kernel
+  // float weights[3] = {0.227027, 0.316216, 0.227027}; // Gaussian weights for a 5x5 kernel
+
+  // // Apply the weights from the Gaussian kernel
+  // for (int i = -1; i <= 1; ++i) {
+  //   for (int j = -1; j <= 1; ++j) {
+  //     float weight = weights[i + 1] * weights[j + 1];
+  //     sum += weight * SAMPLE_TEX2D(texture, input.uv + float2(i, j) * invTextureSize);
+  //   }
+  // }
+  float weights[5] = {0.07027, 0.316216, 0.227027, 0.316216, 0.07027}; // Gaussian weights for a 5x5 kernel
 
   // Apply the weights from the Gaussian kernel
-  for (int i = -1; i <= 1; ++i) {
-    for (int j = -1; j <= 1; ++j) {
-      float weight = weights[i + 1] * weights[j + 1];
+  for (int i = -2; i <= 2; ++i) {
+    for (int j = -2; j <= 2; ++j) {
+      float weight = weights[i + 2] * weights[j + 2];
       sum += weight * SAMPLE_TEX2D(texture, input.uv + float2(i, j) * invTextureSize);
     }
   }
 
-  return float4(sum.rgb * 1.6854393, sum.a); // 1.6854393 is the sum of the [5x5 guassion weights]/[3x3 guassion weights]
+  return float4(sum.rgb, sum.a); // 1.6854393 is the sum of the [5x5 guassion weights]/[3x3 guassion weights]
 }
