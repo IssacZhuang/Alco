@@ -130,7 +130,7 @@ public class Bloom : PostProcess
 
         _clampShaderData.Value = new ClampShaderData
         {
-            InvFrameSize = new Vector2(1f) / new Vector2(input.Width, input.Height),
+            InvFrameSize = new Vector2(1f) / new Vector2(input.Width>>1, input.Height>>1),
             Threshold = 1.0f
         };
         _clampShaderData.UpdateBuffer();
@@ -237,14 +237,13 @@ public class Bloom : PostProcess
         _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleGroups![_downSampleGroups.Length - 2]);
         _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
         _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
-        _commandDownSample.End();
-        _device.Submit(_commandDownSample);
+        
 
 
         for (int i = 1; i < _upSampleFrames!.Length; i++)
         {
             invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames[i].Width, _upSampleFrames[i].Height);
-            _commandDownSample.Begin();
+
             _commandDownSample.SetFrameBuffer(_upSampleFrames[i]);
             _commandDownSample.SetGraphicsPipeline(_upSampleShader.Pipeline);
             _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
@@ -253,9 +252,10 @@ public class Bloom : PostProcess
             _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleGroups![_downSampleGroups.Length - i - 2]);
             _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
-            _commandDownSample.End();
-            _device.Submit(_commandDownSample);
         }
+
+        _commandDownSample.End();
+        _device.Submit(_commandDownSample);
 
         //blit
         _commandBlit.Begin();
@@ -319,6 +319,14 @@ public class Bloom : PostProcess
             for (int i = 0; i < _downSampleGroups.Length; i++)
             {
                 _downSampleGroups[i].Dispose();
+            }
+        }
+
+        if (_upSampleFrames != null)
+        {
+            for (int i = 0; i < _upSampleFrames.Length; i++)
+            {
+                _upSampleFrames[i].Dispose();
             }
         }
     }
