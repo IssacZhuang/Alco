@@ -26,14 +26,14 @@ V2F vs_main(Vertex2D input) {
   return output;
 }
 
-float luminance(float3 color) {
-  return dot(color, float3(0.2126, 0.7152, 0.0722));
+float grayScale(float3 color) {
+  return dot(color, float3(0.299, 0.587, 0.114));
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  // use luminance as alpha
+  // use gray scale as alpha
   float4 source = SAMPLE_TEX2D(texture, input.uv);
-  float intensityBase = 1;
+  float intensityBase = 2;
 
-  return float4(source.rgb * intensityBase, luminance(source.rgb));
+  return float4(source.rgb * intensityBase, grayScale(source.rgb));
 }

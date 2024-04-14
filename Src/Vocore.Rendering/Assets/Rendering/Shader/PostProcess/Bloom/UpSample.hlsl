@@ -47,12 +47,14 @@ float4 fs_main(V2F input) : SV_TARGET {
   float weights[5] = {0.07027, 0.316216, 0.227027, 0.316216, 0.07027}; // Gaussian weights for a 5x5 kernel
 
   // Apply the weights from the Gaussian kernel
-  for (int i = -2; i <= 2; ++i) {
-    for (int j = -2; j <= 2; ++j) {
-      float weight = weights[i + 2] * weights[j + 2];
-      sum += weight * SAMPLE_TEX2D(previousTexture, input.uv + float2(i, j) * invTextureSize);
-    }
-  }
+  // for (int i = -2; i <= 2; ++i) {
+  //   for (int j = -2; j <= 2; ++j) {
+  //     float weight = weights[i + 2] * weights[j + 2];
+  //     sum += weight * SAMPLE_TEX2D(previousTexture, input.uv + float2(i, j) * invTextureSize);
+  //   }
+  // }
+
+  sum +=  SAMPLE_TEX2D(previousTexture, input.uv);
 
   float4 final = SAMPLE_TEX2D(currentTexture, input.uv)*0.25 + sum;
 

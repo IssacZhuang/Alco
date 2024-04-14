@@ -16,7 +16,7 @@ public class Game : GameEngine
     private readonly Shader _spriteShader;
     private readonly TextRenderer _textRenderer;
     private readonly SpriteRenderer _spriteRenderer;
-    private float _white = 2;
+    private float _white = 6;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -61,7 +61,7 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, spritePosition, Rotation2D.Identity, Vector2.One * 16, new ColorFloat(_white*2, _white, _white, 1));
+        _spriteRenderer.Draw(_star, spritePosition, Rotation2D.Identity, Vector2.One * 16, new ColorFloat(_white, _white, _white, 1));
 
         _spriteRenderer.End();
 

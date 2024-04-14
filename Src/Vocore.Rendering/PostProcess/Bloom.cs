@@ -235,7 +235,7 @@ public class Bloom : PostProcess
         _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleGroups![_downSampleGroups.Length - 1]);
         _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleGroups![_downSampleGroups.Length - 2]);
-        _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
+        //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
         _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         
 
@@ -250,7 +250,7 @@ public class Bloom : PostProcess
             _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
             _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleGroups![i - 1]);
             _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleGroups![_downSampleGroups.Length - i - 2]);
-            _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
+            //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }
 
