@@ -56,7 +56,7 @@ float4 fs_main(V2F input) : SV_TARGET {
 
   sum +=  SAMPLE_TEX2D(previousTexture, input.uv);
 
-  float4 final = SAMPLE_TEX2D(currentTexture, input.uv)*0.25 + sum;
+  float4 final = SAMPLE_TEX2D(currentTexture, input.uv)*0.2 + sum;
 
   return  float4(final.rgb, 1); // 1.6854393 is the sum of the [5x5 guassion weights]/[3x3 guassion weights]
 }

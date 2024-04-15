@@ -27,7 +27,7 @@ public class BloomSystem : BaseEngineSystem
         _downSampleShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/DownSample.hlsl");
         _upSampleShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/UpSample.hlsl");
         _blitShader = assets.Load<Shader>("Rendering/Shader/PostProcess/Bloom/Blit.hlsl");
-        _bloom = rendering.CreateBloom(_blitShader, _clampShader, _downSampleShader, _upSampleShader, 16);
+        _bloom = rendering.CreateBloom(_blitShader, _clampShader, _downSampleShader, _upSampleShader, 11);
         _bloom.SetInput(rendering.DefaultFrameBuffer);
     }
 

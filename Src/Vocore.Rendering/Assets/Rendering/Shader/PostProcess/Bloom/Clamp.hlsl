@@ -44,5 +44,5 @@ float4 fs_main(V2F input) : SV_TARGET {
   }
 
   float3 clamped = max(0, sum.rgb - Threshold);
-  return float4(clamped, sum.a);
+  return float4(clamped*2, sum.a);
 }
