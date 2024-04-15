@@ -8,6 +8,6 @@ namespace Vocore
     {
         bool CollidesWith<T>(T other) where T : unmanaged, ICollider3D;
         bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo);
-        ColliderType type { get; }
+        ColliderType Type { get; }
     }
 }

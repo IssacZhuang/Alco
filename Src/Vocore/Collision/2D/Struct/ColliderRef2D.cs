@@ -18,11 +18,11 @@ namespace Vocore
             return new ColliderRef2D
             {
                 _ptr = collider,
-                _type = (*collider).type
+                _type = (*collider).Type
             };
         }
 
-        public ColliderType type => _type;
+        public ColliderType Type => _type;
 
         public bool CollidesWith<T>(T other) where T : unmanaged, ICollider2D
         {
