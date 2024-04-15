@@ -256,5 +256,21 @@ namespace Vocore
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool PointSphere(Vector2 point, ShapeSphere2D sphere)
+        {
+            Vector2 difference = point - sphere.center;
+            float distanceSquared = math.dot(difference, difference);
+            return distanceSquared <= sphere.radius * sphere.radius;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool PointBox(Vector2 point, ShapeBox2D box)
+        {
+            Vector2 localPoint = math.rotate(point - box.center, math.inverse(box.rotation));
+            return math.abs(localPoint.X) <= box.extends.X &&
+            math.abs(localPoint.Y) <= box.extends.Y;
+        }
+
     }
 }

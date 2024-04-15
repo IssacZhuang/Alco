@@ -130,6 +130,15 @@ namespace Vocore.Test
             Assert.IsFalse(!UtilsCollision3D.RaySphere(ray, sphere, out hit));
             TestContext.WriteLine(hit.ToString());
         }
+
+        [Test(Description = "test point box")]
+        public void TestIntersectsPointBox()
+        {
+            ShapeBox3D box = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity);
+            Vector3 point = new Vector3(0.4f, 0.4f, 0);
+
+            Assert.IsTrue(UtilsCollision3D.PointBox(point, box));
+        }
     }
 }
 

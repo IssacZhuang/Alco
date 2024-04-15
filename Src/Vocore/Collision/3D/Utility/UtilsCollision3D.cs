@@ -318,6 +318,24 @@ namespace Vocore
 
             return false;
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool PointSphere(Vector3 point, ShapeSphere3D sphere)
+        {
+            Vector3 difference = point - sphere.center;
+            float distanceSquared = math.dot(difference, difference);
+            return distanceSquared < sphere.radius * sphere.radius;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool PointBox(Vector3 point, ShapeBox3D box)
+        {
+            Vector3 localPoint = math.rotate(point - box.center, math.inverse(box.rotation));
+            return math.abs(localPoint.X) <= box.extends.X &&
+                   math.abs(localPoint.Y) <= box.extends.Y &&
+                   math.abs(localPoint.Z) <= box.extends.Z;
+        }
     }
 }
 
