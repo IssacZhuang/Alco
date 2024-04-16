@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Collections.Generic;
 
 using Vocore;
+using System.Net.NetworkInformation;
 
 
 namespace Vocore.Test
@@ -136,6 +137,18 @@ namespace Vocore.Test
         {
             ShapeBox3D box = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity);
             Vector3 point = new Vector3(0.4f, 0.4f, 0);
+
+            Assert.IsTrue(UtilsCollision3D.PointBox(point, box));
+
+            box = new ShapeBox3D(Vector3.Zero, new Vector3(1f), math.euler(math.radians(new Vector3(0, 0, 45))));
+            TestContext.WriteLine(box.GetBoundingBox());
+            float pos = math.sqrt(2)*0.5f*0.5f;
+            TestContext.WriteLine(pos);
+            point = new Vector3(pos + 0.1f, pos + 0.1f, 0);
+
+            Assert.IsFalse(UtilsCollision3D.PointBox(point, box));
+
+            point = new Vector3(pos - 0.1f, pos - 0.1f, 0);
 
             Assert.IsTrue(UtilsCollision3D.PointBox(point, box));
         }

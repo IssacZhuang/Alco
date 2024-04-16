@@ -13,7 +13,6 @@ public class PluginHDR : IEnginePlugin
 
     public void OnInitilize(GameEngine engine)
     {
-        Log.Info(1);
         _shader = engine.Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
         _toneMap = engine.Rendering.CreateReinhardLuminanceToneMap(_shader);
         RenderPassDescriptor descriptor = new RenderPassDescriptor

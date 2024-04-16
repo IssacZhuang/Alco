@@ -11,7 +11,7 @@ public class Game : GameEngine
     //scence
     private readonly Camera2D _camera;
     private readonly Font _font;
-    private readonly Texture2D _star;
+    private readonly Texture2D _quad;
     private readonly Shader _textShader;
     private readonly Shader _spriteShader;
     private readonly TextRenderer _textRenderer;
@@ -27,7 +27,7 @@ public class Game : GameEngine
         _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
        
         _font = Assets.Load<Font>("Font/Default.ttf");
-        _star = Rendering.CreateTexture2D(4,4, 0xffffff);
+        _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
 
@@ -61,7 +61,7 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_star, spritePosition, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_white*2, _white, _white, 1));
+        _spriteRenderer.Draw(_quad, spritePosition, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_white*2, _white, _white, 1));
 
         _spriteRenderer.End();
 

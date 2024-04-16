@@ -7,7 +7,6 @@ public class PluginBloom : IEnginePlugin
     public int Order => 900;
     public void OnInitilize(GameEngine engine)
     {
-        Log.Info(2);
         _bloomSystem = new BloomSystem(engine);
         engine.AddSystem(_bloomSystem);
     }
