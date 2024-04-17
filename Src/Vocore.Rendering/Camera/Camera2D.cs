@@ -9,6 +9,16 @@ public class Camera2D : BaseCamera<CameraData2D>
         _data = new CameraData2D();
     }
 
+    public Vector2 Position
+    {
+        get => _data.transform.position;
+        set
+        {
+            _data.transform.position = value;
+            _dirty = true;
+        }
+    }
+
     public Vector2 Size
     {
         get => _data.Size;
