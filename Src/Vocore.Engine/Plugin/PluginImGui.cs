@@ -45,8 +45,14 @@ public class PluginImGui : IEnginePlugin
 
         Font font = assets.Load<Font>("Font/Default.ttf");
 
-        ImGuiRenderer imGuiRenderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite, font);
-        ImGui.Initialize(imGuiRenderer);
+        ImGuiRenderer imGuiRenderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite);
+        ImGuiStyle style = new ImGuiStyle
+        {
+
+        };
+
+
+        ImGui.Initialize(imGuiRenderer, style);
         engine.AddSystem(new ImGuiSystem(imGuiRenderer));
     }
 }

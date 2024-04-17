@@ -20,7 +20,7 @@ public class NoImGuiRenderer : IImGuiRenderer
         
     }
 
-    public void DrawText(Vector2 position, string text, float fontSize, ColorFloat color, Pivot pivot)
+    public void DrawText(Vector2 position, Font font, string text, float fontSize, ColorFloat color, Pivot pivot)
     {
         
     }

@@ -8,7 +8,7 @@ namespace Vocore.Engine;
 public class ImGuiRenderer : BaseImGuiRenderer
 {
     private readonly InputSystem _input;
-    public ImGuiRenderer(InputSystem input, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Font font) : base(width, height, renderingSystem, shaderText, shaderSprite, font)
+    public ImGuiRenderer(InputSystem input, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite) : base(width, height, renderingSystem, shaderText, shaderSprite)
     {
         _input = input;
     }

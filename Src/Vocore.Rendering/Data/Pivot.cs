@@ -29,4 +29,5 @@ public struct Pivot
     public Vector2 value;
 
     public static implicit operator Pivot(Vector2 v) => new(v.X, v.Y);
+    public static implicit operator Vector2(Pivot p) => p.value;
 }

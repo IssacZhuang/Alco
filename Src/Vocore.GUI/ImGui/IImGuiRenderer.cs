@@ -14,7 +14,7 @@ public interface IImGuiRenderer
     public void End();
     public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color);
 
-    public void DrawText(Vector2 position, string text, float fontSize, ColorFloat color, Pivot pivot);
+    public void DrawText(Vector2 position, Font font, string text, float fontSize, ColorFloat color, Pivot pivot);
 
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color);
 }

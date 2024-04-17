@@ -12,16 +12,16 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
     private readonly SpriteRenderer _spriteRenderer;
     private readonly Camera2D _camera;
     private readonly Texture2D _textureWhite;
-    private readonly Font _font;
+
 
     public abstract Vector2 MousePosition { get; }
     public abstract bool IsMouseClicked { get; }
 
-    protected BaseImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Font font)
+    protected BaseImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
     {
         _renderingSystem = renderingSystem;
         //external resources
-        _font = font;
+
         _textureWhite = renderingSystem.TextureWhite;
 
         //internal resources
@@ -52,9 +52,9 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
         _spriteRenderer.Draw(_textureWhite, position, Rotation2D.Identity, size, color);
     }
 
-    public void DrawText(Vector2 position, string text, float fontSize, ColorFloat color, Pivot pivot)
+    public void DrawText(Vector2 position, Font font, string text, float fontSize, ColorFloat color, Pivot pivot)
     {
-        _textRenderer.DrawString(_font, text, fontSize, position, Rotation2D.Identity, pivot, color);
+        _textRenderer.DrawString(font, text, fontSize, position, Rotation2D.Identity, pivot, color);
     }
 
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
