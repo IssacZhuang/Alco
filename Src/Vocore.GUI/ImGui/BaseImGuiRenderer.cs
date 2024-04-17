@@ -5,7 +5,7 @@ using Vocore.Rendering;
 namespace Vocore.GUI;
 
 
-public abstract class ImGuiRenderer
+public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 {
     private readonly RenderingSystem _renderingSystem;
     private readonly TextRenderer _textRenderer;
@@ -17,14 +17,17 @@ public abstract class ImGuiRenderer
     public abstract Vector2 MousePosition { get; }
     public abstract bool IsMouseClicked { get; }
 
-    protected ImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Font font)
+    protected BaseImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Font font)
     {
         _renderingSystem = renderingSystem;
+        //external resources
         _font = font;
+        _textureWhite = renderingSystem.TextureWhite;
+
+        //internal resources
         _camera = renderingSystem.CreateCamera2D(width, height, 100);
         _textRenderer = renderingSystem.CreateTextRenderer(_camera, shaderText);
         _spriteRenderer = renderingSystem.CreateSpriteRenderer(_camera, shaderSprite);
-        _textureWhite = renderingSystem.TextureWhite;
     }
 
     public void SetResolution(float width, float height)
@@ -44,29 +47,25 @@ public abstract class ImGuiRenderer
         _spriteRenderer.End();
     }
 
-    public void DrawQuad(Vector2 position, Vector2 size, Vector4 color)
+    public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
     {
         _spriteRenderer.Draw(_textureWhite, position, Rotation2D.Identity, size, color);
     }
 
-    public void DrawText(Vector2 position, string text, float fontSize)
-    {
-        DrawText(position, text, fontSize, new Vector4(1, 1, 1, 1));
-    }
-
-    public void DrawText(Vector2 position, string text, float fontSize, Vector4 color)
-    {
-        DrawText(position, text, fontSize, color, Pivot.LeftTop);
-    }
-
-    public void DrawText(Vector2 position, string text, float fontSize, Vector4 color, Pivot pivot)
+    public void DrawText(Vector2 position, string text, float fontSize, ColorFloat color, Pivot pivot)
     {
         _textRenderer.DrawString(_font, text, fontSize, position, Rotation2D.Identity, pivot, color);
     }
 
-
-    public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture)
+    public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
     {
-        _spriteRenderer.Draw(texture, position, Rotation2D.Identity, size, new Vector4(1, 1, 1, 1));
+        _spriteRenderer.Draw(texture, position, Rotation2D.Identity, size, color);
+    }
+
+    public virtual void Dispose()
+    {
+        _spriteRenderer.Dispose();
+        _textRenderer.Dispose();
+        _camera.Dispose();
     }
 }

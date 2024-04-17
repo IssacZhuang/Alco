@@ -390,6 +390,7 @@ namespace Vocore.Engine
 #pragma warning disable CS8625
             Instance = null;
 #pragma warning restore CS8625
+            OnSystemDispose();
             DisposePlugins(_setting.Plugins);
             GraphicsDevice.Dispose();
             Window.Close();
@@ -544,6 +545,23 @@ namespace Vocore.Engine
                 catch (Exception e)
                 {
                     Log.Error($"Error when stop system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemDispose()
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].Dispose();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when dispose system {_systems[i].GetType().Name}: ");
                     Log.Error(e);
                     TryErrorStop();
                 }

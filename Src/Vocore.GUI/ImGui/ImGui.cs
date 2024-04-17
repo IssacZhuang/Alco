@@ -5,22 +5,32 @@ namespace Vocore.GUI;
 
 public static class ImGui
 {
-    private static ImGuiRenderer _renderer = null!;
-    private static Vector2 _pivotPosition;
+    private static IImGuiRenderer _renderer = new NoImGuiRenderer();
+    private static bool _isBegin = false;
 
-    public static void Initialize(ImGuiRenderer renderer)
+    public static void Initialize(IImGuiRenderer renderer)
     {
         _renderer = renderer;
     }
 
-    public static void Begin(Vector2 pivot)
+
+    private static void CheckStart()
     {
-        _pivotPosition = pivot;
-        _renderer.Begin();
+        if (!_isBegin)
+        {
+            _renderer.Begin();
+            _isBegin = true;
+        }
     }
 
-    public static void End()
+    internal static bool CheckAndSubmit()
     {
-        _renderer.End();
+        if (_isBegin)
+        {
+            _renderer.End();
+            return true;
+        }
+
+        return false;
     }
 }

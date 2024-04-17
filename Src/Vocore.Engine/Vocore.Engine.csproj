@@ -21,7 +21,7 @@
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>
   <ItemGroup>
-     <PackageReference Include="System.IO.Hashing" Version="8.0.0" >
+     <PackageReference Include="System.IO.Hashing" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
@@ -47,44 +47,31 @@
 
   <!-- copy assets to output folder if UseAssetsPack is false -->
   <ItemGroup>
-    <Content
-      Condition="'$(UseAssetsPack)' == 'false'"
-      Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
+    <Content Condition="'$(UseAssetsPack)' == 'false'" Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
-  <UsingTask
-    Condition="'$(UseAssetsPack)' == 'true'"
-    TaskName="Vocore.Engine.Tool.AssetsBuildTask"
-    AssemblyFile = "$(TempFolder)/Vocore.Engine.dll" />
+  <UsingTask Condition="'$(UseAssetsPack)' == 'true'" TaskName="Vocore.Engine.Tool.AssetsBuildTask" AssemblyFile="$(TempFolder)/Vocore.Engine.dll" />
 
-  <Target 
-    Condition="'$(UseAssetsPack)' == 'true'"
-    Name="PackEngineAssets" 
-    AfterTargets="AfterBuild">
+  <Target Condition="'$(UseAssetsPack)' == 'true'" Name="PackEngineAssets" AfterTargets="AfterBuild">
     <ItemGroup>
       <CopyItems Include="$(OutputPath)\**\*.*" />
     </ItemGroup>
     <MakeDir Directories="$(TempFolder)" />
     <Copy SourceFiles="@(CopyItems)" DestinationFolder="$(TempFolder)" />
-    <AssetsBuildTask 
-      AssetsDir = "$(ProjectDir)/Assets"
-      OutputDir = "$(OutputPath)"
-      PackageName = "EngineAssets.vpk" />
+    <AssetsBuildTask AssetsDir="$(ProjectDir)/Assets" OutputDir="$(OutputPath)" PackageName="EngineAssets.vpk" />
   </Target>
 
   <ItemGroup>
-    <Content
-      Condition="'$(UseAssetsPack)' == 'true'"
-      Include="$(OutputPath)EngineAssets.vpk">
+    <Content Condition="'$(UseAssetsPack)' == 'true'" Include="$(OutputPath)EngineAssets.vpk">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content 
-      Condition="'$(UseAssetsPack)' == 'true'"
-      Include="Vocore.Engine.Assets.targets" 
-      Pack="true" 
-      PackagePath="build" />
+    <Content Condition="'$(UseAssetsPack)' == 'true'" Include="Vocore.Engine.Assets.targets" Pack="true" PackagePath="build" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vocore.GUI\Vocore.GUI.csproj" />
   </ItemGroup>
 </Project>
