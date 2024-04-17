@@ -4,6 +4,34 @@ namespace Vocore.Rendering;
 
 public partial class RenderingSystem
 {
+    private Texture2D? _textureWhite;
+
+    public Texture2D TextureWhite
+    {
+        get
+        {
+            if (_textureWhite == null)
+            {
+                _textureWhite = CreateTexture2D(4, 4, 0xffffff);
+            }
+            return _textureWhite;
+        }
+    }
+
+    private Texture2D? _textureBlack;
+
+    public Texture2D TextureBlack
+    {
+        get
+        {
+            if (_textureBlack == null)
+            {
+                _textureBlack = CreateTexture2D(4, 4, 0);
+            }
+            return _textureBlack;
+        }
+    }
+
     private static readonly Vertex2D[] VerticesSpriteQuad =
    {
         new(new Vector2(-0.5f, 0.5f), new Vector2(0, 0)),
