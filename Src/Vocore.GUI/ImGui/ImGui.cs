@@ -21,6 +21,8 @@ public static class ImGui
     {
         _renderer = renderer;
         _style = style;
+
+        ResetPosition();
     }
 
     public static void SameLine()
@@ -52,12 +54,12 @@ public static class ImGui
         if (_isSameLine)
         {
             ResetSameLine();
-            _currentPosition.X += _nextOffset.X;
+            _currentPosition.X += _nextOffset.X + _style.Margin.X + _style.Margin.Y;
         }
         else
         {
-            _currentPosition.X = 0;
-            _currentPosition.Y += _nextOffset.Y;
+            _currentPosition.X = _style.Margin.X;
+            _currentPosition.Y += _nextOffset.Y + _style.Margin.Z;
         }
         
         Vector2 tmp = _currentPosition;
@@ -67,7 +69,13 @@ public static class ImGui
         normalizedTextLength = _renderer.DrawText(tmp, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.LeftTop);
 
         float fontSize = _style.FontSize;
-        _nextOffset = new Vector2(normalizedTextLength * fontSize, fontSize);
+        _nextOffset = new Vector2(normalizedTextLength * fontSize, fontSize + _style.Margin.W);
+    }
+
+    private static void ResetPosition()
+    {
+        _currentPosition = new Vector2(_style.Margin.X, _style.Margin.Z);
+        _nextOffset = Vector2.Zero;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,8 +95,7 @@ public static class ImGui
 
     internal static bool CheckAndSubmit()
     {
-        _currentPosition = Vector2.Zero;
-        _nextOffset = Vector2.Zero;
+        ResetPosition();
 
         if (_isBegin)
         {

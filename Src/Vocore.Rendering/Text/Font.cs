@@ -29,6 +29,39 @@ public unsafe class Font : AutoDisposable
         return _glyphs[c];
     }
 
+    public float GetNormalizedTextWidth(string str)
+    {
+        float width = 0;
+        for (int i = 0; i < str.Length; i++)
+        {
+            width += GetGlyph(str[i]).Advance;
+        }
+
+        return width;
+    }
+
+    public float GetNormalizedTextWidth(Span<char> str)
+    {
+        float width = 0;
+        for (int i = 0; i < str.Length; i++)
+        {
+            width += GetGlyph(str[i]).Advance;
+        }
+
+        return width;
+    }
+
+    public float GetNormalizedTextWidth(char* str, int strLength)
+    {
+        float width = 0;
+        for (int i = 0; i < strLength; i++)
+        {
+            width += GetGlyph(str[i]).Advance;
+        }
+
+        return width;
+    }
+
     protected override void Dispose(bool disposing)
     {
         _texture.Dispose();

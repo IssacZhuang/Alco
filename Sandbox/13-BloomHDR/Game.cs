@@ -11,11 +11,10 @@ public class Game : GameEngine
 {
     //scence
     private readonly Camera2D _camera;
-    private readonly Font _font;
+
     private readonly Texture2D _quad;
     private readonly Shader _textShader;
     private readonly Shader _spriteShader;
-    private readonly TextRenderer _textRenderer;
     private readonly SpriteRenderer _spriteRenderer;
     private float _white = 3;
 
@@ -27,12 +26,9 @@ public class Game : GameEngine
         _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
        
-        _font = Assets.Load<Font>("Font/Default.ttf");
         _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
-
-        _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
         _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
     }
 
@@ -67,17 +63,13 @@ public class Game : GameEngine
         _spriteRenderer.End();
 
         ImGui.Text(FrameRate);
-        // ImGui.SameLine();
+        ImGui.SameLine();
         ImGui.Text(_white);
         
-
-        // _textRenderer.Begin(Rendering.DefaultFrameBuffer);
-        // _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        // _textRenderer.End();
     }
 
     protected override void OnStop()
     {
-        _textRenderer.Dispose();
+       
     }
 }

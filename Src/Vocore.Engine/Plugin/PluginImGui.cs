@@ -58,6 +58,7 @@ public class PluginImGui : IEnginePlugin
             Font = font,
             FontSize = 16,
             TextColor = new ColorFloat(1, 1, 1, 1),
+            Margin = new Vector4(2, 2, 2, 2),
         };
 
 
