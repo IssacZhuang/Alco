@@ -26,6 +26,7 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 
         //internal resources
         _camera = renderingSystem.CreateCamera2D(width, height, 100);
+        _camera.Position = new Vector2(width / 2, -height / 2);
         _textRenderer = renderingSystem.CreateTextRenderer(_camera, shaderText);
         _spriteRenderer = renderingSystem.CreateSpriteRenderer(_camera, shaderSprite);
     }
@@ -33,6 +34,7 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
     public void SetResolution(float width, float height)
     {
         _camera.Size = new Vector2(width, height);
+        _camera.Position = new Vector2(width / 2, -height / 2);
     }
 
     public void Begin()

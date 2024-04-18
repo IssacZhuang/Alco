@@ -62,11 +62,14 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        _spriteRenderer.Draw(_quad, spritePosition, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_white*2, _white, _white, 1));
+        _spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_white*2, _white, _white, 1));
 
         _spriteRenderer.End();
 
         ImGui.Text(FrameRate);
+        // ImGui.SameLine();
+        ImGui.Text(_white);
+        
 
         // _textRenderer.Begin(Rendering.DefaultFrameBuffer);
         // _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
