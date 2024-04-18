@@ -5,6 +5,7 @@ using Vocore;
 
 using Random = Vocore.Random;
 using Vocore.Graphics;
+using Vocore.GUI;
 
 public class Game : GameEngine
 {
@@ -65,9 +66,11 @@ public class Game : GameEngine
 
         _spriteRenderer.End();
 
-        _textRenderer.Begin(Rendering.DefaultFrameBuffer);
-        _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        _textRenderer.End();
+        ImGui.Text(FrameRate);
+
+        // _textRenderer.Begin(Rendering.DefaultFrameBuffer);
+        // _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+        // _textRenderer.End();
     }
 
     protected override void OnStop()

@@ -52,9 +52,9 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
         _spriteRenderer.Draw(_textureWhite, position, Rotation2D.Identity, size, color);
     }
 
-    public void DrawText(Vector2 position, Font font, string text, float fontSize, ColorFloat color, Pivot pivot)
+    public unsafe float DrawText(Vector2 position, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
     {
-        _textRenderer.DrawString(font, text, fontSize, position, Rotation2D.Identity, pivot, color);
+       return _textRenderer.DrawChars(font, str, strLength, fontSize, position, Rotation2D.Identity, pivot, color);
     }
 
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)

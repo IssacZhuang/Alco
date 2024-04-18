@@ -1,3 +1,5 @@
+using System.Numerics;
+using Vocore.Graphics;
 using Vocore.GUI;
 using Vocore.Rendering;
 
@@ -11,6 +13,11 @@ public class PluginImGui : IEnginePlugin
         public ImGuiSystem(ImGuiRenderer renderer)
         {
             _renderer = renderer;
+        }
+
+        public override void OnUpdate(float delta)
+        {
+            
         }
 
         public override void OnPostUpdate(float delta)
@@ -48,7 +55,9 @@ public class PluginImGui : IEnginePlugin
         ImGuiRenderer imGuiRenderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite);
         ImGuiStyle style = new ImGuiStyle
         {
-
+            Font = font,
+            FontSize = 16,
+            TextColor = new ColorFloat(1, 1, 1, 1),
         };
 
 
