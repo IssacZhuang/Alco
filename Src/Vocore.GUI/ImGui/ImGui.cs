@@ -1,5 +1,7 @@
-﻿using System.Numerics;
+﻿using System.Net.Http.Headers;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using Vocore.Graphics;
 using Vocore.Rendering;
 
 namespace Vocore.GUI;
@@ -50,7 +52,32 @@ public static class ImGui
     public unsafe static void Text(char* str, int strLength)
     {
         CheckBegin();
+        Vector2 pos = ProcessPostion();
+        pos.Y = -pos.Y;
 
+        float normalizedTextLength;
+        normalizedTextLength = _renderer.DrawText(pos, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.LeftCenter);
+
+        float fontSize = _style.FontSize;
+        _nextOffset = new Vector2(normalizedTextLength * fontSize, fontSize + _style.Margin.W);
+    }
+
+    public unsafe static void Button(char* str, int strLength, int width)
+    {
+        CheckBegin();
+        ProcessPostion();
+
+        Vector2 pos = ProcessPostion();
+        
+        Vector2 size = new Vector2(width + _style.Padding.X * 2, _style.FontSize + _style.Padding.Y * 2);
+        BoundingBox2D box = new BoundingBox2D(pos, pos + size);
+        pos.Y = -pos.Y;
+
+        ColorFloat color = _style.ButtonColor;
+    }
+
+    private static Vector2 ProcessPostion()
+    {
         if (_isSameLine)
         {
             ResetSameLine();
@@ -61,20 +88,13 @@ public static class ImGui
             _currentPosition.X = _style.Margin.X;
             _currentPosition.Y += _nextOffset.Y + _style.Margin.Z;
         }
-        
-        Vector2 tmp = _currentPosition;
-        tmp.Y = -tmp.Y;
 
-        float normalizedTextLength;
-        normalizedTextLength = _renderer.DrawText(tmp, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.LeftTop);
-
-        float fontSize = _style.FontSize;
-        _nextOffset = new Vector2(normalizedTextLength * fontSize, fontSize + _style.Margin.W);
+        return _currentPosition;
     }
 
     private static void ResetPosition()
     {
-        _currentPosition = new Vector2(_style.Margin.X, _style.Margin.Z);
+        _currentPosition = new Vector2(_style.Margin.X, _style.Margin.Z + _style.FontSize * 0.5f);
         _nextOffset = Vector2.Zero;
     }
 
