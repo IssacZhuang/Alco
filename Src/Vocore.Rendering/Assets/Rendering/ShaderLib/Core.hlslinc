@@ -1,6 +1,7 @@
 #define PI 3.141592
 #define TAU 6.283185
 #define EULER 2.718281
+#define ALPHA_CLIP 0.05
 
 #define READ_ONLY [[vk::ext_decorate(24)]] // OpDecorate NonWritable in SPIR-V
 #define WRITE_ONLY [[vk::ext_decorate(25)]] // OpDecorate NonReadable in SPIR-V

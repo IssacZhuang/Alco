@@ -47,8 +47,8 @@ public class PluginImGui : IEnginePlugin
     {
         AssetSystem assets = engine.Assets;
 
-        Shader shaderText = assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
-        Shader shaderSprite = assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
+        Shader shaderText = assets.Load<Shader>("Rendering/Shader/2D/Text-AlphaClip.hlsl");
+        Shader shaderSprite = assets.Load<Shader>("Rendering/Shader/2D/Sprite-AlphaClip.hlsl");
 
         Font font = assets.Load<Font>("Font/Default.ttf");
 
@@ -61,6 +61,7 @@ public class PluginImGui : IEnginePlugin
             ButtonColor = 0x323233,
             ButtonHoverColor = 0x424243,
             Margin = new Vector4(2, 2, 2, 2),
+            Padding = new Vector2(4,4)
         };
 
 
