@@ -13,7 +13,7 @@ public class Game : GameEngine
     private readonly Camera2D _camera;
 
     private readonly Texture2D _quad;
-    private readonly Shader _textShader;
+    private GPUCommandBuffer _commandBuffer;
     private readonly Shader _spriteShader;
     private readonly SpriteRenderer _spriteRenderer;
     private float _white = 3;
@@ -23,7 +23,7 @@ public class Game : GameEngine
     {
 
         //scene
-        _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
+       _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
        
         _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
@@ -51,6 +51,13 @@ public class Game : GameEngine
             Log.Info(_white);
         }
 
+        _commandBuffer.Begin();
+        _commandBuffer.SetFrameBuffer(Rendering.DefaultFrameBuffer);
+        _commandBuffer.ClearColor(new Vector4(0.2f, 0f, 0f, 1.0f)); // the last color will be used, and only one clear will be recorded
+        _commandBuffer.ClearDepthStencil(1.0f, 0);
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
+
         Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);
         Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
         spritePosition.Y = -spritePosition.Y;
@@ -65,6 +72,7 @@ public class Game : GameEngine
         ImGui.Text(FrameRate);
         ImGui.SameLine();
         ImGui.Text(_white);
+        ImGui.Button("test");
         
     }
 

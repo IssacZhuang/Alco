@@ -7,6 +7,7 @@ namespace Vocore.GUI;
 
 public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 {
+    private static readonly Matrix4x4 Rotation = math.matrix4rotation(Quaternion.Identity);
     private readonly RenderingSystem _renderingSystem;
     private readonly TextRenderer _textRenderer;
     private readonly SpriteRenderer _spriteRenderer;
@@ -16,6 +17,7 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 
     public abstract Vector2 MousePosition { get; }
     public abstract bool IsMouseClicked { get; }
+
 
     protected BaseImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
     {
@@ -49,19 +51,22 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
         _spriteRenderer.End();
     }
 
-    public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
+    public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
     {
-        _spriteRenderer.Draw(_textureWhite, position, Rotation2D.Identity, size, color);
+        Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
+        _spriteRenderer.Draw(_textureWhite, matrix, color);
     }
 
-    public unsafe float DrawText(Vector2 position, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
+    public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
     {
-       return _textRenderer.DrawChars(font, str, strLength, fontSize, position, Rotation2D.Identity, pivot, color);
+        Matrix4x4 matrix = GetTransformMatrix(position, depth, Vector2.Zero);
+        return _textRenderer.DrawChars(font, str, strLength, fontSize, new Vector3(position, depth), Quaternion.Identity, pivot, color);
     }
 
-    public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
+    public void DrawTexture(Vector2 position, float depth, Vector2 size, Texture2D texture, ColorFloat color)
     {
-        _spriteRenderer.Draw(texture, position, Rotation2D.Identity, size, color);
+        Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
+        _spriteRenderer.Draw(texture, matrix, color);
     }
 
     public virtual void Dispose()
@@ -69,5 +74,12 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
         _spriteRenderer.Dispose();
         _textRenderer.Dispose();
         _camera.Dispose();
+    }
+
+    private Matrix4x4 GetTransformMatrix(Vector2 position, float depth, Vector2 size)
+    {
+        Matrix4x4 translation = math.matrix4translation(new Vector3(position, depth));
+        Matrix4x4 scale = math.matrix4scale(new Vector3(size, 1));
+        return scale * Rotation * translation;
     }
 }

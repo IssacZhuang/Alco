@@ -3,7 +3,8 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
-#pragma BlendState NonPremultipliedAlpha
+#pragma BlendState AlphaBlend
+#pragma DepthStencilState Write
 
 struct Vertex2D {
   float2 position : POSITION;

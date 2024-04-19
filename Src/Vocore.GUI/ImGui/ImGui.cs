@@ -52,28 +52,56 @@ public static class ImGui
     public unsafe static void Text(char* str, int strLength)
     {
         CheckBegin();
-        Vector2 pos = ProcessPostion();
-        pos.Y = -pos.Y;
+        Vector2 drawPos = ProcessPostion();
+        drawPos.Y = -drawPos.Y;
 
         float normalizedTextLength;
-        normalizedTextLength = _renderer.DrawText(pos, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.LeftCenter);
+        normalizedTextLength = _renderer.DrawText(drawPos,0, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.LeftCenter);
 
         float fontSize = _style.FontSize;
         _nextOffset = new Vector2(normalizedTextLength * fontSize, fontSize + _style.Margin.W);
     }
 
-    public unsafe static void Button(char* str, int strLength, int width)
+    public unsafe static bool Button(string str)
+    {
+        fixed (char* ptr = str)
+        {
+            return Button(ptr, str.Length, 48);
+        }
+    }
+
+    public unsafe static bool Button(char* str, int strLength, int width)
     {
         CheckBegin();
-        ProcessPostion();
+        Vector2 drawPos = ProcessPostion();
 
-        Vector2 pos = ProcessPostion();
-        
         Vector2 size = new Vector2(width + _style.Padding.X * 2, _style.FontSize + _style.Padding.Y * 2);
-        BoundingBox2D box = new BoundingBox2D(pos, pos + size);
-        pos.Y = -pos.Y;
+        Vector2 bgOffset = new Vector2(size.X * 0.5f, 0);
 
+        //hit
+        Vector2 hitBoxPos = new Vector2(drawPos.X, drawPos.Y - size.Y*0.5f);
+        BoundingBox2D hitBox = new BoundingBox2D(hitBoxPos, drawPos + size);
+        
+        drawPos.Y = -drawPos.Y;
+        
         ColorFloat color = _style.ButtonColor;
+
+        if (hitBox.Contains(_renderer.MousePosition))
+        {
+            color = _style.ButtonHoverColor;
+        }
+
+        //bg
+        _renderer.DrawQuad(drawPos+ bgOffset, 50, size, color);
+
+        //text
+        Vector2 textPos = drawPos;
+        textPos.X+= size.X * 0.5f;
+
+        _renderer.DrawText(textPos, 0, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.Center);
+
+        _nextOffset = new Vector2(size.X, size.Y + _style.Margin.W);
+        return false;
     }
 
     private static Vector2 ProcessPostion()
