@@ -66,17 +66,49 @@ public static class ImGui
     {
         fixed (char* ptr = str)
         {
-            return Button(ptr, str.Length, 48);
+            return Button(ptr, str.Length, 0, true);
         }
     }
 
-    public unsafe static bool Button(char* str, int strLength, int width)
+    public unsafe static bool Button(string str, float width)
+    {
+        fixed (char* ptr = str)
+        {
+            return Button(ptr, str.Length, width, false);
+        }
+    }
+
+    public unsafe static bool Button(string str, int width, bool autoWidth)
+    {
+        fixed (char* ptr = str)
+        {
+            return Button(ptr, str.Length, width, autoWidth);
+        }
+    }
+
+
+    public unsafe static bool Button(char* str, int strLength)
+    {
+        return Button(str, strLength, 0, true);
+    }
+
+    public unsafe static bool Button(char* str, int strLength, float width)
+    {
+        return Button(str, strLength, width, false);
+    }
+
+    public unsafe static bool Button(char* str, int strLength, float width, bool autoWidth)
     {
         CheckBegin();
         Vector2 drawPos = ProcessPostion();
 
+        if (autoWidth)
+        {
+            width = _style.Font.GetNormalizedTextWidth(str, strLength) * _style.FontSize;
+        }
+
         Vector2 size = new Vector2(width + _style.Padding.X * 2, _style.FontSize + _style.Padding.Y * 2);
-        Vector2 bgOffset = new Vector2(size.X * 0.5f, 0);
+        Vector2 bgOffset = new Vector2(size.X * 0.5f, -_style.FontSize / 8);
 
         //hit
         Vector2 hitBoxPos = new Vector2(drawPos.X, drawPos.Y - size.Y*0.5f);
@@ -91,14 +123,16 @@ public static class ImGui
             color = _style.ButtonHoverColor;
         }
 
+        //text
+        Vector2 textPos = drawPos;
+        textPos.X += size.X * 0.5f;
+
+        _renderer.DrawText(textPos, 0, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.Center);
+
         //bg
         _renderer.DrawQuad(drawPos+ bgOffset, 50, size, color);
 
-        //text
-        Vector2 textPos = drawPos;
-        textPos.X+= size.X * 0.5f;
 
-        _renderer.DrawText(textPos, 0, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.Center);
 
         _nextOffset = new Vector2(size.X, size.Y + _style.Margin.W);
         return false;

@@ -56,12 +56,12 @@ public class PluginImGui : IEnginePlugin
         ImGuiStyle style = new ImGuiStyle
         {
             Font = font,
-            FontSize = 16,
+            FontSize = 20,
             TextColor = 0xffffff,
             ButtonColor = 0x323233,
             ButtonHoverColor = 0x424243,
             Margin = new Vector4(2, 2, 2, 2),
-            Padding = new Vector2(4,4)
+            Padding = new Vector2(10, 4)
         };
 
 

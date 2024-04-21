@@ -63,9 +63,9 @@ public class Game : GameEngine
         ImGui.Text(FrameRate);
         ImGui.SameLine();
         ImGui.Text(_white);
-        ImGui.Button("Test");
+        ImGui.Button("-0.1");
         ImGui.SameLine();
-        ImGui.Text("+ 0.1");
+        ImGui.Button("+0.1");
 
     }
 
