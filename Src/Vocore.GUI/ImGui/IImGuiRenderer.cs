@@ -8,6 +8,7 @@ public interface IImGuiRenderer
 {
     public Vector2 MousePosition { get; }
     public bool IsMouseClicked { get; }
+    public bool IsMousePressing { get; }
 
     public void SetResolution(float width, float height);
     public void Begin();

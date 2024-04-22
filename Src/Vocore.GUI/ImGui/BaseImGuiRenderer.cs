@@ -17,6 +17,7 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 
     public abstract Vector2 MousePosition { get; }
     public abstract bool IsMouseClicked { get; }
+    public abstract bool IsMousePressing { get; }
 
 
     protected BaseImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)

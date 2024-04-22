@@ -51,6 +51,13 @@ public static partial class ImGui
         Vector2 thumbDrawPos = barDrawPos + new Vector2(t * (barSize.X - thumbSize.X), 0);
         _renderer.DrawQuad(thumbDrawPos + thumbOffset, 50, thumbSize, thumbColor);
 
+        if(barHitBox.Contains(_renderer.MousePosition) && _renderer.IsMousePressing)
+        {
+            float halfThumbSizeX = thumbSize.X * 0.5f;
+            float mouseT = (_renderer.MousePosition.X - barHitPos.X - halfThumbSizeX) / (barSize.X- thumbSize.X);
+            value = math.lerp(min, max, mouseT);
+            value = math.clamp(value, min, max);
+        }
 
         _nextOffset = new Vector2(barSize.X, barSize.Y + _style.Margin.W);
     }

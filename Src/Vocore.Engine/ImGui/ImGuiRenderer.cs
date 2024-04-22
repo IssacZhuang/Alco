@@ -24,4 +24,10 @@ public class ImGuiRenderer : BaseImGuiRenderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input.IsMouseDown(Mouse.Left);
     }
+
+    public override bool IsMousePressing
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsMousePressing(Mouse.Left);
+    }
 }

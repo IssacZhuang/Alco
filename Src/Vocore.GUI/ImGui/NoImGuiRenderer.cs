@@ -10,6 +10,8 @@ public class NoImGuiRenderer : IImGuiRenderer
 
     public bool IsMouseClicked => false;
 
+    public bool IsMousePressing => false;
+
     public void Begin()
     {
         
