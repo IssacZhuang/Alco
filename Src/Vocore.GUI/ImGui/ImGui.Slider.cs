@@ -49,7 +49,12 @@ public static partial class ImGui
         Vector2 thumbOffset = new Vector2(thumbSize.X * 0.5f, quadDrawOffsetY);
         ColorFloat thumbColor = _style.SliderThumbColor;
         Vector2 thumbDrawPos = barDrawPos + new Vector2(t * (barSize.X - thumbSize.X), 0);
-        _renderer.DrawQuad(thumbDrawPos + thumbOffset, 50, thumbSize, thumbColor);
+        BoundingBox2D thumbHitBox = new BoundingBox2D(thumbDrawPos, thumbDrawPos + thumbSize);
+        
+        if(thumbHitBox.Contains(_renderer.MousePosition))
+        {
+            thumbColor = _style.SliderThumbHoverColor;
+        }
 
         if(barHitBox.Contains(_renderer.MousePosition) && _renderer.IsMousePressing)
         {
@@ -57,7 +62,10 @@ public static partial class ImGui
             float mouseT = (_renderer.MousePosition.X - barHitPos.X - halfThumbSizeX) / (barSize.X- thumbSize.X);
             value = math.lerp(min, max, mouseT);
             value = math.clamp(value, min, max);
+            thumbColor = _style.SliderThumbDragColor;
         }
+
+        _renderer.DrawQuad(thumbDrawPos + thumbOffset, 50, thumbSize, thumbColor);
 
         _nextOffset = new Vector2(barSize.X, barSize.Y + _style.Margin.W);
     }
