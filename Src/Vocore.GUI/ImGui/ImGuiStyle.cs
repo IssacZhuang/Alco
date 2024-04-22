@@ -10,6 +10,12 @@ public struct ImGuiStyle
 {
     public Font Font { get; set; }
     public float FontSize { get; set; }
+    public float SliderWidth { get; set; }
+    public float SliderThumbWidth { get; set; }
+    public ColorFloat SliderColor { get; set; }
+    public ColorFloat SliderThumbColor { get; set; }
+    public ColorFloat SliderThumbHoverColor { get; set; }
+    public ColorFloat SliderThumbDragColor { get; set; }
     public ColorFloat TextColor { get; set; }
     public ColorFloat ButtonColor { get; set; }
     public ColorFloat ButtonHoverColor { get; set; }

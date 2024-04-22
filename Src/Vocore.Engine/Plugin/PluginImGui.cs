@@ -57,6 +57,12 @@ public class PluginImGui : IEnginePlugin
         {
             Font = font,
             FontSize = 20,
+            SliderWidth = 140,
+            SliderThumbWidth = 8,
+            SliderColor = 0x323233,
+            SliderThumbColor = 0x424243,
+            SliderThumbHoverColor = 0x525354,
+            SliderThumbDragColor = 0x737373,
             TextColor = 0xffffff,
             ButtonColor = 0x323233,
             ButtonHoverColor = 0x424243,

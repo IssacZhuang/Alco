@@ -72,6 +72,7 @@ public class Game : GameEngine
         {
             _white += 0.1f;
         }
+        ImGui.Slider(0, 5, ref _white);
 
     }
 
