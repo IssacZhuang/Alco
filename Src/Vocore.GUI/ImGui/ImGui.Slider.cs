@@ -50,8 +50,9 @@ public static partial class ImGui
         ColorFloat thumbColor = _style.SliderThumbColor;
         Vector2 thumbDrawPos = barDrawPos + new Vector2(t * (barSize.X - thumbSize.X), 0);
         Vector2 thumbHitPos = new Vector2(thumbDrawPos.X, -thumbDrawPos.Y);
-        thumbHitPos.X += thumbSize.X*0.5f;//Todo: opt
-        BoundingBox2D thumbHitBox = new BoundingBox2D(thumbHitPos - thumbSize * 0.5f, thumbHitPos + thumbSize * 0.5f);
+        Vector2 halfThumbSize = thumbSize * 0.5f;
+        thumbHitPos.X += halfThumbSize.X;
+        BoundingBox2D thumbHitBox = new BoundingBox2D(thumbHitPos - halfThumbSize, thumbHitPos + halfThumbSize);
 
         if (thumbHitBox.Contains(_renderer.MousePosition))
         {
