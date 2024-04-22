@@ -28,8 +28,8 @@ public static partial class ImGui
         Vector2 barSize = new Vector2(width + _style.Padding.X * 2, _style.FontSize + _style.Padding.Y * 2);
         Vector2 barOffset = new Vector2(barSize.X * 0.5f, quadDrawOffsetY);
 
-        Vector2 barHitPos = new Vector2(barDrawPos.X, barDrawPos.Y - barSize.Y * 0.5f);
-        BoundingBox2D barHitBox = new BoundingBox2D(barHitPos, barDrawPos + barSize);
+        Vector2 barHitPos = new Vector2(barDrawPos.X, barDrawPos.Y - barSize.Y * 0.5f - quadDrawOffsetY);
+        BoundingBox2D barHitBox = new BoundingBox2D(barHitPos, barHitPos + barSize);
         ColorFloat barColor = _style.SliderColor;
         barDrawPos.Y = -barDrawPos.Y;
         _renderer.DrawQuad(barDrawPos + barOffset, 50, barSize, barColor);

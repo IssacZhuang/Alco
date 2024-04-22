@@ -15,7 +15,7 @@ public class Game : GameEngine
     private readonly Texture2D _quad;
     private readonly Shader _spriteShader;
     private readonly SpriteRenderer _spriteRenderer;
-    private float _white = 3;
+    private float _intensity = 3;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -39,14 +39,14 @@ public class Game : GameEngine
 
         if (Input.IsKeyDown(KeyCode.Up))
         {
-            _white += 0.1f;
-            Log.Info(_white);
+            _intensity += 0.1f;
+            Log.Info(_intensity);
         }
 
         if (Input.IsKeyDown(KeyCode.Down))
         {
-            _white -= 0.1f;
-            Log.Info(_white);
+            _intensity -= 0.1f;
+            Log.Info(_intensity);
         }
 
         Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);
@@ -56,23 +56,25 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        //_spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_white*2, _white, _white, 1));
+        _spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
 
         _spriteRenderer.End();
 
         ImGui.Text(FrameRate);
         ImGui.SameLine();
-        ImGui.Text(_white);
+        ImGui.Text(_intensity);
         if (ImGui.Button("-0.1"))
         {
-            _white -= 0.1f;
+            _intensity -= 0.1f;
         }
+        ImGui.SameLine();
+        ImGui.Slider(0, 5, ref _intensity);
         ImGui.SameLine();
         if (ImGui.Button("+0.1"))
         {
-            _white += 0.1f;
+            _intensity += 0.1f;
         }
-        ImGui.Slider(0, 5, ref _white);
+        
 
     }
 

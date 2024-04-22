@@ -57,8 +57,8 @@ public static partial class ImGui
         Vector2 bgOffset = new Vector2(size.X * 0.5f, -_style.FontSize / 8);
 
         //hit
-        Vector2 hitBoxPos = new Vector2(drawPos.X, drawPos.Y - size.Y * 0.5f);
-        BoundingBox2D hitBox = new BoundingBox2D(hitBoxPos, drawPos + size);
+        Vector2 hitBoxPos = new Vector2(drawPos.X, drawPos.Y - size.Y * 0.5f - bgOffset.Y);
+        BoundingBox2D hitBox = new BoundingBox2D(hitBoxPos, hitBoxPos + size);
 
         drawPos.Y = -drawPos.Y;
 
