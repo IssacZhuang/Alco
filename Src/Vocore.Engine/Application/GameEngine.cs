@@ -404,7 +404,7 @@ namespace Vocore.Engine
             {
                 try
                 {
-                    plugins[i].OnInitilize(this);
+                    plugins[i].OnPostInitialize(this);
                 }
                 catch (Exception e)
                 {

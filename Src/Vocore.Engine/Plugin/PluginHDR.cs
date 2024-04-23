@@ -3,15 +3,14 @@ using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
-public class PluginHDR : IEnginePlugin
+public class PluginHDR : BaseEnginePlugin
 {
     private Shader? _shader;
     private ToneMap? _toneMap;
     private GPURenderPass? _renderPass;
 
-    public int Order => -900;
-
-    public void OnInitilize(GameEngine engine)
+    public override int Order => -900;
+    public override void OnPostInitialize(GameEngine engine)
     {
         _shader = engine.Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
         _toneMap = engine.Rendering.CreateReinhardLuminanceToneMap(_shader);
@@ -25,7 +24,7 @@ public class PluginHDR : IEnginePlugin
         engine.Rendering.SetMainRenderPass(_renderPass, _toneMap);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         _shader?.Dispose();
         _toneMap?.Dispose();

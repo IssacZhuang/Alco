@@ -3,11 +3,11 @@ using Silk.NET.Windowing;
 using Vocore.Graphics;
 
 namespace Vocore.Engine;
-public class PluginRuntimeInfo : IEnginePlugin
+public class PluginRuntimeInfo : BaseEnginePlugin
 {
-    public int Order => -1000;
+    public override int Order => -1000;
 
-    public void OnInitilize(GameEngine engine)
+    public override void OnPostInitialize(GameEngine engine)
     {
         GPUDevice device = engine.GraphicsDevice;
 
@@ -16,7 +16,7 @@ public class PluginRuntimeInfo : IEnginePlugin
         Log.Info("Main Thread Id\t" + engine.MainThread);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
 
     }

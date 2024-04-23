@@ -1,4 +1,5 @@
 using System;
+using Vocore.Rendering;
 
 namespace Vocore.Engine
 {
@@ -13,6 +14,6 @@ namespace Vocore.Engine
         /// Called when the engine is in the initialization stage.
         /// Used for modifying the engine state/settings and adding components.
         /// </summary>
-        void OnInitilize(GameEngine engine);
+        void OnPostInitialize(GameEngine engine);
     }
 }

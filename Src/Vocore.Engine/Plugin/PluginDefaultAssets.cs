@@ -1,15 +1,11 @@
 namespace Vocore.Engine;
 
-public class PluginDefaultAssets : IEnginePlugin
+public class PluginDefaultAssets : BaseEnginePlugin
 {
-    public int Order => -1000;
-    public void OnInitilize(GameEngine engine)
+    public override int Order => -1000;
+    public override void OnPostInitialize(GameEngine engine)
     {
         engine.Assets.AddFileSource(new DirectoryFileSource("Assets"));
     }
 
-    public void Dispose()
-    {
-
-    }
 }

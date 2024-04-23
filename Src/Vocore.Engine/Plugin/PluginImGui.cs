@@ -5,7 +5,7 @@ using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
-public class PluginImGui : IEnginePlugin
+public class PluginImGui : BaseEnginePlugin
 {
     public class ImGuiSystem : BaseEngineSystem
     {
@@ -36,14 +36,9 @@ public class PluginImGui : IEnginePlugin
         }
     }
 
-    public int Order => 0;
+    public override int Order => 0;
 
-    public void Dispose()
-    {
-
-    }
-
-    public void OnInitilize(GameEngine engine)
+    public override void OnPostInitialize(GameEngine engine)
     {
         AssetSystem assets = engine.Assets;
 
