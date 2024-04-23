@@ -161,11 +161,6 @@ public static class ShaderCompiler
                         result.EntryCompute = entryPoint;
                         result.Stages |= ShaderStage.Compute;
                     }
-
-                    if (TryGetRenderPass(pragma, out string? renderPass))
-                    {
-                        result.RenderPass = renderPass;
-                    }
                 }
 
                 if (TryGetInclude(line, includeResolver, out string? includedText, out string? includeFilename))
@@ -504,23 +499,6 @@ public static class ShaderCompiler
         }
 
         entryPoint = pragma.Values[0];
-        return true;
-    }
-
-    public static bool TryGetRenderPass(ShaderPragma pragma, [NotNullWhen(true)] out string? renderPass)
-    {
-        if (pragma.Name != PragmaKeyRenderPass)
-        {
-            renderPass = null;
-            return false;
-        }
-
-        if (pragma.Values.Length != 1)
-        {
-            throw new InvalidOperationException($"Invalid render pass pragma value count: {pragma.Values.Length}, required 1.");
-        }
-
-        renderPass = pragma.Values[0];
         return true;
     }
 

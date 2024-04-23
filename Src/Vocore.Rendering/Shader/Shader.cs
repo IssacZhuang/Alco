@@ -9,8 +9,12 @@ namespace Vocore.Rendering;
 /// </summary>
 public class Shader : AutoDisposable
 {
-    private GPUPipeline _pipeline;
+
+    private readonly RenderingSystem _renderingSystem;
+    private ShaderCompileResult _meta;
+    private GPUPipeline _defaultPipeline;
     private ShaderReflectionInfo _reflectionInfo;
+    private Dictionary<GPURenderPass, GPUPipeline> _pipelines = new Dictionary<GPURenderPass, GPUPipeline>();
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
 
     /// <summary>
@@ -19,7 +23,7 @@ public class Shader : AutoDisposable
     public ShaderStage Stages
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipeline.Stages;
+        get => _defaultPipeline.Stages;
     }
 
     /// <summary>
@@ -41,12 +45,12 @@ public class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Gets the GPU pipeline associated with this shader.
+    /// Gets the GPU pipeline for default render pass.
     /// </summary>
     public GPUPipeline Pipeline
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipeline;
+        get => _defaultPipeline;
     }
 
     /// <summary>
@@ -65,10 +69,12 @@ public class Shader : AutoDisposable
         get => _reflectionInfo;
     }
 
-    internal Shader(GPUPipeline pipeline, ShaderReflectionInfo reflectionInfo)
+    internal Shader(RenderingSystem renderingSystem, ShaderCompileResult result)
     {
-        _pipeline = pipeline;
-        _reflectionInfo = reflectionInfo;
+        _meta = result;
+        _renderingSystem = renderingSystem;
+        _defaultPipeline = renderingSystem.CreatePipeline(result, renderingSystem.DefaultRenderPass);
+        _reflectionInfo = result.ReflectionInfo;
 
         BuildResourceIndex();
     }
@@ -96,7 +102,41 @@ public class Shader : AutoDisposable
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_pipeline.Name}");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_defaultPipeline.Name}");
+    }
+
+    /// <summary>
+    /// Get the GPU pipeline for the given render pass.
+    /// <br/> <c>Not thread safe.</c>
+    /// </summary>
+    /// <param name="renderPass">The render pass.</param>
+    /// <returns>The GPU pipeline.</returns>
+    public GPUPipeline GetPipeline(GPURenderPass renderPass)
+    {
+        if (_pipelines.TryGetValue(renderPass, out GPUPipeline? pipeline))
+        {
+            return pipeline;
+        }
+
+        GPUPipeline newPipeline = _renderingSystem.CreatePipeline(_meta, renderPass);
+        _pipelines[renderPass] = newPipeline;
+        return newPipeline;
+    }
+
+    /// <summary>
+    /// Get the GPU pipeline for the given frame buffer.
+    /// </summary>
+    /// <param name="frameBuffer">The frame buffer.</param>
+    /// <returns>The GPU pipeline.</returns>
+    public GPUPipeline GetPipeline(GPUFrameBuffer frameBuffer)
+    {
+        return GetPipeline(frameBuffer.RenderPass);
+    }
+
+    
+    internal void ClearPipelineCache()
+    {
+        _pipelines.Clear();
     }
 
     private void BuildResourceIndex()
@@ -116,17 +156,21 @@ public class Shader : AutoDisposable
         _resourceIds = resourceIds.ToFrozenDictionary();
     }
 
-    internal void HotReload(GPUPipeline pipeline, ShaderReflectionInfo reflectionInfo)
+    internal void HotReload(ShaderCompileResult result)
     {
-        _pipeline.Dispose();
-        _pipeline = pipeline;
-        _reflectionInfo = reflectionInfo;
+        _meta = result;
+
+        _defaultPipeline.Dispose();
+        _defaultPipeline = _renderingSystem.CreatePipeline(result, _renderingSystem.DefaultRenderPass);
+        _reflectionInfo = result.ReflectionInfo;
+
+        ClearPipelineCache();
 
         BuildResourceIndex();
     }
 
     protected override void Dispose(bool disposing)
     {
-        _pipeline.Dispose();
+        _defaultPipeline.Dispose();
     }
 }

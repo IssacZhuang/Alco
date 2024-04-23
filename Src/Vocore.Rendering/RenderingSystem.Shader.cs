@@ -11,16 +11,10 @@ public partial class RenderingSystem
     /// <returns>The created shader.</returns>
     public Shader CreateShader(ShaderCompileResult result)
     {
-        GPUPipeline? pipeline = CreatePipeline(result);
-        if (pipeline != null)
-        {
-            return new Shader(pipeline, result.ReflectionInfo);
-        }
-
-        throw new InvalidOperationException("Invalid shader compile result");
+        return new Shader(this, result);
     }
 
-    private GPUPipeline? CreatePipeline(ShaderCompileResult result)
+    public GPUPipeline CreatePipeline(ShaderCompileResult result, GPURenderPass renderPass)
     {
         GPUDevice device = _device;
         if (result.IsGraphicsShader)
@@ -42,16 +36,6 @@ public partial class RenderingSystem
 
             PixelFormat[] colors;
             PixelFormat? depthStencilFormat;
-            GPURenderPass renderPass;
-            if (result.PreproccessResult.RenderPass.IsNullOrEmpty())
-            {
-                renderPass = DefaultRenderPass;
-                
-            }
-            else
-            {
-                renderPass = GetRenderPass(result.PreproccessResult.RenderPass!);
-            }
 
             colors = renderPass.Colors.Select(x => x.Format).ToArray();
             
@@ -107,6 +91,6 @@ public partial class RenderingSystem
             }
             return pipeline;
         }
-        return null;
+        throw new InvalidOperationException($"Invalid shader type !");
     }
 }
