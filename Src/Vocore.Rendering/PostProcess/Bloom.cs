@@ -266,7 +266,7 @@ public class Bloom : PostProcess
         //blit
         _commandBlit.Begin();
         _commandBlit.SetFrameBuffer(target);
-        _commandBlit.SetGraphicsPipeline(_blitShader.Pipeline);
+        _commandBlit.SetGraphicsPipeline(_blitShader.DefaultPipeline);
         _commandBlit.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleGroups![_upSampleGroups.Length - 1]);

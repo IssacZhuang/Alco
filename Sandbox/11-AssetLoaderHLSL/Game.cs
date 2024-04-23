@@ -92,7 +92,7 @@ public class Game : GameEngine
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_shader.Pipeline);
+        _commandBuffer.SetGraphicsPipeline(_shader.DefaultPipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);

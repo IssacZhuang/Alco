@@ -47,7 +47,7 @@ public class Shader : AutoDisposable
     /// <summary>
     /// Gets the GPU pipeline for default render pass.
     /// </summary>
-    public GPUPipeline Pipeline
+    public GPUPipeline DefaultPipeline
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _defaultPipeline;
