@@ -206,7 +206,7 @@ public class Bloom : PostProcess
 
         GPUFrameBuffer clampFrame = _downSampleFrames![0];
         //clamp
-        Vector2 invFrameSize = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
+        Vector2 invFrameSize;// = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
 
         _commandDownSample.SetFrameBuffer(clampFrame);
         _commandDownSample.SetGraphicsPipeline(_clampPipeline);
@@ -233,7 +233,7 @@ public class Bloom : PostProcess
         _device.Submit(_commandDownSample);
 
         //up sample
-        invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
+        //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
         _commandDownSample.Begin();
         _commandDownSample.SetFrameBuffer(_upSampleFrames![0]);
         _commandDownSample.SetGraphicsPipeline(_upSamplePipeline);
@@ -248,7 +248,7 @@ public class Bloom : PostProcess
 
         for (int i = 1; i < _upSampleFrames!.Length; i++)
         {
-            invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames[i].Width, _upSampleFrames[i].Height);
+            //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames[i].Width, _upSampleFrames[i].Height);
 
             _commandDownSample.SetFrameBuffer(_upSampleFrames[i]);
             _commandDownSample.SetGraphicsPipeline(_upSamplePipeline);
