@@ -7,6 +7,7 @@ public class ReinhardLuminanceToneMap : ToneMap
     private readonly GraphicsValueBuffer<ReinhardToneMapData> _data;
     private readonly uint _shaderId_data;
 
+
     public ref ReinhardToneMapData Data
     {
         get => ref _data.Value;

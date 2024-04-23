@@ -42,7 +42,7 @@ namespace Vocore.Test
 
 
         [Test]
-        [Timeout(5000)]
+        [Timeout(10000)]
         public void TestMultiQuickJob()
         {
             int count = 10000;

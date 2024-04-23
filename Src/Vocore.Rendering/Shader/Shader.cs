@@ -74,6 +74,7 @@ public class Shader : AutoDisposable
         _meta = result;
         _renderingSystem = renderingSystem;
         _defaultPipeline = renderingSystem.CreatePipeline(result, renderingSystem.DefaultRenderPass);
+        _pipelines[renderingSystem.DefaultRenderPass] = _defaultPipeline;
         _reflectionInfo = result.ReflectionInfo;
 
         BuildResourceIndex();
@@ -111,7 +112,7 @@ public class Shader : AutoDisposable
     /// </summary>
     /// <param name="renderPass">The render pass.</param>
     /// <returns>The GPU pipeline.</returns>
-    public GPUPipeline GetPipeline(GPURenderPass renderPass)
+    public GPUPipeline GetPipelineVariant(GPURenderPass renderPass)
     {
         if (_pipelines.TryGetValue(renderPass, out GPUPipeline? pipeline))
         {
@@ -123,17 +124,7 @@ public class Shader : AutoDisposable
         return newPipeline;
     }
 
-    /// <summary>
-    /// Get the GPU pipeline for the given frame buffer.
-    /// </summary>
-    /// <param name="frameBuffer">The frame buffer.</param>
-    /// <returns>The GPU pipeline.</returns>
-    public GPUPipeline GetPipeline(GPUFrameBuffer frameBuffer)
-    {
-        return GetPipeline(frameBuffer.RenderPass);
-    }
 
-    
     internal void ClearPipelineCache()
     {
         _pipelines.Clear();
@@ -171,6 +162,6 @@ public class Shader : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        _defaultPipeline.Dispose();
+        //_defaultPipeline.Dispose(); it will be automatically disposed 
     }
 }

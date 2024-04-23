@@ -34,19 +34,8 @@ public partial class RenderingSystem
 
             string filename = result.PreproccessResult.Filename;
 
-            PixelFormat[] colors;
-            PixelFormat? depthStencilFormat;
-
-            colors = renderPass.Colors.Select(x => x.Format).ToArray();
-            
-            if(depthStencil.DepthCompare != CompareFunction.Never)
-            {
-                depthStencilFormat = renderPass.Depth?.Format;
-            }
-            else
-            {
-                depthStencilFormat = null;
-            }
+            PixelFormat[] colors = renderPass.Colors.Select(x => x.Format).ToArray();
+            PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
 
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,

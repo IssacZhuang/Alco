@@ -25,6 +25,7 @@ public class Bloom : PostProcess
 
     //for clamp
     private readonly Shader _clampShader;
+    private readonly GPUPipeline _clampPipeline;
     private readonly uint _clampShaderId_texture;
     private readonly uint _clampShaderId_data;
 
@@ -33,6 +34,7 @@ public class Bloom : PostProcess
 
 
     private readonly Shader _downSampleShader;
+    private readonly GPUPipeline _downSamplePipeline;
     private readonly uint _downSampleShaderId_texture;
 
 
@@ -41,6 +43,7 @@ public class Bloom : PostProcess
     private GPUResourceGroup[]? _downSampleGroups;
 
     private readonly Shader _upSampleShader;
+    private readonly GPUPipeline _upSamplePipeline;
     private readonly uint _upSampleShaderId_previousTexture;
     private readonly uint _upSampleShaderId_currentTexture;
 
@@ -63,14 +66,17 @@ public class Bloom : PostProcess
         _blitShaderId_texture = blitShader.GetResourceId("texture");
 
         _clampShader = clampShader;
+        _clampPipeline = clampShader.GetPipelineVariant(_backBufferPass);
         _clampShaderData = renderingSystem.CreateGraphicsValueBuffer<ClampShaderData>("bloom_threshold");
         _clampShaderId_texture = clampShader.GetResourceId("texture");
         _clampShaderId_data = clampShader.GetResourceId("data");
 
         _downSampleShader = downSampleShader;
+        _downSamplePipeline = downSampleShader.GetPipelineVariant(_backBufferPass);
         _downSampleShaderId_texture = downSampleShader.GetResourceId("texture");
 
         _upSampleShader = upSampleShader;
+        _upSamplePipeline = upSampleShader.GetPipelineVariant(_backBufferPass);
         _upSampleShaderId_previousTexture = upSampleShader.GetResourceId("previousTexture");
         _upSampleShaderId_currentTexture = upSampleShader.GetResourceId("currentTexture");
 
@@ -203,7 +209,7 @@ public class Bloom : PostProcess
         Vector2 invFrameSize = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
 
         _commandDownSample.SetFrameBuffer(clampFrame);
-        _commandDownSample.SetGraphicsPipeline(_clampShader.Pipeline);
+        _commandDownSample.SetGraphicsPipeline(_clampPipeline);
         _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         _commandDownSample.SetGraphicsResources(_clampShaderId_texture, _inputGroup!);
@@ -216,7 +222,7 @@ public class Bloom : PostProcess
         {
             invFrameSize = new Vector2(1f) / new Vector2(_downSampleFrames[i].Width, _downSampleFrames[i].Height);
             _commandDownSample.SetFrameBuffer(_downSampleFrames[i]);
-            _commandDownSample.SetGraphicsPipeline(_downSampleShader.Pipeline);
+            _commandDownSample.SetGraphicsPipeline(_downSamplePipeline);
             _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
             _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
             _commandDownSample.SetGraphicsResources(_downSampleShaderId_texture, _downSampleGroups![i - 1]);
@@ -230,7 +236,7 @@ public class Bloom : PostProcess
         invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
         _commandDownSample.Begin();
         _commandDownSample.SetFrameBuffer(_upSampleFrames![0]);
-        _commandDownSample.SetGraphicsPipeline(_upSampleShader.Pipeline);
+        _commandDownSample.SetGraphicsPipeline(_upSamplePipeline);
         _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleGroups![_downSampleGroups.Length - 1]);
@@ -245,7 +251,7 @@ public class Bloom : PostProcess
             invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames[i].Width, _upSampleFrames[i].Height);
 
             _commandDownSample.SetFrameBuffer(_upSampleFrames[i]);
-            _commandDownSample.SetGraphicsPipeline(_upSampleShader.Pipeline);
+            _commandDownSample.SetGraphicsPipeline(_upSamplePipeline);
             _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
             _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
             _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleGroups![i - 1]);

@@ -7,6 +7,7 @@ public abstract class ToneMap:AutoDisposable
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private readonly Shader _shader;
+    private readonly GPUPipeline _pipeline;
     private readonly Mesh _mesh;
     private readonly uint _shaderId_input;
 
@@ -25,6 +26,7 @@ public abstract class ToneMap:AutoDisposable
 
         _device = renderingSystem.GraphicsDevice;
         _shader = toneMapShader;
+        _pipeline = toneMapShader.GetPipelineVariant(_device.SwapChainRenderPass);
         _mesh = renderingSystem.FullScreenMesh;
         _shaderId_input = _shader.GetResourceId("texture");
 
