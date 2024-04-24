@@ -61,6 +61,9 @@ public class PluginImGui : BaseEnginePlugin
             TextColor = 0xf1f1f1,
             ButtonColor = 0x2A2D2E,
             ButtonHoverColor = 0x37373D,
+            CheckBoxColor = 0x2A2D2E,
+            CheckBoxHoverColor = 0x37373D,
+            CheckBoxCheckColor = 0x007ACC,
             Margin = new Vector4(2, 2, 2, 2),
             Padding = new Vector2(10, 4)
         };

@@ -19,6 +19,9 @@ public struct ImGuiStyle
     public ColorFloat TextColor { get; set; }
     public ColorFloat ButtonColor { get; set; }
     public ColorFloat ButtonHoverColor { get; set; }
+    public ColorFloat CheckBoxColor { get; set; }
+    public ColorFloat CheckBoxHoverColor { get; set; }
+    public ColorFloat CheckBoxCheckColor { get; set; }
 
     /// <summary>
     /// The margin of the imgui widget. The x,y,z,w values represent the left, right, top, and bottom margins respectively.

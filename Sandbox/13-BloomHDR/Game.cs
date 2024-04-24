@@ -16,6 +16,7 @@ public class Game : GameEngine
     private readonly Shader _spriteShader;
     private readonly SpriteRenderer _spriteRenderer;
     private float _intensity = 3;
+    private bool _enabled = true;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -56,7 +57,10 @@ public class Game : GameEngine
         _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
-        //_spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
+        if(_enabled){
+             _spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
+        }
+       
 
         _spriteRenderer.End();
 
@@ -74,6 +78,7 @@ public class Game : GameEngine
         {
             _intensity += 0.1f;
         }
+        ImGui.CheckBox(ref _enabled);
         
 
     }

@@ -5,6 +5,7 @@ using Vocore.Graphics;
 using Vocore.Engine;
 using Vocore.Rendering;
 using Vocore;
+using Vocore.GUI;
 
 public class Game : GameEngine
 {
@@ -134,6 +135,8 @@ public class Game : GameEngine
 
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
+
+        ImGui.Text(FrameRate);
     }
 
 
