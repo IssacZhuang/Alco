@@ -12,7 +12,8 @@ namespace Vocore.Test
         {
             int count = 100000;
             int[] array = new int[count];
-            ParallelScheduler.Instance.For(count, (i) =>
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            scheduler.For(count, (i) =>
             {
 
                 array[i] = i;

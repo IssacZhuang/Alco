@@ -86,6 +86,8 @@ namespace Vocore
             }
         }
 
+
+        private readonly ParallelScheduler _scheduler;
         //reuse job
         private JobCastRay _jobCastRay;
         private JobCastRayFast _jobCastRayFast;
@@ -103,8 +105,10 @@ namespace Vocore
         public int Size => _nodeSize;
         public int Capacity => _nodes.Length;
 
-        public NativeBvh2D()
+        public NativeBvh2D(ParallelScheduler scheduler)
         {
+            _scheduler = scheduler;
+
             _jobCastRay = new JobCastRay(this);
             _jobCastRayFast = new JobCastRayFast(this);
             _jobCastColliderBox = new JobCastColliderBox(this);
@@ -138,7 +142,7 @@ namespace Vocore
 
             _jobCastRayFast.rays = rays.UnsafePointer;
             _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
-            ParallelScheduler.Instance.Run(_jobCastRayFast, rays.Length);
+            _scheduler.Run(_jobCastRayFast, rays.Length);
 
             return _batchRayCastResult;
         }
@@ -149,7 +153,7 @@ namespace Vocore
 
             _jobCastRay.rays = rays.UnsafePointer;
             _jobCastRay.results = _batchRayCastResult.UnsafePointer;
-            ParallelScheduler.Instance.Run(_jobCastRay, rays.Length);
+            _scheduler.Run(_jobCastRay, rays.Length);
 
             return _batchRayCastResult;
         }
@@ -160,7 +164,7 @@ namespace Vocore
 
             _jobCastColliderBox.colliderBoxes = colliders.UnsafePointer;
             _jobCastColliderBox.results = _batchColliderBoxCastResult.UnsafePointer;
-            ParallelScheduler.Instance.Run(_jobCastColliderBox, colliders.Length);
+            _scheduler.Run(_jobCastColliderBox, colliders.Length);
 
             return _batchColliderBoxCastResult;
         }
@@ -171,7 +175,7 @@ namespace Vocore
 
             _jobCastColliderSphere.colliderSpheres = colliders.UnsafePointer;
             _jobCastColliderSphere.results = _batchColliderSphereCastResult.UnsafePointer;
-            ParallelScheduler.Instance.Run(_jobCastColliderSphere, colliders.Length);
+            _scheduler.Run(_jobCastColliderSphere, colliders.Length);
 
             return _batchColliderSphereCastResult;
         }

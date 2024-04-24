@@ -59,7 +59,8 @@ namespace Vocore.Test
 
             NativeArrayList<ColliderRef3D> colliders = new NativeArrayList<ColliderRef3D>(colliderCount, false);
 
-            NativeBvh3D bvh = new NativeBvh3D();
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            NativeBvh3D bvh = new NativeBvh3D(scheduler);
 
             ColliderBox3D* ptrBox = boxs.UnsafePointer;
             ColliderSphere3D* ptrSphere = spheres.UnsafePointer;
@@ -174,7 +175,8 @@ namespace Vocore.Test
             // colliders.Add(ColliderRef.Create(boxs.Ptr));
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
-            NativeBvh3D bvh = new NativeBvh3D();
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            NativeBvh3D bvh = new NativeBvh3D(scheduler);
             Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
 
             bvh.BuildTree(colliders);
@@ -236,7 +238,8 @@ namespace Vocore.Test
                 colliders.Add(ColliderRef3D.Create(spheres.UnsafePointer + i));
             }
 
-            NativeBvh3D bvh = new NativeBvh3D();
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            NativeBvh3D bvh = new NativeBvh3D(scheduler);
 
             bvh.BuildTree(colliders);
 

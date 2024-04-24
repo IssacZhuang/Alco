@@ -26,7 +26,6 @@ namespace Vocore
             }
         }
 
-        public static ParallelScheduler Instance = new ParallelScheduler(Environment.ProcessorCount * 2, "JobThread");
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
         //private readonly ManualResetEvent _event = new ManualResetEvent(false);
@@ -40,6 +39,10 @@ namespace Vocore
 
 
         private bool _isDisposed = false;
+        public ParallelScheduler(string threadPrefix = "JobThread") : this(Environment.ProcessorCount * 2, threadPrefix)
+        {
+        }
+
         public ParallelScheduler(int threadCount, string threadPrefix = "JobThread")
         {
             _cancellationTokenSource = new CancellationTokenSource();

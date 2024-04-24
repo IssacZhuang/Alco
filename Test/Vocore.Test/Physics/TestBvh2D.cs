@@ -58,7 +58,8 @@ namespace Vocore.Test
 
             NativeArrayList<ColliderRef2D> colliders = new NativeArrayList<ColliderRef2D>(colliderCount, false);
 
-            NativeBvh2D bvh = new NativeBvh2D();
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            NativeBvh2D bvh = new NativeBvh2D(scheduler);
 
             ColliderBox2D* ptrBox = boxs.UnsafePointer;
             ColliderSphere2D* ptrSphere = spheres.UnsafePointer;
@@ -96,7 +97,7 @@ namespace Vocore.Test
             //warm up
             bvh.CastBatchRay(rays);
             bvh.CastBatchRayFast(rays);
-            
+
             UtilsTest.Benchmark(() =>
             {
                 bvh.CastBatchRay(rays);
@@ -172,7 +173,8 @@ namespace Vocore.Test
             // colliders.Add(ColliderRef.Create(boxs.Ptr));
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
-            NativeBvh2D bvh = new NativeBvh2D();
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            NativeBvh2D bvh = new NativeBvh2D(scheduler);
             Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-2, 1.1f), new Vector2(200, 1.1f));
 
             bvh.BuildTree(colliders);
@@ -234,7 +236,8 @@ namespace Vocore.Test
                 colliders.Add(ColliderRef2D.Create(spheres.UnsafePointer + i));
             }
 
-            NativeBvh2D bvh = new NativeBvh2D();
+            using ParallelScheduler scheduler = new ParallelScheduler();
+            NativeBvh2D bvh = new NativeBvh2D(scheduler);
 
             bvh.BuildTree(colliders);
 
