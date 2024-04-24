@@ -5,7 +5,7 @@ using Vocore.Rendering;
 namespace Vocore.GUI;
 
 
-public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
+public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 {
     private static readonly float TextOffsetYMultiplier = 0.125f;
     private static readonly Matrix4x4 Rotation = math.matrix4rotation(Quaternion.Identity);
@@ -21,7 +21,7 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
     public abstract bool IsMousePressing { get; }
 
 
-    protected BaseImGuiRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
+    protected BaseDebugGUIRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
     {
         _renderingSystem = renderingSystem;
         //external resources

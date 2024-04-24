@@ -5,7 +5,7 @@ GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     Window = new WindowSetting(640, 360, "Push Constants"),
-}.With<PluginDefaultAssets>().With<PluginImGui>();
+}.With<PluginDefaultAssets>().With<PluginDebugGUI>();
 
 using (Game game = new Game(setting))
 {

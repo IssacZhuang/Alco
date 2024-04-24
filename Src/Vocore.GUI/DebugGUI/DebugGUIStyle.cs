@@ -6,7 +6,7 @@ namespace Vocore.GUI;
 
 #pragma warning disable CS8618
 
-public struct ImGuiStyle
+public struct DebugGUIStyle
 {
     public Font Font { get; set; }
     public float FontSize { get; set; }
@@ -24,7 +24,7 @@ public struct ImGuiStyle
     public ColorFloat CheckBoxCheckColor { get; set; }
 
     /// <summary>
-    /// The margin of the imgui widget. The x,y,z,w values represent the left, right, top, and bottom margins respectively.
+    /// The margin of the widget. The x,y,z,w values represent the left, right, top, and bottom margins respectively.
     /// </summary>
     public Vector4 Margin { get; set; }
 

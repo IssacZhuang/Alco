@@ -4,7 +4,7 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
-public interface IImGuiRenderer
+public interface IDebugGUIRenderer
 {
     public Vector2 MousePosition { get; }
     public bool IsMouseClicked { get; }

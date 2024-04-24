@@ -14,7 +14,7 @@ GameEngineSetting setting = new GameEngineSetting
 With<PluginDefaultAssets>().
 With<PluginHDR>().
 With<PluginBloom>().
-With<PluginImGui>();
+With<PluginDebugGUI>();
 
 using (Game game = new Game(setting))
 {

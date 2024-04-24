@@ -64,21 +64,21 @@ public class Game : GameEngine
 
         _spriteRenderer.End();
 
-        ImGui.Text(FrameRate);
-        ImGui.SameLine();
-        ImGui.Text(_intensity);
-        if (ImGui.Button("-0.1"))
+        DebugGUI.Text(FrameRate);
+        DebugGUI.SameLine();
+        DebugGUI.Text(_intensity);
+        if (DebugGUI.Button("-0.1"))
         {
             _intensity -= 0.1f;
         }
-        ImGui.SameLine();
-        ImGui.Slider(0, 5, ref _intensity);
-        ImGui.SameLine();
-        if (ImGui.Button("+0.1"))
+        DebugGUI.SameLine();
+        DebugGUI.Slider(0, 5, ref _intensity);
+        DebugGUI.SameLine();
+        if (DebugGUI.Button("+0.1"))
         {
             _intensity += 0.1f;
         }
-        ImGui.CheckBox(ref _enabled);
+        DebugGUI.CheckBox(ref _enabled);
         
 
     }

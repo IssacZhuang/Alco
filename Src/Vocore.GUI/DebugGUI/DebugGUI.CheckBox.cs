@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.GUI;
 
-public partial class ImGui
+public partial class DebugGUI
 {
     public static void CheckBox(ref bool value)
     {

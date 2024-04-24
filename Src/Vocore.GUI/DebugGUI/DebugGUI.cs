@@ -6,10 +6,10 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
-public static partial class ImGui
+public static partial class DebugGUI
 {
-    private static IImGuiRenderer _renderer = new NoImGuiRenderer();
-    private static ImGuiStyle _style;
+    private static IDebugGUIRenderer _renderer = new NoDebugGUIRenderer();
+    private static DebugGUIStyle _style;
 
     private static readonly char[] _stringBuffer = new char[1024];
     private static int _stringBufferLength = 0;
@@ -19,7 +19,7 @@ public static partial class ImGui
     private static Vector2 _currentPosition = Vector2.Zero;
     private static Vector2 _nextOffset = Vector2.Zero;
 
-    public static void Initialize(IImGuiRenderer renderer, ImGuiStyle style)
+    public static void Initialize(IDebugGUIRenderer renderer, DebugGUIStyle style)
     {
         _renderer = renderer;
         _style = style;

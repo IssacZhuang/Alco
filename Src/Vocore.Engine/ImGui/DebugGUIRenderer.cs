@@ -5,10 +5,10 @@ using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
-public class ImGuiRenderer : BaseImGuiRenderer
+public class DebugGUIRenderer : BaseDebugGUIRenderer
 {
     private readonly InputSystem _input;
-    public ImGuiRenderer(InputSystem input, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite) : base(width, height, renderingSystem, shaderText, shaderSprite)
+    public DebugGUIRenderer(InputSystem input, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite) : base(width, height, renderingSystem, shaderText, shaderSprite)
     {
         _input = input;
     }

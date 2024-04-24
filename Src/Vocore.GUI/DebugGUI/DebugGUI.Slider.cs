@@ -6,7 +6,7 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
-public static partial class ImGui
+public static partial class DebugGUI
 {
     public unsafe static void Slider(float min, float max, ref float value)
     {

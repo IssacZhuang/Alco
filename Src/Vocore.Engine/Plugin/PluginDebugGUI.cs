@@ -5,12 +5,12 @@ using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
-public class PluginImGui : BaseEnginePlugin
+public class PluginDebugGUI : BaseEnginePlugin
 {
-    public class ImGuiSystem : BaseEngineSystem
+    public class DebugGUISystem : BaseEngineSystem
     {
-        private readonly ImGuiRenderer _renderer;
-        public ImGuiSystem(ImGuiRenderer renderer)
+        private readonly DebugGUIRenderer _renderer;
+        public DebugGUISystem(DebugGUIRenderer renderer)
         {
             _renderer = renderer;
         }
@@ -22,7 +22,7 @@ public class PluginImGui : BaseEnginePlugin
 
         public override void OnPostUpdate(float delta)
         {
-            ImGui.CheckAndSubmit();
+            DebugGUI.CheckAndSubmit();
         }
 
         public override void OnResize(int2 size)
@@ -47,8 +47,8 @@ public class PluginImGui : BaseEnginePlugin
 
         Font font = assets.Load<Font>("Font/Default.ttf");
 
-        ImGuiRenderer imGuiRenderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite);
-        ImGuiStyle style = new ImGuiStyle
+        DebugGUIRenderer renderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite);
+        DebugGUIStyle style = new DebugGUIStyle
         {
             Font = font,
             FontSize = 20,
@@ -69,7 +69,7 @@ public class PluginImGui : BaseEnginePlugin
         };
 
 
-        ImGui.Initialize(imGuiRenderer, style);
-        engine.AddSystem(new ImGuiSystem(imGuiRenderer));
+        DebugGUI.Initialize(renderer, style);
+        engine.AddSystem(new DebugGUISystem(renderer));
     }
 }
