@@ -14,9 +14,17 @@ public class RenderTexture : ShaderResource
     private GPUResourceGroup[]? _groupsColorRead;
     private GPUResourceGroup[]? _groupsColorWrite;
     private GPUResourceGroup[]? _groupsColorSample;
-    private GPUResourceGroup? _groupDepthRead;
-    private GPUResourceGroup? _groupDepthWrite;
     private GPUResourceGroup? _groupDepthSample;
+
+    /// <summary>
+    /// The internal GPUFrameBuffer object.
+    /// </summary>
+    /// <value></value>
+    public GPUFrameBuffer FrameBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _frameBuffer;
+    }
 
     /// <summary>
     /// The width of the frame buffer.
@@ -132,50 +140,6 @@ public class RenderTexture : ShaderResource
         }
     }
 
-    /// <summary>
-    /// The entry of depth view for reading. Usually for read in compute shader.
-    /// </summary>
-    /// <value></value>
-    public GPUResourceGroup? EntryDepthRead
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (!HasDepth)
-            {
-                return null;
-            }
-
-            if (_groupDepthRead == null)
-            {
-                _groupDepthRead = CreateGroupRead(_frameBuffer.DepthView!);
-            }
-
-            return _groupDepthRead;
-        }
-    }
-
-    /// <summary>
-    /// The entry of depth view for writing. Usually for write in compute shader.
-    /// </summary>
-    /// <value></value>
-    public GPUResourceGroup? EntryDepthWrite
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get {
-            if (!HasDepth)
-            {
-                return null;
-            }
-
-            if (_groupDepthWrite == null)
-            {
-                _groupDepthWrite = CreateGroupWrite(_frameBuffer.DepthView!);
-            }
-
-            return _groupDepthWrite;
-        }
-    }
 
     internal RenderTexture(
         GPUDevice device,
@@ -255,6 +219,31 @@ public class RenderTexture : ShaderResource
 
     protected override void Dispose(bool disposing)
     {
+        if (_groupsColorRead != null)
+        {
+            for (int i = 0; i < _groupsColorRead.Length; i++)
+            {
+                _groupsColorRead[i].Dispose();
+            }
+        }
+
+        if (_groupsColorWrite != null)
+        {
+            for (int i = 0; i < _groupsColorWrite.Length; i++)
+            {
+                _groupsColorWrite[i].Dispose();
+            }
+        }
+
+        if (_groupsColorSample != null)
+        {
+            for (int i = 0; i < _groupsColorSample.Length; i++)
+            {
+                _groupsColorSample[i].Dispose();
+            }
+        }
+
+        _groupDepthSample?.Dispose();
 
 
         if (!_isFrameBufferExternal)
