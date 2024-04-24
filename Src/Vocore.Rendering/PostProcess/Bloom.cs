@@ -101,38 +101,7 @@ public class Bloom : PostProcess
 
         _inputGroup = _device.CreateResourceGroup(groupDescriptor);
 
-        if (_downSampleFrames != null)
-        {
-            for (int i = 0; i < _downSampleFrames.Length; i++)
-            {
-                _downSampleFrames[i].Dispose();
-            }
-        }
-
-        if (_downSampleGroups != null)
-        {
-            for (int i = 0; i < _downSampleGroups.Length; i++)
-            {
-                _downSampleGroups[i].Dispose();
-            }
-        }
-
-        if (_upSampleFrames != null)
-        {
-            for (int i = 0; i < _upSampleFrames.Length; i++)
-            {
-                _upSampleFrames[i].Dispose();
-            }
-        }
-
-        if (_upSampleGroups != null)
-        {
-            for (int i = 0; i < _upSampleGroups.Length; i++)
-            {
-                _upSampleGroups[i].Dispose();
-            }
-        }
-
+        TryDisposeFrames();
 
         _clampShaderData.Value = new ClampShaderData
         {
@@ -308,10 +277,8 @@ public class Bloom : PostProcess
         return count;
     }
 
-    protected override void Dispose(bool disposing)
+    private void TryDisposeFrames()
     {
-        _inputGroup?.Dispose();
-        _commandDownSample.Dispose();
         if (_downSampleFrames != null)
         {
             for (int i = 0; i < _downSampleFrames.Length; i++)
@@ -335,5 +302,20 @@ public class Bloom : PostProcess
                 _upSampleFrames[i].Dispose();
             }
         }
+
+        if (_upSampleGroups != null)
+        {
+            for (int i = 0; i < _upSampleGroups.Length; i++)
+            {
+                _upSampleGroups[i].Dispose();
+            }
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        _inputGroup?.Dispose();
+        _commandDownSample.Dispose();
+        TryDisposeFrames();
     }
 }
