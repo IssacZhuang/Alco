@@ -7,6 +7,7 @@ namespace Vocore.GUI;
 
 public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 {
+    private static readonly float TextOffsetYMultiplier = 0.125f;
     private static readonly Matrix4x4 Rotation = math.matrix4rotation(Quaternion.Identity);
     private readonly RenderingSystem _renderingSystem;
     private readonly TextRenderer _textRenderer;
@@ -60,8 +61,9 @@ public abstract class BaseImGuiRenderer: IImGuiRenderer, IDisposable
 
     public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
     {
-        Matrix4x4 matrix = GetTransformMatrix(position, depth, Vector2.Zero);
-        return _textRenderer.DrawChars(font, str, strLength, fontSize, new Vector3(position, depth), Quaternion.Identity, pivot, color);
+        position.Y += fontSize * TextOffsetYMultiplier;
+        Matrix4x4 matrix = GetTransformMatrix(position, depth, Vector2.One* fontSize);
+        return _textRenderer.DrawChars(font, str, strLength, matrix, pivot, color);
     }
 
     public void DrawTexture(Vector2 position, float depth, Vector2 size, Texture2D texture, ColorFloat color)
