@@ -16,6 +16,16 @@ namespace Vocore
             public IndexWorkStealingDeque tasks;
             public ManualResetEvent signal;
         }
+
+        private class DelegateJob : IJobBatch
+        {
+            public ParallelForDelegate action;
+            public void Execute(int i)
+            {
+                action(i);
+            }
+        }
+
         public static ParallelScheduler Instance = new ParallelScheduler(Environment.ProcessorCount * 2, "JobThread");
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
@@ -25,7 +35,8 @@ namespace Vocore
         private readonly int _threadCount;
         private readonly int _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
         private readonly int _maxStealFailCount;
-        private ParallelForDelegate _currentJob;
+        private readonly DelegateJob _delegateJob = new DelegateJob();
+        private IJobBatch _currentJob;
 
 
         private bool _isDisposed = false;
@@ -82,7 +93,7 @@ namespace Vocore
                     {
                         try
                         {
-                            _currentJob(jobIndex);
+                            _currentJob.Execute(jobIndex);
                         }
                         catch (Exception e)
                         {
@@ -117,7 +128,7 @@ namespace Vocore
                         {
                             try
                             {
-                                _currentJob(jobIndex);
+                                _currentJob.Execute(jobIndex);
                             }
                             catch (Exception e)
                             {
@@ -142,15 +153,22 @@ namespace Vocore
 
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void For(int count, ParallelForDelegate action)
+        {
+            _delegateJob.action = action;
+            Run(_delegateJob, count);
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Run(IJobBatch job, int count)
         {
             if (Environment.CurrentManagedThreadId != _ownerThreadId)
             {
                 throw new Exception("ScheduleParallel can only be called by the thread constructed this scheduler");
             }
-            _currentJob = action;
+            _currentJob = job;
             int chunkSize = count / _threadCount;
             int remainder = count % _threadCount;
             int start = 0;

@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
-    public unsafe struct NativeBvh2D : IDisposable
+    public unsafe class NativeBvh2D : IDisposable
     {
 
 
@@ -18,6 +18,80 @@ namespace Vocore
             public bool IsLeaf => collider.HasCollider;
         }
 
+        private class JobCastRay : IJobBatch
+        {
+            private NativeBvh2D _bvh;
+            public Ray2D* rays;
+            public RayCastResult2D* results;
+
+            public JobCastRay(NativeBvh2D bvh)
+            {
+                _bvh = bvh;
+            }
+
+            public void Execute(int index)
+            {
+                results[index] = _bvh.CastRay(rays[index]);
+            }
+        }
+
+        private class JobCastRayFast : IJobBatch
+        {
+            private NativeBvh2D _bvh;
+            public Ray2D* rays;
+            public RayCastResult2D* results;
+
+            public JobCastRayFast(NativeBvh2D bvh)
+            {
+                _bvh = bvh;
+            }
+
+            public void Execute(int index)
+            {
+                results[index] = _bvh.CastRayFast(rays[index]);
+            }
+        }
+
+        private class JobCastColliderBox : IJobBatch
+        {
+            private NativeBvh2D _bvh;
+            public ColliderBox2D* colliderBoxes;
+            public ColliderCastResult2D* results;
+
+            public JobCastColliderBox(NativeBvh2D bvh)
+            {
+                _bvh = bvh;
+            }
+
+            public void Execute(int index)
+            {
+                results[index] = _bvh.CastColliderBox(ref colliderBoxes[index]);
+            }
+        }
+
+        private class JobCastColliderSphere : IJobBatch
+        {
+            private NativeBvh2D _bvh;
+            public ColliderSphere2D* colliderSpheres;
+            public ColliderCastResult2D* results;
+
+            public JobCastColliderSphere(NativeBvh2D bvh)
+            {
+                _bvh = bvh;
+            }
+
+            public void Execute(int index)
+            {
+                results[index] = _bvh.CastColliderSphere(ref colliderSpheres[index]);
+            }
+        }
+
+        //reuse job
+        private JobCastRay _jobCastRay;
+        private JobCastRayFast _jobCastRayFast;
+        private JobCastColliderBox _jobCastColliderBox;
+        private JobCastColliderSphere _jobCastColliderSphere;
+
         private NativeBuffer<Node> _nodes;
         private NativeBuffer<RayCastResult2D> _batchRayCastResult;
         private NativeBuffer<ColliderCastResult2D> _batchColliderBoxCastResult;
@@ -28,6 +102,15 @@ namespace Vocore
 
         public int Size => _nodeSize;
         public int Capacity => _nodes.Length;
+
+        public NativeBvh2D()
+        {
+            _jobCastRay = new JobCastRay(this);
+            _jobCastRayFast = new JobCastRayFast(this);
+            _jobCastColliderBox = new JobCastColliderBox(this);
+            _jobCastColliderSphere = new JobCastColliderSphere(this);
+            _isDisposed = false;
+        }
 
         public RayCastResult2D CastRay(Ray2D ray)
         {
@@ -52,13 +135,10 @@ namespace Vocore
         public NativeBuffer<RayCastResult2D> CastBatchRayFast(NativeArrayList<Ray2D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
-            JobCastRayFast job = new JobCastRayFast
-            {
-                bvh = this,
-                rays = rays.UnsafePointer,
-                results = _batchRayCastResult.UnsafePointer
-            };
-            job.RunParallel(rays.Length);
+
+            _jobCastRayFast.rays = rays.UnsafePointer;
+            _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
+            ParallelScheduler.Instance.Run(_jobCastRayFast, rays.Length);
 
             return _batchRayCastResult;
         }
@@ -66,39 +146,33 @@ namespace Vocore
         public NativeBuffer<RayCastResult2D> CastBatchRay(NativeArrayList<Ray2D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
-            JobCastRay job = new JobCastRay
-            {
-                bvh = this,
-                rays = rays.UnsafePointer,
-                results = _batchRayCastResult.UnsafePointer
-            };
-            job.RunParallel(rays.Length);
+
+            _jobCastRay.rays = rays.UnsafePointer;
+            _jobCastRay.results = _batchRayCastResult.UnsafePointer;
+            ParallelScheduler.Instance.Run(_jobCastRay, rays.Length);
+
             return _batchRayCastResult;
         }
 
         public NativeBuffer<ColliderCastResult2D> CastBatchColliderBox(NativeArrayList<ColliderBox2D> colliders)
         {
             _batchColliderBoxCastResult.EnsureSizeWithoutCopy(colliders.Length);
-            JobCastColliderBox job = new JobCastColliderBox
-            {
-                bvh = this,
-                colliderBoxes = colliders.UnsafePointer,
-                results = _batchColliderBoxCastResult.UnsafePointer
-            };
-            job.RunParallel(colliders.Length);
+
+            _jobCastColliderBox.colliderBoxes = colliders.UnsafePointer;
+            _jobCastColliderBox.results = _batchColliderBoxCastResult.UnsafePointer;
+            ParallelScheduler.Instance.Run(_jobCastColliderBox, colliders.Length);
+
             return _batchColliderBoxCastResult;
         }
 
         public NativeBuffer<ColliderCastResult2D> CastBatchColliderSphere(NativeArrayList<ColliderSphere2D> colliders)
         {
             _batchColliderSphereCastResult.EnsureSizeWithoutCopy(colliders.Length);
-            JobCastColliderSphere job = new JobCastColliderSphere
-            {
-                bvh = this,
-                colliderSpheres = colliders.UnsafePointer,
-                results = _batchColliderSphereCastResult.UnsafePointer
-            };
-            job.RunParallel(colliders.Length);
+
+            _jobCastColliderSphere.colliderSpheres = colliders.UnsafePointer;
+            _jobCastColliderSphere.results = _batchColliderSphereCastResult.UnsafePointer;
+            ParallelScheduler.Instance.Run(_jobCastColliderSphere, colliders.Length);
+
             return _batchColliderSphereCastResult;
         }
 
@@ -448,53 +522,6 @@ namespace Vocore
             }
             _nodes.UnsafePointer[_nodeSize] = node;
             _nodeSize++;
-        }
-
-        private struct JobCastRay : IJobBatch
-        {
-            public NativeBvh2D bvh;
-            public Ray2D* rays;
-            public RayCastResult2D* results;
-            public void Execute(int index)
-            {
-                results[index] = bvh.CastRay(rays[index]);
-            }
-        }
-
-        private struct JobCastRayFast : IJobBatch
-        {
-            public NativeBvh2D bvh;
-            public Ray2D* rays;
-            public RayCastResult2D* results;
-
-            public void Execute(int index)
-            {
-                results[index] = bvh.CastRayFast(rays[index]);
-            }
-        }
-
-        private struct JobCastColliderBox : IJobBatch
-        {
-            public NativeBvh2D bvh;
-            public ColliderBox2D* colliderBoxes;
-            public ColliderCastResult2D* results;
-
-            public void Execute(int index)
-            {
-                results[index] = bvh.CastColliderBox(ref colliderBoxes[index]);
-            }
-        }
-
-        private struct JobCastColliderSphere : IJobBatch
-        {
-            public NativeBvh2D bvh;
-            public ColliderSphere2D* colliderSpheres;
-            public ColliderCastResult2D* results;
-
-            public void Execute(int index)
-            {
-                results[index] = bvh.CastColliderSphere(ref colliderSpheres[index]);
-            }
         }
     }
 }

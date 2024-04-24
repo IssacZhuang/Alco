@@ -89,22 +89,24 @@ namespace Vocore.Test
             UtilsTest.Benchmark(() =>
             {
                 bvh.BuildTree(colliders);
-            }, "Build BVH tree benchmark: ");
+            }, "Build BVH 2D tree benchmark: ");
 
             TestContext.WriteLine(bvh.Size + "," + bvh.Capacity);
 
             //warm up
             bvh.CastBatchRay(rays);
+            bvh.CastBatchRayFast(rays);
+            
             UtilsTest.Benchmark(() =>
             {
                 bvh.CastBatchRay(rays);
-            }, "Ray cast bvh benckmark: ");
+            }, "Ray cast bvh 2D benckmark: ");
 
             bvh.CastBatchRayFast(rays);
-            UtilsTest.CheckGCAlloc(() =>
+            UtilsTest.Benchmark(() =>
             {
                 bvh.CastBatchRayFast(rays);
-            }, "Ray cast bvh fast benckmark: ");
+            }, "Ray cast bvh 2D fast benckmark: ");
 
             boxs.Dispose();
             spheres.Dispose();

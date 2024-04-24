@@ -75,7 +75,7 @@ public static class UtilsShaderSerialization
             table.TryGetString("EntryVertex", out string? entryVertex) &&
             table.TryGetString("EntryFragment", out string? entryFragment) &&
             table.TryGetString("EntryCompute", out string? entryCompute) &&
-            table.TryGetString("RenderPass", out string? renderPass) &&
+            //table.TryGetString("RenderPass", out string? renderPass) && removed
             table.TryGetNullableValue("RasterizerState", out RasterizerState? rasterizerState) &&
             table.TryGetNullableValue("BlendState", out BlendState? blendState) &&
             table.TryGetNullableValue("DepthStencilState", out DepthStencilState? depthStencilState) &&
