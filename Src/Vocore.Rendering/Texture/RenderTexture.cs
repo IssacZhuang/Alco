@@ -10,10 +10,13 @@ public class RenderTexture : ShaderResource
 {
     private readonly GPUDevice _device;
     private readonly GPUFrameBuffer _frameBuffer;
-    private readonly GPUResourceGroup[] _groupsColorRead;
-    private readonly GPUResourceGroup[] _groupsColorWrite;
-    private readonly GPUResourceGroup? _groupDepthRead;
-    private readonly GPUResourceGroup? _groupDepthWrite;
+    private readonly bool _isFrameBufferExternal;
+    private GPUResourceGroup[]? _groupsColorRead;
+    private GPUResourceGroup[]? _groupsColorWrite;
+    private GPUResourceGroup[]? _groupsColorSample;
+    private GPUResourceGroup? _groupDepthRead;
+    private GPUResourceGroup? _groupDepthWrite;
+    private GPUResourceGroup? _groupDepthSample;
 
     /// <summary>
     /// The width of the frame buffer.
@@ -42,7 +45,7 @@ public class RenderTexture : ShaderResource
     public int ColorCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _groupsColorRead.Length;
+        get => _frameBuffer.Colors.Count;
     }
 
     /// <summary>
@@ -59,20 +62,74 @@ public class RenderTexture : ShaderResource
     /// The entries of color view for reading. Usually for read in compute shader.
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<GPUResourceGroup> EntriesRead
+    public IReadOnlyList<GPUResourceGroup> EntriesColorRead
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _groupsColorRead;
+        get
+        {
+            if (_groupsColorRead == null)
+            {
+                _groupsColorRead = CreateGroupsColorRead();
+            }
+            return _groupsColorRead;
+        }
     }
 
     /// <summary>
     /// The entries of color view for writing. Usually for write in compute shader.
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<GPUResourceGroup> EntriesWrite
+    public IReadOnlyList<GPUResourceGroup> EntriesColorWrite
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _groupsColorWrite;
+        get
+        {
+            if (_groupsColorWrite == null)
+            {
+                _groupsColorWrite = CreateGroupsColorWrite();
+            }
+            return _groupsColorWrite;
+        }
+    }
+
+    /// <summary>
+    /// The entries of color view for sampling.
+    /// </summary>
+    /// <value></value>
+    public IReadOnlyList<GPUResourceGroup> EntriesColorSample
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_groupsColorSample == null)
+            {
+                _groupsColorSample = CreateGroupsColorSample();
+            }
+            return _groupsColorSample;
+        }
+    }
+
+    /// <summary>
+    /// The entry of depth view for sampling.
+    /// </summary>
+    /// <value></value>
+    public GPUResourceGroup? EntryDepthSample
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (!HasDepth)
+            {
+                return null;
+            }
+
+            if (_groupDepthSample == null)
+            {
+                _groupDepthSample = CreateGroupSample(_frameBuffer.DepthView!);
+            }
+
+            return _groupDepthSample;
+        }
     }
 
     /// <summary>
@@ -82,7 +139,20 @@ public class RenderTexture : ShaderResource
     public GPUResourceGroup? EntryDepthRead
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _groupDepthRead;
+        get
+        {
+            if (!HasDepth)
+            {
+                return null;
+            }
+
+            if (_groupDepthRead == null)
+            {
+                _groupDepthRead = CreateGroupRead(_frameBuffer.DepthView!);
+            }
+
+            return _groupDepthRead;
+        }
     }
 
     /// <summary>
@@ -92,36 +162,104 @@ public class RenderTexture : ShaderResource
     public GPUResourceGroup? EntryDepthWrite
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _groupDepthWrite;
+        get {
+            if (!HasDepth)
+            {
+                return null;
+            }
+
+            if (_groupDepthWrite == null)
+            {
+                _groupDepthWrite = CreateGroupWrite(_frameBuffer.DepthView!);
+            }
+
+            return _groupDepthWrite;
+        }
     }
 
     internal RenderTexture(
         GPUDevice device,
-        GPUFrameBuffer frameBuffer,
-        GPUResourceGroup[] groupColorRead,
-        GPUResourceGroup[] groupColorWrite,
-        GPUResourceGroup? groupDepthRead,
-        GPUResourceGroup? groupDepthWrite)
+        GPUFrameBuffer frameBuffer, bool isExternal)
     {
         _device = device;
         _frameBuffer = frameBuffer;
-        _groupsColorRead = groupColorRead;
-        _groupsColorWrite = groupColorWrite;
-        _groupDepthRead = groupDepthRead;
-        _groupDepthWrite = groupDepthWrite;
+        _isFrameBufferExternal = isExternal;
+    }
+
+    private GPUResourceGroup[] CreateGroupsColorSample()
+    {
+        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Count];
+        for (int i = 0; i < groups.Length; i++)
+        {
+            groups[i] = CreateGroupSample(_frameBuffer.ColorViews[i]);
+        }
+        return groups;
+    }
+
+    private GPUResourceGroup[] CreateGroupsColorRead()
+    {
+        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Count];
+        for (int i = 0; i < groups.Length; i++)
+        {
+            groups[i] = CreateGroupRead(_frameBuffer.ColorViews[i]);
+        }
+        return groups;
+    }
+
+    private GPUResourceGroup[] CreateGroupsColorWrite()
+    {
+        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Count];
+        for (int i = 0; i < groups.Length; i++)
+        {
+            groups[i] = CreateGroupWrite(_frameBuffer.ColorViews[i]);
+        }
+        return groups;
+    }
+
+    private GPUResourceGroup CreateGroupSample(GPUTextureView view)
+    {
+        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DSampled,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, view),
+                new ResourceBindingEntry(1, _device.SamplerLinearClamp)
+            }
+        );
+
+        return _device.CreateResourceGroup(groupDescriptor);
+    }
+
+    private GPUResourceGroup CreateGroupRead(GPUTextureView view)
+    {
+        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DRead,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, view)
+            }
+        );
+
+        return _device.CreateResourceGroup(groupDescriptor);
+    }
+
+    private GPUResourceGroup CreateGroupWrite(GPUTextureView view)
+    {
+        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTexture2DStorage,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, view)
+            }
+        );
+
+        return _device.CreateResourceGroup(groupDescriptor);
     }
 
     protected override void Dispose(bool disposing)
     {
-        _groupDepthRead?.Dispose();
-        _groupDepthWrite?.Dispose();
 
-        for (int i = 0; i < ColorCount; i++)
+
+        if (!_isFrameBufferExternal)
         {
-            _groupsColorRead[i].Dispose();
-            _groupsColorWrite[i].Dispose();
+            _frameBuffer.Dispose();
         }
-
-        _frameBuffer.Dispose();
     }
 }

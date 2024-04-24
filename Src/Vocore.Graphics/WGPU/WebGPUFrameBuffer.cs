@@ -155,7 +155,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
             _colorTextures[i] = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(colorInfo.format, width, height),
+                BuildTextureDescriptor(colorInfo.format, width, height, false),
                 $"Color Texture {i}");
 
             _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
@@ -176,7 +176,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
             _depthTexture = new WebGPUTexture(
                 renderPass.NativeDevice,
-                BuildTextureDescriptor(depthInfo.format, width, height),
+                BuildTextureDescriptor(depthInfo.format, width, height, true),
                 "depth_texture");
 
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
@@ -211,12 +211,18 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         }
     }
 
-    private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height)
+    private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height, bool isDepth)
     {
+        WGPUTextureUsage usage = WGPUTextureUsage.RenderAttachment | WGPUTextureUsage.TextureBinding | WGPUTextureUsage.CopySrc;
+        if (!isDepth)
+        {
+            usage |= WGPUTextureUsage.StorageBinding;
+        }
+
         return new WGPUTextureDescriptor
         {
             // the texture could be used as a render target, copied from, or sampled from a shader
-            usage = WGPUTextureUsage.RenderAttachment | WGPUTextureUsage.TextureBinding | WGPUTextureUsage.CopySrc,
+            usage = usage,
             dimension = WGPUTextureDimension._2D,
             size = new WGPUExtent3D
             {

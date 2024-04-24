@@ -11,7 +11,7 @@ public struct ResourceBindingEntry
         UseOffset = false;
     }
 
-    public ResourceBindingEntry(uint binding, IGPUBindableResource resource, uint offset, uint size)
+    public ResourceBindingEntry(uint binding, GPUBuffer resource, uint offset, uint size)
     {
         Binding = binding;
         Resource = resource;

@@ -46,7 +46,7 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DRead => noBindGroup;
 
-    public override GPUBindGroup BindGroupStorageTexture2D => noBindGroup;
+    public override GPUBindGroup BindGroupTexture2DStorage => noBindGroup;
 
     public override string Name => "no_gpu_device";
 

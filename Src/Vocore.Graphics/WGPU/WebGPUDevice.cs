@@ -131,7 +131,7 @@ internal partial class WebGPUDevice : GPUDevice
     public override GPUBindGroup BindGroupStorageBuffer { get; }
     public override GPUBindGroup BindGroupTexture2DSampled { get; }
     public override GPUBindGroup BindGroupTexture2DRead { get; }
-    public override GPUBindGroup BindGroupStorageTexture2D { get; }
+    public override GPUBindGroup BindGroupTexture2DStorage { get; }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
@@ -164,7 +164,7 @@ internal partial class WebGPUDevice : GPUDevice
         BindGroupStorageBuffer.Dispose();
         BindGroupTexture2DSampled.Dispose();
         BindGroupTexture2DRead.Dispose();
-        BindGroupStorageTexture2D.Dispose();
+        BindGroupTexture2DStorage.Dispose();
 
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
@@ -647,7 +647,7 @@ internal partial class WebGPUDevice : GPUDevice
             },
         });
 
-        BindGroupStorageTexture2D = CreateBindGroup(new BindGroupDescriptor
+        BindGroupTexture2DStorage = CreateBindGroup(new BindGroupDescriptor
         {
             Name = "default_bind_group_storage_texture",
             Bindings = new BindGroupEntry[]

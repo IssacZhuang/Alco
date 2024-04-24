@@ -214,7 +214,7 @@ public class Game : GameEngine
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
-            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupStorageTexture2D, GraphicsDevice.BindGroupUniformBuffer },
+            new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupTexture2DStorage, GraphicsDevice.BindGroupUniformBuffer },
             "box_blur_pipeline"
         );
 

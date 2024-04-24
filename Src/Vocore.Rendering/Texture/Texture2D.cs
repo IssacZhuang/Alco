@@ -95,7 +95,7 @@ public class Texture2D : Texture
     private GPUResourceGroup CreateResourceGroupStorage()
     {
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupStorageTexture2D,
+            _device.BindGroupTexture2DStorage,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, _textureView),
             }

@@ -79,7 +79,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the write-only 2D texture, which contains a texture view. Can only be used in the compute shader.
     /// </summary>
-    public abstract GPUBindGroup BindGroupStorageTexture2D { get; }
+    public abstract GPUBindGroup BindGroupTexture2DStorage { get; }
 
     /// <summary>
     /// Whether the depth and stencil test enabled.
