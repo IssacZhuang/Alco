@@ -43,6 +43,7 @@ public class Game : GameEngine
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
         _entity = CreateCube(Color);
+        _entity.transform.position = new Vector3(2, 0, 0);
     }
 
     protected override void OnUpdate(float delta)

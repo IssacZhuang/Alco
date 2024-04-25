@@ -25,14 +25,14 @@ namespace Vocore.Rendering
         public Matrix4x4 ViewMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Matrix4x4.CreateLookAt(tranform.position, tranform.position + Vector3.Transform(Vector3.UnitZ, tranform.rotation), Vector3.UnitY);
+            get => Matrix4x4.CreateLookAtLeftHanded(tranform.position, tranform.position + Vector3.Transform(Vector3.UnitZ, tranform.rotation), Vector3.UnitY);
         }
 
 
         public Matrix4x4 ProjectionMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Matrix4x4.CreateOrthographic(width, height, near, far);
+            get => Matrix4x4.CreateOrthographicLeftHanded(width, height, near, far);
         }
 
         public Matrix4x4 ViewProjectionMatrix
