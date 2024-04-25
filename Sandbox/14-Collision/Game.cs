@@ -88,7 +88,6 @@ public class Game : GameEngine
         _camera.FieldOfView = fov / 100f;
         DebugGUI.SameLine();
         DebugGUI.Text("Fov");
-        DebugGUI.Text(mouseWoldPosition.ToString());
 
 
         _camera.UpdateData();
