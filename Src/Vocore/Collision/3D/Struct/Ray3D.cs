@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 
 namespace Vocore
@@ -22,6 +23,14 @@ namespace Vocore
                 origin = start,
                 displacement = end - start
             };
+        }
+
+        // mutiply by scalar
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Ray3D operator *(Ray3D ray, float scalar)
+        {
+            return new Ray3D(ray.origin, ray.displacement * scalar);
         }
 
         public override string ToString()

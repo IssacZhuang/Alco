@@ -22,5 +22,12 @@ namespace Vocore
         {
             return $"origin: {origin}, displacement: {displacement}";
         }
+
+        // mutiply by scalar
+
+        public static Ray2D operator *(Ray2D ray, float scalar)
+        {
+            return new Ray2D(ray.origin, ray.displacement * scalar);
+        }
     }
 }

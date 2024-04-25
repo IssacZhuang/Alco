@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Xml.Serialization;
 using Vocore.Graphics;
 using Vocore.Rendering;
 
@@ -8,6 +9,15 @@ namespace Vocore.GUI;
 
 public static partial class DebugGUI
 {
+    public unsafe static void Slider(int min, int max, ref int value)
+    {
+        float minF = min;
+        float maxF = max;
+        float valueF = value;
+        Slider(minF, maxF, ref valueF);
+        value = (int)valueF;
+    }
+
     public unsafe static void Slider(float min, float max, ref float value)
     {
         Slider(_style.SliderWidth, min, max, ref value);

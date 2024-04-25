@@ -1,4 +1,6 @@
 using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
@@ -43,6 +45,20 @@ namespace Vocore
         public static int4 operator /(int4 a, int4 b)
         {
             return new int4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+        }
+
+        //to vector4
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator Vector4(int4 a)
+        {
+            return new Vector4(a.x, a.y, a.z, a.w);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator int4(Vector4 a)
+        {
+            return new int4((int)a.X, (int)a.Y, (int)a.Z, (int)a.W);
         }
     }
 }

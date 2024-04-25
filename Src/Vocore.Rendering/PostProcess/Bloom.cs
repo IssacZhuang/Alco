@@ -134,8 +134,6 @@ public class Bloom : PostProcess
             {
                 CreateFrameBuffer(width, height, $"bloom_down_sample_frame{i}", out _downSampleFrames[i], out _downSampleGroups[i]);
             }
-
-            Log.Info(width, height);
         }
 
         int upSampleCount = downSampleCount - 1;
@@ -156,8 +154,6 @@ public class Bloom : PostProcess
             {
                 CreateFrameBuffer(width, height, $"bloom_up_sample_frame{i}", out _upSampleFrames[i], out _upSampleGroups[i]);
             }
-
-            Log.Info(width, height);
         }
 
     }

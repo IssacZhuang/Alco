@@ -24,10 +24,10 @@ public class Game : GameEngine
 
         _shader = Assets.Load<Shader>("Rendering/Shader/3D/Unlit.hlsl");
 
-        _camera = Rendering.CreateCameraPerspective(1.03f, 16 / 9, 0.1f, 1000);
+        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
         _camera.Tranform.position.Z = -10;
-        
+        _camera.UpdateData();
 
         _renderer = Rendering.CreateMaterialRenderer();
         _material = new UniversalMaterial(_shader);
@@ -52,11 +52,39 @@ public class Game : GameEngine
         }
 
         _renderer.End();
+
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
+        ShapeBox3D box = new ShapeBox3D(new Vector3(0, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity);
+
+        bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, box, out RaycastHit3D rayCastHit);
+
+        //debug ui
+        DebugGUI.Text("Camera Data");
+        int fov = (int)(_camera.FieldOfView * 100);
+        DebugGUI.Slider(60, 110, ref fov);
+        _camera.FieldOfView = fov / 100f;
+        DebugGUI.SameLine();
+        DebugGUI.Text("Fov");
+
+        if (hit)
+        {
+            DebugGUI.Text("Hit");
+            DebugGUI.Text(rayCastHit.point.ToString());
+        }
+        else
+        {
+            DebugGUI.Text("No Hit");
+        }
+
+        _camera.UpdateData();
     }
+
+
 
     protected override void OnResize(int2 size)
     {
         _camera.AspectRatio = (float)size.x / size.y;
+        _camera.UpdateData();
     }
 
     protected override void OnStop()
