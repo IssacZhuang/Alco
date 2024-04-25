@@ -62,9 +62,32 @@ public partial class RenderingSystem
 
     private static readonly ushort[] IndicesFullScreenQuad = { 0, 1, 2, 0, 2, 3 };
 
+    private static readonly Vertex3D[] VerticesBox =
+    {
+        new(new Vector3(-0.5f, 0.5f, 0.5f), new Vector2(0, 0)),
+        new(new Vector3(0.5f, 0.5f, 0.5f), new Vector2(1, 0)),
+        new(new Vector3(0.5f, -0.5f, 0.5f), new Vector2(1, 1)),
+        new(new Vector3(-0.5f, -0.5f, 0.5f), new Vector2(0, 1)),
+        new(new Vector3(-0.5f, 0.5f, -0.5f), new Vector2(0, 0)),
+        new(new Vector3(0.5f, 0.5f, -0.5f), new Vector2(1, 0)),
+        new(new Vector3(0.5f, -0.5f, -0.5f), new Vector2(1, 1)),
+        new(new Vector3(-0.5f, -0.5f, -0.5f), new Vector2(0, 1))
+    };
+
+    private static readonly ushort[] IndicesBox =
+    {
+        0, 1, 2, 0, 2, 3,
+        1, 5, 6, 1, 6, 2,
+        5, 4, 7, 5, 7, 6,
+        4, 0, 3, 4, 3, 7,
+        4, 5, 1, 4, 1, 0,
+        3, 2, 6, 3, 6, 7
+    };
+
     private Mesh? _spriteMesh;
     private Mesh? _trueTypeMesh;
     private Mesh? _fullScreenMesh;
+    private Mesh? _boxMesh;
 
     public Mesh SpriteMesh
     {
@@ -102,6 +125,16 @@ public partial class RenderingSystem
         }
     }
 
-    
+    public Mesh BoxMesh
+    {
+        get
+        {
+            if (_boxMesh == null)
+            {
+                _boxMesh = CreateMesh(VerticesBox, IndicesBox, "box_mesh");
+            }
+            return _boxMesh;
+        }
+    }
 
 }

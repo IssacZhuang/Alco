@@ -21,6 +21,12 @@ public class UniversalMaterial : Material
         get => _shader;
     }
 
+    public override GPUPipeline Pipeline
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _shader.DefaultPipeline;
+    }
+
     public UniversalMaterial(Shader shader)
     {
         _shader = shader;
@@ -314,18 +320,34 @@ public class UniversalMaterial : Material
 
     public override void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
     {
+        if (_shader.IsGraphicsShader)
+        {
+            PushGraphicsResourceToCommandBuffer(commandBuffer);
+        }
+        else
+        {
+            PushComputeResourceToCommandBuffer(commandBuffer);
+        }
+    }
+
+    private void PushGraphicsResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    {
         for (uint i = 0; i < _slots.Length; i++)
         {
             if (_slots[i].hasValue)
             {
-                if (_shader.IsGraphicsShader)
-                {
-                    commandBuffer.SetGraphicsResources(i, _slots[i].group!);
-                }
-                else if (_shader.IsComputeShader)
-                {
-                    commandBuffer.SetComputeResources(i, _slots[i].group!);
-                }
+                commandBuffer.SetGraphicsResources(i, _slots[i].group!);
+            }
+        }
+    }
+
+    private void PushComputeResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    {
+        for (uint i = 0; i < _slots.Length; i++)
+        {
+            if (_slots[i].hasValue)
+            {
+                commandBuffer.SetComputeResources(i, _slots[i].group!);
             }
         }
     }
