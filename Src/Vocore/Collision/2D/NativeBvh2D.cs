@@ -7,7 +7,7 @@ namespace Vocore
 {
     public unsafe class NativeBvh2D : IDisposable
     {
-
+        private const int ChildCount = 2;
 
         public struct Node
         {
@@ -297,50 +297,8 @@ namespace Vocore
                 return ColliderCastResult2D.None;
             }
 
-            return CastColliderBox(ref colliderBox, _root);
+            return CastCollider(ref colliderBox, _root);
 
-        }
-
-        private ColliderCastResult2D CastColliderBox(ref ColliderBox2D colliderBox, Node node)
-        {
-            if (!colliderBox.GetBoundingBox().Intersects(node.boundingBox)) return ColliderCastResult2D.None;
-
-            if (node.IsLeaf)
-            {
-                if (node.collider.CollidesWith<ColliderBox2D>(colliderBox))
-                {
-                    return new ColliderCastResult2D
-                    {
-                        hit = true,
-                        collider = node.collider
-                    };
-                }
-                else
-                {
-                    return ColliderCastResult2D.None;
-                }
-
-            }
-
-            if (node.left >= 0)
-            {
-                ColliderCastResult2D leftResult = CastColliderBox(ref colliderBox, GetNode(node.left));
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
-            }
-
-            if (node.right >= 0)
-            {
-                ColliderCastResult2D rightResult = CastColliderBox(ref colliderBox, GetNode(node.right));
-                if (rightResult.hit)
-                {
-                    return rightResult;
-                }
-            }
-
-            return ColliderCastResult2D.None;
         }
 
         public ColliderCastResult2D CastColliderSphere(ref ColliderSphere2D colliderSphere)
@@ -350,51 +308,54 @@ namespace Vocore
                 return ColliderCastResult2D.None;
             }
 
-            return CastColliderSphere(ref colliderSphere, _root);
+            return CastCollider(ref colliderSphere, _root);
         }
 
-        private ColliderCastResult2D CastColliderSphere(ref ColliderSphere2D colliderSphere, Node node)
+        private ColliderCastResult2D CastCollider<T>(ref T collider, Node node) where T : unmanaged, ICollider2D
         {
-            if (!colliderSphere.GetBoundingBox().Intersects(node.boundingBox)) return ColliderCastResult2D.None;
+            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            ColliderCastResult2D result = ColliderCastResult2D.None;
+            BoundingBox2D aabb = collider.GetBoundingBox();
 
-            if (node.IsLeaf)
+
+            while (stackCount > 0)
             {
-                if (node.collider.CollidesWith<ColliderSphere2D>(colliderSphere))
+                //Node top = stack.Pop();
+                Node top = stack[--stackCount];
+
+                if (!aabb.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
                 {
-                    return new ColliderCastResult2D
+                    if (top.collider.CollidesWith(collider))
                     {
-                        hit = true,
-                        collider = node.collider
-                    };
+
+                        result.hit = true;
+                        result.collider = top.collider;
+
+                        return result;
+                    }
+
+                    continue;
+
                 }
-                else
+
+                if (top.left >= 0)
                 {
-                    return ColliderCastResult2D.None;
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
                 }
 
             }
 
-            if (node.left >= 0)
-            {
-                ColliderCastResult2D leftResult = CastColliderSphere(ref colliderSphere, GetNode(node.left));
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
-            }
-
-            if (node.right >= 0)
-            {
-                ColliderCastResult2D rightResult = CastColliderSphere(ref colliderSphere, GetNode(node.right));
-                if (rightResult.hit)
-                {
-                    return rightResult;
-                }
-            }
-
-            return ColliderCastResult2D.None;
+            return result;
         }
-
 
         private void BuildBottomTop(NativeArrayList<ColliderRef2D> colliders)
         {

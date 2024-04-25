@@ -7,7 +7,7 @@ namespace Vocore
 {
     public unsafe class NativeBvh3D : IDisposable
     {
-
+        private const int ChildCount = 2;
 
         public struct Node
         {
@@ -245,7 +245,7 @@ namespace Vocore
         private RayCastResult3D CastRayOptimized(ref Ray3D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
-            Node* stack = stackalloc Node[_nodeSize / 2 + 2];
+            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
             int stackCount = 0;
             stack[stackCount++] = node;
             RayCastResult3D result = RayCastResult3D.none;
@@ -296,50 +296,7 @@ namespace Vocore
                 return ColliderCastResult3D.None;
             }
 
-            return CastColliderBox(ref colliderBox, _root);
-        
-        }
-
-        private ColliderCastResult3D CastColliderBox(ref ColliderBox3D colliderBox, Node node)
-        {
-            if (!colliderBox.GetBoundingBox().Intersects(node.boundingBox)) return ColliderCastResult3D.None;
-
-            if (node.IsLeaf)
-            {
-                if (node.collider.CollidesWith<ColliderBox3D>(colliderBox))
-                {
-                    return new ColliderCastResult3D
-                    {
-                        hit = true,
-                        collider = node.collider
-                    };
-                }
-                else
-                {
-                    return ColliderCastResult3D.None;
-                }
-
-            }
-
-            if (node.left >= 0)
-            {
-                ColliderCastResult3D leftResult = CastColliderBox(ref colliderBox, GetNode(node.left));
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
-            }
-
-            if (node.right >= 0)
-            {
-                ColliderCastResult3D rightResult = CastColliderBox(ref colliderBox, GetNode(node.right));
-                if (rightResult.hit)
-                {
-                    return rightResult;
-                }
-            }
-
-            return ColliderCastResult3D.None;
+            return CastCollider(ref colliderBox, _root);
         }
 
         public ColliderCastResult3D CastColliderSphere(ref ColliderSphere3D colliderSphere)
@@ -349,49 +306,54 @@ namespace Vocore
                 return ColliderCastResult3D.None;
             }
 
-            return CastColliderSphere(ref colliderSphere, _root);
+            return CastCollider(ref colliderSphere, _root);
         }
 
-        private ColliderCastResult3D CastColliderSphere(ref ColliderSphere3D colliderSphere, Node node)
+
+        private ColliderCastResult3D CastCollider<T>(ref T collider, Node node) where T : unmanaged, ICollider3D
         {
-            if (!colliderSphere.GetBoundingBox().Intersects(node.boundingBox)) return ColliderCastResult3D.None;
+            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            ColliderCastResult3D result = ColliderCastResult3D.None;
+            BoundingBox3D aabb = collider.GetBoundingBox();
 
-            if (node.IsLeaf)
+
+            while (stackCount > 0)
             {
-                if (node.collider.CollidesWith<ColliderSphere3D>(colliderSphere))
+                //Node top = stack.Pop();
+                Node top = stack[--stackCount];
+
+                if (!aabb.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
                 {
-                    return new ColliderCastResult3D
+                    if (top.collider.CollidesWith(collider))
                     {
-                        hit = true,
-                        collider = node.collider
-                    };
+
+                        result.hit = true;
+                        result.collider = top.collider;
+
+                        return result;
+                    }
+
+                    continue;
+
                 }
-                else
+
+                if (top.left >= 0)
                 {
-                    return ColliderCastResult3D.None;
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
                 }
 
             }
 
-            if (node.left >= 0)
-            {
-                ColliderCastResult3D leftResult = CastColliderSphere(ref colliderSphere, GetNode(node.left));
-                if (leftResult.hit)
-                {
-                    return leftResult;
-                }
-            }
-
-            if (node.right >= 0)
-            {
-                ColliderCastResult3D rightResult = CastColliderSphere(ref colliderSphere, GetNode(node.right));
-                if (rightResult.hit)
-                {
-                    return rightResult;
-                }
-            }
-
-            return ColliderCastResult3D.None;
+            return result;
         }
 
 

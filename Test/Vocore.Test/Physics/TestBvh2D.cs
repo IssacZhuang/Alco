@@ -262,10 +262,10 @@ namespace Vocore.Test
             };
 
             Assert.IsFalse(bvh.CastColliderBox(ref boxCast1).hit);
-            Assert.IsFalse(!bvh.CastColliderBox(ref boxCast2).hit);
+            Assert.IsTrue(bvh.CastColliderBox(ref boxCast2).hit);
 
             Assert.IsFalse(bvh.CastColliderSphere(ref sphereCast1).hit);
-            Assert.IsFalse(!bvh.CastColliderSphere(ref sphereCast2).hit);
+            Assert.IsTrue(bvh.CastColliderSphere(ref sphereCast2).hit);
 
             boxs.Dispose();
             spheres.Dispose();
