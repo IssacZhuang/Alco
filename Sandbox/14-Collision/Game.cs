@@ -10,25 +10,32 @@ using Vocore.GUI;
 public class Game : GameEngine
 {
     //scence
-    private readonly Camera2D _camera;
+    private readonly CameraPerspective _camera;
 
-    private readonly Texture2D _quad;
-    private readonly Shader _spriteShader;
-    private readonly SpriteRenderer _spriteRenderer;
-    private float _intensity = 3;
-    private bool _enabled = true;
+    private readonly Shader _shader;
+    private readonly MaterialRenderer _renderer;
+    private readonly UniversalMaterial _material;
+
+    private readonly List<Entity> _entities = new List<Entity>();
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        //scence
-        _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
-       
-        _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
+        _shader = Assets.Load<Shader>("Rendering/Shader/3D/Unlit.hlsl");
 
-        _camera = Rendering.CreateCamera2D(640, 360, 100);
-        _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
+        _camera = Rendering.CreateCameraPerspective(1.03f, 16 / 9, 0.1f, 1000);
+
+        _camera.Tranform.position.Z = -10;
+        
+
+        _renderer = Rendering.CreateMaterialRenderer();
+        _material = new UniversalMaterial(_shader);
+
+        _material["_camera"] = _camera.Buffer;
+        _material["_texture"] = Rendering.TextureWhite;
+
+        _entities.Add(CreateCube(0xff7777));
     }
 
     protected override void OnUpdate(float delta)
@@ -38,53 +45,29 @@ public class Game : GameEngine
             Stop();
         }
 
-        if (Input.IsKeyDown(KeyCode.Up))
+        _renderer.Begin(Rendering.DefaultFrameBuffer);
+        for (int i = 0; i < _entities.Count; i++)
         {
-            _intensity += 0.1f;
-            Log.Info(_intensity);
+            _entities[i].OnDraw(_renderer);
         }
 
-        if (Input.IsKeyDown(KeyCode.Down))
-        {
-            _intensity -= 0.1f;
-            Log.Info(_intensity);
-        }
+        _renderer.End();
+    }
 
-        Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);
-        Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
-        spritePosition.Y = -spritePosition.Y;
-
-        _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
-        //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
-
-        if(_enabled){
-             _spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
-        }
-       
-
-        _spriteRenderer.End();
-
-        DebugGUI.Text(FrameRate);
-        DebugGUI.SameLine();
-        DebugGUI.Text(_intensity);
-        if (DebugGUI.Button("-0.1"))
-        {
-            _intensity -= 0.1f;
-        }
-        DebugGUI.SameLine();
-        DebugGUI.Slider(0, 5, ref _intensity);
-        DebugGUI.SameLine();
-        if (DebugGUI.Button("+0.1"))
-        {
-            _intensity += 0.1f;
-        }
-        DebugGUI.CheckBox(ref _enabled);
-        
-
+    protected override void OnResize(int2 size)
+    {
+        _camera.AspectRatio = (float)size.x / size.y;
     }
 
     protected override void OnStop()
     {
-       
+
+    }
+
+    private Entity CreateCube(ColorFloat color)
+    {
+        Entity ent = new Entity(Rendering.MeshCube, _material);
+        ent.Color = color;
+        return ent;
     }
 }

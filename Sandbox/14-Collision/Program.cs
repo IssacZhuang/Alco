@@ -5,7 +5,7 @@ using Vocore.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(1280, 720, "Collision"),
+    Window = new WindowSetting(640, 360, "Collision"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
         SwapChainDepthFormat = null

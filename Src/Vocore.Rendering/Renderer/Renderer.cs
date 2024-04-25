@@ -7,22 +7,6 @@ public abstract class Renderer : AutoDisposable
 {
     private int _threadId = Environment.CurrentManagedThreadId;
 
-    private ICamera _camera;
-
-    public ICamera Camera
-    {
-        get => _camera;
-        set
-        {
-            _camera = value;
-        }
-    }
-
-    public Renderer(ICamera camera)
-    {
-        _camera = camera;
-    }
-
 
     public void SetOwnerThread()
     {

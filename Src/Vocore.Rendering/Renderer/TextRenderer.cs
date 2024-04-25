@@ -9,7 +9,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The high performance text renderer. Can only be used in the main thread.
 /// </summary> 
-public class TextRenderer : Renderer
+public class TextRenderer : RendererWithCamera
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -109,7 +109,7 @@ public class TextRenderer : Renderer
         _command.SetGraphicsPipeline(_shader.DefaultPipeline);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.ViewProjectionBuffer);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
         _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadonly);
     }
 

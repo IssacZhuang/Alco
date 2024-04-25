@@ -84,56 +84,56 @@ public partial class RenderingSystem
         3, 2, 6, 3, 6, 7
     };
 
-    private Mesh? _spriteMesh;
-    private Mesh? _trueTypeMesh;
-    private Mesh? _fullScreenMesh;
-    private Mesh? _boxMesh;
+    private Mesh? _meshSprite;
+    private Mesh? _meshTrueType;
+    private Mesh? _mehsFullScreen;
+    private Mesh? _meshCube;
 
-    public Mesh SpriteMesh
+    public Mesh MeshSprite
     {
         get
         {
-            if (_spriteMesh == null)
+            if (_meshSprite == null)
             {
-                _spriteMesh = CreateMesh(VerticesSpriteQuad, IndicesSpriteQuad, "sprite_mesh");
+                _meshSprite = CreateMesh(VerticesSpriteQuad, IndicesSpriteQuad, "sprite_mesh");
             }
-            return _spriteMesh;
+            return _meshSprite;
         }
     }
 
-    public Mesh TrueTypeMesh
+    public Mesh MeshTrueType
     {
         get
         {
-            if (_trueTypeMesh == null)
+            if (_meshTrueType == null)
             {
-                _trueTypeMesh = CreateMesh(VerticesTrueTypeQuad, IndicesTrueTypeQuad, "true_type_mesh");
+                _meshTrueType = CreateMesh(VerticesTrueTypeQuad, IndicesTrueTypeQuad, "true_type_mesh");
             }
-            return _trueTypeMesh;
+            return _meshTrueType;
         }
     }
 
-    public Mesh FullScreenMesh
+    public Mesh MeshFullScreen
     {
         get
         {
-            if (_fullScreenMesh == null)
+            if (_mehsFullScreen == null)
             {
-                _fullScreenMesh = CreateMesh(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
+                _mehsFullScreen = CreateMesh(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
             }
-            return _fullScreenMesh;
+            return _mehsFullScreen;
         }
     }
 
-    public Mesh BoxMesh
+    public Mesh MeshCube
     {
         get
         {
-            if (_boxMesh == null)
+            if (_meshCube == null)
             {
-                _boxMesh = CreateMesh(VerticesBox, IndicesBox, "box_mesh");
+                _meshCube = CreateMesh(VerticesBox, IndicesBox, "box_mesh");
             }
-            return _boxMesh;
+            return _meshCube;
         }
     }
 

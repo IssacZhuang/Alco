@@ -3,7 +3,6 @@
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
 
-#pragma BlendState AlphaBlend
 #pragma DepthStencilState Write
 
 struct Vertex2D {
@@ -19,7 +18,6 @@ struct V2F {
 struct Constants {
   float4x4 model;
   float4 color;
-  float4 uvRect;
 };
 
 DEFINE_STRUCT(0, _camera) { float4x4 viewProjection; };
@@ -32,7 +30,7 @@ V2F vs_main(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = mul(constants.model, float4(input.position, 1.0f));
   output.position = mul(viewProjection, output.position);
-  output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
+  output.uv = input.uv;
   return output;
 }
 

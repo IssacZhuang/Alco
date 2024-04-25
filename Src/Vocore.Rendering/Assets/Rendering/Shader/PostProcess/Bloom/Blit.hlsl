@@ -4,7 +4,7 @@
 #pragma EntryFragment fs_main
 
 #pragma BlendState Additive
-#pragma DepthStencilState Default
+#pragma DepthStencilState Read
 
 
 DEFINE_TEX2D_SAMPLE(0, texture); 

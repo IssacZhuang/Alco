@@ -5,7 +5,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class SpriteRenderer : Renderer
+public class SpriteRenderer : RendererWithCamera
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -41,7 +41,7 @@ public class SpriteRenderer : Renderer
         _command.Begin();
         _command.SetFrameBuffer(target);
         _command.SetGraphicsPipeline(_shader.DefaultPipeline);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.ViewProjectionBuffer);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
     }

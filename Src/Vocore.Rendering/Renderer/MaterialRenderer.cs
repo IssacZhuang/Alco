@@ -6,7 +6,7 @@ public class MaterialRenderer : Renderer
 {
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
-    public MaterialRenderer(GPUDevice device, ICamera camera) : base(camera)
+    public MaterialRenderer(GPUDevice device)
     {
         _device = device;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("material_renderer"));

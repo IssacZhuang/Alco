@@ -11,7 +11,7 @@ public interface ICamera
     /// The view projection matrix of the camera.
     /// </summary>
     /// <value> The GPU resource group containing the GPU buffer of the view projection matrix. </value>
-    public GPUResourceGroup ViewProjectionBuffer { get; }
+    public GPUResourceGroup EntryViewProjection { get; }
 }
 
 

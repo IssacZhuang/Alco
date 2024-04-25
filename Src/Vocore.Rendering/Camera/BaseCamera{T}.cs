@@ -17,9 +17,16 @@ public abstract class BaseCamera<T> : AutoDisposable, ICamera where T : unmanage
     public BaseCamera(RenderingSystem renderingSystem)
     {
         _viewProjectionBuffer = renderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
+        _dirty = true;
     }
 
-    public GPUResourceGroup ViewProjectionBuffer
+    public GraphicsBuffer Buffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _viewProjectionBuffer;
+    }
+
+    public GPUResourceGroup EntryViewProjection
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get

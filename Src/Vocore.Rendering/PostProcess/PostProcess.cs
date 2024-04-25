@@ -21,7 +21,7 @@ public abstract class PostProcess : AutoDisposable
         }
 
         _device = renderingSystem.GraphicsDevice;
-        _mesh = renderingSystem.FullScreenMesh;
+        _mesh = renderingSystem.MeshFullScreen;
     }
 
     public virtual void SetInput(GPUFrameBuffer input)

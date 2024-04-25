@@ -6,6 +6,11 @@ namespace Vocore.Rendering
         {
         }
 
+        public ref Transform3D Tranform
+        {
+            get => ref _data.tranform;
+        }
+
         public float FieldOfView
         {
             get => _data.fov;
