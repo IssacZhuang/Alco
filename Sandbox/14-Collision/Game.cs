@@ -9,6 +9,8 @@ using Vocore.GUI;
 
 public class Game : GameEngine
 {
+    private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
+    private static ColorFloat ColorHit = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
     //scence
     private readonly CameraPerspective _camera;
 
@@ -16,8 +18,11 @@ public class Game : GameEngine
     private readonly MaterialRenderer _renderer;
     private readonly UniversalMaterial _material;
 
-    private readonly List<Entity> _entities = new List<Entity>();
+    private readonly Cube _entity;
 
+    private Plane3D _plane;
+    private Vector3 offset;
+    private bool _isDragging = false;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -35,7 +40,9 @@ public class Game : GameEngine
         _material["_camera"] = _camera.Buffer;
         _material["_texture"] = Rendering.TextureWhite;
 
-        _entities.Add(CreateCube(0xff7777));
+        _plane = new Plane3D(new Vector3(0, 0, 1), 0);
+
+        _entity = CreateCube(Color);
     }
 
     protected override void OnUpdate(float delta)
@@ -46,17 +53,33 @@ public class Game : GameEngine
         }
 
         _renderer.Begin(Rendering.DefaultFrameBuffer);
-        for (int i = 0; i < _entities.Count; i++)
-        {
-            _entities[i].OnDraw(_renderer);
-        }
+        _entity.OnDraw(_renderer);
 
         _renderer.End();
 
         Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
-        ShapeBox3D box = new ShapeBox3D(new Vector3(0, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity);
 
-        bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, box, out RaycastHit3D rayCastHit);
+        bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, _entity.Shape, out RaycastHit3D rayCastHit);
+
+        _entity.Color = hit ? ColorHit : Color;
+
+        _plane.IntersectRay(cameraRay, out Vector3 mouseWoldPosition);
+
+        if (Input.IsMouseDown(Mouse.Left) && hit)
+        {
+            offset = _entity.transform.position - mouseWoldPosition;
+            _isDragging = true;
+        }
+
+        if (_isDragging)
+        {
+            _entity.transform.position = mouseWoldPosition + offset;
+        }
+
+        if (Input.IsMouseUp(Mouse.Left))
+        {
+            _isDragging = false;
+        }
 
         //debug ui
         DebugGUI.Text("Camera Data");
@@ -65,16 +88,8 @@ public class Game : GameEngine
         _camera.FieldOfView = fov / 100f;
         DebugGUI.SameLine();
         DebugGUI.Text("Fov");
+        DebugGUI.Text(mouseWoldPosition.ToString());
 
-        if (hit)
-        {
-            DebugGUI.Text("Hit");
-            DebugGUI.Text(rayCastHit.point.ToString());
-        }
-        else
-        {
-            DebugGUI.Text("No Hit");
-        }
 
         _camera.UpdateData();
     }
@@ -92,9 +107,9 @@ public class Game : GameEngine
 
     }
 
-    private Entity CreateCube(ColorFloat color)
+    private Cube CreateCube(ColorFloat color)
     {
-        Entity ent = new Entity(Rendering.MeshCube, _material);
+        Cube ent = new Cube(Rendering.MeshCube, _material);
         ent.Color = color;
         return ent;
     }

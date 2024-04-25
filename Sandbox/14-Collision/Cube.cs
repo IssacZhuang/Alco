@@ -3,7 +3,7 @@ using Vocore;
 using Vocore.Graphics;
 using Vocore.Rendering;
 
-public class Entity
+public class Cube
 {
     public struct RenderDataPerObject
     {
@@ -16,18 +16,25 @@ public class Entity
     private RenderDataPerObject _renderData;
     public Transform3D transform;
 
+    public ShapeBox3D Shape
+    {
+        get => new ShapeBox3D(transform.position, transform.scale, transform.rotation);
+    }
+
     public ColorFloat Color
     {
         get => _renderData.color;
         set => _renderData.color = value;
     }
 
-    public Entity(Mesh mesh, Material material)
+    public Cube(Mesh mesh, Material material)
     {
         _mesh = mesh;
         _material = material;
         transform = Transform3D.Default;
     }
+
+
 
     public void OnDraw(MaterialRenderer renderer)
     {

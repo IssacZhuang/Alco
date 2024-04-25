@@ -19,5 +19,23 @@ public struct Plane3D
         distance = Vector3.Dot(normal, a);
     }
 
-    
+    public bool IntersectRay(Ray3D ray, out Vector3 hitPoint)
+    {
+        hitPoint = Vector3.Zero;
+        float denominator = Vector3.Dot(normal, ray.displacement);
+        if (denominator == 0)
+        {
+            return false;
+        }
+
+        float t = (distance - Vector3.Dot(normal, ray.origin)) / denominator;
+
+        if (t < 0)
+        {
+            return false;
+        }
+
+        hitPoint = ray.origin + t * ray.displacement;
+        return true;
+    }
 }

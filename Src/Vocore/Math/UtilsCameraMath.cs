@@ -6,6 +6,12 @@ public static class UtilsCameraMath
 {
     public static Ray3D ScreenPointToRay(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix, Vector3 cameraPosition)
     {
+        Vector3 direction = ScreenPointToDirection(screenPoint, screenSize, viewProjMatrix);
+        return new Ray3D(cameraPosition, direction);
+    }
+
+    public static Vector3 ScreenPointToDirection(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix)
+    {
         // Convert screen point to clip space
         Vector2 clipPoint = new Vector2(
             2.0f * screenPoint.X / screenSize.X - 1.0f,
@@ -24,9 +30,6 @@ public static class UtilsCameraMath
             worldPoint /= worldPoint.W;
         }
 
-        // Create ray
-        Vector3 rayOrigin = cameraPosition;
-        Vector3 rayDirection = Vector3.Normalize(new Vector3(worldPoint.X, worldPoint.Y, worldPoint.Z) - rayOrigin);
-        return new Ray3D(rayOrigin, rayDirection);
+        return Vector3.Normalize(new Vector3(worldPoint.X, worldPoint.Y, worldPoint.Z));
     }
 }
