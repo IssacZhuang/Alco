@@ -13,11 +13,16 @@ public static class UtilsCameraMath
         );
 
         // Convert clip point to camera space
-        Vector4 cameraPoint = new Vector4(clipPoint.X, clipPoint.Y, 1.0f, 1.0f);
+        Vector4 cameraPoint = new Vector4(clipPoint, 1.0f, 1.0f);
 
         // Convert camera point to world space
         Matrix4x4.Invert(viewProjMatrix, out Matrix4x4 inverseViewProjection);
         Vector4 worldPoint = Vector4.Transform(cameraPoint, inverseViewProjection);
+
+        if (worldPoint.W != 0)
+        {
+            worldPoint /= worldPoint.W;
+        }
 
         // Create ray
         Vector3 rayOrigin = cameraPosition;
