@@ -54,7 +54,7 @@ namespace Vocore
         public MemoryRef<T> MemoryRef
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new MemoryRef<T>((T*)_ptrBuffer, (uint)_length);
+            get => new MemoryRef<T>((T*)_ptrBuffer, _length);
         }
 
 

@@ -23,12 +23,12 @@ namespace Vocore
     public unsafe readonly ref struct MemoryRef<T> where T : unmanaged
     {
         public ReadOnlySpan<T> Span => new(Pointer, (int)Length);
-        public MemoryRef(T* pointer, uint length)
+        public MemoryRef(T* pointer, int length)
         {
             Pointer = pointer;
             Length = length;
         }
         public readonly T* Pointer { get; }
-        public readonly uint Length { get; }
+        public readonly int Length { get; }
     }
 }

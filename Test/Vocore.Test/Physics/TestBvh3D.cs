@@ -96,19 +96,19 @@ namespace Vocore.Test
             TestContext.WriteLine(bvh.Size + "," + bvh.Capacity);
 
             //warm up
-            bvh.CastBatchRay(rays);
-            bvh.CastBatchRayFast(rays);
+            bvh.CastBatchRay(rays.MemoryRef);
+            bvh.CastBatchRayFast(rays.MemoryRef);
 
             UtilsTest.Benchmark(() =>
             {
-                bvh.CastBatchRay(rays);
+                bvh.CastBatchRay(rays.MemoryRef);
             }, "Ray cast bvh 3D benckmark: ");
 
-            bvh.CastBatchRayFast(rays);
+            bvh.CastBatchRayFast(rays.MemoryRef);
 
             UtilsTest.Benchmark(() =>
             {
-                bvh.CastBatchRayFast(rays);
+                bvh.CastBatchRayFast(rays.MemoryRef);
             }, "Ray cast bvh 3D fast GC Alloc: ");
 
             boxs.Dispose();

@@ -19,7 +19,7 @@ public partial class RenderingSystem
 
         return CreateTexture2D(
             image.Memory.Pointer,
-            image.Memory.Length,
+            (uint)image.Memory.Length,
             (uint)image.Width,
             (uint)image.Height,
             GetPixelSize(targetComponents),
@@ -37,7 +37,7 @@ public partial class RenderingSystem
 
         return CreateTexture2D(
             image.Memory.Pointer,
-            image.Memory.Length,
+            (uint)image.Memory.Length,
             (uint)image.Width,
             (uint)image.Height,
             GetPixelSize(targetComponents),
