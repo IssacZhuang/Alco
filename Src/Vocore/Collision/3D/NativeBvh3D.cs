@@ -65,7 +65,7 @@ namespace Vocore
 
             public void Execute(int index)
             {
-                results[index] = _bvh.CastColliderBox(ref colliderBoxes[index]);
+                results[index] = _bvh.CastCollider(ref colliderBoxes[index]);
             }
         }
 
@@ -83,7 +83,7 @@ namespace Vocore
 
             public void Execute(int index)
             {
-                results[index] = _bvh.CastColliderSphere(ref colliderSpheres[index]);
+                results[index] = _bvh.CastCollider(ref colliderSpheres[index]);
             }
         }
 
@@ -289,28 +289,19 @@ namespace Vocore
             return result;
         }
 
-        public ColliderCastResult3D CastColliderBox(ref ColliderBox3D colliderBox)
+        public ColliderCastResult3D CastCollider<T>(ref T collider) where T : unmanaged, ICollider3D
         {
             if (_nodeSize == 0)
             {
                 return ColliderCastResult3D.None;
             }
 
-            return CastCollider(ref colliderBox, _root);
-        }
-
-        public ColliderCastResult3D CastColliderSphere(ref ColliderSphere3D colliderSphere)
-        {
-            if (_nodeSize == 0)
-            {
-                return ColliderCastResult3D.None;
-            }
-
-            return CastCollider(ref colliderSphere, _root);
+            return CastColliderCore(ref collider, _root);
         }
 
 
-        private ColliderCastResult3D CastCollider<T>(ref T collider, Node node) where T : unmanaged, ICollider3D
+
+        private ColliderCastResult3D CastColliderCore<T>(ref T collider, Node node) where T : unmanaged, ICollider3D
         {
             Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
             int stackCount = 0;

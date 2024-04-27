@@ -38,7 +38,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
         ColliderBox3D* collider = _boxes.UnsafePointer + _boxes.Length - 1;
 
-        _colliders.Add(ColliderRef3D.Create(collider));
+        AddTarget(target, collider);
     }
 
     /// <summary>
@@ -48,7 +48,20 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>    
     public void AddTarget(object target, ShapeSphere3D shape)
     {
+        _spheres.Add(new ColliderSphere3D
+        {
+            shape = shape
+        });
 
+        ColliderSphere3D* collider = _spheres.UnsafePointer + _spheres.Length - 1;
+
+        AddTarget(target, collider);
+    }
+
+    private void AddTarget<T>(object target, T* collider) where T : unmanaged, ICollider3D
+    {
+        _colliders.Add(ColliderRef3D.Create(collider));
+        _targets.Add(target);
     }
 
     /// <summary>
