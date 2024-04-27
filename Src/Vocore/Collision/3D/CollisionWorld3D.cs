@@ -8,6 +8,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     private readonly ParallelScheduler _scheduler;
     private readonly NativeBvh3D _Bvh;
 
+    //the index of the target in the list is the index of the collider in the list
     private readonly List<object> _targets;
     private readonly List<ICollisionCaster> _casters;
 
@@ -108,6 +109,16 @@ public unsafe class CollisionWorld3D : AutoDisposable
     {
         _casterColliders.Add(ColliderRef3D.Create(collider));
         _casters.Add(caster);
+    }
+
+    public void BuildTree()
+    {
+        
+    }
+
+    public void Simulate()
+    {
+
     }
 
     protected override void Dispose(bool disposing)
