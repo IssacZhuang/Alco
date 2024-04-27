@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace Vocore;
 
@@ -10,9 +11,13 @@ public unsafe class CollisionWorld3D : AutoDisposable
     private readonly List<object> _targets;
     private readonly List<ICollisionCaster> _casters;
 
-    private NativeArrayList<ColliderBox3D> _boxes;
-    private NativeArrayList<ColliderSphere3D> _spheres;
-    private NativeArrayList<ColliderRef3D> _colliders;
+    private NativeArrayList<ColliderBox3D> _targetBoxes;
+    private NativeArrayList<ColliderSphere3D> _targetSpheres;
+    private NativeArrayList<ColliderRef3D> _targetColliders;
+
+    private NativeArrayList<ColliderBox3D> _casterBoxes;
+    private NativeArrayList<ColliderSphere3D> _casterSpheres;
+    private NativeArrayList<ColliderRef3D> _casterColliders;
 
     
 
@@ -31,12 +36,12 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>
     public void AddTarget(object target, ShapeBox3D shape)
     {
-        _boxes.Add(new ColliderBox3D
+        _targetBoxes.Add(new ColliderBox3D
         {
             shape = shape
         });
 
-        ColliderBox3D* collider = _boxes.UnsafePointer + _boxes.Length - 1;
+        ColliderBox3D* collider = _targetBoxes.UnsafePointer + _targetBoxes.Length - 1;
 
         AddTarget(target, collider);
     }
@@ -48,19 +53,19 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>    
     public void AddTarget(object target, ShapeSphere3D shape)
     {
-        _spheres.Add(new ColliderSphere3D
+        _targetSpheres.Add(new ColliderSphere3D
         {
             shape = shape
         });
 
-        ColliderSphere3D* collider = _spheres.UnsafePointer + _spheres.Length - 1;
+        ColliderSphere3D* collider = _targetSpheres.UnsafePointer + _targetSpheres.Length - 1;
 
         AddTarget(target, collider);
     }
 
     private void AddTarget<T>(object target, T* collider) where T : unmanaged, ICollider3D
     {
-        _colliders.Add(ColliderRef3D.Create(collider));
+        _targetColliders.Add(ColliderRef3D.Create(collider));
         _targets.Add(target);
     }
 
@@ -71,7 +76,14 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>
     public void AddCaster(ICollisionCaster caster, ShapeBox3D shape)
     {
+        _casterBoxes.Add(new ColliderBox3D
+        {
+            shape = shape
+        });
 
+        ColliderBox3D* collider = _casterBoxes.UnsafePointer + _casterBoxes.Length - 1;
+
+        AddCaster(caster, collider);
     }
 
     /// <summary>
@@ -81,12 +93,34 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>
     public void AddCaster(ICollisionCaster caster, ShapeSphere3D shape)
     {
+        _casterSpheres.Add(new ColliderSphere3D
+        {
+            shape = shape
+        });
 
+        ColliderSphere3D* collider = _casterSpheres.UnsafePointer + _casterSpheres.Length - 1;
+
+        AddCaster(caster, collider);
+    }
+
+
+    private void AddCaster<T>(ICollisionCaster caster, T* collider) where T : unmanaged, ICollider3D
+    {
+        _casterColliders.Add(ColliderRef3D.Create(collider));
+        _casters.Add(caster);
     }
 
     protected override void Dispose(bool disposing)
     {
         _Bvh.Dispose();
         _scheduler.Dispose();
+
+        _targetBoxes.Dispose();
+        _targetSpheres.Dispose();
+        _targetColliders.Dispose();
+
+        _casterBoxes.Dispose();
+        _casterSpheres.Dispose();
+        _casterColliders.Dispose();
     }
 }

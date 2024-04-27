@@ -87,12 +87,31 @@ namespace Vocore
             }
         }
 
+        private class JobCastColliderRef : IJobBatch
+        {
+            private NativeBvh3D _bvh;
+            public ColliderRef3D* colliderSpheres;
+            public ColliderCastResult3D* results;
+
+            public JobCastColliderRef(NativeBvh3D bvh)
+            {
+                _bvh = bvh;
+            }
+
+
+            public void Execute(int index)
+            {
+                results[index] = _bvh.CastCollider(ref colliderSpheres[index]);
+            }
+        }
+
         private readonly ParallelScheduler _scheduler;
         //reuse job
-        private JobCastRay _jobCastRay;
-        private JobCastRayFast _jobCastRayFast;
-        private JobCastColliderBox _jobCastColliderBox;
-        private JobCastColliderSphere _jobCastColliderSphere;
+        private readonly JobCastRay _jobCastRay;
+        private readonly JobCastRayFast _jobCastRayFast;
+        private readonly JobCastColliderBox _jobCastColliderBox;
+        private readonly JobCastColliderSphere _jobCastColliderSphere;
+        private readonly JobCastColliderRef _jobCastColliderRef;
         
 
         private NativeBuffer<Node> _nodes;
@@ -114,6 +133,7 @@ namespace Vocore
             _jobCastRayFast = new JobCastRayFast(this);
             _jobCastColliderBox = new JobCastColliderBox(this);
             _jobCastColliderSphere = new JobCastColliderSphere(this);
+            _jobCastColliderRef = new JobCastColliderRef(this);
             _isDisposed = false;
         }
 
@@ -175,6 +195,17 @@ namespace Vocore
             _jobCastColliderSphere.colliderSpheres = colliders.Pointer;
             _jobCastColliderSphere.results = _batchColliderSphereCastResult.UnsafePointer;
             _scheduler.Run(_jobCastColliderSphere, colliders.Length);
+
+            return _batchColliderSphereCastResult.MemoryRef;
+        }
+
+        public MemoryRef<ColliderCastResult3D> CastBatchColliderRef(MemoryRef<ColliderRef3D> colliders)
+        {
+            _batchColliderSphereCastResult.EnsureSizeWithoutCopy(colliders.Length);
+
+            _jobCastColliderRef.colliderSpheres = colliders.Pointer;
+            _jobCastColliderRef.results = _batchColliderSphereCastResult.UnsafePointer;
+            _scheduler.Run(_jobCastColliderRef, colliders.Length);
 
             return _batchColliderSphereCastResult.MemoryRef;
         }
