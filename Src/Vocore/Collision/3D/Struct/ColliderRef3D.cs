@@ -6,9 +6,9 @@ namespace Vocore
 {
     public unsafe struct ColliderRef3D : ICollider3D
     {
-        private void* _ptr;
-
         private ColliderType _type;
+        private void* _ptr;
+        public int userData;
 
         public bool HasCollider => _ptr != null;
 

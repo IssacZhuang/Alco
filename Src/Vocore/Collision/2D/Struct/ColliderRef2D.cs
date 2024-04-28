@@ -9,6 +9,7 @@ namespace Vocore
         private void* _ptr;
 
         private ColliderType _type;
+        public int userData;
 
         public bool HasCollider => _ptr != null;
 

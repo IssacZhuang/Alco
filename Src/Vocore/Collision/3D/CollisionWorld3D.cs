@@ -6,7 +6,7 @@ namespace Vocore;
 public unsafe class CollisionWorld3D : AutoDisposable
 {
     private readonly ParallelScheduler _scheduler;
-    private readonly NativeBvh3D _Bvh;
+    private readonly NativeBvh3D _bvh;
 
     //the index of the target in the list is the index of the collider in the list
     private readonly List<object> _targets;
@@ -25,7 +25,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     public CollisionWorld3D()
     {
         _scheduler = new ParallelScheduler("collision_world_thread");
-        _Bvh = new NativeBvh3D(_scheduler);
+        _bvh = new NativeBvh3D(_scheduler);
         _targets = new List<object>();
         _casters = new List<ICollisionCaster>();
     }
@@ -66,8 +66,11 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     private void AddTarget<T>(object target, T* collider) where T : unmanaged, ICollider3D
     {
-        _targetColliders.Add(ColliderRef3D.Create(collider));
         _targets.Add(target);
+        int targetIndex = _targets.Count - 1;
+        ColliderRef3D colliderRef = ColliderRef3D.Create(collider);
+        colliderRef.userData = targetIndex;
+        _targetColliders.Add(colliderRef);
     }
 
     /// <summary>
@@ -113,17 +116,28 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     public void BuildTree()
     {
-        
+        _bvh.BuildTree(_targetColliders.MemoryRef);
     }
 
     public void Simulate()
     {
-
+        MemoryRef<ColliderCastResult3D> result = _bvh.CastBatchColliderRef(_casterColliders.MemoryRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D castResult = result[i];
+            if (castResult.hit)
+            {
+                int targetIndex = castResult.collider.userData;
+                object target = _targets[targetIndex];
+                ICollisionCaster caster = _casters[i];
+                caster.OnHit(target);
+            }
+        }
     }
 
     protected override void Dispose(bool disposing)
     {
-        _Bvh.Dispose();
+        _bvh.Dispose();
         _scheduler.Dispose();
 
         _targetBoxes.Dispose();
