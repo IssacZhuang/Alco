@@ -52,41 +52,6 @@ namespace Vocore
             }
         }
 
-        private class JobCastColliderBox : IJobBatch
-        {
-            private NativeBvh3D _bvh;
-            public ColliderBox3D* colliderBoxes;
-            public ColliderCastResult3D* results;
-
-            public JobCastColliderBox(NativeBvh3D bvh)
-            {
-                _bvh = bvh;
-            }
-
-            public void Execute(int index)
-            {
-                results[index] = _bvh.CastCollider(ref colliderBoxes[index]);
-            }
-        }
-
-        private class JobCastColliderSphere : IJobBatch
-        {
-            private NativeBvh3D _bvh;
-            public ColliderSphere3D* colliderSpheres;
-            public ColliderCastResult3D* results;
-
-            public JobCastColliderSphere(NativeBvh3D bvh)
-            {
-                _bvh = bvh;
-            }
-
-
-            public void Execute(int index)
-            {
-                results[index] = _bvh.CastCollider(ref colliderSpheres[index]);
-            }
-        }
-
         private class JobCastColliderRef : IJobBatch
         {
             private NativeBvh3D _bvh;
@@ -109,14 +74,14 @@ namespace Vocore
         //reuse job
         private readonly JobCastRay _jobCastRay;
         private readonly JobCastRayFast _jobCastRayFast;
-        private readonly JobCastColliderBox _jobCastColliderBox;
-        private readonly JobCastColliderSphere _jobCastColliderSphere;
         private readonly JobCastColliderRef _jobCastColliderRef;
         
 
         private NativeBuffer<Node> _nodes;
         private NativeBuffer<RayCastResult3D> _batchRayCastResult;
         private NativeBuffer<ColliderCastResult3D> _batchColliderCastResult;
+
+
         private Node _root;
         private int _nodeSize;
         private bool _isDisposed;
@@ -130,8 +95,6 @@ namespace Vocore
 
             _jobCastRay = new JobCastRay(this);
             _jobCastRayFast = new JobCastRayFast(this);
-            _jobCastColliderBox = new JobCastColliderBox(this);
-            _jobCastColliderSphere = new JobCastColliderSphere(this);
             _jobCastColliderRef = new JobCastColliderRef(this);
             _isDisposed = false;
         }
@@ -143,7 +106,7 @@ namespace Vocore
                 return RayCastResult3D.none;
             }
 
-            return CastRayOptimized(ref ray, _root);
+            return CastRay(ref ray, _root);
         }
 
         public RayCastResult3D CastRayFast(Ray3D ray)
@@ -175,27 +138,6 @@ namespace Vocore
             _jobCastRay.results = _batchRayCastResult.UnsafePointer;
             _scheduler.Run(_jobCastRay, rays.Length);
             return _batchRayCastResult.MemoryRef;
-        }
-
-        public MemoryRef<ColliderCastResult3D> CastBatchColliderBox(MemoryRef<ColliderBox3D> colliders)
-        {
-            _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
-
-            _jobCastColliderBox.colliderBoxes = colliders.Pointer;
-            _jobCastColliderBox.results = _batchColliderCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastColliderBox, colliders.Length);
-            return _batchColliderCastResult.MemoryRef;
-        }
-
-        public MemoryRef<ColliderCastResult3D> CastBatchColliderSphere(MemoryRef<ColliderSphere3D> colliders)
-        {
-            _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
-
-            _jobCastColliderSphere.colliderSpheres = colliders.Pointer;
-            _jobCastColliderSphere.results = _batchColliderCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastColliderSphere, colliders.Length);
-
-            return _batchColliderCastResult.MemoryRef;
         }
 
         public MemoryRef<ColliderCastResult3D> CastBatchColliderRef(MemoryRef<ColliderRef3D> colliders)
@@ -272,7 +214,7 @@ namespace Vocore
             return result;
         }
 
-        private RayCastResult3D CastRayOptimized(ref Ray3D ray, Node node)
+        private RayCastResult3D CastRay(ref Ray3D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
             Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
@@ -375,6 +317,51 @@ namespace Vocore
             }
 
             return result;
+        }
+
+        private void CastColliderCollectorCore<T>(ref T collider, Node node, ref NativeArrayList<ColliderRef3D> result) where T : unmanaged, ICollider3D
+        {
+            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            BoundingBox3D aabb = collider.GetBoundingBox();
+
+
+            while (stackCount > 0)
+            {
+                //Node top = stack.Pop();
+                Node top = stack[--stackCount];
+
+                if (!aabb.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.CollidesWith(collider))
+                    {
+                        ColliderCastResult3D resultItem = new ColliderCastResult3D
+                        {
+                            hit = true,
+                            collider = top.collider
+                        };
+                        result.Add(top.collider);
+                    }
+
+                    continue;
+
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+
+            }
+
         }
 
 
