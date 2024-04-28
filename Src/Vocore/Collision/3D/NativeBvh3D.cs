@@ -70,6 +70,23 @@ namespace Vocore
             }
         }
 
+        private class JobCastColliderRefCollector : IJobBatch
+        {
+            private NativeBvh3D _bvh;
+            public ColliderRef3D* colliders;
+            public NativeArrayList<ColliderRef3D>* results;
+
+            public JobCastColliderRefCollector(NativeBvh3D bvh)
+            {
+                _bvh = bvh;
+            }
+
+            public void Execute(int index)
+            {
+                _bvh.CastColliderCollectorCore(ref colliders[index], _bvh._root, ref results[index]);
+            }
+        } 
+
         private readonly ParallelScheduler _scheduler;
         //reuse job
         private readonly JobCastRay _jobCastRay;
@@ -80,6 +97,7 @@ namespace Vocore
         private NativeBuffer<Node> _nodes;
         private NativeBuffer<RayCastResult3D> _batchRayCastResult;
         private NativeBuffer<ColliderCastResult3D> _batchColliderCastResult;
+        private NativeBuffer<NativeArrayList<ColliderRef3D>> _batchColliderCastResultCollector;
 
 
         private Node _root;
@@ -149,6 +167,18 @@ namespace Vocore
             _scheduler.Run(_jobCastColliderRef, colliders.Length);
 
             return _batchColliderCastResult.MemoryRef;
+        }
+
+        public MemoryRef<NativeArrayList<ColliderRef3D>> CastBatchColliderRefCollector(MemoryRef<ColliderRef3D> colliders)
+        {
+            // EnsureSizeWithoutCopy will cause memory leak here
+            _batchColliderCastResultCollector.EnsureSize(colliders.Length);
+
+            _jobCastColliderRef.colliders = colliders.Pointer;
+            _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
+            _scheduler.Run(_jobCastColliderRef, colliders.Length);
+
+            return _batchColliderCastResultCollector.MemoryRef;
         }
 
         public void BuildTree(MemoryRef<ColliderRef3D> colliders)
@@ -483,6 +513,12 @@ namespace Vocore
             }
 
             _batchRayCastResult.Dispose();
+
+            for (int i = 0; i < _batchColliderCastResultCollector.Length; i++)
+            {
+                _batchColliderCastResultCollector[i].Dispose();
+            }
+
             _nodes.Dispose();
             _isDisposed = true;
         }
