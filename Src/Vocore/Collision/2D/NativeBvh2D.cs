@@ -86,6 +86,24 @@ namespace Vocore
             }
         }
 
+        private class JobCastColliderRef : IJobBatch
+        {
+            private NativeBvh2D _bvh;
+            public ColliderRef2D* colliderSpheres;
+            public ColliderCastResult2D* results;
+
+            public JobCastColliderRef(NativeBvh2D bvh)
+            {
+                _bvh = bvh;
+            }
+
+
+            public void Execute(int index)
+            {
+                results[index] = _bvh.CastCollider(ref colliderSpheres[index]);
+            }
+        }
+
 
         private readonly ParallelScheduler _scheduler;
         //reuse job
@@ -93,11 +111,11 @@ namespace Vocore
         private JobCastRayFast _jobCastRayFast;
         private JobCastColliderBox _jobCastColliderBox;
         private JobCastColliderSphere _jobCastColliderSphere;
+        private readonly JobCastColliderRef _jobCastColliderRef;
 
         private NativeBuffer<Node> _nodes;
         private NativeBuffer<RayCastResult2D> _batchRayCastResult;
-        private NativeBuffer<ColliderCastResult2D> _batchColliderBoxCastResult;
-        private NativeBuffer<ColliderCastResult2D> _batchColliderSphereCastResult;
+        private NativeBuffer<ColliderCastResult2D> _batchColliderCastResult;
         private Node _root;
         private int _nodeSize;
         private bool _isDisposed;
@@ -113,6 +131,7 @@ namespace Vocore
             _jobCastRayFast = new JobCastRayFast(this);
             _jobCastColliderBox = new JobCastColliderBox(this);
             _jobCastColliderSphere = new JobCastColliderSphere(this);
+            _jobCastColliderRef = new JobCastColliderRef(this);
             _isDisposed = false;
         }
 
@@ -160,27 +179,38 @@ namespace Vocore
 
         public MemoryRef<ColliderCastResult2D> CastBatchColliderBox(MemoryRef<ColliderBox2D> colliders)
         {
-            _batchColliderBoxCastResult.EnsureSizeWithoutCopy(colliders.Length);
+            _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
 
             _jobCastColliderBox.colliderBoxes = colliders.Pointer;
-            _jobCastColliderBox.results = _batchColliderBoxCastResult.UnsafePointer;
+            _jobCastColliderBox.results = _batchColliderCastResult.UnsafePointer;
             _scheduler.Run(_jobCastColliderBox, colliders.Length);
 
-            return _batchColliderBoxCastResult.MemoryRef;
+            return _batchColliderCastResult.MemoryRef;
         }
 
         public MemoryRef<ColliderCastResult2D> CastBatchColliderSphere(MemoryRef<ColliderSphere2D> colliders)
         {
-            _batchColliderSphereCastResult.EnsureSizeWithoutCopy(colliders.Length);
+            _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
 
             _jobCastColliderSphere.colliderSpheres = colliders.Pointer;
-            _jobCastColliderSphere.results = _batchColliderSphereCastResult.UnsafePointer;
+            _jobCastColliderSphere.results = _batchColliderCastResult.UnsafePointer;
             _scheduler.Run(_jobCastColliderSphere, colliders.Length);
 
-            return _batchColliderSphereCastResult.MemoryRef;
+            return _batchColliderCastResult.MemoryRef;
         }
 
-        public void BuildTree(NativeArrayList<ColliderRef2D> colliders)
+        public MemoryRef<ColliderCastResult2D> CastBatchColliderRef(MemoryRef<ColliderRef2D> colliders)
+        {
+            _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
+
+            _jobCastColliderRef.colliderSpheres = colliders.Pointer;
+            _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
+            _scheduler.Run(_jobCastColliderRef, colliders.Length);
+
+            return _batchColliderCastResult.MemoryRef;
+        }
+
+        public void BuildTree(MemoryRef<ColliderRef2D> colliders)
         {
             _nodes.EnsureSizeWithoutCopy(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
             BuildBottomTop(colliders);
@@ -347,7 +377,7 @@ namespace Vocore
             return result;
         }
 
-        private void BuildBottomTop(NativeArrayList<ColliderRef2D> colliders)
+        private void BuildBottomTop(MemoryRef<ColliderRef2D> colliders)
         {
             _nodeSize = 0;
 
@@ -435,7 +465,7 @@ namespace Vocore
             };
         }
 
-        private void StartJobBuildLeaf(NativeArrayList<ColliderRef2D> colliders)
+        private void StartJobBuildLeaf(MemoryRef<ColliderRef2D> colliders)
         {
             Node* ptr = _nodes.UnsafePointer;
 

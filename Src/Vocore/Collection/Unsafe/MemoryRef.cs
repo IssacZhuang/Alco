@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
@@ -28,6 +29,21 @@ namespace Vocore
             Pointer = pointer;
             Length = length;
         }
+
+        //indexer
+        /// <summary>
+        /// Unsafe indexer
+        /// </summary>
+        /// <value></value>
+        public ref T this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return ref Pointer[index];
+            }
+        }
+
         public readonly T* Pointer { get; }
         public readonly int Length { get; }
     }

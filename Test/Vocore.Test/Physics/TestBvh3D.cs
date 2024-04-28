@@ -86,11 +86,11 @@ namespace Vocore.Test
             // });
 
             //warm up
-            bvh.BuildTree(colliders);
+            bvh.BuildTree(colliders.MemoryRef);
 
             UtilsTest.Benchmark(() =>
             {
-                bvh.BuildTree(colliders);
+                bvh.BuildTree(colliders.MemoryRef);
             }, "Build BVH 3D tree benchmark: ");
 
             TestContext.WriteLine(bvh.Size + "," + bvh.Capacity);
@@ -179,7 +179,7 @@ namespace Vocore.Test
             NativeBvh3D bvh = new NativeBvh3D(scheduler);
             Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
 
-            bvh.BuildTree(colliders);
+            bvh.BuildTree(colliders.MemoryRef);
 
             //RayCastResult result = bvh.CastRay(ray);
 
@@ -241,7 +241,7 @@ namespace Vocore.Test
             using ParallelScheduler scheduler = new ParallelScheduler();
             NativeBvh3D bvh = new NativeBvh3D(scheduler);
 
-            bvh.BuildTree(colliders);
+            bvh.BuildTree(colliders.MemoryRef);
 
             ColliderBox3D boxCast1 = new ColliderBox3D
             {
