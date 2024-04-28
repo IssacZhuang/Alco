@@ -6,6 +6,7 @@ namespace Vocore;
 public unsafe class CollisionWorld3D : AutoDisposable
 {
     private readonly ParallelScheduler _scheduler;
+    private readonly bool _isSchedulerOwner;
     private readonly NativeBvh3D _bvh;
 
     //the index of the target in the list is the index of the collider in the list
@@ -25,6 +26,26 @@ public unsafe class CollisionWorld3D : AutoDisposable
     public CollisionWorld3D()
     {
         _scheduler = new ParallelScheduler("collision_world_thread");
+        _isSchedulerOwner = true;
+        _bvh = new NativeBvh3D(_scheduler);
+        _targets = new List<object>();
+        _casters = new List<ICollisionCaster>();
+    }
+
+
+    public CollisionWorld3D(int threadCount)
+    {
+        _scheduler = new ParallelScheduler(threadCount, "collision_world_thread");
+        _isSchedulerOwner = true;
+        _bvh = new NativeBvh3D(_scheduler);
+        _targets = new List<object>();
+        _casters = new List<ICollisionCaster>();
+    }
+
+    public CollisionWorld3D(ParallelScheduler scheduler)
+    {
+        _scheduler = scheduler;
+        _isSchedulerOwner = false;
         _bvh = new NativeBvh3D(_scheduler);
         _targets = new List<object>();
         _casters = new List<ICollisionCaster>();
@@ -64,14 +85,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
         AddTarget(target, collider);
     }
 
-    private void AddTarget<T>(object target, T* collider) where T : unmanaged, ICollider3D
-    {
-        _targets.Add(target);
-        int targetIndex = _targets.Count - 1;
-        ColliderRef3D colliderRef = ColliderRef3D.Create(collider);
-        colliderRef.userData = targetIndex;
-        _targetColliders.Add(colliderRef);
-    }
+
 
     /// <summary>
     /// Add object that can hit other objects. This object can only hit other objects but cannot be hit.
@@ -107,13 +121,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
         AddCaster(caster, collider);
     }
 
-
-    private void AddCaster<T>(ICollisionCaster caster, T* collider) where T : unmanaged, ICollider3D
-    {
-        _casterColliders.Add(ColliderRef3D.Create(collider));
-        _casters.Add(caster);
-    }
-
     public void BuildTree()
     {
         _bvh.BuildTree(_targetColliders.MemoryRef);
@@ -135,10 +142,53 @@ public unsafe class CollisionWorld3D : AutoDisposable
         }
     }
 
+
+    public void ClearTargets()
+    {
+        _targets.Clear();
+        _targetBoxes.Clear();
+        _targetSpheres.Clear();
+        _targetColliders.Clear();
+    }
+
+    public void ClearCasters()
+    {
+        _casters.Clear();
+        _casterBoxes.Clear();
+        _casterSpheres.Clear();
+        _casterColliders.Clear();
+    }
+
+    public void ClearAll()
+    {
+        ClearTargets();
+        ClearCasters();
+    }
+
+    private void AddTarget<T>(object target, T* collider) where T : unmanaged, ICollider3D
+    {
+        _targets.Add(target);
+        int targetIndex = _targets.Count - 1;
+        ColliderRef3D colliderRef = ColliderRef3D.Create(collider);
+        colliderRef.userData = targetIndex;
+        _targetColliders.Add(colliderRef);
+    }
+
+
+    private void AddCaster<T>(ICollisionCaster caster, T* collider) where T : unmanaged, ICollider3D
+    {
+        _casterColliders.Add(ColliderRef3D.Create(collider));
+        _casters.Add(caster);
+    }
+
     protected override void Dispose(bool disposing)
     {
+        if (_isSchedulerOwner)
+        {
+            _scheduler.Dispose();
+        }
+
         _bvh.Dispose();
-        _scheduler.Dispose();
 
         _targetBoxes.Dispose();
         _targetSpheres.Dispose();
