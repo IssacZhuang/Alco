@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
+
 namespace Vocore;
 
 public interface ICollisionCaster
 {
-    void OnHit(object other);
+    void OnHit(IReadOnlyList<object> hitObjects);
 }   

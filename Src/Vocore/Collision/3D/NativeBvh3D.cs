@@ -74,7 +74,7 @@ namespace Vocore
         {
             private NativeBvh3D _bvh;
             public ColliderRef3D* colliders;
-            public NativeArrayList<ColliderRef3D>* results;
+            public NativeArrayList<ColliderCastResult3D>* results;
 
             public JobCastColliderRefCollector(NativeBvh3D bvh)
             {
@@ -83,7 +83,9 @@ namespace Vocore
 
             public void Execute(int index)
             {
-                _bvh.CastColliderCollectorCore(ref colliders[index], _bvh._root, ref results[index]);
+                //TODO: this is tmp operation, it will cause memory leak
+                results[index] = new NativeArrayList<ColliderCastResult3D>(4);
+                _bvh.CastColliderCollectorCore(ref colliders[index], _bvh._root, results + index);
             }
         } 
 
@@ -92,12 +94,13 @@ namespace Vocore
         private readonly JobCastRay _jobCastRay;
         private readonly JobCastRayFast _jobCastRayFast;
         private readonly JobCastColliderRef _jobCastColliderRef;
-        
+        private readonly JobCastColliderRefCollector _jobCastColliderRefCollector;
+
 
         private NativeBuffer<Node> _nodes;
         private NativeBuffer<RayCastResult3D> _batchRayCastResult;
         private NativeBuffer<ColliderCastResult3D> _batchColliderCastResult;
-        private NativeBuffer<NativeArrayList<ColliderRef3D>> _batchColliderCastResultCollector;
+        private NativeBuffer<NativeArrayList<ColliderCastResult3D>> _batchColliderCastResultCollector;
 
 
         private Node _root;
@@ -114,6 +117,7 @@ namespace Vocore
             _jobCastRay = new JobCastRay(this);
             _jobCastRayFast = new JobCastRayFast(this);
             _jobCastColliderRef = new JobCastColliderRef(this);
+            _jobCastColliderRefCollector = new JobCastColliderRefCollector(this);
             _isDisposed = false;
         }
 
@@ -169,14 +173,14 @@ namespace Vocore
             return _batchColliderCastResult.MemoryRef;
         }
 
-        public MemoryRef<NativeArrayList<ColliderRef3D>> CastBatchColliderRefCollector(MemoryRef<ColliderRef3D> colliders)
+        public MemoryRef<NativeArrayList<ColliderCastResult3D>> CastBatchColliderRefCollector(MemoryRef<ColliderRef3D> colliders)
         {
             // EnsureSizeWithoutCopy will cause memory leak here
             _batchColliderCastResultCollector.EnsureSize(colliders.Length);
 
-            _jobCastColliderRef.colliders = colliders.Pointer;
-            _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastColliderRef, colliders.Length);
+            _jobCastColliderRefCollector.colliders = colliders.Pointer;
+            _jobCastColliderRefCollector.results = _batchColliderCastResultCollector.UnsafePointer;
+            _scheduler.Run(_jobCastColliderRefCollector, colliders.Length);
 
             return _batchColliderCastResultCollector.MemoryRef;
         }
@@ -349,7 +353,7 @@ namespace Vocore
             return result;
         }
 
-        private void CastColliderCollectorCore<T>(ref T collider, Node node, ref NativeArrayList<ColliderRef3D> result) where T : unmanaged, ICollider3D
+        private void CastColliderCollectorCore<T>(ref T collider, Node node, NativeArrayList<ColliderCastResult3D>* result) where T : unmanaged, ICollider3D
         {
             Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
             int stackCount = 0;
@@ -373,7 +377,7 @@ namespace Vocore
                             hit = true,
                             collider = top.collider
                         };
-                        result.Add(top.collider);
+                        result->Add(resultItem);
                     }
 
                     continue;

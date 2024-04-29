@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -9,9 +10,12 @@ public unsafe class CollisionWorld3D : AutoDisposable
     private readonly bool _isSchedulerOwner;
     private readonly NativeBvh3D _bvh;
 
+    public NativeBvh3D Bvh => _bvh;
+
     //the index of the target in the list is the index of the collider in the list
-    private readonly List<object> _targets;
-    private readonly List<ICollisionCaster> _casters;
+    private readonly List<object> _targets = new List<object>();
+    private readonly List<object> _hitTargets = new List<object>();
+    private readonly List<ICollisionCaster> _casters = new List<ICollisionCaster>();
 
     private NativeArrayList<ColliderBox3D> _targetBoxes;
     private NativeArrayList<ColliderSphere3D> _targetSpheres;
@@ -28,8 +32,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
         _scheduler = new ParallelScheduler("collision_world_thread");
         _isSchedulerOwner = true;
         _bvh = new NativeBvh3D(_scheduler);
-        _targets = new List<object>();
-        _casters = new List<ICollisionCaster>();
     }
 
 
@@ -38,8 +40,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
         _scheduler = new ParallelScheduler(threadCount, "collision_world_thread");
         _isSchedulerOwner = true;
         _bvh = new NativeBvh3D(_scheduler);
-        _targets = new List<object>();
-        _casters = new List<ICollisionCaster>();
     }
 
     public CollisionWorld3D(ParallelScheduler scheduler)
@@ -47,8 +47,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
         _scheduler = scheduler;
         _isSchedulerOwner = false;
         _bvh = new NativeBvh3D(_scheduler);
-        _targets = new List<object>();
-        _casters = new List<ICollisionCaster>();
     }
 
     /// <summary>
@@ -128,16 +126,41 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     public void Simulate()
     {
-        MemoryRef<ColliderCastResult3D> result = _bvh.CastBatchColliderRef(_casterColliders.MemoryRef);
-        for (int i = 0; i < result.Length; i++)
+        // MemoryRef<NativeArrayList<ColliderCastResult3D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
+        // for (int i = 0; i < _casters.Count; i++)
+        // {
+        //     NativeArrayList<ColliderCastResult3D> castResults = result[i];
+        //     _hitTargets.Clear();
+        //     for (int j = 0; j < castResults.Length; j++)
+        //     {
+        //         ColliderCastResult3D castResult = castResults[j];
+        //         int targetIndex = castResult.collider.userData;
+        //         _hitTargets.Add(_targets[targetIndex]);
+        //     }
+
+        //     ICollisionCaster caster = _casters[i];
+        //     caster.OnHit(_hitTargets);
+        // }
+
+        // MemoryRef<ColliderCastResult3D> result = _bvh.CastBatchColliderRef(_casterColliders.MemoryRef);
+        // for (int i = 0; i < _casters.Count; i++)
+        // {
+        //     ColliderCastResult3D castResult = result[i];
+        //     if (castResult.hit)
+        //     {
+        //         ICollisionCaster caster = _casters[i];
+        //         caster.OnHit([_targets[castResult.collider.userData]]);
+        //     }
+        // }
+
+        for (int i = 0; i < _casters.Count; i++)
         {
-            ColliderCastResult3D castResult = result[i];
-            if (castResult.hit)
+            ICollisionCaster caster = _casters[i];
+            ColliderCastResult3D result =  _bvh.CastCollider(ref _casterColliders.UnsafePointer[i]);
+            if (result.hit)
             {
-                int targetIndex = castResult.collider.userData;
-                object target = _targets[targetIndex];
-                ICollisionCaster caster = _casters[i];
-                caster.OnHit(target);
+                int targetIndex = result.collider.userData;
+                caster.OnHit(new object[] { _targets[targetIndex] });
             }
         }
     }
