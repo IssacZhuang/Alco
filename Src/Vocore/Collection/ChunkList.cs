@@ -15,6 +15,32 @@ namespace Vocore
         public int ChunkSize => Chunk.MaxCount;
         public bool IsReadOnly => false;
 
+        public T this[int index]
+        {
+            get
+            {
+                if (index >= _count)
+                {
+                    throw new IndexOutOfRangeException(nameof(index));
+                }
+
+                int chunkIndex = index / Chunk.MaxCount;
+                int elementIndex = index % Chunk.MaxCount;
+                return _chunks[chunkIndex][elementIndex];
+            }
+            set
+            {
+                if (index >= _count)
+                {
+                    throw new IndexOutOfRangeException(nameof(index));
+                }
+
+                int chunkIndex = index / Chunk.MaxCount;
+                int elementIndex = index % Chunk.MaxCount;
+                _chunks[chunkIndex].Replace(elementIndex, value);
+            }
+        }
+
         public ChunkList()
         {
             _chunks = new List<Chunk>();
