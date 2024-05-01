@@ -65,7 +65,7 @@ public class Test_Native
 
         List<int> list = new List<int>();
 
-        NativeChunkList<int> chunkList = new NativeChunkList<int>();
+        using NativeChunkList<int> chunkList = new NativeChunkList<int>();
 
         UtilsTest.Benchmark(() =>
         {
@@ -92,7 +92,7 @@ public class Test_Native
         }
 
         sw.Stop();
-        TestContext.WriteLine($"ChunkList add element: {sw.ElapsedMilliseconds} ms");
+        TestContext.WriteLine($"Native ChunkList add element: {sw.ElapsedMilliseconds} ms");
 
     }
 
@@ -103,7 +103,7 @@ public class Test_Native
 
         List<int> list = new List<int>();
 
-        NativeChunkList<int> chunkList = new NativeChunkList<int>();
+        using NativeChunkList<int> chunkList = new NativeChunkList<int>();
 
         for (int i = 0; i < count; i++)
         {
@@ -135,7 +135,7 @@ public class Test_Native
         }
 
         sw.Stop();
-        TestContext.WriteLine($"ChunkList remove element: {sw.ElapsedMilliseconds} ms");
+        TestContext.WriteLine($"Native ChunkList remove element: {sw.ElapsedMilliseconds} ms");
 
     }
 }

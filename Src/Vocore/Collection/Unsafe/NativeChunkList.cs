@@ -14,7 +14,6 @@ public unsafe struct NativeChunkList<T> : IDisposable where T : unmanaged
     {
         public fixed byte data[BlockSize];
         public T* self;
-        public int stride;
         public int length;
         
         public T this[int index]
@@ -46,7 +45,7 @@ public unsafe struct NativeChunkList<T> : IDisposable where T : unmanaged
         }
     }
 
-    
+
 
     private NativeArrayList<nint> _blocks;
     private int _count;
@@ -77,11 +76,9 @@ public unsafe struct NativeChunkList<T> : IDisposable where T : unmanaged
     public void Add(T element)
     {
         EnsureSize();
-
-        //*Access(_count) = element;
-        Block* block = (Block*)_blocks[_currentBlockIndex];
+        Block* block = (Block*)_blocks.UnsafePointer[_currentBlockIndex];
         block->Add(element);
-        if(block->length == ItemPerBlock)
+        if (block->length >= ItemPerBlock)
         {
             _currentBlockIndex++;
         }
@@ -142,21 +139,25 @@ public unsafe struct NativeChunkList<T> : IDisposable where T : unmanaged
 
     private void EnsureSize()
     {
-        if (_blocks.Length * ItemPerBlock <= _count)
+        if (_currentBlockIndex >= _blocks.Length)
         {
-            Block* block = (Block*)Alloc(BlockSize);
-            block->self = (T*)block->data;
-            block->stride = Stride;
-            block->length = 0;
-            _blocks.Add((nint)block);
+            AddBlock();
         }
+    }
+
+    private void AddBlock()
+    {
+        Block* block = Alloc<Block>(1);
+        block->self = (T*)block;
+        block->length = 0;
+        _blocks.Add((nint)block);
     }
 
     public void Dispose()
     {
         for (int i = 0; i < _blocks.Length; i++)
         {
-            Free((void*)_blocks[i]);
+            Free(_blocks[i]);
         }
 
         _blocks.Dispose();

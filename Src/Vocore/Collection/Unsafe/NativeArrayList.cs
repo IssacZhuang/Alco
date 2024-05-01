@@ -14,7 +14,6 @@ namespace Vocore
         private void* _ptrBuffer;
         private int _length;
         private int _capacity;
-        private int _preAllocSize;
         private bool _isDisposed;
         private bool _autoCompress;
         public bool AutoCompress { get => _autoCompress; set => _autoCompress = value; }
@@ -36,13 +35,6 @@ namespace Vocore
         public int Count => _length;
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
-        public int DefaultCapacity
-        {
-            get
-            {
-                return _preAllocSize > 0 ? _preAllocSize : DefaultSize;
-            }
-        }
 
         public int Capacity
         {
@@ -79,9 +71,8 @@ namespace Vocore
             _ptrBuffer = UtilsMemory.Alloc(_stride * size);
             _length = 0;
             _capacity = size;
-            _preAllocSize = size;
             _isDisposed = false;
-            _autoCompress = true;
+            _autoCompress = false;
         }
 
         public NativeArrayList(int size, bool autoCompress)
@@ -90,7 +81,6 @@ namespace Vocore
             _ptrBuffer = UtilsMemory.Alloc(_stride * size);
             _length = 0;
             _capacity = size;
-            _preAllocSize = size;
             _isDisposed = false;
             _autoCompress = autoCompress;
         }
@@ -159,7 +149,7 @@ namespace Vocore
 
         public void Clear()
         {
-            if (AutoCompress) Resize(DefaultCapacity);
+            if (AutoCompress) Resize(DefaultSize);
             _length = 0;
         }
 
@@ -173,7 +163,7 @@ namespace Vocore
 
         private void Resize(int size)
         {
-            if (size < DefaultCapacity) size = DefaultCapacity;
+            if (size < DefaultSize) size = DefaultSize;
 
             void* tmpPtr = UtilsMemory.Alloc(_stride * size);
 
@@ -194,7 +184,7 @@ namespace Vocore
                 Resize(_capacity * 2);
             }
 
-            if (AutoCompress && size > DefaultCapacity && size < _capacity / 2)
+            if (AutoCompress && size > DefaultSize && size < _capacity / 2)
             {
                 Resize(_capacity / 2);
             }
