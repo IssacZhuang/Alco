@@ -1,6 +1,7 @@
 namespace Vocore.Test;
 
 using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Vocore.Unsafe;
@@ -8,20 +9,40 @@ using Vocore.Unsafe;
 public class Test_Native
 {
     [Test(Description = "native chunk list add")]
-    public void TestNativeChunkListAdd()
+    public unsafe void TestMiniHeapAlloc()
     {
-        using NativeChunkList<int> list = new NativeChunkList<int>();
+        using MiniHeap<int> heap = new MiniHeap<int>();
+        using NativeArrayList<IntPtr> verify = new NativeArrayList<IntPtr>();
         int count = 100;
         for (int i = 0; i < count; i++)
         {
-            list.Add(i);
+            verify.Add(new nint(heap.Alloc(i)));
         }
 
         bool result = true;
 
         for (int i = 0; i < count; i++)
         {
-            if (list[i] != i)
+            int* ptr = (int*)verify[i];
+            if (*ptr != i)
+            {
+                result = false;
+                break;
+            }
+        }
+
+        //reallocation
+        heap.Reset();
+        verify.Clear();
+        for (int i = 0; i < count; i++)
+        {
+            verify.Add(new nint(heap.Alloc(i)));
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            int* ptr = (int*)verify[i];
+            if (*ptr != i)
             {
                 result = false;
                 break;
@@ -32,40 +53,15 @@ public class Test_Native
 
     }
 
-    [Test(Description = "native chunk list remove")]
-    public void TestNativeChunkListRemove()
-    {
-        using NativeChunkList<int> list = new NativeChunkList<int>();
-        int count = 100;
-        for (int i = 0; i < count; i++)
-        {
-            list.Add(i);
-        }
 
-        list.Remove(5);
-
-        bool result = true;
-
-        for (int i = 0; i < count-1; i++)
-        {
-            if (list[i] == 5)
-            {
-                result = false;
-                break;
-            }
-        }
-
-        Assert.IsTrue(result);
-    }
-
-    [Test(Description = "native chunkList vs List add element performance")]
-    public void TestVsList()
+    [Test(Description = "mini heap alloc vs List add element performance")]
+    public unsafe void TestMiniHeapVsList()
     {
         int count = 10000000;
 
         List<int> list = new List<int>();
 
-        using NativeChunkList<int> chunkList = new NativeChunkList<int>();
+        using MiniHeap<int> chunkList = new MiniHeap<int>();
 
         UtilsTest.Benchmark(() =>
         {
@@ -75,67 +71,16 @@ public class Test_Native
             }
         }, "List add element");
 
-        //boxing happens
-        // UtilsTest.Benchmark(() =>
-        // {
-        //     for (int i = 0; i < count; i++)
-        //     {
-        //         chunkList.Add(i);
-        //     }
-        // }, "ChunkList add element");
 
         Stopwatch sw = new Stopwatch();
         sw.Start();
         for (int i = 0; i < count; i++)
         {
-            chunkList.Add(i);
+            chunkList.Alloc(i);
         }
 
         sw.Stop();
-        TestContext.WriteLine($"Native ChunkList add element: {sw.ElapsedMilliseconds} ms");
-
-    }
-
-    [Test(Description = "native chunkList vs List remove element performance")]
-    public void TestVsListRemove()
-    {
-        int count = 100000;
-
-        List<int> list = new List<int>();
-
-        using NativeChunkList<int> chunkList = new NativeChunkList<int>();
-
-        for (int i = 0; i < count; i++)
-        {
-            list.Add(i);
-            chunkList.Add(i);
-        }
-
-        UtilsTest.Benchmark(() =>
-        {
-            for (int i = 0; i < count; i++)
-            {
-                list.Remove(i);
-            }
-        }, "List remove element");
-
-        // UtilsTest.Benchmark(() =>
-        // {
-        //     for (int i = 0; i < count; i++)
-        //     {
-        //         chunkList.Remove(i);
-        //     }
-        // }, "ChunkList remove element");
-
-        Stopwatch sw = new Stopwatch();
-        sw.Start();
-        for (int i = 0; i < count; i++)
-        {
-            chunkList.Remove(i);
-        }
-
-        sw.Stop();
-        TestContext.WriteLine($"Native ChunkList remove element: {sw.ElapsedMilliseconds} ms");
+        TestContext.WriteLine($"Mini heap alloc element: {sw.ElapsedMilliseconds} ms");
 
     }
 }
