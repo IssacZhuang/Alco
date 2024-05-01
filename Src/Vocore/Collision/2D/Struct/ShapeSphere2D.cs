@@ -27,5 +27,10 @@ namespace Vocore
                 radius = radius * math.max(parent.scale.X, parent.scale.Y)
             };
         }
+
+        public override string ToString()
+        {
+            return $"Sphere: {center}, {radius}";
+        }
     }
 }

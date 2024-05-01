@@ -40,6 +40,11 @@ namespace Vocore
         {
             return UtilsCollision3D.RayBox(ray, shape, out hitInfo);
         }
+
+        public override string ToString()
+        {
+            return $"Box Collider: {shape}";
+        }
     }
 
 }

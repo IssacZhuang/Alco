@@ -60,6 +60,11 @@ namespace Vocore
             hitInfo = new RaycastHit3D();
             return false;
         }
+
+        internal T DebugGetCollder<T>() where T : unmanaged, ICollider3D
+        {
+            return *(T*)_ptr;
+        }
     }
 }
 

@@ -32,6 +32,12 @@ namespace Vocore
             };
         }
 
+
+        public override string ToString()
+        {
+            return $"Sphere: {center}, {radius}";
+        }
+
     }
 }
 

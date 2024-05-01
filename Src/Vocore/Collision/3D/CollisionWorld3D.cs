@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Vocore.Unsafe;
 
 namespace Vocore;
 
@@ -17,12 +18,12 @@ public unsafe class CollisionWorld3D : AutoDisposable
     private readonly List<object> _hitTargets = new List<object>();
     private readonly List<ICollisionCaster> _casters = new List<ICollisionCaster>();
 
-    private NativeArrayList<ColliderBox3D> _targetBoxes;
-    private NativeArrayList<ColliderSphere3D> _targetSpheres;
+    private MiniHeap<ColliderBox3D> _targetBoxes;
+    private MiniHeap<ColliderSphere3D> _targetSpheres;
     private NativeArrayList<ColliderRef3D> _targetColliders;
 
-    private NativeArrayList<ColliderBox3D> _casterBoxes;
-    private NativeArrayList<ColliderSphere3D> _casterSpheres;
+    private MiniHeap<ColliderBox3D> _casterBoxes;
+    private MiniHeap<ColliderSphere3D> _casterSpheres;
     private NativeArrayList<ColliderRef3D> _casterColliders;
 
     
@@ -56,12 +57,10 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>
     public void AddTarget(object target, ShapeBox3D shape)
     {
-        _targetBoxes.Add(new ColliderBox3D
+        ColliderBox3D* collider = _targetBoxes.Alloc(new ColliderBox3D
         {
             shape = shape
         });
-
-        ColliderBox3D* collider = _targetBoxes.UnsafePointer + _targetBoxes.Length - 1;
 
         AddTarget(target, collider);
     }
@@ -73,12 +72,10 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>    
     public void AddTarget(object target, ShapeSphere3D shape)
     {
-        _targetSpheres.Add(new ColliderSphere3D
+        ColliderSphere3D* collider = _targetSpheres.Alloc(new ColliderSphere3D
         {
             shape = shape
         });
-
-        ColliderSphere3D* collider = _targetSpheres.UnsafePointer + _targetSpheres.Length - 1;
 
         AddTarget(target, collider);
     }
@@ -92,12 +89,10 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>
     public void AddCaster(ICollisionCaster caster, ShapeBox3D shape)
     {
-        _casterBoxes.Add(new ColliderBox3D
+        ColliderBox3D* collider = _casterBoxes.Alloc(new ColliderBox3D
         {
             shape = shape
         });
-
-        ColliderBox3D* collider = _casterBoxes.UnsafePointer + _casterBoxes.Length - 1;
 
         AddCaster(caster, collider);
     }
@@ -109,12 +104,10 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="shape"> Shape of the object. </param>
     public void AddCaster(ICollisionCaster caster, ShapeSphere3D shape)
     {
-        _casterSpheres.Add(new ColliderSphere3D
+        ColliderSphere3D* collider = _casterSpheres.Alloc(new ColliderSphere3D
         {
             shape = shape
         });
-
-        ColliderSphere3D* collider = _casterSpheres.UnsafePointer + _casterSpheres.Length - 1;
 
         AddCaster(caster, collider);
     }
@@ -126,21 +119,21 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     public void Simulate()
     {
-        // MemoryRef<NativeArrayList<ColliderCastResult3D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
-        // for (int i = 0; i < _casters.Count; i++)
-        // {
-        //     NativeArrayList<ColliderCastResult3D> castResults = result[i];
-        //     _hitTargets.Clear();
-        //     for (int j = 0; j < castResults.Length; j++)
-        //     {
-        //         ColliderCastResult3D castResult = castResults[j];
-        //         int targetIndex = castResult.collider.userData;
-        //         _hitTargets.Add(_targets[targetIndex]);
-        //     }
+        MemoryRef<NativeArrayList<ColliderCastResult3D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
+        for (int i = 0; i < _casters.Count; i++)
+        {
+            NativeArrayList<ColliderCastResult3D> castResults = result[i];
+            _hitTargets.Clear();
+            for (int j = 0; j < castResults.Length; j++)
+            {
+                ColliderCastResult3D castResult = castResults[j];
+                int targetIndex = castResult.collider.userData;
+                _hitTargets.Add(_targets[targetIndex]);
+            }
 
-        //     ICollisionCaster caster = _casters[i];
-        //     caster.OnHit(_hitTargets);
-        // }
+            ICollisionCaster caster = _casters[i];
+            caster.OnHit(_hitTargets);
+        }
 
         // MemoryRef<ColliderCastResult3D> result = _bvh.CastBatchColliderRef(_casterColliders.MemoryRef);
         // for (int i = 0; i < _casters.Count; i++)
@@ -153,32 +146,32 @@ public unsafe class CollisionWorld3D : AutoDisposable
         //     }
         // }
 
-        for (int i = 0; i < _casters.Count; i++)
-        {
-            ICollisionCaster caster = _casters[i];
-            ColliderCastResult3D result =  _bvh.CastCollider(ref _casterColliders.UnsafePointer[i]);
-            if (result.hit)
-            {
-                int targetIndex = result.collider.userData;
-                caster.OnHit(new object[] { _targets[targetIndex] });
-            }
-        }
+        // for (int i = 0; i < _casters.Count; i++)
+        // {
+        //     ICollisionCaster caster = _casters[i];
+        //     ColliderCastResult3D result =  _bvh.CastCollider(ref _casterColliders.UnsafePointer[i]);
+        //     if (result.hit)
+        //     {
+        //         int targetIndex = result.collider.userData;
+        //         caster.OnHit(new object[] { _targets[targetIndex] });
+        //     }
+        // }
     }
 
 
     public void ClearTargets()
     {
         _targets.Clear();
-        _targetBoxes.Clear();
-        _targetSpheres.Clear();
+        _targetBoxes.Reset();
+        _targetSpheres.Reset();
         _targetColliders.Clear();
     }
 
     public void ClearCasters()
     {
         _casters.Clear();
-        _casterBoxes.Clear();
-        _casterSpheres.Clear();
+        _casterBoxes.Reset();
+        _casterSpheres.Reset();
         _casterColliders.Clear();
     }
 

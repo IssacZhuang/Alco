@@ -40,6 +40,11 @@ namespace Vocore
         {
             return UtilsCollision2D.RaySphere(ray, shape, out hitInfo);
         }
+
+        public override string ToString()
+        {
+            return $"Sphere Collider: {shape}";
+        }
     }
 
 }

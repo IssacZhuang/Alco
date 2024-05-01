@@ -37,5 +37,10 @@ namespace Vocore{
         {
             return shape.GetBoundingBox();
         }
+
+        public override string ToString()
+        {
+            return $"Box Collider: {shape}";
+        }
     }
 }

@@ -33,10 +33,10 @@ public class Test_Native
 
         //reallocation
         heap.Reset();
-        verify.Clear();
+        //verify.Clear();
         for (int i = 0; i < count; i++)
         {
-            verify.Add(new nint(heap.Alloc(i)));
+            heap.Alloc(i);
         }
 
         for (int i = 0; i < count; i++)
