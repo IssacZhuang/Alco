@@ -8,7 +8,7 @@ namespace Vocore
     {
         private void* _ptr;
 
-        private ColliderType _type;
+        private ColliderType2D _type;
         public int userData;
 
         public bool HasCollider => _ptr != null;
@@ -23,15 +23,15 @@ namespace Vocore
             };
         }
 
-        public ColliderType Type => _type;
+        public ColliderType2D Type => _type;
 
         public bool CollidesWith<T>(T other) where T : unmanaged, ICollider2D
         {
             switch (_type)
             {
-                case ColliderType.Box:
+                case ColliderType2D.Box:
                     return (*(ColliderBox2D*)_ptr).CollidesWith(other);
-                case ColliderType.Sphere:
+                case ColliderType2D.Sphere:
                     return (*(ColliderSphere2D*)_ptr).CollidesWith(other);
             }
             return false;
@@ -41,9 +41,9 @@ namespace Vocore
         {
             switch (_type)
             {
-                case ColliderType.Box:
+                case ColliderType2D.Box:
                     return (*(ColliderBox2D*)_ptr).GetBoundingBox();
-                case ColliderType.Sphere:
+                case ColliderType2D.Sphere:
                     return (*(ColliderSphere2D*)_ptr).GetBoundingBox();
             }
             return new BoundingBox2D();
@@ -53,9 +53,9 @@ namespace Vocore
         {
             switch (_type)
             {
-                case ColliderType.Box:
+                case ColliderType2D.Box:
                     return (*(ColliderBox2D*)_ptr).IntersectRay(ray, out hitInfo);
-                case ColliderType.Sphere:
+                case ColliderType2D.Sphere:
                     return (*(ColliderSphere2D*)_ptr).IntersectRay(ray, out hitInfo);
             }
             hitInfo = new RaycastHit2D();

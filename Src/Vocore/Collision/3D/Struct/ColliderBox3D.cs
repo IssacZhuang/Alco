@@ -7,7 +7,7 @@ namespace Vocore
 {
     public struct ColliderBox3D : ICollider3D
     {
-        public readonly ColliderType Type => ColliderType.Box;
+        public readonly ColliderType3D Type => ColliderType3D.Box;
         public ShapeBox3D shape;
 
         public unsafe bool CollidesWith<T>(T other) where T : unmanaged, ICollider3D
@@ -18,12 +18,12 @@ namespace Vocore
 
         private unsafe bool CollidesWith<T>(T* other) where T : unmanaged, ICollider3D
         {
-            if (other->Type == ColliderType.Box)
+            if (other->Type == ColliderType3D.Box)
             {
                 return UtilsCollision3D.BoxBox(shape, ((ColliderBox3D*)other)->shape);
             }
 
-            if (other->Type == ColliderType.Sphere)
+            if (other->Type == ColliderType3D.Sphere)
             {
                 return UtilsCollision3D.BoxSphere(shape, ((ColliderSphere3D*)other)->shape);
             }

@@ -6,7 +6,7 @@ namespace Vocore
 {
     public unsafe struct ColliderRef3D : ICollider3D
     {
-        private ColliderType _type;
+        private ColliderType3D _type;
         private void* _ptr;
         public int userData;
 
@@ -22,15 +22,15 @@ namespace Vocore
             };
         }
 
-        public ColliderType Type => _type;
+        public ColliderType3D Type => _type;
 
         public bool CollidesWith<T>(T other) where T : unmanaged, ICollider3D
         {
             switch (_type)
             {
-                case ColliderType.Box:
+                case ColliderType3D.Box:
                     return (*(ColliderBox3D*)_ptr).CollidesWith(other);
-                case ColliderType.Sphere:
+                case ColliderType3D.Sphere:
                     return (*(ColliderSphere3D*)_ptr).CollidesWith(other);
             }
             return false;
@@ -40,9 +40,9 @@ namespace Vocore
         {
             switch (_type)
             {
-                case ColliderType.Box:
+                case ColliderType3D.Box:
                     return (*(ColliderBox3D*)_ptr).GetBoundingBox();
-                case ColliderType.Sphere:
+                case ColliderType3D.Sphere:
                     return (*(ColliderSphere3D*)_ptr).GetBoundingBox();
             }
             return new BoundingBox3D();
@@ -52,9 +52,9 @@ namespace Vocore
         {
             switch (_type)
             {
-                case ColliderType.Box:
+                case ColliderType3D.Box:
                     return (*(ColliderBox3D*)_ptr).IntersectRay(ray, out hitInfo);
-                case ColliderType.Sphere:
+                case ColliderType3D.Sphere:
                     return (*(ColliderSphere3D*)_ptr).IntersectRay(ray, out hitInfo);
             }
             hitInfo = new RaycastHit3D();

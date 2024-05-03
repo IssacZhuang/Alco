@@ -4,7 +4,7 @@ using System.Numerics;
 namespace Vocore{
     public struct ColliderBox2D : ICollider2D
     {
-        public readonly ColliderType Type => ColliderType.Box;
+        public readonly ColliderType2D Type => ColliderType2D.Box;
         public ShapeBox2D shape;
 
         public unsafe bool CollidesWith<T>(T other) where T : unmanaged, ICollider2D
@@ -15,12 +15,12 @@ namespace Vocore{
 
         private unsafe bool CollidesWith<T>(T* other) where T : unmanaged, ICollider2D
         {
-            if (other->Type == ColliderType.Box)
+            if (other->Type == ColliderType2D.Box)
             {
                 return UtilsCollision2D.BoxBox(shape, ((ColliderBox2D*)other)->shape);
             }
 
-            if (other->Type == ColliderType.Sphere)
+            if (other->Type == ColliderType2D.Sphere)
             {
                 return UtilsCollision2D.BoxSphere(shape, ((ColliderSphere2D*)other)->shape);
             }
