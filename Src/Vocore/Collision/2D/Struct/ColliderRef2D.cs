@@ -22,17 +22,20 @@ namespace Vocore
             get => _ptr;
         }
 
+        public ColliderType2D Type
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _type;
+        }
+
         public static ColliderRef2D Create<T>(T* collider) where T : unmanaged, ICollider2D
         {
-
             return new ColliderRef2D
             {
                 _ptr = (ColliderHeader2D*)collider,
-                _type = (*collider).Header.type
+                _type = collider->Header.type
             };
         }
-
-        public ColliderType2D Type => _type;
 
         public bool CollidesWith(ColliderRef2D other)
         {
