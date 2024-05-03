@@ -66,7 +66,7 @@ namespace Vocore
 
             public void Execute(int index)
             {
-                results[index] = _bvh.CastCollider(ref colliders[index]);
+                results[index] = _bvh.CastCollider(colliders[index]);
             }
         }
 
@@ -85,7 +85,7 @@ namespace Vocore
             {
                 //TODO: this is tmp operation, it will cause memory leak
                 results[index] = new NativeArrayList<ColliderCastResult3D>(4);
-                _bvh.CastColliderCollectorCore(ref colliders[index], _bvh._root, results + index);
+                _bvh.CastColliderCollectorCore(colliders[index], _bvh._root, results + index);
             }
         } 
 
@@ -295,19 +295,31 @@ namespace Vocore
             return result;
         }
 
-        public ColliderCastResult3D CastCollider<T>(ref T collider) where T : unmanaged, ICollider3D
+        public ColliderCastResult3D CastCollider<T>(T collider) where T : unmanaged, ICollider3D
         {
             if (_nodeSize == 0)
             {
                 return ColliderCastResult3D.None;
             }
 
-            return CastColliderCore(ref collider, _root);
+            ColliderRef3D reference = ColliderRef3D.Create(&collider);
+
+            return CastColliderCore(reference, _root);
+        }
+
+        public ColliderCastResult3D CastCollider(ColliderRef3D collider)
+        {
+            if (_nodeSize == 0)
+            {
+                return ColliderCastResult3D.None;
+            }
+
+            return CastColliderCore(collider, _root);
         }
 
 
 
-        private ColliderCastResult3D CastColliderCore<T>(ref T collider, Node node) where T : unmanaged, ICollider3D
+        private ColliderCastResult3D CastColliderCore(ColliderRef3D collider, Node node) 
         {
             Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
             int stackCount = 0;
@@ -353,7 +365,7 @@ namespace Vocore
             return result;
         }
 
-        private void CastColliderCollectorCore<T>(ref T collider, Node node, NativeArrayList<ColliderCastResult3D>* result) where T : unmanaged, ICollider3D
+        private void CastColliderCollectorCore(ColliderRef3D collider, Node node, NativeArrayList<ColliderCastResult3D>* result)
         {
             Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
             int stackCount = 0;

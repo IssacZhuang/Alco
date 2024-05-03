@@ -1,36 +1,40 @@
 using System;
-using System.Numerics;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
-namespace Vocore{
+
+
+namespace Vocore
+{
     public struct ColliderBox2D : ICollider2D
     {
-        public readonly ColliderType2D Type => ColliderType2D.Box;
+        private readonly ColliderHeader2D _header;
         public ShapeBox2D shape;
 
-        public unsafe bool CollidesWith<T>(T other) where T : unmanaged, ICollider2D
+        public ColliderHeader2D Header
         {
-            T* ptr = &other;
-            return CollidesWith(ptr);
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _header;
         }
 
-        private unsafe bool CollidesWith<T>(T* other) where T : unmanaged, ICollider2D
+        public ColliderBox2D()
         {
-            if (other->Type == ColliderType2D.Box)
+            _header = new ColliderHeader2D
             {
-                return UtilsCollision2D.BoxBox(shape, ((ColliderBox2D*)other)->shape);
-            }
+                type = ColliderType2D.Box
+            };
+        }
 
-            if (other->Type == ColliderType2D.Sphere)
+        public unsafe bool CollidesWith(ColliderHeader2D* other)
+        {
+            switch (other->type)
             {
-                return UtilsCollision2D.BoxSphere(shape, ((ColliderSphere2D*)other)->shape);
+                case ColliderType2D.Box:
+                    return UtilsCollision2D.BoxBox(shape, (*(ColliderBox2D*)other).shape);
+                case ColliderType2D.Sphere:
+                    return UtilsCollision2D.BoxSphere(shape, (*(ColliderSphere2D*)other).shape);
             }
-
             return false;
-        }
-
-        public bool IntersectRay(Ray2D ray, out RaycastHit2D hitInfo)
-        {
-            return UtilsCollision2D.RayBox(ray, shape, out hitInfo);
         }
 
         public BoundingBox2D GetBoundingBox()
@@ -38,9 +42,15 @@ namespace Vocore{
             return shape.GetBoundingBox();
         }
 
+        public bool IntersectRay(Ray2D ray, out RaycastHit2D hitInfo)
+        {
+            return UtilsCollision2D.RayBox(ray, shape, out hitInfo);
+        }
+
         public override string ToString()
         {
             return $"Box Collider: {shape}";
         }
     }
+
 }

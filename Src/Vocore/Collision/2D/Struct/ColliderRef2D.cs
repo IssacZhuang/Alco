@@ -1,38 +1,47 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 
 namespace Vocore
 {
-    public unsafe struct ColliderRef2D : ICollider2D
+    public unsafe struct ColliderRef2D
     {
-        private void* _ptr;
-
         private ColliderType2D _type;
+        private ColliderHeader2D* _ptr;
         public int userData;
 
-        public bool HasCollider => _ptr != null;
+        public bool HasCollider
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ptr != null;
+        }
+        public ColliderHeader2D* UnsafePointer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ptr;
+        }
 
         public static ColliderRef2D Create<T>(T* collider) where T : unmanaged, ICollider2D
         {
 
             return new ColliderRef2D
             {
-                _ptr = collider,
-                _type = (*collider).Type
+                _ptr = (ColliderHeader2D*)collider,
+                _type = (*collider).Header.type
             };
         }
 
         public ColliderType2D Type => _type;
 
-        public bool CollidesWith<T>(T other) where T : unmanaged, ICollider2D
+        public bool CollidesWith(ColliderRef2D other)
         {
             switch (_type)
             {
                 case ColliderType2D.Box:
-                    return (*(ColliderBox2D*)_ptr).CollidesWith(other);
+                    return (*(ColliderBox2D*)_ptr).CollidesWith(other.UnsafePointer);
                 case ColliderType2D.Sphere:
-                    return (*(ColliderSphere2D*)_ptr).CollidesWith(other);
+                    return (*(ColliderSphere2D*)_ptr).CollidesWith(other.UnsafePointer);
             }
             return false;
         }
@@ -60,6 +69,11 @@ namespace Vocore
             }
             hitInfo = new RaycastHit2D();
             return false;
+        }
+
+        internal T DebugGetCollder<T>() where T : unmanaged, ICollider2D
+        {
+            return *(T*)_ptr;
         }
     }
 }

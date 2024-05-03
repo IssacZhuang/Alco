@@ -261,11 +261,11 @@ namespace Vocore.Test
                 shape = new ShapeSphere2D(new Vector2(-1.2f, 0), 1f)
             };
 
-            Assert.IsFalse(bvh.CastCollider(ref boxCast1).hit);
-            Assert.IsTrue(bvh.CastCollider(ref boxCast2).hit);
+            Assert.IsFalse(bvh.CastCollider(boxCast1).hit);
+            Assert.IsTrue(bvh.CastCollider(boxCast2).hit);
 
-            Assert.IsFalse(bvh.CastCollider(ref sphereCast1).hit);
-            Assert.IsTrue(bvh.CastCollider(ref sphereCast2).hit);
+            Assert.IsFalse(bvh.CastCollider(sphereCast1).hit);
+            Assert.IsTrue(bvh.CastCollider(sphereCast2).hit);
 
             boxs.Dispose();
             spheres.Dispose();

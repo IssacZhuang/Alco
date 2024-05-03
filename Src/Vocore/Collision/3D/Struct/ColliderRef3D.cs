@@ -1,37 +1,47 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 
 namespace Vocore
 {
-    public unsafe struct ColliderRef3D : ICollider3D
+    public unsafe struct ColliderRef3D
     {
         private ColliderType3D _type;
-        private void* _ptr;
+        private ColliderHeader3D* _ptr;
         public int userData;
 
-        public bool HasCollider => _ptr != null;
+        public bool HasCollider
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ptr != null;
+        }
+        public ColliderHeader3D* UnsafePointer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ptr;
+        }
 
         public static ColliderRef3D Create<T>(T* collider) where T : unmanaged, ICollider3D
         {
 
             return new ColliderRef3D
             {
-                _ptr = collider,
-                _type = (*collider).Type
+                _ptr = (ColliderHeader3D*)collider,
+                _type = (*collider).Header.type
             };
         }
 
         public ColliderType3D Type => _type;
 
-        public bool CollidesWith<T>(T other) where T : unmanaged, ICollider3D
+        public bool CollidesWith(ColliderRef3D other)
         {
             switch (_type)
             {
                 case ColliderType3D.Box:
-                    return (*(ColliderBox3D*)_ptr).CollidesWith(other);
+                    return (*(ColliderBox3D*)_ptr).CollidesWith(other.UnsafePointer);
                 case ColliderType3D.Sphere:
-                    return (*(ColliderSphere3D*)_ptr).CollidesWith(other);
+                    return (*(ColliderSphere3D*)_ptr).CollidesWith(other.UnsafePointer);
             }
             return false;
         }

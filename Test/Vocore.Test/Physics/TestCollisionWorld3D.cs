@@ -51,7 +51,7 @@ public class TestCollisionWorld3D
         });
 
         world.AddCaster(caster1, caster1.shape);
-        //world.AddCaster(caster2, caster2.shape);
+        world.AddCaster(caster2, caster2.shape);
 
         int boxCount = 100;
         for (int i = 0; i < boxCount; i++)
@@ -71,8 +71,8 @@ public class TestCollisionWorld3D
 
         world.BuildTree();
         world.Simulate();
-        Assert.That(caster1.hitIds.Count, Is.EqualTo(20));
-        //Assert.That(caster2.hitIds.Count, Is.EqualTo(20));
+        Assert.That(caster1.hitIds.Count, Is.EqualTo(21));
+        Assert.That(caster2.hitIds.Count, Is.EqualTo(21));
 
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 
 
@@ -7,27 +8,32 @@ namespace Vocore
 {
     public struct ColliderSphere3D : ICollider3D
     {
-        public ColliderType3D Type => ColliderType3D.Sphere;
+        private readonly ColliderHeader3D _header;
         public ShapeSphere3D shape;
 
-        public unsafe bool CollidesWith<T>(T other) where T : unmanaged, ICollider3D
+        public ColliderHeader3D Header
         {
-            T* ptr = &other;
-            return CollidesWith(ptr);
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _header;
         }
 
-        private unsafe bool CollidesWith<T>(T* other) where T : unmanaged, ICollider3D
+        public ColliderSphere3D()
         {
-            if (other->Type == ColliderType3D.Box)
+            _header = new ColliderHeader3D
             {
-                return UtilsCollision3D.BoxSphere(((ColliderBox3D*)other)->shape, shape);
-            }
+                type = ColliderType3D.Sphere
+            };
+        }
 
-            if (other->Type == ColliderType3D.Sphere)
+        public unsafe bool CollidesWith(ColliderHeader3D* other)
+        {
+            switch (other->type)
             {
-                return UtilsCollision3D.SphereSphere(shape, ((ColliderSphere3D*)other)->shape);
+                case ColliderType3D.Box:
+                    return UtilsCollision3D.BoxSphere((*(ColliderBox3D*)other).shape, shape);
+                case ColliderType3D.Sphere:
+                    return UtilsCollision3D.SphereSphere(shape, (*(ColliderSphere3D*)other).shape);
             }
-
             return false;
         }
 
