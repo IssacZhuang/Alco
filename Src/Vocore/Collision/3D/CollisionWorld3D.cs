@@ -15,7 +15,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     //the index of the target in the list is the index of the collider in the list
     private readonly List<object> _targets = new List<object>();
-    private readonly List<object> _hitTargets = new List<object>();
     private readonly List<ICollisionCaster> _casters = new List<ICollisionCaster>();
 
     private MiniHeap<ColliderBox3D> _targetBoxes;
@@ -123,39 +122,14 @@ public unsafe class CollisionWorld3D : AutoDisposable
         for (int i = 0; i < _casters.Count; i++)
         {
             NativeArrayList<ColliderCastResult3D> castResults = result[i];
-            _hitTargets.Clear();
+            ICollisionCaster caster = _casters[i];
             for (int j = 0; j < castResults.Length; j++)
             {
                 ColliderCastResult3D castResult = castResults[j];
                 int targetIndex = castResult.collider.userData;
-                _hitTargets.Add(_targets[targetIndex]);
+                caster.OnHit(_targets[targetIndex]);
             }
-
-            ICollisionCaster caster = _casters[i];
-            caster.OnHit(_hitTargets);
         }
-
-        // MemoryRef<ColliderCastResult3D> result = _bvh.CastBatchColliderRef(_casterColliders.MemoryRef);
-        // for (int i = 0; i < _casters.Count; i++)
-        // {
-        //     ColliderCastResult3D castResult = result[i];
-        //     if (castResult.hit)
-        //     {
-        //         ICollisionCaster caster = _casters[i];
-        //         caster.OnHit([_targets[castResult.collider.userData]]);
-        //     }
-        // }
-
-        // for (int i = 0; i < _casters.Count; i++)
-        // {
-        //     ICollisionCaster caster = _casters[i];
-        //     ColliderCastResult3D result =  _bvh.CastCollider(ref _casterColliders.UnsafePointer[i]);
-        //     if (result.hit)
-        //     {
-        //         int targetIndex = result.collider.userData;
-        //         caster.OnHit(new object[] { _targets[targetIndex] });
-        //     }
-        // }
     }
 
 

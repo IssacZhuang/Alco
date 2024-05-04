@@ -5,5 +5,5 @@ namespace Vocore;
 
 public interface ICollisionCaster
 {
-    void OnHit(IReadOnlyList<object> hitObjects);
+    void OnHit(object hitObject);
 }   

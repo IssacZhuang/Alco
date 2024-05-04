@@ -20,15 +20,12 @@ public class TestCollisionWorld3D
         {
             this.shape = shape;
         }
-        public void OnHit(IReadOnlyList<object> hitObjects)
+        public void OnHit(object hitObject)
         {
-            TestContext.WriteLine("hit count: " + hitObjects.Count);
-            foreach (var hitObject in hitObjects)
+
+            if (hitObject is TestBoxTarget target)
             {
-                if (hitObject is TestBoxTarget target)
-                {
-                    hitIds.Add(target.id);
-                }
+                hitIds.Add(target.id);
             }
         }
     }
