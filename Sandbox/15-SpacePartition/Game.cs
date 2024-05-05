@@ -14,10 +14,13 @@ public class Game : GameEngine
     //scence
     private readonly CameraPerspective _camera;
 
-    private readonly Shader _shader;
-    private readonly MaterialRenderer _renderer;
+    private readonly Shader _shaderCube;
+    private readonly MaterialRenderer _universalRenderer;
     private readonly UniversalMaterial _material;
 
+    private readonly Shader _shaderSprite;
+    private readonly SpriteRenderer _spriteRenderer;
+    
     private readonly Cube _entity;
 
     private Plane3D _plane;
@@ -27,20 +30,24 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _shader = Assets.Load<Shader>("Rendering/Shader/3D/Unlit.hlsl");
+        _shaderCube = Assets.Load<Shader>("Rendering/Shader/3D/Unlit.hlsl");
+        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
         _camera.Tranform.position.Z = -10;
         _camera.UpdateData();
 
-        _renderer = Rendering.CreateMaterialRenderer();
-        _material = new UniversalMaterial(_shader);
+        _universalRenderer = Rendering.CreateMaterialRenderer();
+        _material = new UniversalMaterial(_shaderCube);
 
         _material["_camera"] = _camera.Buffer;
         _material["_texture"] = Rendering.TextureWhite;
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
+
+
+        _spriteRenderer  = Rendering.CreateSpriteRenderer(_camera, _shaderSprite);
 
         _entity = CreateCube(Color);
         _entity.transform.position = new Vector3(2, 0, 0);
@@ -53,10 +60,10 @@ public class Game : GameEngine
             Stop();
         }
 
-        _renderer.Begin(Rendering.DefaultFrameBuffer);
-        _entity.OnDraw(_renderer);
+        _universalRenderer.Begin(Rendering.DefaultFrameBuffer);
+        _entity.OnDraw(_universalRenderer);
 
-        _renderer.End();
+        _universalRenderer.End();
 
         Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
 

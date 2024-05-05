@@ -4,7 +4,7 @@
 #pragma EntryFragment fs_main
 
 #pragma BlendState AlphaBlend
-#pragma DepthStencilState Write
+#pragma DepthStencilState Read
 
 struct Vertex2D {
   float2 position : POSITION;
