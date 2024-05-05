@@ -12,7 +12,7 @@ public class Game : GameEngine
     private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
     private static ColorFloat ColorHit = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
     //scence
-    private readonly CameraPerspective _camera;
+    private readonly Camera2D _camera;
 
     private readonly Shader _shaderCube;
     private readonly MaterialRenderer _universalRenderer;
@@ -20,7 +20,9 @@ public class Game : GameEngine
 
     private readonly Shader _shaderSprite;
     private readonly SpriteRenderer _spriteRenderer;
-    
+    private readonly DropletSystem _dropletSystem;
+    private readonly Texture2D _texDroplet;
+
     private readonly Cube _entity;
 
     private Plane3D _plane;
@@ -32,10 +34,10 @@ public class Game : GameEngine
 
         _shaderCube = Assets.Load<Shader>("Rendering/Shader/3D/Unlit.hlsl");
         _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
+        _texDroplet = Assets.Load<Texture2D>("Droplet.png");
 
-        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
+        _camera = Rendering.CreateCamera2D(1920f,1080f, 100f);
 
-        _camera.Tranform.position.Z = -10;
         _camera.UpdateData();
 
         _universalRenderer = Rendering.CreateMaterialRenderer();
@@ -46,11 +48,19 @@ public class Game : GameEngine
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
-
         _spriteRenderer  = Rendering.CreateSpriteRenderer(_camera, _shaderSprite);
+
+        _dropletSystem = new DropletSystem(_spriteRenderer, _texDroplet);
 
         _entity = CreateCube(Color);
         _entity.transform.position = new Vector3(2, 0, 0);
+    }
+
+    protected override void OnTick(float delta)
+    {
+        base.OnTick(delta);
+        _dropletSystem.OnTick(delta);
+        _dropletSystem.SpawnDroplet();
     }
 
     protected override void OnUpdate(float delta)
@@ -65,7 +75,7 @@ public class Game : GameEngine
 
         _universalRenderer.End();
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, Vector3.Zero);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, _entity.Shape, out RaycastHit3D rayCastHit);
 
@@ -88,25 +98,10 @@ public class Game : GameEngine
         {
             _isDragging = false;
         }
-
-        //debug ui
-        DebugGUI.Text("Camera Data");
-        int fov = (int)(_camera.FieldOfView * 100);
-        DebugGUI.Slider(30, 110, ref fov);
-        _camera.FieldOfView = fov / 100f;
-        DebugGUI.SameLine();
-        DebugGUI.Text("Fov");
-
+        DebugGUI.Text(FrameRate);
 
         _camera.UpdateData();
-    }
-
-
-
-    protected override void OnResize(int2 size)
-    {
-        _camera.AspectRatio = (float)size.x / size.y;
-        _camera.UpdateData();
+        _dropletSystem.OnUpdate(Rendering.DefaultFrameBuffer, delta);
     }
 
     protected override void OnStop()

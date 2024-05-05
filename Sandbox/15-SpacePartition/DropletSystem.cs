@@ -20,7 +20,7 @@ public class DropletSystem
     private float _spwanRangeX = 100f;
     private float _speed = 10f;
 
-    private Random _random = new Random();
+    private Random _random = new Random(123);
 
     public DropletSystem(SpriteRenderer renderer, Texture2D texDroplet)
     {
