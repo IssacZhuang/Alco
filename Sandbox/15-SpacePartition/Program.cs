@@ -5,7 +5,7 @@ using Vocore.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Space Partition"),
+    Window = new WindowSetting(960, 540, "Space Partition"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
         SwapChainDepthFormat = null

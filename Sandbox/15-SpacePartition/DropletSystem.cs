@@ -15,10 +15,14 @@ public class DropletSystem
     private readonly SpriteRenderer _renderer;
     private readonly Texture2D _texDroplet;
     private readonly List<Droplet> _activeList = new List<Droplet>();
+    private readonly Stack<Droplet> _despawnList = new Stack<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(10000, () => new Droplet());
-    private float _spawnHeight = 100f;
-    private float _spwanRangeX = 100f;
-    private float _speed = 10f;
+    private int _spawnRate = 20;
+    private int _spawnHeight = 280;
+    private int _despawnHeight = -280;
+    private int _spwanRangeX = 480;
+    private int _speed = 300;
+    
 
     private Random _random = new Random(123);
 
@@ -30,10 +34,27 @@ public class DropletSystem
 
     public void OnTick(float delta)
     {
+        for (int i = 0; i < _spawnRate; i++){
+            SpawnDroplet();
+        }
+        
         for (int i = 0; i < _activeList.Count; i++)
         {
             var droplet = _activeList[i];
             droplet.transform.position.Y -= _speed * delta;
+
+
+            if (droplet.transform.position.Y < _despawnHeight)
+            {
+                _despawnList.Push(droplet);
+            }
+        }
+
+        while (_despawnList.Count > 0)
+        {
+            var droplet = _despawnList.Pop();
+            _activeList.Remove(droplet);
+            _pool.TryReturn(droplet);
         }
     }
 
@@ -57,15 +78,25 @@ public class DropletSystem
         }
         _renderer.End();
 
+        DebugGUI.Text("Active: 0", _activeList.Count);
+
+        DebugGUI.Slider(0, 100, ref _spawnRate);
+        DebugGUI.SameLine();
+        DebugGUI.Text("Spawn Rate");
+
         DebugGUI.Slider(0, 640, ref _spawnHeight);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Height");
+
+        DebugGUI.Slider(-640, 0, ref _despawnHeight);
+        DebugGUI.SameLine();
+        DebugGUI.Text("Despawn Height");
 
         DebugGUI.Slider(0, 640, ref _spwanRangeX);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Range X");
 
-        DebugGUI.Slider(0, 100, ref _speed);
+        DebugGUI.Slider(0, 600, ref _speed);
         DebugGUI.SameLine();
         DebugGUI.Text("Speed");
     }

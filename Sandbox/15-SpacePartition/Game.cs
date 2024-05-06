@@ -60,7 +60,6 @@ public class Game : GameEngine
     {
         base.OnTick(delta);
         _dropletSystem.OnTick(delta);
-        _dropletSystem.SpawnDroplet();
     }
 
     protected override void OnUpdate(float delta)
