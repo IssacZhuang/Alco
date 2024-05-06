@@ -74,9 +74,9 @@ public class Game : GameEngine
 
         _universalRenderer.End();
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, Vector3.Zero);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
 
-        bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, _entity.Shape, out RaycastHit3D rayCastHit);
+        bool hit = UtilsCollision3D.RayBox(cameraRay, _entity.Shape, out RaycastHit3D rayCastHit);
 
         _entity.Color = hit ? ColorHit : Color;
 

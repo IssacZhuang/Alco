@@ -44,7 +44,7 @@ public class DropletSystem
             droplet.transform.position.Y -= _speed * delta;
 
 
-            if (droplet.transform.position.Y < _despawnHeight)
+            if (droplet.pendingDestroy || droplet.transform.position.Y < _despawnHeight)
             {
                 _despawnList.Push(droplet);
             }

@@ -7,12 +7,14 @@ public class Droplet
 {
     public Transform3D transform;
     public ColorFloat color;
+    public bool pendingDestroy;
 
     public Droplet()
     {
         transform = new Transform3D();
         transform.scale = Vector3.One * 10f;
         color = new ColorFloat(1, 1, 1, 1);
+        pendingDestroy = false;
     }
 
 }

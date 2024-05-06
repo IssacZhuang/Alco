@@ -3,7 +3,7 @@ using Vocore;
 using Vocore.Graphics;
 using Vocore.Rendering;
 
-public class Cube
+public class Cube:ICollisionCaster
 {
     public struct RenderDataPerObject
     {
@@ -32,7 +32,7 @@ public class Cube
         _mesh = mesh;
         _material = material;
         transform = Transform3D.Default;
-        transform.scale = Vector3.One * 10f;
+        transform.scale = Vector3.One * 40f;
     }
 
 
@@ -42,5 +42,10 @@ public class Cube
         _renderData.matrix = transform.Matrix;
         // renderer already began
         renderer.DrawWithConstant(_mesh, _material, _renderData, ShaderStage.Vertex|ShaderStage.Fragment);
+    }
+
+    public void OnHit(object hitObject)
+    {
+        
     }
 }
