@@ -94,14 +94,14 @@ public class DropletSystem
     {
         if (_pool.TryGet(out Droplet? entity))
         {
-            entity.transform.position = new Vector3(_random.NextFloat(-_spwanRangeX, _spwanRangeX), _spawnHeight+ _random.NextFloat(-4,4), 0);
+            entity.transform.position = new Vector2(_random.NextFloat(-_spwanRangeX, _spwanRangeX), _spawnHeight+ _random.NextFloat(-4,4));
             entity.color = DefaultColor;
             entity.pendingDestroy = false;
             _activeList.Add(entity);
         }
     }
 
-    public void PushCollisionTarget(CollisionWorld3D collisionWorld)
+    public void PushCollisionTarget(CollisionWorld2D collisionWorld)
     {
         for (int i = 0; i < _activeList.Count; i++)
         {

@@ -51,14 +51,14 @@ public class CubeSystem
         Log.Info("Spawn", position);
         if (_pool.TryGet(out Cube? entity))
         {
-            entity.transform.position = position;
+            entity.transform.position = new Vector2(position.X, position.Y);
             entity.color = DefaultColor;
             entity.pendingDestroy = false;
             _activeList.Add(entity);
         }
     }
 
-    public void PushCollisionCaster(CollisionWorld3D collisionWorld)
+    public void PushCollisionCaster(CollisionWorld2D collisionWorld)
     {
         for (int i = 0; i < _activeList.Count; i++)
         {

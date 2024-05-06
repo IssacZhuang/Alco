@@ -18,7 +18,7 @@ public class Game : GameEngine
     private readonly CubeSystem _cubeSystem;
     private readonly Texture2D _texDroplet;
     
-    private readonly CollisionWorld3D _collisionWorld = new CollisionWorld3D();
+    private readonly CollisionWorld2D _collisionWorld = new CollisionWorld2D();
 
     private Plane3D _plane;
 

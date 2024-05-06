@@ -5,19 +5,19 @@ using Vocore.Rendering;
 
 public class Cube:ICollisionCaster
 {
-    public Transform3D transform;
+    public Transform2D transform;
     public ColorFloat color;
     public bool pendingDestroy;
 
-    public ShapeBox3D Shape
+    public ShapeBox2D Shape
     {
-        get => new ShapeBox3D(transform.position, transform.scale, transform.rotation);
+        get => new ShapeBox2D(transform.position, transform.scale, transform.rotation);
     }
 
     public Cube()
     {
-        transform = Transform3D.Default;
-        transform.scale = Vector3.One * 40f;
+        transform = Transform2D.Identity;
+        transform.scale = Vector2.One * 40f;
     }
 
 
