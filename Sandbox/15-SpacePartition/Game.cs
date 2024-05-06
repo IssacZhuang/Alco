@@ -45,6 +45,12 @@ public class Game : GameEngine
         base.OnTick(delta);
         _dropletSystem.OnTick(delta);
         _cubeSystem.OnTick(delta);
+
+        _collisionWorld.ClearAll();
+        _dropletSystem.PushCollisionTarget(_collisionWorld);
+        _cubeSystem.PushCollisionCaster(_collisionWorld);
+        _collisionWorld.BuildTree();
+        _collisionWorld.Simulate();
     }
 
     protected override void OnUpdate(float delta)
@@ -69,11 +75,7 @@ public class Game : GameEngine
         _dropletSystem.OnUpdate(Rendering.DefaultFrameBuffer, delta);
         _cubeSystem.OnUpdate(Rendering.DefaultFrameBuffer, delta);
 
-        _collisionWorld.ClearAll();
-        _dropletSystem.PushCollisionTarget(_collisionWorld);
-        _cubeSystem.PushCollisionCaster(_collisionWorld);
-        _collisionWorld.BuildTree();
-        _collisionWorld.Simulate();
+        
     }
 
     protected override void OnStop()

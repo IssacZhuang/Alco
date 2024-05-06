@@ -19,6 +19,14 @@ namespace Vocore
         /// </summary>
         public Vector3 scale;
         public static readonly Transform3D Default = new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One);
+
+        public Transform3D()
+        {
+            this.position = Vector3.Zero;
+            this.rotation = Quaternion.Identity;
+            this.scale = Vector3.One;
+        }
+
         public Transform3D(Vector3 pos)
         {
             this.position = pos;

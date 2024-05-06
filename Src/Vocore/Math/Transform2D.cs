@@ -21,6 +21,13 @@ namespace Vocore
 
         public static readonly Transform2D Identity = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One);
 
+        public Transform2D()
+        {
+            this.position = Vector2.Zero;
+            this.rotation = Rotation2D.Identity;
+            this.scale = Vector2.One;
+        }
+
         public Transform2D(Vector2 pos)
         {
             this.position = pos;

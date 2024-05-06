@@ -23,7 +23,6 @@ public class Cube:ICollisionCaster
 
     public void OnHit(object hitObject)
     {
-        Log.Info("Cube Hit", hitObject);
         if(hitObject is Droplet droplet)
         {
             droplet.pendingDestroy = true;
