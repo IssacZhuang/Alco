@@ -13,7 +13,7 @@ public class DropletSystem
 {
     private static readonly ColorFloat DefaultColor = 0xffffff;
     private readonly SpriteRenderer _renderer;
-    private readonly Texture2D _texDroplet;
+    private readonly Texture2D _texture;
     private readonly List<Droplet> _activeList = new List<Droplet>();
     private readonly Stack<Droplet> _despawnList = new Stack<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(10000, () => new Droplet());
@@ -29,42 +29,52 @@ public class DropletSystem
     public DropletSystem(SpriteRenderer renderer, Texture2D texDroplet)
     {
         _renderer = renderer;
-        _texDroplet = texDroplet;
+        _texture = texDroplet;
     }
 
     public void OnTick(float delta)
     {
         for (int i = 0; i < _spawnRate; i++){
-            SpawnDroplet();
+            Spawn();
         }
         
         for (int i = 0; i < _activeList.Count; i++)
         {
-            var droplet = _activeList[i];
-            droplet.transform.position.Y -= _speed * delta;
+            Droplet entity = _activeList[i];
+            entity.transform.position.Y -= _speed * delta;
 
 
-            if (droplet.pendingDestroy || droplet.transform.position.Y < _despawnHeight)
+            if (entity.pendingDestroy || entity.transform.position.Y < _despawnHeight)
             {
-                _despawnList.Push(droplet);
+                _despawnList.Push(entity);
             }
         }
 
         while (_despawnList.Count > 0)
         {
-            var droplet = _despawnList.Pop();
-            _activeList.Remove(droplet);
-            _pool.TryReturn(droplet);
+            Droplet entity = _despawnList.Pop();
+            _activeList.Remove(entity);
+            _pool.TryReturn(entity);
         }
     }
 
-    public void SpawnDroplet()
+    public void Spawn()
     {
-        if (_pool.TryGet(out var droplet))
+        if (_pool.TryGet(out Droplet? entity))
         {
-            droplet.transform.position = new Vector3(_random.NextFloat(-_spwanRangeX, _spwanRangeX), _spawnHeight, 0);
-            droplet.color = DefaultColor;
-            _activeList.Add(droplet);
+            entity.transform.position = new Vector3(_random.NextFloat(-_spwanRangeX, _spwanRangeX), _spawnHeight+ _random.NextFloat(-4,4), 0);
+            entity.color = DefaultColor;
+            entity.pendingDestroy = false;
+            _activeList.Add(entity);
+        }
+    }
+
+    public void PushCollisionTarget(CollisionWorld3D collisionWorld)
+    {
+        for (int i = 0; i < _activeList.Count; i++)
+        {
+            Droplet entity = _activeList[i];
+            collisionWorld.PushTarget(entity, entity.Shape);
         }
     }
 
@@ -74,7 +84,7 @@ public class DropletSystem
         for (int i = 0; i < _activeList.Count; i++)
         {
             var droplet = _activeList[i];
-            _renderer.Draw(_texDroplet, droplet.transform, droplet.color);
+            _renderer.Draw(_texture, droplet.transform, droplet.color);
         }
         _renderer.End();
 

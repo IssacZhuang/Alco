@@ -5,47 +5,27 @@ using Vocore.Rendering;
 
 public class Cube:ICollisionCaster
 {
-    public struct RenderDataPerObject
-    {
-        public Matrix4x4 matrix;
-        public ColorFloat color;
-    }
-
-    private readonly Material _material;
-    private readonly Mesh _mesh;
-    private RenderDataPerObject _renderData;
     public Transform3D transform;
+    public ColorFloat color;
+    public bool pendingDestroy;
 
     public ShapeBox3D Shape
     {
         get => new ShapeBox3D(transform.position, transform.scale, transform.rotation);
     }
 
-    public ColorFloat Color
+    public Cube()
     {
-        get => _renderData.color;
-        set => _renderData.color = value;
-    }
-
-    public Cube(Mesh mesh, Material material)
-    {
-        _mesh = mesh;
-        _material = material;
         transform = Transform3D.Default;
         transform.scale = Vector3.One * 40f;
     }
 
 
-
-    public void OnDraw(MaterialRenderer renderer)
-    {
-        _renderData.matrix = transform.Matrix;
-        // renderer already began
-        renderer.DrawWithConstant(_mesh, _material, _renderData, ShaderStage.Vertex|ShaderStage.Fragment);
-    }
-
     public void OnHit(object hitObject)
     {
-        
+        if(hitObject is Droplet droplet)
+        {
+            droplet.pendingDestroy = true;
+        }
     }
 }

@@ -84,7 +84,7 @@ namespace Vocore
             public void Execute(int index)
             {
                 //TODO: this is tmp operation, it will cause memory leak
-                results[index] = new NativeArrayList<ColliderCastResult3D>(4);
+                //results[index] = new NativeArrayList<ColliderCastResult3D>(4);
                 _bvh.CastColliderCollectorCore(colliders[index], _bvh._root, results + index);
             }
         } 

@@ -118,6 +118,10 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     public void Simulate()
     {
+        if (_casters.Count == 0)
+        {
+            return;
+        }
         MemoryRef<NativeArrayList<ColliderCastResult3D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
         for (int i = 0; i < _casters.Count; i++)
         {

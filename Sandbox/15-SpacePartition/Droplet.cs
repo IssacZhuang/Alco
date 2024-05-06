@@ -9,6 +9,11 @@ public class Droplet
     public ColorFloat color;
     public bool pendingDestroy;
 
+    public ShapeBox3D Shape
+    {
+        get => new ShapeBox3D(transform.position, transform.scale, transform.rotation);
+    }
+
     public Droplet()
     {
         transform = new Transform3D();
