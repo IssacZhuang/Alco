@@ -79,6 +79,6 @@ public static partial class DebugGUI
 
         _renderer.DrawQuad(thumbDrawPos + thumbOffset, 50, thumbSize, thumbColor);
 
-        _nextOffset = new Vector2(barSize.X, barSize.Y + _style.Margin.W);
+        SetNextOffset(new Vector2(barSize.X, barSize.Y + _style.Margin.W));
     }
 }

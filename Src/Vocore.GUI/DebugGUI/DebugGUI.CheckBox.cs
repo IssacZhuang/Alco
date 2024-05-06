@@ -42,7 +42,7 @@ public partial class DebugGUI
             _renderer.DrawQuad(drawPos, 40, checkSize, _style.CheckBoxCheckColor);
         }
 
-        _nextOffset = new Vector2(size.X, size.Y + _style.Margin.W);
+        SetNextOffset(new Vector2(size.X, size.Y + _style.Margin.W));
 
     }
 }

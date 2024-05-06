@@ -82,7 +82,7 @@ public static partial class DebugGUI
 
 
 
-        _nextOffset = new Vector2(size.X, size.Y + _style.Margin.W);
+        SetNextOffset(new Vector2(size.X, size.Y + _style.Margin.W));
         return inArea && _renderer.IsMouseClicked;
     }
 }

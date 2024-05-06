@@ -48,6 +48,11 @@ public static partial class DebugGUI
         return _currentPosition;
     }
 
+    private static void SetNextOffset(Vector2 offset)
+    {
+        _nextOffset = new Vector2(offset.X, math.max(_nextOffset.Y, offset.Y));
+    }
+
     private static void ResetPosition()
     {
         _currentPosition = new Vector2(_style.Margin.X, _style.Margin.Z + _style.FontSize * 0.5f);
