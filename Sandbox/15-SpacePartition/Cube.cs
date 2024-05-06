@@ -32,6 +32,7 @@ public class Cube
         _mesh = mesh;
         _material = material;
         transform = Transform3D.Default;
+        transform.scale = Vector3.One * 10f;
     }
 
 
