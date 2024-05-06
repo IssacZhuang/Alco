@@ -11,12 +11,30 @@ using Random = Vocore.Random;
 
 public class DropletSystem
 {
+    private class JobMoveDroplet : IJobBatch
+    {
+        public List<Droplet> activeList = null!;
+        public int speed;
+        public float delta;
+        public float despawnHeight;
+        public void Execute(int i)
+        {
+            Droplet entity = activeList[i];
+            entity.transform.position.Y -= speed * delta;
+            if (entity.transform.position.Y < despawnHeight)
+            {
+                entity.pendingDestroy = true;
+            }
+        }
+    }
     private static readonly ColorFloat DefaultColor = 0xCCCCCC;
     private readonly SpriteRenderer _renderer;
     private readonly Texture2D _texture;
     private readonly List<Droplet> _activeList = new List<Droplet>();
     private readonly Stack<Droplet> _despawnList = new Stack<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(10000, () => new Droplet());
+    private readonly ParallelScheduler _scheduler = new ParallelScheduler();
+    private readonly JobMoveDroplet _jobMoveDroplet;
     private int _spawnRate = 20;
     private int _spawnHeight = 280;
     private int _despawnHeight = -280;
@@ -30,19 +48,33 @@ public class DropletSystem
     {
         _renderer = renderer;
         _texture = texDroplet;
+
+        _jobMoveDroplet = new JobMoveDroplet(){
+            activeList = _activeList,
+            speed = _speed,
+            delta = 0,
+            despawnHeight = _despawnHeight
+        };
     }
 
     public void OnTick(float delta)
     {
+        
+
         for (int i = 0; i < _spawnRate; i++){
             Spawn();
         }
-        
+
+        // _jobMoveDroplet.delta = delta;
+        // _jobMoveDroplet.speed = _speed;
+        //_scheduler.Run(_jobMoveDroplet, _activeList.Count);
+
+        //use single thread
+
         for (int i = 0; i < _activeList.Count; i++)
         {
             Droplet entity = _activeList[i];
             entity.transform.position.Y -= _speed * delta;
-
 
             if (entity.pendingDestroy || entity.transform.position.Y < _despawnHeight)
             {
