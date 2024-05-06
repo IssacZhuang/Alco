@@ -142,6 +142,14 @@ namespace Vocore
         public MemoryRef<RayCastResult2D> CastBatchRayFast(MemoryRef<Ray2D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
+            if (_nodeSize == 0)
+            {
+                for (int i = 0; i < rays.Length; i++)
+                {
+                    _batchRayCastResult[i] = RayCastResult2D.none;
+                }
+                return _batchRayCastResult.MemoryRef;
+            }
 
             _jobCastRayFast.rays = rays.Pointer;
             _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
@@ -153,6 +161,14 @@ namespace Vocore
         public MemoryRef<RayCastResult2D> CastBatchRay(MemoryRef<Ray2D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
+            if (_nodeSize == 0)
+            {
+                for (int i = 0; i < rays.Length; i++)
+                {
+                    _batchRayCastResult[i] = RayCastResult2D.none;
+                }
+                return _batchRayCastResult.MemoryRef;
+            }
 
             _jobCastRay.rays = rays.Pointer;
             _jobCastRay.results = _batchRayCastResult.UnsafePointer;
@@ -164,6 +180,15 @@ namespace Vocore
         {
             _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
 
+            if (_nodeSize == 0)
+            {
+                for (int i = 0; i < colliders.Length; i++)
+                {
+                    _batchColliderCastResult[i] = ColliderCastResult2D.None;
+                }
+                return _batchColliderCastResult.MemoryRef;
+            }
+
             _jobCastColliderRef.colliders = colliders.Pointer;
             _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
             _scheduler.Run(_jobCastColliderRef, colliders.Length);
@@ -173,11 +198,18 @@ namespace Vocore
 
         public MemoryRef<NativeArrayList<ColliderCastResult2D>> CastBatchColliderRefCollector(MemoryRef<ColliderRef2D> colliders)
         {
-            // EnsureSizeWithoutCopy will cause memory leak here
-
             int lengthBefore = _batchColliderCastResultCollector.Length;
             _batchColliderCastResultCollector.EnsureSize(colliders.Length);
             int allocCount = _batchColliderCastResultCollector.Length - lengthBefore;
+
+            if (_nodeSize == 0)
+            {
+                for (int i = 0; i < colliders.Length; i++)
+                {
+                    _batchColliderCastResultCollector.UnsafePointer[i].Clear();
+                }
+                return _batchColliderCastResultCollector.MemoryRef;
+            }
 
             for (int i = 0; i < allocCount; i++)
             {

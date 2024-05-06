@@ -62,9 +62,46 @@ public class TestCollisionWorld3D
             //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision3D.BoxSphere(target.shape, caster1.shape)}");
         };
 
-        
+        world.BuildTree();
+        world.Simulate();
+        Assert.That(caster1.hitIds.Count, Is.EqualTo(21));
+        Assert.That(caster2.hitIds.Count, Is.EqualTo(21));
 
-        
+
+        //reuse test: no target
+
+        caster1.hitIds.Clear();
+        caster2.hitIds.Clear();
+        world.ClearAll();
+
+        world.PushCaster(caster1, caster1.shape);
+        world.PushCaster(caster2, caster2.shape);
+
+        world.BuildTree();
+        world.Simulate();
+        Assert.That(caster1.hitIds.Count, Is.EqualTo(0));
+        Assert.That(caster2.hitIds.Count, Is.EqualTo(0));
+
+
+        // reuse test with target
+
+        caster1.hitIds.Clear();
+        caster2.hitIds.Clear();
+        world.ClearAll();
+
+        for (int i = 0; i < boxCount; i++)
+        {
+            TestBoxTarget target = new TestBoxTarget
+            {
+                id = i,
+                shape = new ShapeBox3D(new Vector3(i, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
+            };
+            world.PushTarget(target, target.shape);
+            //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision3D.BoxSphere(target.shape, caster1.shape)}");
+        };
+
+        world.PushCaster(caster1, caster1.shape);
+        world.PushCaster(caster2, caster2.shape);
 
         world.BuildTree();
         world.Simulate();
