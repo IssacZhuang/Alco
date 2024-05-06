@@ -177,6 +177,18 @@ namespace Vocore
         {
             // EnsureSizeWithoutCopy will cause memory leak here
             _batchColliderCastResultCollector.EnsureSize(colliders.Length);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                NativeArrayList<ColliderCastResult3D>* collector = _batchColliderCastResultCollector.UnsafePointer + i;
+                if (!collector->Initialized)
+                {
+                    *collector = new NativeArrayList<ColliderCastResult3D>(4);
+                }
+                else
+                {
+                    collector->Clear();
+                }
+            }
 
             _jobCastColliderRefCollector.colliders = colliders.Pointer;
             _jobCastColliderRefCollector.results = _batchColliderCastResultCollector.UnsafePointer;
@@ -534,6 +546,8 @@ namespace Vocore
             {
                 _batchColliderCastResultCollector[i].Dispose();
             }
+
+            _batchColliderCastResultCollector.Dispose();
 
             _nodes.Dispose();
             _isDisposed = true;

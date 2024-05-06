@@ -44,6 +44,14 @@ namespace Vocore
             }
         }
 
+        public bool Initialized
+        {
+            get
+            {
+                return _ptrBuffer != null;
+            }
+        }
+
 
         public T this[int index]
         {
