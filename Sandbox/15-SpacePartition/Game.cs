@@ -62,7 +62,7 @@ public class Game : GameEngine
 
         Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
 
-        if(Input.IsMouseDown(Mouse.Left))
+        if(Input.IsMouseDown(Mouse.Right))
         {
             if (_plane.IntersectRay(cameraRay, out Vector3 hitPoint))
             {

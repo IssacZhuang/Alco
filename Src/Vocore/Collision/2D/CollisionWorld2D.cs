@@ -54,14 +54,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// /// <param name="target"> Object that waits for being hit. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void AddTarget(object target, ShapeBox2D shape)
+    public void PushTarget(object target, ShapeBox2D shape)
     {
         ColliderBox2D* collider = _targetBoxes.Alloc(new ColliderBox2D
         {
             shape = shape
         });
 
-        AddTarget(target, collider);
+        PushTargetCore(target, collider);
     }
 
     /// <summary>
@@ -69,14 +69,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="target"> Object that waits for being hit. </param>
     /// <param name="shape"> Shape of the object. </param>    
-    public void AddTarget(object target, ShapeSphere2D shape)
+    public void PushTarget(object target, ShapeSphere2D shape)
     {
         ColliderSphere2D* collider = _targetSpheres.Alloc(new ColliderSphere2D
         {
             shape = shape
         });
 
-        AddTarget(target, collider);
+        PushTargetCore(target, collider);
     }
 
 
@@ -86,14 +86,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void AddCaster(ICollisionCaster caster, ShapeBox2D shape)
+    public void PushCaster(ICollisionCaster caster, ShapeBox2D shape)
     {
         ColliderBox2D* collider = _casterBoxes.Alloc(new ColliderBox2D
         {
             shape = shape
         });
 
-        AddCaster(caster, collider);
+        PushCasterCore(caster, collider);
     }
 
     /// <summary>
@@ -101,14 +101,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void AddCaster(ICollisionCaster caster, ShapeSphere2D shape)
+    public void PushCaster(ICollisionCaster caster, ShapeSphere2D shape)
     {
         ColliderSphere2D* collider = _casterSpheres.Alloc(new ColliderSphere2D
         {
             shape = shape
         });
 
-        AddCaster(caster, collider);
+        PushCasterCore(caster, collider);
     }
 
     public void BuildTree()
@@ -118,6 +118,10 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
     public void Simulate()
     {
+        if (_casters.Count == 0)
+        {
+            return;
+        }
         MemoryRef<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
         for (int i = 0; i < _casters.Count; i++)
         {
@@ -130,7 +134,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
                 caster.OnHit(_targets[targetIndex]);
             }
         }
-
     }
 
 
@@ -156,7 +159,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
         ClearCasters();
     }
 
-    private void AddTarget<T>(object target, T* collider) where T : unmanaged, ICollider2D
+    private void PushTargetCore<T>(object target, T* collider) where T : unmanaged, ICollider2D
     {
         _targets.Add(target);
         int targetIndex = _targets.Count - 1;
@@ -166,7 +169,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
 
-    private void AddCaster<T>(ICollisionCaster caster, T* collider) where T : unmanaged, ICollider2D
+    private void PushCasterCore<T>(ICollisionCaster caster, T* collider) where T : unmanaged, ICollider2D
     {
         _casterColliders.Add(ColliderRef2D.Create(collider));
         _casters.Add(caster);

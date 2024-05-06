@@ -11,7 +11,7 @@ using Random = Vocore.Random;
 
 public class DropletSystem
 {
-    private static readonly ColorFloat DefaultColor = 0xffffff;
+    private static readonly ColorFloat DefaultColor = 0xCCCCCC;
     private readonly SpriteRenderer _renderer;
     private readonly Texture2D _texture;
     private readonly List<Droplet> _activeList = new List<Droplet>();

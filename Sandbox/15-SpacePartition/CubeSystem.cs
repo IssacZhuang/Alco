@@ -9,7 +9,7 @@ using Random = Vocore.Random;
 
 public class CubeSystem
 {
-    private static readonly ColorFloat DefaultColor = 0xffffff;
+    private static readonly ColorFloat DefaultColor = 0xff4444;
     private readonly SpriteRenderer _renderer;
     private readonly Texture2D _texture;
     private readonly List<Cube> _activeList = new List<Cube>();
