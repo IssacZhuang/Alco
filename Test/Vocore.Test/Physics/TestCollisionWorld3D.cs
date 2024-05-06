@@ -47,8 +47,8 @@ public class TestCollisionWorld3D
             radius = 10.1f
         });
 
-        world.AddCaster(caster1, caster1.shape);
-        world.AddCaster(caster2, caster2.shape);
+        world.PushCaster(caster1, caster1.shape);
+        world.PushCaster(caster2, caster2.shape);
 
         int boxCount = 100;
         for (int i = 0; i < boxCount; i++)
@@ -58,7 +58,7 @@ public class TestCollisionWorld3D
                 id = i,
                 shape = new ShapeBox3D(new Vector3(i, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
             };
-            world.AddTarget(target, target.shape);
+            world.PushTarget(target, target.shape);
             //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision3D.BoxSphere(target.shape, caster1.shape)}");
         };
 
