@@ -83,8 +83,6 @@ namespace Vocore
 
             public void Execute(int index)
             {
-                //TODO: this is tmp operation, it will cause memory leak
-                results[index] = new NativeArrayList<ColliderCastResult2D>(4);
                 _bvh.CastColliderCollectorCore(colliders[index], _bvh._root, results + index);
             }
         }
@@ -176,7 +174,21 @@ namespace Vocore
         public MemoryRef<NativeArrayList<ColliderCastResult2D>> CastBatchColliderRefCollector(MemoryRef<ColliderRef2D> colliders)
         {
             // EnsureSizeWithoutCopy will cause memory leak here
+
+            int lengthBefore = _batchColliderCastResultCollector.Length;
             _batchColliderCastResultCollector.EnsureSize(colliders.Length);
+            int allocCount = _batchColliderCastResultCollector.Length - lengthBefore;
+
+            for (int i = 0; i < allocCount; i++)
+            {
+                _batchColliderCastResultCollector[lengthBefore + i] = new NativeArrayList<ColliderCastResult2D>(4);
+            }
+
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                NativeArrayList<ColliderCastResult2D>* collector = _batchColliderCastResultCollector.UnsafePointer + i;
+                collector->Clear();
+            }
 
             _jobCastColliderRefCollector.colliders = colliders.Pointer;
             _jobCastColliderRefCollector.results = _batchColliderCastResultCollector.UnsafePointer;
@@ -534,6 +546,8 @@ namespace Vocore
             {
                 _batchColliderCastResultCollector[i].Dispose();
             }
+
+            _batchColliderCastResultCollector.Dispose();
 
             _nodes.Dispose();
             _isDisposed = true;

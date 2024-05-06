@@ -12,7 +12,11 @@ namespace Vocore
         private bool _isDisposed;
         private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
-        public int Length => _length;
+        public int Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _length;
+        }
 
         public unsafe T* UnsafePointer
         {
