@@ -163,6 +163,12 @@ public class UnorderedList<T> : IList<T>
         _size--;
     }
 
+    public T RemoveLast()
+    {
+        _size--;
+        return _items[_size];
+    }
+
     IEnumerator IEnumerable.GetEnumerator()
     {
         return _items.GetEnumerator();
