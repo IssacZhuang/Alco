@@ -16,7 +16,6 @@ namespace Vocore.Engine
 
         public EngineGraphics(GameEngine engine)
         {
-            // TODO : implement with new graphics module
             _device = engine.GraphicsDevice;
             _renderingSystem = engine.Rendering;
             _commandBuffer = _device.CreateCommandBuffer();
