@@ -82,6 +82,7 @@ public class Game : GameEngine
     {
         base.OnStop();
         _spriteRenderer.Dispose();
+        _dropletSystem.Dispose();
         _texDroplet.Dispose();
         _shaderSprite.Dispose();
         _collisionWorld.Dispose();

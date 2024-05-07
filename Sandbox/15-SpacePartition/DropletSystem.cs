@@ -9,38 +9,41 @@ using Vocore.Rendering;
 
 using Random = Vocore.Random;
 
-public class DropletSystem
+public class DropletSystem : IDisposable
 {
-    private class JobMoveDroplet : IJobBatch
+    public const int BufferLength = 10000;
+    private class JobCalcMatrix : IJobBatch
     {
-        public List<Droplet> activeList = null!;
-        public int speed;
-        public float delta;
-        public float despawnHeight;
-        public void Execute(int i)
+        private readonly Transform2D[] _transformBuffer;
+        private readonly Matrix4x4[] _matrixBuffer;
+
+        public JobCalcMatrix(Transform2D[] transformBuffer, Matrix4x4[] matrixBuffer)
         {
-            Droplet entity = activeList[i];
-            entity.transform.position.Y -= speed * delta;
-            if (entity.transform.position.Y < despawnHeight)
-            {
-                entity.pendingDestroy = true;
-            }
+            _transformBuffer = transformBuffer;
+            _matrixBuffer = matrixBuffer;
+        }
+
+        public void Execute(int index)
+        {
+            _matrixBuffer[index] = _transformBuffer[index].Matrix;
         }
     }
+
     private static readonly ColorFloat DefaultColor = 0xCCCCCC;
     private readonly SpriteRenderer _renderer;
     private readonly Texture2D _texture;
     private readonly List<Droplet> _activeList = new List<Droplet>();
     private readonly Stack<Droplet> _despawnList = new Stack<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(10000, () => new Droplet());
-    private readonly ParallelScheduler _scheduler = new ParallelScheduler();
-    private readonly JobMoveDroplet _jobMoveDroplet;
-    private int _spawnRate = 20;
+    private readonly ParallelScheduler _scheduler = new ParallelScheduler(24);
+    private readonly Transform2D[] _transformBuffer = new Transform2D[BufferLength];
+    private readonly Matrix4x4[] _matrixBuffer = new Matrix4x4[BufferLength];
+    private readonly JobCalcMatrix _jobCalcMatrix;
+    private int _spawnRate = 100;
     private int _spawnHeight = 280;
     private int _despawnHeight = -280;
     private int _spwanRangeX = 480;
     private int _speed = 300;
-    
 
     private Random _random = new Random(123);
 
@@ -48,13 +51,7 @@ public class DropletSystem
     {
         _renderer = renderer;
         _texture = texDroplet;
-
-        _jobMoveDroplet = new JobMoveDroplet(){
-            activeList = _activeList,
-            speed = _speed,
-            delta = 0,
-            despawnHeight = _despawnHeight
-        };
+        _jobCalcMatrix = new JobCalcMatrix(_transformBuffer, _matrixBuffer);
     }
 
     public void OnTick(float delta)
@@ -64,12 +61,6 @@ public class DropletSystem
         for (int i = 0; i < _spawnRate; i++){
             Spawn();
         }
-
-        // _jobMoveDroplet.delta = delta;
-        // _jobMoveDroplet.speed = _speed;
-        //_scheduler.Run(_jobMoveDroplet, _activeList.Count);
-
-        //use single thread
 
         for (int i = 0; i < _activeList.Count; i++)
         {
@@ -112,17 +103,51 @@ public class DropletSystem
 
     public void OnUpdate(GPUFrameBuffer frame, float delta)
     {
+        int jobExecCount = _activeList.Count / BufferLength;
+        int remain = _activeList.Count % BufferLength;
+
         _renderer.Begin(frame);
         for (int i = 0; i < _activeList.Count; i++)
         {
             var droplet = _activeList[i];
-            _renderer.Draw(_texture, droplet.transform, droplet.color);
+            _renderer.Draw(_texture, droplet.transform.Matrix, droplet.color);
         }
+        // for (int i = 0; i < jobExecCount; i++)
+        // {
+        //     //copy transform to buffer
+        //     for (int j = 0; j < BufferLength; j++)
+        //     {
+        //         _transformBuffer[j] = _activeList[i * BufferLength + j].transform;
+        //     }
+
+        //     _scheduler.Run(_jobCalcMatrix, BufferLength);
+
+        //     for (int j = 0; j < BufferLength; j++)
+        //     {
+        //         _renderer.Draw(_texture, _matrixBuffer[j], DefaultColor);
+        //     }
+        // }
+
+        // if (remain > 0)
+        // {
+        //     for (int i = 0; i < remain; i++)
+        //     {
+        //         _transformBuffer[i] = _activeList[jobExecCount * BufferLength + i].transform;
+        //     }
+
+        //     _scheduler.Run(_jobCalcMatrix, remain);
+
+        //     for (int i = 0; i < remain; i++)
+        //     {
+        //         _renderer.Draw(_texture, _matrixBuffer[i], DefaultColor);
+        //     }
+        // }
+
         _renderer.End();
 
         DebugGUI.Text("Active: 0", _activeList.Count);
 
-        DebugGUI.Slider(0, 100, ref _spawnRate);
+        DebugGUI.Slider(0, 400, ref _spawnRate);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Rate");
 
@@ -141,5 +166,10 @@ public class DropletSystem
         DebugGUI.Slider(0, 600, ref _speed);
         DebugGUI.SameLine();
         DebugGUI.Text("Speed");
+    }
+
+    public void Dispose()
+    {
+        _scheduler.Dispose();
     }
 }
