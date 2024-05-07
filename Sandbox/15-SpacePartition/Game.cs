@@ -36,7 +36,7 @@ public class Game : GameEngine
 
         _spriteRenderer  = Rendering.CreateSpriteRenderer(_camera, _shaderSprite);
 
-        _dropletSystem = new DropletSystem(_spriteRenderer, _texDroplet);
+        _dropletSystem = new DropletSystem(Rendering ,_camera, _shaderSprite, _texDroplet);
         _cubeSystem = new CubeSystem(_spriteRenderer, Rendering.TextureWhite);
     }
 
@@ -72,7 +72,7 @@ public class Game : GameEngine
 
         DebugGUI.Text(FrameRate);
 
-        _dropletSystem.OnUpdate(Rendering.DefaultFrameBuffer, delta);
+        _dropletSystem.OnUpdate(delta);
         _cubeSystem.OnUpdate(Rendering.DefaultFrameBuffer, delta);
 
         
