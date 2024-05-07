@@ -21,7 +21,7 @@ public class Cube:ICollisionCaster
     }
 
 
-    public void OnHit(object hitObject)
+    public void OnHit(object hitObject, int userData)
     {
         if(hitObject is Droplet droplet)
         {

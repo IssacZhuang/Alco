@@ -15,14 +15,16 @@ public class TestCollisionWorld2D
     {
         public List<int> hitIds = new List<int>();
         public ShapeSphere2D shape;
+        public int cutomData;
 
         public TestSphereCaster(ShapeSphere2D shape)
         {
             this.shape = shape;
+            this.cutomData = 123;
         }
-        public void OnHit(object hitObject)
+        public void OnHit(object hitObject, int userData)
         {
-
+            Assert.That(userData, Is.EqualTo(this.cutomData));
             if (hitObject is TestBoxTarget target)
             {
                 hitIds.Add(target.id);
@@ -47,8 +49,8 @@ public class TestCollisionWorld2D
             radius = 10.1f
         });
 
-        world.PushCaster(caster1, caster1.shape);
-        world.PushCaster(caster2, caster2.shape);
+        world.PushCaster(caster1, caster1.shape, caster1.cutomData);
+        world.PushCaster(caster2, caster2.shape, caster2.cutomData);
 
         int boxCount = 100;
         for (int i = 0; i < boxCount; i++)
@@ -100,8 +102,8 @@ public class TestCollisionWorld2D
             //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
-        world.PushCaster(caster1, caster1.shape);
-        world.PushCaster(caster2, caster2.shape);
+        world.PushCaster(caster1, caster1.shape, caster1.cutomData);
+        world.PushCaster(caster2, caster2.shape, caster2.cutomData);
 
         world.BuildTree();
         world.Simulate();

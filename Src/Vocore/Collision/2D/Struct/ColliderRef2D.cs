@@ -5,10 +5,17 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
+    /// <summary>
+    /// The umnanaged reference to a collider data.
+    /// </summary>
     public unsafe struct ColliderRef2D
     {
         private ColliderType2D _type;
         private ColliderHeader2D* _ptr;
+        /// <summary>
+        /// Used for index the target collider in the <see cref="CollisionWorld3D"/> 
+        /// <br/> Also can be the custom data for the caster collider.
+        /// </summary>
         public int userData;
 
         public bool HasCollider

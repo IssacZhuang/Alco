@@ -86,14 +86,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushCaster(ICollisionCaster caster, ShapeBox2D shape)
+    public void PushCaster(ICollisionCaster caster, ShapeBox2D shape, int userData = 0)
     {
         ColliderBox2D* collider = _casterBoxes.Alloc(new ColliderBox2D
         {
             shape = shape
         });
 
-        PushCasterCore(caster, collider);
+        PushCasterCore(caster, collider, userData);
     }
 
     /// <summary>
@@ -101,14 +101,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushCaster(ICollisionCaster caster, ShapeSphere2D shape)
+    public void PushCaster(ICollisionCaster caster, ShapeSphere2D shape, int userData = 0)
     {
         ColliderSphere2D* collider = _casterSpheres.Alloc(new ColliderSphere2D
         {
             shape = shape
         });
 
-        PushCasterCore(caster, collider);
+        PushCasterCore(caster, collider, userData);
     }
 
     public void BuildTree()
@@ -125,13 +125,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
         MemoryRef<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
         for (int i = 0; i < _casters.Count; i++)
         {
-            NativeArrayList<ColliderCastResult2D> castResults = result[i];
+            NativeArrayList<ColliderCastResult2D> hitTargets = result[i];
             ICollisionCaster caster = _casters[i];
-            for (int j = 0; j < castResults.Length; j++)
+            ColliderRef2D casterCollider = _casterColliders[i];
+            for (int j = 0; j < hitTargets.Length; j++)
             {
-                ColliderCastResult2D castResult = castResults[j];
-                int targetIndex = castResult.collider.userData;
-                caster.OnHit(_targets[targetIndex]);
+                ColliderCastResult2D target = hitTargets[j];
+                int targetIndex = target.collider.userData;
+                caster.OnHit(_targets[targetIndex], casterCollider.userData);
             }
         }
     }
@@ -169,9 +170,11 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
 
-    private void PushCasterCore<T>(ICollisionCaster caster, T* collider) where T : unmanaged, ICollider2D
+    private void PushCasterCore<T>(ICollisionCaster caster, T* collider, int userData) where T : unmanaged, ICollider2D
     {
-        _casterColliders.Add(ColliderRef2D.Create(collider));
+        ColliderRef2D colliderRef = ColliderRef2D.Create(collider);
+        colliderRef.userData = userData;
+        _casterColliders.Add(colliderRef);
         _casters.Add(caster);
     }
 
