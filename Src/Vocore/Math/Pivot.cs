@@ -1,9 +1,9 @@
 using System.Numerics;
 
-namespace Vocore.Rendering;
+namespace Vocore;
 
 /// <summary>
-/// The TextAlign for text rendering.
+/// The alignment relative to the size of the object.
 /// </summary>
 public struct Pivot
 {

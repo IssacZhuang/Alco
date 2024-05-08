@@ -128,7 +128,7 @@ public class UnorderedList<T> : IList<T>
 
     public void Insert(int index, T item)
     {
-        if ((uint)index > (uint)_size)
+        if (index > _size)
         {
             throw new IndexOutOfRangeException(nameof(index));
         }
