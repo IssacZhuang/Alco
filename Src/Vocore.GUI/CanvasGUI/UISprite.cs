@@ -1,5 +1,4 @@
 using System.Numerics;
-using Microsoft.VisualBasic;
 using Vocore.Graphics;
 using Vocore.Rendering;
 

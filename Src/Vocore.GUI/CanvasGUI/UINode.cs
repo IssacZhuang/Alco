@@ -20,10 +20,17 @@ public abstract class UINode
     {
         get
         {
-            Matrix4x4 matrix = transform.Matrix;
+            Matrix4x4 matrix = Matrix4x4.Identity;
             if (Parent != null)
             {
+                Transform2D newTransform = transform;
+                newTransform.position = UtilsCanvasMath.TransformAnchor(Parent.Size, anchor, transform.position);
+                matrix = newTransform.Matrix;
                 matrix *= Parent.TransformMatrix;
+            }
+            else
+            {
+                matrix = transform.Matrix;
             }
             return matrix;
         }
@@ -226,12 +233,4 @@ public abstract class UINode
         }
     }
 
-    internal void InternalResize(Vector2 size)
-    {
-        
-        for (int i = 0; i < _children.Count; i++)
-        {
-            _children[i].InternalResize(size);
-        }
-    }
 }

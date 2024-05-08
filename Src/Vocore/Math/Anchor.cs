@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Vocore;
 
@@ -6,6 +7,12 @@ public struct Anchor
 {
     public Vector2 min;
     public Vector2 max;
+
+    public Vector2 CenterPoint
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => min + (max - min) * 0.5f;
+    }
 
     public static readonly Anchor Center = new(new Vector2(0f, 0f), new Vector2(0f, 0f));
     public static readonly Anchor LeftCenter = new(new Vector2(-0.5f, 0f), new Vector2(-0.5f, 0f));

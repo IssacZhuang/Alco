@@ -38,7 +38,8 @@ public class Game : GameEngine
         sprite2.Texture = Rendering.TextureWhite;
         sprite2.Size = new Vector2(30, 30);
         sprite2.Color = new Vector4(1, 0, 0, 1);
-        sprite2.transform.position = new Vector2(50, 50);
+        sprite2.transform.position = new Vector2(0, 0);
+        sprite2.anchor = Anchor.LeftTop;
 
         sprite1.Add(sprite2);
 
