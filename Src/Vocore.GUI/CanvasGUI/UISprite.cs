@@ -39,7 +39,7 @@ public class UISprite : UINode
     {
         if (Texture != null)
         {
-            _renderer.Draw(Texture, TransformMatrix, Color);
+            _renderer.Draw(Texture, SizeMatrix * TransformMatrix, Color);
         }
     }
 }

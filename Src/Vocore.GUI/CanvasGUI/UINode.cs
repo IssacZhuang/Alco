@@ -7,7 +7,8 @@ namespace Vocore.GUI;
 public abstract class UINode
 {
     private readonly List<UINode> _children = new();
-    private Transform2D _transform = Transform2D.Identity;
+    private Vector2 _size = Vector2.One;
+    public Transform2D transform = Transform2D.Identity;
     public Pivot pivot = Pivot.Center;
     public Anchor anchor = Anchor.Center;
 
@@ -19,7 +20,7 @@ public abstract class UINode
     {
         get
         {
-            Matrix4x4 matrix = _transform.Matrix;
+            Matrix4x4 matrix = transform.Matrix;
             if (Parent != null)
             {
                 matrix *= Parent.TransformMatrix;
@@ -28,30 +29,26 @@ public abstract class UINode
         }
     }
 
-    public Vector2 Position
+    public Matrix4x4 SizeMatrix
     {
-        get => _transform.position;
-        set
+        get
         {
-            _transform.position = value;
+            return math.matrix4scale(_size);
         }
     }
 
-    public Rotation2D Rotation
+    public IReadOnlyList<UINode> Children
     {
-        get => _transform.rotation;
-        set
-        {
-            _transform.rotation = value;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _children;
     }
 
     public Vector2 Size
     {
-        get => _transform.scale;
+        get => _size;
         set
         {
-            _transform.scale = value;
+            _size = value;
         }
     }
     
