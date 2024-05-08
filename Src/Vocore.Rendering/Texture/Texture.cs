@@ -31,7 +31,7 @@ public abstract class Texture : ShaderResource
         get => _texture.Width;
     }
 
-    public uint Hieght
+    public uint Height
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _texture.Height;

@@ -68,7 +68,7 @@ public class Game : GameEngine
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
         _image = LaodTexture();
-        _renderTarget = CreateRenderTarget(_image.Width, _image.Hieght);
+        _renderTarget = CreateRenderTarget(_image.Width, _image.Height);
         //_iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
         _iterationBuffer = Rendering.CreateGraphicsValueBuffer<int>(8, "iteration_buffer");
 
@@ -103,7 +103,7 @@ public class Game : GameEngine
         _commandBuffer.SetComputeResources(0, _image.EntryReadonly);
         _commandBuffer.SetComputeResources(1, _renderTarget.EntryWriteable);
         _commandBuffer.SetComputeResources(2, _iterationBuffer.EntryReadonly);
-        _commandBuffer.DispatchCompute(_image.Width / 8, _image.Hieght / 8, 1);
+        _commandBuffer.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
         // _commandBuffer.End();
         // GraphicsDevice.Submit(_commandBuffer);
 

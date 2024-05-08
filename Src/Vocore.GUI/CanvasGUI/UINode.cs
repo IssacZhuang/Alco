@@ -7,9 +7,7 @@ namespace Vocore.GUI;
 public abstract class UINode
 {
     private readonly List<UINode> _children = new();
-    private Matrix4x4 _transformCache = Matrix4x4.Identity;
     private Transform2D _transform = Transform2D.Identity;
-    private bool _isDirty = true;
     public Pivot pivot = Pivot.Center;
     public Anchor anchor = Anchor.Center;
 
@@ -17,23 +15,34 @@ public abstract class UINode
     public string Name { get; set; } = string.Empty;
     public bool IsVisible { get; set; } = true;
 
+    public Matrix4x4 TransformMatrix
+    {
+        get
+        {
+            Matrix4x4 matrix = _transform.Matrix;
+            if (Parent != null)
+            {
+                matrix *= Parent.TransformMatrix;
+            }
+            return matrix;
+        }
+    }
+
     public Vector2 Position
     {
         get => _transform.position;
         set
         {
             _transform.position = value;
-            _isDirty = true;
         }
     }
 
-    public Rotation2D rotation
+    public Rotation2D Rotation
     {
         get => _transform.rotation;
         set
         {
             _transform.rotation = value;
-            _isDirty = true;
         }
     }
 
@@ -43,7 +52,6 @@ public abstract class UINode
         set
         {
             _transform.scale = value;
-            _isDirty = true;
         }
     }
     
@@ -208,12 +216,13 @@ public abstract class UINode
 
     internal void InternalUpdate(float delta)
     {
-        OnUpdate(delta);
-
         if (!IsVisible)
         {
             return;
         }
+        
+        OnUpdate(delta);
+
         for (int i = 0; i < _children.Count; i++)
         {
             _children[i].InternalUpdate(delta);
