@@ -7,7 +7,7 @@ namespace Vocore.GUI;
 public abstract class UINode
 {
     private readonly List<UINode> _children = new();
-    private Vector2 _size = Vector2.One;
+    private Vector2 _sizeDelta = Vector2.Zero;
     public Transform2D transform = Transform2D.Identity;
     public Pivot pivot = Pivot.Center;
     public Anchor anchor = Anchor.Center;
@@ -20,12 +20,13 @@ public abstract class UINode
     {
         get
         {
-            Matrix4x4 matrix = Matrix4x4.Identity;
+            Matrix4x4 matrix;
+            Transform2D newTransform = transform;
+            newTransform.position = UtilsCanvasMath.TransformAnchor(GetParentSize(), anchor, transform.position);
+            matrix = newTransform.Matrix;
             if (Parent != null)
             {
-                Transform2D newTransform = transform;
-                newTransform.position = UtilsCanvasMath.TransformAnchor(Parent.Size, anchor, transform.position);
-                matrix = newTransform.Matrix;
+
                 matrix *= Parent.TransformMatrix;
             }
             else
@@ -40,7 +41,7 @@ public abstract class UINode
     {
         get
         {
-            return math.matrix4scale(_size);
+            return math.matrix4scale(Size);
         }
     }
 
@@ -52,10 +53,10 @@ public abstract class UINode
 
     public Vector2 Size
     {
-        get => _size;
+        get => GetParentSize() * GetAnchorSizeMultiplier() + _sizeDelta;
         set
         {
-            _size = value;
+            _sizeDelta = value - GetParentSize() * GetAnchorSizeMultiplier();
         }
     }
     
@@ -206,6 +207,16 @@ public abstract class UINode
 
     public abstract void OnTick(float delta);
     public abstract void OnUpdate(float delta);
+
+    private Vector2 GetParentSize()
+    {
+        return Parent?.Size ?? Vector2.Zero;
+    }
+
+    private Vector2 GetAnchorSizeMultiplier()
+    {
+        return anchor.max - anchor.min;
+    }
 
     internal void InternalTick(float delta)
     {

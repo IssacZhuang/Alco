@@ -31,17 +31,21 @@ public class Game : GameEngine
 
         UISprite sprite1 = new UISprite(_renderer);
         sprite1.Texture = Rendering.TextureWhite;
+        sprite1.Size = new Vector2(100, 100);
 
         _sprite1 = sprite1;
 
         UISprite sprite2 = new UISprite(_renderer);
-        sprite2.Texture = Rendering.TextureWhite;
-        sprite2.Size = new Vector2(30, 30);
-        sprite2.Color = new Vector4(1, 0, 0, 1);
-        sprite2.transform.position = new Vector2(0, 0);
-        sprite2.anchor = Anchor.LeftTop;
 
         sprite1.Add(sprite2);
+
+        sprite2.Texture = Rendering.TextureWhite;
+        sprite2.Color = new Vector4(1, 0, 0, 0.5f);
+        sprite2.transform.position = new Vector2(0, 0);
+        sprite2.anchor = Anchor.Stretch;
+        sprite2.Size = new Vector2(80, 80);
+
+        
 
         _root.Add(sprite1);
     }
