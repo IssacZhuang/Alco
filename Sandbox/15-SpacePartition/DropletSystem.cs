@@ -24,12 +24,12 @@ public class DropletSystem : IDisposable
     {
         private readonly SpriteRenderer[] _renderers;
         private readonly RenderRange[] _renderRanges;
-        private readonly List<Droplet> _activeList;
+        private readonly UnorderedList<Droplet> _activeList;
         private readonly Texture2D _texture;
         private readonly GPUFrameBuffer _renderTarget;
         
 
-        public JobParallelRender(GPUFrameBuffer renderTarget, SpriteRenderer[] renderers, RenderRange[] renderRanges, List<Droplet> activeList, Texture2D texture)
+        public JobParallelRender(GPUFrameBuffer renderTarget, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
         {
             _renderTarget = renderTarget;
             _renderers = renderers;
@@ -54,9 +54,8 @@ public class DropletSystem : IDisposable
     private readonly SpriteRenderer[] _renderer;
     private readonly RenderRange[] _renderRanges;
     private readonly Texture2D _texture;
-    private readonly List<Droplet> _activeList = new List<Droplet>();
-    private readonly Stack<Droplet> _despawnList = new Stack<Droplet>();
-    private readonly Pool<Droplet> _pool = new Pool<Droplet>(10000, () => new Droplet());
+    private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
+    private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
     private readonly ParallelScheduler _scheduler = new ParallelScheduler(24);
     private readonly GPUFrameBuffer _renderTarget;
     private readonly JobParallelRender _jobParallelRender;
@@ -90,6 +89,8 @@ public class DropletSystem : IDisposable
             Spawn();
         }
 
+
+        int length = _activeList.Count;
         for (int i = 0; i < _activeList.Count; i++)
         {
             Droplet entity = _activeList[i];
@@ -97,15 +98,10 @@ public class DropletSystem : IDisposable
 
             if (entity.pendingDestroy || entity.transform.position.Y < _despawnHeight)
             {
-                _despawnList.Push(entity);
+                _pool.TryReturn(entity);
+                _activeList[i] = _activeList.RemoveLast();
+                length--;
             }
-        }
-
-        while (_despawnList.Count > 0)
-        {
-            Droplet entity = _despawnList.Pop();
-            _activeList.Remove(entity);
-            _pool.TryReturn(entity);
         }
     }
 
