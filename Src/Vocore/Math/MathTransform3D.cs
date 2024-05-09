@@ -7,27 +7,37 @@ namespace Vocore
     public static partial class math
     {
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform3D inverse(Transform3D a)
-        {
-            Quaternion invRot = inverse(a.rotation);
-            return new Transform3D
-            {
-                position = mul(invRot, -a.position),
-                rotation = invRot,
-                scale = Vector3.One / a.scale
-            };
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform3D transform(Transform3D parent, Transform3D child)
         {
             return new Transform3D
             {
                 position = mul(parent.rotation, parent.scale * child.position) + parent.position,
+                rotation = parent.rotation * child.rotation,
+                scale = parent.scale * child.scale
+            };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform3D toworld(Transform3D parent, Transform3D child)
+        {
+            return new Transform3D
+            {
+                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
                 rotation = parent.rotation* child.rotation,
                 scale = parent.scale * child.scale
+            };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform3D tolocal(Transform3D parent, Transform3D world)
+        {
+            Quaternion invRot = inverse(parent.rotation);
+            return new Transform3D
+            {
+                position = mul(invRot, world.position - parent.position) / parent.scale,
+                rotation = invRot * world.rotation,
+                scale = world.scale / parent.scale
             };
         }
 

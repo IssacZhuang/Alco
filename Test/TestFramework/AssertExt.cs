@@ -1,4 +1,5 @@
 using System.Numerics;
+using NUnit.Framework;
 using Vocore;
 
 namespace TestFramework;
@@ -11,7 +12,8 @@ public static class AssertExt
     {
         if (!IsEqual(expected, actual))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
@@ -19,7 +21,8 @@ public static class AssertExt
     {
         if (!IsEqual(expected, actual))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
@@ -27,7 +30,8 @@ public static class AssertExt
     {
         if (!IsEqual(expected, actual))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
@@ -35,7 +39,8 @@ public static class AssertExt
     {
         if (!IsEqual(expected, actual))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
@@ -43,7 +48,8 @@ public static class AssertExt
     {
         if (!IsEqual(expected, actual))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
@@ -53,7 +59,8 @@ public static class AssertExt
         !IsEqual(expected.rotation, actual.rotation) ||
         !IsEqual(expected.scale, actual.scale))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
@@ -63,7 +70,32 @@ public static class AssertExt
         !IsEqual(expected.rotation, actual.rotation) ||
         !IsEqual(expected.scale, actual.scale))
         {
-            throw new Exception($"Expected {expected}, but got {actual}");
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
+        }
+    }
+
+    public static void AreEqual(Matrix4x4 expected, Matrix4x4 actual)
+    {
+        if (!IsEqual(expected.M11, actual.M11) ||
+        !IsEqual(expected.M12, actual.M12) ||
+        !IsEqual(expected.M13, actual.M13) ||
+        !IsEqual(expected.M14, actual.M14) ||
+        !IsEqual(expected.M21, actual.M21) ||
+        !IsEqual(expected.M22, actual.M22) ||
+        !IsEqual(expected.M23, actual.M23) ||
+        !IsEqual(expected.M24, actual.M24) ||
+        !IsEqual(expected.M31, actual.M31) ||
+        !IsEqual(expected.M32, actual.M32) ||
+        !IsEqual(expected.M33, actual.M33) ||
+        !IsEqual(expected.M34, actual.M34) ||
+        !IsEqual(expected.M41, actual.M41) ||
+        !IsEqual(expected.M42, actual.M42) ||
+        !IsEqual(expected.M43, actual.M43) ||
+        !IsEqual(expected.M44, actual.M44))
+        {
+            Assert.Fail($"Expected {expected}, but got {actual}");
+            //throw new Exception($"Expected {expected}, but got {actual}");
         }
     }
 
