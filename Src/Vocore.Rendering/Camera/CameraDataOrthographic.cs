@@ -49,7 +49,7 @@ namespace Vocore.Rendering
             this.near = near;
             this.far = far;
 
-            tranform = Transform3D.Default;
+            tranform = Transform3D.Identity;
         }
     }
 }

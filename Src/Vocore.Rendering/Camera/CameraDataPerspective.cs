@@ -48,6 +48,6 @@ public struct CameraDataPerspective : ICameraData
         this.far = far;
         this.aspectRatio = aspectRatio;
 
-        tranform = Transform3D.Default;
+        tranform = Transform3D.Identity;
     }
 }

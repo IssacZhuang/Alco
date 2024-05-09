@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
+    /// <summary>
+    /// A 3D transform composed of a position, rotation and scale.
+    /// </summary>
     public struct Transform3D
     {
         /// <summary>
@@ -18,7 +21,7 @@ namespace Vocore
         /// The scale of the transform in world space.
         /// </summary>
         public Vector3 scale;
-        public static readonly Transform3D Default = new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One);
+        public static readonly Transform3D Identity = new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One);
 
         public Transform3D()
         {
@@ -55,6 +58,10 @@ namespace Vocore
             this.scale = scale;
         }
 
+        /// <summary>
+        /// The forward direction of the transform.
+        /// </summary>
+        /// <value></value>
         public Vector3 Direction
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -69,6 +76,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the translation, rotation and scale.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 Matrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -78,6 +89,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the translation.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 MatrixTranslation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,6 +102,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the rotation.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 MatrixRotation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -96,6 +115,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the scale.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 MatrixScale
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -105,25 +128,41 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// Translates the transform by the given translation.
+        /// </summary>
+        /// <param name="translation">The translation to apply.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector3 translation)
         {
             position += math.rotate(translation, rotation);
         }
 
-
+        /// <summary>
+        /// Rotates the transform to look at the given point.
+        /// </summary>
+        /// <param name="point">The point to look at.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LookAt(Vector3 point)
         {
             rotation = math.direction(point - position);
         } 
 
+        /// <summary>
+        /// Rotates the transform by the given rotation.
+        /// </summary>
+        /// <param name="rotation"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Quaternion rotation)
         {
             this.rotation = math.mul(this.rotation, rotation);
         }
 
+        /// <summary>
+        /// Rotates the transform by the given axis and angle.
+        /// </summary>
+        /// <param name="axis">The axis to rotate around.</param>
+        /// <param name="angle">The angle to rotate by.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Vector3 axis, float angle)
         {

@@ -31,7 +31,7 @@ public class Cube
     {
         _mesh = mesh;
         _material = material;
-        transform = Transform3D.Default;
+        transform = Transform3D.Identity;
     }
 
 

@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
+    /// <summary>
+    /// A 2D transform composed of a position, rotation and scale.
+    /// </summary>
     public struct Transform2D
     {
         /// <summary>
@@ -56,6 +59,9 @@ namespace Vocore
             this.scale = scale;
         }
 
+        /// <summary>
+        /// The direction of the transform
+        /// </summary>
         public Vector2 Direction
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -71,6 +77,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the translation, rotation and scale.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 Matrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -80,6 +90,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the translation.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 MatrixTranslation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,6 +103,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the rotation.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 MatrixRotation
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -98,6 +116,10 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// The matrix representation of the scale.
+        /// </summary>
+        /// <value></value>
         public Matrix4x4 MatrixScale
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -107,12 +129,20 @@ namespace Vocore
             }
         }
 
+        /// <summary>
+        /// Translates the transform by the given translation.
+        /// </summary>
+        /// <param name="translation">The translation to apply.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector2 translation)
         {
             position += math.rotate(translation, rotation);
         }
 
+        /// <summary>
+        /// Rotates the transform by the given radians.
+        /// </summary>
+        /// <param name="radians">The radians to rotate by.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(float radians)
         {
@@ -120,18 +150,31 @@ namespace Vocore
             rotation = math.mul(rotation, new Rotation2D(c, s));
         }
 
+        /// <summary>
+        /// Rotates the transform by the given degrees.
+        /// </summary>
+        /// <param name="degree">The degrees to rotate by.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RotateDegree(float degree)
+        {
+            Rotate(math.radians(degree));
+        }
+
+        /// <summary>
+        /// Rotates the transform by the given rotation.
+        /// </summary>
+        /// <param name="rot">The rotation to apply.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Rotation2D rot)
         {
             rotation = math.mul(rotation, rot);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void LookAt(Vector2 point)
-        {
-            this.Direction = point - position;
-        }
-
+        /// <summary>
+        /// Rotates the transform around the given center by the given rotation.
+        /// </summary>
+        /// <param name="center">The center to rotate around.</param>
+        /// <param name="rot">The rotation to apply.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Vector2 center, Rotation2D rot)
         {
@@ -139,6 +182,18 @@ namespace Vocore
             rotation = math.mul(rotation, rot);
         }
 
+        
+        /// <summary>
+        /// Set direction of the transform to look at the given point.
+        /// </summary>
+        /// <param name="point">The point to look at.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void LookAt(Vector2 point)
+        {
+            this.Direction = point - position;
+        }
+
+        
         public override string ToString()
         {
             return $"Position: {position}, Rotation: {rotation}, Scale: {scale}";
