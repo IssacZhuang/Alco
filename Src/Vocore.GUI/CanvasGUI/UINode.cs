@@ -8,31 +8,72 @@ public abstract class UINode
 {
     private readonly List<UINode> _children = new();
     private Vector2 _sizeDelta = Vector2.Zero;
+    /// <summary>
+    /// The local transform of the node.
+    /// </summary>
     public Transform2D transform = Transform2D.Identity;
+    /// <summary>
+    /// The pivot point of the node. Only affect the content related to self
+    /// </summary>
     public Pivot pivot = Pivot.Center;
+    /// <summary>
+    /// The achors related to the parent
+    /// </summary>
     public Anchor anchor = Anchor.Center;
 
+    /// <summary>
+    /// The parent of the node. Must be null if the node is a root node.
+    /// </summary>
+    /// <value></value>
     public UINode? Parent { get; set; } = null;
+
+    /// <summary>
+    /// The name of the node.
+    /// </summary>
+    /// <value></value>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to render the node.
+    /// </summary>
+    /// <value></value>
     public bool IsVisible { get; set; } = true;
 
-    public Matrix4x4 TransformMatrix
+    public Transform2D WorldTransform
     {
         get
         {
-            Matrix4x4 matrix;
             Transform2D newTransform = transform;
-            newTransform.position += anchor.CenterPoint * GetParentSize();
-            matrix = newTransform.Matrix;
             if (Parent != null)
             {
-                matrix *= Parent.TransformMatrix;
+                newTransform.position+= Parent.Size * anchor.CenterPoint;
+                newTransform = math.transform(Parent.WorldTransform, newTransform);
+            }
+            return newTransform;
+        }
+        set
+        {
+            if (Parent != null)
+            {
+                transform = math.tolocal(Parent.WorldTransform, value);
+                transform.position -= Parent.Size * anchor.CenterPoint;
             }
             else
             {
-                matrix = transform.Matrix;
+                transform = value;
             }
-            return matrix;
+        }
+    }
+
+    /// <summary>
+    /// The transform matrix of the node in the world space.
+    /// </summary>
+    /// <value></value>
+    public Matrix4x4 WolrdMatrix
+    {
+        get
+        {
+            return WorldTransform.Matrix;
         }
     }
 
@@ -41,18 +82,6 @@ public abstract class UINode
         get
         {
             return math.matrix4scale(Size);
-        }
-    }
-
-    public Vector2 WorldPosition
-    {
-        get
-        {
-            return math.transform(TransformMatrix, Vector2.Zero);
-        }
-        set
-        {
-            
         }
     }
 

@@ -47,9 +47,9 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Rotation2D operator *(Rotation2D a, Rotation2D b)
+        public static Rotation2D operator *(Rotation2D q, Rotation2D r)
         {
-            return new Rotation2D(a.c * b.s - a.s * b.c, a.c * b.c + a.s * b.s);
+            return new Rotation2D(q.c * r.s + q.s * r.c, q.c * r.c - q.s * r.s);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

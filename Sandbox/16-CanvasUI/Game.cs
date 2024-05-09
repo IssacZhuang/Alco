@@ -63,7 +63,7 @@ public class Game : GameEngine
         _root.UpdateChild();
         _renderer.End();
 
-        DebugGUI.Text(_sprite2.WorldPosition.ToString());
+        DebugGUI.Text(_sprite2.WorldTransform.position.ToString());
         DebugGUI.Slider(-320, 320, ref _posX);
         DebugGUI.SameLine();
         DebugGUI.Text("Position X");

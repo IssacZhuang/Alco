@@ -66,9 +66,9 @@ namespace Vocore
         public static Rotation2D mul(Rotation2D q, Rotation2D r)
         {
             // Rotation2D qr;
-            // qr.s = q.c * r.s - q.s * r.c;
-            // qr.c = q.c * r.c + q.s * r.s;
-            return new Rotation2D(q.c * r.s - q.s * r.c, q.c * r.c + q.s * r.s);
+            // qr.s = q.c * r.s + q.s * r.c; // Change the sign here
+            // qr.c = q.c * r.c - q.s * r.s; // Change the sign here
+            return new Rotation2D(q.c * r.s + q.s * r.c, q.c * r.c - q.s * r.s);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
