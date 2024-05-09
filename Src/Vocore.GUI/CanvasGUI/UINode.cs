@@ -26,7 +26,6 @@ public abstract class UINode
             matrix = newTransform.Matrix;
             if (Parent != null)
             {
-
                 matrix *= Parent.TransformMatrix;
             }
             else
@@ -50,6 +49,10 @@ public abstract class UINode
         get
         {
             return math.transform(TransformMatrix, Vector2.Zero);
+        }
+        set
+        {
+            
         }
     }
 

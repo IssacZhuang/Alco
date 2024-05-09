@@ -138,5 +138,10 @@ namespace Vocore
             position = math.rotate(position - center, rot) + center;
             rotation = math.mul(rotation, rot);
         }
+
+        public override string ToString()
+        {
+            return $"Position: {position}, Rotation: {rotation}, Scale: {scale}";
+        }
     }
 }

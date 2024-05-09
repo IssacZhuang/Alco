@@ -34,17 +34,32 @@ namespace Vocore
             return new Vector2(cos, sin);
         }
 
+        //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Vector2 v, Rotation2D q)
         {
-            return new Vector2(q.c * v.X - q.s * v.Y, q.s * v.X + q.c * v.Y);
+            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
         }
 
+        //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Rotation2D q, Vector2 v)
         {
+            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
+        }
 
-            return new Vector2(q.c * v.X - q.s * v.Y, q.s * v.X + q.c * v.Y);
+        //left handed rotation
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 mul(Vector2 v, Rotation2D q)
+        {
+            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
+        }
+
+        //left handed rotation
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 mul(Rotation2D q, Vector2 v)
+        {
+            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

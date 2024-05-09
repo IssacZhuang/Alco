@@ -7,27 +7,27 @@ namespace Vocore
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform2D toLocal(Transform2D transform, Transform2D parent)
-        {
-            Transform2D parentInverse = inverse(parent);
-            Vector2 localPosition = rotate(parentInverse.rotation, transform.position - parent.position) * parentInverse.scale;
-            Rotation2D localRotation = mul(transform.rotation, parentInverse.rotation);
-            Vector2 localScale = transform.scale * parentInverse.scale;
-            return new Transform2D(localRotation, localPosition);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform2D inverse(Transform2D a)
         {
+            Rotation2D invRot = inverse(a.rotation);
             return new Transform2D
             {
-                position = -a.position,
-                rotation = inverse(a.rotation),
+                position = mul(invRot, -a.position),
+                rotation = invRot,
                 scale = Vector2.One / a.scale
             };
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform2D transform(Transform2D parent, Transform2D child)
+        {
+            return new Transform2D
+            {
+                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
+                rotation = parent.rotation * child.rotation,
+                scale = parent.scale * child.scale
+            };
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 transform(Transform2D a, Vector2 b)

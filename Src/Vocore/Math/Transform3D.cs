@@ -130,6 +130,9 @@ namespace Vocore
             Rotate(Quaternion.CreateFromAxisAngle(axis, angle));
         }
 
-        
+        public override string ToString()
+        {
+            return $"Position: {position}, Rotation: {rotation}, Scale: {scale}";
+        }
     }
 }

@@ -7,47 +7,38 @@ namespace Vocore
     public static partial class math
     {
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Transform3D toLocal(Transform3D transform, Transform3D parent)
-        {
-            Transform3D invParent = inverse(parent);
-            Vector3 localPosition = mul(invParent.rotation, transform.position + invParent.position) * invParent.scale;
-            Quaternion localRotation = mul(invParent.rotation, transform.rotation);
-            Vector3 localScale = transform.scale * invParent.scale;
-            return new Transform3D(localPosition, localRotation, localScale);
-        }
-        
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform3D inverse(Transform3D a)
         {
+            Quaternion invRot = inverse(a.rotation);
             return new Transform3D
             {
-                position = -a.position,
-                rotation = inverse(a.rotation),
+                position = mul(invRot, -a.position),
+                rotation = invRot,
                 scale = Vector3.One / a.scale
             };
         }
 
-        public static Transform3D relative(Transform3D from, Transform3D to)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform3D transform(Transform3D parent, Transform3D child)
         {
             return new Transform3D
             {
-                position = to.position - from.position,
-                rotation = mul(inverse(from.rotation), to.rotation),
-                scale = to.scale / from.scale
+                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
+                rotation = parent.rotation* child.rotation,
+                scale = parent.scale * child.scale
             };
         }
 
-        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 transform(Transform3D a, Vector3 b)
         {
-            return tranform(a.Matrix, b);
+            return transform(a.Matrix, b);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 tranform(Matrix4x4 a, Vector3 b)
+        public static Vector3 transform(Matrix4x4 a, Vector3 b)
         {
             return Vector3.Transform(b, a);
         }

@@ -46,7 +46,17 @@ namespace Vocore
             return a.s != b.s || a.c != b.c;
         }
 
-        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Rotation2D operator *(Rotation2D a, Rotation2D b)
+        {
+            return new Rotation2D(a.c * b.s - a.s * b.c, a.c * b.c + a.s * b.s);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Rotation2D operator /(Rotation2D a, Rotation2D b)
+        {
+            return a * new Rotation2D(-b.s, b.c);//mutiply inverse b
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Rotation2D other)
@@ -62,6 +72,11 @@ namespace Vocore
         public override int GetHashCode()
         {
             return s.GetHashCode() ^ c.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return $"<{s}, {c}>";
         }
     }
 }

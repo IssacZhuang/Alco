@@ -16,7 +16,6 @@ public class CubeSystem
     private readonly Stack<Cube> _despawnList = new Stack<Cube>();
     private readonly Pool<Cube> _pool = new Pool<Cube>(10000, () => new Cube());
 
-
     private Random _random = new Random(123);
 
     public CubeSystem(SpriteRenderer renderer, Texture2D texDroplet)
@@ -54,6 +53,7 @@ public class CubeSystem
             entity.transform.position = new Vector2(position.X, position.Y);
             entity.color = DefaultColor;
             entity.pendingDestroy = false;
+            entity.transform.rotation = Rotation2D.FromDegree(_random.NextFloat(0,360));
             _activeList.Add(entity);
         }
     }

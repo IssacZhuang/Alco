@@ -17,7 +17,7 @@ public class Cube:ICollisionCaster
     public Cube()
     {
         transform = Transform2D.Identity;
-        transform.scale = Vector2.One * 40f;
+        transform.scale = Vector2.One * 80f;
     }
 
 
