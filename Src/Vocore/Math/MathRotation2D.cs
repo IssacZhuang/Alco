@@ -38,28 +38,28 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Vector2 v, Rotation2D q)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
+            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
         }
 
         //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Rotation2D q, Vector2 v)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
+            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
         }
 
         //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 mul(Vector2 v, Rotation2D q)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
+            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
         }
 
         //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 mul(Rotation2D q, Vector2 v)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, -q.s * v.X + q.c * v.Y);
+            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

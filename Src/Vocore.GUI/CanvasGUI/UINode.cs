@@ -167,10 +167,18 @@ public abstract class UINode
 
     private void ReParent(UINode node, bool keepWorldTransform = true)
     {
-
-        node.Parent = this;
-        _children.Add(node);
-
+        if (keepWorldTransform)
+        {
+            Transform2D worldTransform = node.WorldTransform;
+            node.Parent = this;
+            _children.Add(node);
+            node.WorldTransform = worldTransform;
+        }
+        else
+        {
+            node.Parent = this;
+            _children.Add(node);
+        }
     }
 
     #endregion
