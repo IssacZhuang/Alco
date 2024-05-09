@@ -22,7 +22,7 @@ public abstract class UINode
         {
             Matrix4x4 matrix;
             Transform2D newTransform = transform;
-            newTransform.position = UtilsCanvasMath.TransformAnchor(GetParentSize(), anchor, transform.position);
+            newTransform.position += anchor.CenterPoint * GetParentSize();
             matrix = newTransform.Matrix;
             if (Parent != null)
             {
@@ -42,6 +42,14 @@ public abstract class UINode
         get
         {
             return math.matrix4scale(Size);
+        }
+    }
+
+    public Vector2 WorldPosition
+    {
+        get
+        {
+            return math.transform(TransformMatrix, Vector2.Zero);
         }
     }
 
@@ -83,8 +91,7 @@ public abstract class UINode
             throw new ArgumentException($"The node {node.Name} is already a child of this node.");
         }
 
-        node.Parent = this;
-        _children.Add(node);
+        ReParent(node);
     }
 
     public bool TryAdd(UINode node)
@@ -99,8 +106,7 @@ public abstract class UINode
             return false;
         }
 
-        node.Parent = this;
-        _children.Add(node);
+        ReParent(node);
         return true;
     }
 
@@ -125,6 +131,14 @@ public abstract class UINode
         node.Parent = null;
         _children.Remove(node);
         return true;
+    }
+
+    private void ReParent(UINode node, bool keepWorldTransform = true)
+    {
+
+        node.Parent = this;
+        _children.Add(node);
+
     }
 
     #endregion

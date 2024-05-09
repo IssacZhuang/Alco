@@ -27,10 +27,18 @@ namespace Vocore
             };
         }
 
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 transform(Transform2D a, Vector2 b)
         {
-            return rotate(b, a.rotation) + a.position;
+            return transform(a.Matrix, b);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 transform(Matrix4x4 a, Vector2 b)
+        {
+            return Vector2.Transform(b, a);
         }
     }
 

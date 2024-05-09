@@ -14,6 +14,7 @@ public class Game : GameEngine
 
     private UIRoot _root;
     private UISprite _sprite1;
+    private UISprite _sprite2;
 
     private float _posX = 0;
     private float _rotDeg = 0;
@@ -36,13 +37,14 @@ public class Game : GameEngine
         _sprite1 = sprite1;
 
         UISprite sprite2 = new UISprite(_renderer);
+        _sprite2 = sprite2;
 
         sprite1.Add(sprite2);
 
         sprite2.Texture = Rendering.TextureWhite;
         sprite2.Color = new Vector4(1, 0, 0, 0.5f);
         sprite2.transform.position = new Vector2(0, 0);
-        sprite2.anchor = Anchor.Stretch;
+        sprite2.anchor = Anchor.LeftTop;
         sprite2.Size = new Vector2(80, 80);
 
         
@@ -61,6 +63,7 @@ public class Game : GameEngine
         _root.UpdateChild();
         _renderer.End();
 
+        DebugGUI.Text(_sprite2.WorldPosition.ToString());
         DebugGUI.Slider(-320, 320, ref _posX);
         DebugGUI.SameLine();
         DebugGUI.Text("Position X");

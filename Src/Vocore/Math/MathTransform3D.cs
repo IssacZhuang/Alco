@@ -43,7 +43,13 @@ namespace Vocore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 transform(Transform3D a, Vector3 b)
         {
-            return mul(a.rotation, b) * a.scale + a.position;
+            return tranform(a.Matrix, b);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 tranform(Matrix4x4 a, Vector3 b)
+        {
+            return Vector3.Transform(b, a);
         }
 
 

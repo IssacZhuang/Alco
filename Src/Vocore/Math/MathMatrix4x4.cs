@@ -302,5 +302,18 @@ namespace Vocore
             return identity;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Matrix4x4 inverse(Matrix4x4 matrix)
+        {
+            if (Matrix4x4.Invert(matrix, out Matrix4x4 result))
+            {
+                return result;
+            }
+            else
+            {
+                return Matrix4x4.Identity;
+            }
+        }
+
     }
 }
