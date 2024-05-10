@@ -79,7 +79,23 @@ public class Game : GameEngine
         DebugGUI.Slider(0, 2, ref _scale);
         DebugGUI.SameLine();
         DebugGUI.Text("Scale");
-        
+
+        if (_sprite2.Parent == _root)
+        {
+            if (DebugGUI.Button("Set Parent"))
+            {
+                _sprite2.SetParent(_sprite1);
+            }
+
+        }
+        else
+        {
+            if (DebugGUI.Button("Remove Parent"))
+            {
+                _sprite2.SetParent(_root);
+            }
+        }
+
 
         _sprite1.Size = new Vector2(_size, _size);
         _sprite1.Position = new Vector2(_posX, 0);

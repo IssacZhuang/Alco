@@ -179,7 +179,7 @@ public abstract class UINode
 
     #region Add/Remove
 
-    public void Add(UINode node)
+    public void Add(UINode node, bool keepWorldTransform = true)
     {
         if (node.Parent != null)
         {
@@ -191,10 +191,10 @@ public abstract class UINode
             throw new ArgumentException($"The node {node.Name} is already a child of this node.");
         }
 
-        ReParent(node);
+        AddCore(node, keepWorldTransform);
     }
 
-    public bool TryAdd(UINode node)
+    public bool TryAdd(UINode node, bool keepWorldTransform = true)
     {
         if (node.Parent != null)
         {
@@ -206,7 +206,7 @@ public abstract class UINode
             return false;
         }
 
-        ReParent(node);
+        AddCore(node, keepWorldTransform);
         return true;
     }
 
@@ -233,19 +233,34 @@ public abstract class UINode
         return true;
     }
 
-    private void ReParent(UINode node, bool keepWorldTransform = true)
+    public void SetParent(UINode newParent, bool keepWorldTransform = true)
+    {
+        Log.Info("Current Parent", Parent?.Name);
+        Log.Info($"SetParent {newParent.Name}");
+        if(Parent == newParent)
+        {
+            return;
+        }
+        Log.Info(2);
+
+        Parent?.Remove(this);
+
+        newParent.Add(this, keepWorldTransform);
+    }
+
+    private void AddCore(UINode child, bool keepWorldTransform = true)
     {
         if (keepWorldTransform)
         {
-            Transform2D worldTransform = node.WorldTransform;
-            node.Parent = this;
-            _children.Add(node);
-            node.WorldTransform = worldTransform;
+            Transform2D worldTransform = child.WorldTransform;
+            child.Parent = this;
+            _children.Add(child);
+            child.WorldTransform = worldTransform;
         }
         else
         {
-            node.Parent = this;
-            _children.Add(node);
+            child.Parent = this;
+            _children.Add(child);
         }
     }
 
