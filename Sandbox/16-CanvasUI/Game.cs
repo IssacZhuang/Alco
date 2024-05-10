@@ -20,6 +20,7 @@ public class Game : GameEngine
     private float _rotDeg = 0;
     private float _size = 100;
     private float _scale = 1;
+    private float _pivotX = 0;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -45,10 +46,10 @@ public class Game : GameEngine
 
         sprite2.Texture = Rendering.TextureWhite;
         sprite2.Name = "Sprite2";
-        sprite2.Color = new Vector4(1, 0, 0, 1f);
-        sprite2.Position = new Vector2(0, 0);
-        sprite2.Anchor = Anchor.LeftTop;
-        sprite2.Size = new Vector2(80, 80);
+        sprite2.Color = new Vector4(0, 1, 0, 1f);
+        sprite2.Position = new Vector2(25, 25);
+        sprite2.Anchor = Anchor.RightTop;
+        sprite2.Size = new Vector2(50, 50);
 
         sprite1.Add(sprite2);
         _root.Add(sprite1);
@@ -79,6 +80,8 @@ public class Game : GameEngine
         DebugGUI.Slider(0, 2, ref _scale);
         DebugGUI.SameLine();
         DebugGUI.Text("Scale");
+        DebugGUI.Slider(-0.5f, 0.5f, ref _pivotX);
+        
 
         if (_sprite2.Parent == _root)
         {
@@ -101,6 +104,8 @@ public class Game : GameEngine
         _sprite1.Position = new Vector2(_posX, 0);
         _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg);
         _sprite1.Scale = new Vector2(_scale, _scale);
+
+        _sprite2.Pivot = new Pivot(_pivotX, 0);
     }
 
     protected override void OnStop()

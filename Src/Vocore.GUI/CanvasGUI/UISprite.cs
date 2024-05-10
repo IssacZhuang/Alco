@@ -4,6 +4,9 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
+/// <summary>
+/// The UI node to draw a sprite.
+/// </summary>
 public class UISprite : UINode
 {
     public static readonly Vector2 DefaultSize = new Vector2(100, 100);
@@ -38,7 +41,7 @@ public class UISprite : UINode
     {
         if (Texture != null)
         {
-            _renderer.Draw(Texture, SizeMatrix * WolrdMatrix, Color);
+            _renderer.Draw(Texture, RenderTransform.Matrix, Color);
         }
     }
 }

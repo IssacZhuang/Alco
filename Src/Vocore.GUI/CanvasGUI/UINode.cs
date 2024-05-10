@@ -4,21 +4,18 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.GUI;
 
+/// <summary>
+/// The base class for all UI nodes.
+/// </summary>
 public abstract class UINode
 {
     private readonly List<UINode> _children = new();
     private Vector2 _sizeDelta = Vector2.Zero;
     private Anchor _anchor = Anchor.Center;
+    private Pivot _pivot = Pivot.Center;
     private Transform2D _transform = Transform2D.Identity;
     private Transform2D _worldTransform = Transform2D.Identity;
     private bool _isDirty = true;
-    
-
-    /// <summary>
-    /// The pivot point of the node. Only affect the content related to self
-    /// </summary>
-    public Pivot pivot = Pivot.Center;
-    
 
     /// <summary>
     /// The parent of the node. Must be null if the node is a root node.
@@ -102,6 +99,21 @@ public abstract class UINode
     }
 
     /// <summary>
+    /// The pivot point of the node. Only affect the content related to self
+    /// </summary>
+    public Pivot Pivot
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pivot;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _pivot = value;
+            SetDirty();
+        }
+    }
+
+    /// <summary>
     /// The anchors related to the parent
     /// </summary>
     public Anchor Anchor
@@ -132,6 +144,7 @@ public abstract class UINode
             if (Parent != null)
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);
+                _transform.position -= Size * _pivot.value;
                 _transform.position -= Parent.Size * _anchor.CenterPoint;
             }
             else
@@ -143,22 +156,16 @@ public abstract class UINode
     }
 
     /// <summary>
-    /// The transform matrix of the node in the world space.
+    /// The world transform that been transformed by size of node.
     /// </summary>
     /// <value></value>
-    public Matrix4x4 WolrdMatrix
+    public Transform2D RenderTransform
     {
         get
         {
-            return WorldTransform.Matrix;
-        }
-    }
-
-    public Matrix4x4 SizeMatrix
-    {
-        get
-        {
-            return math.matrix4scale(Size);
+            Transform2D transform = WorldTransform;
+            transform.scale *= Size;
+            return transform;
         }
     }
 
@@ -358,6 +365,7 @@ public abstract class UINode
     public void ForceRefreshTransform()
     {
         _worldTransform = _transform;
+        _worldTransform.position += Size * _pivot.value;
         if (Parent != null)
         {
             _worldTransform.position += Parent.Size * _anchor.CenterPoint;

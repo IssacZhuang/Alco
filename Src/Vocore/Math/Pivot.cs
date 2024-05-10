@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Vocore;
 
@@ -17,6 +18,22 @@ public struct Pivot
     public static readonly Pivot RightTop = new(0.5f, 0.5f);
     public static readonly Pivot LeftBottom = new(-0.5f, -0.5f);
     public static readonly Pivot RightBottom = new(0.5f, -0.5f);
+
+    public float X
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => value.X;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => this.value.X = value;
+    }
+
+    public float Y
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => value.Y;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => this.value.Y = value;
+    }
 
     public Pivot(float x, float y)
     {
