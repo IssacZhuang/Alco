@@ -352,7 +352,7 @@ public class UINode
     {
 
     }
-    protected virtual void OnUpdate(float delta)
+    protected virtual void OnUpdate(Canvas canvas, float delta)
     {
 
     }
@@ -417,18 +417,18 @@ public class UINode
     }
 
 
-    public void Update(float delta)
+    public void Update(Canvas canvas, float delta)
     {
         if (!IsVisible)
         {
             return;
         }
         
-        OnUpdate(delta);
+        OnUpdate(canvas, delta);
 
         for (int i = 0; i < _children.Count; i++)
         {
-            _children[i].Update(delta);
+            _children[i].Update(canvas, delta);
         }
     }
 

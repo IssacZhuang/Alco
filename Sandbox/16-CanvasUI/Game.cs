@@ -8,9 +8,9 @@ using System.Diagnostics;
 public class Game : GameEngine
 {
 
-    private Camera2D _camera;
-    private Shader _shader;
-    private SpriteRenderer _renderer;
+    private readonly Canvas _canvas;
+    private readonly Shader _shaderSprite;
+    private readonly Shader shaderText;
 
     private UINode _root;
     private UISprite _sprite1;
@@ -25,21 +25,21 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shader = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
-        _camera = Rendering.CreateCamera2D(640, 360, 100);
-        _renderer = Rendering.CreateSpriteRenderer(_camera, _shader);
+        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
+        shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
+        _canvas = Rendering.CreateCanvas(_shaderSprite, shaderText);
 
         _root = new UINode();
         _root.Name = "Root";
 
-        UISprite sprite1 = new UISprite(_renderer);
+        UISprite sprite1 = new UISprite();
         sprite1.Name = "Sprite1";
         sprite1.Texture = Rendering.TextureWhite;
         sprite1.Size = new Vector2(100, 100);
 
         _sprite1 = sprite1;
 
-        UISprite sprite2 = new UISprite(_renderer);
+        UISprite sprite2 = new UISprite();
         _sprite2 = sprite2;
 
         
@@ -62,9 +62,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        _renderer.Begin(Rendering.DefaultFrameBuffer);
-        _root.Update(delta);
-        _renderer.End();
+        _canvas.Render(Rendering.DefaultFrameBuffer, _root, delta);
 
         DebugGUI.Text(_sprite2.WorldTransform.position.ToString());
         DebugGUI.Slider(-320, 320, ref _posX);
@@ -112,6 +110,6 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        _renderer.Dispose();
+        _canvas.Dispose();
     }
 }

@@ -31,7 +31,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _camera = renderingSystem.CreateCamera2D(width, height, 100);
         _camera.Position = new Vector2(width / 2, -height / 2);
 
-        _renderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderText, shaderSprite);
+        _renderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
     }
 
     public void SetResolution(float width, float height)

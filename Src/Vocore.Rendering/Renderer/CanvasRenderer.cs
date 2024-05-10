@@ -21,7 +21,7 @@ public partial class CanvasRenderer : AutoDisposable
 
 
 
-    public CanvasRenderer(RenderingSystem system, ICamera camera, Shader shaderText, Shader shaderSpirte)
+    public CanvasRenderer(RenderingSystem system, ICamera camera, Shader shaderSpirte, Shader shaderText)
     {
         _device = system.GraphicsDevice;
         _camera = camera;
@@ -86,6 +86,7 @@ public partial class CanvasRenderer : AutoDisposable
         FlushBuffer();
         _renderTarget = null;
         _isDrawing = false;
+        _state = RenderingState.None;
     }
 
     // called when command end or text buffer is full

@@ -10,13 +10,11 @@ namespace Vocore.GUI;
 public class UISprite : UINode
 {
     public static readonly Vector2 DefaultSize = new Vector2(100, 100);
-    private readonly SpriteRenderer _renderer;
     public Texture2D? Texture { get; set; } = null;
     public ColorFloat Color { get; set; } = new ColorFloat(1, 1, 1, 1);
 
-    public UISprite(SpriteRenderer renderer)
+    public UISprite()
     {
-        _renderer = renderer;
         Size = DefaultSize;
     }
 
@@ -37,11 +35,11 @@ public class UISprite : UINode
 
     }
 
-    protected override void OnUpdate(float delta)
+    protected override void OnUpdate(Canvas canvas, float delta)
     {
         if (Texture != null)
         {
-            _renderer.Draw(Texture, RenderTransform.Matrix, Color);
+            canvas.Renderer.Draw(Texture, RenderTransform.Matrix, Color);
         }
     }
 }
