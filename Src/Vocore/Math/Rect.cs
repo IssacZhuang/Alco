@@ -50,6 +50,15 @@ namespace Vocore
             get => origin + size;
         }
 
+        /// <summary>
+        /// the center of the rectangle
+        /// </summary>
+        public Vector2 Position
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => origin + size * 0.5f;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(Vector2 point)
         {

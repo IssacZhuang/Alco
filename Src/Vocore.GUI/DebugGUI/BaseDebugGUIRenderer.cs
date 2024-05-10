@@ -8,7 +8,6 @@ namespace Vocore.GUI;
 public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 {
     private static readonly float TextOffsetYMultiplier = 0.125f;
-    private static readonly Matrix4x4 Rotation = math.matrix4rotation(Quaternion.Identity);
     private readonly RenderingSystem _renderingSystem;
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
@@ -53,7 +52,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
     {
         Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
-        _renderer.Draw(_textureWhite, matrix, color);
+        _renderer.DrawSprite(_textureWhite, matrix, color);
     }
 
     public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
@@ -66,7 +65,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     public void DrawTexture(Vector2 position, float depth, Vector2 size, Texture2D texture, ColorFloat color)
     {
         Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
-        _renderer.Draw(texture, matrix, color);
+        _renderer.DrawSprite(texture, matrix, color);
     }
 
     public virtual void Dispose()
@@ -79,6 +78,6 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     {
         Matrix4x4 translation = math.matrix4translation(new Vector3(position, depth));
         Matrix4x4 scale = math.matrix4scale(new Vector3(size, 1));
-        return scale * Rotation * translation;
+        return scale * translation;
     }
 }

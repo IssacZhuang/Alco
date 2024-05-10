@@ -14,6 +14,7 @@ public partial class CanvasRenderer : AutoDisposable
     public const float Depth = 100;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
+    private readonly Texture2D _textWhite;
     private GPUFrameBuffer? _renderTarget;
     private ICamera _camera;
     private RenderingState _state;
@@ -26,6 +27,8 @@ public partial class CanvasRenderer : AutoDisposable
         _device = system.GraphicsDevice;
         _camera = camera;
         _command = _device.CreateCommandBuffer();
+
+        _textWhite = system.TextureWhite;
 
         //init test rendering
         _meshText = system.MeshTrueType;

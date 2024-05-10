@@ -44,7 +44,7 @@ public class Game : GameEngine
 
         
 
-        sprite2.Texture = Rendering.TextureWhite;
+        //sprite2.Texture = Rendering.TextureWhite;
         sprite2.Name = "Sprite2";
         sprite2.Color = new Vector4(0, 1, 0, 1f);
         sprite2.Position = new Vector2(25, 25);

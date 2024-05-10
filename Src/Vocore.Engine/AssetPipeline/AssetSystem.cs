@@ -628,7 +628,7 @@ namespace Vocore.Engine
 
                     if (_recongizedExtensions.Contains(extension))
                     {
-                        Log.Info($"Add file entry: {file}");
+                        //Log.Info($"Add file entry: {file}");
                         _fileEntries.Add(ParseEntry(file), fileSource);
                     }
                 }
