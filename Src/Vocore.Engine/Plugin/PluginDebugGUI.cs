@@ -42,8 +42,8 @@ public class PluginDebugGUI : BaseEnginePlugin
     {
         AssetSystem assets = engine.Assets;
 
-        Shader shaderText = assets.Load<Shader>("Rendering/Shader/2D/Text-AlphaClip.hlsl");
-        Shader shaderSprite = assets.Load<Shader>("Rendering/Shader/2D/Sprite-AlphaClip.hlsl");
+        Shader shaderText = assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
+        Shader shaderSprite = assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
 
         Font font = assets.Load<Font>("Font/Default.ttf");
 

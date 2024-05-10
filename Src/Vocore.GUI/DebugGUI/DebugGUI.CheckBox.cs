@@ -33,13 +33,13 @@ public partial class DebugGUI
         }
 
         //bg
-        _renderer.DrawQuad(drawPos, 50, size, color);
+        _renderer.DrawQuad(drawPos, 0, size, color);
 
         //check mark
         if (value)
         {
             Vector2 checkSize = new Vector2(_style.FontSize, _style.FontSize);
-            _renderer.DrawQuad(drawPos, 40, checkSize, _style.CheckBoxCheckColor);
+            _renderer.DrawQuad(drawPos, 0, checkSize, _style.CheckBoxCheckColor);
         }
 
         SetNextOffset(new Vector2(size.X, size.Y + _style.Margin.W));

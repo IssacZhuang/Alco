@@ -41,17 +41,9 @@ public static partial class DebugGUI
         BoundingBox2D barHitBox = new BoundingBox2D(barHitPos, barHitPos + barSize);
         ColorFloat barColor = _style.SliderColor;
         barDrawPos.Y = -barDrawPos.Y;
-        _renderer.DrawQuad(barDrawPos + barOffset, 50, barSize, barColor);
+        _renderer.DrawQuad(barDrawPos + barOffset, 0, barSize, barColor);
 
-        //text
-        Vector2 textDrawPos = barDrawPos;
-        textDrawPos.X += barSize.X * 0.5f;
-
-        value.TryFormat(_stringBuffer, out _stringBufferLength, ReadOnlySpan<char>.Empty, null);
-        fixed (char* str = _stringBuffer)
-        {
-            _renderer.DrawText(textDrawPos, 0, _style.Font, str, _stringBufferLength, _style.FontSize, _style.TextColor, Pivot.Center);
-        }
+        
 
         //thumb
         Vector2 thumbSize = new Vector2(_style.SliderThumbWidth, barSize.Y);
@@ -76,8 +68,19 @@ public static partial class DebugGUI
             value = math.clamp(value, min, max);
             thumbColor = _style.SliderThumbDragColor;
         }
+        _renderer.DrawQuad(thumbDrawPos + thumbOffset, 0, thumbSize, thumbColor);
 
-        _renderer.DrawQuad(thumbDrawPos + thumbOffset, 50, thumbSize, thumbColor);
+        //text
+        Vector2 textDrawPos = barDrawPos;
+        textDrawPos.X += barSize.X * 0.5f;
+
+        value.TryFormat(_stringBuffer, out _stringBufferLength, ReadOnlySpan<char>.Empty, null);
+        fixed (char* str = _stringBuffer)
+        {
+            _renderer.DrawText(textDrawPos, 0, _style.Font, str, _stringBufferLength, _style.FontSize, _style.TextColor, Pivot.Center);
+        }
+
+        
 
         SetNextOffset(new Vector2(barSize.X, barSize.Y + _style.Margin.W));
     }

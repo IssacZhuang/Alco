@@ -20,13 +20,9 @@ public partial class RenderingSystem
         return new MaterialRenderer(_device);
     }
 
-    public CanvasRenderer CreateCanvasRenderer(float width, float height, Shader shaderText, Shader shaderSprite)
+    public CanvasRenderer CreateCanvasRenderer(ICamera camera, Shader shaderText, Shader shaderSprite)
     {
-        return new CanvasRenderer(this, width, height, shaderText, shaderSprite);
+        return new CanvasRenderer(this, camera, shaderText, shaderSprite);
     }
 
-    public CanvasRenderer CreateCanvasRenderer(Vector2 size, Shader shaderText, Shader shaderSprite)
-    {
-        return new CanvasRenderer(this, size.X, size.Y, shaderText, shaderSprite);
-    }
 }

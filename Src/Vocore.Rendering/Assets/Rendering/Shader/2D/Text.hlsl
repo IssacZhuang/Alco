@@ -4,7 +4,7 @@
 #pragma EntryFragment fs_main
 
 #pragma BlendState AlphaBlend
-#pragma DepthStencilState Write
+#pragma DepthStencilState Read
 
 #define MAX_INSTANCE_COUNT 300
 

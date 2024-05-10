@@ -15,21 +15,22 @@ public partial class CanvasRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private GPUFrameBuffer? _renderTarget;
-    private Camera2D _camera;
+    private ICamera _camera;
     private RenderingState _state;
     private bool _isDrawing;
 
 
 
-    public CanvasRenderer(RenderingSystem system, float width, float height, Shader shaderText, Shader shaderSpirte)
+    public CanvasRenderer(RenderingSystem system, ICamera camera, Shader shaderText, Shader shaderSpirte)
     {
         _device = system.GraphicsDevice;
-        _camera = system.CreateCamera2D(width, height, Depth);
+        _camera = camera;
         _command = _device.CreateCommandBuffer();
 
         //init test rendering
         _meshText = system.MeshTrueType;
         _textBufferGPU = system.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount);
+        _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _shaderText = shaderText;
         _textShaderId_camera = shaderText.GetResourceId("_camera");
         _textShaderId_textBuffer = shaderText.GetResourceId("_textBuffer");
@@ -43,7 +44,7 @@ public partial class CanvasRenderer : AutoDisposable
     }
 
 
-    public Camera2D Camera
+    public ICamera Camera
     {
         get => _camera;
     }

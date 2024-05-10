@@ -71,16 +71,16 @@ public static partial class DebugGUI
             inArea = true;
         }
 
+       
+
+        //bg
+        _renderer.DrawQuad(drawPos + bgOffset, 0, size, color);
+
         //text
         Vector2 textPos = drawPos;
         textPos.X += size.X * 0.5f;
 
         _renderer.DrawText(textPos, 0, _style.Font, str, strLength, _style.FontSize, _style.TextColor, Pivot.Center);
-
-        //bg
-        _renderer.DrawQuad(drawPos + bgOffset, 50, size, color);
-
-
 
         SetNextOffset(new Vector2(size.X, size.Y + _style.Margin.W));
         return inArea && _renderer.IsMouseClicked;
