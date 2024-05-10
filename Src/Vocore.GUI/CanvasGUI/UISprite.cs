@@ -29,12 +29,12 @@ public class UISprite : UINode
         }
     }
 
-    public override void OnTick(float delta)
+    protected override void OnTick(float delta)
     {
 
     }
 
-    public override void OnUpdate(float delta)
+    protected override void OnUpdate(float delta)
     {
         if (Texture != null)
         {

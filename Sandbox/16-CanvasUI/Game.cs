@@ -12,7 +12,7 @@ public class Game : GameEngine
     private Shader _shader;
     private SpriteRenderer _renderer;
 
-    private UIRoot _root;
+    private UIEmpty _root;
     private UISprite _sprite1;
     private UISprite _sprite2;
 
@@ -28,7 +28,7 @@ public class Game : GameEngine
         _camera = Rendering.CreateCamera2D(640, 360, 100);
         _renderer = Rendering.CreateSpriteRenderer(_camera, _shader);
 
-        _root = new UIRoot();
+        _root = new UIEmpty();
         _root.Name = "Root";
 
         UISprite sprite1 = new UISprite(_renderer);
@@ -62,7 +62,7 @@ public class Game : GameEngine
         }
 
         _renderer.Begin(Rendering.DefaultFrameBuffer);
-        _root.UpdateChild();
+        _root.Update(delta);
         _renderer.End();
 
         DebugGUI.Text(_sprite2.WorldTransform.position.ToString());

@@ -235,13 +235,10 @@ public abstract class UINode
 
     public void SetParent(UINode newParent, bool keepWorldTransform = true)
     {
-        Log.Info("Current Parent", Parent?.Name);
-        Log.Info($"SetParent {newParent.Name}");
-        if(Parent == newParent)
+        if (Parent == newParent)
         {
             return;
         }
-        Log.Info(2);
 
         Parent?.Remove(this);
 
@@ -262,6 +259,8 @@ public abstract class UINode
             child.Parent = this;
             _children.Add(child);
         }
+
+        child.SetDirty();
     }
 
     #endregion
@@ -342,8 +341,8 @@ public abstract class UINode
 
     #endregion
 
-    public abstract void OnTick(float delta);
-    public abstract void OnUpdate(float delta);
+    protected abstract void OnTick(float delta);
+    protected abstract void OnUpdate(float delta);
 
     public bool TryRefreshTransform()
     {
@@ -394,17 +393,17 @@ public abstract class UINode
         return _anchor.max - _anchor.min;
     }
 
-    internal void InternalTick(float delta)
+    public void Tick(float delta)
     {
         OnTick(delta);
         for (int i = 0; i < _children.Count; i++)
         {
-            _children[i].InternalTick(delta);
+            _children[i].Tick(delta);
         }
     }
 
 
-    internal void InternalUpdate(float delta)
+    public void Update(float delta)
     {
         if (!IsVisible)
         {
@@ -415,7 +414,7 @@ public abstract class UINode
 
         for (int i = 0; i < _children.Count; i++)
         {
-            _children[i].InternalUpdate(delta);
+            _children[i].Update(delta);
         }
     }
 
