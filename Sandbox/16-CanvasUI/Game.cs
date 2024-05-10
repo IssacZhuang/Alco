@@ -29,8 +29,10 @@ public class Game : GameEngine
         _renderer = Rendering.CreateSpriteRenderer(_camera, _shader);
 
         _root = new UIRoot();
+        _root.Name = "Root";
 
         UISprite sprite1 = new UISprite(_renderer);
+        sprite1.Name = "Sprite1";
         sprite1.Texture = Rendering.TextureWhite;
         sprite1.Size = new Vector2(100, 100);
 
@@ -42,9 +44,10 @@ public class Game : GameEngine
         
 
         sprite2.Texture = Rendering.TextureWhite;
+        sprite2.Name = "Sprite2";
         sprite2.Color = new Vector4(1, 0, 0, 1f);
-        sprite2.transform.position = new Vector2(0, 0);
-        sprite2.anchor = Anchor.LeftTop;
+        sprite2.Position = new Vector2(0, 0);
+        sprite2.Anchor = Anchor.LeftTop;
         sprite2.Size = new Vector2(80, 80);
 
         sprite1.Add(sprite2);
@@ -79,9 +82,9 @@ public class Game : GameEngine
         
 
         _sprite1.Size = new Vector2(_size, _size);
-        _sprite1.transform.position = new Vector2(_posX, 0);
-        _sprite1.transform.rotation = Rotation2D.FromDegree(_rotDeg);
-        _sprite1.transform.scale = new Vector2(_scale, _scale);
+        _sprite1.Position = new Vector2(_posX, 0);
+        _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg);
+        _sprite1.Scale = new Vector2(_scale, _scale);
     }
 
     protected override void OnStop()
