@@ -7,7 +7,7 @@ namespace Vocore.GUI;
 /// <summary>
 /// The base class for all UI nodes.
 /// </summary>
-public abstract class UINode
+public class UINode
 {
     private readonly List<UINode> _children = new();
     private Vector2 _sizeDelta = Vector2.Zero;
@@ -348,8 +348,14 @@ public abstract class UINode
 
     #endregion
 
-    protected abstract void OnTick(float delta);
-    protected abstract void OnUpdate(float delta);
+    protected virtual void OnTick(float delta)
+    {
+
+    }
+    protected virtual void OnUpdate(float delta)
+    {
+
+    }
 
     public bool TryRefreshTransform()
     {

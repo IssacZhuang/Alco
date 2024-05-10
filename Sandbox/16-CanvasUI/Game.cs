@@ -12,7 +12,7 @@ public class Game : GameEngine
     private Shader _shader;
     private SpriteRenderer _renderer;
 
-    private UIEmpty _root;
+    private UINode _root;
     private UISprite _sprite1;
     private UISprite _sprite2;
 
@@ -29,7 +29,7 @@ public class Game : GameEngine
         _camera = Rendering.CreateCamera2D(640, 360, 100);
         _renderer = Rendering.CreateSpriteRenderer(_camera, _shader);
 
-        _root = new UIEmpty();
+        _root = new UINode();
         _root.Name = "Root";
 
         UISprite sprite1 = new UISprite(_renderer);
@@ -81,7 +81,9 @@ public class Game : GameEngine
         DebugGUI.SameLine();
         DebugGUI.Text("Scale");
         DebugGUI.Slider(-0.5f, 0.5f, ref _pivotX);
-        
+        DebugGUI.SameLine();
+        DebugGUI.Text("Pivot");
+
 
         if (_sprite2.Parent == _root)
         {
