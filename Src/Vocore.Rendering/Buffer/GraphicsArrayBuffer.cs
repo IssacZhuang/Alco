@@ -64,6 +64,11 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void UpdateBufferRanged(uint start, uint count)
     {
+        if(count == 0)
+        {
+            return;
+        }
+        
         _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer + start * (uint)sizeof(T), count * (uint)sizeof(T));
     }
 
