@@ -141,6 +141,7 @@ public class UINode
         }
         set
         {
+            //TODO fix: set world transform not correct when anchor is stretch mode
             if (Parent != null)
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);

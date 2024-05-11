@@ -33,30 +33,34 @@ public class Game : GameEngine
         _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
 
+        UIInputTracker inputTracker = new UIInputTracker(Input);
         _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText, _font);
+        _canvas.InputTracker = inputTracker;
 
-        _root = new UINode();
-        _root.Name = "Root";
+        _root = new UINode
+        {
+            Name = "Root"
+        };
 
-        UISprite sprite1 = new UISprite();
-        sprite1.Name = "Sprite1";
-        sprite1.Texture = Rendering.TextureWhite;
-        sprite1.Size = new Vector2(100, 100);
+        UISprite sprite1 = new UISprite
+        {
+            Name = "Sprite1",
+            Texture = Rendering.TextureWhite,
+            Size = new Vector2(100, 100)
+        };
 
         _sprite1 = sprite1;
 
-        UISprite sprite2 = new UISprite();
-        _sprite2 = sprite2;
-
+        UISprite sprite2 = new UISprite(){
+            Name = "Sprite2",
+            Size = new Vector2(50, 50),
+            Color = new Vector4(0, 1, 0, 1f),
+            Position = new Vector2(25, 25),
+            Anchor = Anchor.RightTop,
+        };
         
-
-        //sprite2.Texture = Rendering.TextureWhite;
-        sprite2.Name = "Sprite2";
-        sprite2.Color = new Vector4(0, 1, 0, 1f);
-        sprite2.Position = new Vector2(25, 25);
-        sprite2.Anchor = Anchor.RightTop;
-        sprite2.Size = new Vector2(50, 50);
-
+        _sprite2 = sprite2;
+        
         sprite1.Add(sprite2);
         _root.Add(sprite1);
 
@@ -68,6 +72,40 @@ public class Game : GameEngine
         _label = label;
 
         sprite2.Add(label, false);
+
+        UIButton button = new UIButton()
+        {
+            Size = new Vector2(100, 50),
+            Position = new Vector2(0, -25),
+            Anchor =  Anchor.Center,
+        };
+        button.OnClickEvent += () =>
+        {
+            Log.Info("Button Clicked");
+        };
+
+        UISprite bgButton = new UISprite()
+        {
+            Texture = Rendering.TextureWhite,
+            Color = new Vector4(0.5f, 0.5f, 0.5f, 1),
+            Size = new Vector2(100, 50),
+            Position = new Vector2(0, -25),
+            Anchor = Anchor.Center,
+        };
+
+        UILabel labelButton = new UILabel()
+        {
+            Text = "Click Me",
+            Size = new Vector2(100, 50),
+            Position = new Vector2(0, -25),
+            Anchor = Anchor.Center,
+        };
+
+    
+        button.Add(bgButton);
+        button.Add(labelButton);
+
+        _sprite1.Add(button);
 
 
     }

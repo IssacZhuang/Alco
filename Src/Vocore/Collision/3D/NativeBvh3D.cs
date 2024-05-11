@@ -658,6 +658,8 @@ namespace Vocore
             }
 
             _batchColliderCastResultCollector.Dispose();
+            _batchColliderCastResult.Dispose();
+            _castResultCollector.Dispose();
 
             _nodes.Dispose();
             _isDisposed = true;

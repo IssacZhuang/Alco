@@ -10,9 +10,13 @@ public class Canvas : AutoDisposable
 {
     private class MousePointCaster : ICollisionCaster
     {
+        public UINode? hit;
         public void OnHit(object hitObject, int userData)
         {
-
+            if (hitObject is UINode node)
+            {
+                hit = node;
+            }
         }
     }
     private readonly CanvasRenderer _renderer;
@@ -81,11 +85,17 @@ public class Canvas : AutoDisposable
 
         if (_inputTracker != null && _inputTracker.IsMouseClicked)
         {
+            
             //the mosue position is in screen space, the origin is at the top left corner
+            _mousePointCaster.hit = null;
             Vector2 mousePosition = _inputTracker.MousePosition;
-            Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _camera.Size, _camera.Data.ViewProjectionMatrix);
+            Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, new Vector2(renderTarget.Width, renderTarget.Height), _camera.Data.ViewProjectionMatrix);
             _collisionWorld.BuildTree();
             _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
+            if (_mousePointCaster.hit is IClickable clickable)
+            {
+                clickable.OnClick();
+            }
         }
     }
 
