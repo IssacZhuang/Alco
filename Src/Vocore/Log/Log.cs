@@ -38,6 +38,11 @@ namespace Vocore{
         //     ConsolePrint(Builder.ToString(), ConsoleColor.White);
         // }
 
+        public static void Info(ReadOnlySpan<char> message)
+        {
+            ConsolePrint(message, ConsoleColor.White);
+        }
+
         public static void Info<T> (T message)
         {
             if (message == null)
@@ -239,6 +244,14 @@ namespace Vocore{
         {
             Console.ForegroundColor = color;
             Console.WriteLine(str);
+            Console.ForegroundColor = ConsoleColor.White;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ConsolePrint(ReadOnlySpan<char> str, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.Out.WriteLine(str);
             Console.ForegroundColor = ConsoleColor.White;
         }
     }

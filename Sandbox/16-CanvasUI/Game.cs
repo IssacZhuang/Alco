@@ -10,7 +10,8 @@ public class Game : GameEngine
 
     private readonly Canvas _canvas;
     private readonly Shader _shaderSprite;
-    private readonly Shader shaderText;
+    private readonly Shader _shaderText;
+    private readonly Font _font;
 
     private UINode _root;
     private UISprite _sprite1;
@@ -27,8 +28,10 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
-        shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
-        _canvas = Rendering.CreateCanvas(_shaderSprite, shaderText);
+        _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
+        _font = Assets.Load<Font>("Font/Default.ttf");
+
+        _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText, _font);
 
         _root = new UINode();
         _root.Name = "Root";
@@ -54,6 +57,15 @@ public class Game : GameEngine
 
         sprite1.Add(sprite2);
         _root.Add(sprite1);
+
+        UILabel label = new UILabel()
+        {
+            Text = "Hello World",
+        };
+
+        sprite2.Add(label, false);
+
+
     }
 
     protected override void OnUpdate(float delta)

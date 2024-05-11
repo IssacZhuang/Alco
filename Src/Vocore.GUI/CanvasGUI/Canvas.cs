@@ -8,16 +8,29 @@ public class Canvas : AutoDisposable
 {
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
+    private Font _font;
     public CanvasRenderer Renderer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderer;
     }
-    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText)
+
+    public Font Font
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _font;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _font = value;
+        }
+    }
+
+    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Font font)
     {
         _camera = system.CreateCamera2D(640, 360, 1);
         _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
-
+        _font = font;
     }
 
     public void Render(GPUFrameBuffer renderTarget, UINode root, float delta)
