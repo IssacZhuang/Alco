@@ -12,6 +12,20 @@ namespace Vocore
         public Vector3 extends;
         public Quaternion rotation;
 
+        public ShapeBox3D(Vector3 center, Vector3 size)
+        {
+            this.center = center;
+            this.extends = size * 0.5f;
+            this.rotation = Quaternion.Identity;
+        }
+
+        public ShapeBox3D(Vector3 center, Quaternion rotation, Vector3 size)
+        {
+            this.center = center;
+            this.extends = size * 0.5f;
+            this.rotation = rotation;
+        }
+
         public ShapeBox3D(Vector3 center, Vector3 size, Quaternion rotation)
         {
             this.center = center;

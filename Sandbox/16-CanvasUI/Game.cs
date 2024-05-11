@@ -79,7 +79,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        _canvas.Render(Rendering.DefaultFrameBuffer, _root, delta);
+        _canvas.Update(Rendering.DefaultFrameBuffer, _root, delta);
 
         DebugGUI.Text(_sprite2.WorldTransform.position.ToString());
         DebugGUI.Slider(-320, 320, ref _posX);

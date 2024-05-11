@@ -8,6 +8,21 @@ namespace Vocore
         public Vector2 center;
         public Vector2 extends;
         public Rotation2D rotation;
+
+        public ShapeBox2D(Vector2 center, Vector2 size)
+        {
+            this.center = center;
+            this.extends = size * 0.5f;
+            this.rotation = Rotation2D.Identity;
+        }
+
+        public ShapeBox2D(Vector2 center, Rotation2D rotation, Vector2 size)
+        {
+            this.center = center;
+            this.extends = size * 0.5f;
+            this.rotation = rotation;
+        }
+
         public ShapeBox2D(Vector2 center, Vector2 size, Rotation2D rotation)
         {
             this.center = center;

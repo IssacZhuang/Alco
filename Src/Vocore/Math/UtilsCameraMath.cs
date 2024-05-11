@@ -34,7 +34,7 @@ public static class UtilsCameraMath
 
     public static Ray3D ScreenPointToRay2D(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix, float originZ, float targetZ)
     {
-        Vector2  worldPoint = ScreenPointToWorld2D(screenPoint, screenSize, viewProjMatrix, originZ);
+        Vector2  worldPoint = ScreenPointToWorld2D(screenPoint, screenSize, viewProjMatrix);
 
         Vector3 origin = new Vector3(worldPoint.X, worldPoint.Y, originZ);
         Vector3 target = new Vector3(worldPoint.X, worldPoint.Y, targetZ);
@@ -42,7 +42,7 @@ public static class UtilsCameraMath
         return Ray3D.CreateWithStartAndEnd(origin, target);
     }
 
-    public static Vector2 ScreenPointToWorld2D(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix, float z)
+    public static Vector2 ScreenPointToWorld2D(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix)
     {
         // Convert screen point to clip space
         Vector2 clipPoint = new Vector2(
