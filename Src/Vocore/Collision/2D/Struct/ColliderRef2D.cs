@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 
@@ -78,6 +79,18 @@ namespace Vocore
                     return (*(ColliderSphere2D*)_ptr).IntersectRay(ray, out hitInfo);
             }
             hitInfo = new RaycastHit2D();
+            return false;
+        }
+
+        public bool IntersectPoint(Vector2 point)
+        {
+            switch (_type)
+            {
+                case ColliderType2D.Box:
+                    return (*(ColliderBox2D*)_ptr).IntersectPoint(point);
+                case ColliderType2D.Sphere:
+                    return (*(ColliderSphere2D*)_ptr).IntersectPoint(point);
+            }
             return false;
         }
 

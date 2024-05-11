@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 
@@ -45,6 +46,11 @@ namespace Vocore
         public bool IntersectRay(Ray2D ray, out RaycastHit2D hitInfo)
         {
             return UtilsCollision2D.RayBox(ray, shape, out hitInfo);
+        }
+
+        public bool IntersectPoint(Vector2 point)
+        {
+            return UtilsCollision2D.PointBox(point, shape);
         }
 
         public override string ToString()

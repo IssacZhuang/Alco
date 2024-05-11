@@ -111,4 +111,56 @@ public class TestCollisionWorld2D
         Assert.That(caster2.hitIds.Count, Is.EqualTo(21));
 
     }
+
+    [Test]
+    public void Test_PointCast2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        Vector2 point = new Vector2(0, 0);
+        // the shape is not in use
+        TestSphereCaster caster1 = new TestSphereCaster(new ShapeSphere2D
+        {
+            center = new Vector2(10, 0),
+            radius = 10.1f
+        });
+
+        //hit 
+        TestBoxTarget box1 = new TestBoxTarget
+        {
+            id = 0,
+            shape = new ShapeBox2D(new Vector2(0, 0), new Vector2(1, 1), Rotation2D.Identity)
+        };
+
+        //hit
+        TestBoxTarget box2 = new TestBoxTarget
+        {
+            id = 1,
+            shape = new ShapeBox2D(new Vector2(0.2f, 0), new Vector2(1, 1), Rotation2D.Identity)
+        };
+
+        //hit
+        TestBoxTarget box3 = new TestBoxTarget
+        {
+            id = 2,
+            shape = new ShapeBox2D(new Vector2(0.4f, 0), new Vector2(1, 1), Rotation2D.Identity)
+        };
+
+        //not hit
+        TestBoxTarget box4 = new TestBoxTarget
+        {
+            id = 3,
+            shape = new ShapeBox2D(new Vector2(0.6f, 0), new Vector2(1, 1), Rotation2D.Identity)
+        };
+
+        world.PushTarget(box1, box1.shape);
+        world.PushTarget(box2, box2.shape);
+        world.PushTarget(box3, box3.shape);
+        world.PushTarget(box4, box4.shape);
+
+        world.BuildTree();
+
+        world.CastPoint(caster1, point, caster1.cutomData);
+        Assert.That(caster1.hitIds.Count, Is.EqualTo(3));
+    }
 }

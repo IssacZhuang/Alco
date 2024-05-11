@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Vocore
 {
@@ -9,5 +10,6 @@ namespace Vocore
         ColliderHeader3D Header { get; }
         bool CollidesWith(ColliderHeader3D* other);
         bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo);
+        bool IntersectPoint(Vector3 point);
     }
 }

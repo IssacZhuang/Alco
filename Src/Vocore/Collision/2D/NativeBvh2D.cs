@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 
@@ -96,10 +97,13 @@ namespace Vocore
 
 
         private NativeBuffer<Node> _nodes;
+        // result for parallel job
         private NativeBuffer<RayCastResult2D> _batchRayCastResult;
         private NativeBuffer<ColliderCastResult2D> _batchColliderCastResult;
         private NativeBuffer<NativeArrayList<ColliderCastResult2D>> _batchColliderCastResultCollector;
 
+        //result for single job
+        private NativeArrayList<ColliderCastResult2D> _castResultCollector;
 
         private Node _root;
         private int _nodeSize;
@@ -117,6 +121,8 @@ namespace Vocore
             _jobCastColliderRef = new JobCastColliderRef(this);
             _jobCastColliderRefCollector = new JobCastColliderRefCollector(this);
             _isDisposed = false;
+
+            _castResultCollector = new NativeArrayList<ColliderCastResult2D>(4);
         }
 
         public RayCastResult2D CastRay(Ray2D ray)
@@ -247,6 +253,8 @@ namespace Vocore
             return _nodes.UnsafePointer[index];
         }
 
+        //cast collision for single result
+
         private RayCastResult2D CastRayFast(ref Ray2D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
@@ -361,7 +369,34 @@ namespace Vocore
             return CastColliderCore(collider, _root);
         }
 
+        //cast collision for multiple result
 
+        public MemoryRef<ColliderCastResult2D> CastPointRefCollector(Vector2 point)
+        {
+            _castResultCollector.Clear();
+            NativeArrayList<ColliderCastResult2D> tmpResult = _castResultCollector;
+            if (_nodeSize > 0)
+            {
+                CastPointCollectorCore(point, _root, &tmpResult);
+                _castResultCollector = tmpResult;
+            }
+            return _castResultCollector.MemoryRef;
+        }
+
+        public MemoryRef<ColliderCastResult2D> CastColliderRefCollector(ColliderRef2D collider)
+        {
+            _castResultCollector.Clear();
+            NativeArrayList<ColliderCastResult2D> tmpResult = _castResultCollector;
+            if (_nodeSize > 0)
+            {
+                CastColliderCollectorCore(collider, _root, &tmpResult);
+                _castResultCollector = tmpResult;
+            }
+
+            return _castResultCollector.MemoryRef;
+        }
+
+        // cast collider implementation
 
         private ColliderCastResult2D CastColliderCore(ColliderRef2D collider, Node node)
         {
@@ -427,6 +462,49 @@ namespace Vocore
                 if (top.IsLeaf)
                 {
                     if (top.collider.CollidesWith(collider))
+                    {
+                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        {
+                            hit = true,
+                            collider = top.collider
+                        };
+                        result->Add(resultItem);
+                    }
+
+                    continue;
+
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+
+            }
+
+        }
+
+        private void CastPointCollectorCore(Vector2 point, Node node, NativeArrayList<ColliderCastResult2D>* result)
+        {
+            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+
+            while (stackCount > 0)
+            {
+                //Node top = stack.Pop();
+                Node top = stack[--stackCount];
+
+                if (!top.boundingBox.Contains(point)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.IntersectPoint(point))
                     {
                         ColliderCastResult2D resultItem = new ColliderCastResult2D
                         {

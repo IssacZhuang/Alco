@@ -111,4 +111,56 @@ public class TestCollisionWorld3D
         Assert.That(caster2.hitIds.Count, Is.EqualTo(21));
 
     }
+
+    [Test]
+    public void Test_PointCast3D()
+    {
+        using CollisionWorld3D world = new CollisionWorld3D();
+
+        Vector3 point = new Vector3(0, 0, 0);
+        // the shape is not in use
+        TestSphereCaster caster1 = new TestSphereCaster(new ShapeSphere3D
+        {
+            center = new Vector3(10, 0, 0),
+            radius = 10.1f
+        });
+
+        //hit 
+        TestBoxTarget box1 = new TestBoxTarget
+        {
+            id = 0,
+            shape = new ShapeBox3D(new Vector3(0, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
+        };
+
+        //hit
+        TestBoxTarget box2 = new TestBoxTarget
+        {
+            id = 1,
+            shape = new ShapeBox3D(new Vector3(0.2f, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
+        };
+
+        //hit
+        TestBoxTarget box3 = new TestBoxTarget
+        {
+            id = 2,
+            shape = new ShapeBox3D(new Vector3(0.4f, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
+        };
+
+        //not hit
+        TestBoxTarget box4 = new TestBoxTarget
+        {
+            id = 3,
+            shape = new ShapeBox3D(new Vector3(0.6f, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
+        };
+
+        world.PushTarget(box1, box1.shape);
+        world.PushTarget(box2, box2.shape);
+        world.PushTarget(box3, box3.shape);
+        world.PushTarget(box4, box4.shape);
+
+        world.BuildTree();
+
+        world.CastPoint(caster1, point, caster1.cutomData);
+        Assert.That(caster1.hitIds.Count, Is.EqualTo(3));
+    }
 }

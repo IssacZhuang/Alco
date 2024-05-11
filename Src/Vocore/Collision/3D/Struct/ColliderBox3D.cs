@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 
@@ -47,10 +48,17 @@ namespace Vocore
             return UtilsCollision3D.RayBox(ray, shape, out hitInfo);
         }
 
+        public bool IntersectPoint(Vector3 point)
+        {
+            return UtilsCollision3D.PointBox(point, shape);
+        }
+
         public override string ToString()
         {
             return $"Box Collider: {shape}";
         }
+
+        
     }
 
 }

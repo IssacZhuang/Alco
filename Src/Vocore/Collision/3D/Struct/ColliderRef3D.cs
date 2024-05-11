@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 
@@ -84,10 +85,23 @@ namespace Vocore
             return false;
         }
 
+        public bool IntersectPoint(Vector3 point)
+        {
+            switch (_type)
+            {
+                case ColliderType3D.Box:
+                    return (*(ColliderBox3D*)_ptr).IntersectPoint(point);
+                case ColliderType3D.Sphere:
+                    return (*(ColliderSphere3D*)_ptr).IntersectPoint(point);
+            }
+            return false;
+        }
+
         internal T DebugGetCollder<T>() where T : unmanaged, ICollider3D
         {
             return *(T*)_ptr;
         }
+
     }
 }
 
