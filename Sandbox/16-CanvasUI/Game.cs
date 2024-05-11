@@ -77,7 +77,7 @@ public class Game : GameEngine
         {
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
-            Anchor =  Anchor.Center,
+            Anchor =  Anchor.CenterHorizontalStretch,
         };
         button.OnClickEvent += () =>
         {
@@ -90,7 +90,7 @@ public class Game : GameEngine
             Color = new Vector4(0.5f, 0.5f, 0.5f, 1),
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
-            Anchor = Anchor.Center,
+            Anchor = Anchor.Stretch,
         };
 
         UILabel labelButton = new UILabel()
@@ -98,7 +98,7 @@ public class Game : GameEngine
             Text = "Click Me",
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
-            Anchor = Anchor.Center,
+            Anchor = Anchor.Stretch,
         };
 
     

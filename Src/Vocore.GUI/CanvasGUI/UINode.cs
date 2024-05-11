@@ -141,7 +141,6 @@ public class UINode
         }
         set
         {
-            //TODO fix: set world transform not correct when anchor is stretch mode
             if (Parent != null)
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);
@@ -259,9 +258,11 @@ public class UINode
         if (keepWorldTransform)
         {
             Transform2D worldTransform = child.WorldTransform;
+            Vector2 size = child.Size;
             child.Parent = this;
             _children.Add(child);
             child.WorldTransform = worldTransform;
+            child.Size = size;
         }
         else
         {
