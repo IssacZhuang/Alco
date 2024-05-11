@@ -16,6 +16,7 @@ public class Game : GameEngine
     private UINode _root;
     private UISprite _sprite1;
     private UISprite _sprite2;
+    private UILabel _label;
 
     private float _posX = 0;
     private float _rotDeg1 = 0;
@@ -23,6 +24,7 @@ public class Game : GameEngine
     private float _size = 100;
     private float _scale = 1;
     private float _pivotX = 0;
+    private float _textPivotY = 0;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -61,7 +63,9 @@ public class Game : GameEngine
         UILabel label = new UILabel()
         {
             Text = "Hello World",
+            Size = new Vector2(50, 50), // same as sprite2
         };
+        _label = label;
 
         sprite2.Add(label, false);
 
@@ -98,6 +102,10 @@ public class Game : GameEngine
         DebugGUI.SameLine();
         DebugGUI.Text("Rotation Degree 2");
 
+        DebugGUI.Slider(-0.5f, 0.5f, ref _textPivotY);
+        DebugGUI.SameLine();
+        DebugGUI.Text("Text Pivot Y");
+
 
         if (_sprite2.Parent == _root)
         {
@@ -123,6 +131,8 @@ public class Game : GameEngine
 
         _sprite2.Pivot = new Pivot(_pivotX, 0);
         _sprite2.Rotation = Rotation2D.FromDegree(_rotDeg2);
+
+        _label.TextPivot = new Pivot(0, _textPivotY);
     }
 
     protected override void OnStop()

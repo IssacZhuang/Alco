@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 using Vocore.Rendering;
 
@@ -5,10 +6,12 @@ namespace Vocore.GUI;
 
 public class UILabel : UINode
 {
-    private ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
+    public const float TextOffsetYMultiplier = 0.125f;
+    private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     private int _textLength;
     private string _tmpStrForRead = string.Empty;
     private bool _isTmpStrForReadDirty;
+    private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
 
     public Font? FontOverride { get; set; }
     public float FontSize { get; set; } = 16;
@@ -31,6 +34,28 @@ public class UILabel : UINode
         }
     }
 
+    public Pivot TextPivot
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _textPivot;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _textPivot = value;
+    }
+
+    public TextAlignVertical AlignVertical
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _textPivot.Y = UtilsTextAlign.GetPivotY(value);
+
+    }
+
+    public TextAlignHorizontal AlignHorizontal
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _textPivot.X = UtilsTextAlign.GetPivotX(value);
+
+    }
+
     public UILabel()
     {
 
@@ -40,8 +65,14 @@ public class UILabel : UINode
     {
         CanvasRenderer renderer = canvas.Renderer;
         Transform2D transform = WorldTransform;
+        transform.position += transform.scale * Size * TextPivot;
+        
         transform.scale *= FontSize;
-        renderer.DrawChars(canvas.Font, _text.Slice(0, _textLength), transform.Matrix, Pivot.Center, Color);
+        transform.position.Y += transform.scale.Y * TextOffsetYMultiplier;
+
+
+        Font font = FontOverride ?? canvas.Font;
+        renderer.DrawChars(font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color);
     }
 
     public void SetText(string str)
