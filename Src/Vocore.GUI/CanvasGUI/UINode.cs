@@ -144,7 +144,8 @@ public class UINode
             if (Parent != null)
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);
-                _transform.position -= Size * _pivot.value;
+                //_transform.position -= Size * _pivot.value;
+                _transform.position -= math.rotate(Size * _pivot.value, _transform.rotation);
                 _transform.position -= Parent.Size * _anchor.CenterPoint;
             }
             else
@@ -371,7 +372,8 @@ public class UINode
     public void ForceRefreshTransform()
     {
         _worldTransform = _transform;
-        _worldTransform.position += Size * _pivot.value;
+        //_worldTransform.position += Size * _pivot.value;
+        _worldTransform.position += math.rotate(Size * _pivot.value, _transform.rotation);
         if (Parent != null)
         {
             _worldTransform.position += Parent.Size * _anchor.CenterPoint;

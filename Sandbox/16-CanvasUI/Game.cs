@@ -17,7 +17,8 @@ public class Game : GameEngine
     private UISprite _sprite2;
 
     private float _posX = 0;
-    private float _rotDeg = 0;
+    private float _rotDeg1 = 0;
+    private float _rotDeg2 = 0;
     private float _size = 100;
     private float _scale = 1;
     private float _pivotX = 0;
@@ -68,7 +69,7 @@ public class Game : GameEngine
         DebugGUI.Slider(-320, 320, ref _posX);
         DebugGUI.SameLine();
         DebugGUI.Text("Position X");
-        DebugGUI.Slider(0, 360, ref _rotDeg);
+        DebugGUI.Slider(0, 360, ref _rotDeg1);
         DebugGUI.SameLine();
         DebugGUI.Text("Rotation Degree");
 
@@ -81,6 +82,9 @@ public class Game : GameEngine
         DebugGUI.Slider(-0.5f, 0.5f, ref _pivotX);
         DebugGUI.SameLine();
         DebugGUI.Text("Pivot");
+        DebugGUI.Slider(0, 360, ref _rotDeg2);
+        DebugGUI.SameLine();
+        DebugGUI.Text("Rotation Degree 2");
 
 
         if (_sprite2.Parent == _root)
@@ -102,10 +106,11 @@ public class Game : GameEngine
 
         _sprite1.Size = new Vector2(_size, _size);
         _sprite1.Position = new Vector2(_posX, 0);
-        _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg);
+        _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg1);
         _sprite1.Scale = new Vector2(_scale, _scale);
 
         _sprite2.Pivot = new Pivot(_pivotX, 0);
+        _sprite2.Rotation = Rotation2D.FromDegree(_rotDeg2);
     }
 
     protected override void OnStop()
