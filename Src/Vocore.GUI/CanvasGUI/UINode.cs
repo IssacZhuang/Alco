@@ -19,7 +19,7 @@ public class UINode
     private bool _isTransformDirty = true;
 
     private BoundingBox2D _mask;
-    private bool _isMaskEnabled = false;
+    private bool _isMaskEnabled = false; // the state of self
     private bool _isMaskDirty = true;
 
     /// <summary>
@@ -435,6 +435,7 @@ public class UINode
         }
 
         _isTransformDirty = false;
+        _isMaskDirty = true;
         SpreadTransformDirty();
     }
 
