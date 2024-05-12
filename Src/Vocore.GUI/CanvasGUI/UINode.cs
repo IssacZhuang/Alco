@@ -13,9 +13,14 @@ public class UINode
     private Vector2 _sizeDelta = Vector2.Zero;
     private Anchor _anchor = Anchor.Center;
     private Pivot _pivot = Pivot.Center;
+
     private Transform2D _transform = Transform2D.Identity;
     private Transform2D _worldTransform = Transform2D.Identity;
-    private bool _isDirty = true;
+    private bool _isTransformDirty = true;
+
+    private BoundingBox2D _mask;
+    private bool _isMaskEnabled = false;
+    private bool _isMaskDirty = true;
 
     /// <summary>
     /// The parent of the node. Must be null if the node is a root node.
@@ -35,6 +40,8 @@ public class UINode
     /// <value></value>
     public bool IsVisible { get; set; } = true;
 
+    #region  Transform Properties
+
     /// <summary>
     /// The position of the node in the local space.
     /// </summary>
@@ -47,7 +54,7 @@ public class UINode
         set
         {
             _transform.position = value;
-            SetDirty();
+            SetTransformDirty();
         }
     }
 
@@ -63,7 +70,7 @@ public class UINode
         set
         {
             _transform.rotation = value;
-            SetDirty();
+            SetTransformDirty();
         }
     }
 
@@ -79,7 +86,7 @@ public class UINode
         set
         {
             _transform.scale = value;
-            SetDirty();
+            SetTransformDirty();
         }
     }
 
@@ -91,10 +98,11 @@ public class UINode
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => GetParentSize() * GetAnchorSizeMultiplier() + _sizeDelta;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
             _sizeDelta = value - GetParentSize() * GetAnchorSizeMultiplier();
-            SetDirty();
+            SetTransformDirty();
         }
     }
 
@@ -109,7 +117,7 @@ public class UINode
         set
         {
             _pivot = value;
-            SetDirty();
+            SetTransformDirty();
         }
     }
 
@@ -124,7 +132,7 @@ public class UINode
         set
         {
             _anchor = value;
-            SetDirty();
+            SetTransformDirty();
         }
     } 
 
@@ -152,7 +160,7 @@ public class UINode
             {
                 _transform = value;
             }
-            SetDirty();
+            SetTransformDirty();
         }
     }
 
@@ -169,6 +177,50 @@ public class UINode
             return transform;
         }
     }
+
+    public BoundingBox2D Bound
+    {
+        get
+        {
+            Transform2D transform = RenderTransform;
+            Vector2 halfSize = transform.scale * 0.5f;
+            return new BoundingBox2D(transform.position - halfSize, transform.position + halfSize);
+        }
+    }
+
+    #endregion
+
+    #region Mask Properties
+
+    public bool IsMaskEnabled
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _isMaskEnabled;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _isMaskEnabled = value;
+            _isMaskDirty = true;
+        }
+    }
+
+    public BoundingBox2D Mask
+    {
+        get
+        {
+
+            return _mask;
+        }
+        set
+        {
+            _mask = value;
+            _isMaskDirty = true;
+        }
+    }
+
+
+
+    #endregion
 
     public IReadOnlyList<UINode> Children
     {
@@ -270,7 +322,7 @@ public class UINode
             _children.Add(child);
         }
 
-        child.SetDirty();
+        child.SetTransformDirty();
     }
 
     #endregion
@@ -362,12 +414,12 @@ public class UINode
 
     public bool TryRefreshTransform()
     {
-        if (!_isDirty)
+        if (!_isTransformDirty)
         {
             return false;
         }
         ForceRefreshTransform();
-        _isDirty = false;
+        
         return true;
     }
 
@@ -382,23 +434,61 @@ public class UINode
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 
-        SpreadDirty();
+        _isTransformDirty = false;
+        SpreadTransformDirty();
     }
 
-    public void SetDirty()
+    public void SetTransformDirty()
     {
-        _isDirty = true;
+        _isTransformDirty = true;
     }
 
-    private void SpreadDirty()
+    private void SpreadTransformDirty()
     {
-        if (_isDirty)
+        if (_isTransformDirty)
         {
             for (int i = 0; i < _children.Count; i++)
             {
-                _children[i].SetDirty();
+                _children[i].SetTransformDirty();
             }
         }
+    }
+
+    public void TryRefreshMask()
+    {
+        if (!_isMaskDirty)
+        {
+            return;
+        }
+        ForceRefreshMask();
+        
+    }
+
+    public void ForceRefreshMask()
+    {
+        _mask = Bound;
+        if(Parent != null&&Parent.IsMaskEnabled)
+        {
+            _mask = BoundingBox2D.GetIntersection(_mask, Parent.Mask);
+        }
+        _isMaskDirty = false;
+        SpreadMaskDirty();
+    }
+
+    private void SpreadMaskDirty()
+    {
+        if (_isMaskDirty)
+        {
+            for (int i = 0; i < _children.Count; i++)
+            {
+                _children[i].SetMaskDirty();
+            }
+        }
+    }
+
+    public void SetMaskDirty()
+    {
+        _isMaskDirty = true;
     }
 
     private Vector2 GetParentSize()

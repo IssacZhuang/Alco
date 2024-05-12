@@ -21,6 +21,7 @@ public class Canvas : AutoDisposable
     }
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
+    private Vector2 _invCameraSize;
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
@@ -52,7 +53,14 @@ public class Canvas : AutoDisposable
         set
         {
             _camera.Size = value;
+            _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
         }
+    }
+
+    public Vector2 InvSize
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _invCameraSize;
     }
 
     public IUIInputTracker? InputTracker
@@ -69,6 +77,7 @@ public class Canvas : AutoDisposable
     public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Font font)
     {
         _camera = system.CreateCamera2D(640, 360, 1);
+        _invCameraSize = Vector2.One / new Vector2(640, 360);
         _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();

@@ -45,5 +45,14 @@ namespace Vocore
             };
         }
 
+        public static BoundingBox2D GetIntersection(BoundingBox2D a, BoundingBox2D b)
+        {
+            return new BoundingBox2D
+            {
+                min = math.max(a.min, b.min),
+                max = math.min(a.max, b.max),
+            };
+        }
+
     }
 }
