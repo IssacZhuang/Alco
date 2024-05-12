@@ -29,8 +29,8 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
-        _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
+        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite-Masked.hlsl");
+        _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text-Masked.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
 
         UIInputTracker inputTracker = new UIInputTracker(Input);

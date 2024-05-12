@@ -12,6 +12,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
     private readonly Texture2D _textureWhite;
+    private BoundingBox2D _cameraMask;
 
 
     public abstract Vector2 MousePosition { get; }
@@ -29,6 +30,8 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         //internal resources
         _camera = renderingSystem.CreateCamera2D(width, height, 100);
         _camera.Position = new Vector2(width / 2, -height / 2);
+        Vector2 halfSize = _camera.Size * 0.5f;
+        _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
 
         _renderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
     }
@@ -37,6 +40,8 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     {
         _camera.Size = new Vector2(width, height);
         _camera.Position = new Vector2(width / 2, -height / 2);
+        Vector2 halfSize = _camera.Size * 0.5f;
+        _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
     }
 
     public void Begin()
@@ -52,20 +57,20 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
     {
         Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
-        _renderer.DrawSprite(_textureWhite, matrix, color);
+        _renderer.DrawSprite(_textureWhite, matrix, color, _cameraMask);
     }
 
     public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
     {
         position.Y += fontSize * TextOffsetYMultiplier;
         Matrix4x4 matrix = GetTransformMatrix(position, depth, Vector2.One* fontSize);
-        return _renderer.DrawChars(font, str, strLength, matrix, pivot, color);
+        return _renderer.DrawChars(font, str, strLength, matrix, pivot, color, 1f, _cameraMask);
     }
 
     public void DrawTexture(Vector2 position, float depth, Vector2 size, Texture2D texture, ColorFloat color)
     {
         Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
-        _renderer.DrawSprite(texture, matrix, color);
+        _renderer.DrawSprite(texture, matrix, color, _cameraMask);
     }
 
     public virtual void Dispose()

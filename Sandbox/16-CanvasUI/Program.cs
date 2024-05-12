@@ -9,7 +9,6 @@ GameEngineSetting setting = new GameEngineSetting
 
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
-        VSync = true
     }
 }.With<PluginDefaultAssets>().
 With<PluginHDR>().

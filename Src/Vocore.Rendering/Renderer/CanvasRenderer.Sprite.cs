@@ -11,6 +11,7 @@ public partial class CanvasRenderer
     private struct SpriteConstant
     {
         public Matrix4x4 Model;
+        public BoundingBox2D Mask;
         public Vector4 Color;
         public Rect UvRect;
     }
@@ -33,82 +34,21 @@ public partial class CanvasRenderer
     }
 
 
-    #region  Draw 3D
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, ColorFloat color)
-    {
-        Transform3D transform = new Transform3D(position, rotation, scale);
-        DrawSpiteCore(texture, DefaultUvRect, transform.Matrix, color);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, Rect uvRect, ColorFloat color)
-    {
-        Transform3D transform = new Transform3D(position, rotation, scale);
-        DrawSpiteCore(texture, uvRect, transform.Matrix, color);
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Transform3D transform, ColorFloat color)
-    {
-        DrawSpiteCore(texture, DefaultUvRect, transform.Matrix, color);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Transform3D transform, Rect uvRect, ColorFloat color)
-    {
-        DrawSpiteCore(texture, uvRect, transform.Matrix, color);
-    }
-
-    #endregion
-
-    #region Draw 2D
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, ColorFloat color)
-    {
-        Transform2D transform = new Transform2D(position, rotation, scale);
-        DrawSpiteCore(texture, DefaultUvRect, transform.Matrix, color);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, Rect uvRect, ColorFloat color)
-    {
-        Transform2D transform = new Transform2D(position, rotation, scale);
-        DrawSpiteCore(texture, uvRect, transform.Matrix, color);
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Transform2D transform, ColorFloat color)
-    {
-        DrawSpiteCore(texture, DefaultUvRect, transform.Matrix, color);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Transform2D transform, Rect uvRect, ColorFloat color)
-    {
-        DrawSpiteCore(texture, uvRect, transform.Matrix, color);
-    }
-
-    #endregion
 
     #region  Draw Quad
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
+    public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color, BoundingBox2D mask)
     {
         Transform2D transform = new Transform2D(position, Rotation2D.Identity, size);
-        DrawQuad(transform.Matrix, color);
+        DrawQuad(transform.Matrix, color, mask);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawQuad(Vector2 position, Vector2 size, Rotation2D rotation, ColorFloat color)
+    public void DrawQuad(Vector2 position, Vector2 size, Rotation2D rotation, ColorFloat color, BoundingBox2D mask)
     {
         Transform2D transform = new Transform2D(position, rotation, size);
-        DrawQuad(transform.Matrix, color);
+        DrawQuad(transform.Matrix, color, mask);
     }
 
 
@@ -119,32 +59,33 @@ public partial class CanvasRenderer
     #region Draw by matrix
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawQuad( Matrix4x4 matrix, ColorFloat color)
+    public void DrawQuad( Matrix4x4 matrix, ColorFloat color, BoundingBox2D mask)
     {
-        DrawSprite(_textWhite, matrix, color);
+        DrawSprite(_textWhite, matrix, color, mask);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Matrix4x4 matrix, ColorFloat color)
+    public void DrawSprite(Texture2D texture, Matrix4x4 matrix, ColorFloat color, BoundingBox2D mask)
     {
-        DrawSpiteCore(texture, DefaultUvRect, matrix, color);
+        DrawSpiteCore(texture, DefaultUvRect, matrix, color, mask);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
+    public void DrawSprite(Texture2D texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color, BoundingBox2D mask)
     {
-        DrawSpiteCore(texture, uvRect, matrix, color);
+        DrawSpiteCore(texture, uvRect, matrix, color, mask);
     }
 
     #endregion
 
-    private void DrawSpiteCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, ColorFloat color)
+    private void DrawSpiteCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, ColorFloat color, BoundingBox2D mask)
     {
         SetState(RenderingState.Sprite);
 
         SpriteConstant constant = new SpriteConstant
         {
             Model = matrix,
+            Mask = mask,
             Color = color,
             UvRect = uvRect
         };

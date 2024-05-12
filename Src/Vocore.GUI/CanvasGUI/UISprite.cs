@@ -39,11 +39,11 @@ public class UISprite : UINode
     {
         if (Texture != null)
         {
-            canvas.Renderer.DrawSprite(Texture, RenderTransform.Matrix, Color);
+            canvas.Renderer.DrawSprite(Texture, RenderTransform.Matrix, Color, Mask);
         }
         else
         {
-            canvas.Renderer.DrawQuad(RenderTransform.Matrix, Color);
+            canvas.Renderer.DrawQuad(RenderTransform.Matrix, Color, Mask);
         }
     }
 }

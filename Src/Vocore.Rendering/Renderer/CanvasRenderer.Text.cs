@@ -11,6 +11,7 @@ public partial class CanvasRenderer
     private struct TextConstant
     {
         public Matrix4x4 Model;
+        public BoundingBox2D Mask;
         // the start of instance id in OpenGL is always 0, so use a custom instance start
         public Vector2 VertexOffset;
         public uint InstanceStart;
@@ -40,104 +41,38 @@ public partial class CanvasRenderer
         _command.SetGraphicsResources(_textShaderId_textBuffer, _textBufferGPU.EntryReadonly);
     }
 
-    #region  Draw 2d
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
-        }
-    }
-
-    #endregion 
-
-    #region Draw 3d
-    public unsafe float DrawString(Font font, string str, float fontSize, Vector3 position, Quaternion rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
-        }
-    }
-
-    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
-    }
-
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
-        }
-    }
-
-    #endregion
 
     #region Draw by matrix
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawString(Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing, BoundingBox2D mask)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(font, p, str.Length, matrix, align, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, matrix, align, color, lineSpacing, mask);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, BoundingBox2D mask)
     {
-        return DrawTextCore(font, str, count, matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, count, matrix, pivot, color, lineSpacing, mask);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, BoundingBox2D mask)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(font, p, str.Length, matrix, pivot, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, matrix, pivot, color, lineSpacing, mask);
         }
     }
 
     #endregion
 
-    //draw 2d
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
-    {
-        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
-        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
-    }
-
-    //draw 3d
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
-    {
-        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
-        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
-    }
 
     //draw by matrix
-    private unsafe float DrawTextCore(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, BoundingBox2D mask)
     {
         if (count == 0)
         {
@@ -173,6 +108,7 @@ public partial class CanvasRenderer
         TextConstant constant = new TextConstant
         {
             Model = matrix,
+            Mask = mask,    
             InstanceStart = 0,
             VertexOffset = textAreaSize * realPivot
         };

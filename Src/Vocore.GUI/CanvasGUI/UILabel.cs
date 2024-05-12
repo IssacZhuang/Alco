@@ -72,7 +72,7 @@ public class UILabel : UINode
 
 
         Font font = FontOverride ?? canvas.Font;
-        renderer.DrawChars(font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color);
+        renderer.DrawChars(font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color, 1f, Mask);
     }
 
     public void SetText(string str)
