@@ -39,14 +39,15 @@ public class Game : GameEngine
 
         _root = new UINode
         {
-            Name = "Root"
+            Name = "Root",
         };
 
         UISprite sprite1 = new UISprite
         {
             Name = "Sprite1",
             Texture = Rendering.TextureWhite,
-            Size = new Vector2(100, 100)
+            Size = new Vector2(100, 100),
+            IsMaskEnabled = true,
         };
 
         _sprite1 = sprite1;
@@ -56,7 +57,7 @@ public class Game : GameEngine
             Size = new Vector2(50, 50),
             Color = new Vector4(0, 1, 0, 1f),
             Position = new Vector2(25, 25),
-            Anchor = Anchor.RightTop,
+            Anchor = Anchor.Center,
         };
         
         _sprite2 = sprite2;
@@ -77,7 +78,7 @@ public class Game : GameEngine
         {
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
-            Anchor =  Anchor.CenterHorizontalStretch,
+            Anchor =  Anchor.Center,
         };
         button.OnClickEvent += () =>
         {
@@ -116,6 +117,8 @@ public class Game : GameEngine
         {
             Stop();
         }
+
+        Log.Info(_sprite1.Mask);
 
         _canvas.Update(Rendering.DefaultFrameBuffer, _root, delta);
 

@@ -208,7 +208,7 @@ public class UINode
     {
         get
         {
-
+            TryRefreshMask();
             return _mask;
         }
         set

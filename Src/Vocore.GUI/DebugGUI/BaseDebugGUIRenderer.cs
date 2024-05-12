@@ -56,6 +56,10 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
     {
+        // Matrix4x4 viewProj = _camera.Data.ViewProjectionMatrix;
+        // Vector4 maskMin = new Vector4(_cameraMask.min, 0, 1f);
+        // Vector4 maskMax = new Vector4(_cameraMask.max, 0, 1f);
+        // Log.Info(Vector4.Transform(maskMin, viewProj), Vector4.Transform(maskMax, viewProj));
         Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
         _renderer.DrawSprite(_textureWhite, matrix, color, _cameraMask);
     }
