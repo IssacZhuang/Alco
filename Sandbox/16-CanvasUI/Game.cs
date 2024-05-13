@@ -18,6 +18,8 @@ public class Game : GameEngine
     private UISprite _sprite2;
     private UILabel _label;
 
+    private UIButton _button;
+
     private float _posX = 0;
     private float _rotDeg1 = 0;
     private float _rotDeg2 = 0;
@@ -58,6 +60,7 @@ public class Game : GameEngine
             Color = new Vector4(0, 1, 0, 1f),
             Position = new Vector2(25, 25),
             Anchor = Anchor.Center,
+            //IsMaskEnabled = true,
         };
         
         _sprite2 = sprite2;
@@ -68,7 +71,8 @@ public class Game : GameEngine
         UILabel label = new UILabel()
         {
             Text = "Hello World",
-            Size = new Vector2(50, 50), // same as sprite2
+            Size = new Vector2(100, 50), // same as sprite2
+            Color = new Vector4(0.8f, 0.8f, 0.8f, 1),
         };
         _label = label;
 
@@ -84,6 +88,8 @@ public class Game : GameEngine
         {
             Log.Info("Button Clicked");
         };
+
+        _button = button;
 
         UISprite bgButton = new UISprite()
         {
@@ -118,7 +124,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        Log.Info(_sprite1.Mask);
+        Log.Info(_button.Mask, _button.MaskState);
 
         _canvas.Update(Rendering.DefaultFrameBuffer, _root, delta);
 
@@ -161,6 +167,21 @@ public class Game : GameEngine
             if (DebugGUI.Button("Remove Parent"))
             {
                 _sprite2.SetParent(_root);
+            }
+        }
+
+        if (_sprite1.IsMaskEnabled)
+        {
+            if (DebugGUI.Button("Disable Mask"))
+            {
+                _sprite1.IsMaskEnabled = false;
+            }
+        }
+        else
+        {
+            if (DebugGUI.Button("Enable Mask"))
+            {
+                _sprite1.IsMaskEnabled = true;
             }
         }
 

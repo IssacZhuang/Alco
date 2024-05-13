@@ -19,7 +19,7 @@ public class UINode
     private bool _isTransformDirty = true;
 
     private BoundingBox2D _mask;
-    private bool _isMaskEnabled = false; // the state of self
+    private MaskState _maskState = MaskState.None;
     private bool _isMaskDirty = true;
 
     /// <summary>
@@ -192,16 +192,45 @@ public class UINode
 
     #region Mask Properties
 
+    public MaskState MaskState
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _maskState;
+        protected set
+        {
+            _maskState = value;
+            SetMaskDirty();
+        }
+    }
+
     public bool IsMaskEnabled
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _isMaskEnabled;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (_maskState & MaskState.Self) != 0;
         set
         {
-            _isMaskEnabled = value;
-            _isMaskDirty = true;
+            if (value)
+            {
+                _maskState |= MaskState.Self;
+            }
+            else
+            {
+                _maskState &= ~MaskState.Self;
+            }
+            SetMaskDirty();
         }
+    }
+
+    public bool HasMaskFromParent
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (_maskState & MaskState.Parent) != 0;
+    }
+
+    public bool HasMask
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _maskState != MaskState.None;
     }
 
     public BoundingBox2D Mask
@@ -323,6 +352,7 @@ public class UINode
         }
 
         child.SetTransformDirty();
+        SetMaskDirty();
     }
 
     #endregion
@@ -434,9 +464,9 @@ public class UINode
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 
-        _isTransformDirty = false;
         _isMaskDirty = true;
         SpreadTransformDirty();
+        _isTransformDirty = false;
     }
 
     public void SetTransformDirty()
@@ -446,13 +476,12 @@ public class UINode
 
     private void SpreadTransformDirty()
     {
-        if (_isTransformDirty)
+
+        for (int i = 0; i < _children.Count; i++)
         {
-            for (int i = 0; i < _children.Count; i++)
-            {
-                _children[i].SetTransformDirty();
-            }
+            _children[i].SetTransformDirty();
         }
+
     }
 
     public void TryRefreshMask()
@@ -467,23 +496,42 @@ public class UINode
 
     public void ForceRefreshMask()
     {
-        _mask = Bound;
-        if(Parent != null&&Parent.IsMaskEnabled)
+        BoundingBox2D mask;
+        BoundingBox2D maskSelf = Bound;
+        if (HasMaskFromParent && Parent != null)
         {
-            _mask = BoundingBox2D.GetIntersection(_mask, Parent.Mask);
+            mask = Parent.Mask;
         }
+        else
+        {
+            mask = maskSelf;
+        }
+
+        if (IsMaskEnabled)
+        {
+            mask = BoundingBox2D.GetIntersection(mask, maskSelf);
+        }
+
+        _mask = mask;
+        SpreadMaskState();
         _isMaskDirty = false;
-        SpreadMaskDirty();
     }
 
-    private void SpreadMaskDirty()
+    private void SpreadMaskState()
     {
-        if (_isMaskDirty)
+
+        for (int i = 0; i < _children.Count; i++)
         {
-            for (int i = 0; i < _children.Count; i++)
+            UINode child = _children[i];
+            if (IsMaskEnabled || HasMaskFromParent)
             {
-                _children[i].SetMaskDirty();
+                child.MaskState |= MaskState.Parent;
             }
+            else
+            {
+                child.MaskState &= ~MaskState.Parent;
+            }
+            child.SetMaskDirty();
         }
     }
 

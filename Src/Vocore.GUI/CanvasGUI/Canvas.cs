@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
@@ -22,6 +21,7 @@ public class Canvas : AutoDisposable
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
     private Vector2 _invCameraSize;
+    private BoundingBox2D _bound;
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
@@ -45,6 +45,12 @@ public class Canvas : AutoDisposable
         }
     }
 
+    public BoundingBox2D Bound
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _bound;
+    }
+
     public Vector2 Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,6 +60,7 @@ public class Canvas : AutoDisposable
         {
             _camera.Size = value;
             _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
+            _bound = new BoundingBox2D(_camera.Position - value * 0.5f, _camera.Position + value * 0.5f);
         }
     }
 
@@ -78,6 +85,7 @@ public class Canvas : AutoDisposable
     {
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
+        _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
         _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();

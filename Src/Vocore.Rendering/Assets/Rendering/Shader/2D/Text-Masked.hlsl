@@ -62,25 +62,21 @@ V2F vs_main(Vertex2D input) {
 
     //calc mask
 
-    float4 maskMin = mul(viewProjection, float4(constants.mask.xy, 0.0f, 1.0f));
-    float4 maskMax = mul(viewProjection, float4(constants.mask.zw, 0.0f, 1.0f));
-    output.maskMin = maskMin.xy;
-    output.maskMax = maskMax.xy;
-    output.clipPos = position.xy;
+  output.maskMin =
+      mul(viewProjection, float4(constants.mask.xy, 0.0f, 1.0f)).xy;
+  output.maskMax =
+      mul(viewProjection, float4(constants.mask.zw, 0.0f, 1.0f)).xy;
+  output.clipPos = position.xy;
 
   return output;
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
     //discard if outside mask
-    if (input.clipPos.x < input.clipPos.x || 
-    input.clipPos.x > input.clipPos.x || 
-    input.clipPos.y < input.clipPos.y || 
-    input.clipPos.y > input.clipPos.y)
-    {
-        discard;
-    }
-
+  if (input.clipPos.x < input.maskMin.x || input.clipPos.x > input.maskMax.x ||
+      input.clipPos.y < input.maskMin.y || input.clipPos.y > input.maskMax.y) {
+    discard;
+  }
 
   TextData data = Data[input.instanceId];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;

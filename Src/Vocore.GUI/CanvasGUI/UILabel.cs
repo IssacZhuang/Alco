@@ -70,9 +70,15 @@ public class UILabel : UINode
         transform.scale *= FontSize;
         transform.position.Y += transform.scale.Y * TextOffsetYMultiplier;
 
-
         Font font = FontOverride ?? canvas.Font;
-        renderer.DrawChars(font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color, 1f, Mask);
+
+        BoundingBox2D mask = Mask;
+        if (!HasMask)
+        {
+            mask = canvas.Bound;
+        }
+
+        renderer.DrawChars(font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color, 1f, mask);
     }
 
     public void SetText(string str)
