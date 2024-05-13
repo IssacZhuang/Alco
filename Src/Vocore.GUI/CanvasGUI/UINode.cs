@@ -542,7 +542,7 @@ public class UINode
 
     #endregion
 
-    protected virtual void OnTick(float delta)
+    protected virtual void OnTick(Canvas canvas, float delta)
     {
 
     }
@@ -659,12 +659,12 @@ public class UINode
         return _anchor.max - _anchor.min;
     }
 
-    public void Tick(float delta)
+    public void Tick(Canvas canvas, float delta)
     {
-        OnTick(delta);
+        OnTick(canvas, delta);
         for (int i = 0; i < _children.Count; i++)
         {
-            _children[i].Tick(delta);
+            _children[i].Tick(canvas, delta);
         }
     }
 

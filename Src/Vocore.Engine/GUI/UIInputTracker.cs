@@ -7,9 +7,17 @@ namespace Vocore.Engine;
 public class UIInputTracker : IUIInputTracker
 {
     private readonly InputSystem _system;
-    public UIInputTracker(InputSystem system)
+    private readonly Window _window;
+    public UIInputTracker(InputSystem system, Window window)
     {
         _system = system;
+        _window = window;
+    }
+
+    public Vector2 WindowSize
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _window.Size;
     }
 
     public Vector2 MousePosition

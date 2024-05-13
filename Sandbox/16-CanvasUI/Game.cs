@@ -35,7 +35,7 @@ public class Game : GameEngine
         _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text-Masked.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
 
-        UIInputTracker inputTracker = new UIInputTracker(Input);
+        UIInputTracker inputTracker = new UIInputTracker(Input, Window);
         _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText, _font);
         _canvas.InputTracker = inputTracker;
 
@@ -124,8 +124,8 @@ public class Game : GameEngine
             Stop();
         }
 
-        Log.Info(_button.Mask, _button.MaskState);
-
+        //Log.Info(_button.Mask, _button.MaskState);
+        _canvas.Tick(_root, delta);
         _canvas.Update(Rendering.DefaultFrameBuffer, _root, delta);
 
         DebugGUI.Text(_sprite2.WorldTransform.position.ToString());

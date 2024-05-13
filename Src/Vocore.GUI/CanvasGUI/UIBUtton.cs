@@ -51,7 +51,7 @@ public class UIButton : UINode, IUIEventReceiver
     }
 
     
-    protected override void OnUpdate(Canvas canvas, float delta)
+    protected override void OnTick(Canvas canvas, float delta)
     {
         Transform2D transform = RenderTransform;
         ShapeBox2D shape = new ShapeBox2D(transform.position, transform.scale);

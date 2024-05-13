@@ -92,21 +92,24 @@ public class Canvas : AutoDisposable
         _font = font;
     }
 
-    public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
+    public void Tick(UINode root, float delta)
     {
         _collisionWorld.ClearAll();
 
-        _renderer.Begin(renderTarget);
-        root.Update(this, delta);
-        _renderer.End();
+        root.Tick(this, delta);
 
-        if (_inputTracker != null && _inputTracker.IsMouseClicked)
+        if (_inputTracker == null)
         {
-            
+
+            return;
+        }
+
+        if (_inputTracker.IsMouseClicked)
+        {
             //the mosue position is in screen space, the origin is at the top left corner
             _mousePointCaster.hit = null;
             Vector2 mousePosition = _inputTracker.MousePosition;
-            Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, new Vector2(renderTarget.Width, renderTarget.Height), _camera.Data.ViewProjectionMatrix);
+            Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
             _collisionWorld.BuildTree();
             _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
             if (_mousePointCaster.hit is IUIEventReceiver clickable)
@@ -114,6 +117,17 @@ public class Canvas : AutoDisposable
                 clickable.OnClick();
             }
         }
+    }
+
+    public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
+    {
+
+
+        _renderer.Begin(renderTarget);
+        root.Update(this, delta);
+        _renderer.End();
+
+
     }
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)

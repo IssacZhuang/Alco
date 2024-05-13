@@ -4,7 +4,16 @@ namespace Vocore.GUI
 {
     public interface IUIInputTracker
     {
+        /// <summary>
+        /// The mouse position in the window.
+        /// </summary>
+        /// <value></value>
         public Vector2 MousePosition { get; }
+        /// <summary>
+        /// The size of window.
+        /// </summary>
+        /// <value></value>
+        public Vector2 WindowSize { get; }
         public bool IsMouseClicked { get; }
         public bool IsMousePressing { get; }
     }

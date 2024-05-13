@@ -30,7 +30,7 @@ public class UISprite : UINode
         }
     }
 
-    protected override void OnTick(float delta)
+    protected override void OnTick(Canvas canvas, float delta)
     {
 
     }
