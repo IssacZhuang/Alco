@@ -18,14 +18,20 @@ public class Canvas : AutoDisposable
             }
         }
     }
+
+    // for rendering
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
     private Vector2 _invCameraSize;
     private BoundingBox2D _bound;
+    private Font _font;
+
+    // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
-    private Font _font;
+    private IUIEventReceiver? _selected;
+
 
 
     public CanvasRenderer Renderer
@@ -94,9 +100,16 @@ public class Canvas : AutoDisposable
 
     public void Tick(UINode root, float delta)
     {
+        root.Tick(this, delta);
+    }
+
+    public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
+    {
         _collisionWorld.ClearAll();
 
-        root.Tick(this, delta);
+        _renderer.Begin(renderTarget);
+        root.Update(this, delta);
+        _renderer.End();
 
         if (_inputTracker == null)
         {
@@ -104,30 +117,22 @@ public class Canvas : AutoDisposable
             return;
         }
 
-        if (_inputTracker.IsMouseClicked)
+        //the mosue position is in screen space, the origin is at the top left corner
+        _mousePointCaster.hit = null;
+        Vector2 mousePosition = _inputTracker.MousePosition;
+        Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        _collisionWorld.BuildTree();
+        _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
+    
+        Log.Info(_mousePointCaster.hit);
+        if (_inputTracker.IsMouseDown)
         {
-            //the mosue position is in screen space, the origin is at the top left corner
-            _mousePointCaster.hit = null;
-            Vector2 mousePosition = _inputTracker.MousePosition;
-            Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
-            _collisionWorld.BuildTree();
-            _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
-            if (_mousePointCaster.hit is IUIEventReceiver clickable)
-            {
-                clickable.OnClick();
-            }
+            OnMouseDown(_mousePointCaster.hit as IUIEventReceiver);
         }
-    }
-
-    public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
-    {
-
-
-        _renderer.Begin(renderTarget);
-        root.Update(this, delta);
-        _renderer.End();
-
-
+        else if (_inputTracker.IsMouseUp)
+        {
+            OnMouseUp(_mousePointCaster.hit as IUIEventReceiver);
+        }
     }
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)
@@ -141,5 +146,22 @@ public class Canvas : AutoDisposable
         _renderer.Dispose();
         _camera.Dispose();
 
+    }
+
+    private void OnMouseDown(IUIEventReceiver? node)
+    {
+        if (node != null)
+        {
+            _selected = node;
+        }
+    }
+
+    private void OnMouseUp(IUIEventReceiver? node)
+    {
+        if (node != null && _selected == node)
+        {
+            node.OnClick();
+        }
+        _selected = null;
     }
 }

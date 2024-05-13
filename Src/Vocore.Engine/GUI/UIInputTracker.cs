@@ -26,10 +26,16 @@ public class UIInputTracker : IUIInputTracker
         get => _system.MousePosition;
     }
 
-    public bool IsMouseClicked
+    public bool IsMouseUp
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _system.IsMouseUp(Mouse.Left);
+    }
+
+    public bool IsMouseDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _system.IsMouseDown(Mouse.Left);
     }
 
     public bool IsMousePressing

@@ -14,7 +14,8 @@ namespace Vocore.GUI
         /// </summary>
         /// <value></value>
         public Vector2 WindowSize { get; }
-        public bool IsMouseClicked { get; }
+        public bool IsMouseUp { get; }
+        public bool IsMouseDown { get; }
         public bool IsMousePressing { get; }
     }
 }
