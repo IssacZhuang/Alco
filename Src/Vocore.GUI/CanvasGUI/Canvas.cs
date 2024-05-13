@@ -109,7 +109,7 @@ public class Canvas : AutoDisposable
             Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, new Vector2(renderTarget.Width, renderTarget.Height), _camera.Data.ViewProjectionMatrix);
             _collisionWorld.BuildTree();
             _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
-            if (_mousePointCaster.hit is IClickable clickable)
+            if (_mousePointCaster.hit is IUIEventReceiver clickable)
             {
                 clickable.OnClick();
             }
