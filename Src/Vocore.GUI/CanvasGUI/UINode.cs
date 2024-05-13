@@ -178,6 +178,10 @@ public class UINode
         }
     }
 
+    /// <summary>
+    /// The bounding box of the node in the world space.
+    /// </summary>
+    /// <value></value>
     public BoundingBox2D Bound
     {
         get
@@ -192,6 +196,10 @@ public class UINode
 
     #region Mask Properties
 
+    /// <summary>
+    /// The mask state of the node.
+    /// </summary>
+    /// <value></value>
     public MaskState MaskState
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -203,6 +211,10 @@ public class UINode
         }
     }
 
+    /// <summary>
+    /// Is the mask enabled for the node.
+    /// </summary>
+    /// <value></value>
     public bool IsMaskEnabled
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -221,18 +233,30 @@ public class UINode
         }
     }
 
+    /// <summary>
+    /// Is the node has mask from parent.
+    /// </summary>
+    /// <value></value>
     public bool HasMaskFromParent
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => (_maskState & MaskState.Parent) != 0;
     }
 
+    /// <summary>
+    /// Is the node has mask.
+    /// </summary>
+    /// <value></value>
     public bool HasMask
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _maskState != MaskState.None;
     }
 
+    /// <summary>
+    /// The bounding box of the mask in the world space.
+    /// </summary>
+    /// <value></value>
     public BoundingBox2D Mask
     {
         get
@@ -251,12 +275,20 @@ public class UINode
 
     #endregion
 
+    /// <summary>
+    /// The children of the node.
+    /// </summary>
+    /// <value></value>
     public IReadOnlyList<UINode> Children
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _children;
     }
 
+    /// <summary>
+    /// Access the child node by it name.
+    /// </summary>
+    /// <value></value>
     public UINode this[string name]
     {
         get
@@ -268,6 +300,13 @@ public class UINode
 
     #region Add/Remove
 
+    /// <summary>
+    /// Add a child node to the node.
+    /// </summary>
+    /// <param name="node">The child node to add.</param>
+    /// <param name="keepWorldTransform">Whether to keep the world transform of the child node.</param>
+    /// <exception cref="ArgumentException">The node already has a parent or is already a child of this node.</exception>
+    /// <summary>
     public void Add(UINode node, bool keepWorldTransform = true)
     {
         if (node.Parent != null)
@@ -283,6 +322,12 @@ public class UINode
         AddCore(node, keepWorldTransform);
     }
 
+    /// <summary>
+    /// Try to add a child node to the node.
+    /// </summary>
+    /// <param name="node">The child node to add.</param>
+    /// <param name="keepWorldTransform">Whether to keep the world transform of the child node.</param>
+    /// <returns><c>True</c> if the node is added successfully; otherwise, <c>false</c>.</returns>
     public bool TryAdd(UINode node, bool keepWorldTransform = true)
     {
         if (node.Parent != null)
@@ -299,6 +344,12 @@ public class UINode
         return true;
     }
 
+    /// <summary>
+    /// Remove a child node from the node.
+    /// </summary>
+    /// <param name="node">The child node to remove.</param>
+    /// <exception cref="ArgumentException">The node is not a child of this node.</exception>
+    /// <summary>
     public void Remove(UINode node)
     {
         if (node.Parent != this)
@@ -310,6 +361,11 @@ public class UINode
         _children.Remove(node);
     }
 
+    /// <summary>
+    /// Try to remove a child node from the node.
+    /// </summary>
+    /// <param name="node">The child node to remove.</param>
+    /// <returns><c>True</c> if the node is removed successfully; otherwise, <c>false</c>.</returns>
     public bool TryRemove(UINode node)
     {
         if (node.Parent != this)
@@ -322,6 +378,11 @@ public class UINode
         return true;
     }
 
+    /// <summary>
+    /// Change the parent of the node. It will do nothing if the new parent is the same as the current parent.
+    /// </summary>
+    /// <param name="newParent">The new parent node.</param>
+    /// <param name="keepWorldTransform">Whether to keep the world transform of the node.</param>
     public void SetParent(UINode newParent, bool keepWorldTransform = true)
     {
         if (Parent == newParent)
@@ -359,23 +420,45 @@ public class UINode
 
     #region Get
 
+    /// <summary>
+    /// Get the child node by name.
+    /// </summary>
+    /// <param name="name">The name of the child node.</param>
+    /// <returns>The child node.</returns>
     public UINode Get(string name)
     {
         UINode? node = _children.FirstOrDefault(x => x.Name == name) ?? throw new KeyNotFoundException($"The name {name} does not exist in the list.");
         return node;
     }
 
+    /// <summary>
+    /// Get the child node by index.
+    /// </summary>
+    /// <param name="index">The index of the child node.</param>
+    /// <returns>The child node.</returns>
     public UINode Get(int index)
     {
         return _children[index];//throw inside the list
     }
 
+    /// <summary>
+    /// Try to get the child node by name.
+    /// </summary>
+    /// <param name="name">The name of the child node.</param>
+    /// <param name="node">The child node.</param>
+    /// <returns><c>True</c> if the node is found; otherwise, <c>false</c>.</returns>
     public bool TryGet(string name, [MaybeNullWhen(false)] out UINode? node)
     {
         node = _children.FirstOrDefault(x => x.Name == name);
         return node != null;
     }
 
+    /// <summary>
+    /// Try to get the child node by index.
+    /// </summary>
+    /// <param name="index">The index of the child node.</param>
+    /// <param name="node">The child node.</param>
+    /// <returns><c>True</c> if the node is found; otherwise, <c>false</c>.</returns>
     public bool TryGet(int index, [MaybeNullWhen(false)] out UINode? node)
     {
         if (index < 0 || index >= _children.Count)
@@ -389,6 +472,12 @@ public class UINode
 
     //generic
 
+    /// <summary>
+    /// Get the child node by name and cast it to the specified type.
+    /// </summary>
+    /// <param name="name">The name of the child node.</param>
+    /// <typeparam name="T">The type of the child node.</typeparam>
+    /// <returns>The child node.</returns>
     public T Get<T>(string name) where T : UINode
     {
         UINode node = Get(name);
@@ -399,6 +488,12 @@ public class UINode
         throw new InvalidCastException($"The node {name} is not of type {typeof(T).Name}.");
     }
 
+    /// <summary>
+    /// Get the child node by index and cast it to the specified type.
+    /// </summary>
+    /// <param name="index">The index of the child node.</param>
+    /// <typeparam name="T">The type of the child node.</typeparam>
+    /// <returns>The child node.</returns>
     public T Get<T>(int index) where T : UINode
     {
         UINode node = Get(index);
@@ -409,6 +504,13 @@ public class UINode
         throw new InvalidCastException($"The node at index {index} is not of type {typeof(T).Name}.");
     }
 
+    /// <summary>
+    /// Try to get the child node by name and cast it to the specified type.
+    /// </summary>
+    /// <param name="name">The name of the child node.</param>
+    /// <param name="node">The child node.</param>
+    /// <typeparam name="T">The type of the child node.</typeparam>
+    /// <returns><c>True</c> if the node is found; otherwise, <c>false</c>.</returns>
     public bool TryGet<T>(string name, [MaybeNullWhen(false)] out T? node) where T : UINode
     {
         if (TryGet(name, out UINode? n) && n is T t)
@@ -420,6 +522,13 @@ public class UINode
         return false;
     }
 
+    /// <summary>
+    /// Try to get the child node by index and cast it to the specified type.
+    /// </summary>
+    /// <param name="index">The index of the child node.</param>
+    /// <param name="node">The child node.</param>
+    /// <typeparam name="T">The type of the child node.</typeparam>
+    /// <returns><c>True</c> if the node is found; otherwise, <c>false</c>.</returns>
     public bool TryGet<T>(int index, [MaybeNullWhen(false)] out T? node) where T : UINode
     {
         if (TryGet(index, out UINode? n) && n is T t)
@@ -442,18 +551,18 @@ public class UINode
 
     }
 
-    public bool TryRefreshTransform()
+    private void TryRefreshTransform()
     {
         if (!_isTransformDirty)
         {
-            return false;
+            return;
         }
         ForceRefreshTransform();
         
-        return true;
+        return;
     }
 
-    public void ForceRefreshTransform()
+    private void ForceRefreshTransform()
     {
         _worldTransform = _transform;
         //_worldTransform.position += Size * _pivot.value;
@@ -469,7 +578,7 @@ public class UINode
         _isTransformDirty = false;
     }
 
-    public void SetTransformDirty()
+    private void SetTransformDirty()
     {
         _isTransformDirty = true;
     }
@@ -484,7 +593,7 @@ public class UINode
 
     }
 
-    public void TryRefreshMask()
+    private void TryRefreshMask()
     {
         if (!_isMaskDirty)
         {
@@ -494,7 +603,7 @@ public class UINode
         
     }
 
-    public void ForceRefreshMask()
+    private void ForceRefreshMask()
     {
         BoundingBox2D mask;
         BoundingBox2D maskSelf = Bound;
