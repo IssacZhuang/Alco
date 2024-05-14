@@ -123,15 +123,24 @@ public class Canvas : AutoDisposable
         Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
         _collisionWorld.BuildTree();
         _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
-    
-        Log.Info(_mousePointCaster.hit);
+
+        IUIEventReceiver? node = _mousePointCaster.hit as IUIEventReceiver;
+
         if (_inputTracker.IsMouseDown)
         {
-            OnMouseDown(_mousePointCaster.hit as IUIEventReceiver);
+            OnMouseDown(node);
         }
         else if (_inputTracker.IsMouseUp)
         {
-            OnMouseUp(_mousePointCaster.hit as IUIEventReceiver);
+            OnMouseUp(node);
+        }
+        else if (_inputTracker.IsMousePressing)
+        {
+            node?.OnPressing();
+        }
+        else
+        {
+            node?.OnHover();
         }
     }
 
@@ -150,18 +159,28 @@ public class Canvas : AutoDisposable
 
     private void OnMouseDown(IUIEventReceiver? node)
     {
-        if (node != null)
+        if (node == null)
         {
-            _selected = node;
+            return;
         }
+        _selected = node;
+        node.OnPressDown();
     }
 
     private void OnMouseUp(IUIEventReceiver? node)
     {
-        if (node != null && _selected == node)
+        if (node == null)
+        {
+            return;
+        }
+
+        node.OnPressUp();
+        if (_selected == node)
         {
             node.OnClick();
         }
         _selected = null;
     }
+
+
 }

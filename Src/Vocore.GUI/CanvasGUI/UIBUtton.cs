@@ -7,6 +7,10 @@ namespace Vocore.GUI;
 public class UIButton : UINode, IUIEventReceiver
 {
     private event Action? _onClickEvent;
+    private event Action? _onHoverEvent;
+    private event Action? _onPressDownEvent;
+    private event Action? _onPressUpEvent;
+    private event Action? _onPressingEvent;
     private TransitionMode _transitionMode = TransitionMode.None;
 
     public UISprite? TransitionTarget { get; set; } = null;
@@ -29,6 +33,8 @@ public class UIButton : UINode, IUIEventReceiver
     public UINode? NodePressing { get; set; } = null;
     public UINode? NodeDisabled { get; set; } = null;
 
+
+    #region  Event
     public event Action OnClickEvent
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -36,6 +42,40 @@ public class UIButton : UINode, IUIEventReceiver
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         remove => _onClickEvent -= value;
     }
+
+    public event Action OnHoverEvent
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        add => _onHoverEvent += value;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        remove => _onHoverEvent -= value;
+    }
+
+    public event Action OnPressDownEvent
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        add => _onPressDownEvent += value;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        remove => _onPressDownEvent -= value;
+    }
+
+    public event Action OnPressUpEvent
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        add => _onPressUpEvent += value;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        remove => _onPressUpEvent -= value;
+    }
+
+    public event Action OnPressingEvent
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        add => _onPressingEvent += value;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        remove => _onPressingEvent -= value;
+    }
+
+    #endregion
 
     public TransitionMode TransitionMode
     {
@@ -53,9 +93,7 @@ public class UIButton : UINode, IUIEventReceiver
     
     protected override void OnUpdate(Canvas canvas, float delta)
     {
-        Transform2D transform = RenderTransform;
-        ShapeBox2D shape = new ShapeBox2D(transform.position, transform.scale);
-        canvas.AddClickReciever(this, shape);
+        AddSelfForCollision(canvas);
     }
 
     public void OnClick()
@@ -65,16 +103,30 @@ public class UIButton : UINode, IUIEventReceiver
 
     public void OnHover()
     {
-        throw new NotImplementedException();
+        _onHoverEvent?.Invoke();
+    }
+
+    public void OnPressing()
+    {
+        _onPressingEvent?.Invoke();
     }
 
     public void OnPressDown()
     {
-        throw new NotImplementedException();
+        _onPressDownEvent?.Invoke();
     }
 
     public void OnPressUp()
     {
-        throw new NotImplementedException();
+        _onPressUpEvent?.Invoke();
     }
+
+    private void AddSelfForCollision(Canvas canvas)
+    {
+        Transform2D transform = RenderTransform;
+        ShapeBox2D shape = new ShapeBox2D(transform.position, transform.scale);
+        canvas.AddClickReciever(this, shape);
+    }
+
+    
 }

@@ -128,7 +128,8 @@ public class Game : GameEngine
         _canvas.Tick(_root, delta);
         _canvas.Update(Rendering.DefaultFrameBuffer, _root, delta);
 
-        DebugGUI.Text(_sprite2.WorldTransform.position.ToString());
+
+        DebugGUI.Text(FrameRate);
         DebugGUI.Slider(-320, 320, ref _posX);
         DebugGUI.SameLine();
         DebugGUI.Text("Position X");
