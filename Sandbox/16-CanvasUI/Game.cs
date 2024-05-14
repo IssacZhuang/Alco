@@ -4,6 +4,7 @@ using Vocore.Rendering;
 using Vocore;
 using Vocore.GUI;
 using System.Diagnostics;
+using Vocore.Graphics;
 
 public class Game : GameEngine
 {
@@ -83,6 +84,10 @@ public class Game : GameEngine
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
             Anchor =  Anchor.Center,
+            ColorNormal = new ColorFloat(0.8f, 0.8f, 0.8f, 1),
+            ColorHover = new ColorFloat(0.6f, 0.6f, 0.6f, 1),
+            ColorPressing = new ColorFloat(0.4f, 0.4f, 0.4f, 1),
+            TransitionMode = TransitionMode.ColorTint,
         };
         button.OnClickEvent += () =>
         {
@@ -99,6 +104,8 @@ public class Game : GameEngine
             Position = new Vector2(0, -25),
             Anchor = Anchor.Stretch,
         };
+
+        button.TransitionTarget = bgButton;
 
         UILabel labelButton = new UILabel()
         {

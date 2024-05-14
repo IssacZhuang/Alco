@@ -31,6 +31,7 @@ public class Canvas : AutoDisposable
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
     private IUIEventReceiver? _selected;
+    private IUIEventReceiver? _hovered;
 
 
 
@@ -87,6 +88,18 @@ public class Canvas : AutoDisposable
         }
     }
 
+    public IUIEventReceiver? Selected
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _selected;
+    }
+
+    public IUIEventReceiver? Hovered
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _hovered;
+    }
+
     public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Font font)
     {
         _camera = system.CreateCamera2D(640, 360, 1);
@@ -117,6 +130,7 @@ public class Canvas : AutoDisposable
             return;
         }
 
+        _hovered = null;
         //the mosue position is in screen space, the origin is at the top left corner
         _mousePointCaster.hit = null;
         Vector2 mousePosition = _inputTracker.MousePosition;
@@ -125,6 +139,7 @@ public class Canvas : AutoDisposable
         _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
 
         IUIEventReceiver? node = _mousePointCaster.hit as IUIEventReceiver;
+        _hovered = node;
 
         if (_inputTracker.IsMouseDown)
         {
@@ -169,16 +184,12 @@ public class Canvas : AutoDisposable
 
     private void OnMouseUp(IUIEventReceiver? node)
     {
-        if (node == null)
+        _selected?.OnPressUp();
+        if (node == _selected)
         {
-            return;
+            _selected?.OnClick();
         }
-
-        node.OnPressUp();
-        if (_selected == node)
-        {
-            node.OnClick();
-        }
+        
         _selected = null;
     }
 

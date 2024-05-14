@@ -101,6 +101,14 @@ public struct ColorFloat
         );
     }
 
+    public static ColorFloat Lerp(ColorFloat a, ColorFloat b, float t)
+    {
+        return new ColorFloat
+        {
+            value = Vector4.Lerp(a.value, b.value, t)
+        };
+    }
+
     // + - * /
     public static ColorFloat operator +(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value + b.value };
     public static ColorFloat operator -(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value - b.value };

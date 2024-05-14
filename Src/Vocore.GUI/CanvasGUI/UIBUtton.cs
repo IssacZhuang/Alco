@@ -11,10 +11,17 @@ public class UIButton : UINode, IUIEventReceiver
     private event Action? _onPressDownEvent;
     private event Action? _onPressUpEvent;
     private event Action? _onPressingEvent;
+
     private TransitionMode _transitionMode = TransitionMode.None;
+    private TransitionState _transitionState = TransitionState.Normal;
+
 
     public UISprite? TransitionTarget { get; set; } = null;
+    private float _tTransition = 0;
     //for TransitionMode.ColorTint, use TransitionTarget as the target
+
+    private ColorFloat _colorTweenStart = new ColorFloat(1, 1, 1, 1);
+    private ColorFloat _colorTweenEnd = new ColorFloat(1, 1, 1, 1);
     public ColorFloat ColorNormal { get; set; } = new ColorFloat(1, 1, 1, 1);
     public ColorFloat ColorHover { get; set; } = new ColorFloat(1, 1, 1, 1);
     public ColorFloat ColorPressing { get; set; } = new ColorFloat(1, 1, 1, 1);
@@ -82,7 +89,11 @@ public class UIButton : UINode, IUIEventReceiver
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _transitionMode;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _transitionMode = value;
+        set
+        {
+            _transitionMode = value;
+            OnTransitionStateChanged();
+        }
     }
 
     public UIButton()
@@ -94,6 +105,16 @@ public class UIButton : UINode, IUIEventReceiver
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         AddSelfForCollision(canvas);
+
+        if (_transitionMode == TransitionMode.ColorTint)
+        {
+            UpdateColorTween(delta);
+        }
+
+        if (_transitionState == TransitionState.Hover && canvas.Hovered != this)
+        {
+            TryChangeTransitionState(TransitionState.Normal);
+        }
     }
 
     public void OnClick()
@@ -104,6 +125,7 @@ public class UIButton : UINode, IUIEventReceiver
     public void OnHover()
     {
         _onHoverEvent?.Invoke();
+        TryChangeTransitionState(TransitionState.Hover);
     }
 
     public void OnPressing()
@@ -114,11 +136,13 @@ public class UIButton : UINode, IUIEventReceiver
     public void OnPressDown()
     {
         _onPressDownEvent?.Invoke();
+        TryChangeTransitionState(TransitionState.Pressing);
     }
 
     public void OnPressUp()
     {
         _onPressUpEvent?.Invoke();
+        TryChangeTransitionState(TransitionState.Normal);
     }
 
     private void AddSelfForCollision(Canvas canvas)
@@ -128,5 +152,117 @@ public class UIButton : UINode, IUIEventReceiver
         canvas.AddClickReciever(this, shape);
     }
 
-    
+    private void TryChangeTransitionState(TransitionState state)
+    {
+        if (_transitionState != state)
+        {
+            _transitionState = state;
+            OnTransitionStateChanged();
+        }
+    }
+
+    private void OnTransitionStateChanged()
+    {
+        switch (_transitionMode)
+        {
+            case TransitionMode.ColorTint:
+                ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+                StartColorTween(current, GetColorFromState(_transitionState));
+                break;
+            case TransitionMode.SpriteSwap:
+                RefreshSpriteSwap();
+                break;
+            case TransitionMode.NodeSwap:
+                RefreshNodeSwap();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void StartColorTween(ColorFloat start, ColorFloat end)
+    {
+        _colorTweenStart = start;
+        _colorTweenEnd = end;
+        _tTransition = 0;
+    }
+
+    private void UpdateColorTween(float delta)
+    {
+        _tTransition += delta / FadeDuration;
+        _tTransition = math.clamp(_tTransition, 0, 1);
+        if (TransitionTarget == null)
+        {
+            return;
+        }
+        TransitionTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+    }
+
+    private void RefreshSpriteSwap()
+    {
+        if (TransitionTarget == null)
+        {
+            return;
+        }
+
+        switch (_transitionState)
+        {
+            case TransitionState.Normal:
+                TransitionTarget.Texture = SpriteNormal;
+                break;
+            case TransitionState.Hover:
+                TransitionTarget.Texture = SpriteHover;
+                break;
+            case TransitionState.Pressing:
+                TransitionTarget.Texture = SpritePressing;
+                break;
+            case TransitionState.Disabled:
+                TransitionTarget.Texture = SpriteDisabled;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void RefreshNodeSwap()
+    {
+        if (NodeNormal != null)
+        {
+            NodeNormal.IsVisible = _transitionState == TransitionState.Normal;
+        }
+
+        if (NodeHover != null)
+        {
+            NodeHover.IsVisible = _transitionState == TransitionState.Hover;
+        }
+
+        if (NodePressing != null)
+        {
+            NodePressing.IsVisible = _transitionState == TransitionState.Pressing;
+        }
+
+        if (NodeDisabled != null)
+        {
+            NodeDisabled.IsVisible = _transitionState == TransitionState.Disabled;
+        }
+    }
+
+    private ColorFloat GetColorFromState(TransitionState state)
+    {
+        switch (state)
+        {
+            case TransitionState.Normal:
+                return ColorNormal;
+            case TransitionState.Hover:
+                return ColorHover;
+            case TransitionState.Pressing:
+                return ColorPressing;
+            case TransitionState.Disabled:
+                return ColorDisabled;
+            default:
+                return ColorNormal;
+        }
+    }
+
+
 }
