@@ -659,7 +659,7 @@ public class UINode
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetMaskDirty()
+    private void SetMaskDirty()
     {
         _isMaskDirty = true;
     }

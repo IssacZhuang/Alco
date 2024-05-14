@@ -11,9 +11,22 @@ public class UIButton : UISelectable
     private TransitionMode _transitionMode = TransitionMode.None;
     private TransitionState _transitionState = TransitionState.Normal;
 
-
-    public UISprite? TransitionTarget { get; set; } = null;
+    private UINode? _transitionTarget = null;
+    private UISprite? _transitionSpriteTarget = null;
+    public UINode? TransitionTarget
+    {
+        get
+        {
+            return _transitionTarget;
+        }
+        set
+        {
+            _transitionTarget = value;
+            _transitionSpriteTarget = value as UISprite;
+        }
+    }
     private float _tTransition = 0;
+    private bool _inTransition = false;
     public float FadeDuration { get; set; } = 0.1f;
     //for TransitionMode.ColorTint, use TransitionTarget as the target
 
@@ -67,22 +80,31 @@ public class UIButton : UISelectable
     {
         base.OnUpdate(canvas, delta);
 
+        if (_transitionState == TransitionState.Hover && canvas.Hovered != this)
+        {
+            TryChangeTransitionState(TransitionState.Normal);
+        }
+
+        if (!_inTransition)
+        {
+            return;
+        }
 
         _tTransition += delta / FadeDuration;
-
+        float t = math.clamp(_tTransition, 0, 1);
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
-            UpdateColorTween(delta);
+            UpdateColorTween(t);
         }
 
         if ((_transitionMode & TransitionMode.Transform) != 0)
         {
-            UpdateTransform();
+            UpdateTransform(t);
         }
 
-        if (_transitionState == TransitionState.Hover && canvas.Hovered != this)
+        if (_tTransition > 1)
         {
-            TryChangeTransitionState(TransitionState.Normal);
+            _inTransition = false;
         }
     }
 
@@ -128,6 +150,7 @@ public class UIButton : UISelectable
         //use flag
         float tmpT = math.clamp(_tTransition, 0, 1);
         _tTransition = 0;
+        _inTransition = true;
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, tmpT);
@@ -159,20 +182,14 @@ public class UIButton : UISelectable
         _colorTweenEnd = end;
     }
 
-    private void UpdateColorTween(float delta)
+    private void UpdateColorTween(float t)
     {
-        if (TransitionTarget == null)
+        if (_transitionSpriteTarget == null)
         {
             return;
         }
 
-        if (_tTransition >= 1)
-        {
-            TransitionTarget.Color = _colorTweenEnd;
-            return;
-        }
-
-        TransitionTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+        _transitionSpriteTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, t);
     }
 
     private void StartTransformTween(Transform2D start, Transform2D end)
@@ -181,22 +198,19 @@ public class UIButton : UISelectable
         _transformTweenEnd = end;
     }
 
-    private void UpdateTransform()
+    private void UpdateTransform(float t)
     {
-
-
-        if (_tTransition >= 1)
+        if (_transitionTarget == null)
         {
-            LocalTransform = _transformTweenEnd;
             return;
         }
 
-        LocalTransform = math.lerp(_transformTweenStart, _transformTweenEnd, _tTransition);
+        _transitionTarget.LocalTransform = math.lerp(_transformTweenStart, _transformTweenEnd, t);
     }
 
     private void RefreshSpriteSwap()
     {
-        if (TransitionTarget == null)
+        if (_transitionSpriteTarget == null)
         {
             return;
         }
@@ -204,16 +218,16 @@ public class UIButton : UISelectable
         switch (_transitionState)
         {
             case TransitionState.Normal:
-                TransitionTarget.Texture = SpriteNormal;
+                _transitionSpriteTarget.Texture = SpriteNormal;
                 break;
             case TransitionState.Hover:
-                TransitionTarget.Texture = SpriteHover;
+                _transitionSpriteTarget.Texture = SpriteHover;
                 break;
             case TransitionState.Pressing:
-                TransitionTarget.Texture = SpritePressing;
+                _transitionSpriteTarget.Texture = SpritePressing;
                 break;
             case TransitionState.Disabled:
-                TransitionTarget.Texture = SpriteDisabled;
+                _transitionSpriteTarget.Texture = SpriteDisabled;
                 break;
             default:
                 break;

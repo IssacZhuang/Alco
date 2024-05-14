@@ -87,9 +87,8 @@ public class Game : GameEngine
             ColorNormal = new ColorFloat(0.8f, 0.8f, 0.8f, 1),
             ColorHover = new ColorFloat(0.6f, 0.6f, 0.6f, 1),
             ColorPressing = new ColorFloat(0.4f, 0.4f, 0.4f, 1),
-            FadeDuration = 1f,
-            TransformPressing = Transform2D.Identity with { scale = new Vector2(0.9f, 0.9f), rotation = Rotation2D.FromDegree(45) },
-            TransitionMode = TransitionMode.ColorTint,//| TransitionMode.Transform,
+            TransformPressing = Transform2D.Identity with { scale = new Vector2(0.95f, 0.95f)},
+            TransitionMode = TransitionMode.ColorTint | TransitionMode.Transform,
         };
         button.OnClickEvent += () =>
         {
@@ -119,7 +118,7 @@ public class Game : GameEngine
 
     
         button.Add(bgButton);
-        button.Add(labelButton);
+        bgButton.Add(labelButton);
 
         _sprite1.Add(button);
 
