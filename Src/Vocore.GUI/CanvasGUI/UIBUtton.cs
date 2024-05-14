@@ -92,6 +92,7 @@ public class UIButton : UISelectable
 
         _tTransition += delta / FadeDuration;
         float t = math.clamp(_tTransition, 0, 1);
+        t = UtilsEasing.QuintInOut(t);
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             UpdateColorTween(t);
