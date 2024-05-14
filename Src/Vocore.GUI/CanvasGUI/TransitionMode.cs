@@ -1,9 +1,10 @@
 namespace Vocore.GUI;
 
+[Flags]
 public enum TransitionMode
 {
     None,
-    ColorTint,
-    SpriteSwap,
-    NodeSwap
+    ColorTint = 1,
+    SpriteSwap = 2,
+    NodeSwap = 4
 }

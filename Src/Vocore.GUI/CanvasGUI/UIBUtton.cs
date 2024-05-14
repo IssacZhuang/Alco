@@ -4,13 +4,9 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
-public class UIButton : UINode, IUIEventReceiver
+public class UIButton : UISelectable
 {
-    private event Action? _onClickEvent;
-    private event Action? _onHoverEvent;
-    private event Action? _onPressDownEvent;
-    private event Action? _onPressUpEvent;
-    private event Action? _onPressingEvent;
+
 
     private TransitionMode _transitionMode = TransitionMode.None;
     private TransitionState _transitionState = TransitionState.Normal;
@@ -41,49 +37,6 @@ public class UIButton : UINode, IUIEventReceiver
     public UINode? NodeDisabled { get; set; } = null;
 
 
-    #region  Event
-    public event Action OnClickEvent
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        add => _onClickEvent += value;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        remove => _onClickEvent -= value;
-    }
-
-    public event Action OnHoverEvent
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        add => _onHoverEvent += value;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        remove => _onHoverEvent -= value;
-    }
-
-    public event Action OnPressDownEvent
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        add => _onPressDownEvent += value;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        remove => _onPressDownEvent -= value;
-    }
-
-    public event Action OnPressUpEvent
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        add => _onPressUpEvent += value;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        remove => _onPressUpEvent -= value;
-    }
-
-    public event Action OnPressingEvent
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        add => _onPressingEvent += value;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        remove => _onPressingEvent -= value;
-    }
-
-    #endregion
-
     public TransitionMode TransitionMode
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -104,9 +57,9 @@ public class UIButton : UINode, IUIEventReceiver
     
     protected override void OnUpdate(Canvas canvas, float delta)
     {
-        AddSelfForCollision(canvas);
+        base.OnUpdate(canvas, delta);
 
-        if (_transitionMode == TransitionMode.ColorTint)
+        if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             UpdateColorTween(delta);
         }
@@ -117,39 +70,32 @@ public class UIButton : UINode, IUIEventReceiver
         }
     }
 
-    public void OnClick()
+    public override void OnClick()
     {
-        _onClickEvent?.Invoke();
+        base.OnClick();
     }
 
-    public void OnHover()
+    public override void OnHover()
     {
-        _onHoverEvent?.Invoke();
+        base.OnHover();
         TryChangeTransitionState(TransitionState.Hover);
     }
 
-    public void OnPressing()
+    public override void OnPressing()
     {
-        _onPressingEvent?.Invoke();
+        base.OnPressing();
     }
 
-    public void OnPressDown()
+    public override void OnPressDown()
     {
-        _onPressDownEvent?.Invoke();
+        base.OnPressDown();
         TryChangeTransitionState(TransitionState.Pressing);
     }
 
-    public void OnPressUp()
+    public override void OnPressUp()
     {
-        _onPressUpEvent?.Invoke();
+        base.OnPressUp();
         TryChangeTransitionState(TransitionState.Normal);
-    }
-
-    private void AddSelfForCollision(Canvas canvas)
-    {
-        Transform2D transform = RenderTransform;
-        ShapeBox2D shape = new ShapeBox2D(transform.position, transform.scale);
-        canvas.AddClickReciever(this, shape);
     }
 
     private void TryChangeTransitionState(TransitionState state)
@@ -163,20 +109,36 @@ public class UIButton : UINode, IUIEventReceiver
 
     private void OnTransitionStateChanged()
     {
-        switch (_transitionMode)
+        // switch (_transitionMode)
+        // {
+        //     case TransitionMode.ColorTint:
+        //         ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+        //         StartColorTween(current, GetColorFromState(_transitionState));
+        //         break;
+        //     case TransitionMode.SpriteSwap:
+        //         RefreshSpriteSwap();
+        //         break;
+        //     case TransitionMode.NodeSwap:
+        //         RefreshNodeSwap();
+        //         break;
+        //     default:
+        //         break;
+        // }
+        //use flag
+        if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
-            case TransitionMode.ColorTint:
-                ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
-                StartColorTween(current, GetColorFromState(_transitionState));
-                break;
-            case TransitionMode.SpriteSwap:
-                RefreshSpriteSwap();
-                break;
-            case TransitionMode.NodeSwap:
-                RefreshNodeSwap();
-                break;
-            default:
-                break;
+            ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+            StartColorTween(current, GetColorFromState(_transitionState));
+        }
+
+        if ((_transitionMode & TransitionMode.SpriteSwap) != 0)
+        {
+            RefreshSpriteSwap();
+        }
+
+        if ((_transitionMode & TransitionMode.NodeSwap) != 0)
+        {
+            RefreshNodeSwap();
         }
     }
 
