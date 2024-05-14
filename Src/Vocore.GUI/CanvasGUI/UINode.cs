@@ -90,6 +90,8 @@ public class UINode
         }
     }
 
+
+
     /// <summary>
     /// The size of the node in the local space.
     /// </summary>
@@ -135,6 +137,17 @@ public class UINode
             SetTransformDirty();
         }
     } 
+
+    public Transform2D LocalTransform
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _transform;
+        set
+        {
+            _transform = value;
+            SetTransformDirty();
+        }
+    }
 
     /// <summary>
     /// The transform of the node in the world space.
@@ -578,6 +591,7 @@ public class UINode
         _isTransformDirty = false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetTransformDirty()
     {
         _isTransformDirty = true;
@@ -644,6 +658,7 @@ public class UINode
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetMaskDirty()
     {
         _isMaskDirty = true;

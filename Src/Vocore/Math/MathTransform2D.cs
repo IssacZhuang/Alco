@@ -51,6 +51,17 @@ namespace Vocore
         {
             return Vector2.Transform(b, a);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Transform2D lerp(Transform2D a, Transform2D b, float t)
+        {
+            return new Transform2D
+            {
+                position = lerp(a.position, b.position, t),
+                rotation = lerp(a.rotation, b.rotation, t),
+                scale = lerp(a.scale, b.scale, t)
+            };
+        }
     }
 
 }

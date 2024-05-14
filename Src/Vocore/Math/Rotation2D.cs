@@ -58,6 +58,35 @@ namespace Vocore
             return a * new Rotation2D(-b.s, b.c);//mutiply inverse b
         }
 
+        public static Rotation2D Lerp(Rotation2D a, Rotation2D b, float t)
+        {
+            return new Rotation2D(math.lerp(a.s, b.s, t), math.lerp(a.c, b.c, t));
+        }
+
+        public static Rotation2D Slerp(Rotation2D a, Rotation2D b, float t)
+        {
+            float angle = math.acos(a.c * b.c + a.s * b.s);
+
+            if (angle == 0)
+            {
+                return a;
+            }
+
+            float sinAngle = math.sin(angle);
+            float weightA = math.sin((1 - t) * angle) / sinAngle;
+            float weightB = math.sin(t * angle) / sinAngle;
+
+            Rotation2D result;
+            result.s = weightA * a.s + weightB * b.s;
+            result.c = weightA * a.c + weightB * b.c;
+
+            float length = math.sqrt(result.s * result.s + result.c * result.c);
+            result.s /= length;
+            result.c /= length;
+
+            return result;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Rotation2D other)
         {

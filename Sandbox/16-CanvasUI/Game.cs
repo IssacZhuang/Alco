@@ -87,7 +87,9 @@ public class Game : GameEngine
             ColorNormal = new ColorFloat(0.8f, 0.8f, 0.8f, 1),
             ColorHover = new ColorFloat(0.6f, 0.6f, 0.6f, 1),
             ColorPressing = new ColorFloat(0.4f, 0.4f, 0.4f, 1),
-            TransitionMode = TransitionMode.ColorTint,
+            FadeDuration = 1f,
+            TransformPressing = Transform2D.Identity with { scale = new Vector2(0.9f, 0.9f), rotation = Rotation2D.FromDegree(45) },
+            TransitionMode = TransitionMode.ColorTint,//| TransitionMode.Transform,
         };
         button.OnClickEvent += () =>
         {
@@ -194,15 +196,15 @@ public class Game : GameEngine
         }
 
 
-        _sprite1.Size = new Vector2(_size, _size);
-        _sprite1.Position = new Vector2(_posX, 0);
-        _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg1);
-        _sprite1.Scale = new Vector2(_scale, _scale);
+        // _sprite1.Size = new Vector2(_size, _size);
+        // _sprite1.Position = new Vector2(_posX, 0);
+        // _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg1);
+        // _sprite1.Scale = new Vector2(_scale, _scale);
 
-        _sprite2.Pivot = new Pivot(_pivotX, 0);
-        _sprite2.Rotation = Rotation2D.FromDegree(_rotDeg2);
+        // _sprite2.Pivot = new Pivot(_pivotX, 0);
+        // _sprite2.Rotation = Rotation2D.FromDegree(_rotDeg2);
 
-        _label.TextPivot = new Pivot(0, _textPivotY);
+        // _label.TextPivot = new Pivot(0, _textPivotY);
     }
 
     protected override void OnStop()

@@ -8,6 +8,32 @@ namespace Vocore
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Rotation2D lerp(Rotation2D a, Rotation2D b, float t)
+        {
+            return Rotation2D.Lerp(a, b, t);
+        }
+
+        // TODO: test
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Rotation2D slerp(Rotation2D a, Rotation2D b, float t)
+        {
+            return Rotation2D.Slerp(a, b, t);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float angle(Rotation2D a, Rotation2D b)
+        {
+            float dot = a.c * b.c + a.s * b.s;
+            return acos(min(abs(dot), 1f)) * 2f * sign(dot);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Rotation2D euler(float radians)
+        {
+            return new Rotation2D(radians);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Vector2 v, float radians)
         {
             sincos(radians, out float s, out float c);

@@ -26,6 +26,12 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion slerp(Quaternion a, Quaternion b, float t)
+        {
+            return Quaternion.Slerp(a, b, t);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float angle(Quaternion a, Quaternion b)
         {
             float dot = math.dot(a, b);

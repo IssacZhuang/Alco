@@ -14,6 +14,7 @@ public class UIButton : UISelectable
 
     public UISprite? TransitionTarget { get; set; } = null;
     private float _tTransition = 0;
+    public float FadeDuration { get; set; } = 0.1f;
     //for TransitionMode.ColorTint, use TransitionTarget as the target
 
     private ColorFloat _colorTweenStart = new ColorFloat(1, 1, 1, 1);
@@ -22,7 +23,14 @@ public class UIButton : UISelectable
     public ColorFloat ColorHover { get; set; } = new ColorFloat(1, 1, 1, 1);
     public ColorFloat ColorPressing { get; set; } = new ColorFloat(1, 1, 1, 1);
     public ColorFloat ColorDisabled { get; set; } = new ColorFloat(1, 1, 1, 1);
-    public float FadeDuration { get; set; } = 0.1f;
+
+    //for TransitionMode.Transform, use TransitionTarget not used, transform will be applied to self
+    private Transform2D _transformTweenStart = Transform2D.Identity;
+    private Transform2D _transformTweenEnd = Transform2D.Identity;
+    public Transform2D TransformNormal { get; set; } = Transform2D.Identity;
+    public Transform2D TransformHover { get; set; } = Transform2D.Identity;
+    public Transform2D TransformPressing { get; set; } = Transform2D.Identity;
+    public Transform2D TransformDisabled { get; set; } = Transform2D.Identity;
 
     //for TransitionMode.SpriteSwap, use TransitionTarget as the target
     public Texture2D? SpriteNormal { get; set; } = null;
@@ -59,9 +67,17 @@ public class UIButton : UISelectable
     {
         base.OnUpdate(canvas, delta);
 
+
+        _tTransition += delta / FadeDuration;
+
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             UpdateColorTween(delta);
+        }
+
+        if ((_transitionMode & TransitionMode.Transform) != 0)
+        {
+            UpdateTransform();
         }
 
         if (_transitionState == TransitionState.Hover && canvas.Hovered != this)
@@ -109,26 +125,19 @@ public class UIButton : UISelectable
 
     private void OnTransitionStateChanged()
     {
-        // switch (_transitionMode)
-        // {
-        //     case TransitionMode.ColorTint:
-        //         ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
-        //         StartColorTween(current, GetColorFromState(_transitionState));
-        //         break;
-        //     case TransitionMode.SpriteSwap:
-        //         RefreshSpriteSwap();
-        //         break;
-        //     case TransitionMode.NodeSwap:
-        //         RefreshNodeSwap();
-        //         break;
-        //     default:
-        //         break;
-        // }
         //use flag
+        float tmpT = math.clamp(_tTransition, 0, 1);
+        _tTransition = 0;
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
-            ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+            ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, tmpT);
             StartColorTween(current, GetColorFromState(_transitionState));
+        }
+
+        if ((_transitionMode & TransitionMode.Transform) != 0)
+        {
+            Transform2D current = math.lerp(_transformTweenStart, _transformTweenEnd, tmpT);
+            StartTransformTween(current, GetTransformFromState(_transitionState));
         }
 
         if ((_transitionMode & TransitionMode.SpriteSwap) != 0)
@@ -140,24 +149,49 @@ public class UIButton : UISelectable
         {
             RefreshNodeSwap();
         }
+
+        
     }
 
     private void StartColorTween(ColorFloat start, ColorFloat end)
     {
         _colorTweenStart = start;
         _colorTweenEnd = end;
-        _tTransition = 0;
     }
 
     private void UpdateColorTween(float delta)
     {
-        _tTransition += delta / FadeDuration;
-        _tTransition = math.clamp(_tTransition, 0, 1);
         if (TransitionTarget == null)
         {
             return;
         }
+
+        if (_tTransition >= 1)
+        {
+            TransitionTarget.Color = _colorTweenEnd;
+            return;
+        }
+
         TransitionTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, _tTransition);
+    }
+
+    private void StartTransformTween(Transform2D start, Transform2D end)
+    {
+        _transformTweenStart = start;
+        _transformTweenEnd = end;
+    }
+
+    private void UpdateTransform()
+    {
+
+
+        if (_tTransition >= 1)
+        {
+            LocalTransform = _transformTweenEnd;
+            return;
+        }
+
+        LocalTransform = math.lerp(_transformTweenStart, _transformTweenEnd, _tTransition);
     }
 
     private void RefreshSpriteSwap()
@@ -223,6 +257,23 @@ public class UIButton : UISelectable
                 return ColorDisabled;
             default:
                 return ColorNormal;
+        }
+    }
+
+    private Transform2D GetTransformFromState(TransitionState state)
+    {
+        switch (state)
+        {
+            case TransitionState.Normal:
+                return TransformNormal;
+            case TransitionState.Hover:
+                return TransformHover;
+            case TransitionState.Pressing:
+                return TransformPressing;
+            case TransitionState.Disabled:
+                return TransformDisabled;
+            default:
+                return TransformNormal;
         }
     }
 

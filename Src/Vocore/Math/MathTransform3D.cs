@@ -60,7 +60,7 @@ namespace Vocore
             return new Transform3D
             {
                 position = lerp(a.position, b.position, t),
-                rotation = lerp(a.rotation, b.rotation, t),
+                rotation = slerp(a.rotation, b.rotation, t),
                 scale = lerp(a.scale, b.scale, t)
             };
         }
