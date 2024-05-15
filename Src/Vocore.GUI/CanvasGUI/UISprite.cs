@@ -10,7 +10,16 @@ namespace Vocore.GUI;
 public class UISprite : UINode
 {
     public static readonly Vector2 DefaultSize = new Vector2(100, 100);
+    /// <summary>
+    /// The texture of the sprite. The white quad will be rendered if it is null.
+    /// </summary>
+    /// <value></value>
     public Texture2D? Texture { get; set; } = null;
+
+    /// <summary>
+    /// The color of the sprite.
+    /// </summary>
+    /// <returns></returns>
     public ColorFloat Color { get; set; } = new ColorFloat(1, 1, 1, 1);
 
     public UISprite()
@@ -18,6 +27,9 @@ public class UISprite : UINode
         Size = DefaultSize;
     }
 
+    /// <summary>
+    /// Set the size of the sprite to the size of the texture.
+    /// </summary>
     public void SetNativeSize()
     {
         if (Texture != null)

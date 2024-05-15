@@ -1,5 +1,5 @@
 namespace Vocore.GUI;
-public enum TransitionState
+public enum SelectableState
 {
     Normal,
     Hover,

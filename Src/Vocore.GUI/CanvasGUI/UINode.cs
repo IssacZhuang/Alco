@@ -35,10 +35,10 @@ public class UINode
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether to render the node.
+    /// Whether the node is enabled.
     /// </summary>
     /// <value></value>
-    public bool IsVisible { get; set; } = true;
+    public bool IsEnable { get; set; } = true;
 
     #region  Transform Properties
 
@@ -686,7 +686,7 @@ public class UINode
 
     public void Update(Canvas canvas, float delta)
     {
-        if (!IsVisible)
+        if (!IsEnable)
         {
             return;
         }

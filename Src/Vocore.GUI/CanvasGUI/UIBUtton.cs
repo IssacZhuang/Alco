@@ -4,15 +4,22 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
+/// <summary>
+/// The button UI node.
+/// </summary>
 public class UIButton : UISelectable
 {
-
-
     private TransitionMode _transitionMode = TransitionMode.None;
-    private TransitionState _transitionState = TransitionState.Normal;
+    private SelectableState _selectableState = SelectableState.Normal;
 
     private UINode? _transitionTarget = null;
     private UISprite? _transitionSpriteTarget = null;
+
+    /// <summary>
+    /// The target of the transition, depends on the TransitionMode.
+    /// The target must be a UISprite if TransitionMode is ColorTint or SpriteSwap
+    /// </summary>
+    /// <value></value>
     public UINode? TransitionTarget
     {
         get
@@ -27,37 +34,114 @@ public class UIButton : UISelectable
     }
     private float _tTransition = 0;
     private bool _inTransition = false;
+    /// <summary>
+    /// The duration of the transition
+    /// </summary>
+    /// <value></value>
     public float FadeDuration { get; set; } = 0.1f;
     //for TransitionMode.ColorTint, use TransitionTarget as the target
 
     private ColorFloat _colorTweenStart = new ColorFloat(1, 1, 1, 1);
     private ColorFloat _colorTweenEnd = new ColorFloat(1, 1, 1, 1);
+
+
+    /// <summary>
+    /// The color of the button in normal state
+    /// </summary>
+    /// <returns></returns>
     public ColorFloat ColorNormal { get; set; } = new ColorFloat(1, 1, 1, 1);
+    /// <summary>
+    /// The color of the button in hover state
+    /// </summary>
+    /// <returns></returns>
     public ColorFloat ColorHover { get; set; } = new ColorFloat(1, 1, 1, 1);
+    /// <summary>
+    /// The color of the button in pressing state
+    /// </summary>
+    /// <returns></returns>
     public ColorFloat ColorPressing { get; set; } = new ColorFloat(1, 1, 1, 1);
+    /// <summary>
+    /// The color of the button in disabled state
+    /// </summary>
+    /// <returns></returns>
     public ColorFloat ColorDisabled { get; set; } = new ColorFloat(1, 1, 1, 1);
 
     //for TransitionMode.Transform, use TransitionTarget not used, transform will be applied to self
     private Transform2D _transformTweenStart = Transform2D.Identity;
     private Transform2D _transformTweenEnd = Transform2D.Identity;
+
+
+    /// <summary>
+    /// The transform of the button in normal state
+    /// </summary>
+    /// <value></value>
     public Transform2D TransformNormal { get; set; } = Transform2D.Identity;
+    /// <summary>
+    /// The transform of the button in hover state
+    /// </summary>
+    /// <value></value>
     public Transform2D TransformHover { get; set; } = Transform2D.Identity;
+    /// <summary>
+    /// The transform of the button in pressing state
+    /// </summary>
+    /// <value></value>
     public Transform2D TransformPressing { get; set; } = Transform2D.Identity;
+    /// <summary>
+    /// The transform of the button in disabled state
+    /// </summary>
+    /// <value></value>
     public Transform2D TransformDisabled { get; set; } = Transform2D.Identity;
 
     //for TransitionMode.SpriteSwap, use TransitionTarget as the target
+
+    /// <summary>
+    /// The sprite of the button in normal state
+    /// </summary>
+    /// <value></value>
     public Texture2D? SpriteNormal { get; set; } = null;
+    /// <summary>
+    /// The sprite of the button in hover state
+    /// </summary>
+    /// <value></value>
     public Texture2D? SpriteHover { get; set; } = null;
+    /// <summary>
+    /// The sprite of the button in pressing state
+    /// </summary>
+    /// <value></value>
     public Texture2D? SpritePressing { get; set; } = null;
+    /// <summary>
+    /// The sprite of the button in disabled state
+    /// </summary>
+    /// <value></value>
     public Texture2D? SpriteDisabled { get; set; } = null;
 
     //for TransitionMode.NodeSwap, TransitionTarget not used
+
+    /// <summary>
+    /// The node shown when the button in normal state
+    /// </summary>
+    /// <value></value>
     public UINode? NodeNormal { get; set; } = null;
+    /// <summary>
+    /// The node shown when the button in hover state
+    /// </summary>
+    /// <value></value>
     public UINode? NodeHover { get; set; } = null;
+    /// <summary>
+    /// The node shown when the button in pressing state
+    /// </summary>
+    /// <value></value>
     public UINode? NodePressing { get; set; } = null;
+    /// <summary>
+    /// The node shown when the button in disabled state
+    /// </summary>
+    /// <value></value>
     public UINode? NodeDisabled { get; set; } = null;
 
-
+    /// <summary>
+    /// The transition mode of the button
+    /// </summary>
+    /// <value></value>
     public TransitionMode TransitionMode
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -80,9 +164,9 @@ public class UIButton : UISelectable
     {
         base.OnUpdate(canvas, delta);
 
-        if (_transitionState == TransitionState.Hover && canvas.Hovered != this)
+        if (_selectableState == SelectableState.Hover && canvas.Hovered != this)
         {
-            TryChangeTransitionState(TransitionState.Normal);
+            TryChangeTransitionState(SelectableState.Normal);
         }
 
         if (!_inTransition)
@@ -125,7 +209,7 @@ public class UIButton : UISelectable
     public override void OnHover()
     {
         base.OnHover();
-        TryChangeTransitionState(TransitionState.Hover);
+        TryChangeTransitionState(SelectableState.Hover);
     }
 
     public override void OnPressing()
@@ -136,20 +220,20 @@ public class UIButton : UISelectable
     public override void OnPressDown()
     {
         base.OnPressDown();
-        TryChangeTransitionState(TransitionState.Pressing);
+        TryChangeTransitionState(SelectableState.Pressing);
     }
 
     public override void OnPressUp()
     {
         base.OnPressUp();
-        TryChangeTransitionState(TransitionState.Normal);
+        TryChangeTransitionState(SelectableState.Normal);
     }
 
-    private void TryChangeTransitionState(TransitionState state)
+    private void TryChangeTransitionState(SelectableState state)
     {
-        if (_transitionState != state)
+        if (_selectableState != state)
         {
-            _transitionState = state;
+            _selectableState = state;
             OnTransitionStateChanged();
         }
     }
@@ -163,13 +247,13 @@ public class UIButton : UISelectable
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             ColorFloat current = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, tmpT);
-            StartColorTween(current, GetColorFromState(_transitionState));
+            StartColorTween(current, GetColorFromState(_selectableState));
         }
 
         if ((_transitionMode & TransitionMode.Transform) != 0)
         {
             Transform2D current = math.lerp(_transformTweenStart, _transformTweenEnd, tmpT);
-            StartTransformTween(current, GetTransformFromState(_transitionState));
+            StartTransformTween(current, GetTransformFromState(_selectableState));
         }
 
         if ((_transitionMode & TransitionMode.SpriteSwap) != 0)
@@ -224,18 +308,18 @@ public class UIButton : UISelectable
             return;
         }
 
-        switch (_transitionState)
+        switch (_selectableState)
         {
-            case TransitionState.Normal:
+            case SelectableState.Normal:
                 _transitionSpriteTarget.Texture = SpriteNormal;
                 break;
-            case TransitionState.Hover:
+            case SelectableState.Hover:
                 _transitionSpriteTarget.Texture = SpriteHover;
                 break;
-            case TransitionState.Pressing:
+            case SelectableState.Pressing:
                 _transitionSpriteTarget.Texture = SpritePressing;
                 break;
-            case TransitionState.Disabled:
+            case SelectableState.Disabled:
                 _transitionSpriteTarget.Texture = SpriteDisabled;
                 break;
             default:
@@ -247,53 +331,53 @@ public class UIButton : UISelectable
     {
         if (NodeNormal != null)
         {
-            NodeNormal.IsVisible = _transitionState == TransitionState.Normal;
+            NodeNormal.IsEnable = _selectableState == SelectableState.Normal;
         }
 
         if (NodeHover != null)
         {
-            NodeHover.IsVisible = _transitionState == TransitionState.Hover;
+            NodeHover.IsEnable = _selectableState == SelectableState.Hover;
         }
 
         if (NodePressing != null)
         {
-            NodePressing.IsVisible = _transitionState == TransitionState.Pressing;
+            NodePressing.IsEnable = _selectableState == SelectableState.Pressing;
         }
 
         if (NodeDisabled != null)
         {
-            NodeDisabled.IsVisible = _transitionState == TransitionState.Disabled;
+            NodeDisabled.IsEnable = _selectableState == SelectableState.Disabled;
         }
     }
 
-    private ColorFloat GetColorFromState(TransitionState state)
+    private ColorFloat GetColorFromState(SelectableState state)
     {
         switch (state)
         {
-            case TransitionState.Normal:
+            case SelectableState.Normal:
                 return ColorNormal;
-            case TransitionState.Hover:
+            case SelectableState.Hover:
                 return ColorHover;
-            case TransitionState.Pressing:
+            case SelectableState.Pressing:
                 return ColorPressing;
-            case TransitionState.Disabled:
+            case SelectableState.Disabled:
                 return ColorDisabled;
             default:
                 return ColorNormal;
         }
     }
 
-    private Transform2D GetTransformFromState(TransitionState state)
+    private Transform2D GetTransformFromState(SelectableState state)
     {
         switch (state)
         {
-            case TransitionState.Normal:
+            case SelectableState.Normal:
                 return TransformNormal;
-            case TransitionState.Hover:
+            case SelectableState.Hover:
                 return TransformHover;
-            case TransitionState.Pressing:
+            case SelectableState.Pressing:
                 return TransformPressing;
-            case TransitionState.Disabled:
+            case SelectableState.Disabled:
                 return TransformDisabled;
             default:
                 return TransformNormal;

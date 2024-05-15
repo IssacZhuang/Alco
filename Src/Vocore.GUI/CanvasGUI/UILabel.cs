@@ -4,6 +4,9 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
+/// <summary>
+/// The label UI node.
+/// </summary>
 public class UILabel : UINode
 {
     private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
