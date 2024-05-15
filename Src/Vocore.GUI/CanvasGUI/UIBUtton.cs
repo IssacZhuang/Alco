@@ -90,9 +90,17 @@ public class UIButton : UISelectable
             return;
         }
 
-        _tTransition += delta / FadeDuration;
+        if (FadeDuration == 0)
+        {
+            _tTransition = 1;
+        }
+        else
+        {
+            _tTransition += delta / FadeDuration;
+        }
+
         float t = math.clamp(_tTransition, 0, 1);
-        t = UtilsEasing.QuintInOut(t);
+        t = UtilsEasing.QuadInOut(t);
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             UpdateColorTween(t);
@@ -103,7 +111,7 @@ public class UIButton : UISelectable
             UpdateTransform(t);
         }
 
-        if (_tTransition > 1)
+        if (_tTransition >= 1)
         {
             _inTransition = false;
         }

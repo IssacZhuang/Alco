@@ -84,6 +84,7 @@ public class Game : GameEngine
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
             Anchor =  Anchor.Center,
+            FadeDuration = 0.1f,
             ColorNormal = new ColorFloat(0.6f, 0.6f, 0.6f, 1),
             ColorHover = new ColorFloat(0.5f, 0.5f, 0.5f, 1),
             ColorPressing = new ColorFloat(0.4f, 0.4f, 0.4f, 1),
