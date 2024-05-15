@@ -30,8 +30,9 @@ public class Canvas : AutoDisposable
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
-    private IUIEventReceiver? _selected;
+    private IUIEventReceiver? _holded;
     private IUIEventReceiver? _hovered;
+    private IUIEventReceiver? _selected;
 
 
 
@@ -88,16 +89,22 @@ public class Canvas : AutoDisposable
         }
     }
 
-    public IUIEventReceiver? Selected
+    public IUIEventReceiver? Holded
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _selected;
+        get => _holded;
     }
 
     public IUIEventReceiver? Hovered
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _hovered;
+    }
+
+    public IUIEventReceiver? Selected
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _selected;
     }
 
     public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Font font)
@@ -178,19 +185,20 @@ public class Canvas : AutoDisposable
         {
             return;
         }
+        _holded = node;
         _selected = node;
         node.OnPressDown();
     }
 
     private void OnMouseUp(IUIEventReceiver? node)
     {
-        _selected?.OnPressUp();
-        if (node == _selected)
+        _holded?.OnPressUp();
+        if (node == _holded)
         {
-            _selected?.OnClick();
+            _holded?.OnClick();
         }
         
-        _selected = null;
+        _holded = null;
     }
 
 
