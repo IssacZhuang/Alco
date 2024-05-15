@@ -6,7 +6,6 @@ namespace Vocore.GUI;
 
 public class UILabel : UINode
 {
-    public const float TextOffsetYMultiplier = 0.125f;
     private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     private int _textLength;
     private string _tmpStrForRead = string.Empty;
@@ -68,7 +67,6 @@ public class UILabel : UINode
         transform.position += transform.scale * Size * TextPivot;
         
         transform.scale *= FontSize;
-        transform.position.Y += transform.scale.Y * TextOffsetYMultiplier;
 
         Font font = FontOverride ?? canvas.Font;
 

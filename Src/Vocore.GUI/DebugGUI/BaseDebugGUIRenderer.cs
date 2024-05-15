@@ -7,7 +7,6 @@ namespace Vocore.GUI;
 
 public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 {
-    private static readonly float TextOffsetYMultiplier = 0.125f;
     private readonly RenderingSystem _renderingSystem;
     private readonly CanvasRenderer _renderer;
     private readonly Camera2D _camera;
@@ -66,7 +65,6 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
     public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
     {
-        position.Y += fontSize * TextOffsetYMultiplier;
         Matrix4x4 matrix = GetTransformMatrix(position, depth, Vector2.One* fontSize);
         return _renderer.DrawChars(font, str, strLength, matrix, pivot, color, 1f, _cameraMask);
     }

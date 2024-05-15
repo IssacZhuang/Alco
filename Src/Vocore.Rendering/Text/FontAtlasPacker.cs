@@ -102,7 +102,7 @@ public unsafe class FontAtlasPacker : AutoDisposable
                 {
                     UVRect = new Vector4(packedchar.x0 * invWidth, packedchar.y0 * invHeight, (packedchar.x1 - packedchar.x0) * invWidth, (packedchar.y1 - packedchar.y0) * invHeight),
                     Size = new Vector2((packedchar.x1 - packedchar.x0) * invfontSize, (packedchar.y1 - packedchar.y0) * invfontSize),
-                    Offset = new Vector2(packedchar.xoff * invfontSize, -yOff * invfontSize),
+                    Offset = new Vector2(packedchar.xoff * invfontSize, -yOff * invfontSize-0.25f),
                     Advance = packedchar.xadvance * invfontSize
                 };
 

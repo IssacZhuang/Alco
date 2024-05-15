@@ -17,7 +17,7 @@ public partial class CanvasRenderer
         public uint InstanceStart;
     }
 
-    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, -0.5f);
+    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0);
 
     private const int MaxTextInstancingCount = 300;
     private readonly Shader _shaderText;

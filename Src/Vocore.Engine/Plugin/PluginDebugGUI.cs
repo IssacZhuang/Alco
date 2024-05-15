@@ -51,7 +51,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         DebugGUIStyle style = new DebugGUIStyle
         {
             Font = font,
-            FontSize = 20,
+            FontSize = 16,
             SliderWidth = 140,
             SliderThumbWidth = 16,
             SliderColor = 0x2A2D2E,

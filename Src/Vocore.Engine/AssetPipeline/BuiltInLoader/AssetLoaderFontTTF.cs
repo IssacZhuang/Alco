@@ -28,19 +28,19 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font, FontAtlasPacker>
 
             packer.Add(file, 32, new int2[]{
             UtilsUnicode.RangeBasicLatin,
-            UtilsUnicode.RangeLatin1Supplement,
-            UtilsUnicode.RangeLatinExtendedA,
-            UtilsUnicode.RangeCyrillic,
-            UtilsUnicode.RangeGreek,
-            //japanese
-            UtilsUnicode.RangeHiragana,
-            UtilsUnicode.RangeKatakana,
-            //chinese
-            UtilsUnicode.RangeCjkUnifiedIdeographs,
-            UtilsUnicode.RangeCjkSymbolsAndPunctuation,
-            //korean
-            UtilsUnicode.RangeHangulSyllables,
-            UtilsUnicode.RangeHangulCompatibilityJamo,
+            // UtilsUnicode.RangeLatin1Supplement,
+            // UtilsUnicode.RangeLatinExtendedA,
+            // UtilsUnicode.RangeCyrillic,
+            // UtilsUnicode.RangeGreek,
+            // //japanese
+            // UtilsUnicode.RangeHiragana,
+            // UtilsUnicode.RangeKatakana,
+            // //chinese
+            // UtilsUnicode.RangeCjkUnifiedIdeographs,
+            // UtilsUnicode.RangeCjkSymbolsAndPunctuation,
+            // //korean
+            // UtilsUnicode.RangeHangulSyllables,
+            // UtilsUnicode.RangeHangulCompatibilityJamo,
         });
 
             preprocessed = packer;
