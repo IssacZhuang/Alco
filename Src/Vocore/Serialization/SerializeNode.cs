@@ -6,11 +6,6 @@ namespace Vocore;
 
 public abstract class SerializeNode
 {
-    protected BinaryTable _content;
-    public SerializeNode()
-    {
-        _content = new BinaryTable();
-    }
     public abstract void BindValue<T>(string key, ref T value, T @default = default) where T : unmanaged;
     public abstract void BindString(string key, ref string value, string @default = "");
     public abstract void BindDeep<T>(string key, ref T value) where T : ISerializable, new();

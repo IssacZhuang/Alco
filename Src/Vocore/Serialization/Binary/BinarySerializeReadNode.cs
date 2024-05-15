@@ -5,6 +5,8 @@ namespace Vocore;
 
 public class BinarySerializeReadNode : SerializeNode
 {
+    protected BinaryTable _content;
+    public BinaryTable Content => _content;
     public BinarySerializeReadNode(BinaryTable content)
     {
         _content = content;

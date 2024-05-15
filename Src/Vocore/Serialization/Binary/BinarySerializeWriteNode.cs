@@ -6,6 +6,7 @@ namespace Vocore;
 
 public class BinarySerializeWriteNode : SerializeNode
 {
+    protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
     public override void BindBinary(string key, ref byte[] value)
     {
