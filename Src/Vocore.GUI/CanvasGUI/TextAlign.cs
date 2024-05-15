@@ -1,40 +1,24 @@
+using System.Runtime.CompilerServices;
+
 namespace Vocore.GUI;
 
-public enum TextAlignHorizontal
+public struct TextAlign
 {
-    Left,
-    Center,
-    Right
-}
+    public float value;
 
-public enum TextAlignVertical
-{
-    Top,
-    Center,
-    Bottom
-}
-
-public static class UtilsTextAlign
-{
-    public static float GetPivotX(TextAlignHorizontal align)
+    public TextAlign(float value)
     {
-        return align switch
-        {
-            TextAlignHorizontal.Left => -0.5f,
-            TextAlignHorizontal.Center => 0,
-            TextAlignHorizontal.Right => 0.5f,
-            _ => 0
-        };
+        this.value = value;
     }
 
-    public static float GetPivotY(TextAlignVertical align)
-    {
-        return align switch
-        {
-            TextAlignVertical.Top => 0.5f,
-            TextAlignVertical.Center => 0,
-            TextAlignVertical.Bottom => -0.5f,
-            _ => 0
-        };
-    }
+    public static readonly TextAlign Left = new(-0.5f);
+    public static readonly TextAlign Center = new(0);
+    public static readonly TextAlign Right = new(0.5f);
+    public static readonly TextAlign Top = new(0.5f);
+    public static readonly TextAlign Bottom = new(-0.5f);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator TextAlign(float v) => new(v);
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator float(TextAlign p) => p.value;
 }

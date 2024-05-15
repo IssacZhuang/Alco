@@ -115,6 +115,7 @@ public class Game : GameEngine
             Size = new Vector2(100, 50),
             Position = new Vector2(0, -25),
             Anchor = Anchor.Stretch,
+            //AlignHorizontal = TextAlign.Left,
         };
 
     

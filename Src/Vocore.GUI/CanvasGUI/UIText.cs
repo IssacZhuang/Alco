@@ -14,6 +14,7 @@ public class UILabel : UINode
     private string _tmpStrForRead = string.Empty;
     private bool _isTmpStrForReadDirty;
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
+    private TextOverflowMode _overflowMode = TextOverflowMode.None;
 
     public Font? FontOverride { get; set; }
     public float FontSize { get; set; } = 16;
@@ -44,18 +45,29 @@ public class UILabel : UINode
         set => _textPivot = value;
     }
 
-    public TextAlignVertical AlignVertical
+    public TextOverflowMode OverflowMode
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _textPivot.Y = UtilsTextAlign.GetPivotY(value);
+        get => _overflowMode;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _overflowMode = value;
+    }
+
+    public TextAlign AlignVertical
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _textPivot.Y;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _textPivot.Y = value;
 
     }
 
-    public TextAlignHorizontal AlignHorizontal
+    public TextAlign AlignHorizontal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _textPivot.X = UtilsTextAlign.GetPivotX(value);
-
+        get => _textPivot.X;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _textPivot.X = value;
     }
 
     public UILabel()
@@ -68,7 +80,6 @@ public class UILabel : UINode
         CanvasRenderer renderer = canvas.Renderer;
         Transform2D transform = WorldTransform;
         transform.position += transform.scale * Size * TextPivot;
-        
         transform.scale *= FontSize;
 
         Font font = FontOverride ?? canvas.Font;
@@ -77,6 +88,11 @@ public class UILabel : UINode
         if (!HasMask)
         {
             mask = canvas.Bound;
+        }
+
+        if(_overflowMode == TextOverflowMode.Clamp)
+        {
+            mask = Bound;
         }
 
         renderer.DrawChars(font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color, 1f, mask);
