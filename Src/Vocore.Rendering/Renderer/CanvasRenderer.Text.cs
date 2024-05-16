@@ -21,6 +21,7 @@ public partial class CanvasRenderer
 
     private const int MaxTextInstancingCount = 300;
     private readonly Shader _shaderText;
+    private GPUPipeline? _pipelineText;
     private readonly Mesh _meshText;
     private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
 
@@ -34,7 +35,7 @@ public partial class CanvasRenderer
 
     private void SetTextPipeline()
     {
-        _command.SetGraphicsPipeline(_shaderText.DefaultPipeline);
+        _command.SetGraphicsPipeline(_pipelineText!);
         _command.SetVertexBuffer(0, _meshText.VertexBuffer);
         _command.SetIndexBuffer(_meshText.IndexBuffer, _meshText.IndexFormat);
         _command.SetGraphicsResources(_textShaderId_camera, Camera.EntryViewProjection);

@@ -2,6 +2,7 @@ namespace Vocore.Rendering;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Vocore.Graphics;
 
 public partial class RenderingSystem
 {

@@ -11,10 +11,10 @@ public class Shader : AutoDisposable
 {
 
     private readonly RenderingSystem _renderingSystem;
+    private readonly Dictionary<GPURenderPass, GPUPipeline> _pipelines = new Dictionary<GPURenderPass, GPUPipeline>();
     private ShaderCompileResult _meta;
     private GPUPipeline _defaultPipeline;
     private ShaderReflectionInfo _reflectionInfo;
-    private Dictionary<GPURenderPass, GPUPipeline> _pipelines = new Dictionary<GPURenderPass, GPUPipeline>();
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
 
     /// <summary>

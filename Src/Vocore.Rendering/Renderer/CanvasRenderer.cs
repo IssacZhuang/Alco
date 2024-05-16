@@ -16,6 +16,7 @@ public partial class CanvasRenderer : AutoDisposable
     private readonly GPUCommandBuffer _command;
     private readonly Texture2D _textWhite;
     private GPUFrameBuffer? _renderTarget;
+    private GPURenderPass? _currentPass;
     private ICamera _camera;
     private RenderingState _state;
     private bool _isDrawing;
@@ -68,6 +69,14 @@ public partial class CanvasRenderer : AutoDisposable
         if (target == null)
         {
             throw new ArgumentNullException(nameof(target));
+        }
+
+        if (target.RenderPass != _currentPass)
+        {
+            //compile shader variant
+            _currentPass = target.RenderPass;
+            _pipelineText = _shaderText.GetPipelineVariant(target.RenderPass);
+            _pipelineSprite = _shaderSprite.GetPipelineVariant(target.RenderPass);
         }
 
         _renderTarget = target;
