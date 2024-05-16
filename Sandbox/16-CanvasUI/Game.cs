@@ -54,7 +54,7 @@ public class Game : GameEngine
             AlignHorizontal = TextAlign.Left,
             AlignVertical = TextAlign.Top,
             OverflowMode = TextOverflowMode.NextLine,
-            Text = "Hello World\naaaaaaaaaaaaaaaaaaaaaaa\nbbbbbbbbbbbbbb",
+            Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
         };
 
         _label = label;

@@ -154,18 +154,18 @@ public partial class CanvasRenderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static TextData GetTextData(char c, GlyphInfo glyph, Vector4 color, float lineSpacing, ref float x, ref float y)
     {
-        if (c == ' ')
-        {
-            x += 0.5f;
-            return new TextData();
-        }
+        // if (c == ' ')
+        // {
+        //     x += 0.5f;
+        //     return new TextData();
+        // }
 
-        if (c == '\n' || c == '\r')
-        {
-            // x = basePos.X;
-            // y -= lineSpacing;
-            return new TextData();
-        }
+        // if (c == '\n' || c == '\r')
+        // {
+        //     // x = basePos.X;
+        //     // y -= lineSpacing;
+        //     return new TextData();
+        // }
 
         TextData data = new TextData
         {

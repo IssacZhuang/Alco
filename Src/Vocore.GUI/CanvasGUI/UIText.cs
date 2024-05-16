@@ -12,12 +12,13 @@ public class UILabel : UINode
     private struct Line
     {
         public int start;
-        public int end;
+        public int count;
         public float width;
     }
     private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     private readonly List<Line> _lines = new List<Line>();
     private int _textLength;
+    private float _fontSize = 16f;
     private string _tmpStr = string.Empty;
     private bool _isTmpStrReadDirty;
     private bool _isTmpStrWriteDirty;
@@ -25,8 +26,18 @@ public class UILabel : UINode
     private TextOverflowMode _overflowMode = TextOverflowMode.None;
 
     public Font? Font { get; set; }
-    //Todo: fix the line break incorrect when change the font size
-    public float FontSize { get; set; } = 16;
+    public float FontSize
+    {
+        get => _fontSize;
+        set
+        {
+            _fontSize = value;
+            if (_overflowMode == TextOverflowMode.NextLine)
+            {
+                RefreshTextLineBreak();
+            }
+        }
+    }
     public float LineSpacing { get; set; } = 1f;
     public ColorFloat Color { get; set; } = 0xffffff;
 
@@ -108,8 +119,8 @@ public class UILabel : UINode
         CanvasRenderer renderer = canvas.Renderer;
         Transform2D transform = WorldTransform;
         transform.position += transform.scale * Size * TextPivot;
-        transform.scale *= FontSize;
-        float lineHeight = FontSize * LineSpacing;
+        transform.scale *= _fontSize;
+        float lineHeight = _fontSize * LineSpacing;
         float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
         transform.position.Y += offsetY;
 
@@ -124,11 +135,9 @@ public class UILabel : UINode
             mask = Bound;
         }
 
-        //renderer.DrawChars(Font, _text.Slice(0, _textLength), transform.Matrix, _textPivot, Color, 1f, mask);
-        
         for (int i = 0; i < _lines.Count; i++)
         {
-            renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].end - _lines[i].start), transform.Matrix, _textPivot, Color, 1f, mask);
+            renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
             transform.position.Y -= lineHeight;
         }
     }
@@ -154,49 +163,45 @@ public class UILabel : UINode
         _isTmpStrReadDirty = true;
         _isTmpStrWriteDirty = false;
         _text.EnsureSizeWithoutCopy(length);
-        //_textLength = length;
-        float lineWidth = 0;
-        int lineStart = 0;
-        int charIndex = 0;
+
+        _textLength = length;
+        Line line = new Line()
+        {
+            start = 0
+        };
+
         _lines.Clear();
         for (int i = 0; i < length; i++)
         {
-            GlyphInfo glyph = Font!.GetGlyph(str[charIndex]);
+            char c = str[i];
+            GlyphInfo glyph = Font!.GetGlyph(c);
+            _text[i] = c;
 
             //line break
-            if (str[charIndex] == '\n' ||
-            str[charIndex] == '\r' ||
-            (_overflowMode == TextOverflowMode.NextLine && (lineWidth + glyph.Advance) * FontSize > Size.X))
+            if (c == '\n' ||
+            c == '\r' ||
+            (_overflowMode == TextOverflowMode.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X))
             {
-                _lines.Add(new Line
+                _lines.Add(line);
+                Line newLine = new Line()
                 {
-                    start = lineStart,
-                    end = charIndex,
-                    width = lineWidth
-                });
-                lineStart = charIndex + 1;
-                lineWidth = 0;
-                charIndex++;
-                continue;
+                    start = line.start + line.count,
+                };
+                line = newLine;
             }
 
-            _text[charIndex] = str[charIndex];
-            lineWidth += glyph.Advance;
-            charIndex++;
+            line.count++;
+            line.width += glyph.Advance;
         }
 
-        if (lineStart < charIndex)
+        if (line.count > 0)
         {
-            _lines.Add(new Line
-            {
-                start = lineStart,
-                end = charIndex,
-                width = lineWidth
-            });
+            _lines.Add(line);
         }
-
-        _textLength = charIndex;
     }
 
-
+    protected void RefreshTextLineBreak()
+    {
+        SetText(_text.Span);
+    }
 }
