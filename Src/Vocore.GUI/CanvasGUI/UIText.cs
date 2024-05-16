@@ -17,7 +17,6 @@ public class UILabel : UINode
     }
     private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     private readonly List<Line> _lines = new List<Line>();
-    private float _offsetY;
     private int _textLength;
     private string _tmpStr = string.Empty;
     private bool _isTmpStrReadDirty;
@@ -26,6 +25,7 @@ public class UILabel : UINode
     private TextOverflowMode _overflowMode = TextOverflowMode.None;
 
     public Font? Font { get; set; }
+    //Todo: fix the line break incorrect when change the font size
     public float FontSize { get; set; } = 16;
     public float LineSpacing { get; set; } = 1f;
     public ColorFloat Color { get; set; } = 0xffffff;
@@ -109,9 +109,9 @@ public class UILabel : UINode
         Transform2D transform = WorldTransform;
         transform.position += transform.scale * Size * TextPivot;
         transform.scale *= FontSize;
-        //TODO : fix multiline vertical position
-        //transform.position.Y += _offsetY;
         float lineHeight = FontSize * LineSpacing;
+        float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
+        transform.position.Y += offsetY;
 
         BoundingBox2D mask = Mask;
         if (!HasMask)
@@ -185,15 +185,16 @@ public class UILabel : UINode
             charIndex++;
         }
 
-        //add the last line
-        _lines.Add(new Line
+        if (lineStart < charIndex)
         {
-            start = lineStart,
-            end = charIndex,
-            width = lineWidth
-        });
+            _lines.Add(new Line
+            {
+                start = lineStart,
+                end = charIndex,
+                width = lineWidth
+            });
+        }
 
-        _offsetY = (_lines.Count - 1) * LineSpacing * FontSize * (0.5f - TextPivot.Y);
         _textLength = charIndex;
     }
 

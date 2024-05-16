@@ -20,6 +20,8 @@ public class Game : GameEngine
 
     private float _alignHorizontal = TextAlign.Left;
     private float _alignVertical = TextAlign.Top;
+    private float _lineSpacing = 1f;
+    private float _fontSize = 16;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -76,9 +78,13 @@ public class Game : GameEngine
         DebugGUI.Text(FrameRate);
         DebugGUI.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f);
         DebugGUI.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f);
+        DebugGUI.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f);
+        DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32);
 
         _label.AlignHorizontal = _alignHorizontal;
         _label.AlignVertical = _alignVertical;
+        _label.LineSpacing = _lineSpacing;
+        _label.FontSize = _fontSize;
 
     }
 
