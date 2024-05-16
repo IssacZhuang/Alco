@@ -4,8 +4,8 @@ namespace Vocore.GUI;
 
 public static class RenderingSystemExtension
 {
-    public static Canvas CreateCanvas(this RenderingSystem system, Shader shaderSprite, Shader shaderText, Font font)
+    public static Canvas CreateCanvas(this RenderingSystem system, Shader shaderSprite, Shader shaderText)
     {
-        return new Canvas(system, shaderSprite, shaderText, font);
+        return new Canvas(system, shaderSprite, shaderText);
     }
 }

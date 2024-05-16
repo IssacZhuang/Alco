@@ -24,7 +24,6 @@ public class Canvas : AutoDisposable
     private readonly Camera2D _camera;
     private Vector2 _invCameraSize;
     private BoundingBox2D _bound;
-    private Font _font;
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -40,17 +39,6 @@ public class Canvas : AutoDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderer;
-    }
-
-    public Font Font
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _font;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            _font = value;
-        }
     }
 
     public BoundingBox2D Bound
@@ -107,7 +95,7 @@ public class Canvas : AutoDisposable
         get => _selected;
     }
 
-    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Font font)
+    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText)
     {
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
@@ -115,7 +103,6 @@ public class Canvas : AutoDisposable
         _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
-        _font = font;
     }
 
     public void Tick(UINode root, float delta)

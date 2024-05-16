@@ -9,6 +9,21 @@ namespace Vocore.GUI;
 
 public static partial class DebugGUI
 {
+
+    //int 
+    public static void SliderWithText(string text, ref int value, int min, int max)
+    {
+        Slider(min, max, ref value);
+        SameLine();
+        Text(text);
+    }
+    
+
+    public static void Slider(ref int value, int min, int max)
+    {
+        Slider(min, max, ref value);
+    }
+
     public unsafe static void Slider(int min, int max, ref int value)
     {
         float minF = min;
@@ -16,6 +31,19 @@ public static partial class DebugGUI
         float valueF = value;
         Slider(minF, maxF, ref valueF);
         value = (int)valueF;
+    }
+
+    //float
+    public static void SliderWithText(string text, ref float value, float min, float max)
+    {
+        Slider(min, max, ref value);
+        SameLine();
+        Text(text);
+    }
+
+    public static void Slider(ref float value, float min, float max)
+    {
+        Slider(min, max, ref value);
     }
 
     public unsafe static void Slider(float min, float max, ref float value)

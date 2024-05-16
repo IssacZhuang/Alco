@@ -15,19 +15,11 @@ public class Game : GameEngine
     private readonly Font _font;
 
     private UINode _root;
-    private UISprite _sprite1;
-    private UISprite _sprite2;
     private UILabel _label;
 
-    private UIButton _button;
 
-    private float _posX = 0;
-    private float _rotDeg1 = 0;
-    private float _rotDeg2 = 0;
-    private float _size = 100;
-    private float _scale = 1;
-    private float _pivotX = 0;
-    private float _textPivotY = 0;
+    private float _alignHorizontal = TextAlign.Left;
+    private float _alignVertical = TextAlign.Top;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -37,7 +29,7 @@ public class Game : GameEngine
         _font = Assets.Load<Font>("Font/Default.ttf");
 
         UIInputTracker inputTracker = new UIInputTracker(Input, Window);
-        _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText, _font);
+        _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText);
         _canvas.InputTracker = inputTracker;
 
         _root = new UINode
@@ -45,86 +37,28 @@ public class Game : GameEngine
             Name = "Root",
         };
 
-        UISprite sprite1 = new UISprite
+        UISprite bg = new UISprite()
         {
-            Name = "Sprite1",
-            Texture = Rendering.TextureWhite,
             Size = new Vector2(100, 100),
-            IsMaskEnabled = true,
+            Color = 0xffffff
         };
-
-        _sprite1 = sprite1;
-
-        UISprite sprite2 = new UISprite(){
-            Name = "Sprite2",
-            Size = new Vector2(50, 50),
-            Color = new Vector4(0, 1, 0, 1f),
-            Position = new Vector2(25, 25),
-            Anchor = Anchor.Center,
-            //IsMaskEnabled = true,
-        };
-        
-        _sprite2 = sprite2;
-        
-        sprite1.Add(sprite2);
-        _root.Add(sprite1);
 
         UILabel label = new UILabel()
         {
-            Text = "Hello World",
-            Size = new Vector2(100, 50), // same as sprite2
-            Color = new Vector4(0.8f, 0.8f, 0.8f, 1),
+            Font = _font,
+            Position = new Vector2(0, 0),
+            Size = new Vector2(100, 100),
+            Color = 0x000077,
+            AlignHorizontal = TextAlign.Left,
+            AlignVertical = TextAlign.Top,
+            OverflowMode = TextOverflowMode.NextLine,
+            Text = "Hello World\naaaaaaaaaaaaaaaaaaaaaaa\nbbbbbbbbbbbbbb",
         };
+
         _label = label;
 
-        sprite2.Add(label, false);
-
-        UIButton button = new UIButton()
-        {
-            Size = new Vector2(100, 50),
-            Position = new Vector2(0, -25),
-            Anchor =  Anchor.Center,
-            FadeDuration = 0.1f,
-            ColorNormal = new ColorFloat(0.6f, 0.6f, 0.6f, 1),
-            ColorHover = new ColorFloat(0.5f, 0.5f, 0.5f, 1),
-            ColorPressing = new ColorFloat(0.4f, 0.4f, 0.4f, 1),
-            TransformPressing = Transform2D.Identity with { scale = new Vector2(0.95f, 0.95f)},
-            TransitionMode = TransitionMode.ColorTint | TransitionMode.Transform,
-        };
-        button.OnClickEvent += () =>
-        {
-            Log.Info("Button Clicked");
-        };
-
-        _button = button;
-
-        UISprite bgButton = new UISprite()
-        {
-            Texture = Rendering.TextureWhite,
-            Color = new Vector4(0.5f, 0.5f, 0.5f, 1),
-            Size = new Vector2(100, 50),
-            Position = new Vector2(0, -25),
-            Anchor = Anchor.Stretch,
-        };
-
-        button.TransitionTarget = bgButton;
-
-        UILabel labelButton = new UILabel()
-        {
-            Text = "Click Me",
-            Size = new Vector2(100, 50),
-            Position = new Vector2(0, -25),
-            Anchor = Anchor.Stretch,
-            //AlignHorizontal = TextAlign.Left,
-        };
-
-    
-        button.Add(bgButton);
-        bgButton.Add(labelButton);
-
-        _sprite1.Add(button);
-
-
+        _root.Add(bg);
+        _root.Add(label);
     }
 
     protected override void OnUpdate(float delta)
@@ -140,72 +74,12 @@ public class Game : GameEngine
 
 
         DebugGUI.Text(FrameRate);
-        DebugGUI.Slider(-320, 320, ref _posX);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Position X");
-        DebugGUI.Slider(0, 360, ref _rotDeg1);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Rotation Degree");
+        DebugGUI.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f);
+        DebugGUI.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f);
 
-        DebugGUI.Slider(0, 200, ref _size);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Size");
-        DebugGUI.Slider(0, 2, ref _scale);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Scale");
-        DebugGUI.Slider(-0.5f, 0.5f, ref _pivotX);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Pivot");
-        DebugGUI.Slider(0, 360, ref _rotDeg2);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Rotation Degree 2");
+        _label.AlignHorizontal = _alignHorizontal;
+        _label.AlignVertical = _alignVertical;
 
-        DebugGUI.Slider(-0.5f, 0.5f, ref _textPivotY);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Text Pivot Y");
-
-
-        if (_sprite2.Parent == _root)
-        {
-            if (DebugGUI.Button("Set Parent"))
-            {
-                _sprite2.SetParent(_sprite1);
-            }
-
-        }
-        else
-        {
-            if (DebugGUI.Button("Remove Parent"))
-            {
-                _sprite2.SetParent(_root);
-            }
-        }
-
-        if (_sprite1.IsMaskEnabled)
-        {
-            if (DebugGUI.Button("Disable Mask"))
-            {
-                _sprite1.IsMaskEnabled = false;
-            }
-        }
-        else
-        {
-            if (DebugGUI.Button("Enable Mask"))
-            {
-                _sprite1.IsMaskEnabled = true;
-            }
-        }
-
-
-        // _sprite1.Size = new Vector2(_size, _size);
-        // _sprite1.Position = new Vector2(_posX, 0);
-        // _sprite1.Rotation = Rotation2D.FromDegree(_rotDeg1);
-        // _sprite1.Scale = new Vector2(_scale, _scale);
-
-        // _sprite2.Pivot = new Pivot(_pivotX, 0);
-        // _sprite2.Rotation = Rotation2D.FromDegree(_rotDeg2);
-
-        // _label.TextPivot = new Pivot(0, _textPivotY);
     }
 
     protected override void OnStop()
