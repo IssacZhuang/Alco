@@ -29,9 +29,9 @@ public class Canvas : AutoDisposable
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
-    private IUIEventReceiver? _holded;
-    private IUIEventReceiver? _hovered;
-    private IUIEventReceiver? _selected;
+    private ISelectable? _holded;
+    private ISelectable? _hovered;
+    private ISelectable? _selected;
 
 
 
@@ -77,19 +77,19 @@ public class Canvas : AutoDisposable
         }
     }
 
-    public IUIEventReceiver? Holded
+    public ISelectable? Holded
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _holded;
     }
 
-    public IUIEventReceiver? Hovered
+    public ISelectable? Hovered
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _hovered;
     }
 
-    public IUIEventReceiver? Selected
+    public ISelectable? Selected
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _selected;
@@ -132,7 +132,7 @@ public class Canvas : AutoDisposable
         _collisionWorld.BuildTree();
         _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
 
-        IUIEventReceiver? node = _mousePointCaster.hit as IUIEventReceiver;
+        ISelectable? node = _mousePointCaster.hit as ISelectable;
         _hovered = node;
 
         if (_inputTracker.IsMouseDown)
@@ -166,7 +166,7 @@ public class Canvas : AutoDisposable
 
     }
 
-    private void OnMouseDown(IUIEventReceiver? node)
+    private void OnMouseDown(ISelectable? node)
     {
         if (node == null)
         {
@@ -177,7 +177,7 @@ public class Canvas : AutoDisposable
         node.OnPressDown();
     }
 
-    private void OnMouseUp(IUIEventReceiver? node)
+    private void OnMouseUp(ISelectable? node)
     {
         _holded?.OnPressUp();
         if (node == _holded)

@@ -1,10 +1,10 @@
 namespace Vocore.GUI;
 
-public interface IUIEventReceiver
+public interface ISelectable
 {
     public void OnClick();
     public void OnHover();
-    public void OnPressing(); 
+    public void OnPressing();
     public void OnPressDown();
     public void OnPressUp();
 }

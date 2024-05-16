@@ -53,7 +53,8 @@ public class Game : GameEngine
             Color = 0x000077,
             AlignHorizontal = TextAlign.Left,
             AlignVertical = TextAlign.Top,
-            OverflowMode = TextOverflowMode.NextLine,
+            OverflowHorizontal = OverflowModeHorizontal.NextLine,
+            OverflowVertical = OverflowModeVertical.Clamp,
             Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
         };
 

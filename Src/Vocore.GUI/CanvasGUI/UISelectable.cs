@@ -5,7 +5,7 @@ namespace Vocore.GUI;
 /// <summary>
 /// The UI node that can be received the UI event.
 /// </summary>
-public class UISelectable : UINode, IUIEventReceiver
+public class UISelectable : UINode, ISelectable
 {
     private event Action? _onClickEvent;
     private event Action? _onHoverEvent;

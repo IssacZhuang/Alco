@@ -23,8 +23,10 @@ public class UILabel : UINode
     private bool _isTmpStrReadDirty;
     private bool _isTmpStrWriteDirty;
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
-    private TextOverflowMode _overflowMode = TextOverflowMode.None;
-
+    private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
+    private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
+    
+    
     public Font? Font { get; set; }
     public float FontSize
     {
@@ -32,7 +34,7 @@ public class UILabel : UINode
         set
         {
             _fontSize = value;
-            if (_overflowMode == TextOverflowMode.NextLine)
+            if (_overflowHorizontal == OverflowModeHorizontal.NextLine)
             {
                 RefreshTextLineBreak();
             }
@@ -69,12 +71,20 @@ public class UILabel : UINode
         set => _textPivot = value;
     }
 
-    public TextOverflowMode OverflowMode
+    public OverflowModeHorizontal OverflowHorizontal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _overflowMode;
+        get => _overflowHorizontal;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _overflowMode = value;
+        set => _overflowHorizontal = value;
+    }
+
+    public OverflowModeVertical OverflowVertical
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _overflowVertical;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _overflowVertical = value;
     }
 
     public TextAlign AlignVertical
@@ -130,9 +140,18 @@ public class UILabel : UINode
             mask = canvas.Bound;
         }
 
-        if(_overflowMode == TextOverflowMode.Clamp)
+        if (_overflowHorizontal == OverflowModeHorizontal.Clamp)
         {
-            mask = Bound;
+            //mask = Bound;
+            mask.min.X = math.max(mask.min.X, Bound.min.X);
+            mask.max.X = math.min(mask.max.X, Bound.max.X);
+        }
+
+        if (_overflowVertical == OverflowModeVertical.Clamp)
+        {
+            //mask = Bound;
+            mask.min.Y = math.max(mask.min.Y, Bound.min.Y);
+            mask.max.Y = math.min(mask.max.Y, Bound.max.Y);
         }
 
         for (int i = 0; i < _lines.Count; i++)
@@ -180,7 +199,7 @@ public class UILabel : UINode
             //line break
             if (c == '\n' ||
             c == '\r' ||
-            (_overflowMode == TextOverflowMode.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X))
+            (_overflowHorizontal == OverflowModeHorizontal.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X))
             {
                 _lines.Add(line);
                 Line newLine = new Line()
