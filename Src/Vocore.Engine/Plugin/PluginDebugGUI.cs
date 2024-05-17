@@ -15,7 +15,7 @@ public class PluginDebugGUI : BaseEnginePlugin
             _renderer = renderer;
         }
 
-        public override void OnPreSwapFrame()
+        public override void OnEndFrame()
         {
             _renderer.Blit();
         }

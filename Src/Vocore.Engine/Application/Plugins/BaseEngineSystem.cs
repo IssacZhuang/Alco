@@ -43,7 +43,7 @@ public abstract class BaseEngineSystem : IEngineSystem
 
     }
 
-    public virtual void OnPreSwapFrame()
+    public virtual void OnEndFrame()
     {
 
     }

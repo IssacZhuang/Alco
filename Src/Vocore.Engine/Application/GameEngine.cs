@@ -319,7 +319,7 @@ namespace Vocore.Engine
             _input.Reset();//reset input state
             _rendering.RenderToSwapChain();
 
-            OnSystemPreSwapFrame();
+            OnSystemEndFrame();
 
             _graphics.EndFrame();//swap buffer
 
@@ -534,13 +534,13 @@ namespace Vocore.Engine
             }
         }
 
-        private void OnSystemPreSwapFrame()
+        private void OnSystemEndFrame()
         {
             for (int i = 0; i < _systems.Count; i++)
             {
                 try
                 {
-                    _systems[i].OnPreSwapFrame();
+                    _systems[i].OnEndFrame();
                 }
                 catch (Exception e)
                 {
