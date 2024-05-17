@@ -14,10 +14,17 @@ namespace Vocore.Engine
         private float _timer;
         private int _frameCount;
         private int _fps;
+        private float _frameTime;
         public int FPS
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _fps;
+        }
+
+        public float FrameTime
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _frameTime;
         }
 
         public EngineProfiler(GameEngine engine)
@@ -44,6 +51,7 @@ namespace Vocore.Engine
                 _fps = (int)(_frameCount * Mutiplier);
                 _timer -= UpdateInterval;
                 _frameCount = 0;
+                _frameTime = UpdateInterval / _fps;
             }
         }
     }

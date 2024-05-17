@@ -128,10 +128,24 @@ namespace Vocore.Engine
             get => _rendering;
         }
 
+        /// <summary>
+        /// The frame updated in a second
+        /// </summary>
+        /// <value></value>
         public int FrameRate
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _profiler.FPS;
+        }
+
+        /// <summary>
+        /// The total time of CPU and GPU used in a frame
+        /// </summary>
+        /// <value></value>
+        public float FrameTime
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _profiler.FrameTime;
         }
 
         #endregion

@@ -101,6 +101,15 @@ public partial class CanvasRenderer : AutoDisposable
         _state = RenderingState.None;
     }
 
+    /// <summary>
+    /// Clear thre render target with the color.
+    /// </summary>
+    /// <param name="color">The color to clear the render target.</param>
+    public void ClearColor(ColorFloat color)
+    {
+        _command.ClearColor(color);
+    }
+
     // called when command end or text buffer is full
     private void FlushBuffer()
     {

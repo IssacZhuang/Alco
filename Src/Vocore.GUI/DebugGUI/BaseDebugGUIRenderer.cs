@@ -56,9 +56,9 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
     public void Begin()
     {
-        //ClearBackBuffer();
-        //_canvasRenderer.Begin(_backBuffer.FrameBuffer);
-        _canvasRenderer.Begin(_renderingSystem.DefaultFrameBuffer);
+         _canvasRenderer.Begin(_backBuffer.FrameBuffer);
+         _canvasRenderer.ClearColor(new ColorFloat(0, 0, 0, 0));
+        //_canvasRenderer.Begin(_renderingSystem.DefaultFrameBuffer);
     }
 
     public void End()
@@ -66,17 +66,9 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _canvasRenderer.End();
     }
 
-    public void ClearBackBuffer()
-    {
-        _command.Begin();
-        _command.SetFrameBuffer(_backBuffer.FrameBuffer);
-        _command.ClearColor(new ColorFloat(0, 0, 0, 0), 0);
-        _command.End();
-        _device.Submit(_command);
-    }
     public void Blit()
     {
-        //_blitRenderer.Blit(_backBuffer, _device.SwapChainFrameBuffer);
+        _blitRenderer.Blit(_backBuffer, _device.SwapChainFrameBuffer);
     }
 
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
