@@ -17,7 +17,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     private readonly BlitRenderer _blitRenderer;
     private readonly Camera2D _camera;
     private readonly Texture2D _textureWhite;
-    private readonly RenderTexture _backBuffer;
+    private RenderTexture _backBuffer;
     private BoundingBox2D _cameraMask;
 
 
@@ -52,6 +52,8 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _camera.Position = new Vector2(width / 2, -height / 2);
         Vector2 halfSize = _camera.Size * 0.5f;
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
+        _backBuffer.Dispose();
+        _backBuffer = _renderingSystem.CreateRenderTexture(_renderingSystem.PrefferedSDRPass, (uint)width, (uint)height);
     }
 
     public void Begin()
