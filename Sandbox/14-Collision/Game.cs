@@ -85,7 +85,7 @@ public class Game : GameEngine
         //debug ui
         DebugGUI.Text("Camera Data");
         int fov = (int)(_camera.FieldOfView * 100);
-        DebugGUI.Slider(30, 110, ref fov);
+        DebugGUI.Slider(ref fov, 30, 110);
         _camera.FieldOfView = fov / 100f;
         DebugGUI.SameLine();
         DebugGUI.Text("Fov");

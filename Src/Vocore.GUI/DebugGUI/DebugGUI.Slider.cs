@@ -10,52 +10,80 @@ namespace Vocore.GUI;
 public static partial class DebugGUI
 {
 
-    //int 
-    public static void SliderWithText(string text, ref int value, int min, int max)
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
+    /// <param name="text">The text to display</param>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value</param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public static bool SliderWithText(string text, ref int value, int min, int max)
     {
-        Slider(min, max, ref value);
+        bool isChnaged = Slider(ref value, min, max);
         SameLine();
         Text(text);
-    }
-    
-
-    public static void Slider(ref int value, int min, int max)
-    {
-        Slider(min, max, ref value);
+        return isChnaged;
     }
 
-    public unsafe static void Slider(int min, int max, ref int value)
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value<param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public unsafe static bool Slider(ref int value, int min, int max)
     {
         float minF = min;
         float maxF = max;
         float valueF = value;
-        Slider(minF, maxF, ref valueF);
+        bool isChanged = Slider(ref valueF, minF, maxF);
         value = (int)valueF;
+        return isChanged;
     }
 
-    //float
-    public static void SliderWithText(string text, ref float value, float min, float max)
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
+    /// <param name="text">The text to display</param>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value</param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public static bool SliderWithText(string text, ref float value, float min, float max)
     {
-        Slider(min, max, ref value);
+        bool isChanged = Slider(ref value, min, max);
         SameLine();
         Text(text);
+        return isChanged;
     }
 
-    public static void Slider(ref float value, float min, float max)
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value<param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public unsafe static bool Slider(ref float value, float min, float max)
     {
-        Slider(min, max, ref value);
+        return Slider(_style.SliderWidth, ref value, min, max);
     }
 
-    public unsafe static void Slider(float min, float max, ref float value)
-    {
-        Slider(_style.SliderWidth, min, max, ref value);
-    }
-
-    public unsafe static void Slider(float width, float min, float max, ref float value)
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
+    /// <param name="width">The width of the slider</param>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value<param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public unsafe static bool Slider(float width, ref float value, float min, float max)
     {
         CheckBegin();
         //slider bar
-
+        bool isChanged = false;
         float t = (value - min) / (max - min);
         //clamp
         t = math.clamp(t, 0, 1);
@@ -95,6 +123,7 @@ public static partial class DebugGUI
             value = math.lerp(min, max, mouseT);
             value = math.clamp(value, min, max);
             thumbColor = _style.SliderThumbDragColor;
+            isChanged = true;
         }
         _renderer.DrawQuad(thumbDrawPos + thumbOffset, 0, thumbSize, thumbColor);
 
@@ -111,5 +140,6 @@ public static partial class DebugGUI
         
 
         SetNextOffset(new Vector2(barSize.X, barSize.Y + _style.Margin.W));
+        return isChanged;
     }
 }

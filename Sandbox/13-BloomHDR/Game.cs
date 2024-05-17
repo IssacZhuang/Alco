@@ -72,7 +72,7 @@ public class Game : GameEngine
             _intensity -= 0.1f;
         }
         DebugGUI.SameLine();
-        DebugGUI.Slider(0, 5, ref _intensity);
+        DebugGUI.Slider(ref _intensity, 0, 5);
         DebugGUI.SameLine();
         if (DebugGUI.Button("+0.1"))
         {

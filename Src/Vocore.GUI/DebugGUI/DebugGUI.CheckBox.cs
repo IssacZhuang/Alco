@@ -5,8 +5,28 @@ namespace Vocore.GUI;
 
 public partial class DebugGUI
 {
-    public static void CheckBox(ref bool value)
+    /// <summary>
+    /// Draw a checkbox with text
+    /// </summary>
+    /// <param name="text"> The text to display </param>
+    /// <param name="value"> The value of the checkbox </param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public static bool CheckBoxWithText(string text, ref bool value)
     {
+        bool isChanged = CheckBox(ref value);
+        SameLine();
+        Text(text);
+        return isChanged;
+    }
+
+    /// <summary>
+    /// Draw a checkbox
+    /// </summary>
+    /// <param name="value">The value of the checkbox</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public static bool CheckBox(ref bool value)
+    {
+        bool isChanged = false;
         CheckBegin();
         Vector2 drawPos = ProcessPostion();
 
@@ -29,6 +49,7 @@ public partial class DebugGUI
             if (_renderer.IsMouseClicked)
             {
                 value = !value;
+                isChanged = true;
             }
         }
 
@@ -43,6 +64,6 @@ public partial class DebugGUI
         }
 
         SetNextOffset(new Vector2(size.X, size.Y + _style.Margin.W));
-
+        return isChanged;
     }
 }

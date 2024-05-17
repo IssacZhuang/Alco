@@ -77,16 +77,25 @@ public class Game : GameEngine
 
 
         DebugGUI.Text(FrameRate);
-        DebugGUI.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f);
-        DebugGUI.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f);
-        DebugGUI.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f);
-        DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32);
+        if (DebugGUI.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
+        {
+            _label.AlignHorizontal = _alignHorizontal;
+        }
 
-        _label.AlignHorizontal = _alignHorizontal;
-        _label.AlignVertical = _alignVertical;
-        _label.LineSpacing = _lineSpacing;
-        _label.FontSize = _fontSize;
+        if (DebugGUI.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
+        {
+            _label.AlignVertical = _alignVertical;
+        }
 
+        if (DebugGUI.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f))
+        {
+            _label.LineSpacing = _lineSpacing;
+        }
+
+        if (DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32))
+        {
+            _label.FontSize = _fontSize;
+        }
     }
 
     protected override void OnStop()

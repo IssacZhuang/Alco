@@ -184,23 +184,23 @@ public class DropletSystem : IDisposable
 
         DebugGUI.Text("Active: 0", _activeList.Count);
 
-        DebugGUI.Slider(0, 400, ref _spawnRate);
+        DebugGUI.Slider(ref _spawnRate, 0, 400);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Rate");
 
-        DebugGUI.Slider(0, 640, ref _spawnHeight);
+        DebugGUI.Slider(ref _spawnHeight, 0, 640);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Height");
 
-        DebugGUI.Slider(-640, 0, ref _despawnHeight);
+        DebugGUI.Slider(ref _despawnHeight, -640, 0);
         DebugGUI.SameLine();
         DebugGUI.Text("Despawn Height");
 
-        DebugGUI.Slider(0, 640, ref _spwanRangeX);
+        DebugGUI.Slider(ref _spwanRangeX, 0, 640);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Range X");
 
-        DebugGUI.Slider(0, 600, ref _speed);
+        DebugGUI.Slider(ref _speed, 0, 600);
         DebugGUI.SameLine();
         DebugGUI.Text("Speed");
     }
