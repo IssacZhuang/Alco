@@ -12,11 +12,17 @@ public partial class RenderingSystem
 {
     private readonly GPUDevice _device;
     private readonly Dictionary<string, GPURenderPass> _renderPasses;
+    //preffered
+    private readonly GPURenderPass _prefferedSDRPass;
+    private readonly GPURenderPass _prefferedHDRPass;
 
+    //state
     private GPURenderPass? _mainRenderPass;
     private GPUFrameBuffer? _mainFrameBuffer;
     private ToneMap? _mainPassToSwapChain;
     private GPUFrameBuffer _selectedFrameBuffer;
+
+    
 
     public GPUDevice GraphicsDevice
     {
@@ -42,11 +48,43 @@ public partial class RenderingSystem
         }
     }
 
+    public GPURenderPass PrefferedSDRPass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            return _prefferedSDRPass;
+        }
+    }
+
+    public GPURenderPass PrefferedHDRPass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            return _prefferedHDRPass;
+        }
+    }
+
     public RenderingSystem(GPUDevice device)
     {
         _device = device;
         _renderPasses = new Dictionary<string, GPURenderPass>();
         _selectedFrameBuffer = device.SwapChainFrameBuffer;
+
+        _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(PixelFormat.RGBA8Unorm)],
+            new(PixelFormat.Depth24PlusStencil8),
+            "sdr_pass"
+        ));
+
+        _prefferedHDRPass = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(device.PrefferedHDRFormat)],
+            new(PixelFormat.Depth24PlusStencil8),
+            "hdr_pass"
+        ));
 
         RegisterRenderPass("Surface", device.SwapChainFrameBuffer.RenderPass);
     }

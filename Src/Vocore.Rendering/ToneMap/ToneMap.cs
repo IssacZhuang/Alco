@@ -59,7 +59,7 @@ public abstract class ToneMap:AutoDisposable
 
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_shader.DefaultPipeline);
+        _command.SetGraphicsPipeline(_pipeline);
         _command.SetVertexBuffer(0,_mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_shader.DefaultPipeline);

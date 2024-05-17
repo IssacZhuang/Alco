@@ -14,6 +14,7 @@ public interface IEngineSystem:IDisposable
     void OnPostTick(float delta);
     void OnUpdate(float delta);
     void OnPostUpdate(float delta);
+    void OnPreSwapFrame();
     void OnResize(int2 size);
     void OnStop();
 }

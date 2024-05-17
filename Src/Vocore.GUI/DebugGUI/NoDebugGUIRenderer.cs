@@ -17,6 +17,8 @@ public class NoDebugGUIRenderer : IDebugGUIRenderer
         
     }
 
+    
+
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
     {
         
@@ -35,6 +37,11 @@ public class NoDebugGUIRenderer : IDebugGUIRenderer
     public void End()
     {
         
+    }
+
+    public void Blit()
+    {
+
     }
 
     public void SetResolution(float width, float height)

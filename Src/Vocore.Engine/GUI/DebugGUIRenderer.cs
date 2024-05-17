@@ -8,7 +8,7 @@ namespace Vocore.Engine;
 public class DebugGUIRenderer : BaseDebugGUIRenderer
 {
     private readonly InputSystem _input;
-    public DebugGUIRenderer(InputSystem input, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite) : base(width, height, renderingSystem, shaderText, shaderSprite)
+    public DebugGUIRenderer(InputSystem input, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Shader shaderBlit) : base(width, height, renderingSystem, shaderText, shaderSprite, shaderBlit)
     {
         _input = input;
     }

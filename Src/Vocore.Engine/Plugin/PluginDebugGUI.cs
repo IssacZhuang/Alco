@@ -15,9 +15,9 @@ public class PluginDebugGUI : BaseEnginePlugin
             _renderer = renderer;
         }
 
-        public override void OnUpdate(float delta)
+        public override void OnPreSwapFrame()
         {
-            
+            _renderer.Blit();
         }
 
         public override void OnPostUpdate(float delta)
@@ -44,10 +44,10 @@ public class PluginDebugGUI : BaseEnginePlugin
 
         Shader shaderText = assets.Load<Shader>("Rendering/Shader/2D/Text-Masked.hlsl");
         Shader shaderSprite = assets.Load<Shader>("Rendering/Shader/2D/Sprite-Masked.hlsl");
-
+        Shader ShaderBlit = assets.Load<Shader>("Rendering/Shader/Common/Blit.hlsl");
         Font font = assets.Load<Font>("Font/Default.ttf");
 
-        DebugGUIRenderer renderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite);
+        DebugGUIRenderer renderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
         DebugGUIStyle style = new DebugGUIStyle
         {
             Font = font,

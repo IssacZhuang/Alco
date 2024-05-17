@@ -304,6 +304,9 @@ namespace Vocore.Engine
             _profiler.Update(updateDeltaTime);
             _input.Reset();//reset input state
             _rendering.RenderToSwapChain();
+
+            OnSystemPreSwapFrame();
+
             _graphics.EndFrame();//swap buffer
 
             if (_shouldResize)
@@ -511,6 +514,23 @@ namespace Vocore.Engine
                 catch (Exception e)
                 {
                     Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
+                    Log.Error(e);
+                    TryErrorStop();
+                }
+            }
+        }
+
+        private void OnSystemPreSwapFrame()
+        {
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                try
+                {
+                    _systems[i].OnPreSwapFrame();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
                     Log.Error(e);
                     TryErrorStop();
                 }

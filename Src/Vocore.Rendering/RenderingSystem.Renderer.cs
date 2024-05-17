@@ -26,4 +26,9 @@ public partial class RenderingSystem
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);
     }
 
+    public BlitRenderer CreateBlitRenderer(Shader shaderBlit)
+    {
+        return new BlitRenderer(this, shaderBlit);
+    }
+
 }

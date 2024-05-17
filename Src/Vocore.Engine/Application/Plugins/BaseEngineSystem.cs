@@ -7,16 +7,6 @@ public abstract class BaseEngineSystem : IEngineSystem
 
     
 
-    public virtual void OnPostTick(float delta)
-    {
-        
-    }
-
-    public virtual void OnPostUpdate(float delta)
-    {
-        
-    }
-
     public virtual void OnResize(int2 size)
     {
         
@@ -37,13 +27,31 @@ public abstract class BaseEngineSystem : IEngineSystem
         
     }
 
+    public virtual void OnPostTick(float delta)
+    {
+
+    }
+
     public virtual void OnUpdate(float delta)
     {
         
+    }
+    
+
+    public virtual void OnPostUpdate(float delta)
+    {
+
+    }
+
+    public virtual void OnPreSwapFrame()
+    {
+
     }
 
     public virtual void Dispose()
     {
 
     }
+
+    
 }
