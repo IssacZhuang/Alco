@@ -15,7 +15,7 @@ public class Game : GameEngine
     private readonly Font _font;
 
     private UINode _root;
-    private UILabel _label;
+    private UIText _label;
 
 
     private float _alignHorizontal = TextAlign.Left;
@@ -45,7 +45,7 @@ public class Game : GameEngine
             Color = 0xffffff
         };
 
-        UILabel label = new UILabel()
+        UIText label = new UIText()
         {
             Font = _font,
             Position = new Vector2(0, 0),

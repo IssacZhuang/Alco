@@ -7,7 +7,7 @@ namespace Vocore.GUI;
 /// <summary>
 /// The label UI node.
 /// </summary>
-public class UILabel : UINode
+public class UIText : UINode
 {
     private struct Line
     {
@@ -104,7 +104,7 @@ public class UILabel : UINode
         set => _textPivot.X = value;
     }
 
-    public UILabel()
+    public UIText()
     {
 
     }
