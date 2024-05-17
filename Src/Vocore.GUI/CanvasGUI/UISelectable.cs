@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Vocore.GUI;
@@ -12,8 +13,12 @@ public class UISelectable : UINode, ISelectable
     private event Action? _onPressDownEvent;
     private event Action? _onPressUpEvent;
     private event Action? _onPressingEvent;
+    private event Action<Vector2>? _onDragEvent;
 
     #region  Event
+
+    public bool Interactable { get; set; } = true;
+
     /// <summary>
     /// Called when the UI node is clicked.
     /// </summary>
@@ -69,51 +74,53 @@ public class UISelectable : UINode, ISelectable
         remove => _onPressingEvent -= value;
     }
 
+    public event Action<Vector2> OnDragEvent
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        add => _onDragEvent += value;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        remove => _onDragEvent -= value;
+    }
+
     #endregion
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
-        AddSelfForCollision(canvas);
+        if (Interactable)
+        {
+            AddSelfForCollision(canvas);
+        }
     }
 
-    /// <summary>
-    /// Called when the UI node is clicked.
-    /// </summary>
+
     public virtual void OnClick()
     {
         _onClickEvent?.Invoke();
     }
 
-    /// <summary>
-    /// Called when the UI node is hovered.
-    /// </summary>
     public virtual void OnHover()
     {
         _onHoverEvent?.Invoke();
     }
 
-    /// <summary>
-    /// Called when the UI node is pressing.
-    /// </summary>
     public virtual void OnPressing()
     {
         _onPressingEvent?.Invoke();
     }
 
-    /// <summary>
-    /// Called when the UI node is pressed down.
-    /// </summary>
     public virtual void OnPressDown()
     {
         _onPressDownEvent?.Invoke();
     }
 
-    /// <summary>
-    /// Called when the UI node is pressed up.
-    /// </summary>
     public virtual void OnPressUp()
     {
         _onPressUpEvent?.Invoke();
+    }
+
+    public void OnDrag(Vector2 mousePoisition)
+    {
+        _onDragEvent?.Invoke(mousePoisition);
     }
 
     /// <summary>
@@ -126,4 +133,6 @@ public class UISelectable : UINode, ISelectable
         ShapeBox2D shape = new ShapeBox2D(transform.position, transform.scale);
         canvas.AddClickReciever(this, shape);
     }
+
+
 }
