@@ -54,6 +54,7 @@ internal partial class WebGPUDevice : GPUDevice
     private readonly DeviceDescriptor _descriptor;
 
     // supported details
+    private readonly WGPUTextureFormat[] _supportedSurfaceFormats;
     private readonly WGPUPresentMode[] _supportedPresentModes;
 
 
@@ -410,11 +411,21 @@ internal partial class WebGPUDevice : GPUDevice
 
         WGPUSurfaceCapabilities surfaceCapabilities = default;
         wgpuSurfaceGetCapabilities(Surface, Adapter, &surfaceCapabilities);
+        // get supported formats
         _supportedPresentModes = new WGPUPresentMode[surfaceCapabilities.presentModeCount];
         for (uint i = 0; i < surfaceCapabilities.presentModeCount; i++)
         {
             _supportedPresentModes[i] = surfaceCapabilities.presentModes[i];
         }
+        //get supported formats
+        _supportedSurfaceFormats = new WGPUTextureFormat[surfaceCapabilities.formatCount];
+        for (uint i = 0; i < surfaceCapabilities.formatCount; i++)
+        {
+            _supportedSurfaceFormats[i] = surfaceCapabilities.formats[i];
+        }
+
+        wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
+
         GraphicsLogger.Info($"Supported present modes: {string.Join(", ", _supportedPresentModes)}");
 
         nuint supportedFeaturesCount = wgpuAdapterEnumerateFeatures(Adapter, null);
@@ -499,7 +510,23 @@ internal partial class WebGPUDevice : GPUDevice
         Queue = wgpuDeviceGetQueue(Device);
 
         // load config
-        _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
+        _swapChainFormat = UtilsWebGPU.PixelFormatToWebGPU(descriptor.SurfaceFormat);
+        bool isFormatSupported = false;
+        for (int i = 0; i < _supportedSurfaceFormats.Length; i++)
+        {
+            if (_supportedSurfaceFormats[i] == _swapChainFormat)
+            {
+                isFormatSupported = true;
+                break;
+            }
+        }
+        if(!isFormatSupported)
+        {
+            WGPUTextureFormat oldFormat = _swapChainFormat;
+            _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
+            GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_swapChainFormat} instead");
+        }
+
         _preferredSurfaceFormat = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat);
 
         _width = descriptor.InitialSurfaceSizeWidth;

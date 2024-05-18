@@ -30,6 +30,28 @@ public class Game : GameEngine
         _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/Text-Masked.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
 
+        CavanUIFactoryStyle style = new CavanUIFactoryStyle
+        {
+            Font = _font,
+            FontSize = 16,
+            TextColor = 0xffffff,
+            SliderColor = 0x2a2a2a,
+            SliderHandleColor = 0x373737,
+            SliderHandleHoverColor = 0x525252,
+            SliderHandleDragColor = 0x234A6C,
+            DefaultButtonText = "Button",
+            ButtonSize = new Vector2(100, 30),
+            ButtonTextColor = 0xffffff,
+            ButtonColor = 0x2a2a2a,
+            ButtonPressedColor = 0x2d333f,
+            ButtonHoverColor = 0x333842,
+            CheckBoxColor = 0x2a2a2a,
+            CheckBoxHoverColor = 0x525252,
+            CheckBoxPressedColor = 0x373737,
+        };
+
+        CanvasUIFactory factory = new CanvasUIFactory(style);
+
         UIInputTracker inputTracker = new UIInputTracker(Input, Window);
         _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText);
         _canvas.InputTracker = inputTracker;
@@ -42,7 +64,7 @@ public class Game : GameEngine
         UISprite bg = new UISprite()
         {
             Size = new Vector2(100, 100),
-            Color = 0xffffff
+            Color = 0x2c2c2c
         };
 
         UIText label = new UIText()
@@ -50,7 +72,7 @@ public class Game : GameEngine
             Font = _font,
             Position = new Vector2(0, 0),
             Size = new Vector2(100, 100),
-            Color = 0x000077,
+            Color = 0xffffff,
             AlignHorizontal = TextAlign.Left,
             AlignVertical = TextAlign.Top,
             OverflowHorizontal = OverflowModeHorizontal.NextLine,
@@ -58,10 +80,17 @@ public class Game : GameEngine
             Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
         };
 
+
+
+
         _label = label;
 
         _root.Add(bg);
         _root.Add(label);
+
+        UIButton button = factory.CreateButton("Test");
+        button.Position = new Vector2(200, 0);
+        _root.Add(button);
     }
 
     protected override void OnUpdate(float delta)

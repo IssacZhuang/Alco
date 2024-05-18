@@ -23,11 +23,13 @@ public struct GraphicsSetting
     /// </summary>
     public bool VSync { get; set; }
 
+    public PixelFormat SurfaceFormat { get; set; }
+
     /// <summary>
     /// The format of the swap chain depth stencil buffer. 
     /// <br/>Set to null to disable depth stencil test.
     /// </summary>
-    public PixelFormat? SwapChainDepthFormat { get; set; }
+    public PixelFormat? DepthFormat { get; set; }
 
 
     /// <summary>
@@ -36,7 +38,8 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Default = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        SwapChainDepthFormat = PixelFormat.Depth24PlusStencil8,
+        SurfaceFormat = PixelFormat.RGBA8UnormSrgb,
+        DepthFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
         VSync = false
     };
@@ -47,7 +50,8 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Debug = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        SwapChainDepthFormat = PixelFormat.Depth24PlusStencil8,
+        SurfaceFormat = PixelFormat.RGBA8UnormSrgb,
+        DepthFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = true,
         VSync = false
     };

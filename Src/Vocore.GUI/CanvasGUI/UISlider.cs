@@ -20,6 +20,7 @@ public class UISlider : UINode
 
             UnregisterHandle(_handle);
             RegisterHandle(value);
+            UpdateHandlePosition(_value);
             _handle = value;
         }
     }
@@ -30,6 +31,7 @@ public class UISlider : UINode
         set
         {
             _value = value;
+            UpdateHandlePosition(value);
         }
     }
 
@@ -53,7 +55,19 @@ public class UISlider : UINode
 
     private void UpdateHandlePosition(float value)
     {
-        
+        if (_handle == null)
+        {
+            return;
+        }
+
+        UINode? handleParent = _handle.Parent;
+        if (handleParent == null)
+        {
+            return;
+        }
+
+        Vector2 parentSize = handleParent.Size;
+        _handle.Position = new Vector2(parentSize.X * (value - 0.5f), 0);
     }
 
     private void OnHandleDrag(Vector2 mousePosition)

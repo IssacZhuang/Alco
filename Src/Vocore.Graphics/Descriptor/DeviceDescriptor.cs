@@ -13,6 +13,7 @@ public struct DeviceDescriptor
         bool debug = false,
         uint initialSurfaceSizeWidth = 640,
         uint initialSurfaceSizeHeight = 360,
+        PixelFormat surfaceFormat = PixelFormat.RGBA8Unorm,
         PixelFormat? depthFormat = null,
         uint pushConstantsSize = 256,
         string name = "Vocore Graphics Device"
@@ -25,6 +26,7 @@ public struct DeviceDescriptor
         Debug = debug;
         InitialSurfaceSizeWidth = initialSurfaceSizeWidth;
         InitialSurfaceSizeHeight = initialSurfaceSizeHeight;
+        SurfaceFormat = surfaceFormat;
         DepthFormat = depthFormat;
         PushConstantsSize = pushConstantsSize;
         Name = name;
@@ -42,6 +44,7 @@ public struct DeviceDescriptor
     public uint InitialSurfaceSizeWidth { get; init; }
     public uint InitialSurfaceSizeHeight { get; init; }
     public Vector4 SurfaceClearColor { get; init; } = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+    public PixelFormat SurfaceFormat { get; init; } = PixelFormat.RGBA8Unorm;
     public PixelFormat? DepthFormat { get; init; } = null;
     public string Name { get; init; } = "Vocore Graphics Device";
 }

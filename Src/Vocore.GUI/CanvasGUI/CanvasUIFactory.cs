@@ -8,23 +8,25 @@ public struct CavanUIFactoryStyle
 {
     public Font Font { get; set; }
     public float FontSize { get; set; }
+    public ColorFloat TextColor { get; set; }
 
     public ColorFloat SliderColor { get; set; }
-    public ColorFloat SliderThumbColor { get; set; }
-    public ColorFloat SliderThumbHoverColor { get; set; }
-    public ColorFloat SliderThumbDragColor { get; set; }
+    public ColorFloat SliderHandleColor { get; set; }
+    public ColorFloat SliderHandleHoverColor { get; set; }
+    public ColorFloat SliderHandleDragColor { get; set; }
 
-    public ColorFloat TextColor { get; set; }
 
     public string DefaultButtonText { get; set; }
     public Vector2 ButtonSize { get; set; }
+
+    public ColorFloat ButtonTextColor { get; set; }
     public ColorFloat ButtonColor { get; set; }
     public ColorFloat ButtonPressedColor { get; set; }
     public ColorFloat ButtonHoverColor { get; set; }
 
     public ColorFloat CheckBoxColor { get; set; }
     public ColorFloat CheckBoxHoverColor { get; set; }
-    public ColorFloat CheckBoxCheckColor { get; set; }
+    public ColorFloat CheckBoxPressedColor { get; set; }
 }
 
 public class CanvasUIFactory
@@ -65,7 +67,7 @@ public class CanvasUIFactory
         {
             Font = _style.Font,
             FontSize = _style.FontSize,
-            Color = _style.TextColor,
+            Color = _style.ButtonTextColor,
             Text = str
         };
 
@@ -73,7 +75,12 @@ public class CanvasUIFactory
 
         UIButton button = new UIButton
         {
-            Size = _style.ButtonSize
+            Size = _style.ButtonSize,
+            TransitionTarget = bg,
+            ColorNormal = _style.ButtonColor,
+            ColorHover = _style.ButtonHoverColor,
+            ColorPressing = _style.ButtonPressedColor,
+            TransitionMode = TransitionMode.ColorTint,
         };
 
         button.Add(bg);

@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     Window = new WindowSetting(640, 360, "Collision"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
-        SwapChainDepthFormat = null
+        DepthFormat = null
     },
 }.
 With<PluginDefaultAssets>().
