@@ -30,7 +30,6 @@ public class UISlider : UINode
         get => _value;
         set
         {
-            _value = value;
             UpdateHandlePosition(value);
         }
     }
@@ -66,13 +65,27 @@ public class UISlider : UINode
             return;
         }
 
+        value = math.clamp(value, 0, 1);
+        _value = value;
         Vector2 parentSize = handleParent.Size;
         _handle.Position = new Vector2(parentSize.X * (value - 0.5f), 0);
     }
 
     private void OnHandleDrag(Vector2 mousePosition)
     {
+        if (_handle == null)
+        {
+            return;
+        }
 
+        UINode? parent = _handle.Parent;
+        if (parent == null)
+        {
+            return;
+        }
+        Vector2 handleParentSize = parent.Size;
+        float left = mousePosition.X - WorldTransform.position.X + handleParentSize.X * 0.5f;
+        UpdateHandlePosition(left / handleParentSize.X);
     }
 
 }

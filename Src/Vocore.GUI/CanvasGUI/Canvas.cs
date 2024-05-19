@@ -135,6 +135,11 @@ public class Canvas : AutoDisposable
         ISelectable? node = _mousePointCaster.hit as ISelectable;
         _hovered = node;
 
+        if(_holded != null)
+        {
+            _holded.OnDrag(worldPosition);
+        }
+
         if (_inputTracker.IsMouseDown)
         {
             OnMouseDown(node);
