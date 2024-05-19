@@ -10,6 +10,9 @@ public struct CavanUIFactoryStyle
     public float FontSize { get; set; }
     public ColorFloat TextColor { get; set; }
 
+
+    public Vector2 SliderSize { get; set; }
+    public Vector2 SliderHandleSize { get; set; }
     public ColorFloat SliderColor { get; set; }
     public ColorFloat SliderHandleColor { get; set; }
     public ColorFloat SliderHandleHoverColor { get; set; }
@@ -23,6 +26,7 @@ public struct CavanUIFactoryStyle
     public ColorFloat ButtonColor { get; set; }
     public ColorFloat ButtonPressedColor { get; set; }
     public ColorFloat ButtonHoverColor { get; set; }
+
 
     public ColorFloat CheckBoxColor { get; set; }
     public ColorFloat CheckBoxHoverColor { get; set; }
@@ -85,5 +89,49 @@ public class CanvasUIFactory
 
         button.Add(bg);
         return button;
+    }
+
+    public UISlider CreateSlider()
+    {
+        UINode handleParent = new UINode(){
+            Size = new Vector2(_style.SliderSize.X - _style.SliderHandleSize.X, _style.SliderSize.Y)
+        };
+
+        UISprite bgHandle = new UISprite
+        {
+            Color = _style.SliderHandleColor,
+            Size = _style.SliderHandleSize
+        };
+
+        UIButton handle = new UIButton
+        {
+            Size = _style.SliderHandleSize,
+            TransitionTarget = bgHandle,
+            ColorNormal = _style.SliderHandleColor,
+            ColorHover = _style.SliderHandleHoverColor,
+            ColorPressing = _style.SliderHandleDragColor,
+            TransitionMode = TransitionMode.ColorTint,
+        };
+
+        handle.Add(bgHandle);
+        handleParent.Add(handle);
+
+        UISprite bgSlider = new UISprite
+        {
+            Color = _style.SliderColor,
+            Size = _style.SliderSize
+        };
+
+        UISlider slider = new UISlider
+        {
+            Handle = handle,
+            Size = _style.SliderSize,
+            Value = 0
+        };
+
+        slider.Add(bgSlider);
+        slider.Add(handleParent);
+
+        return slider;
     }
 }

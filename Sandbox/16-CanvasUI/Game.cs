@@ -16,12 +16,14 @@ public class Game : GameEngine
 
     private UINode _root;
     private UIText _label;
+    private UISlider _slider;
 
 
     private float _alignHorizontal = TextAlign.Left;
     private float _alignVertical = TextAlign.Top;
     private float _lineSpacing = 1f;
     private float _fontSize = 16;
+    private float _progress = 0f;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -35,16 +37,18 @@ public class Game : GameEngine
             Font = _font,
             FontSize = 16,
             TextColor = 0xffffff,
+            SliderSize = new Vector2(140, 24),
+            SliderHandleSize = new Vector2(16, 24),
             SliderColor = 0x2a2a2a,
             SliderHandleColor = 0x373737,
             SliderHandleHoverColor = 0x525252,
             SliderHandleDragColor = 0x234A6C,
             DefaultButtonText = "Button",
-            ButtonSize = new Vector2(100, 30),
+            ButtonSize = new Vector2(80, 24),
             ButtonTextColor = 0xffffff,
             ButtonColor = 0x2a2a2a,
-            ButtonPressedColor = 0x2d333f,
-            ButtonHoverColor = 0x333842,
+            ButtonPressedColor = 0x234A6C,
+            ButtonHoverColor = 0x3a3a3a,
             CheckBoxColor = 0x2a2a2a,
             CheckBoxHoverColor = 0x525252,
             CheckBoxPressedColor = 0x373737,
@@ -81,8 +85,6 @@ public class Game : GameEngine
         };
 
 
-
-
         _label = label;
 
         _root.Add(bg);
@@ -91,6 +93,11 @@ public class Game : GameEngine
         UIButton button = factory.CreateButton("Test");
         button.Position = new Vector2(200, 0);
         _root.Add(button);
+
+        UISlider slider = factory.CreateSlider();
+        slider.Position = new Vector2(200, 50);
+        _slider = slider;
+        _root.Add(slider);
     }
 
     protected override void OnUpdate(float delta)
@@ -124,6 +131,11 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32))
         {
             _label.FontSize = _fontSize;
+        }
+
+        if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))
+        {
+            _slider.Value = _progress;
         }
     }
 

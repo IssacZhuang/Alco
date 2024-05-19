@@ -19,6 +19,7 @@ public struct DebugGUIStyle
     public ColorFloat TextColor { get; set; }
     public ColorFloat ButtonColor { get; set; }
     public ColorFloat ButtonHoverColor { get; set; }
+    public ColorFloat ButtonPressedColor { get; set; }
     public ColorFloat CheckBoxColor { get; set; }
     public ColorFloat CheckBoxHoverColor { get; set; }
     public ColorFloat CheckBoxCheckColor { get; set; }

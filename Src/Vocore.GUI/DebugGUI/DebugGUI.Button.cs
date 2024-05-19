@@ -69,6 +69,11 @@ public static partial class DebugGUI
         {
             color = _style.ButtonHoverColor;
             inArea = true;
+
+            if (_renderer.IsMousePressing)
+            {
+                color = _style.ButtonPressedColor;
+            }
         }
 
        

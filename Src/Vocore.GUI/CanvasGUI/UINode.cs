@@ -698,5 +698,4 @@ public class UINode
             _children[i].Update(canvas, delta);
         }
     }
-
 }

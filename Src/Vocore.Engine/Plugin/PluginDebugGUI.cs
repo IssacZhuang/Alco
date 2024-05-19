@@ -60,9 +60,10 @@ public class PluginDebugGUI : BaseEnginePlugin
             SliderThumbDragColor = 0x234A6C,
             TextColor = 0xf1f1f1,
             ButtonColor = 0x2a2a2a,
-            ButtonHoverColor = 0x525252,
+            ButtonHoverColor = 0x3a3a3a,
+            ButtonPressedColor = 0x234A6C,  
             CheckBoxColor = 0x2a2a2a,
-            CheckBoxHoverColor = 0x525252,
+            CheckBoxHoverColor = 0x3a3a3a,
             CheckBoxCheckColor = 0x007ACC,
             Margin = new Vector4(2, 2, 2, 2),
             Padding = new Vector2(10, 4)
