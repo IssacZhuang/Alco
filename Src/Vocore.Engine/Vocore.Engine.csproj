@@ -9,8 +9,8 @@
     <PublishSingleFile>false</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 
-    <UseGLFW>false</UseGLFW>
-    <UseSDL>true</UseSDL>
+    <UseGLFW>true</UseGLFW>
+    <UseSDL>false</UseSDL>
 
     <UseAssetsPack>false</UseAssetsPack>
   </PropertyGroup>

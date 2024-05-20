@@ -59,6 +59,7 @@ public class Game : GameEngine
         UIInputTracker inputTracker = new UIInputTracker(Input, Window);
         _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText);
         _canvas.InputTracker = inputTracker;
+        _canvas.Size = new Vector2(setting.Window.Width, setting.Window.Height);
 
         _root = new UINode
         {

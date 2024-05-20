@@ -6,6 +6,7 @@ public class UISlider : UINode
 {
     private float _value;
     private UISelectable? _handle;
+    private UIText? _valueText;
 
 
     public UISelectable? Handle
@@ -20,8 +21,18 @@ public class UISlider : UINode
 
             UnregisterHandle(_handle);
             RegisterHandle(value);
-            UpdateHandlePosition(_value);
+            UpdateValue(_value);
             _handle = value;
+        }
+    }
+
+    public UIText? ValueText
+    {
+        get => _valueText;
+        set
+        {
+            _valueText = value;
+            UpdateValueText();
         }
     }
 
@@ -30,7 +41,7 @@ public class UISlider : UINode
         get => _value;
         set
         {
-            UpdateHandlePosition(value);
+            UpdateValue(value);
         }
     }
 
@@ -52,8 +63,14 @@ public class UISlider : UINode
         node.OnDragEvent -= OnHandleDrag;
     }
 
-    private void UpdateHandlePosition(float value)
+    private void UpdateValue(float value)
     {
+        value = math.clamp(value, 0, 1);
+        _value = value;
+
+        UpdateValueText();
+
+        // Update handle position
         if (_handle == null)
         {
             return;
@@ -65,10 +82,19 @@ public class UISlider : UINode
             return;
         }
 
-        value = math.clamp(value, 0, 1);
-        _value = value;
+        
         Vector2 parentSize = handleParent.Size;
         _handle.Position = new Vector2(parentSize.X * (value - 0.5f), 0);
+    }
+
+    private void UpdateValueText()
+    {
+        if (_valueText == null)
+        {
+            return;
+        }
+
+        _valueText.SetText(UtilsText.ToCharSpan(_value));
     }
 
     private void OnHandleDrag(Vector2 mousePosition)
@@ -85,7 +111,7 @@ public class UISlider : UINode
         }
         Vector2 handleParentSize = parent.Size;
         float left = mousePosition.X - WorldTransform.position.X + handleParentSize.X * 0.5f;
-        UpdateHandlePosition(left / handleParentSize.X);
+        UpdateValue(left / handleParentSize.X);
     }
 
 }

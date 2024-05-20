@@ -122,15 +122,26 @@ public class CanvasUIFactory
             Size = _style.SliderSize
         };
 
+        UIText text = new UIText
+        {
+            Font = _style.Font,
+            FontSize = _style.FontSize,
+            Color = _style.TextColor,
+            Size = _style.SliderSize,
+            Text = "0"
+        };
+
         UISlider slider = new UISlider
         {
             Handle = handle,
+            ValueText = text,
             Size = _style.SliderSize,
             Value = 0
         };
 
         slider.Add(bgSlider);
         slider.Add(handleParent);
+        slider.Add(text);
 
         return slider;
     }

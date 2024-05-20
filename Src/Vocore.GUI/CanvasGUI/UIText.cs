@@ -9,6 +9,7 @@ namespace Vocore.GUI;
 /// </summary>
 public class UIText : UINode
 {
+    public const int MinSpanFormattableSize = 32;
     private struct Line
     {
         public int start;
