@@ -16,8 +16,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
+    <ProjectReference Include="..\Vocore.Audio\Vocore.Audio.csproj" />
     <ProjectReference Include="..\Vocore.Graphics\Vocore.Graphics.csproj" />
     <ProjectReference Include="..\Vocore.Rendering\Vocore.Rendering.csproj" />
+    
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>
   <ItemGroup>

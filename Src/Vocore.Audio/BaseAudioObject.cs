@@ -9,7 +9,8 @@ namespace Vocore;
 /// </summary> 
 public abstract class BaseAudioObject : IDisposable
 {
-    protected static readonly AL API = AL.GetApi();
+    protected static readonly AL Al = AL.GetApi();
+    protected static readonly ALContext Alc = ALContext.GetApi();
 
     private volatile uint _disposed;
 
