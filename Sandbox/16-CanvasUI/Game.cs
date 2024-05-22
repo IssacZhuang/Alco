@@ -24,6 +24,7 @@ public class Game : GameEngine
     private float _lineSpacing = 1f;
     private float _fontSize = 16;
     private float _progress = 0f;
+    private float _pivotX = 0f;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -91,14 +92,41 @@ public class Game : GameEngine
         _root.Add(bg);
         _root.Add(label);
 
+        UILayoutVertical layout = new UILayoutVertical()
+        {
+            Size = new Vector2(160, 100),
+            PaddingTop = 4,
+            PaddingBottom = 4,
+            Spacing = 4,
+            FitContentHeight = true,
+            AlwaysUpdate = true,
+        };
+
+        UISprite bgLayout = new UISprite()
+        {
+            Size = new Vector2(160, 100),
+            Color = 0xffffff,
+            Anchor = Anchor.Stretch,
+            IsLayoutAffected = false,
+        };
+
+        layout.Add(bgLayout);
+
         UIButton button = factory.CreateButton("Test");
-        button.Position = new Vector2(200, 0);
-        _root.Add(button);
+        button.Position = new Vector2(0);
+        layout.Add(button);
 
         UISlider slider = factory.CreateSlider();
-        slider.Position = new Vector2(200, 50);
+        slider.Position = new Vector2(0);
         _slider = slider;
-        _root.Add(slider);
+        layout.Add(slider);
+
+        layout.Position = new Vector2(200, 0);
+
+        _root.Add(layout);
+
+        layout.UpdateLayout();
+        layout.UpdateLayout();
     }
 
     protected override void OnUpdate(float delta)
@@ -132,6 +160,11 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32))
         {
             _label.FontSize = _fontSize;
+        }
+
+        if(DebugGUI.SliderWithText("Pivot X", ref _pivotX, -0.5f, 0.5f))
+        {
+            _label.Pivot = new Vector2(_pivotX, 0);
         }
 
         if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))

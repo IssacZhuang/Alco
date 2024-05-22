@@ -15,8 +15,8 @@ public struct Pivot
     public static readonly Pivot CenterTop = new(0, 0.5f);
     public static readonly Pivot CenterBottom = new(0, -0.5f);
     public static readonly Pivot LeftTop = new(-0.5f, 0.5f);
-    public static readonly Pivot RightTop = new(0.5f, 0.5f);
     public static readonly Pivot LeftBottom = new(-0.5f, -0.5f);
+    public static readonly Pivot RightTop = new(0.5f, 0.5f);
     public static readonly Pivot RightBottom = new(0.5f, -0.5f);
 
     public float X

@@ -40,6 +40,11 @@ public class UINode
     /// <value></value>
     public bool IsEnable { get; set; } = true;
 
+    /// <summary>
+    /// Whether the node is affected by the layout.
+    /// </summary>
+    public bool IsLayoutAffected { get; set; } = true;
+
     #region  Transform Properties
 
     /// <summary>
