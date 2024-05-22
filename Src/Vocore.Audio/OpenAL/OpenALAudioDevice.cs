@@ -38,8 +38,16 @@ public unsafe class OpenALAudioDevice : AudioDevice
 
     }
 
+    protected override AudioBuffer CreateBufferCore()
+    {
+        uint handle = Al.GenBuffer();
+        return new OpenALAudioBuffer(handle);
+    }
+
     protected override void Dispose(bool disposing)
     {
-        throw new NotImplementedException();
+
     }
+
+
 }
