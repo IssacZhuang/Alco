@@ -1,6 +1,5 @@
 using System;
-using System.Threading;
-using Silk.NET.OpenAL;
+
 
 namespace Vocore;
 
@@ -9,9 +8,6 @@ namespace Vocore;
 /// </summary> 
 public abstract class BaseAudioObject : IDisposable
 {
-    protected static readonly AL Al = AL.GetApi();
-    protected static readonly ALContext Alc = ALContext.GetApi();
-
     private volatile uint _disposed;
 
     public bool IsDisposed => _disposed != 0;

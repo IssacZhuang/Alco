@@ -2,14 +2,16 @@ using System.Runtime.InteropServices;
 using Silk.NET.OpenAL;
 using Silk.NET.OpenAL.Extensions.Enumeration;
 
-namespace Vocore.Audio;
+namespace Vocore.Audio.OpenAL;
 
 
 
-public unsafe class AudioDevice : BaseAudioObject
+public unsafe class OpenALAudioDevice : AudioDevice
 {
     private static readonly Enumeration Enumeration;
-    static AudioDevice()
+    protected static readonly AL Al = AL.GetApi();
+    protected static readonly ALContext Alc = ALContext.GetApi();
+    static OpenALAudioDevice()
     {
         if (Alc.TryGetExtension<Enumeration>(null, out var ext))
         {
@@ -31,7 +33,7 @@ public unsafe class AudioDevice : BaseAudioObject
         return Enumeration.GetString(null, GetEnumerationContextString.DefaultDeviceSpecifier);
     }
 
-    public AudioDevice()
+    public OpenALAudioDevice()
     {
 
     }
