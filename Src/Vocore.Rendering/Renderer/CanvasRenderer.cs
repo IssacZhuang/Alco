@@ -2,6 +2,10 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+/// <summary>
+/// The renderer for UI rendering.
+/// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
+/// </summary>
 public partial class CanvasRenderer : AutoDisposable
 {
     private enum RenderingState
@@ -151,5 +155,8 @@ public partial class CanvasRenderer : AutoDisposable
         _textBufferGPU.Dispose();
         _command.Dispose();
 
+        _currentPass = null;
+        _pipelineSprite = null;
+        _pipelineText = null;
     }
 }

@@ -7,7 +7,8 @@ using Vocore.Graphics;
 namespace Vocore.Rendering;
 
 /// <summary>
-/// The high performance text renderer. Can only be used in the main thread.
+/// The high performance text renderer.
+/// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
 public class TextRenderer : RendererWithCamera
 {
@@ -37,6 +38,9 @@ public class TextRenderer : RendererWithCamera
     private readonly uint _shaderId_camera;
     private readonly uint _shaderId_textBuffer;
     private readonly uint _shaderId_font;
+
+    private GPURenderPass? _renderPass;
+    private GPUPipeline? _pipeline;
 
     private int _instanceIndex;
     private bool _isDrawing;
@@ -79,6 +83,12 @@ public class TextRenderer : RendererWithCamera
             throw new ArgumentNullException(nameof(target));
         }
 
+        if (target.RenderPass != _renderPass)
+        {
+            _renderPass = target.RenderPass;
+            _pipeline = _shader.GetPipelineVariant(_renderPass);
+        }
+
         _renderTarget = target;
         _isDrawing = true;
         BeginDraw();
@@ -106,7 +116,7 @@ public class TextRenderer : RendererWithCamera
     {
         _command.Begin();
         _command.SetFrameBuffer(_renderTarget!);
-        _command.SetGraphicsPipeline(_shader.DefaultPipeline);
+        _command.SetGraphicsPipeline(_pipeline!);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
@@ -327,5 +337,8 @@ public class TextRenderer : RendererWithCamera
         _textBufferGPU.Dispose();
         _command.Dispose();
         _textBufferCPU.Dispose();
+
+        _renderPass = null;
+        _pipeline = null;
     }
 }

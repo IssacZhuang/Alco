@@ -5,6 +5,10 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+/// <summary>
+/// The renderer to draw sprites in 2D or 3D space.
+/// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
+/// </summary>
 public class SpriteRenderer : RendererWithCamera
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -22,6 +26,9 @@ public class SpriteRenderer : RendererWithCamera
     private readonly Shader _shader;
     private readonly Mesh _mesh;
 
+    private GPURenderPass? _renderPass;
+    private GPUPipeline? _pipeline;
+
     private readonly uint _shaderId_camera;
     private readonly uint _shaderId_texture;
 
@@ -38,9 +45,15 @@ public class SpriteRenderer : RendererWithCamera
 
     public void Begin(GPUFrameBuffer target)
     {
+        if (_renderPass != target.RenderPass)
+        {
+            _renderPass = target.RenderPass;
+            _pipeline = _shader.GetPipelineVariant(_renderPass);
+        }
+
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_shader.DefaultPipeline);
+        _command.SetGraphicsPipeline(_pipeline!);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
@@ -148,5 +161,7 @@ public class SpriteRenderer : RendererWithCamera
     protected override void Dispose(bool disposing)
     {
         _command.Dispose();
+        _renderPass = null;
+        _pipeline = null;
     }
 }

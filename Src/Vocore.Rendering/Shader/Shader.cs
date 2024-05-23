@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
@@ -11,7 +12,7 @@ public class Shader : AutoDisposable
 {
 
     private readonly RenderingSystem _renderingSystem;
-    private readonly Dictionary<GPURenderPass, GPUPipeline> _pipelines = new Dictionary<GPURenderPass, GPUPipeline>();
+    private readonly ConcurrentDictionary<GPURenderPass, GPUPipeline> _pipelines = new ConcurrentDictionary<GPURenderPass, GPUPipeline>();
     private ShaderCompileResult _meta;
     private GPUPipeline _defaultPipeline;
     private ShaderReflectionInfo _reflectionInfo;
@@ -82,6 +83,7 @@ public class Shader : AutoDisposable
 
     /// <summary>
     /// Tries to get the resource ID associated with the given name.
+    /// <br/> <c>thread safe.</c>
     /// </summary>
     /// <param name="name">The name of the resource.</param>
     /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
@@ -93,6 +95,7 @@ public class Shader : AutoDisposable
 
     /// <summary>
     /// Gets the resource ID associated with the given name.
+    /// <br/> <c>thread safe.</c>
     /// </summary>
     /// <param name="name">The name of the resource.</param>
     /// <throws>KeyNotFoundException if the resource is not found.</throws>
@@ -108,7 +111,7 @@ public class Shader : AutoDisposable
 
     /// <summary>
     /// Get the GPU pipeline for the given render pass.
-    /// <br/> <c>Not thread safe.</c>
+    /// <br/> <c>thread safe.</c>
     /// </summary>
     /// <param name="renderPass">The render pass.</param>
     /// <returns>The GPU pipeline.</returns>
