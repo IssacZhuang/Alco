@@ -43,13 +43,24 @@ public class UIButton : UISelectable
 
     private ColorFloat _colorTweenStart = new ColorFloat(1, 1, 1, 1);
     private ColorFloat _colorTweenEnd = new ColorFloat(1, 1, 1, 1);
+    private ColorFloat _colorNormal = new ColorFloat(1, 1, 1, 1);
 
 
     /// <summary>
     /// The color of the button in normal state
     /// </summary>
     /// <returns></returns>
-    public ColorFloat ColorNormal { get; set; } = new ColorFloat(1, 1, 1, 1);
+    public ColorFloat ColorNormal
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorNormal;
+        set
+        {
+            _colorNormal = value;
+            _colorTweenStart = value;
+            _colorTweenEnd = value;
+        }
+    }
     /// <summary>
     /// The color of the button in hover state
     /// </summary>
@@ -156,10 +167,10 @@ public class UIButton : UISelectable
 
     public UIButton()
     {
-        
+
     }
 
-    
+
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
@@ -266,7 +277,7 @@ public class UIButton : UISelectable
             RefreshNodeSwap();
         }
 
-        
+
     }
 
     private void StartColorTween(ColorFloat start, ColorFloat end)

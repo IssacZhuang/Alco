@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Numerics;
 
 namespace Vocore.GUI;
@@ -92,9 +93,38 @@ public class UILayoutVertical : UINode
 
     public void UpdateLayout()
     {
-        float currentY = Size.Y * (Pivot.Y + 0.5f) - _paddingTop;
-        //TODO: pre calc size
-        float startY = currentY;
+        if (_fitContentHeight)
+        {
+            float height = _paddingTop + _paddingBottom;
+            bool hasElement = false;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                UINode child = Children[i];
+                if (child.IsLayoutAffected)
+                {
+                    hasElement = true;
+                    if (_isFixedHeight)
+                    {
+                        height += _fixedHeight + _spacing;
+                    }
+                    else
+                    {
+                        height += child.Size.Y + _spacing;
+                    }
+                }
+            }
+
+            if (hasElement)
+            {
+                height -= _spacing;//last one has no spacing
+            }
+
+            Size = new Vector2(Size.X, height);
+        }
+
+
+        float currentY = Size.Y * 0.5f;
+        currentY -= _paddingTop;
         for (int i = 0; i < Children.Count; i++)
         {
             UINode child = Children[i];
@@ -115,15 +145,6 @@ public class UILayoutVertical : UINode
                 child.Position = new Vector2(child.Position.X, currentY);
                 currentY -= child.Size.Y + _spacing;
             }
-        }
-
-        currentY += _spacing;//last one has no spacing
-        currentY -= _paddingBottom;
-        
-        if (_fitContentHeight)
-        {
-            
-            Size = new Vector2(Size.X, math.abs(startY - currentY));
         }
     }
 }

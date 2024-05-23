@@ -488,6 +488,15 @@ public class UINode
         return true;
     }
 
+    public void RemoveAllChildren()
+    {
+        for (int i = 0; i < _children.Count; i++)
+        {
+            _children[i].Parent = null;
+        }
+        _children.Clear();
+    }
+
     //generic
 
     /// <summary>
@@ -697,7 +706,7 @@ public class UINode
         }
         
         OnUpdate(canvas, delta);
-
+        TryRefreshTransform();
         for (int i = 0; i < _children.Count; i++)
         {
             _children[i].Update(canvas, delta);

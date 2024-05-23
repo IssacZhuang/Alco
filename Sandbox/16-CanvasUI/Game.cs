@@ -5,6 +5,7 @@ using Vocore;
 using Vocore.GUI;
 using System.Diagnostics;
 using Vocore.Graphics;
+using Silk.NET.Input;
 
 public class Game : GameEngine
 {
@@ -14,9 +15,12 @@ public class Game : GameEngine
     private readonly Shader _shaderText;
     private readonly Font _font;
 
+    private CanvasUIFactory _factory;
+
     private UINode _root;
     private UIText _label;
     private UISlider _slider;
+    private UILayoutVertical _layout;
 
 
     private float _alignHorizontal = TextAlign.Left;
@@ -24,7 +28,8 @@ public class Game : GameEngine
     private float _lineSpacing = 1f;
     private float _fontSize = 16;
     private float _progress = 0f;
-    private float _pivotX = 0f;
+    private float _pivotY = 0f;
+    private int _itemCount = 0;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -55,7 +60,7 @@ public class Game : GameEngine
             CheckBoxPressedColor = 0x373737,
         };
 
-        CanvasUIFactory factory = new CanvasUIFactory(style);
+        _factory = new CanvasUIFactory(style);
 
         UIInputTracker inputTracker = new UIInputTracker(Input, Window);
         _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText);
@@ -95,12 +100,12 @@ public class Game : GameEngine
         UILayoutVertical layout = new UILayoutVertical()
         {
             Size = new Vector2(160, 100),
-            PaddingTop = 4,
-            PaddingBottom = 4,
+            PaddingTop = 8,
+            PaddingBottom = 8,
             Spacing = 4,
             FitContentHeight = true,
-            AlwaysUpdate = true,
         };
+        _layout = layout;
 
         UISprite bgLayout = new UISprite()
         {
@@ -112,21 +117,14 @@ public class Game : GameEngine
 
         layout.Add(bgLayout);
 
-        UIButton button = factory.CreateButton("Test");
-        button.Position = new Vector2(0);
-        layout.Add(button);
-
-        UISlider slider = factory.CreateSlider();
-        slider.Position = new Vector2(0);
-        _slider = slider;
-        layout.Add(slider);
-
-        layout.Position = new Vector2(200, 0);
+        layout.Position = new Vector2(200, 100);
 
         _root.Add(layout);
 
-        layout.UpdateLayout();
-        layout.UpdateLayout();
+        UISlider slider = _factory.CreateSlider();
+        slider.Position = new Vector2(200, -100);
+        _slider = slider;
+        _root.Add(slider);
     }
 
     protected override void OnUpdate(float delta)
@@ -162,14 +160,26 @@ public class Game : GameEngine
             _label.FontSize = _fontSize;
         }
 
-        if(DebugGUI.SliderWithText("Pivot X", ref _pivotX, -0.5f, 0.5f))
-        {
-            _label.Pivot = new Vector2(_pivotX, 0);
-        }
-
         if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))
         {
             _slider.Value = _progress;
+        }
+
+        if (DebugGUI.SliderWithText("Pivot Y", ref _pivotY, -0.5f, 0.5f))
+        {
+            _layout.Pivot = new Vector2(0f, _pivotY);
+        }
+
+        if (DebugGUI.SliderWithText("Item Count", ref _itemCount, 0, 10))
+        {
+            _layout.RemoveAllChildren();
+            for (int i = 0; i < _itemCount; i++)
+            {
+                UIButton button = _factory.CreateButton("Button " + i);
+                _layout.Add(button, false);
+            }
+
+            _layout.UpdateLayout();
         }
     }
 
