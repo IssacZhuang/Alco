@@ -12,7 +12,7 @@ public class Canvas : AutoDisposable
         public UINode? hit;
         public void OnHit(object hitObject, int userData)
         {
-            if (hitObject is UINode node)
+            if (hit == null && hitObject is UINode node)
             {
                 hit = node;
             }

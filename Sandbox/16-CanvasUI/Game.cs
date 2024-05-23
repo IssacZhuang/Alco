@@ -125,6 +125,23 @@ public class Game : GameEngine
         slider.Position = new Vector2(200, -100);
         _slider = slider;
         _root.Add(slider);
+
+        //duplicate button test
+        UIButton button = _factory.CreateButton("Button 1");
+        button.Size = new Vector2(60, 60);
+        button.Position = new Vector2(-200, -100);
+
+        UIButton button2 = _factory.CreateButton("Button 2");
+        button2.Size = new Vector2(80, 80);
+        button2.Position = new Vector2(-200, -100);
+
+        UIButton button3 = _factory.CreateButton("Button 3");
+        button3.Size = new Vector2(100, 100);
+        button3.Position = new Vector2(-200, -100);
+
+        _root.Add(button3);
+        button3.Add(button2);
+        button2.Add(button);
     }
 
     protected override void OnUpdate(float delta)

@@ -64,7 +64,8 @@ public class CanvasUIFactory
         UISprite bg = new UISprite()
         {
             Color = _style.ButtonColor,
-            Size = _style.ButtonSize
+            Size = _style.ButtonSize,
+            Anchor = Anchor.Stretch
         };
 
         UIText text = new UIText()
@@ -72,7 +73,8 @@ public class CanvasUIFactory
             Font = _style.Font,
             FontSize = _style.FontSize,
             Color = _style.ButtonTextColor,
-            Text = str
+            Text = str,
+            Anchor = Anchor.Stretch
         };
 
         bg.Add(text);
@@ -94,13 +96,15 @@ public class CanvasUIFactory
     public UISlider CreateSlider()
     {
         UINode handleParent = new UINode(){
-            Size = new Vector2(_style.SliderSize.X - _style.SliderHandleSize.X, _style.SliderSize.Y)
+            Size = new Vector2(_style.SliderSize.X - _style.SliderHandleSize.X, _style.SliderSize.Y),
+            Anchor = Anchor.Stretch
         };
 
         UISprite bgHandle = new UISprite
         {
             Color = _style.SliderHandleColor,
-            Size = _style.SliderHandleSize
+            Size = _style.SliderHandleSize,
+            Anchor = Anchor.Stretch
         };
 
         UIButton handle = new UIButton
@@ -111,6 +115,7 @@ public class CanvasUIFactory
             ColorHover = _style.SliderHandleHoverColor,
             ColorPressing = _style.SliderHandleDragColor,
             TransitionMode = TransitionMode.ColorTint,
+            Anchor = Anchor.CenterVerticalStretch
         };
 
         handle.Add(bgHandle);
@@ -119,7 +124,8 @@ public class CanvasUIFactory
         UISprite bgSlider = new UISprite
         {
             Color = _style.SliderColor,
-            Size = _style.SliderSize
+            Size = _style.SliderSize,
+            Anchor = Anchor.Stretch
         };
 
         UIText text = new UIText
