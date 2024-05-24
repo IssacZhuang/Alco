@@ -17,5 +17,6 @@ namespace Vocore.GUI
         public bool IsMouseUp { get; }
         public bool IsMouseDown { get; }
         public bool IsMousePressing { get; }
+        public bool IsMouseScrolling(out Vector2 delta);
     }
 }

@@ -9,16 +9,16 @@ public class Canvas : AutoDisposable
 {
     private class MousePointCaster : ICollisionCaster
     {
-        public UINode? hitSelectable;
-        public UINode? hitScrollable;
+        public ISelectable? hitSelectable;
+        public IScrollable? hitScrollable;
         public void OnHit(object hitObject, int userData)
         {
-            if (hitSelectable == null && hitObject is UINode node)
+            if (hitSelectable == null && hitObject is ISelectable node)
             {
                 hitSelectable = node;
             }
 
-            if (hitScrollable == null && hitObject is UIScrollable scrollable)
+            if (hitScrollable == null && hitObject is IScrollable scrollable)
             {
                 hitScrollable = scrollable;
             }
@@ -146,29 +146,34 @@ public class Canvas : AutoDisposable
         _collisionWorld.BuildTree();
         _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
 
-        ISelectable? node = _mousePointCaster.hitSelectable as ISelectable;
-        _hovered = node;
+        ISelectable? selectable = _mousePointCaster.hitSelectable;
+        _hovered = selectable;
 
         _holded?.OnDrag(worldPosition);
 
         if (_inputTracker.IsMouseDown)
         {
-            OnMouseDown(node);
+            OnMouseDown(selectable);
         }
         else if (_inputTracker.IsMouseUp)
         {
-            OnMouseUp(node);
+            OnMouseUp(selectable);
         }
         else if (_inputTracker.IsMousePressing)
         {
-            node?.OnPressing();
+            selectable?.OnPressing();
         }
         else
         {
-            node?.OnHover();
+            selectable?.OnHover();
         }
 
-        
+        IScrollable? scrollable = _mousePointCaster.hitScrollable;
+
+        if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))
+        {
+            scrollable?.OnScroll(scrollDelta);
+        }
     }
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)

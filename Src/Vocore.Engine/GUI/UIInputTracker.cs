@@ -43,4 +43,9 @@ public class UIInputTracker : IUIInputTracker
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _system.IsMousePressing(Mouse.Left);
     }
+
+    public bool IsMouseScrolling(out Vector2 delta)
+    {
+        return _system.IsMouseScrolling(out delta);
+    }
 }

@@ -7,6 +7,7 @@ public class UIScrollable : UISelectable, IScrollable
 {
     private UINode? _content;
     public SrollMode ScrollMode { get; set; }
+    public bool IgnoreOcclusion { get; set; }
     public UINode? Content
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -28,6 +29,8 @@ public class UIScrollable : UISelectable, IScrollable
             _content = value;
         }
     }
+
+    
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
