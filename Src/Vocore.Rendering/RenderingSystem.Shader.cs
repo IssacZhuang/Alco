@@ -31,6 +31,7 @@ public partial class RenderingSystem
             RasterizerState rasterizer = result.PreproccessResult.RasterizerState!.Value;
             BlendState blend = result.PreproccessResult.BlendState!.Value;
             DepthStencilState depthStencil = result.PreproccessResult.DepthStencilState!.Value;
+            PrimitiveTopology primitiveTopology = result.PreproccessResult.PrimitiveTopology!.Value;
 
             string filename = result.PreproccessResult.Filename;
 
@@ -44,6 +45,7 @@ public partial class RenderingSystem
                 rasterizer,
                 blend,
                 depthStencil,
+                primitiveTopology,
                 colors,
                 depthStencilFormat,
                 info.PushConstantsRanges,

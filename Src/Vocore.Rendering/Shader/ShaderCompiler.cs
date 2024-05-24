@@ -24,7 +24,7 @@ public static class ShaderCompiler
     public const string PragmaKeyEntryVertex = "EntryVertex";
     public const string PragmaKeyEntryFragment = "EntryFragment";
     public const string PragmaKeyEntryCompute = "EntryCompute";
-    public const string PragmaKeyRenderPass = "RenderPass";
+    public const string PragmaKeyPrimitiveTopology = "PrimitiveTopology";
     public const int MaxRecursionDepth = 32;
 
     public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
@@ -144,6 +144,11 @@ public static class ShaderCompiler
                         result.DepthStencilState = depthStencilState;
                     }
 
+                    if (TryGetPrimitiveTopology(pragma, out PrimitiveTopology? primitiveTopology))
+                    {
+                        result.PrimitiveTopology = primitiveTopology;
+                    }
+
                     if (TryGetVertexEntryPoint(pragma, out string? entryPoint))
                     {
                         result.EntryVertex = entryPoint;
@@ -224,6 +229,11 @@ public static class ShaderCompiler
                     {
                         result.RasterizerState = includedResult.RasterizerState;
                     }
+
+                    if (includedResult.PrimitiveTopology.HasValue)
+                    {
+                        result.PrimitiveTopology = includedResult.PrimitiveTopology;
+                    }
                 }
                 else
                 {
@@ -232,19 +242,24 @@ public static class ShaderCompiler
             }
 
             //default
-            if (result.EntryVertex != null && !result.RasterizerState.HasValue)
+            if (!result.RasterizerState.HasValue)
             {
                 result.RasterizerState = RasterizerState.CullNone;
             }
 
-            if (result.EntryFragment != null && !result.DepthStencilState.HasValue)
+            if (!result.DepthStencilState.HasValue)
             {
                 result.DepthStencilState = DepthStencilState.Default;
             }
 
-            if (result.EntryFragment != null && !result.BlendState.HasValue)
+            if (!result.BlendState.HasValue)
             {
                 result.BlendState = BlendState.Opaque;
+            }
+
+            if (!result.PrimitiveTopology.HasValue)
+            {
+                result.PrimitiveTopology = PrimitiveTopology.TriangleList;
             }
 
             result.ShaderText = builder.ToString();
@@ -499,6 +514,23 @@ public static class ShaderCompiler
         }
 
         entryPoint = pragma.Values[0];
+        return true;
+    }
+
+    public static bool TryGetPrimitiveTopology(ShaderPragma pragma, [NotNullWhen(true)] out PrimitiveTopology? topology)
+    {
+        if (pragma.Name != PragmaKeyPrimitiveTopology)
+        {
+            topology = null;
+            return false;
+        }
+
+        if (pragma.Values.Length != 1)
+        {
+            throw new InvalidOperationException($"Invalid primitive topology pragma value count: {pragma.Values.Length}, required 1.");
+        }
+
+        topology = (PrimitiveTopology)Enum.Parse(typeof(PrimitiveTopology), pragma.Values[0]);
         return true;
     }
 

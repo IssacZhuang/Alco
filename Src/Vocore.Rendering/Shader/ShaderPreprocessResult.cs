@@ -19,6 +19,7 @@ public struct ShaderPreproccessResult
     public RasterizerState? RasterizerState { get; set; }
     public BlendState? BlendState { get; set; }
     public DepthStencilState? DepthStencilState { get; set; }
+    public PrimitiveTopology? PrimitiveTopology { get; set; }
     // compute
     public string EntryCompute { get; set; }
 }

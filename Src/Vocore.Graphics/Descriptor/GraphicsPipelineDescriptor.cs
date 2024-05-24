@@ -27,6 +27,33 @@ public struct GraphicsPipelineDescriptor
         Name = name;
     }
 
+    public GraphicsPipelineDescriptor(
+        GPUBindGroup[] bindGroups,
+        ShaderStageSource[] shaderStages,
+        VertexInputLayout[] vertexInputLayouts,
+        RasterizerState rasterizerState,
+        BlendState blendState,
+        DepthStencilState depthStencilState,
+        PrimitiveTopology primitiveTopology,
+        PixelFormat[] colorFormats,
+        PixelFormat? depthStencilFormat,
+        PushConstantsRange[]? pushConstantsRanges = null,
+        string name = "unnamed_graphics_pipeline"
+        )
+    {
+        BindGroups = bindGroups;
+        ShaderStages = shaderStages;
+        RasterizerState = rasterizerState;
+        BlendState = blendState;
+        DepthStencilState = depthStencilState;
+        VertexInputLayouts = vertexInputLayouts;
+        PrimitiveTopology = primitiveTopology;
+        ColorFormats = colorFormats;
+        DepthStencilFormat = depthStencilFormat;
+        PushConstantsRanges = pushConstantsRanges;
+        Name = name;
+    }
+
     public GPUBindGroup[] BindGroups { get; init; }
     public ShaderStageSource[] ShaderStages { get; init; }
     public VertexInputLayout[] VertexInputLayouts { get; init; }

@@ -57,6 +57,7 @@ public static class UtilsShaderSerialization
             {"RasterizerState", BinaryValue.CreateValueNullable(result.RasterizerState)},
             {"BlendState", BinaryValue.CreateValueNullable(result.BlendState)},
             {"DepthStencilState", BinaryValue.CreateValueNullable(result.DepthStencilState)},
+            {"PrimitiveTopology", BinaryValue.CreateValueNullable(result.PrimitiveTopology)},
             {"EntryVertex", result.EntryVertex},
             {"EntryFragment", result.EntryFragment},
             {"EntryCompute", result.EntryCompute},
@@ -79,6 +80,7 @@ public static class UtilsShaderSerialization
             table.TryGetNullableValue("RasterizerState", out RasterizerState? rasterizerState) &&
             table.TryGetNullableValue("BlendState", out BlendState? blendState) &&
             table.TryGetNullableValue("DepthStencilState", out DepthStencilState? depthStencilState) &&
+            table.TryGetNullableValue("PrimitiveTopology", out PrimitiveTopology? primitiveTopology) &&
             table.TryGetArray("Pragmas", out BinaryArray? binaryPragmas))
         {
             ShaderPragma[] pragmas = new ShaderPragma[binaryPragmas.Count];
@@ -99,6 +101,7 @@ public static class UtilsShaderSerialization
                 EntryFragment = entryFragment,
                 EntryCompute = entryCompute,
                 RasterizerState = rasterizerState,
+                PrimitiveTopology = primitiveTopology,
                 BlendState = blendState,
                 DepthStencilState = depthStencilState,
                 Pragmas = pragmas,
