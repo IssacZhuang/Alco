@@ -17,15 +17,19 @@ namespace Vocore
         private bool _isDisposed;
         private bool _autoCompress;
         public bool AutoCompress { get => _autoCompress; set => _autoCompress = value; }
-        public int Length => _length;
+        public readonly int Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _length;
+        }
 
-        public unsafe T* UnsafePointer
+        public readonly unsafe T* UnsafePointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (T*)_ptrBuffer;
         }
 
-        public MemoryRef<T> MemoryRef
+        public readonly MemoryRef<T> MemoryRef
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new MemoryRef<T>((T*)_ptrBuffer, _length);
