@@ -10,7 +10,7 @@ namespace Vocore.Rendering;
 /// The high performance text renderer.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
-public class TextRenderer : RendererWithCamera
+public class TextRenderer : AutoDisposable
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -46,7 +46,9 @@ public class TextRenderer : RendererWithCamera
     private bool _isDrawing;
     private GPUFrameBuffer? _renderTarget;
 
-    internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, ICamera camera, Shader shader):base(camera)
+    public ICamera Camera { get; set; }
+
+    internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, ICamera camera, Shader shader)
     {
         _device = renderingSystem.GraphicsDevice;
         _textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
@@ -61,6 +63,8 @@ public class TextRenderer : RendererWithCamera
         _shaderId_camera = _shader.GetResourceId("_camera");
         _shaderId_textBuffer = _shader.GetResourceId("_textBuffer");
         _shaderId_font = _shader.GetResourceId("_font");
+
+        Camera = camera;
     }
 
     /// <summary>
@@ -71,7 +75,6 @@ public class TextRenderer : RendererWithCamera
     /// <exception cref="ArgumentNullException">The render target is null</exception>
     public void Begin(GPUFrameBuffer target)
     {
-        CheckThread();
 
         if (_isDrawing)
         {
@@ -100,7 +103,6 @@ public class TextRenderer : RendererWithCamera
     /// </summary>
     public void End()
     {
-        CheckThread();
 
         if (!_isDrawing)
         {

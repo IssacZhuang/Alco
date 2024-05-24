@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Vocore.Rendering;
 
-public class LineMeshBuider : IDisposable
+public class WireframeRenderer : AutoDisposable
 {
     private NativeArrayList<Vector3> _vertices;
     private NativeArrayList<short> _indices;
@@ -17,7 +17,7 @@ public class LineMeshBuider : IDisposable
         get => _indices.MemoryRef.Span;
     }
 
-    public LineMeshBuider()
+    public WireframeRenderer()
     {
         _vertices = new NativeArrayList<Vector3>();
         _indices = new NativeArrayList<short>();
@@ -39,7 +39,7 @@ public class LineMeshBuider : IDisposable
         _indices.Clear();
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
         _vertices.Dispose();
         _indices.Dispose();

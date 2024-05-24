@@ -9,7 +9,7 @@ namespace Vocore.Rendering;
 /// The renderer to draw sprites in 2D or 3D space.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary>
-public class SpriteRenderer : RendererWithCamera
+public class SpriteRenderer : AutoDisposable
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -32,7 +32,9 @@ public class SpriteRenderer : RendererWithCamera
     private readonly uint _shaderId_camera;
     private readonly uint _shaderId_texture;
 
-    internal SpriteRenderer(GPUDevice device, Mesh mesh, ICamera camera, Shader shader) : base(camera)
+    public ICamera Camera { get; set; }
+
+    internal SpriteRenderer(GPUDevice device, Mesh mesh, ICamera camera, Shader shader)
     {
         _device = device;
         _command = _device.CreateCommandBuffer();
@@ -41,6 +43,8 @@ public class SpriteRenderer : RendererWithCamera
 
         _shaderId_camera = _shader.GetResourceId("_camera");
         _shaderId_texture = _shader.GetResourceId("_texture");
+
+        Camera = camera;
     }
 
     public void Begin(GPUFrameBuffer target)

@@ -2,7 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class MaterialRenderer : Renderer
+public class MaterialRenderer : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
