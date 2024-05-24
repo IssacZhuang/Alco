@@ -9,13 +9,25 @@ public class Canvas : AutoDisposable
 {
     private class MousePointCaster : ICollisionCaster
     {
-        public UINode? hit;
+        public UINode? hitSelectable;
+        public UINode? hitScrollable;
         public void OnHit(object hitObject, int userData)
         {
-            if (hit == null && hitObject is UINode node)
+            if (hitSelectable == null && hitObject is UINode node)
             {
-                hit = node;
+                hitSelectable = node;
             }
+
+            if (hitScrollable == null && hitObject is UIScrollable scrollable)
+            {
+                hitScrollable = scrollable;
+            }
+        }
+
+        public void Clear()
+        {
+            hitSelectable = null;
+            hitScrollable = null;
         }
     }
 
@@ -126,19 +138,18 @@ public class Canvas : AutoDisposable
 
         _hovered = null;
         //the mosue position is in screen space, the origin is at the top left corner
-        _mousePointCaster.hit = null;
+        
         Vector2 mousePosition = _inputTracker.MousePosition;
         Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        
+        _mousePointCaster.Clear();
         _collisionWorld.BuildTree();
         _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
 
-        ISelectable? node = _mousePointCaster.hit as ISelectable;
+        ISelectable? node = _mousePointCaster.hitSelectable as ISelectable;
         _hovered = node;
 
-        if(_holded != null)
-        {
-            _holded.OnDrag(worldPosition);
-        }
+        _holded?.OnDrag(worldPosition);
 
         if (_inputTracker.IsMouseDown)
         {
@@ -156,6 +167,8 @@ public class Canvas : AutoDisposable
         {
             node?.OnHover();
         }
+
+        
     }
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)

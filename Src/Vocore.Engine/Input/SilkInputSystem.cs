@@ -29,7 +29,11 @@ public unsafe class SilkInputSystem : InputSystem
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
 
+    private bool _isScrolling;
+    private Vector2 _scrollDelta;
+
     private IMouse? _defaultMouse;
+    
     private IKeyboard? _defaultKeyboard;
 
     /// <inheritdoc />
@@ -91,6 +95,9 @@ public unsafe class SilkInputSystem : InputSystem
             _state.isMouseDown[i] = false;
             _state.isMouseUp[i] = false;
         }
+
+        _isScrolling = false;
+        _scrollDelta = Vector2.Zero;
     }
 
     internal override void Update()
@@ -194,6 +201,14 @@ public unsafe class SilkInputSystem : InputSystem
     }
 
     /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+    public override bool IsMouseScrolling(out Vector2 delta)
+    {
+        delta = _scrollDelta;
+        return _isScrolling;
+    }
+
+    /// <inheritdoc />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ResetMouseToCenter()
     {
@@ -234,6 +249,12 @@ public unsafe class SilkInputSystem : InputSystem
         _state.isMousePressing[offset] = false;
     }
 
+    private void OnMouseScroll(IMouse mouse, ScrollWheel scroll)
+    {
+        _scrollDelta = new Vector2(scroll.X, scroll.Y);
+        _isScrolling = true;
+    }
+
     private void OnKeyDown(IKeyboard keyboard, Key key, int _)
     {
         int offset = (int)key;
@@ -264,11 +285,13 @@ public unsafe class SilkInputSystem : InputSystem
     {
         _defaultMouse = _input.Mice.FirstOrDefault();
         _defaultKeyboard = _input.Keyboards.FirstOrDefault();
+        
 
         if (_defaultMouse != null)
         {
             _defaultMouse.MouseDown += OnMouseDown;
             _defaultMouse.MouseUp += OnMouseUp;
+            _defaultMouse.Scroll += OnMouseScroll;
         }
         else
         {

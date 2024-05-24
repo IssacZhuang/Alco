@@ -47,6 +47,13 @@ public class NoInputSystem : InputSystem
     }
 
     /// <inheritdoc />
+    public override bool IsMouseScrolling(out Vector2 delta)
+    {
+        delta = Vector2.Zero;
+        return false;
+    }
+
+    /// <inheritdoc />
     public override bool IsMouseUp(Mouse button)
     {
         return true;

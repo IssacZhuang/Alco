@@ -64,6 +64,14 @@ public abstract class InputSystem
     /// <returns><c>true</c> if the mouse button is currently being pressed; otherwise, <c>false</c>.</returns>
     public abstract bool IsMousePressing(Mouse button);
 
+
+    /// <summary>
+    /// Determines whether the mouse is currently scrolling.
+    /// </summary>
+    /// <param name="delta">The delta scroll value.</param>
+    /// <returns><c>true</c> if the mouse is currently scrolling; otherwise, <c>false</c>.</returns>
+    public abstract bool IsMouseScrolling(out Vector2 delta);
+
     /// <summary>
     /// Updates the input state.
     /// </summary>
