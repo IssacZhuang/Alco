@@ -19,6 +19,12 @@ public class GraphicsBuffer : ShaderResource
     /// <value>The name of the buffer.</value>
     public string Name { get; }
 
+    public uint Size
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _buffer.Size;
+    }
+
     /// <summary>
     /// The entry for binding the buffer as uniform buffer.
     /// </summary>
