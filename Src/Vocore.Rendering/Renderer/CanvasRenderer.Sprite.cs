@@ -29,7 +29,7 @@ public partial class CanvasRenderer
     public void SetSpritePipeline()
     {
         _command.SetGraphicsPipeline(_pipelineSprite!);
-        _command.SetGraphicsResources(_spriteShaderId_camera, Camera.EntryViewProjection);
+        _command.SetGraphicsResources(_spriteShaderId_camera, Camera.EntryReadonly);
         _command.SetVertexBuffer(0, _meshSprite.VertexBuffer);
         _command.SetIndexBuffer(_meshSprite.IndexBuffer, _meshSprite.IndexFormat);
     }

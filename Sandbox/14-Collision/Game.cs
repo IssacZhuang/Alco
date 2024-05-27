@@ -37,7 +37,7 @@ public class Game : GameEngine
         _renderer = Rendering.CreateMaterialRenderer();
         _material = new UniversalMaterial(_shader);
 
-        _material["_camera"] = _camera.Buffer;
+        _material["_camera"] = _camera;
         _material["_texture"] = Rendering.TextureWhite;
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);

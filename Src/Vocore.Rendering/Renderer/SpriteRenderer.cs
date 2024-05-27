@@ -32,9 +32,9 @@ public class SpriteRenderer : AutoDisposable
     private readonly uint _shaderId_camera;
     private readonly uint _shaderId_texture;
 
-    public ICamera Camera { get; set; }
+    public GraphicsBuffer Camera { get; set; }
 
-    internal SpriteRenderer(GPUDevice device, Mesh mesh, ICamera camera, Shader shader)
+    internal SpriteRenderer(GPUDevice device, Mesh mesh, GraphicsBuffer camera, Shader shader)
     {
         _device = device;
         _command = _device.CreateCommandBuffer();
@@ -58,7 +58,7 @@ public class SpriteRenderer : AutoDisposable
         _command.Begin();
         _command.SetFrameBuffer(target);
         _command.SetGraphicsPipeline(_pipeline!);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
     }

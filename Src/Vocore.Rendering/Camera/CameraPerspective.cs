@@ -2,7 +2,7 @@ namespace Vocore.Rendering
 {
     public class CameraPerspective : BaseCamera<CameraDataPerspective>
     {
-        internal CameraPerspective(RenderingSystem renderingSystem) : base(renderingSystem)
+        internal CameraPerspective(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
         {
         }
 

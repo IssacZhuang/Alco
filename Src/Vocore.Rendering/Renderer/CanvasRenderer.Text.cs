@@ -38,7 +38,7 @@ public partial class CanvasRenderer
         _command.SetGraphicsPipeline(_pipelineText!);
         _command.SetVertexBuffer(0, _meshText.VertexBuffer);
         _command.SetIndexBuffer(_meshText.IndexBuffer, _meshText.IndexFormat);
-        _command.SetGraphicsResources(_textShaderId_camera, Camera.EntryViewProjection);
+        _command.SetGraphicsResources(_textShaderId_camera, Camera.EntryReadonly);
         _command.SetGraphicsResources(_textShaderId_textBuffer, _textBufferGPU.EntryReadonly);
     }
 

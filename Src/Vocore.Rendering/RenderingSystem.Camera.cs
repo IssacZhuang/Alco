@@ -12,7 +12,7 @@ public partial class RenderingSystem
     /// <returns>A new 2D camera.</returns>
     public Camera2D CreateCamera2D(Vector2 size, float depth)
     {
-        return new Camera2D(this)
+        return new Camera2D(this, "camera_2d")
         {
             Size = size,
             Depth = depth
@@ -42,7 +42,7 @@ public partial class RenderingSystem
     /// <returns>A new perspective camera.</returns>
     public CameraPerspective CreateCameraPerspective(float fov, float aspectRatio, float near, float far)
     {
-        return new CameraPerspective(this)
+        return new CameraPerspective(this, "camera_perspective")
         {
             FieldOfView = fov,
             AspectRatio = aspectRatio,
@@ -62,7 +62,7 @@ public partial class RenderingSystem
     /// <returns>A new orthographic camera.</returns>
     public CameraOrthographic CreateCameraOrthographic(float width, float height, float near, float far)
     {
-        return new CameraOrthographic(this)
+        return new CameraOrthographic(this, "camera_orthographic")
         {
             Size = new Vector2(width, height),
             Near = near,
@@ -79,7 +79,7 @@ public partial class RenderingSystem
     /// <returns>A new orthographic camera.</returns>
     public CameraOrthographic CreateCameraOrthographic(Vector2 size, float near, float far)
     {
-        return new CameraOrthographic(this)
+        return new CameraOrthographic(this, "camera_orthographic")
         {
             Size = size,
             Near = near,

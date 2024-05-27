@@ -4,7 +4,7 @@ namespace Vocore.Rendering;
 
 public class CameraOrthographic : BaseCamera<CameraDataOrthographic>
 {
-    internal CameraOrthographic(RenderingSystem renderingSystem) : base(renderingSystem)
+    internal CameraOrthographic(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
     }
 

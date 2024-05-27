@@ -67,7 +67,7 @@ public class DropletSystem : IDisposable
 
     private Random _random = new Random(123);
 
-    public DropletSystem(RenderingSystem system, ICamera camera, Shader shader, Texture2D texDroplet)
+    public DropletSystem(RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderer = new SpriteRenderer[RenderThreadCount];
         for (int i = 0; i < RenderThreadCount; i++)

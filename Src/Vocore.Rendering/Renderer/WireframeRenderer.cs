@@ -24,11 +24,11 @@ public class WireframeRenderer : AutoDisposable
     private NativeArrayList<Vertex> _vertices;
     private NativeArrayList<uint> _indices;
 
-    public ICamera Camera { get; set; }
+    public GraphicsBuffer Camera { get; set; }
 
 
 
-    internal WireframeRenderer(RenderingSystem renderingSystem, ICamera camera, Shader shader)
+    internal WireframeRenderer(RenderingSystem renderingSystem, GraphicsBuffer camera, Shader shader)
     {
         Camera = camera;
 
@@ -76,7 +76,7 @@ public class WireframeRenderer : AutoDisposable
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_pipeline!);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
         _command.End();
         _device.Submit(_command);

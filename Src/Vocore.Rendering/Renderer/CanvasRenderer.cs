@@ -21,13 +21,13 @@ public partial class CanvasRenderer : AutoDisposable
     private readonly Texture2D _textWhite;
     private GPUFrameBuffer? _renderTarget;
     private GPURenderPass? _currentPass;
-    private ICamera _camera;
+    private GraphicsBuffer _camera;
     private RenderingState _state;
     private bool _isDrawing;
 
 
 
-    public CanvasRenderer(RenderingSystem system, ICamera camera, Shader shaderSpirte, Shader shaderText)
+    public CanvasRenderer(RenderingSystem system, GraphicsBuffer camera, Shader shaderSpirte, Shader shaderText)
     {
         _device = system.GraphicsDevice;
         _camera = camera;
@@ -52,7 +52,7 @@ public partial class CanvasRenderer : AutoDisposable
     }
 
 
-    public ICamera Camera
+    public GraphicsBuffer Camera
     {
         get => _camera;
     }

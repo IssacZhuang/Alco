@@ -4,7 +4,7 @@ namespace Vocore.Rendering;
 
 public class Camera2D : BaseCamera<CameraData2D>
 {
-    internal Camera2D(RenderingSystem renderingSystem) : base(renderingSystem)
+    internal Camera2D(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
         _data = new CameraData2D();
     }

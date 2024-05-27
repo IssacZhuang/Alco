@@ -8,35 +8,27 @@ namespace Vocore.Rendering;
 /// The instance of a camera data in GPU.
 /// </summary>
 /// <typeparam name="T"> The type of the camera data. </typeparam>
-public abstract class BaseCamera<T> : AutoDisposable, ICamera where T : unmanaged, ICameraData
+public abstract class BaseCamera<T> : GraphicsValueBuffer<Matrix4x4> where T : unmanaged, ICameraData
 {
-    private readonly GraphicsValueBuffer<Matrix4x4> _buffer;
     protected T _data;
     protected bool _dirty;
 
-    public BaseCamera(RenderingSystem renderingSystem)
+    public BaseCamera(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
-        _buffer = renderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
         _dirty = true;
     }
 
-    public GraphicsValueBuffer<Matrix4x4> Buffer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer;
-    }
-
-    public GPUResourceGroup EntryViewProjection
+    public override GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             if (_dirty)
             {
-                _buffer.UpdateBuffer(_data.ViewProjectionMatrix);
+                UpdateBuffer(_data.ViewProjectionMatrix);
                 _dirty = false;
             }
-            return _buffer.EntryReadonly;
+            return base.EntryReadonly;
         }
     }
 
@@ -54,7 +46,7 @@ public abstract class BaseCamera<T> : AutoDisposable, ICamera where T : unmanage
 
     public void UpdateData()
     {
-        _buffer.UpdateBuffer(_data.ViewProjectionMatrix);
+        UpdateBuffer(_data.ViewProjectionMatrix);
         _dirty = false;
     }
 

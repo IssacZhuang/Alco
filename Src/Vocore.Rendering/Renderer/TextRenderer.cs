@@ -46,9 +46,9 @@ public class TextRenderer : AutoDisposable
     private bool _isDrawing;
     private GPUFrameBuffer? _renderTarget;
 
-    public ICamera Camera { get; set; }
+    public GraphicsBuffer Camera { get; set; }
 
-    internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, ICamera camera, Shader shader)
+    internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
     {
         _device = renderingSystem.GraphicsDevice;
         _textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
@@ -121,7 +121,7 @@ public class TextRenderer : AutoDisposable
         _command.SetGraphicsPipeline(_pipeline!);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadonly);
     }
 

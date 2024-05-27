@@ -6,12 +6,12 @@ using Vocore.Graphics;
 
 public partial class RenderingSystem
 {
-    public TextRenderer CreateTextRenderer(ICamera camera, Shader shader)
+    public TextRenderer CreateTextRenderer(GraphicsBuffer camera, Shader shader)
     {
         return new TextRenderer(this, MeshTrueType, camera, shader);
     }
 
-    public SpriteRenderer CreateSpriteRenderer(ICamera camera, Shader shader)
+    public SpriteRenderer CreateSpriteRenderer(GraphicsBuffer camera, Shader shader)
     {
         return new SpriteRenderer(_device, MeshSprite, camera, shader);
     }
@@ -21,7 +21,7 @@ public partial class RenderingSystem
         return new MaterialRenderer(_device);
     }
 
-    public CanvasRenderer CreateCanvasRenderer(ICamera camera, Shader shaderSprite, Shader shaderText)
+    public CanvasRenderer CreateCanvasRenderer(GraphicsBuffer camera, Shader shaderSprite, Shader shaderText)
     {
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);
     }
