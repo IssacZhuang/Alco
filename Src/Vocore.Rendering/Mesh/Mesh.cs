@@ -5,6 +5,8 @@ namespace Vocore.Rendering;
 
 public unsafe class Mesh : ShaderResource, IMesh
 {
+    private readonly string VertexBufferName;
+    private readonly string IndexBufferName;
     protected GPUDevice _device;
     protected GPUBuffer _vertexBuffer;
     protected GPUBuffer _indexBuffer;
@@ -47,18 +49,22 @@ public unsafe class Mesh : ShaderResource, IMesh
     internal Mesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
     {
         _device = device;
+
+        VertexBufferName = $"{name}_vertex_buffer";
+        IndexBufferName = $"{name}_index_buffer";
+
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = vertexCount * vertexStride,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
-            Name = $"{name}_vertex_buffer"
+            Name = VertexBufferName
         });
 
         _indexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = indexCount * GetIndexSize(indexFormat),
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
-            Name = $"{name}_index_buffer"
+            Name = IndexBufferName
         });
 
         _indexFormat = indexFormat;
@@ -70,10 +76,7 @@ public unsafe class Mesh : ShaderResource, IMesh
         Name = name;
     }
 
-    public void UpdateVertex(void* data, uint size, uint offset = 0)
-    {
-        _device.WriteBuffer(_vertexBuffer, offset, (byte*)data, size);
-    }
+
 
     public void UpdateVertex<T>(T[] data, uint offset = 0) where T : unmanaged
     {
@@ -83,36 +86,42 @@ public unsafe class Mesh : ShaderResource, IMesh
         }
     }
 
+    public void UpdateVertex(void* data, uint size, uint offset = 0)
+    {
+        EncureVertexBufferSize(size);
+        _device.WriteBuffer(_vertexBuffer, offset, (byte*)data, size);
+    }
+
+
+
+    public void UpdateIndex(ReadOnlySpan<uint> indices, uint offset = 0)
+    {
+        fixed (void* ptr = indices)
+        {
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset, IndexFormat.Uint32);
+        }
+    }
+
+    public void UpdateIndex(ReadOnlySpan<ushort> indices, uint offset = 0)
+    {
+        fixed (void* ptr = indices)
+        {
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset, IndexFormat.Uint16);
+        }
+    }
+
     public void UpdateIndex(void* data, uint size, uint offset = 0)
     {
+        EncureIndexBufferSize(size);
         _device.WriteBuffer(_indexBuffer, offset, (byte*)data, size);
     }
 
-
-    public void UpdateIndex(uint[] indices, uint offset = 0)
+    public void UpdateIndex(void* data, uint size, uint offset, IndexFormat indexFormat)
     {
-        if (_indexFormat != IndexFormat.Uint32)
-        {
-            throw new InvalidOperationException($"Index format mismatch. Required: Uint32(uint), Actual: {_indexFormat}");
-        }
+        EncureIndexBufferSize(size);
+        _indexFormat = indexFormat;
 
-        fixed (void* ptr = indices)
-        {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset);
-        }
-    }
-
-    public void UpdateIndex(ushort[] indices, uint offset = 0)
-    {
-        if (_indexFormat != IndexFormat.Uint16)
-        {
-            throw new InvalidOperationException("Index format mismatch. Required: Uint16(ushort), Actual: " + _indexFormat);
-        }
-
-        fixed (void* ptr = indices)
-        {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset);
-        }
+        _device.WriteBuffer(_indexBuffer, offset, (byte*)data, size);
     }
 
     public virtual SubMeshData GetSubMesh(int index)
@@ -134,7 +143,35 @@ public unsafe class Mesh : ShaderResource, IMesh
         _vertexBuffer.Dispose();
     }
 
-    private static uint GetIndexSize(IndexFormat format)
+    protected void EncureVertexBufferSize(uint size)
+    {
+        if (_vertexBuffer.Size < size)
+        {
+            _vertexBuffer.Dispose();
+            _vertexBuffer = _device.CreateBuffer(new BufferDescriptor
+            {
+                Size = size,
+                Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+                Name = VertexBufferName
+            });
+        }
+    }
+
+    protected void EncureIndexBufferSize(uint size)
+    {
+        if (_indexBuffer.Size < size)
+        {
+            _indexBuffer.Dispose();
+            _indexBuffer = _device.CreateBuffer(new BufferDescriptor
+            {
+                Size = size,
+                Usage = BufferUsage.Index | BufferUsage.CopyDst,
+                Name = IndexBufferName
+            });
+        }
+    }
+
+    protected static uint GetIndexSize(IndexFormat format)
     {
         return format switch
         {
