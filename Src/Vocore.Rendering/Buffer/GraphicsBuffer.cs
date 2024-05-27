@@ -29,7 +29,7 @@ public class GraphicsBuffer : ShaderResource
     /// The entry for binding the buffer as uniform buffer.
     /// </summary>
     /// <value>The GPU resource group to bind.</value>
-    public GPUResourceGroup EntryReadonly
+    public virtual GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _resourcesReadOnly;
@@ -39,15 +39,12 @@ public class GraphicsBuffer : ShaderResource
     /// The entry for binding the buffer as storage buffer.
     /// </summary>
     /// <value>The GPU resource group to bind.</value>
-    public GPUResourceGroup EntryReadWrite
+    public virtual GPUResourceGroup EntryReadWrite
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            if (_resourcesReadWrite == null)
-            {
-                _resourcesReadWrite = CreateResourceReadWrite();
-            }
+            _resourcesReadWrite ??= CreateResourceReadWrite();
             return _resourcesReadWrite;
         }
     }

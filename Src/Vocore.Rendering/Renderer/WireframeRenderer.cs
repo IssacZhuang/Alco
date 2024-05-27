@@ -1,41 +1,55 @@
 using System.Numerics;
+using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
 public class WireframeRenderer : AutoDisposable
 {
-    private readonly RenderingSystem _renderingSystem;
-    private NativeArrayList<Vector3> _vertices;
-    private NativeArrayList<short> _indices;
-
-    private GraphicsBuffer? _vertexBuffer;
-    private GraphicsBuffer? _indexBuffer;
-
-    public ReadOnlySpan<Vector3> Vertices
+    public struct Vertex
     {
-        get => _vertices.MemoryRef.Span;
+        public Vector3 Position;
+        public Vector4 Color;
     }
 
-    public ReadOnlySpan<short> Indices
+    private readonly Mesh _mesh;
+    private readonly GPUDevice _device;
+    private readonly GPUCommandBuffer _command;
+
+    private readonly Shader _shader;
+    private GPURenderPass? _renderPass;
+    private GPUPipeline? _pipeline;
+    private readonly uint _shaderId_camera;
+
+
+    private NativeArrayList<Vertex> _vertices;
+    private NativeArrayList<uint> _indices;
+
+    public ICamera Camera { get; set; }
+
+
+
+    internal WireframeRenderer(RenderingSystem renderingSystem, ICamera camera, Shader shader)
     {
-        get => _indices.MemoryRef.Span;
+        Camera = camera;
+
+        _mesh = renderingSystem.CreateMesh("wireframe");
+        _device = renderingSystem.GraphicsDevice;
+        _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("wireframe_renderer_command"));
+        _vertices = new NativeArrayList<Vertex>();
+        _indices = new NativeArrayList<uint>();
+
+        _shader = shader;
+        _shaderId_camera = shader.GetResourceId("camera");
     }
 
-    internal WireframeRenderer(RenderingSystem renderingSystem)
+    public void AddLine(Vector3 start, Vector3 end, Vector4 color)
     {
-        _renderingSystem = renderingSystem;
-        _vertices = new NativeArrayList<Vector3>();
-        _indices = new NativeArrayList<short>();
-    }
+        _vertices.Add(new Vertex { Position = start, Color = color });
+        _vertices.Add(new Vertex { Position = end, Color = color });
 
-    public void AddLine(Vector3 start, Vector3 end)
-    {
-        _vertices.Add(start);
-        _vertices.Add(end);
-
-        short index = (short)(_vertices.Count - 2);
+        uint index = (uint)(_vertices.Count - 2);
         _indices.Add(index);
-        _indices.Add((short)(index + 1));
+        _indices.Add(index + 1);
     }
 
     public void Clear()
@@ -44,22 +58,30 @@ public class WireframeRenderer : AutoDisposable
         _indices.Clear();
     }
 
-    private unsafe void EnsureGraphicsBuffer()
+    public void Draw(GPUFrameBuffer target)
     {
-        uint vertexBufferSize = (uint)(_vertices.Count * sizeof(Vector3));
-        if (_vertexBuffer == null || _vertexBuffer.Size < vertexBufferSize)
+        if (_vertices.Length == 0)
         {
-            _vertexBuffer?.Dispose();
-            _vertexBuffer = _renderingSystem.CreateGraphicsBuffer(vertexBufferSize, "wireframe_vertex_buffer");
+            return;
         }
 
-        uint indexBufferSize = (uint)(_indices.Count * sizeof(short));
-        if (_indexBuffer == null || _indexBuffer.Size < indexBufferSize)
+        if (_renderPass != target.RenderPass)
         {
-            _indexBuffer?.Dispose();
-            _indexBuffer = _renderingSystem.CreateGraphicsBuffer(indexBufferSize, "wireframe_index_buffer");
+            _renderPass = target.RenderPass;
+            _pipeline = _shader.GetPipelineVariant(_renderPass);
         }
+
+        _command.Begin();
+        _command.SetFrameBuffer(target);
+        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
+        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
+        _command.SetGraphicsPipeline(_pipeline!);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryViewProjection);
+        _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
+        _command.End();
+        _device.Submit(_command);
     }
+
 
     protected override void Dispose(bool disposing)
     {

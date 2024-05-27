@@ -4,6 +4,28 @@ namespace Vocore.Rendering;
 
 public partial class RenderingSystem
 {
+    public const uint DefaultVertexBufferSize = 64;
+    public const uint DefaultIndexBufferSize = 16;
+
+    /// <summary>
+    /// Create a mesh.
+    /// </summary>
+    /// <param name="name">The name of the mesh.</param>
+    /// <returns>The created mesh.</returns>
+    public unsafe Mesh CreateMesh(string name = "mesh")
+    {
+        return new Mesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.Uint32, name);
+    }
+    
+
+    /// <summary>
+    /// Create a mesh.
+    /// </summary>
+    /// <param name="vertices">The vertices of the mesh.</param>
+    /// <param name="indices">The indices of the mesh.</param>
+    /// <param name="name">The name of the mesh.</param>
+    /// <typeparam name="TVertex">The type of the vertices.</typeparam>
+    /// <returns>The created mesh.</returns>
     public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
     {
         fixed (void* vertexData = vertices)
@@ -16,6 +38,14 @@ public partial class RenderingSystem
         }
     }
 
+    /// <summary>
+    /// Create a mesh.
+    /// </summary>
+    /// <param name="vertices">The vertices of the mesh.</param>
+    /// <param name="indices">The indices of the mesh.</param>
+    /// <param name="name">The name of the mesh.</param>
+    /// <typeparam name="TVertex">The type of the vertices.</typeparam>
+    /// <returns></returns>
     public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
     {
         fixed (void* vertexData = vertices)
