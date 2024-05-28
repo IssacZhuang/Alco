@@ -1,0 +1,20 @@
+Config( // optional struct name
+    size: (800, 600),
+    title: "PAC-MAN",
+    fullscreen: false,
+    key_bindings: {
+        "up": 1,
+        "down": 2,
+        "left": 3,
+        "right": 4,
+
+        // Uncomment to enable WASD controls
+        /*
+        "W": Up,
+        "S": Down,
+        "A": Left,
+        "D": Right,
+        */
+    },
+    mouse_sensitivity: 1.4,
+)
