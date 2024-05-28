@@ -7,29 +7,26 @@
 #pragma DepthStencilState None
 
 struct Vertex2D {
-  float3 position : POSITION;
+  float3 position : POSITION; // already in world space
+  float4 color : COLOR;
 };
 
 struct V2F {
   float4 position : SV_POSITION;
+  float4 color : COLOR;
 };
 
-struct Constants {
-  float4x4 model;
-  float4 color;
-};
 
 DEFINE_STRUCT(0, _camera) { float4x4 viewProjection; };
 
-PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input) {
   V2F output = (V2F)0;
-  output.position = mul(constants.model, float4(input.position, 1.0f));
-  output.position = mul(viewProjection, output.position);
+  output.position = mul(viewProjection, float4(input.position, 1.0f));
+  output.color = input.color;
   return output;
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  return color;
+  return input.color;
 }
