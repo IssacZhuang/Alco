@@ -97,19 +97,19 @@ namespace Vocore.Test
 
             //warm up
             bvh.CastBatchRay(rays.MemoryRef);
-            bvh.CastBatchRayFast(rays.MemoryRef);
+            bvh.CastBatchRayFirstHit(rays.MemoryRef);
 
             UtilsTest.Benchmark(() =>
             {
                 bvh.CastBatchRay(rays.MemoryRef);
             }, "Ray cast bvh 3D benckmark: ");
 
-            bvh.CastBatchRayFast(rays.MemoryRef);
+            bvh.CastBatchRayFirstHit(rays.MemoryRef);
 
             UtilsTest.Benchmark(() =>
             {
-                bvh.CastBatchRayFast(rays.MemoryRef);
-            }, "Ray cast bvh 3D fast GC Alloc: ");
+                bvh.CastBatchRayFirstHit(rays.MemoryRef);
+            }, "Ray cast first hit bvh 3D benckmark: ");
 
             boxs.Dispose();
             spheres.Dispose();

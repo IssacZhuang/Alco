@@ -18,6 +18,16 @@ namespace Vocore
             return new Ray2D(start, end - start);
         }
 
+        public BoundingBox2D GetBoundingBox()
+        {
+            Vector2 end = origin + displacement;
+            return new BoundingBox2D
+            {
+                min = Vector2.Min(origin, end),
+                max = Vector2.Max(origin, end)
+            };
+        }
+
         public override string ToString()
         {
             return $"origin: {origin}, displacement: {displacement}";

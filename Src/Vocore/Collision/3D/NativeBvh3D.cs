@@ -49,7 +49,7 @@ namespace Vocore
 
             public void Execute(int index)
             {
-                results[index] = _bvh.CastRayFast(rays[index]);
+                results[index] = _bvh.CastRayFirstHit(rays[index]);
             }
         }
 
@@ -135,17 +135,17 @@ namespace Vocore
             return CastRay(ref ray, _root);
         }
 
-        public RayCastResult3D CastRayFast(Ray3D ray)
+        public RayCastResult3D CastRayFirstHit(Ray3D ray)
         {
             if (_nodeSize == 0)
             {
                 return RayCastResult3D.none;
             }
 
-            return CastRayFast(ref ray, _root);
+            return CastRayFirstHit(ref ray, _root);
         }
 
-        public MemoryRef<RayCastResult3D> CastBatchRayFast(MemoryRef<Ray3D> rays)
+        public MemoryRef<RayCastResult3D> CastBatchRayFirstHit(MemoryRef<Ray3D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
             if (_nodeSize == 0)
@@ -255,13 +255,14 @@ namespace Vocore
 
         //cast collision for single result
 
-        private RayCastResult3D CastRayFast(ref Ray3D ray, Node node)
+        private RayCastResult3D CastRayFirstHit(ref Ray3D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
             Node* stack = stackalloc Node[_nodeSize / 2 + 2];
             int stackCount = 0;
             stack[stackCount++] = node;
             RayCastResult3D result = RayCastResult3D.none;
+            BoundingBox3D rayBox = ray.GetBoundingBox();
 
 
             while (stackCount > 0)
@@ -269,7 +270,8 @@ namespace Vocore
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
+                if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {
@@ -308,13 +310,16 @@ namespace Vocore
             stack[stackCount++] = node;
             RayCastResult3D result = RayCastResult3D.none;
 
+            BoundingBox3D rayBox = ray.GetBoundingBox();
+
 
             while (stackCount > 0)
             {
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
+                if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {

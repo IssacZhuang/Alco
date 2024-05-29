@@ -25,6 +25,17 @@ namespace Vocore
             };
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BoundingBox3D GetBoundingBox()
+        {
+            Vector3 end = origin + displacement;
+            return new BoundingBox3D
+            {
+                min = Vector3.Min(origin, end),
+                max = Vector3.Max(origin, end)
+            };
+        }
+
         // mutiply by scalar
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

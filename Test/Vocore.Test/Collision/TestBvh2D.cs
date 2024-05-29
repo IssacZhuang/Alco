@@ -96,18 +96,16 @@ namespace Vocore.Test
 
             //warm up
             bvh.CastBatchRay(rays.MemoryRef);
-            bvh.CastBatchRayFast(rays.MemoryRef);
-
             UtilsTest.Benchmark(() =>
             {
                 bvh.CastBatchRay(rays.MemoryRef);
             }, "Ray cast bvh 2D benckmark: ");
 
-            bvh.CastBatchRayFast(rays.MemoryRef);
+            bvh.CastBatchRayFirstHit(rays.MemoryRef);
             UtilsTest.Benchmark(() =>
             {
-                bvh.CastBatchRayFast(rays.MemoryRef);
-            }, "Ray cast bvh 2D fast benckmark: ");
+                bvh.CastBatchRayFirstHit(rays.MemoryRef);
+            }, "Ray cast first hit bvh 2D benckmark: ");
 
             boxs.Dispose();
             spheres.Dispose();

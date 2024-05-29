@@ -36,20 +36,20 @@ namespace Vocore
             }
         }
 
-        private class JobCastRayFast : IJobBatch
+        private class JobCastRayFirstHit : IJobBatch
         {
             private NativeBvh2D _bvh;
             public Ray2D* rays;
             public RayCastResult2D* results;
 
-            public JobCastRayFast(NativeBvh2D bvh)
+            public JobCastRayFirstHit(NativeBvh2D bvh)
             {
                 _bvh = bvh;
             }
 
             public void Execute(int index)
             {
-                results[index] = _bvh.CastRayFast(rays[index]);
+                results[index] = _bvh.CastRayFirstHit(rays[index]);
             }
         }
 
@@ -91,7 +91,7 @@ namespace Vocore
         private readonly ParallelScheduler _scheduler;
         //reuse job
         private readonly JobCastRay _jobCastRay;
-        private readonly JobCastRayFast _jobCastRayFast;
+        private readonly JobCastRayFirstHit _jobCastRayFirstHit;
         private readonly JobCastColliderRef _jobCastColliderRef;
         private readonly JobCastColliderRefCollector _jobCastColliderRefCollector;
 
@@ -117,7 +117,7 @@ namespace Vocore
             _scheduler = scheduler;
 
             _jobCastRay = new JobCastRay(this);
-            _jobCastRayFast = new JobCastRayFast(this);
+            _jobCastRayFirstHit = new JobCastRayFirstHit(this);
             _jobCastColliderRef = new JobCastColliderRef(this);
             _jobCastColliderRefCollector = new JobCastColliderRefCollector(this);
             _isDisposed = false;
@@ -135,17 +135,17 @@ namespace Vocore
             return CastRay(ref ray, _root);
         }
 
-        public RayCastResult2D CastRayFast(Ray2D ray)
+        public RayCastResult2D CastRayFirstHit(Ray2D ray)
         {
             if (_nodeSize == 0)
             {
                 return RayCastResult2D.none;
             }
 
-            return CastRayFast(ref ray, _root);
+            return CastRayFirstHit(ref ray, _root);
         }
 
-        public MemoryRef<RayCastResult2D> CastBatchRayFast(MemoryRef<Ray2D> rays)
+        public MemoryRef<RayCastResult2D> CastBatchRayFirstHit(MemoryRef<Ray2D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
             if (_nodeSize == 0)
@@ -157,9 +157,9 @@ namespace Vocore
                 return _batchRayCastResult.MemoryRef;
             }
 
-            _jobCastRayFast.rays = rays.Pointer;
-            _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastRayFast, rays.Length);
+            _jobCastRayFirstHit.rays = rays.Pointer;
+            _jobCastRayFirstHit.results = _batchRayCastResult.UnsafePointer;
+            _scheduler.Run(_jobCastRayFirstHit, rays.Length);
 
             return _batchRayCastResult.MemoryRef;
         }
@@ -255,21 +255,22 @@ namespace Vocore
 
         //cast collision for single result
 
-        private RayCastResult2D CastRayFast(ref Ray2D ray, Node node)
+        private RayCastResult2D CastRayFirstHit(ref Ray2D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
             Node* stack = stackalloc Node[_nodeSize / 2 + 2];
             int stackCount = 0;
             stack[stackCount++] = node;
             RayCastResult2D result = RayCastResult2D.none;
-
+            BoundingBox2D rayBox = ray.GetBoundingBox();
 
             while (stackCount > 0)
             {
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!UtilsCollision2D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!UtilsCollision2D.RayAABB(ray, top.boundingBox)) continue;
+                if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {
@@ -308,13 +309,15 @@ namespace Vocore
             stack[stackCount++] = node;
             RayCastResult2D result = RayCastResult2D.none;
 
+            BoundingBox2D rayBox = ray.GetBoundingBox();
 
             while (stackCount > 0)
             {
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!UtilsCollision2D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!UtilsCollision2D.RayAABB(ray, top.boundingBox)) continue;
+                if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {
