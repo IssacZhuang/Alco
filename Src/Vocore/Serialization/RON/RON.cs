@@ -20,8 +20,14 @@ public static class RON
 
     private static IElement ParseElement(Token[] tokens)
     {
-        IElement element = null;
+        IElement? element = null;
+
+        if (tokens.Length == 0)
+        {
+            return element ?? new ElementSet();
+        }
         
+
         for (int t = 0; t < tokens.Length; t++)
         {
             ref Token token = ref tokens[t];
@@ -176,6 +182,6 @@ public static class RON
             }
         }
 
-        return element;
+        return element!;
     }
 }

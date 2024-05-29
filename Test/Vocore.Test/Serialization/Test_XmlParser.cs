@@ -77,35 +77,17 @@ namespace Vocore.Test
 
     public class Test_XmlParser
     {
-        [Test(Description = "Test_LoadXmlFile")]
-        public void Test_LoadXmlFile()
-        {
-            //load xml file from current assembly
-            Assembly currentAssembly = Assembly.GetExecutingAssembly();
-
-            TestEnum e = TestEnum.Primary | TestEnum.Secondary;
-
-            TestContext.WriteLine("TestEnum: " + (e | TestEnum.Tertiary));
-
-            //iterate all file in current assembly
-            foreach (var fileName in currentAssembly.GetManifestResourceNames())
-            {
-                TestContext.WriteLine(fileName + " loaded");
-            }
-        }
+        public static readonly string path = "TestFiles/TestObject.xml";
 
         [Test(Description = "Test_ParseXml")]
         public void Test_ParseXml()
         {
-            //load xml file from current assembly
-            Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
-            string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             XmlParser parser = new XmlParser("Vocore.Test");
 
             // get resource stream from xml file location inside the assembly
-            using (Stream stream = currentAssembly.GetManifestResourceStream(path))
+            using (Stream stream = File.Open(path, FileMode.Open))
             {
                 // read xml contents from stream and format it 
                 using (XmlReader reader = XmlReader.Create(stream))
@@ -133,15 +115,11 @@ namespace Vocore.Test
         [Test(Description = "ParseXml - Missing Content")]
         public void Test_ParseXml_MissingContent()
         {
-            //load xml file from current assembly
-            Assembly currentAssembly = Assembly.GetExecutingAssembly();
-
-            string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             XmlParser parser = new XmlParser("Vocore.Test");
 
             // get resource stream from xml file location inside the assembly
-            using (Stream stream = currentAssembly.GetManifestResourceStream(path))
+            using (Stream stream = File.Open(path, FileMode.Open))
             {
                 // read xml contents from stream and format it 
                 using (XmlReader reader = XmlReader.Create(stream))
@@ -170,15 +148,11 @@ namespace Vocore.Test
         [Test(Description = "Test_ParseXml - Child")]
         public void Test_ParseXml_Child()
         {
-            //load xml file from current assembly
-            Assembly currentAssembly = Assembly.GetExecutingAssembly();
-
-            string path = "Vocore.Test.TestFiles.TestObject.xml";
 
             XmlParser parser = new XmlParser("Vocore.Test");
 
             // get resource stream from xml file location inside the assembly
-            using (Stream stream = currentAssembly.GetManifestResourceStream(path))
+            using (Stream stream = File.Open(path, FileMode.Open))
             {
                 // read xml contents from stream and format it 
                 using (XmlReader reader = XmlReader.Create(stream))

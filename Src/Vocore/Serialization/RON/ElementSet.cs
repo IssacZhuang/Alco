@@ -29,7 +29,7 @@ public class ElementSet : IElement
     {
         get
         {
-            if (!Elements.TryGetValue(elementName, out IElement value))
+            if (!Elements.TryGetValue(elementName, out IElement? value))
                 throw new KeyNotFoundException($"The given key \"{elementName}\" was not found in the set.");
 
             return value;

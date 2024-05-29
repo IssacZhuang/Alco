@@ -2,7 +2,7 @@ using System;
 
 namespace Ron.NET;
 
-public struct ValueElement<T> : IElement
+public class ValueElement<T> : IElement
 {
     public T Value;
     public ElementType Type;

@@ -1,20 +1,10 @@
 Config( // optional struct name
-    size: (800, 600),
-    title: "PAC-MAN",
-    fullscreen: false,
-    key_bindings: {
-        "up": 1,
-        "down": 2,
-        "left": 3,
-        "right": 4,
-
-        // Uncomment to enable WASD controls
-        /*
-        "W": Up,
-        "S": Down,
-        "A": Left,
-        "D": Right,
-        */
-    },
-    mouse_sensitivity: 1.4,
+    valueInt: 42, 
+    valueFloat: 3.14,
+    valueString: "TestString",
+    valueVector3: (1, 2, 3),
+    valueBool: true,
+    arrayInt: [1, 2, 3],
+    arrayFloat: [1.1, 2.2, 3.3],
+    valueStrongVector3: Vector3(1, 2, 3),
 )
