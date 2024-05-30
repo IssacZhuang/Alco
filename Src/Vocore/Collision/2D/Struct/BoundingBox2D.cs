@@ -21,8 +21,12 @@ namespace Vocore
 
         public bool Intersects(BoundingBox2D other)
         {
-            return min.X <= other.max.X && max.X >= other.min.X &&
-                   min.Y <= other.max.Y && max.Y >= other.min.Y;
+            Vector2 minMax = Vector2.Max(min, other.min);
+            Vector2 maxMin = Vector2.Min(max, other.max);
+            Vector2 result = maxMin - minMax;
+            return result.X >= 0 && result.Y >= 0;
+            // return min.X <= other.max.X && max.X >= other.min.X &&
+            //        min.Y <= other.max.Y && max.Y >= other.min.Y;
         }
 
         public bool Contains(Vector2 point)

@@ -24,13 +24,13 @@ namespace Vocore
 
         public bool Intersects(BoundingBox3D other)
         {
-            // Vector3 minMax = Vector3.Max(min, other.min);
-            // Vector3 maxMin = Vector3.Min(max, other.max);
-            // Vector3 result = Vector3.Subtract(maxMin, minMax);
-            // return result.X >= 0 && result.Y >= 0 && result.Z >= 0;
-            return min.X <= other.max.X && max.X >= other.min.X &&
-                   min.Y <= other.max.Y && max.Y >= other.min.Y &&
-                   min.Z <= other.max.Z && max.Z >= other.min.Z;
+            Vector3 minMax = Vector3.Max(min, other.min);
+            Vector3 maxMin = Vector3.Min(max, other.max);
+            Vector3 result = maxMin - minMax;
+            return result.X >= 0 && result.Y >= 0 && result.Z >= 0;
+            // return min.X <= other.max.X && max.X >= other.min.X &&
+            //        min.Y <= other.max.Y && max.Y >= other.min.Y &&
+            //        min.Z <= other.max.Z && max.Z >= other.min.Z;
         }
 
         public bool Contains(Vector3 point)
