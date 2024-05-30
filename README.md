@@ -10,4 +10,3 @@ Third party libraries:
 - wgpu binding from [Alimer.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): MIT License
 - DirectX Compiler binding from [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows): MIT License
 - StbImageSharp and StbTrueTypeSharp from [StbSharp](https://github.com/StbSharp): Public Domain
-- Rusty Object Notation from [Ron.NET](https://github.com/aquagoose/Ron.NET): MIT License
