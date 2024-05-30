@@ -8,10 +8,6 @@ namespace Vocore;
 /// </summary> 
 public abstract class AutoDisposable : IDisposable
 {
-#if DEBUG 
-    private readonly string _stackTraceOnCreate = Environment.StackTrace;
-#endif
-
     private volatile uint _disposed;
 
     public bool IsDisposed => _disposed != 0;
@@ -21,9 +17,6 @@ public abstract class AutoDisposable : IDisposable
         //On GC
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-#if DEBUG
-            Log.Warning($"The object {GetType().Name} is been GC collected, try release it manually to improve performance. Stack Trace on creation: {_stackTraceOnCreate}");
-#endif
             Dispose(false);
         }
     }
