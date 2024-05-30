@@ -49,9 +49,4 @@ public abstract class BaseCamera<T> : GraphicsValueBuffer<Matrix4x4> where T : u
         UpdateBuffer(_data.ViewProjectionMatrix);
         _dirty = false;
     }
-
-    protected override void Dispose(bool disposing)
-    {
-        _buffer.Dispose();
-    }
 }

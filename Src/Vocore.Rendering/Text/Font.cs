@@ -64,6 +64,11 @@ public unsafe class Font : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        _texture.Dispose();
+        if (disposing)
+        {
+            //dispose non-private managed resources
+            _texture.Dispose();
+        }
+
     }
 }

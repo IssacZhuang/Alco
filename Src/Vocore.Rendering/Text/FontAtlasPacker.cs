@@ -112,8 +112,8 @@ public unsafe class FontAtlasPacker : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        //dispose native resources
         _bitmap.Dispose();
         stbtt_PackEnd(_context);
-        GC.SuppressFinalize(this);
     }
 }

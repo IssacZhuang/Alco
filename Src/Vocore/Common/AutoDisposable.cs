@@ -19,12 +19,12 @@ public abstract class AutoDisposable : IDisposable
     ~AutoDisposable()
     {
         //On GC
-        if (!IsDisposed)
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
 #if DEBUG
             Log.Warning($"The object {GetType().Name} is been GC collected, try release it manually to improve performance. Stack Trace on creation: {_stackTraceOnCreate}");
 #endif
-            Dispose();
+            Dispose(false);
         }
     }
 
@@ -37,5 +37,7 @@ public abstract class AutoDisposable : IDisposable
         }
     }
 
+    /// <inheritdoc cref="Dispose()" />
+    /// <param name="disposing"><c>true</c> if the method was called from <see cref="Dispose()" />; otherwise, <c>false</c>.</param>
     protected abstract void Dispose(bool disposing);
 }

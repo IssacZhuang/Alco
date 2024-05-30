@@ -164,6 +164,7 @@ public class SpriteRenderer : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        //dispose private managed resources
         _command.Dispose();
         _renderPass = null;
         _pipeline = null;

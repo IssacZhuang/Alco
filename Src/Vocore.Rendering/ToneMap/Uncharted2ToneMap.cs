@@ -22,7 +22,8 @@ public class Uncharted2ToneMap : ToneMap
 
     protected override void Dispose(bool disposing)
     {
-        _data.Dispose();
         base.Dispose(disposing);
+        //dispose private managed resources
+        _data.Dispose();
     }
 }

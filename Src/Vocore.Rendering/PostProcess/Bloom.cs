@@ -310,6 +310,7 @@ public class Bloom : PostProcess
 
     protected override void Dispose(bool disposing)
     {
+        //dispose non-private managed resources
         _inputGroup?.Dispose();
         _commandDownSample.Dispose();
         TryDisposeFrames();

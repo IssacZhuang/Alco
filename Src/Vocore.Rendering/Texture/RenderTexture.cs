@@ -219,6 +219,12 @@ public class RenderTexture : ShaderResource
 
     protected override void Dispose(bool disposing)
     {
+        if (!disposing)
+        {
+            return;
+        }
+
+        //dispose non-private managed resources
         if (_groupsColorRead != null)
         {
             for (int i = 0; i < _groupsColorRead.Length; i++)

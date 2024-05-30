@@ -336,9 +336,12 @@ public class TextRenderer : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        //dispose native resources
+        _textBufferCPU.Dispose();
+        //dispose private managed resources
         _textBufferGPU.Dispose();
         _command.Dispose();
-        _textBufferCPU.Dispose();
+        
 
         _renderPass = null;
         _pipeline = null;

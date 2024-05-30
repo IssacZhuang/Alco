@@ -107,9 +107,13 @@ public class Texture2D : Texture
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+        if (disposing)
+        {
+            //dispose non-private managed resources
+            _resourcesSample?.Dispose();
+            _resourcesRead?.Dispose();
+            _resourcesStorage?.Dispose();
+        }
 
-        _resourcesSample?.Dispose();
-        _resourcesRead?.Dispose();
-        _resourcesStorage?.Dispose();
     }
 }

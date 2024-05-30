@@ -75,6 +75,7 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+        //dispose native resources
         _data.Dispose();
     }
 }

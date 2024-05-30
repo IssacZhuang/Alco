@@ -8,7 +8,8 @@ public class BlitRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private readonly uint _shaderId_Texture;
-    private Mesh _fullScreenQuad;
+    //external resources 
+    private readonly Mesh _fullScreenQuad;
     private GPUPipeline? _pipelineBlit;
     private GPURenderPass? _targetRenderPass;
 
@@ -44,6 +45,7 @@ public class BlitRenderer : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-
+        //dispose previous managed resources
+        _command.Dispose();
     }
 }

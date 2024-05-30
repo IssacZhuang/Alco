@@ -127,8 +127,13 @@ public class GraphicsBuffer : ShaderResource
 
     protected override void Dispose(bool disposing)
     {
-        _buffer.Dispose();
-        _resourcesReadOnly.Dispose();
-        _resourcesReadWrite?.Dispose();
+        if (disposing)
+        {
+            //dispose non-private managed resources
+            _buffer.Dispose();
+            _resourcesReadOnly.Dispose();
+            _resourcesReadWrite?.Dispose();
+        }
+        
     }
 }

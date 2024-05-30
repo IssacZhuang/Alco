@@ -77,6 +77,7 @@ public abstract class ToneMap:AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        //dispose private managed resources
         _inputGroup?.Dispose();
         _command.Dispose();
     }

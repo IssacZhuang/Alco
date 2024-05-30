@@ -165,6 +165,14 @@ public class Shader : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        //_defaultPipeline.Dispose(); it will be automatically disposed 
+        if (disposing)
+        {
+            //dispose non-private managed resources
+            _defaultPipeline.Dispose();
+            foreach (var pipeline in _pipelines.Values)
+            {
+                pipeline.Dispose();
+            }
+        }
     }
 }

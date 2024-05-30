@@ -85,6 +85,7 @@ public class WireframeRenderer : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        //dispose native resources
         _vertices.Dispose();
         _indices.Dispose();
     }

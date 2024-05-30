@@ -151,7 +151,9 @@ public partial class CanvasRenderer : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        //dipose native resources
         _textBufferCPU.Dispose();
+        //dispose private resources
         _textBufferGPU.Dispose();
         _command.Dispose();
 

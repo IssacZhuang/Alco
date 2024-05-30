@@ -93,9 +93,12 @@ public abstract class Texture : ShaderResource
 
     protected override void Dispose(bool disposing)
     {
-        _texture.Dispose();
-        _textureView.Dispose();
-        //the sampler is not disposed here because it is a shared resource
+        if (disposing)
+        {
+            //dispose non-private managed resources
+            _texture.Dispose();
+            _textureView.Dispose();
+        }
     }
 
 

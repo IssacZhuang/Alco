@@ -139,8 +139,12 @@ public unsafe class Mesh : ShaderResource, IMesh
 
     protected override void Dispose(bool disposing)
     {
-        _indexBuffer.Dispose();
-        _vertexBuffer.Dispose();
+        if (disposing)
+        {
+            //dispose non-private managed resources
+            _indexBuffer.Dispose();
+            _vertexBuffer.Dispose();
+        }
     }
 
     protected void EncureVertexBufferSize(uint size)
