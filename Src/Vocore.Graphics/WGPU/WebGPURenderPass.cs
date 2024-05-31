@@ -27,6 +27,8 @@ internal class WebGPURenderPass : GPURenderPass
         get => _descriptor.Name;
     }
 
+    protected override GPUDevice Device { get; }
+
     public override IReadOnlyList<ColorAttachment> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,10 +69,11 @@ internal class WebGPURenderPass : GPURenderPass
     }
 
     // for GPUDevice.CreateRenderPass(RenderPassDescriptor)
-    public unsafe WebGPURenderPass(WGPUDevice nativeDevice, in RenderPassDescriptor descriptor)
+    public unsafe WebGPURenderPass(WebGPUDevice device, in RenderPassDescriptor descriptor)
     {
+        Device = device;
         _descriptor = descriptor;
-        _nativeDevice = nativeDevice;
+        _nativeDevice = device.Native;
 
         int colorCount = descriptor.Colors.Length;
 

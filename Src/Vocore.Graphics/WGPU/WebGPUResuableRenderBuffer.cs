@@ -35,6 +35,8 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
         get => _bundle != WGPURenderBundle.Null;
     }
 
+    protected override GPUDevice Device { get; }
+
     protected override void Dispose(bool disposing)
     {
         // the buffer will not be released if the End() is not called
@@ -159,9 +161,11 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
 
     #region WebGPU Implementation
 
-    public unsafe WebGPUResuableRenderBuffer(WGPUDevice nativeDevice, ResuableRenderBufferDescriptor? descriptor = null)
+    public unsafe WebGPUResuableRenderBuffer(WebGPUDevice device, ResuableRenderBufferDescriptor? descriptor = null)
     {
-
+        Device = device;
+        WGPUDevice nativeDevice = device.Native;
+        
         _nativeDevice = nativeDevice;
         if (descriptor.HasValue)
         {

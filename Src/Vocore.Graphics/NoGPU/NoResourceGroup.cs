@@ -6,7 +6,7 @@ internal class NoResourceGroup : GPUResourceGroup
     public override string Name => "no_gpu_resource_group";
 
     public override IReadOnlyList<IGPUBindableResource> Resources => Array.Empty<IGPUBindableResource>();
-
+    protected override GPUDevice Device => NoDevice.noDevice;
     protected override void Dispose(bool disposing)
     {
         

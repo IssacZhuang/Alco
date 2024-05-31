@@ -6,6 +6,8 @@ public abstract class BaseGPUObject : IDisposable
 {
     public abstract string Name { get; }
     private volatile uint _disposed;
+    //used for deffered disposal
+    protected abstract GPUDevice Device { get; }
 
     public bool IsDisposed => _disposed != 0;
 
@@ -14,7 +16,10 @@ public abstract class BaseGPUObject : IDisposable
         //On GC
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-            Dispose(false);
+#if LOG_GPU_GC
+            LogGC();
+#endif
+            Device.Destroy(this);
         }
     }
 
@@ -22,10 +27,19 @@ public abstract class BaseGPUObject : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-            Dispose(true);
+            Device.Destroy(this);
             GC.SuppressFinalize(this);
         }
     }
 
+    internal void Destroy()
+    {
+        Dispose(true);
+    }
     protected abstract void Dispose(bool disposing);
+
+    private void LogGC()
+    {
+        GraphicsLogger.Info($"GC {Name}, {GetType().Name}");
+    }
 }

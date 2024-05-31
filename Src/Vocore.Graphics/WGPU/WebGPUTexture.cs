@@ -16,6 +16,9 @@ internal class WebGPUTexture : WebGPUTextureBase
 
     #region Abstract Implementation
     public override string Name { get; }
+
+    protected override GPUDevice Device { get; }
+
     public override uint Width
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,9 +59,12 @@ internal class WebGPUTexture : WebGPUTextureBase
         get => _mipLevelCount;
     }
 
-    internal unsafe WebGPUTexture(WGPUDevice nativeDevice, in WGPUTextureDescriptor descriptor, string name)
+    internal unsafe WebGPUTexture(WebGPUDevice device, in WGPUTextureDescriptor descriptor, string name)
     {
         Name = name;
+        Device = device;
+        WGPUDevice nativeDevice = device.Native;
+
         WGPUTextureDescriptor textureDescriptor = descriptor;
         _nativeDevice = nativeDevice;
         _size = descriptor.size;
@@ -66,9 +72,12 @@ internal class WebGPUTexture : WebGPUTextureBase
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
     }
 
-    internal unsafe WebGPUTexture(WGPUDevice nativeDevice, in TextureDescriptor descriptor)
+    internal unsafe WebGPUTexture(WebGPUDevice device, in TextureDescriptor descriptor)
     {
         Name = descriptor.Name;
+        Device = device;
+        WGPUDevice nativeDevice = device.Native;
+
         _nativeDevice = nativeDevice;
 
         _size = new WGPUExtent3D

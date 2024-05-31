@@ -8,7 +8,7 @@ internal class NoTextureView : GPUTextureView
     public override TextureViewDimension Dimension => TextureViewDimension.Undefined;
 
     public override string Name => "no_gpu_texture_view";
-
+    protected override GPUDevice Device => NoDevice.noDevice;
     protected override void Dispose(bool disposing)
     {
         

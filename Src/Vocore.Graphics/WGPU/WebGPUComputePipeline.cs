@@ -20,6 +20,8 @@ internal class WebGPUComputePipeline : GPUPipeline
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     protected override void Dispose(bool disposing)
     {
         wgpuComputePipelineRelease(_native);
@@ -34,11 +36,16 @@ internal class WebGPUComputePipeline : GPUPipeline
         get => _native;
     }
 
+    
+
     public unsafe WebGPUComputePipeline(
-        WGPUDevice nativeDevice,
+        WebGPUDevice device,
         ComputePipelineDescriptor descriptor)
     {
+        Device = device;
         Name = descriptor.Name;
+
+        WGPUDevice nativeDevice = device.Native;
 
         fixed (sbyte* ptrEntry = descriptor.Source.EntryPoint.GetUtf8Span())
         fixed (sbyte* ptrName = Name.GetUtf8Span())

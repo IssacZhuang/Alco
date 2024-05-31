@@ -2,18 +2,18 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoDevice : GPUDevice
 {
-    private static readonly NoRenderPass noRenderPass = new NoRenderPass();
-    private static readonly NoFrameBuffer noFrameBuffer = new NoFrameBuffer();
-    private static readonly NoTexture noTexture = new NoTexture();
-    private static readonly NoTextureView noTextureView = new NoTextureView();
-    private static readonly NoSampler noSampler = new NoSampler();
-    private static readonly NoBindGroup noBindGroup = new NoBindGroup();
-    private static readonly NoBuffer noBuffer = new NoBuffer();
-    private static readonly NoCommandBuffer noCommandBuffer = new NoCommandBuffer();
-    private static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
-    private static readonly NoPipeline noPipeline = new NoPipeline();
-    private static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
-    
+    public static readonly NoRenderPass noRenderPass = new NoRenderPass();
+    public static readonly NoFrameBuffer noFrameBuffer = new NoFrameBuffer();
+    public static readonly NoTexture noTexture = new NoTexture();
+    public static readonly NoTextureView noTextureView = new NoTextureView();
+    public static readonly NoSampler noSampler = new NoSampler();
+    public static readonly NoBindGroup noBindGroup = new NoBindGroup();
+    public static readonly NoBuffer noBuffer = new NoBuffer();
+    public static readonly NoCommandBuffer noCommandBuffer = new NoCommandBuffer();
+    public static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
+    public static readonly NoPipeline noPipeline = new NoPipeline();
+    public static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
+    public static readonly NoDevice noDevice = new NoDevice();
 
     public override GPURenderPass SwapChainRenderPass => noRenderPass;
 
@@ -48,7 +48,6 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DStorage => noBindGroup;
 
-    public override string Name => "no_gpu_device";
 
     protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
     {
@@ -110,67 +109,79 @@ internal class NoDevice : GPUDevice
         return noTextureView;
     }
 
-    protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
+    // protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
+    // {
+
+    // }
+
+    // protected override void DestroyBufferCore(GPUBuffer buffer)
+    // {
+
+    // }
+
+    // protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
+    // {
+
+    // }
+
+    // protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
+    // {
+
+    // }
+
+    // protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
+    // {
+
+    // }
+
+    // protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
+    // {
+
+    // }
+
+    // protected override void DestroyRenderPassCore(GPURenderPass renderPass)
+    // {
+
+    // }
+
+    // protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
+    // {
+
+    // }
+
+    // protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
+    // {
+
+    // }
+
+    // protected override void DestroySamplerCore(GPUSampler sampler)
+    // {
+
+    // }
+
+    // protected override void DestroyTextureCore(GPUTexture texture)
+    // {
+
+    // }
+
+    // protected override void DestroyTextureViewCore(GPUTextureView textureView)
+    // {
+
+    // }
+
+    public override void Destroy(BaseGPUObject obj)
     {
-        
+        //do nothing
+        // base.Destroy(obj);
     }
 
-    protected override void DestroyBufferCore(GPUBuffer buffer)
+    public override void DestroyImmediate(BaseGPUObject obj)
     {
-        
+        //do nothing
+        // base.DestroyImmediate(obj);
     }
 
-    protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
-    {
-        
-    }
-
-    protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
-    {
-        
-    }
-
-    protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
-    {
-        
-    }
-
-    protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
-    {
-        
-    }
-
-    protected override void DestroyRenderPassCore(GPURenderPass renderPass)
-    {
-        
-    }
-
-    protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
-    {
-        
-    }
-
-    protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
-    {
-        
-    }
-
-    protected override void DestroySamplerCore(GPUSampler sampler)
-    {
-        
-    }
-
-    protected override void DestroyTextureCore(GPUTexture texture)
-    {
-        
-    }
-
-    protected override void DestroyTextureViewCore(GPUTextureView textureView)
-    {
-        
-    }
-
-    protected override void Dispose(bool disposing)
+    public override void Dispose()
     {
         
     }

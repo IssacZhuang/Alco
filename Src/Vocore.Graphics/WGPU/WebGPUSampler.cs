@@ -18,6 +18,8 @@ internal class WebGPUSampler : GPUSampler
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     protected override void Dispose(bool disposing)
     {
         if (!_isBuiltIn)
@@ -40,10 +42,15 @@ internal class WebGPUSampler : GPUSampler
         get => _native;
     }
 
-    public unsafe WebGPUSampler(WGPUDevice nativeDevice, SamplerDescriptor descriptor, bool isBuiltIn)
+    
+
+    public unsafe WebGPUSampler(WebGPUDevice device, SamplerDescriptor descriptor, bool isBuiltIn)
     {
         _isBuiltIn = isBuiltIn;
+        Device = device;
         Name = descriptor.Name;
+
+        WGPUDevice nativeDevice = device.Native;
         fixed (sbyte* ptrName = descriptor.Name.GetUtf8Span())
         {
             WGPUSamplerDescriptor nativeDescriptor = new WGPUSamplerDescriptor()

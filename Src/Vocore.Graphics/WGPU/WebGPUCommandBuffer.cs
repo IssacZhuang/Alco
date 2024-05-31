@@ -41,6 +41,8 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     public override bool HasBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -304,9 +306,10 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         get => _buffer;
     }
 
-    public unsafe WebGPUCommandBuffer(WGPUDevice nativeDevice, CommandBufferDescriptor? descriptor = null)
+    public unsafe WebGPUCommandBuffer(WebGPUDevice device, CommandBufferDescriptor? descriptor = null)
     {
-
+        Device = device;
+        WGPUDevice nativeDevice = device.Native;
         _nativeDevice = nativeDevice;
         if (descriptor.HasValue)
         {

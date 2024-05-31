@@ -23,6 +23,8 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     protected override void Dispose(bool disposing)
     {
         wgpuBindGroupRelease(_native);
@@ -38,9 +40,14 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
         get => _native;
     }
 
-    public WebGPUResourceGroup(WGPUDevice nativeDevice, ResourceGroupDescriptor descriptor)
+    
+
+    public WebGPUResourceGroup(WebGPUDevice device, ResourceGroupDescriptor descriptor)
     {
+        Device = device;
         Name = descriptor.Name;
+
+        WGPUDevice nativeDevice = device.Native;
         _resources = new IGPUBindableResource[descriptor.Resources.Length];
 
         for (int i = 0; i < descriptor.Resources.Length; i++)

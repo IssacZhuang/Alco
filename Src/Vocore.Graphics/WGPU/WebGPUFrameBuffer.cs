@@ -37,6 +37,8 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _renderPass;
     }
 
+    protected override WebGPUDevice Device { get; }
+
     public override IReadOnlyList<GPUTexture> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -128,8 +130,9 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUFrameBuffer(in FrameBufferDescriptor descriptor)
+    internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor)
     {
+        Device = device;
         WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.RenderPass;
         string name = descriptor.Name;
         uint width = descriptor.Width;
@@ -154,12 +157,12 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         {
             WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
             _colorTextures[i] = new WebGPUTexture(
-                renderPass.NativeDevice,
+                device,
                 BuildTextureDescriptor(colorInfo.format, width, height, false),
                 $"Color Texture {i}");
 
             _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
-            _colorViewsWrapper[i] = new WebGPUTextureViewWrapper(_colorTextures[i], _colorViews[i]);
+            _colorViewsWrapper[i] = new WebGPUTextureViewWrapper(Device, _colorTextures[i], _colorViews[i]);
 
             _colorAttachments[i] = new WGPURenderPassColorAttachment
             {
@@ -175,12 +178,12 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
             WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
 
             _depthTexture = new WebGPUTexture(
-                renderPass.NativeDevice,
+                device,
                 BuildTextureDescriptor(depthInfo.format, width, height, true),
                 "depth_texture");
 
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
-            _depthViewWrapper = new WebGPUTextureViewWrapper(_depthTexture, _depthView);
+            _depthViewWrapper = new WebGPUTextureViewWrapper(Device, _depthTexture, _depthView);
 
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
 

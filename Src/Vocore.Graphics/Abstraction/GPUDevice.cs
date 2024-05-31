@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace Vocore.Graphics;
@@ -6,8 +7,9 @@ namespace Vocore.Graphics;
 /// The low-level interface to do the operations on the GPU. It is the entry point to create the GPU resources and submit the commands to the GPU.
 /// <br/> !Attention: The GPUDevice is not thread-safe, it should only be used in the main thread or use the synchronization mechanism to protect the access.
 /// </summary> 
-public abstract class GPUDevice : BaseGPUObject
+public abstract class GPUDevice : IDisposable
 {
+    private readonly ConcurrentQueue<BaseGPUObject> _deferredDisposal = new();
     // Abstract properties
     /// <summary>
     /// The <see cref="GPURenderPass"/> of the surface swap chain.
@@ -96,6 +98,7 @@ public abstract class GPUDevice : BaseGPUObject
     /// </summary>
     /// <param name="createInfo">The descriptor for the GPU buffer.</param>
     /// <returns>The created GPU buffer.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public GPUBuffer CreateBuffer(in BufferDescriptor createInfo)
     {
         return CreateBufferCore(createInfo);
@@ -129,14 +132,7 @@ public abstract class GPUDevice : BaseGPUObject
         return buffer;
     }
 
-    /// <summary>
-    /// Destroys the GPU buffer.
-    /// </summary>
-    /// <param name="buffer">The GPU buffer to destroy.</param>
-    public void DestroyBuffer(GPUBuffer buffer)
-    {
-        DestroyBufferCore(buffer);
-    }
+
 
     /// <summary>
     /// Creates a GPU texture with the descriptor.
@@ -148,14 +144,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateTextureCore(createInfo);
     }
 
-    /// <summary>
-    /// Destroys the GPU texture.
-    /// </summary>
-    /// <param name="texture">The GPU texture to destroy.</param>
-    public void DestroyTexture(GPUTexture texture)
-    {
-        DestroyTextureCore(texture);
-    }
 
     /// <summary>
     /// Creates a GPU command buffer with the descriptor. The descriptor can be null.
@@ -167,14 +155,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateCommandBufferCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU command buffer.
-    /// </summary>
-    /// <param name="commandBuffer">The GPU command buffer to destroy.</param>
-    public void DestroyCommandBuffer(GPUCommandBuffer commandBuffer)
-    {
-        DestroyCommandBufferCore(commandBuffer);
-    }
 
     /// <summary>
     /// Creates a GPU resuable render buffer with the descriptor.
@@ -186,14 +166,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateResuableRenderBufferCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU resuable render buffer.
-    /// </summary>
-    /// <param name="renderBuffer">The GPU resuable render buffer to destroy.</param>
-    public void DestroyResuableRenderBuffer(GPUResuableRenderBuffer renderBuffer)
-    {
-        DestroyResuableRenderBufferCore(renderBuffer);
-    }
 
     /// <summary>
     /// Creates a GPU render pass with the descriptor.
@@ -205,14 +177,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateRenderPassCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU render pass.
-    /// </summary>
-    /// <param name="renderPass">The GPU render pass to destroy.</param>
-    public void DestroyRenderPass(GPURenderPass renderPass)
-    {
-        DestroyRenderPassCore(renderPass);
-    }
 
     /// <summary>
     /// Creates a GPU frame buffer with the render pass, width, and height.
@@ -227,14 +191,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateFrameBufferCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU frame buffer.
-    /// </summary>
-    /// <param name="frameBuffer">The GPU frame buffer to destroy.</param>
-    public void DestroyFrameBuffer(GPUFrameBuffer frameBuffer)
-    {
-        DestroyFrameBufferCore(frameBuffer);
-    }
 
     /// <summary>
     /// Creates a GPU graphics pipeline with the descriptor.
@@ -246,14 +202,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateGraphicsPipelineCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU graphics pipeline.
-    /// </summary>
-    /// <param name="pipeline">The GPU graphics pipeline to destroy.</param>
-    public void DestroyGraphicsPipeline(GPUPipeline pipeline)
-    {
-        DestroyGraphicsPipelineCore(pipeline);
-    }
 
     /// <summary>
     /// Creates a GPU compute pipeline with the descriptor.
@@ -265,14 +213,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateComputePipelineCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU compute pipeline.
-    /// </summary>
-    /// <param name="pipeline">The GPU compute pipeline to destroy.</param>
-    public void DestroyComputePipeline(GPUPipeline pipeline)
-    {
-        DestroyComputePipelineCore(pipeline);
-    }
 
     /// <summary>
     /// Creates a GPU bind group with the descriptor.
@@ -284,14 +224,7 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateBindGroupCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU bind group.
-    /// </summary>
-    /// <param name="bindGroup">The GPU bind group to destroy.</param>
-    public void DestroyBindGroup(GPUBindGroup bindGroup)
-    {
-        DestroyBindGroupCore(bindGroup);
-    }
+
 
     /// <summary>
     /// Creates a GPU resource group with the descriptor.
@@ -303,14 +236,6 @@ public abstract class GPUDevice : BaseGPUObject
         return CreateResourceGroupCore(descriptor);
     }
 
-    /// <summary>
-    /// Destroys the GPU resource group.
-    /// </summary>
-    /// <param name="resourceGroup">The GPU resource group to destroy.</param>
-    public void DestroyResourceGroup(GPUResourceGroup resourceGroup)
-    {
-        DestroyResourceGroupCore(resourceGroup);
-    }
 
     /// <summary>
     /// Creates a GPU texture view with the descriptor.
@@ -320,15 +245,6 @@ public abstract class GPUDevice : BaseGPUObject
     public GPUTextureView CreateTextureView(in TextureViewDescriptor descriptor)
     {
         return CreateTextureViewCore(descriptor);
-    }
-
-    /// <summary>
-    /// Destroys the GPU texture view.
-    /// </summary>
-    /// <param name="textureView">The GPU texture view to destroy.</param>
-    public void DestroyTextureView(GPUTextureView textureView)
-    {
-        DestroyTextureViewCore(textureView);
     }
 
     /// <summary>
@@ -342,12 +258,30 @@ public abstract class GPUDevice : BaseGPUObject
     }
 
     /// <summary>
-    /// Destroys the GPU sampler.
+    /// Destroys the GPU object. The object will be destroyed at the end of the frame.
     /// </summary>
-    /// <param name="sampler">The GPU sampler to destroy.</param>
-    public void DestroySampler(GPUSampler sampler)
+    /// <param name="obj"> The target GPU object to destroy.</param>
+    public virtual void Destroy(BaseGPUObject obj)
     {
-        DestroySamplerCore(sampler);
+        _deferredDisposal.Enqueue(obj);
+    }
+
+    /// <summary>
+    /// Destroys the GPU object immediately.
+    /// </summary>
+    /// <param name="obj"> The target GPU object to destroy.</param>
+    public virtual void DestroyImmediate(BaseGPUObject obj)
+    {
+        obj.Destroy();
+    }
+
+    /// <exclude />
+    protected void ProcessDestroy()
+    {
+        while (_deferredDisposal.TryDequeue(out BaseGPUObject? obj))
+        {
+            obj.Destroy();
+        }
     }
 
     /// <summary>
@@ -397,6 +331,7 @@ public abstract class GPUDevice : BaseGPUObject
     public void SwapBuffers()
     {
         SwapBuffersCore();
+        ProcessDestroy();
     }
 
     /// <summary>
@@ -503,63 +438,39 @@ public abstract class GPUDevice : BaseGPUObject
 
     /// <exclude />
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyBufferCore(GPUBuffer buffer);
 
     /// <exclude />
     protected abstract GPUTexture CreateTextureCore(in TextureDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyTextureCore(GPUTexture texture);
 
     /// <exclude />
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
-    /// <exclude />
-    protected abstract void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer);
 
     /// <exclude />
     protected abstract GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor);
-    /// <exclude />
-    protected abstract void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer);
 
     /// <exclude />
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyRenderPassCore(GPURenderPass renderPass);
 
     /// <exclude />
     protected abstract GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer);
 
     /// <exclude />
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyGraphicsPipelineCore(GPUPipeline pipeline);
 
     /// <exclude />
     protected abstract GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyComputePipelineCore(GPUPipeline pipeline);
 
     /// <exclude />
     protected abstract GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyBindGroupCore(GPUBindGroup bindGroup);
 
     /// <exclude />
     protected abstract GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyResourceGroupCore(GPUResourceGroup resourceGroup);
 
     /// <exclude />
     protected abstract GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroyTextureViewCore(GPUTextureView textureView);
 
     /// <exclude />
     protected abstract GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor);
-    /// <exclude />
-    protected abstract void DestroySamplerCore(GPUSampler sampler);
 
     /// <exclude />
     protected abstract void ResizeSurfaceCore(uint width, uint height);
@@ -579,4 +490,9 @@ public abstract class GPUDevice : BaseGPUObject
 
     /// <exclude />
     protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel);
+
+    public virtual void Dispose()
+    {
+
+    }
 }

@@ -37,6 +37,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     #region Abstract Implementation
     public override string Name { get; }
+    protected override WebGPUDevice Device { get; }
     public override GPURenderPass RenderPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -123,8 +124,9 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUSurfaceFrameBuffer(WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config)
+    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config)
     {
+        Device = device;
         Name = "swapchain_frameBuffer";
         _renderPass = renderPass;
 
@@ -144,7 +146,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _colorAttachments = null;
         _depthAttachment = null;
 
-        WebGPUSurfaceTexture surfaceTexture = new WebGPUSurfaceTexture(surface);
+        WebGPUSurfaceTexture surfaceTexture = new WebGPUSurfaceTexture(Device, surface);
         _colorTextures = new WebGPUSurfaceTexture[1];
         _colorTextures[0] = surfaceTexture;
 
@@ -162,7 +164,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         };
 
         _colorViewsWrapper = new WebGPUTextureViewWrapper[1];
-        _colorViewsWrapper[0] = new WebGPUTextureViewWrapper(surfaceTexture, surfaceTexture.DefaultView);
+        _colorViewsWrapper[0] = new WebGPUTextureViewWrapper(Device, surfaceTexture, surfaceTexture.DefaultView);
 
         _descriptor.colorAttachments = _colorAttachments;
 
@@ -174,7 +176,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
             WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
             _depthTexture = new WebGPUTexture(
-                renderPass.NativeDevice,
+                Device,
                 BuildTextureDescriptor(depthInfo.format, _width, _height),
                 "Depth Texture");
 
@@ -192,7 +194,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                 stencilClearValue = depthInfo.clearStencil,
             };
 
-            _depthViewWrapper = new WebGPUTextureViewWrapper(_depthTexture, _depthView);
+            _depthViewWrapper = new WebGPUTextureViewWrapper(Device, _depthTexture, _depthView);
 
             _descriptor.depthStencilAttachment = _depthAttachment;
         }
@@ -232,10 +234,11 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     {
         if (_renderPass.WebGPUDepthInfo.HasValue)
         {
-            _depthTexture?.Dispose();
+            //_depthTexture?.Dispose();
+            _depthTexture?.Destroy();
             wgpuTextureViewRelease(_depthView);
             _depthTexture = new WebGPUTexture(
-                _renderPass.NativeDevice,
+                Device,
                 BuildTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height),
                 "Depth Texture");
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
@@ -335,8 +338,11 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => 1;
         }
 
-        public unsafe WebGPUSurfaceTexture(WGPUSurface surface)
+        protected override GPUDevice Device { get; }
+
+        public unsafe WebGPUSurfaceTexture(WebGPUDevice device, WGPUSurface surface)
         {
+            Device = device;
             _surface = surface;
 
             WGPUSurfaceTexture surfaceTexture = default;

@@ -75,7 +75,6 @@ internal partial class WebGPUDevice : GPUDevice
 
     #region Abstract Implementation
 
-    public override string Name { get; }
 
     public override GPURenderPass SwapChainRenderPass
     {
@@ -148,24 +147,24 @@ internal partial class WebGPUDevice : GPUDevice
         _hasCommandSubmitted = true;
     }
 
-    protected override void Dispose(bool disposing)
+    public override void Dispose()
     {
-        _surfaceFrameBuffer.Dispose();
-        _surfaceRenderPass.Dispose();
+        _surfaceFrameBuffer.Destroy();
+        _surfaceRenderPass.Destroy();
 
         //dispose default resources
-        SamplerNearestRepeat.Dispose();
-        SamplerLinearRepeat.Dispose();
-        SamplerNearestClamp.Dispose();
-        SamplerLinearClamp.Dispose();
-        SamplerNearestMirrorRepeat.Dispose();
-        SamplerLinearMirrorRepeat.Dispose();
+        SamplerNearestRepeat.Destroy();
+        SamplerLinearRepeat.Destroy();
+        SamplerNearestClamp.Destroy();
+        SamplerLinearClamp.Destroy();
+        SamplerNearestMirrorRepeat.Destroy();
+        SamplerLinearMirrorRepeat.Destroy();
 
-        BindGroupUniformBuffer.Dispose();
-        BindGroupStorageBuffer.Dispose();
-        BindGroupTexture2DSampled.Dispose();
-        BindGroupTexture2DRead.Dispose();
-        BindGroupTexture2DStorage.Dispose();
+        BindGroupUniformBuffer.Destroy();
+        BindGroupStorageBuffer.Destroy();
+        BindGroupTexture2DSampled.Destroy();
+        BindGroupTexture2DRead.Destroy();
+        BindGroupTexture2DStorage.Destroy();
 
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
@@ -176,125 +175,125 @@ internal partial class WebGPUDevice : GPUDevice
 
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
-        return new WebGPUBuffer(Native, descriptor);
+        return new WebGPUBuffer(this, descriptor);
     }
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
-        return new WebGPUCommandBuffer(Native, descriptor);
+        return new WebGPUCommandBuffer(this, descriptor);
     }
 
     protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
     {
-        return new WebGPUResuableRenderBuffer(Native, descriptor);
+        return new WebGPUResuableRenderBuffer(this, descriptor);
     }
 
     protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)
     {
-        return new WebGPUTexture(Native, descriptor);
+        return new WebGPUTexture(this, descriptor);
     }
 
     protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
     {
-        return new WebGPURenderPass(Native, descriptor);
+        return new WebGPURenderPass(this, descriptor);
     }
 
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
     {
-        return new WebGPUFrameBuffer(descriptor);
+        return new WebGPUFrameBuffer(this, descriptor);
     }
 
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
     {
-        return new WebGPUGraphicsPipeline(Native, descriptor);
+        return new WebGPUGraphicsPipeline(this, descriptor);
     }
 
     protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
     {
-        return new WebGPUComputePipeline(Native, descriptor);
+        return new WebGPUComputePipeline(this, descriptor);
     }
 
     protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
     {
-        return new WebGPUBindGroup(Native, descriptor);
+        return new WebGPUBindGroup(this, descriptor);
     }
 
     protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)
     {
-        return new WebGPUResourceGroup(Native, descriptor);
+        return new WebGPUResourceGroup(this, descriptor);
     }
 
     protected override GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor)
     {
-        return new WebGPUTextureView(Native, descriptor);
+        return new WebGPUTextureView(this, descriptor);
     }
 
     
     protected unsafe override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
     {
-        return new WebGPUSampler(Native, descriptor, false);
+        return new WebGPUSampler(this, descriptor, false);
     }
 
 
-    protected override void DestroyBufferCore(GPUBuffer buffer)
-    {
-        buffer.Dispose();
-    }
+    // protected override void DestroyBufferCore(GPUBuffer buffer)
+    // {
+    //     buffer.Dispose();
+    // }
 
-    protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
-    {
-        commandBuffer.Dispose();
-    }
+    // protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
+    // {
+    //     commandBuffer.Dispose();
+    // }
 
-    protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
-    {
-        renderBuffer.Dispose();
-    }
+    // protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
+    // {
+    //     renderBuffer.Dispose();
+    // }
 
-    protected override void DestroyTextureCore(GPUTexture texture)
-    {
-        texture.Dispose();
-    }
+    // protected override void DestroyTextureCore(GPUTexture texture)
+    // {
+    //     texture.Dispose();
+    // }
 
-    protected override void DestroyRenderPassCore(GPURenderPass renderPass)
-    {
-        renderPass.Dispose();
-    }
+    // protected override void DestroyRenderPassCore(GPURenderPass renderPass)
+    // {
+    //     renderPass.Dispose();
+    // }
 
-    protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
-    {
-        frameBuffer.Dispose();
-    }
+    // protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
+    // {
+    //     frameBuffer.Dispose();
+    // }
 
-    protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
-    {
-        pipeline.Dispose();
-    }
+    // protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
+    // {
+    //     pipeline.Dispose();
+    // }
 
-    protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
-    {
-        pipeline.Dispose();
-    }
+    // protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
+    // {
+    //     pipeline.Dispose();
+    // }
 
-    protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
-    {
-        bindGroup.Dispose();
-    }
+    // protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
+    // {
+    //     bindGroup.Dispose();
+    // }
 
-    protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
-    {
-        resourceGroup.Dispose();
-    }
+    // protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
+    // {
+    //     resourceGroup.Dispose();
+    // }
 
-    protected override void DestroyTextureViewCore(GPUTextureView textureView)
-    {
-        textureView.Dispose();
-    }
+    // protected override void DestroyTextureViewCore(GPUTextureView textureView)
+    // {
+    //     textureView.Dispose();
+    // }
 
-    protected override void DestroySamplerCore(GPUSampler sampler)
-    {
-        sampler.Dispose();
-    }
+    // protected override void DestroySamplerCore(GPUSampler sampler)
+    // {
+    //     sampler.Dispose();
+    // }
 
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
@@ -366,7 +365,6 @@ internal partial class WebGPUDevice : GPUDevice
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor)
     {
         _descriptor = descriptor;
-        Name = descriptor.Name;
         wgpuSetLogCallback(LogCallback);
 
         // create instance
@@ -563,10 +561,10 @@ internal partial class WebGPUDevice : GPUDevice
 
 
 
-        _surfaceRenderPass = new WebGPURenderPass(Device, renderPassDescriptor);
+        _surfaceRenderPass = new WebGPURenderPass(this, renderPassDescriptor);
 
         // create surface frame buffer
-        _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(_surfaceRenderPass, Surface, GetSurfaceConfig());
+        _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(this, _surfaceRenderPass, Surface, GetSurfaceConfig());
 
         // create default samplers
 

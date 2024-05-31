@@ -73,10 +73,10 @@ public class Game : GameEngine
             GC.Collect(2);
         }
 
-        // if (DebugGUI.Button("Collect All"))
-        // {
-        //     GC.Collect();
-        // }
+        if (DebugGUI.Button("Collect All"))
+        {
+            GC.Collect();
+        }
     }
 
     protected override void OnStop()
@@ -88,7 +88,7 @@ public class Game : GameEngine
     {
         //test the garbage collector for both RAM and VRAM
         //load asset without cache
-        Assets.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
+        //Assets.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
         Rendering.CreateGraphicsArrayBuffer<Vector3>(1000);
         Rendering.CreateRenderTexture(Rendering.DefaultRenderPass, 1280, 720);
     }

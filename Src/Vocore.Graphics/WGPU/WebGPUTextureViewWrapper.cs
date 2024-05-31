@@ -37,8 +37,12 @@ internal class WebGPUTextureViewWrapper : WebGPUTextureViewBase
         get => Texture.Name;
     }
 
-    public WebGPUTextureViewWrapper(WebGPUTextureBase texture, WGPUTextureView view)
+    protected override GPUDevice Device { get; }
+
+
+    public WebGPUTextureViewWrapper(WebGPUDevice device,WebGPUTextureBase texture, WGPUTextureView view)
     {
+        Device = device;
         _texture = texture;
         _view = view;
     }

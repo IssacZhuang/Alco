@@ -18,6 +18,8 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     public override ShaderStage Stages
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -39,10 +41,14 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         get => _graphicsipeline;
     }
 
-    public unsafe WebGPUGraphicsPipeline(WGPUDevice nativeDevice, in GraphicsPipelineDescriptor descriptor)
+    
+
+    public unsafe WebGPUGraphicsPipeline(WebGPUDevice device, in GraphicsPipelineDescriptor descriptor)
     {
+        Device = device;
         Name = descriptor.Name;
 
+        WGPUDevice nativeDevice = device.Native;
 
         // === Create shader modules ===============================
 

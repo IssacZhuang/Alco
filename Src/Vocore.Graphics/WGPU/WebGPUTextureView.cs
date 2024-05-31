@@ -31,6 +31,8 @@ internal class WebGPUTextureView : WebGPUTextureViewBase
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     protected override void Dispose(bool disposing)
     {
         wgpuTextureViewRelease(_native);
@@ -46,10 +48,15 @@ internal class WebGPUTextureView : WebGPUTextureViewBase
         get => _native;
     }
 
-    public unsafe WebGPUTextureView(WGPUDevice device, in TextureViewDescriptor descriptor)
+    
+
+    public unsafe WebGPUTextureView(WebGPUDevice device, in TextureViewDescriptor descriptor)
     {
         Name = descriptor.Name;
+        Device = device;
 
+
+        WGPUDevice nativeDevice = device.Native;
         _texture = (WebGPUTextureBase)descriptor.Texture;
         _dimension = descriptor.Dimension;
 

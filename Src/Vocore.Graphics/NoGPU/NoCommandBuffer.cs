@@ -5,6 +5,7 @@ internal class NoCommandBuffer : GPUCommandBuffer
     public override bool HasBuffer => false;
 
     public override string Name => "no_gpu_command_buffer";
+    protected override GPUDevice Device => NoDevice.noDevice;
 
     protected override void BeginCore()
     {

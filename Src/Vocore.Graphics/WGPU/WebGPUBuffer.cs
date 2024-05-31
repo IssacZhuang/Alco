@@ -34,6 +34,8 @@ internal class WebGPUBuffer : GPUBuffer
 
     public override string Name { get; }
 
+    protected override GPUDevice Device { get; }
+
     protected override void Dispose(bool disposing)
     {
         wgpuBufferDestroy(_buffer);
@@ -50,9 +52,13 @@ internal class WebGPUBuffer : GPUBuffer
         get => _buffer;
     }
 
-    public unsafe WebGPUBuffer(WGPUDevice nativeDevice, in BufferDescriptor descriptor)
+    public unsafe WebGPUBuffer(WebGPUDevice device, in BufferDescriptor descriptor)
     {
+        Device = device;
         Name = descriptor.Name;
+
+        WGPUDevice nativeDevice = device.Native;
+
         _size = UtilsBuffer.GetBufferSize(descriptor.Size);
         //_size = (uint)descriptor.Size;
         _usage = descriptor.Usage;

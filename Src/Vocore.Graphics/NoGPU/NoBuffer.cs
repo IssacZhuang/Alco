@@ -10,6 +10,8 @@ internal class NoBuffer : GPUBuffer
 
     public override string Name => "no_gpu_buffer";
 
+    protected override GPUDevice Device => NoDevice.noDevice;
+
     protected override void Dispose(bool disposing)
     {
         

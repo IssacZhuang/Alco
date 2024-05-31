@@ -37,8 +37,13 @@ internal class WebGPUBindGroup : GPUBindGroup
         get => _native;
     }
 
-    public unsafe WebGPUBindGroup(WGPUDevice nativeDevice, BindGroupDescriptor descriptor)
+    protected override GPUDevice Device { get; }
+
+    public unsafe WebGPUBindGroup(WebGPUDevice device, BindGroupDescriptor descriptor)
     {
+        Device = device;
+
+        WGPUDevice nativeDevice = device.Native;
         BindGroupEntry[] entries = descriptor.Bindings;
         Name = descriptor.Name;
         WGPUBindGroupLayoutEntry* nativeEntries = stackalloc WGPUBindGroupLayoutEntry[entries.Length];
