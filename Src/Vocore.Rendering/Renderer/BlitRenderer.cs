@@ -24,6 +24,24 @@ public class BlitRenderer : AutoDisposable
         _shaderId_Texture = shaderBlit.GetResourceId("texture");
     }
 
+    public void Blit(Texture2D from, GPUFrameBuffer to)
+    {
+        if (_targetRenderPass != to.RenderPass)
+        {
+            _targetRenderPass = to.RenderPass;
+            _pipelineBlit = _shaderBlit.GetPipelineVariant(_targetRenderPass);
+        }
+
+        _command.Begin();
+        _command.SetFrameBuffer(to);
+        _command.SetGraphicsPipeline(_pipelineBlit!);
+        _command.SetVertexBuffer(0, _fullScreenQuad.VertexBuffer);
+        _command.SetIndexBuffer(_fullScreenQuad.IndexBuffer, _fullScreenQuad.IndexFormat);
+        _command.SetGraphicsResources(_shaderId_Texture, from.EntrySample);
+        _command.DrawIndexed(_fullScreenQuad.IndexCount, 1, 0, 0, 0);
+        _command.End();
+        _device.Submit(_command);
+    }
     public void Blit(RenderTexture from, GPUFrameBuffer to)
     {
         if (_targetRenderPass != to.RenderPass)
@@ -42,6 +60,17 @@ public class BlitRenderer : AutoDisposable
         _command.End();
         _device.Submit(_command);
     }
+
+    public void Blit(Texture2D from, RenderTexture to)
+    {
+        Blit(from, to.FrameBuffer);
+    }
+
+    public void Blit(RenderTexture from, RenderTexture to)
+    {
+        Blit(from, to.FrameBuffer);
+    }
+
 
     protected override void Dispose(bool disposing)
     {

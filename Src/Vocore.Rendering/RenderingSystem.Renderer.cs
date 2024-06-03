@@ -31,4 +31,9 @@ public partial class RenderingSystem
         return new BlitRenderer(this, shaderBlit);
     }
 
+    public WireframeRenderer CreateWireframeRenderer(GraphicsBuffer camera, Shader shader)
+    {
+        return new WireframeRenderer(this, camera, shader);
+    }
+
 }

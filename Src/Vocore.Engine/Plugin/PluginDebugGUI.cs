@@ -7,7 +7,7 @@ namespace Vocore.Engine;
 
 public class PluginDebugGUI : BaseEnginePlugin
 {
-    public class DebugGUISystem : BaseEngineSystem
+    private class DebugGUISystem : BaseEngineSystem
     {
         private readonly DebugGUIRenderer _renderer;
         public DebugGUISystem(DebugGUIRenderer renderer)
