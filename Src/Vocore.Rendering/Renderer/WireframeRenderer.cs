@@ -58,7 +58,9 @@ public class WireframeRenderer : AutoDisposable
         _indices.Clear();
     }
 
-    public void Draw(GPUFrameBuffer target)
+
+
+    public void Begin(GPUFrameBuffer target)
     {
         if (_vertices.Length == 0)
         {
@@ -77,9 +79,17 @@ public class WireframeRenderer : AutoDisposable
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_pipeline!);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
-        _command.End();
-        _device.Submit(_command);
+
+    }
+
+    public void End()
+    {
+        if (_command.IsRecording)
+        {
+            _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
+            _command.End();
+            _device.Submit(_command);
+        }
     }
 
 
