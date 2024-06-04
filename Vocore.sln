@@ -69,6 +69,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "17-AudioDevice", "Sandbox\1
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "18-GcBurner", "Sandbox\18-GcBurner\18-GcBurner.csproj", "{EA56C21D-BC92-46AD-99E5-DCF09F4E1CD1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Tool.AssetsCompiler", "Src\Vocore.Tool.AssetsCompiler\Vocore.Tool.AssetsCompiler.csproj", "{CAA8D894-73AC-46C2-8CA5-621C519FA2CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -191,6 +193,10 @@ Global
 		{EA56C21D-BC92-46AD-99E5-DCF09F4E1CD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EA56C21D-BC92-46AD-99E5-DCF09F4E1CD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EA56C21D-BC92-46AD-99E5-DCF09F4E1CD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAA8D894-73AC-46C2-8CA5-621C519FA2CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAA8D894-73AC-46C2-8CA5-621C519FA2CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAA8D894-73AC-46C2-8CA5-621C519FA2CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAA8D894-73AC-46C2-8CA5-621C519FA2CA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -225,5 +231,6 @@ Global
 		{38B91135-94AF-4C4C-81AD-A5729D36B9F8} = {BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}
 		{6ADE802E-6805-44E6-9583-49C3D237D93E} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{EA56C21D-BC92-46AD-99E5-DCF09F4E1CD1} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{CAA8D894-73AC-46C2-8CA5-621C519FA2CA} = {BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}
 	EndGlobalSection
 EndGlobal

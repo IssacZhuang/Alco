@@ -7,6 +7,7 @@ using Silk.NET.Core.Loader;
 
 namespace Vocore.Engine.Tool;
 
+
 public class AssetsBuildTask : Microsoft.Build.Utilities.Task
 {
     private class NativeLibraryPreloader
