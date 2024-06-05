@@ -81,7 +81,7 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-
+        
     }
 
     private void AllocResource()
