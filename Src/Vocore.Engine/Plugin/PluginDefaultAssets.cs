@@ -1,3 +1,5 @@
+using Vocore.IO;
+
 namespace Vocore.Engine;
 
 public class PluginDefaultAssets : BaseEnginePlugin

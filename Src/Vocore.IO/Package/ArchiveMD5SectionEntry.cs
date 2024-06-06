@@ -1,6 +1,6 @@
 // modify from https://github.com/ValveResourceFormat/ValvePak
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// VPK_ArchiveMD5SectionEntry
@@ -18,21 +18,21 @@ public class ArchiveMD5SectionEntry
 	/// <summary>
 	/// Gets or sets the CRC32 checksum of this entry.
 	/// </summary>
-	public uint ArchiveIndex { get;}
+	public uint ArchiveIndex { get; }
 
 	/// <summary>
 	/// Gets or sets the offset in the package.
 	/// </summary>
-	public uint Offset { get;}
+	public uint Offset { get; }
 
 	/// <summary>
 	/// Gets or sets the length in bytes.
 	/// </summary>
-	public uint Length { get;}
+	public uint Length { get; }
 
 	/// <summary>
 	/// Gets or sets the expected Checksum checksum.
 	/// </summary>
-	public byte[] Checksum { get;}
+	public byte[] Checksum { get; }
 }
 

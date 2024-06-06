@@ -1,4 +1,4 @@
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 public static class FileExt
 {

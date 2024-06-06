@@ -6,7 +6,8 @@ using Silk.NET.Windowing;
 using Silk.NET.Maths;
 using Vocore.Graphics;
 using Vocore.Rendering;
-using System.Diagnostics;
+using Vocore.IO;
+using System.Text;
 
 
 
@@ -181,7 +182,8 @@ namespace Vocore.Engine
             }
 
             _rendering = new RenderingSystem(_graphicsDevice);
-            _assets = new AssetSystem(this, 2);
+            _assets = new AssetSystem(2);
+            InitializeDefaultAssetLoader();
 
             _graphics = new EngineGraphics(this);
             _timer = new EngineTimer(this);
@@ -413,6 +415,21 @@ namespace Vocore.Engine
             Window.Close();
             Assets.Dispose();
             GC.SuppressFinalize(this);
+        }
+
+        private void InitializeDefaultAssetLoader()
+        {
+            Assets.RegisterAssetLoader(new AssetLoaderFontTTF(Rendering));
+            Assets.RegisterAssetLoader(new AssetLoaderTexture2D(Rendering));
+            Assets.RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
+            Assets.RegisterAssetLoader(new AssetLoaderShaderHLSL(Rendering, (string includeName) =>
+            {
+                if (Assets.TryLoadRaw(includeName, out ReadOnlySpan<byte> data))
+                {
+                    return Encoding.UTF8.GetString(data);
+                }
+                throw new Exception($"Can not find the include file: {includeName}");
+            }));
         }
 
         private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)

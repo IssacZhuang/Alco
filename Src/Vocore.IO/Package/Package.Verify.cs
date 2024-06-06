@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// VPK (Valve Pak) files are uncompressed archives used to package game content.
@@ -149,7 +149,7 @@ public partial class Package : IDisposable
 					stream?.Seek(offset, SeekOrigin.Begin);
 				}
 
-				
+
 				if (stream == null)
 				{
 					throw new InvalidDataException("Failed to open file stream");

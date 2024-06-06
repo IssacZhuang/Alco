@@ -4,6 +4,7 @@ using Microsoft.Build.Evaluation.Context;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Silk.NET.Core.Loader;
+using Vocore.IO;
 
 namespace Vocore.Engine.Tool;
 

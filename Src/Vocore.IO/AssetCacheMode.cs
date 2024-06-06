@@ -1,6 +1,6 @@
 using System;
 
-namespace Vocore.Engine
+namespace Vocore.IO
 {
     /// <summary>
     /// The cache mode of the asset

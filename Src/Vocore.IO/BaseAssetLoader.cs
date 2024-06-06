@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 public abstract class BaseAssetLoader<TAsset, TPreprocessed> : IAssetLoader<TAsset> where TAsset : class
 {
@@ -12,7 +12,7 @@ public abstract class BaseAssetLoader<TAsset, TPreprocessed> : IAssetLoader<TAss
 
     protected abstract bool TryCreateAssetCore(string filename, TPreprocessed preprocessed, [NotNullWhen(true)] out TAsset? asset);
 
-    
+
     /// <summary>
     /// Tries to asynchronously preprocess the specified file. It will execute asynchronously when using AssetManager.LoadAsync.
     /// </summary>
@@ -31,7 +31,7 @@ public abstract class BaseAssetLoader<TAsset, TPreprocessed> : IAssetLoader<TAss
         return false;
     }
 
-    
+
     /// <summary>
     /// Tries to create an asset from the specified filename and preprocessed data. This method will execute on main thread when preprocessed data is ready.
     /// </summary>

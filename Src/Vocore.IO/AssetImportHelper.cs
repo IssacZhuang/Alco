@@ -1,4 +1,4 @@
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// Importer for assets.
@@ -50,7 +50,7 @@ public class AssetImportHelper : IDisposable
     {
         foreach (var ext in importer.FileExtensions)
         {
-            if(_importers.TryGetValue(ext, out var existingImporter))
+            if (_importers.TryGetValue(ext, out var existingImporter))
             {
                 throw new InvalidOperationException($"Importer for extension '{ext}' already exists: {existingImporter.Name}");
             }

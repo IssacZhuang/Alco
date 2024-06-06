@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// A file source that reads from a package file.

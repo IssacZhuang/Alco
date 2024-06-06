@@ -4,7 +4,7 @@ using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace Vocore.Engine
+namespace Vocore.IO
 {
     /// <summary>
     /// Represents an asset manager for managing runtime assets and file sources.
@@ -44,26 +44,11 @@ namespace Vocore.Engine
 
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
 
-        internal AssetSystem(GameEngine engine, int threadCount)
+        internal AssetSystem(int threadCount)
         {
             _ownerThreadId = Environment.CurrentManagedThreadId;
 
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
-
-            //built in asset loaders
-            RegisterAssetLoader(new AssetLoaderFontTTF(engine.Rendering));
-            RegisterAssetLoader(new AssetLoaderTexture2D(engine.Rendering));
-            RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
-            RegisterAssetLoader(new AssetLoaderShaderHLSL(engine.Rendering, (string includeName) =>
-            {
-                if (TryLoadDataFromSource(includeName, out ReadOnlySpan<byte> data))
-                {
-                    return Encoding.UTF8.GetString(data);
-                }
-                throw new Exception($"Can not find the include file: {includeName}");
-            }));
-            
-            
             _assetWatcher = new AssetWatcher(OnAssetChanged);
         }
 
@@ -95,7 +80,7 @@ namespace Vocore.Engine
                 }
                 _assetLoaders.Add(extension, assetLoader);
             }
-            
+
             _isRecongizedExtensionsDirty = true;
             _isEntryDirty = true;
         }
@@ -624,7 +609,7 @@ namespace Vocore.Engine
                 foreach (var file in fileSource.AllFileNames)
                 {
                     string extension = Path.GetExtension(file);
-                    
+
 
                     if (_recongizedExtensions.Contains(extension))
                     {

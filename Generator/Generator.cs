@@ -1,6 +1,7 @@
 using System.Text;
 using Vocore;
 using Vocore.Engine;
+using Vocore.IO;
 using Vocore.Rendering;
 
 public class Generator : GameEngine

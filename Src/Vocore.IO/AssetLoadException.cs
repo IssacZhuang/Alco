@@ -1,4 +1,4 @@
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// Exception thrown when an asset fails to load.

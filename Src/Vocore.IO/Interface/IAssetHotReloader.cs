@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// Represents an interface for hot reloading assets.

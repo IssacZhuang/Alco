@@ -8,7 +8,7 @@ using System.IO.Hashing;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 public partial class Package
 {
@@ -285,7 +285,7 @@ public partial class Package
 			var fileHashesMD5 = MD5.HashData([]); // We did not write any file hashes
 			writer.Write(fileHashesMD5);
 
-			
+
 
 			// Full file hash
 			fullFileMD5.TransformFinalBlock(fileHashesMD5, 0, fileHashesMD5.Length);

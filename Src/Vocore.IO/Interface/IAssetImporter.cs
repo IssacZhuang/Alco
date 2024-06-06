@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// Importer for assets, it will import and convert the asset to another type<br/>
@@ -17,8 +17,8 @@ public interface IAssetImporter : IBaseAssetHandler
     /// <param name="importedFilename">The filename of the imported file</param>
     /// <returns><c>true</c> if the import was successful</returns>
     bool TryImport(
-        string filename, 
-        byte[] file, 
-        [NotNullWhen(true)] out byte[] importedFile, 
+        string filename,
+        byte[] file,
+        [NotNullWhen(true)] out byte[] importedFile,
         [NotNullWhen(true)] out string? importedFilename);
 }

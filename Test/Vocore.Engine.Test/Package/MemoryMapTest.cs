@@ -3,7 +3,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Security.Cryptography;
 using NUnit.Framework;
-using Vocore.Engine;
+using Vocore.IO;
 
 namespace Tests
 {

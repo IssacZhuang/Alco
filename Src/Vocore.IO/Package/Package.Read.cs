@@ -8,7 +8,7 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 /// <summary>
 /// VPK (Valve Pak) files are uncompressed archives used to package game content.

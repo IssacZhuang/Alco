@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 internal class AssetWatcher : IDisposable
 {
-    private ConcurrentQueue<string> _changedFiles ;
+    private ConcurrentQueue<string> _changedFiles;
     private Action<string> _onAssetChanged;
     private List<FileSystemWatcher> _watchers;
 

@@ -4,7 +4,7 @@ using System.Text;
 using Vocore.Graphics;
 using Vocore.Engine;
 using Vocore.Rendering;
-using Vocore;
+using Vocore.IO;
 
 public class Game : GameEngine
 {

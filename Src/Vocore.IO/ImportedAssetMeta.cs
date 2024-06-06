@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace Vocore.Engine
+namespace Vocore.IO
 {
     public struct ImportedAssetMeta
     {

@@ -3,7 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Vocore.Engine;
+namespace Vocore.IO;
 
 public class DirectoryFileSource : IFileSource
 {
