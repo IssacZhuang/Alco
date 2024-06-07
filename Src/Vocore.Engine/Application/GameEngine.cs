@@ -220,11 +220,9 @@ namespace Vocore.Engine
         private void InternaleRun()
         {
             InternalStart();
-            _timer.Start();
-            //_window.Initialize();
+            
             while (_isRunning)
             {
-                _input.DoEvent();
                 InternalUpdate();
             }
             InternalStop();
@@ -280,7 +278,7 @@ namespace Vocore.Engine
         private void InternalUpdate()
         {
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
-
+            _input.DoEvent();
             _input.Update();
 
             if (canInvokePhysicsTick)
@@ -366,6 +364,7 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalStart()
         {
+            _timer.Start();
             try
             {
                 OnStart();
