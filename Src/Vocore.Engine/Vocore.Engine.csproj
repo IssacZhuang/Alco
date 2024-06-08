@@ -12,7 +12,6 @@
     <UseGLFW>true</UseGLFW>
     <UseSDL>false</UseSDL>
 
-    <UseAssetsPack>false</UseAssetsPack>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
@@ -21,65 +20,23 @@
     <ProjectReference Include="..\Vocore.Rendering\Vocore.Rendering.csproj" />
     <ProjectReference Include="..\Vocore.GUI\Vocore.GUI.csproj" />
     <ProjectReference Include="..\Vocore.IO\Vocore.IO.csproj" />
-
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
-
-    <ProjectReference Include="..\Vocore.Tool.AssetsCompiler\Vocore.Tool.AssetsCompiler.csproj"
-      OutputItemType="Analyzer"
-      ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Input.Sdl"
-      Version="2.20.0" />
-    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Windowing.Sdl"
-      Version="2.20.0" />
-    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Input.Glfw"
-      Version="2.20.0" />
-    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Windowing.Glfw"
-      Version="2.20.0" />
+    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Input.Sdl" Version="2.20.0" />
+    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Windowing.Sdl" Version="2.20.0" />
+    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Input.Glfw" Version="2.20.0" />
+    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Windowing.Glfw" Version="2.20.0" />
   </ItemGroup>
 
+  <!-- Assets Compiler-->
 
-  <!-- Aseets Packer Task-->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Build" Version="17.9.5" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" />
-  </ItemGroup>
   <PropertyGroup>
-    <!-- tmp folder with uuid -->
-    <TaskUUID>$([System.Guid]::NewGuid())</TaskUUID>
-    <TempRoot>$(MSBuildProjectDirectory)/.tmp</TempRoot>
-    <TempFolder>$(TempRoot)/$(TaskUUID)</TempFolder>
+    <AssetsPath>$(MSBuildThisFileDirectory)Assets</AssetsPath>
   </PropertyGroup>
-
-  <!-- copy assets to output folder if UseAssetsPack is false -->
   <ItemGroup>
-    <Content Condition="'$(UseAssetsPack)' == 'false'"
-      Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
-      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)/Assets/**/*.*" />
+    <CompilerVisibleProperty Include="AssetsPath" />
+    <ProjectReference Include="..\Vocore.Tool.AssetsCompiler\Vocore.Tool.AssetsCompiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
   </ItemGroup>
 
-  <UsingTask Condition="'$(UseAssetsPack)' == 'true'" TaskName="Vocore.Engine.Tool.AssetsBuildTask"
-    AssemblyFile="$(TempFolder)/Vocore.Engine.dll" />
-
-  <Target Condition="'$(UseAssetsPack)' == 'true'" Name="PackEngineAssets" AfterTargets="AfterBuild">
-    <ItemGroup>
-      <CopyItems Include="$(OutputPath)\**\*.*" />
-    </ItemGroup>
-    <MakeDir Directories="$(TempFolder)" />
-    <Copy SourceFiles="@(CopyItems)" DestinationFolder="$(TempFolder)" />
-    <AssetsBuildTask AssetsDir="$(ProjectDir)/Assets" OutputDir="$(OutputPath)"
-      PackageName="EngineAssets.vpk" />
-  </Target>
-
-  <ItemGroup>
-    <Content Condition="'$(UseAssetsPack)' == 'true'" Include="$(OutputPath)EngineAssets.vpk">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Condition="'$(UseAssetsPack)' == 'true'" Include="Vocore.Engine.Assets.targets"
-      Pack="true" PackagePath="build" />
-  </ItemGroup>
 </Project>

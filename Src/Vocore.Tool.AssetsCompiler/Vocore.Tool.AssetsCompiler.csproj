@@ -8,7 +8,6 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
 
-
   <ItemGroup>
     <ProjectReference Include="..\Vocore.Rendering\Vocore.Rendering.csproj" />
 
