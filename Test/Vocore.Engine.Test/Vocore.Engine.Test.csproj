@@ -20,6 +20,9 @@
   <ItemGroup>
     <ProjectReference Include="..\TestFramework\TestFramework.csproj" />
     <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
+    <PackageReference Include="System.IO.Hashing" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

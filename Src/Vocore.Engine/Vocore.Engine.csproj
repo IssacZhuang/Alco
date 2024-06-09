@@ -12,6 +12,7 @@
     <UseGLFW>true</UseGLFW>
     <UseSDL>false</UseSDL>
 
+
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
@@ -28,14 +29,22 @@
     <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Input.Glfw" Version="2.20.0" />
     <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Windowing.Glfw" Version="2.20.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)Assets\**\*.*">
+      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <!-- Assets Compiler-->
-
   <PropertyGroup>
-    <AssetsPath>$(MSBuildThisFileDirectory)Assets</AssetsPath>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <CompilerVisibleProperty Include="AssetsPath" />
+    <Compile Remove="Generated\**\*.*" />
+    <Content Include="Generated\**" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)Assets\**\*.*" />
     <ProjectReference Include="..\Vocore.Tool.AssetsCompiler\Vocore.Tool.AssetsCompiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
   </ItemGroup>
 
