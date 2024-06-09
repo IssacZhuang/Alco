@@ -10,7 +10,7 @@ using SharpGen.Runtime;
 namespace Vocore.Tool.AssetsCompiler;
 
 
-public class BuiltInAssetLinkGenerator
+public class BuiltInAssetsGenerator : BaseGenerator
 {
     public const string PrefixShader = "Shader_";
     public const string PrefixFont = "Font_";
@@ -19,15 +19,16 @@ public class BuiltInAssetLinkGenerator
 
     public static readonly string AssetsPath = "Assets";
 
-    public static readonly string GenFileName = "BuiltinAssetsPath.gen.cs";
+    public static readonly string GenFileName = "BuiltInAssets.gen.cs";
 
     public static readonly string GenFileContentBegin = @"
 // Auto generated code
 using System;
+using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
-public static partial class BuiltInAssetsPath
+public partial class BuiltInAssets
 {
     ";
 
@@ -35,13 +36,16 @@ public static partial class BuiltInAssetsPath
 }
 ";
 
-    public static readonly string GenStatementVariable = @"   public const string {0} = ""{1}"";";
+    public static readonly string GenStatementShader = @"    public Shader {0} => GetShader(""{1}"");";
 
-    private readonly GeneratorExecutionContext _context;
+
+    public static readonly string GenStatementFont = @"    public Font {0} => GetFont(""{1}"");";
+
+
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
-    public BuiltInAssetLinkGenerator(GeneratorExecutionContext context)
+    public BuiltInAssetsGenerator(GeneratorExecutionContext context) : base(context)
     {
-        _context = context;
+
     }
 
     public void Execute()
@@ -63,7 +67,7 @@ public static partial class BuiltInAssetsPath
             string filePath = file.Path;
             string localPath = Path.GetRelativePath(AssetsPath, filePath);
             localPath = FixWindowsPath(localPath);
-            if (ShouldGenerate(filePath, out string namePrefix))
+            if (ShouldGenerate(filePath, out string namePrefix, out string statement))
             {
                 string fileName = Path.GetFileNameWithoutExtension(filePath);
                 string variableName = namePrefix + fileName;
@@ -82,7 +86,7 @@ public static partial class BuiltInAssetsPath
 
                 _duplicateCheck.Add(variableName, filePath);
                 //Warning(string.Format(GenStatementVariable, variableName, localPath));
-                code.AppendLine(string.Format(GenStatementVariable, variableName, localPath));
+                code.AppendLine(string.Format(statement, variableName, localPath));
                 code.AppendLine();
             }
         }
@@ -105,46 +109,27 @@ public static partial class BuiltInAssetsPath
         return value;
     }
 
-    protected bool ShouldGenerate(string filePath, out string namePrefix)
+    protected static bool ShouldGenerate(string filePath, out string namePrefix, out string statement)
     {
         string extension = Path.GetExtension(filePath);
         switch (extension)
         {
             case ".ttf":
+                statement = GenStatementFont;
                 namePrefix = PrefixFont;
                 return true;
             case ".hlsl":
+                statement = GenStatementShader;
                 namePrefix = PrefixShader;
                 return true;
             default:
+                statement = string.Empty;
                 namePrefix = string.Empty;
                 return false;
         }
     }
 
-    protected void Log(string msg)
-    {
-        //log using diagnostic
-        _context.ReportDiagnostic(
-            Diagnostic.Create(
-                new DiagnosticDescriptor("AssetsCompilerLog", "LOG", msg, "LOG", DiagnosticSeverity.Info, true), Location.None));
-    }
 
-    protected void Warning(string msg)
-    {
-        //log using diagnostic
-        _context.ReportDiagnostic(
-            Diagnostic.Create(
-                new DiagnosticDescriptor("AssetsCompilerWarning", "WARNING", msg, "WARNING", DiagnosticSeverity.Warning, true), Location.None));
-    }
-
-    protected void Error(string msg)
-    {
-        //log using diagnostic
-        _context.ReportDiagnostic(
-            Diagnostic.Create(
-                new DiagnosticDescriptor("AssetsCompilerError", "ERROR", msg, "ERROR", DiagnosticSeverity.Error, true), Location.None));
-    }
 
     private string FixWindowsPath(string path)
     {
