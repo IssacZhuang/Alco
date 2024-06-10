@@ -6,7 +6,8 @@
 /.vs
 bin/
 obj/
-Game
+Bin/
+Obj/
 
 # Doc fx
 _site/
