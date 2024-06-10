@@ -20,14 +20,14 @@ public class BloomSystem : BaseEngineSystem
     public BloomSystem(GameEngine engine)
     {
         RenderingSystem rendering = engine.Rendering;
-        AssetSystem assets = engine.Assets;
+        BuiltInAssets builtInAssets = engine.BuiltInAssets;
 
         _rendering = rendering;
 
-        _clampShader = assets.Load<Shader>(BuiltInAssetsPath.Shader_BloomClamp);
-        _downSampleShader = assets.Load<Shader>(BuiltInAssetsPath.Shader_BloomDownSample);
-        _upSampleShader = assets.Load<Shader>(BuiltInAssetsPath.Shader_BloomUpSample);
-        _blitShader = assets.Load<Shader>(BuiltInAssetsPath.Shader_BloomBlit);
+        _clampShader = builtInAssets.Shader_BloomClamp;
+        _downSampleShader = builtInAssets.Shader_BloomDownSample;
+        _upSampleShader = builtInAssets.Shader_BloomUpSample;
+        _blitShader = builtInAssets.Shader_BloomBlit;
         _bloom = rendering.CreateBloom(_blitShader, _clampShader, _downSampleShader, _upSampleShader, 11);
         _bloom.SetInput(rendering.DefaultFrameBuffer);
     }

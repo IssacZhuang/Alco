@@ -14,12 +14,12 @@ public partial class BuiltInAssets
         _system = system;
     }
 
-    public Shader GetShader(string path)
+    private Shader GetShader(string path)
     {
         return _system.Load<Shader>(path);
     }
 
-    public Font GetFont(string path)
+    private Font GetFont(string path)
     {
         return _system.Load<Font>(path);
     }

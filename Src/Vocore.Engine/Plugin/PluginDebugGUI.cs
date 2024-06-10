@@ -41,12 +41,12 @@ public class PluginDebugGUI : BaseEnginePlugin
 
     public override void OnPostInitialize(GameEngine engine)
     {
-        AssetSystem assets = engine.Assets;
+        BuiltInAssets builtInAssets = engine.BuiltInAssets;
 
-        Shader shaderText = assets.Load<Shader>("Rendering/Shader/2D/TextMasked.hlsl");
-        Shader shaderSprite = assets.Load<Shader>("Rendering/Shader/2D/SpriteMasked.hlsl");
-        Shader ShaderBlit = assets.Load<Shader>("Rendering/Shader/Common/Blit.hlsl");
-        Font font = assets.Load<Font>("Font/Default.ttf");
+        Shader shaderText = builtInAssets.Shader_TextMasked;
+        Shader shaderSprite = builtInAssets.Shader_SpriteMasked;
+        Shader ShaderBlit = builtInAssets.Shader_Blit;
+        Font font = builtInAssets.Font_Default;
 
         DebugGUIRenderer renderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
         DebugGUIStyle style = new DebugGUIStyle

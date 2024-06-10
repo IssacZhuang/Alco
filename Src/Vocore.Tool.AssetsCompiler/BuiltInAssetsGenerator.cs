@@ -24,6 +24,10 @@ public class BuiltInAssetsGenerator : BaseGenerator
     public static readonly string GenFileContentBegin = @"
 // Auto generated code
 using System;
+using Vocore.IO;
+using Vocore.GUI;
+using Vocore.Audio;
+using Vocore.Graphics;
 using Vocore.Rendering;
 
 namespace Vocore.Engine;
@@ -97,18 +101,7 @@ public partial class BuiltInAssets
 
     }
 
-    protected string GetMSBuildProperty(string name)
-    {
-
-        if (!_context.AnalyzerConfigOptions.GlobalOptions.TryGetValue($"build_property.{name}", out string? value))
-        {
-            Error($"MSBuild property '{name}' not found");
-            return string.Empty;
-        }
-
-        return value;
-    }
-
+    
     protected static bool ShouldGenerate(string filePath, out string namePrefix, out string statement)
     {
         string extension = Path.GetExtension(filePath);

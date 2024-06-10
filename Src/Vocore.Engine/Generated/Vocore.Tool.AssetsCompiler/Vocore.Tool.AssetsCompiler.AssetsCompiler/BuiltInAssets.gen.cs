@@ -1,6 +1,10 @@
 ﻿
 // Auto generated code
 using System;
+using Vocore.IO;
+using Vocore.GUI;
+using Vocore.Audio;
+using Vocore.Graphics;
 using Vocore.Rendering;
 
 namespace Vocore.Engine;

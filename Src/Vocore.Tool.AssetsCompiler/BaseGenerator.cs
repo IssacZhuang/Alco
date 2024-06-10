@@ -11,7 +11,20 @@ public abstract class BaseGenerator
     {
         _context = context;
     }
- 
+
+    protected string GetMSBuildProperty(string name)
+    {
+
+        if (!_context.AnalyzerConfigOptions.GlobalOptions.TryGetValue($"build_property.{name}", out string? value))
+        {
+            Error($"MSBuild property '{name}' not found");
+            return string.Empty;
+        }
+
+        return value;
+    }
+
+
     protected void Log(string msg)
     {
         //log using diagnostic

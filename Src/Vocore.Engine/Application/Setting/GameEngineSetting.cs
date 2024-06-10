@@ -17,6 +17,7 @@ namespace Vocore.Engine
             GametTickRate = 60;
             Window = WindowSetting.Default;
             Graphics = GraphicsSetting.Default;
+            Assets = AssetsSetting.Default;
         }
 
         /// <summary>
@@ -48,6 +49,11 @@ namespace Vocore.Engine
         public GraphicsSetting Graphics;
 
         /// <summary>
+        /// The assets setting
+        /// </summary>
+        public AssetsSetting Assets;
+
+        /// <summary>
         /// The default game engine setting but no GPU interface required
         /// </summary>
         public readonly static GameEngineSetting NoGraphics = new GameEngineSetting
@@ -55,6 +61,7 @@ namespace Vocore.Engine
             GametTickRate = 60,
             Window = WindowSetting.Default,
             Graphics = GraphicsSetting.NoGPU,
+            Assets = AssetsSetting.Default
         };
 
         public GameEngineSetting With(IEnginePlugin plugin)

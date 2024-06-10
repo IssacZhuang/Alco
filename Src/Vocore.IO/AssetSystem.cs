@@ -46,6 +46,11 @@ namespace Vocore.IO
 
         internal AssetSystem(int threadCount)
         {
+            if (threadCount <= 0)
+            {
+                throw new ArgumentException("Thread count must be greater than 0");
+            }
+
             _ownerThreadId = Environment.CurrentManagedThreadId;
 
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);

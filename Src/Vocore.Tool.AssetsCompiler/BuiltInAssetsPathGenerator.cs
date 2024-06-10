@@ -10,7 +10,7 @@ using SharpGen.Runtime;
 namespace Vocore.Tool.AssetsCompiler;
 
 
-public class BuiltInAssetsPathGenerator
+public class BuiltInAssetsPathGenerator: BaseGenerator
 {
     public const string PrefixShader = "Shader_";
     public const string PrefixFont = "Font_";
@@ -37,11 +37,10 @@ public static partial class BuiltInAssetsPath
 
     public static readonly string GenStatementVariable = @"   public const string {0} = ""{1}"";";
 
-    private readonly GeneratorExecutionContext _context;
+
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
-    public BuiltInAssetsPathGenerator(GeneratorExecutionContext context)
+    public BuiltInAssetsPathGenerator(GeneratorExecutionContext context):base(context)
     {
-        _context = context;
     }
 
     public void Execute()
@@ -93,17 +92,6 @@ public static partial class BuiltInAssetsPath
 
     }
 
-    protected string GetMSBuildProperty(string name)
-    {
-
-        if (!_context.AnalyzerConfigOptions.GlobalOptions.TryGetValue($"build_property.{name}", out string? value))
-        {
-            Error($"MSBuild property '{name}' not found");
-            return string.Empty;
-        }
-
-        return value;
-    }
 
     protected bool ShouldGenerate(string filePath, out string namePrefix)
     {
@@ -120,30 +108,6 @@ public static partial class BuiltInAssetsPath
                 namePrefix = string.Empty;
                 return false;
         }
-    }
-
-    protected void Log(string msg)
-    {
-        //log using diagnostic
-        _context.ReportDiagnostic(
-            Diagnostic.Create(
-                new DiagnosticDescriptor("AssetsCompilerLog", "LOG", msg, "LOG", DiagnosticSeverity.Info, true), Location.None));
-    }
-
-    protected void Warning(string msg)
-    {
-        //log using diagnostic
-        _context.ReportDiagnostic(
-            Diagnostic.Create(
-                new DiagnosticDescriptor("AssetsCompilerWarning", "WARNING", msg, "WARNING", DiagnosticSeverity.Warning, true), Location.None));
-    }
-
-    protected void Error(string msg)
-    {
-        //log using diagnostic
-        _context.ReportDiagnostic(
-            Diagnostic.Create(
-                new DiagnosticDescriptor("AssetsCompilerError", "ERROR", msg, "ERROR", DiagnosticSeverity.Error, true), Location.None));
     }
 
     private string FixWindowsPath(string path)
