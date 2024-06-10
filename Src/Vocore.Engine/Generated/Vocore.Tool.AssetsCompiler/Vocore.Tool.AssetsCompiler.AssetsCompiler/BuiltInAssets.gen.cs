@@ -30,7 +30,7 @@ public partial class BuiltInAssets
 
     public Shader Shader_Blit => GetShader("Rendering/Shader/Common/Blit.hlsl");
 
-    public Shader Shader_WireFrame => GetShader("Rendering/Shader/Common/WireFrame.hlsl");
+    public Shader Shader_Wireframe => GetShader("Rendering/Shader/Common/Wireframe.hlsl");
 
     public Shader Shader_BloomBlit => GetShader("Rendering/Shader/PostProcess/Bloom/BloomBlit.hlsl");
 

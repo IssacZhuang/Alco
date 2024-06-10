@@ -33,6 +33,7 @@ public class Canvas : AutoDisposable
 
     // for rendering
     private readonly CanvasRenderer _renderer;
+    private readonly WireframeRenderer? _debugRenderer;
     private readonly Camera2D _camera;
     private Vector2 _invCameraSize;
     private BoundingBox2D _bound;
@@ -107,7 +108,7 @@ public class Canvas : AutoDisposable
         get => _selected;
     }
 
-    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText)
+    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Shader? shaderWireframe)
     {
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
@@ -115,6 +116,11 @@ public class Canvas : AutoDisposable
         _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
+
+        if (shaderWireframe != null)
+        {
+            _debugRenderer = system.CreateWireframeRenderer(_camera, shaderWireframe);
+        }
     }
 
     public void Tick(UINode root, float delta)

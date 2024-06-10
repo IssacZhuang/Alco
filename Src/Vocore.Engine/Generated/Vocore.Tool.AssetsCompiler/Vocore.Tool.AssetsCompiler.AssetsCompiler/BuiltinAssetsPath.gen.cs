@@ -25,7 +25,7 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_Blit = "Rendering/Shader/Common/Blit.hlsl";
 
-   public const string Shader_WireFrame = "Rendering/Shader/Common/WireFrame.hlsl";
+   public const string Shader_Wireframe = "Rendering/Shader/Common/Wireframe.hlsl";
 
    public const string Shader_BloomBlit = "Rendering/Shader/PostProcess/Bloom/BloomBlit.hlsl";
 
