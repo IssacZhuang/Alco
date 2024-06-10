@@ -35,8 +35,13 @@ namespace Vocore
             get => new MemoryRef<T>((T*)_ptrBuffer, _length);
         }
 
+        public readonly ReadOnlySpan<T> ReadOnlySpan
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
+        }
+
         public int Stride => _stride;
-        public int Count => _length;
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
 

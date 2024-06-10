@@ -21,7 +21,7 @@ public class BlitRenderer : AutoDisposable
         _fullScreenQuad = renderingSystem.MeshFullScreen;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("blit"));
         _shaderBlit = shaderBlit;
-        _shaderId_Texture = shaderBlit.GetResourceId("texture");
+        _shaderId_Texture = shaderBlit.GetResourceId("_texture");
     }
 
     public void Blit(Texture2D from, GPUFrameBuffer to)

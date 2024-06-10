@@ -32,11 +32,16 @@ public class Canvas : AutoDisposable
     }
 
     // for rendering
-    private readonly CanvasRenderer _renderer;
+
     private readonly WireframeRenderer? _debugRenderer;
     private readonly Camera2D _camera;
     private Vector2 _invCameraSize;
     private BoundingBox2D _bound;
+
+    //for debug
+    private readonly CanvasRenderer _renderer;
+    private readonly Stack<UINode> _nodeStack = new Stack<UINode>();
+    private bool _hasDebugDraw;
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -108,6 +113,24 @@ public class Canvas : AutoDisposable
         get => _selected;
     }
 
+    public bool HasDebugDraw
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _hasDebugDraw;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            if (value && _debugRenderer == null)
+            {
+                Log.Warning("Canvas: Debug draw is not available because the wireframe shader is not provided.");
+                return;
+            }
+            _hasDebugDraw = value;
+        }
+    }
+
+    public Vector4 DebugDrawColor { get; set; }
+
     public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText, Shader? shaderWireframe)
     {
         _camera = system.CreateCamera2D(640, 360, 1);
@@ -135,6 +158,8 @@ public class Canvas : AutoDisposable
         _renderer.Begin(renderTarget);
         root.Update(this, delta);
         _renderer.End();
+
+        //DebugDraw(renderTarget, root);
 
         if (_inputTracker == null)
         {
@@ -192,7 +217,7 @@ public class Canvas : AutoDisposable
         _collisionWorld.Dispose();
         _renderer.Dispose();
         _camera.Dispose();
-
+        _debugRenderer?.Dispose();
     }
 
     private void OnMouseDown(ISelectable? node)
@@ -217,5 +242,36 @@ public class Canvas : AutoDisposable
         _holded = null;
     }
 
+    private void DebugDraw(GPUFrameBuffer target, UINode root)
+    {
+        if (!_hasDebugDraw)
+        {
+            return;
+        }
+        if (_debugRenderer == null)
+        {
+            return;
+        }
 
+        _debugRenderer.Begin(target);
+        //dfs the nodes using while loop
+        _nodeStack.Clear();
+        _nodeStack.Push(root);
+        while (_nodeStack.Count > 0)
+        {
+            UINode node = _nodeStack.Pop();
+            DrawNode(node);
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                _nodeStack.Push(node.Children[i]);
+            }
+        }
+
+        _debugRenderer.End();
+    }
+
+    private void DrawNode(UINode node)
+    {
+        _debugRenderer?.DrawBound(node.Bound, DebugDrawColor);
+    }
 }

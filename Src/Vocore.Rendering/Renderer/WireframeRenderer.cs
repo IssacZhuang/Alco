@@ -39,25 +39,8 @@ public class WireframeRenderer : AutoDisposable
         _indices = new NativeArrayList<uint>();
 
         _shader = shader;
-        _shaderId_camera = shader.GetResourceId("camera");
+        _shaderId_camera = shader.GetResourceId("_camera");
     }
-
-    public void AddLine(Vector3 start, Vector3 end, Vector4 color)
-    {
-        _vertices.Add(new Vertex { Position = start, Color = color });
-        _vertices.Add(new Vertex { Position = end, Color = color });
-
-        uint index = (uint)(_vertices.Count - 2);
-        _indices.Add(index);
-        _indices.Add(index + 1);
-    }
-
-    public void Clear()
-    {
-        _vertices.Clear();
-        _indices.Clear();
-    }
-
 
 
     public void Begin(GPUFrameBuffer target)
@@ -73,25 +56,53 @@ public class WireframeRenderer : AutoDisposable
             _pipeline = _shader.GetPipelineVariant(_renderPass);
         }
 
+        Clear();
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
-        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_pipeline!);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-
     }
 
-    public void End()
+    public void DrawLine(Vector3 start, Vector3 end, Vector4 color)
+    {
+        _vertices.Add(new Vertex { Position = start, Color = color });
+        _vertices.Add(new Vertex { Position = end, Color = color });
+
+        uint index = (uint)(_vertices.Length - 2);
+        _indices.Add(index);
+        _indices.Add(index + 1);
+    }
+
+    public void DrawBound(BoundingBox2D bound, Vector4 color)
+    {
+        Vector2 min = bound.min;
+        Vector2 max = bound.max;
+
+        DrawLine(new Vector3(min.X, min.Y, 0), new Vector3(max.X, min.Y, 0), color);
+        DrawLine(new Vector3(max.X, min.Y, 0), new Vector3(max.X, max.Y, 0), color);
+        DrawLine(new Vector3(max.X, max.Y, 0), new Vector3(min.X, max.Y, 0), color);
+        DrawLine(new Vector3(min.X, max.Y, 0), new Vector3(min.X, min.Y, 0), color);
+    }
+
+    public unsafe void End()
     {
         if (_command.IsRecording)
         {
+            _mesh.UpdateVertex(_vertices.ReadOnlySpan);
+            _mesh.UpdateIndex(_indices.ReadOnlySpan);
+            _command.SetVertexBuffer(0, _mesh.VertexBuffer);
+            _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
+            _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
             _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
             _command.End();
             _device.Submit(_command);
         }
     }
 
+    private void Clear()
+    {
+        _vertices.Clear();
+        _indices.Clear();
+    }
 
     protected override void Dispose(bool disposing)
     {

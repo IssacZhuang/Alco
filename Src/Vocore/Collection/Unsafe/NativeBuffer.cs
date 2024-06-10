@@ -61,6 +61,12 @@ namespace Vocore
             get => new MemoryRef<T>((T*)_ptrBuffer, _length);
         }
 
+        public ReadOnlySpan<T> ReadOnlySpan
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(int index)

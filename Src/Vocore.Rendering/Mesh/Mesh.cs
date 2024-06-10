@@ -76,9 +76,7 @@ public unsafe class Mesh : ShaderResource, IMesh
         Name = name;
     }
 
-
-
-    public void UpdateVertex<T>(T[] data, uint offset = 0) where T : unmanaged
+    public void UpdateVertex<T>(ReadOnlySpan<T> data, uint offset = 0) where T : unmanaged
     {
         fixed (void* ptr = data)
         {
@@ -98,7 +96,7 @@ public unsafe class Mesh : ShaderResource, IMesh
     {
         fixed (void* ptr = indices)
         {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset, IndexFormat.Uint32);
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset, (uint)indices.Length, IndexFormat.Uint32);
         }
     }
 
@@ -106,20 +104,16 @@ public unsafe class Mesh : ShaderResource, IMesh
     {
         fixed (void* ptr = indices)
         {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset, IndexFormat.Uint16);
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset, (uint)indices.Length, IndexFormat.Uint16);
         }
     }
 
-    public void UpdateIndex(void* data, uint size, uint offset = 0)
-    {
-        EncureIndexBufferSize(size);
-        _device.WriteBuffer(_indexBuffer, offset, (byte*)data, size);
-    }
 
-    public void UpdateIndex(void* data, uint size, uint offset, IndexFormat indexFormat)
+    public void UpdateIndex(void* data, uint size, uint offset, uint indexCount, IndexFormat indexFormat)
     {
         EncureIndexBufferSize(size);
         _indexFormat = indexFormat;
+        _indexCount = indexCount;
 
         _device.WriteBuffer(_indexBuffer, offset, (byte*)data, size);
     }

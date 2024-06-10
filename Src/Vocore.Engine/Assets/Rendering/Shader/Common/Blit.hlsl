@@ -8,7 +8,7 @@
 #pragma DepthStencilState Read
 
 
-DEFINE_TEX2D_SAMPLE(0, texture); 
+DEFINE_TEX2D_SAMPLE(0, _texture); 
 
 struct Vertex2D {
   float2 position : POSITION;
@@ -29,5 +29,5 @@ V2F vs_main(Vertex2D input) {
 
 
 float4 fs_main(V2F input) : SV_TARGET {
-  return SAMPLE_TEX2D(texture, input.uv);
+  return SAMPLE_TEX2D(_texture, input.uv);
 }

@@ -222,6 +222,11 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                 primitiveState.stripIndexFormat = WGPUIndexFormat.Uint32;
             }
 
+            if (descriptor.PrimitiveTopology == PrimitiveTopology.LineList)
+            {
+                primitiveState.cullMode = WGPUCullMode.None;
+            }
+
 
 
             // === Create pipeline ======================================
