@@ -47,27 +47,26 @@ internal partial class WebGPUDevice : GPUDevice
 
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
-    public readonly WGPUSurface Surface;
+    // public readonly WGPUSurface Surface;
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
     private readonly DeviceDescriptor _descriptor;
 
     // supported details
-    private readonly WGPUTextureFormat[] _supportedSurfaceFormats;
-    private readonly WGPUPresentMode[] _supportedPresentModes;
+    // private readonly WGPUTextureFormat[] _supportedSurfaceFormats;
+    // private readonly WGPUPresentMode[] _supportedPresentModes;
 
-
-    private readonly WGPUTextureFormat _swapChainFormat;
-    private readonly PixelFormat _preferredSurfaceFormat;
-    private readonly PixelFormat? _preferredDepthStencilFormat;
-    private readonly PixelFormat _preferredHDRFormat;
+    // private readonly WGPUTextureFormat _swapChainFormat;
+    // private readonly PixelFormat _preferredSurfaceFormat;
+    // private readonly PixelFormat? _preferredDepthStencilFormat;
+    // private readonly PixelFormat _preferredHDRFormat;
     private uint _width;
     private uint _height;
     private bool _vsync;
 
-    private readonly WebGPUSurfaceFrameBuffer _surfaceFrameBuffer;
-    private readonly WebGPURenderPass _surfaceRenderPass;
+    // private readonly WebGPUSurfaceFrameBuffer _surfaceFrameBuffer;
+    // private readonly WebGPURenderPass _surfaceRenderPass;
 
     private bool _hasCommandSubmitted;
 
@@ -76,46 +75,46 @@ internal partial class WebGPUDevice : GPUDevice
     #region Abstract Implementation
 
 
-    public override GPURenderPass SwapChainRenderPass
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _surfaceRenderPass;
-    }
+    // public override GPURenderPass SwapChainRenderPass
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get => _surfaceRenderPass;
+    // }
 
-    public override GPUFrameBuffer SwapChainFrameBuffer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _surfaceFrameBuffer;
-    }
+    // public override GPUFrameBuffer SwapChainFrameBuffer
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get => _surfaceFrameBuffer;
+    // }
 
-    public override PixelFormat? PrefferedDepthStencilFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _preferredDepthStencilFormat;
-        }
-    }
+    // public override PixelFormat? PrefferedDepthStencilFormat
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get
+    //     {
+    //         return _preferredDepthStencilFormat;
+    //     }
+    // }
 
-    public override PixelFormat PrefferedSurfaceFomat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSurfaceFormat;
-    }
+    // public override PixelFormat PrefferedSurfaceFomat
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get => _preferredSurfaceFormat;
+    // }
 
-    public override PixelFormat PrefferedHDRFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredHDRFormat;
-    }
+    // public override PixelFormat PrefferedHDRFormat
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get => _preferredHDRFormat;
+    // }
 
-    public override bool VSync
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _vsync;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _vsync = value;
-    }
+    // public override bool VSync
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get => _vsync;
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     set => _vsync = value;
+    // }
 
     //default samplers
 
@@ -149,8 +148,8 @@ internal partial class WebGPUDevice : GPUDevice
 
     public override void Dispose()
     {
-        _surfaceFrameBuffer.Destroy();
-        _surfaceRenderPass.Destroy();
+        // _surfaceFrameBuffer.Destroy();
+        // _surfaceRenderPass.Destroy();
 
         //dispose default resources
         SamplerNearestRepeat.Destroy();
@@ -169,7 +168,7 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
         wgpuDeviceRelease(Device);
-        wgpuSurfaceRelease(Surface);
+        //wgpuSurfaceRelease(Surface);
         wgpuAdapterRelease(Adapter);
     }
 
@@ -234,66 +233,10 @@ internal partial class WebGPUDevice : GPUDevice
         return new WebGPUSampler(this, descriptor, false);
     }
 
-
-    // protected override void DestroyBufferCore(GPUBuffer buffer)
-    // {
-    //     buffer.Dispose();
-    // }
-
-    // protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
-    // {
-    //     commandBuffer.Dispose();
-    // }
-
-    // protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
-    // {
-    //     renderBuffer.Dispose();
-    // }
-
-    // protected override void DestroyTextureCore(GPUTexture texture)
-    // {
-    //     texture.Dispose();
-    // }
-
-    // protected override void DestroyRenderPassCore(GPURenderPass renderPass)
-    // {
-    //     renderPass.Dispose();
-    // }
-
-    // protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
-    // {
-    //     frameBuffer.Dispose();
-    // }
-
-    // protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
-    // {
-    //     pipeline.Dispose();
-    // }
-
-    // protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
-    // {
-    //     pipeline.Dispose();
-    // }
-
-    // protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
-    // {
-    //     bindGroup.Dispose();
-    // }
-
-    // protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
-    // {
-    //     resourceGroup.Dispose();
-    // }
-
-    // protected override void DestroyTextureViewCore(GPUTextureView textureView)
-    // {
-    //     textureView.Dispose();
-    // }
-
-    // protected override void DestroySamplerCore(GPUSampler sampler)
-    // {
-    //     sampler.Dispose();
-    // }
+    public override GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor)
+    {
+        return new WebGPUSwapchain(this, descriptor);
+    }
 
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
@@ -337,9 +280,9 @@ internal partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void ResizeSurfaceCore(uint width, uint height)
     {
-        _width = width;
-        _height = height;
-        _surfaceFrameBuffer.UpdateSurfaceConfig(GetSurfaceConfig());
+        // _width = width;
+        // _height = height;
+        // _surfaceFrameBuffer.UpdateSurfaceConfig(GetSurfaceConfig());
     }
 
     protected unsafe override void SwapBuffersCore()
@@ -348,7 +291,7 @@ internal partial class WebGPUDevice : GPUDevice
         {
             return;
         }
-        _surfaceFrameBuffer.SwapBuffers();
+        //_surfaceFrameBuffer.SwapBuffers();
         _hasCommandSubmitted = false;
     }
 
@@ -387,7 +330,7 @@ internal partial class WebGPUDevice : GPUDevice
         Instance = wgpuCreateInstance(&instanceDescriptor);
 
         // create surface
-        Surface = Instance.CreateSurface(descriptor.SurfaceSource);
+        //Surface = Instance.CreateSurface(descriptor.SurfaceSource);
 
         // create adapter
         WGPURequestAdapterOptions requestAdapterOptions = new WGPURequestAdapterOptions()
@@ -405,28 +348,28 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
         Adapter = adapter;
 
-        WGPUAdapterProperties properties = default;
-        wgpuAdapterGetProperties(Adapter, &properties);
-        GraphicsLogger.Info($"Graphics backend: {properties.backendType}");
+        // WGPUAdapterProperties properties = default;
+        // wgpuAdapterGetProperties(Adapter, &properties);
+        // GraphicsLogger.Info($"Graphics backend: {properties.backendType}");
 
-        WGPUSurfaceCapabilities surfaceCapabilities = default;
-        wgpuSurfaceGetCapabilities(Surface, Adapter, &surfaceCapabilities);
-        // get supported formats
-        _supportedPresentModes = new WGPUPresentMode[surfaceCapabilities.presentModeCount];
-        for (uint i = 0; i < surfaceCapabilities.presentModeCount; i++)
-        {
-            _supportedPresentModes[i] = surfaceCapabilities.presentModes[i];
-        }
-        //get supported formats
-        _supportedSurfaceFormats = new WGPUTextureFormat[surfaceCapabilities.formatCount];
-        for (uint i = 0; i < surfaceCapabilities.formatCount; i++)
-        {
-            _supportedSurfaceFormats[i] = surfaceCapabilities.formats[i];
-        }
+        // WGPUSurfaceCapabilities surfaceCapabilities = default;
+        // wgpuSurfaceGetCapabilities(Surface, Adapter, &surfaceCapabilities);
+        // // get supported formats
+        // _supportedPresentModes = new WGPUPresentMode[surfaceCapabilities.presentModeCount];
+        // for (uint i = 0; i < surfaceCapabilities.presentModeCount; i++)
+        // {
+        //     _supportedPresentModes[i] = surfaceCapabilities.presentModes[i];
+        // }
+        // //get supported formats
+        // _supportedSurfaceFormats = new WGPUTextureFormat[surfaceCapabilities.formatCount];
+        // for (uint i = 0; i < surfaceCapabilities.formatCount; i++)
+        // {
+        //     _supportedSurfaceFormats[i] = surfaceCapabilities.formats[i];
+        // }
 
-        wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
+        //wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
 
-        GraphicsLogger.Info($"Supported present modes: {string.Join(", ", _supportedPresentModes)}");
+        // GraphicsLogger.Info($"Supported present modes: {string.Join(", ", _supportedPresentModes)}");
 
         nuint supportedFeaturesCount = wgpuAdapterEnumerateFeatures(Adapter, null);
         WGPUFeatureName* supportedFeatures = stackalloc WGPUFeatureName[(int)supportedFeaturesCount];
@@ -453,7 +396,7 @@ internal partial class WebGPUDevice : GPUDevice
         // {
         //     _preferredHDRFormat = PixelFormat.RGBA16Float;
         // }
-        _preferredHDRFormat = PixelFormat.RGBA16Float;
+        //_preferredHDRFormat = PixelFormat.RGBA16Float;
 
         WGPUFeatureName* features = stackalloc WGPUFeatureName[featuresList.Count];
         for (int i = 0; i < featuresList.Count; i++)
@@ -510,24 +453,24 @@ internal partial class WebGPUDevice : GPUDevice
         Queue = wgpuDeviceGetQueue(Device);
 
         // load config
-        _swapChainFormat = UtilsWebGPU.PixelFormatToWebGPU(descriptor.SurfaceFormat);
-        bool isFormatSupported = false;
-        for (int i = 0; i < _supportedSurfaceFormats.Length; i++)
-        {
-            if (_supportedSurfaceFormats[i] == _swapChainFormat)
-            {
-                isFormatSupported = true;
-                break;
-            }
-        }
-        if(!isFormatSupported)
-        {
-            WGPUTextureFormat oldFormat = _swapChainFormat;
-            _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
-            GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_swapChainFormat} instead");
-        }
+        // _swapChainFormat = UtilsWebGPU.PixelFormatToWebGPU(descriptor.SurfaceFormat);
+        // bool isFormatSupported = false;
+        // for (int i = 0; i < _supportedSurfaceFormats.Length; i++)
+        // {
+        //     if (_supportedSurfaceFormats[i] == _swapChainFormat)
+        //     {
+        //         isFormatSupported = true;
+        //         break;
+        //     }
+        // }
+        // if(!isFormatSupported)
+        // {
+        //     WGPUTextureFormat oldFormat = _swapChainFormat;
+        //     _swapChainFormat = wgpuSurfaceGetPreferredFormat(Surface, Adapter);
+        //     GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_swapChainFormat} instead");
+        // }
 
-        _preferredSurfaceFormat = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat);
+        //_preferredSurfaceFormat = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat);
 
         _width = descriptor.InitialSurfaceSizeWidth;
         _height = descriptor.InitialSurfaceSizeHeight;
@@ -536,37 +479,37 @@ internal partial class WebGPUDevice : GPUDevice
 
 
         // create surface render pass
-        DepthAttachment? depth = null;
-        if (descriptor.DepthFormat.HasValue)
-        {
-            _preferredDepthStencilFormat = descriptor.DepthFormat;
-            depth = new DepthAttachment()
-            {
-                Format = descriptor.DepthFormat.Value,
-                ClearDepth = 1.0f,
-                ClearStencil = 0,
-            };
-        }
+        // DepthAttachment? depth = null;
+        // if (descriptor.DepthFormat.HasValue)
+        // {
+        //     _preferredDepthStencilFormat = descriptor.DepthFormat;
+        //     depth = new DepthAttachment()
+        //     {
+        //         Format = descriptor.DepthFormat.Value,
+        //         ClearDepth = 1.0f,
+        //         ClearStencil = 0,
+        //     };
+        // }
 
-        RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
-            new ColorAttachment[]
-            {
-                new ColorAttachment()
-                {
-                    Format = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat),
-                    ClearColor = descriptor.SurfaceClearColor,
-                },
-            },
-            depth,
-            "surface_render_pass"
-        );
+        // RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
+        //     new ColorAttachment[]
+        //     {
+        //         new ColorAttachment()
+        //         {
+        //             Format = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat),
+        //             ClearColor = descriptor.SurfaceClearColor,
+        //         },
+        //     },
+        //     depth,
+        //     "surface_render_pass"
+        // );
 
 
 
-        _surfaceRenderPass = new WebGPURenderPass(this, renderPassDescriptor);
+        //_surfaceRenderPass = new WebGPURenderPass(this, renderPassDescriptor);
 
         // create surface frame buffer
-        _surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(this, _surfaceRenderPass, Surface, GetSurfaceConfig());
+        //_surfaceFrameBuffer = new WebGPUSurfaceFrameBuffer(this, _surfaceRenderPass, Surface, GetSurfaceConfig());
 
         // create default samplers
 
@@ -685,54 +628,55 @@ internal partial class WebGPUDevice : GPUDevice
 
     }
 
-    private WGPUSurfaceConfiguration GetSurfaceConfig()
-    {
-        return new WGPUSurfaceConfiguration
-        {
-            nextInChain = null,
-            device = Device,
-            format = _swapChainFormat,
-            usage = WGPUTextureUsage.RenderAttachment,
-            // viewFormatCount = 0,
-            // viewFormats = null,
-            alphaMode = WGPUCompositeAlphaMode.Auto,
-            width = _width,
-            height = _height,
-            presentMode = GetPresentMode(),
-        };
-    }
 
-    private WGPUPresentMode GetPresentMode()
-    {
-        if (!_descriptor.VSync)
-        {
-            if (IsPresentModeSupported(WGPUPresentMode.Immediate))
-            {
-                return WGPUPresentMode.Immediate;
-            }
-            else if (IsPresentModeSupported(WGPUPresentMode.Mailbox))
-            {
-                return WGPUPresentMode.Mailbox;
-            }
-            else
-            {
-                GraphicsLogger.Warning("VSync is off but no supported present mode found, using FIFO");
-            }
-        }
-        return WGPUPresentMode.Fifo;
-    }
+    // private WGPUSurfaceConfiguration GetSurfaceConfig()
+    // {
+    //     return new WGPUSurfaceConfiguration
+    //     {
+    //         nextInChain = null,
+    //         device = Device,
+    //         format = _swapChainFormat,
+    //         usage = WGPUTextureUsage.RenderAttachment,
+    //         // viewFormatCount = 0,
+    //         // viewFormats = null,
+    //         alphaMode = WGPUCompositeAlphaMode.Auto,
+    //         width = _width,
+    //         height = _height,
+    //         presentMode = GetPresentMode(_descriptor.VSync),
+    //     };
+    // }
 
-    private bool IsPresentModeSupported(WGPUPresentMode mode)
-    {
-        for (int i = 0; i < _supportedPresentModes.Length; i++)
-        {
-            if (_supportedPresentModes[i] == mode)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    // public WGPUPresentMode GetPresentMode(bool vsync)
+    // {
+    //     if (!vsync)
+    //     {
+    //         if (IsPresentModeSupported(WGPUPresentMode.Immediate))
+    //         {
+    //             return WGPUPresentMode.Immediate;
+    //         }
+    //         else if (IsPresentModeSupported(WGPUPresentMode.Mailbox))
+    //         {
+    //             return WGPUPresentMode.Mailbox;
+    //         }
+    //         else
+    //         {
+    //             GraphicsLogger.Warning("VSync is off but no supported present mode found, using FIFO");
+    //         }
+    //     }
+    //     return WGPUPresentMode.Fifo;
+    // }
+
+    // private bool IsPresentModeSupported(WGPUPresentMode mode)
+    // {
+    //     for (int i = 0; i < _supportedPresentModes.Length; i++)
+    //     {
+    //         if (_supportedPresentModes[i] == mode)
+    //         {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
 
     #endregion
 

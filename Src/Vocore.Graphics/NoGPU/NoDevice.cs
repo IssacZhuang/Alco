@@ -13,18 +13,19 @@ internal class NoDevice : GPUDevice
     public static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
     public static readonly NoPipeline noPipeline = new NoPipeline();
     public static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
+    public static readonly NoSwapchain noSwapchain = new NoSwapchain();
     public static readonly NoDevice noDevice = new NoDevice();
 
-    public override GPURenderPass SwapChainRenderPass => noRenderPass;
+    // public override GPURenderPass SwapChainRenderPass => noRenderPass;
 
-    public override GPUFrameBuffer SwapChainFrameBuffer => noFrameBuffer;
+    // public override GPUFrameBuffer SwapChainFrameBuffer => noFrameBuffer;
 
-    public override PixelFormat PrefferedSurfaceFomat => PixelFormat.RGBA8Unorm;
+    // public override PixelFormat PrefferedSurfaceFomat => PixelFormat.RGBA8Unorm;
 
-    public override PixelFormat? PrefferedDepthStencilFormat => null;
-    public override PixelFormat PrefferedHDRFormat => PixelFormat.RGBA16Float;
+    // public override PixelFormat? PrefferedDepthStencilFormat => null;
+    // public override PixelFormat PrefferedHDRFormat => PixelFormat.RGBA16Float;
 
-    public override bool VSync { get; set; }
+    // public override bool VSync { get; set; }
 
     public override GPUSampler SamplerNearestRepeat => noSampler;
 
@@ -109,65 +110,11 @@ internal class NoDevice : GPUDevice
         return noTextureView;
     }
 
-    // protected override void DestroyBindGroupCore(GPUBindGroup bindGroup)
-    // {
+    public override GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor)
+    {
+        return noSwapchain;
+    }
 
-    // }
-
-    // protected override void DestroyBufferCore(GPUBuffer buffer)
-    // {
-
-    // }
-
-    // protected override void DestroyCommandBufferCore(GPUCommandBuffer commandBuffer)
-    // {
-
-    // }
-
-    // protected override void DestroyComputePipelineCore(GPUPipeline pipeline)
-    // {
-
-    // }
-
-    // protected override void DestroyFrameBufferCore(GPUFrameBuffer frameBuffer)
-    // {
-
-    // }
-
-    // protected override void DestroyGraphicsPipelineCore(GPUPipeline pipeline)
-    // {
-
-    // }
-
-    // protected override void DestroyRenderPassCore(GPURenderPass renderPass)
-    // {
-
-    // }
-
-    // protected override void DestroyResourceGroupCore(GPUResourceGroup resourceGroup)
-    // {
-
-    // }
-
-    // protected override void DestroyResuableRenderBufferCore(GPUResuableRenderBuffer renderBuffer)
-    // {
-
-    // }
-
-    // protected override void DestroySamplerCore(GPUSampler sampler)
-    // {
-
-    // }
-
-    // protected override void DestroyTextureCore(GPUTexture texture)
-    // {
-
-    // }
-
-    // protected override void DestroyTextureViewCore(GPUTextureView textureView)
-    // {
-
-    // }
 
     public override void Destroy(BaseGPUObject obj)
     {
@@ -215,4 +162,6 @@ internal class NoDevice : GPUDevice
     {
         
     }
+
+    
 }

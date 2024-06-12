@@ -10,28 +10,28 @@ namespace Vocore.Graphics;
 public abstract class GPUDevice : IDisposable
 {
     private readonly ConcurrentQueue<BaseGPUObject> _deferredDisposal = new();
-    // Abstract properties
-    /// <summary>
-    /// The <see cref="GPURenderPass"/> of the surface swap chain.
-    /// </summary>
-    public abstract GPURenderPass SwapChainRenderPass { get; }
-    /// <summary>
-    /// The <see cref="GPUFrameBuffer"/> of the surface swap chain.
-    /// </summary>
-    public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
-    /// <summary>
-    /// The <see cref="PixelFormat"/> of the surface swap chain.
-    /// </summary>
-    public abstract PixelFormat PrefferedSurfaceFomat { get; }
-    /// <summary>
-    /// The <see cref="PixelFormat"/> of the depth and stencil buffer. It might be null if the depth test not required.
-    /// </summary>
-    public abstract PixelFormat? PrefferedDepthStencilFormat { get; }
-    /// <summary>
-    /// Enable or disable the vertical synchronization. The frame rate will be limited to the refresh rate of the monitor if enabled.
-    /// </summary>
-    public abstract PixelFormat PrefferedHDRFormat { get; }
-    public abstract bool VSync { get; set; }
+    // // Abstract properties
+    // /// <summary>
+    // /// The <see cref="GPURenderPass"/> of the surface swap chain.
+    // /// </summary>
+    // public abstract GPURenderPass SwapChainRenderPass { get; }
+    // /// <summary>
+    // /// The <see cref="GPUFrameBuffer"/> of the surface swap chain.
+    // /// </summary>
+    // public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
+    // /// <summary>
+    // /// The <see cref="PixelFormat"/> of the surface swap chain.
+    // /// </summary>
+    // public abstract PixelFormat PrefferedSurfaceFomat { get; }
+    // /// <summary>
+    // /// The <see cref="PixelFormat"/> of the depth and stencil buffer. It might be null if the depth test not required.
+    // /// </summary>
+    // public abstract PixelFormat? PrefferedDepthStencilFormat { get; }
+    // /// <summary>
+    // /// Enable or disable the vertical synchronization. The frame rate will be limited to the refresh rate of the monitor if enabled.
+    // /// </summary>
+    // public abstract PixelFormat PrefferedHDRFormat { get; }
+    // public abstract bool VSync { get; set; }
 
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
@@ -83,14 +83,14 @@ public abstract class GPUDevice : IDisposable
     /// </summary>
     public abstract GPUBindGroup BindGroupTexture2DStorage { get; }
 
-    /// <summary>
-    /// Whether the depth and stencil test enabled.
-    /// </summary> 
-    public bool HasDepth
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => PrefferedDepthStencilFormat.HasValue;
-    }
+    // /// <summary>
+    // /// Whether the depth and stencil test enabled.
+    // /// </summary> 
+    // public bool HasDepth
+    // {
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     get => PrefferedDepthStencilFormat.HasValue;
+    // }
 
 
     /// <summary>
@@ -256,6 +256,18 @@ public abstract class GPUDevice : IDisposable
     {
         return CreateSamplerCore(descriptor);
     }
+
+    /// <summary>
+    /// Creates a GPU swap chain with the descriptor.
+    /// </summary>
+    /// <param name="descriptor">The descriptor for the GPU swap chain.</param>
+    /// <returns></returns>
+    public GPUSwapchain CreateSwapchain(in SwapchainDescriptor descriptor)
+    {
+        return CreateSwapchainCore(descriptor);
+    }
+
+
 
     /// <summary>
     /// Destroys the GPU object. The object will be destroyed at the end of the frame.
@@ -472,6 +484,8 @@ public abstract class GPUDevice : IDisposable
     /// <exclude />
     protected abstract GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor);
 
+    /// <exclude />
+    public abstract GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor);
     /// <exclude />
     protected abstract void ResizeSurfaceCore(uint width, uint height);
 
