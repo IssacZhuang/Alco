@@ -393,8 +393,10 @@ internal partial class WebGPUDevice : GPUDevice
         WGPURequestAdapterOptions requestAdapterOptions = new WGPURequestAdapterOptions()
         {
             nextInChain = null,
-            compatibleSurface = Surface,
-            //backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
+            //compatibleSurface = Surface,
+            powerPreference = WGPUPowerPreference.HighPerformance,
+            backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
+            //forceFallbackAdapter = WGPUBool.True,
         };
 
 
