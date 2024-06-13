@@ -15,8 +15,11 @@ public partial class RenderingSystem
     //preffered
     private readonly GPURenderPass _prefferedSDRPass;
     private readonly GPURenderPass _prefferedHDRPass;
+    private PixelFormat _prefferedSDRFormat;
+    private PixelFormat _prefferedHDRFormat;
 
     //state
+    private GPUSwapchain? _swapChain;
     private GPURenderPass? _mainRenderPass;
     private GPUFrameBuffer? _mainFrameBuffer;
     private ToneMap? _mainPassToSwapChain;
@@ -66,10 +69,13 @@ public partial class RenderingSystem
         }
     }
 
-    public RenderingSystem(GPUDevice device)
+    public RenderingSystem(GPUDevice device, GPUSwapchain? windowSwapchain)
     {
         _device = device;
         _renderPasses = new Dictionary<string, GPURenderPass>();
+
+        
+
         _selectedFrameBuffer = device.SwapChainFrameBuffer;
 
         _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor

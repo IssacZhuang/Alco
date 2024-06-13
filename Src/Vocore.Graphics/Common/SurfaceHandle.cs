@@ -13,6 +13,12 @@ public abstract class SurfaceSource
     public static SurfaceSource CreateWaylandSurface(IntPtr display, IntPtr surface) => new WaylandSurfaceSource(display, surface);
     public static SurfaceSource CreateXcbWindow(IntPtr connection, uint window) => new XcbWindowSurfaceSource(connection, window);
     public static SurfaceSource CreateXlibWindow(IntPtr display, ulong window) => new XlibWindowSurfaceSource(display, window);
+    public static SurfaceSource CreateHtmlCanvas(string selector) => new HtmlCanvasSurfaceSource(selector);
+    public static SurfaceSource CreateNoSurface() => new NoSurfaceSource();
+}
+
+internal class NoSurfaceSource : SurfaceSource
+{
 }
 
 internal class HtmlCanvasSurfaceSource : SurfaceSource

@@ -163,26 +163,30 @@ public partial class GameEngine : IDisposable
         Instance = this;
         _setting = setting;
 
-        if (_setting.HasGPU)
-        {
-            GraphicsWindow.CreateGraphicsDeviceWithWindow(
-            _setting.Graphics,
-            _setting.Window,
-            out GPUDevice graphicsDevice,
-            out SilkWindow slikWindow);
+        _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
+        _window = CreateWindow(_setting.Window, out _input);
 
-            _window = slikWindow;
-            _input = new SilkInputSystem(slikWindow.InternalWindow);
-            _graphicsDevice = graphicsDevice;
+        // if (_setting.HasGPU)
+        // {
+        //     // GraphicsWindow.CreateGraphicsDeviceWithWindow(
+        //     // _setting.Graphics,
+        //     // _setting.Window,
+        //     // out GPUDevice graphicsDevice,
+        //     // out SilkWindow slikWindow);
 
-            _window.OnResize += InternalResize;
-        }
-        else
-        {
-            _window = new NoWindow();
-            _input = new NoInputSystem();
-            _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
-        }
+        //     _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
+        //     _window = slikWindow;
+        //     _input = new SilkInputSystem(slikWindow.InternalWindow);
+            
+
+        //     _window.OnResize += InternalResize;
+        // }
+        // else
+        // {
+        //     _window = new NoWindow();
+        //     _input = new NoInputSystem();
+        //     _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
+        // }
 
         _rendering = new RenderingSystem(_graphicsDevice);
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);

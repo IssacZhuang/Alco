@@ -338,7 +338,7 @@ internal partial class WebGPUDevice : GPUDevice
             nextInChain = null,
             //compatibleSurface = Surface,
             powerPreference = WGPUPowerPreference.HighPerformance,
-            backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
+            //backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
             //forceFallbackAdapter = WGPUBool.True,
         };
 
