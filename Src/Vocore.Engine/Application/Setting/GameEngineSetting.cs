@@ -23,9 +23,17 @@ namespace Vocore.Engine
         /// <summary>
         /// Check if the game engine requires GPU interface
         /// </summary>
-        public bool HasGraphics
+        public bool HasGPU
         {
             get => Graphics.Backend != GraphicsBackend.None;
+        }
+
+        /// <summary>
+        /// Check if the game engine has window
+        /// </summary>
+        public bool HasWindow
+        {
+            get => !Window.IsWindowDisabled;
         }
 
         /// <summary>
@@ -56,11 +64,19 @@ namespace Vocore.Engine
         /// <summary>
         /// The default game engine setting but no GPU interface required
         /// </summary>
-        public readonly static GameEngineSetting NoGraphics = new GameEngineSetting
+        public readonly static GameEngineSetting NoGPU = new GameEngineSetting
         {
             GametTickRate = 60,
-            Window = WindowSetting.Default,
+            Window = WindowSetting.NoWindow,
             Graphics = GraphicsSetting.NoGPU,
+            Assets = AssetsSetting.Default
+        };
+
+        public readonly static GameEngineSetting GPUWithoutWindow = new GameEngineSetting
+        {
+            GametTickRate = 60,
+            Window = WindowSetting.NoWindow,
+            Graphics = GraphicsSetting.Default,
             Assets = AssetsSetting.Default
         };
 

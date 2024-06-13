@@ -61,9 +61,9 @@ internal partial class WebGPUDevice : GPUDevice
     // private readonly PixelFormat _preferredSurfaceFormat;
     // private readonly PixelFormat? _preferredDepthStencilFormat;
     // private readonly PixelFormat _preferredHDRFormat;
-    private uint _width;
-    private uint _height;
-    private bool _vsync;
+    // private uint _width;
+    // private uint _height;
+    // private bool _vsync;
 
     // private readonly WebGPUSurfaceFrameBuffer _surfaceFrameBuffer;
     // private readonly WebGPURenderPass _surfaceRenderPass;
@@ -472,9 +472,9 @@ internal partial class WebGPUDevice : GPUDevice
 
         //_preferredSurfaceFormat = UtilsWebGPU.PixelFormatToAbstract(_swapChainFormat);
 
-        _width = descriptor.InitialSurfaceSizeWidth;
-        _height = descriptor.InitialSurfaceSizeHeight;
-        _vsync = descriptor.VSync;
+        // _width = descriptor.InitialSurfaceSizeWidth;
+        // _height = descriptor.InitialSurfaceSizeHeight;
+        // _vsync = descriptor.VSync;
 
 
 

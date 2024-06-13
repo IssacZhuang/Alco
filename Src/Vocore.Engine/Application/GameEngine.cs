@@ -163,7 +163,7 @@ public partial class GameEngine : IDisposable
         Instance = this;
         _setting = setting;
 
-        if (_setting.HasGraphics)
+        if (_setting.HasGPU)
         {
             GraphicsWindow.CreateGraphicsDeviceWithWindow(
             _setting.Graphics,

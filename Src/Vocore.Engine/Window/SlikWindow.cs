@@ -10,7 +10,7 @@ public class SilkWindow : Window
 {
     private readonly IWindow _slikWindow;
 
-    internal IWindow InternalWindow => _slikWindow;
+    public IWindow InternalWindow => _slikWindow;
 
     public SilkWindow(IWindow slikWindow)
     {

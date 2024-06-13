@@ -45,14 +45,14 @@ public static class GraphicsWindow
         DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
         {
             Debug = graphicsSetting.DebugInfo,
-            VSync = graphicsSetting.VSync,
+            //VSync = graphicsSetting.VSync,
             Backend = graphicsSetting.Backend,
-            SurfaceSource = surfaceSource,
-            InitialSurfaceSizeWidth = (uint)windowSetting.Width,
-            InitialSurfaceSizeHeight = (uint)windowSetting.Height,
-            SurfaceClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-            SurfaceFormat = graphicsSetting.SurfaceFormat,
-            DepthFormat = graphicsSetting.DepthFormat,
+            // SurfaceSource = surfaceSource,
+            // InitialSurfaceSizeWidth = (uint)windowSetting.Width,
+            // InitialSurfaceSizeHeight = (uint)windowSetting.Height,
+            // SurfaceClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+            // SurfaceFormat = graphicsSetting.SurfaceFormat,
+            // DepthFormat = graphicsSetting.DepthFormat,
             PushConstantsSize = 256,
             Name = windowSetting.Title
         };
@@ -109,7 +109,6 @@ public static class GraphicsWindow
         if (window.Cocoa.HasValue)
         {
             Log.Info("Creating Cocoa window");
-
             return SurfaceSource.CreateMetalLayer(window.Cocoa.Value);
         }
 
