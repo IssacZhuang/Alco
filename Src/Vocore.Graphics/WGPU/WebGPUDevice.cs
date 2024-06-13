@@ -58,9 +58,11 @@ internal partial class WebGPUDevice : GPUDevice
     // private readonly WGPUPresentMode[] _supportedPresentModes;
 
     // private readonly WGPUTextureFormat _swapChainFormat;
-    // private readonly PixelFormat _preferredSurfaceFormat;
-    // private readonly PixelFormat? _preferredDepthStencilFormat;
-    // private readonly PixelFormat _preferredHDRFormat;
+    //private readonly PixelFormat _preferredSurfaceFormat;
+    private readonly PixelFormat _preferredSDRFormat;
+    private readonly PixelFormat _preferredHDRFormat;
+    private readonly PixelFormat? _preferredDepthStencilFormat;
+     
     // private uint _width;
     // private uint _height;
     // private bool _vsync;
