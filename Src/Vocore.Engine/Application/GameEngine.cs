@@ -164,7 +164,7 @@ public partial class GameEngine : IDisposable
         _setting = setting;
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
-        _window = CreateWindow(_setting.Window, out _input);
+        _window = _graphicsDevice.CreateWindow(_setting.Window, out _input, out GPUSwapchain? swapchain);
 
         // if (_setting.HasGPU)
         // {
@@ -188,7 +188,7 @@ public partial class GameEngine : IDisposable
         //     _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
         // }
 
-        _rendering = new RenderingSystem(_graphicsDevice);
+        _rendering = new RenderingSystem(_graphicsDevice, swapchain);
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);
         _builtInAssets = new BuiltInAssets(_assets);
         InitializeDefaultAssetLoader();

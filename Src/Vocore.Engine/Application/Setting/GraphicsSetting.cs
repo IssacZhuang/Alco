@@ -18,12 +18,7 @@ public struct GraphicsSetting
     /// </summary>
     public bool DebugInfo { get; set; }
 
-    /// <summary>
-    /// The frame rate will be locked to the monitor refresh rate if this is true.
-    /// </summary>
-    public bool VSync { get; set; }
-
-    public PixelFormat SurfaceFormat { get; set; }
+    public PixelFormat ColorFormat { get; set; }
 
     /// <summary>
     /// The format of the swap chain depth stencil buffer. 
@@ -38,10 +33,9 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Default = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        SurfaceFormat = PixelFormat.RGBA8UnormSrgb,
+        ColorFormat = PixelFormat.RGBA8UnormSrgb,
         DepthFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
-        VSync = false
     };
 
     /// <summary>
@@ -50,10 +44,9 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Debug = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        SurfaceFormat = PixelFormat.RGBA8UnormSrgb,
+        ColorFormat = PixelFormat.RGBA8UnormSrgb,
         DepthFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = true,
-        VSync = false
     };
 
 
@@ -64,6 +57,5 @@ public struct GraphicsSetting
     {
         Backend = GraphicsBackend.None,
         DebugInfo = false,
-        VSync = false
     };
 }

@@ -17,6 +17,11 @@ public sealed class NoWindow : Window
     /// <inheritdoc />
     public override string Title { get; set; } = "No Window";
 
+    protected override void Dispose(bool disposing)
+    {
+        
+    }
+
     internal override void Close()
     {
         

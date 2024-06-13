@@ -76,4 +76,12 @@ public class SilkWindow : Window
         _slikWindow.Close();
         _slikWindow.Dispose();   
     }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _slikWindow.Dispose();
+        }
+    }
 }

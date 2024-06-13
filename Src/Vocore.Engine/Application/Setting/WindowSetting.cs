@@ -1,3 +1,5 @@
+using Vocore.Graphics;
+
 namespace Vocore.Engine;
 
 /// <summary>
@@ -26,6 +28,11 @@ public struct WindowSetting
     public string Title { get; set; }
 
     /// <summary>
+    /// The frame rate will be locked to the monitor refresh rate if this is true.
+    /// </summary>
+    public bool VSync { get; set; }
+
+    /// <summary>
     /// The window is disabled
     /// </summary>
     public bool IsWindowDisabled { get; set; }
@@ -38,7 +45,8 @@ public struct WindowSetting
         Width = 640,
         Height = 360,
         Title = "Vocore",
-        IsWindowDisabled = false
+        IsWindowDisabled = false,
+        VSync = false
     };
 
 
@@ -50,6 +58,7 @@ public struct WindowSetting
         Width = 0,
         Height = 0,
         Title = "Vocore",
-        IsWindowDisabled = true
+        IsWindowDisabled = true,
+        VSync = false
     };
 }

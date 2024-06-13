@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Silk.NET.Core.Contexts;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -6,13 +5,14 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine;
 
-public partial class GameEngine
+public static class UtilsWindow
 {
-    private static Window CreateWindow(WindowSetting setting, out InputSystem input)
+    public static Window CreateWindow(this GPUDevice device, WindowSetting setting, out InputSystem input, out GPUSwapchain? swapchain)
     {
         if (setting.IsWindowDisabled)
         {
             input = new NoInputSystem();
+            swapchain = null;
             return new NoWindow();
         }
 
@@ -30,11 +30,27 @@ public partial class GameEngine
         IWindow silkWindow = Silk.NET.Windowing.Window.Create(silkWindowOptions);
         silkWindow.Initialize();
 
+        Window window = new SilkWindow(silkWindow);
         input = new SilkInputSystem(silkWindow);
+
+        //todo: format
+        SwapchainDescriptor descriptor = new SwapchainDescriptor()
+        {
+            Name = $"{setting.Title}_swapchain",
+            SurfaceSource = GetSurfaceSource(window),
+            Width = (uint)setting.Width,
+            Height = (uint)setting.Height,
+            IsVSyncEnabled = setting.VSync,
+            
+        };
+        
+        swapchain = device.CreateSwapchain(descriptor);
+
+
         return new SilkWindow(silkWindow);
     }
 
-    private static SurfaceSource GetSurfaceSource(Window window)
+    public static SurfaceSource GetSurfaceSource(Window window)
     {
         if (window is NoWindow)
         {
@@ -43,13 +59,13 @@ public partial class GameEngine
 
         if (window is SilkWindow silkWindow)
         {
-            return GetSurfaceSource(silkWindow.InternalWindow.Native!);
+            return GetSilkSurfaceSource(silkWindow.InternalWindow.Native!);
         }
 
         throw new PlatformNotSupportedException();
     }
 
-    private static SurfaceSource GetSurfaceSource(INativeWindow window)
+    public static SurfaceSource GetSilkSurfaceSource(INativeWindow window)
     {
         if (window.WinRT.HasValue)
         {
@@ -93,5 +109,4 @@ public partial class GameEngine
 
         throw new PlatformNotSupportedException();
     }
-
 }
