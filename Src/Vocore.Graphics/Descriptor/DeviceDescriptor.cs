@@ -26,7 +26,13 @@ public struct DeviceDescriptor
         Debug = debug;
         Backend = backend;
         PushConstantsSize = pushConstantsSize;
+        PreferredSDRFormat = preferredSDRFormat;
+        PreferredHDRFormat = preferredHDRFormat;
+        PreferredSurfaceFormat = preferredSurfaceFormat;
+        DepthFormat = depthFormat;
         Name = name;
+
+        
         // SurfaceSource = surfaceSource;
         // SurfaceClearColor = surfaceClearColor;
         
@@ -46,10 +52,9 @@ public struct DeviceDescriptor
     /// The size of the push constants buffer in bytes. Put 0 to disable.
     /// </summary> 
     public uint PushConstantsSize { get; init; } = 256;
-    public PixelFormat _preferredSDRFormat { get; init; } = PixelFormat.RGBA8Unorm;
-    public PixelFormat _preferredHDRFormat { get; init; } = PixelFormat.RGBA16Float;
-    public PixelFormat _preferredSurfaceFormat { get; init; } = PixelFormat.BGRA8UnormSrgb;
-    public PixelFormat _depthFormat { get; init; } = PixelFormat.Depth24PlusStencil8;
+    public PixelFormat PreferredSDRFormat { get; init; } = PixelFormat.RGBA8Unorm;
+    public PixelFormat PreferredHDRFormat { get; init; } = PixelFormat.RGBA16Float;
+    public PixelFormat PreferredSurfaceFormat { get; init; } = PixelFormat.BGRA8UnormSrgb;
 
     // public SurfaceSource SurfaceSource { get; init; }
     // public bool VSync { get; init; } = false;

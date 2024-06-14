@@ -17,6 +17,10 @@ public partial class GameEngine
         {
             Debug = setting.DebugInfo,
             Backend = setting.Backend,
+            PreferredSurfaceFormat = setting.PreferredSurfaceFormat,
+            PreferredSDRFormat = setting.PreferredSDRFormat,
+            PreferredHDRFormat = setting.PreferredHDRFormat,
+            DepthFormat = setting.DepthFormat,
             PushConstantsSize = 256,
             Name = "graphics_device"
         };

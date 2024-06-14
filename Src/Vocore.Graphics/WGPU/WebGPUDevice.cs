@@ -58,7 +58,7 @@ internal partial class WebGPUDevice : GPUDevice
     // private readonly WGPUPresentMode[] _supportedPresentModes;
 
     // private readonly WGPUTextureFormat _swapChainFormat;
-    //private readonly PixelFormat _preferredSurfaceFormat;
+    private readonly PixelFormat _preferredSurfaceFormat;
     private readonly PixelFormat _preferredSDRFormat;
     private readonly PixelFormat _preferredHDRFormat;
     private readonly PixelFormat? _preferredDepthStencilFormat;
@@ -89,26 +89,35 @@ internal partial class WebGPUDevice : GPUDevice
     //     get => _surfaceFrameBuffer;
     // }
 
-    // public override PixelFormat? PrefferedDepthStencilFormat
-    // {
-    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //     get
-    //     {
-    //         return _preferredDepthStencilFormat;
-    //     }
-    // }
+    public override PixelFormat PrefferedSurfaceFomat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _preferredSurfaceFormat;
+    }
 
-    // public override PixelFormat PrefferedSurfaceFomat
-    // {
-    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //     get => _preferredSurfaceFormat;
-    // }
+    public override PixelFormat PrefferedSDRFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _preferredSDRFormat;
+    }
 
-    // public override PixelFormat PrefferedHDRFormat
-    // {
-    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //     get => _preferredHDRFormat;
-    // }
+    public override PixelFormat PrefferedHDRFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _preferredHDRFormat;
+    }
+
+
+    public override PixelFormat? PrefferedDepthStencilFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            return _preferredDepthStencilFormat;
+        }
+    }
+
+    
 
     // public override bool VSync
     // {
@@ -311,6 +320,11 @@ internal partial class WebGPUDevice : GPUDevice
     {
         _descriptor = descriptor;
         wgpuSetLogCallback(LogCallback);
+
+        _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
+        _preferredSDRFormat = descriptor.PreferredSDRFormat;
+        _preferredHDRFormat = descriptor.PreferredHDRFormat;
+        _preferredDepthStencilFormat = descriptor.DepthFormat;
 
         // create instance
         WGPUInstanceExtras extras = new WGPUInstanceExtras()

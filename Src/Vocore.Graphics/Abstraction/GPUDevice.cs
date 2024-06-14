@@ -33,6 +33,14 @@ public abstract class GPUDevice : IDisposable
     // public abstract PixelFormat PrefferedHDRFormat { get; }
     // public abstract bool VSync { get; set; }
 
+    public abstract PixelFormat PrefferedSurfaceFomat { get; }
+
+    public abstract PixelFormat PrefferedSDRFormat { get; }
+
+    public abstract PixelFormat PrefferedHDRFormat { get; }
+
+    public abstract PixelFormat? PrefferedDepthStencilFormat { get; }
+
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
     // user can also create their own samplers by using the CreateSampler method.
