@@ -154,12 +154,6 @@ internal class NoDevice : GPUDevice
     {
         
     }
-
-    protected override void SwapBuffersCore()
-    {
-        
-    }
-
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         

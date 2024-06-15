@@ -11,14 +11,20 @@ public class PluginDebugGUI : BaseEnginePlugin
     private class DebugGUISystem : BaseEngineSystem
     {
         private readonly DebugGUIRenderer _renderer;
-        public DebugGUISystem(DebugGUIRenderer renderer)
+        private readonly GPUSwapchain? _swapchain;
+        public DebugGUISystem(DebugGUIRenderer renderer, GPUSwapchain? swapchain)
         {
             _renderer = renderer;
+            _swapchain = swapchain;
         }
 
         public override void OnEndFrame()
         {
-            _renderer.Blit();
+            if (_swapchain != null)
+            {
+                _renderer.Blit(_swapchain.FrameBuffer);
+            }
+            
         }
 
         public override void OnPostUpdate(float delta)
@@ -72,6 +78,6 @@ public class PluginDebugGUI : BaseEnginePlugin
 
 
         DebugGUI.Initialize(renderer, style);
-        engine.AddSystem(new DebugGUISystem(renderer));
+        engine.AddSystem(new DebugGUISystem(renderer, engine.WindowSwapchain));
     }
 }

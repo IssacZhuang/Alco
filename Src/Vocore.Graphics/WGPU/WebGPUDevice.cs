@@ -147,14 +147,12 @@ internal partial class WebGPUDevice : GPUDevice
     {
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
         wgpuQueueSubmit(Queue, 1, &buffer);
-        _hasCommandSubmitted = true;
     }
 
     protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
     {
         WebGPUResuableRenderBuffer buffer = (WebGPUResuableRenderBuffer)renderBuffer;
         buffer.ExecuteBundle(Queue);
-        _hasCommandSubmitted = true;
     }
 
     public override void Dispose()
@@ -294,16 +292,6 @@ internal partial class WebGPUDevice : GPUDevice
         // _width = width;
         // _height = height;
         // _surfaceFrameBuffer.UpdateSurfaceConfig(GetSurfaceConfig());
-    }
-
-    protected unsafe override void SwapBuffersCore()
-    {
-        if (!_hasCommandSubmitted)
-        {
-            return;
-        }
-        //_surfaceFrameBuffer.SwapBuffers();
-        _hasCommandSubmitted = false;
     }
 
     #endregion

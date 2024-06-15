@@ -30,6 +30,8 @@ public partial class GameEngine : IDisposable
     private readonly InputSystem _input;
     private readonly RenderingSystem _rendering;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
+
+    private readonly GPUSwapchain? _windowSwapchain;
     #endregion
 
     #region  Internal Controller
@@ -132,6 +134,12 @@ public partial class GameEngine : IDisposable
         get => _rendering;
     }
 
+    public GPUSwapchain? WindowSwapchain
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _windowSwapchain;
+    }
+
     /// <summary>
     /// The frame updated in a second
     /// </summary>
@@ -164,7 +172,7 @@ public partial class GameEngine : IDisposable
         _setting = setting;
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
-        _window = _graphicsDevice.CreateWindow(_setting.Window, out _input, out GPUSwapchain? swapchain);
+        _window = _graphicsDevice.CreateWindow(_setting.Window, out _input, out _windowSwapchain);
 
         // if (_setting.HasGPU)
         // {
@@ -177,7 +185,7 @@ public partial class GameEngine : IDisposable
         //     _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
         //     _window = slikWindow;
         //     _input = new SilkInputSystem(slikWindow.InternalWindow);
-            
+
 
         //     _window.OnResize += InternalResize;
         // }
@@ -188,7 +196,7 @@ public partial class GameEngine : IDisposable
         //     _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
         // }
 
-        _rendering = new RenderingSystem(_graphicsDevice, swapchain);
+        _rendering = new RenderingSystem(_graphicsDevice);
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);
         _builtInAssets = new BuiltInAssets(_assets);
         InitializeDefaultAssetLoader();
@@ -325,7 +333,11 @@ public partial class GameEngine : IDisposable
         _assets.OnUpdate();
         _profiler.Update(updateDeltaTime);
         _input.Reset();//reset input state
-        _rendering.RenderToSwapChain();
+        if (_windowSwapchain != null)
+        {
+            _rendering.BlitMainFrameBuffer(_windowSwapchain.FrameBuffer);
+        }
+
 
         OnSystemEndFrame();
 

@@ -296,7 +296,7 @@ public abstract class GPUDevice : IDisposable
     }
 
     /// <exclude />
-    protected void ProcessDestroy()
+    public void ProcessDestroy()
     {
         while (_deferredDisposal.TryDequeue(out BaseGPUObject? obj))
         {
@@ -343,15 +343,6 @@ public abstract class GPUDevice : IDisposable
         }
 
         SubmitCore(commandBuffer);
-    }
-
-    /// <summary>
-    /// Swaps the front and back buffers of the surface swap chain.
-    /// </summary>
-    public void SwapBuffers()
-    {
-        SwapBuffersCore();
-        ProcessDestroy();
     }
 
     /// <summary>
@@ -502,9 +493,6 @@ public abstract class GPUDevice : IDisposable
     
     /// <exclude />
     protected abstract void SubmitCore(GPUResuableRenderBuffer renderBuffer);
-
-    /// <exclude />
-    protected abstract void SwapBuffersCore();
 
     // Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// <exclude />

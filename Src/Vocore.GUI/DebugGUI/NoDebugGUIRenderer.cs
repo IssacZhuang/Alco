@@ -39,7 +39,7 @@ public class NoDebugGUIRenderer : IDebugGUIRenderer
         
     }
 
-    public void Blit()
+    public void Blit(GPUFrameBuffer frameBuffer)
     {
 
     }

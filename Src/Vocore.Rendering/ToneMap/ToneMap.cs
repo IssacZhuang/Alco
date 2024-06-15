@@ -7,12 +7,14 @@ public abstract class ToneMap:AutoDisposable
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private readonly Shader _shader;
-    private readonly GPUPipeline _pipeline;
+
     private readonly Mesh _mesh;
     private readonly uint _shaderId_input;
 
     private GPUFrameBuffer? _input;
     private GPUResourceGroup? _inputGroup;
+    private GPURenderPass? _renderPass;
+    private GPUPipeline? _pipeline;
 
 
     public Shader Shader => _shader;
@@ -26,7 +28,7 @@ public abstract class ToneMap:AutoDisposable
 
         _device = renderingSystem.GraphicsDevice;
         _shader = toneMapShader;
-        _pipeline = toneMapShader.GetPipelineVariant(_device.SwapChainRenderPass);
+
         _mesh = renderingSystem.MeshFullScreen;
         _shaderId_input = _shader.GetResourceId("texture");
 
@@ -38,6 +40,7 @@ public abstract class ToneMap:AutoDisposable
         _inputGroup?.Dispose();
 
         _input = input;
+
 
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
             _device.BindGroupTexture2DSampled,
@@ -57,9 +60,15 @@ public abstract class ToneMap:AutoDisposable
             throw new InvalidOperationException("Input is not set.");
         }
 
+        if (_renderPass != target.RenderPass)
+        {
+            _renderPass = target.RenderPass;
+            _pipeline = _shader.GetPipelineVariant(_renderPass);
+        }
+
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_pipeline);
+        _command.SetGraphicsPipeline(_pipeline!);
         _command.SetVertexBuffer(0,_mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_shader.DefaultPipeline);

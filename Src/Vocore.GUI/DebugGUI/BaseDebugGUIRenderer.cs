@@ -68,9 +68,9 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _canvasRenderer.End();
     }
 
-    public void Blit()
+    public void Blit(GPUFrameBuffer frameBuffer)
     {
-        _blitRenderer.Blit(_backBuffer, _device.SwapChainFrameBuffer);
+        _blitRenderer.Blit(_backBuffer, frameBuffer);
     }
 
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)

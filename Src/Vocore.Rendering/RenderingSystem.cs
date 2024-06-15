@@ -10,19 +10,23 @@ using Vocore.Graphics;
 /// </summary>
 public partial class RenderingSystem
 {
+    public delegate int2 GetSizeDelegate();
+
     private readonly GPUDevice _device;
-    private readonly Dictionary<string, GPURenderPass> _renderPasses;
+    private readonly GetSizeDelegate _getSize;
+
     //preffered
     private readonly GPURenderPass _prefferedSDRPass;
     private readonly GPURenderPass _prefferedHDRPass;
-    private PixelFormat _prefferedSDRFormat;
-    private PixelFormat _prefferedHDRFormat;
+    private readonly PixelFormat _prefferedSDRFormat;
+    private readonly PixelFormat _prefferedHDRFormat;
 
     //state
-    private GPUSwapchain? _swapChain;
+    private readonly GPUFrameBuffer _defaultBackBuffer;
     private GPURenderPass? _mainRenderPass;
     private GPUFrameBuffer? _mainFrameBuffer;
     private ToneMap? _mainPassToSwapChain;
+
     private GPUFrameBuffer _selectedFrameBuffer;
 
     
@@ -69,30 +73,41 @@ public partial class RenderingSystem
         }
     }
 
-    public RenderingSystem(GPUDevice device, GPUSwapchain? windowSwapchain)
+    public RenderingSystem(GPUDevice device, GetSizeDelegate getSize)
     {
         _device = device;
-        _renderPasses = new Dictionary<string, GPURenderPass>();
+        _getSize = getSize;
 
-        
+        _prefferedSDRFormat = device.PrefferedSDRFormat;
+        _prefferedHDRFormat = device.PrefferedHDRFormat;
 
-        _selectedFrameBuffer = device.SwapChainFrameBuffer;
 
         _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
-            [new(PixelFormat.RGBA8Unorm)],
+            [new(_prefferedSDRFormat)],
             new(PixelFormat.Depth24PlusStencil8),
             "sdr_pass"
         ));
 
         _prefferedHDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
-            [new(device.PrefferedHDRFormat)],
+            [new(_prefferedHDRFormat)],
             new(PixelFormat.Depth24PlusStencil8),
             "hdr_pass"
         ));
 
-        RegisterRenderPass("Surface", device.SwapChainFrameBuffer.RenderPass);
+        FrameBufferDescriptor descriptor = new FrameBufferDescriptor
+        {
+            RenderPass = _prefferedSDRPass,
+            Width = 0,
+            Height = 0,
+            Name = "default_back_buffer"
+        };
+
+        _defaultBackBuffer = _device.CreateFrameBuffer(descriptor);
+        _selectedFrameBuffer = _defaultBackBuffer;
+
+
     }
 
     /// <summary>
@@ -114,49 +129,9 @@ public partial class RenderingSystem
         _mainPassToSwapChain = null;
         _mainFrameBuffer?.Dispose();
         _mainFrameBuffer = null;
-        _selectedFrameBuffer = _device.SwapChainFrameBuffer;
+        _selectedFrameBuffer = _defaultBackBuffer;
     }
 
-    public void RegisterRenderPass(string name, GPURenderPass renderPass)
-    {
-        if (_renderPasses.ContainsKey(name))
-        {
-            throw new ArgumentException($"The render pass with name '{name}' has already been registered.");
-        }
-
-        _renderPasses.Add(name, renderPass);
-    }
-
-
-    public bool HasRenderPass(string name)
-    {
-        return _renderPasses.ContainsKey(name);
-    }
-
-    public GPURenderPass GetRenderPass(string name)
-    {
-        if (!_renderPasses.TryGetValue(name, out GPURenderPass? renderPass))
-        {
-            throw new ArgumentException($"The render pass with name '{name}' has not been registered.");
-        }
-
-        return renderPass;
-    }
-
-    public bool TryGetRenderPass(string name, [NotNullWhen(true)] out GPURenderPass? renderPass)
-    {
-        return _renderPasses.TryGetValue(name, out renderPass);
-    }
-
-    public void UnregisterRenderPass(string name)
-    {
-        if (!_renderPasses.ContainsKey(name))
-        {
-            throw new ArgumentException($"The render pass with name '{name}' has not been registered.");
-        }
-
-        _renderPasses.Remove(name);
-    }
 
     private void UpdateMainFrameBuffer()
     {
@@ -170,10 +145,11 @@ public partial class RenderingSystem
             return;
         }
 
+        int2 size = _getSize();
         _mainFrameBuffer?.Dispose();
 
-        uint width = _device.SwapChainFrameBuffer.Width;
-        uint height = _device.SwapChainFrameBuffer.Height;
+        uint width = (uint)size.x;
+        uint height = (uint)size.y;
 
         FrameBufferDescriptor descriptor = new FrameBufferDescriptor
         {
@@ -188,9 +164,9 @@ public partial class RenderingSystem
         _selectedFrameBuffer = _mainFrameBuffer;
     }
 
-    internal void RenderToSwapChain()
+    public void BlitMainFrameBuffer(GPUFrameBuffer frameBuffer)
     {
-        _mainPassToSwapChain?.Blit(_device.SwapChainFrameBuffer);
+        _mainPassToSwapChain?.Blit(frameBuffer);
     }
 
     internal void OnResize(int2 size)

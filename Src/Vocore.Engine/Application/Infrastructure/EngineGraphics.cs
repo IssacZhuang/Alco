@@ -13,11 +13,13 @@ namespace Vocore.Engine
         private readonly GPUDevice _device;
         private readonly RenderingSystem _renderingSystem;
         private readonly GPUCommandBuffer _commandBuffer;
+        private readonly GPUSwapchain? _windowSwapchain;
 
         public EngineGraphics(GameEngine engine)
         {
             _device = engine.GraphicsDevice;
             _renderingSystem = engine.Rendering;
+            _windowSwapchain = engine.WindowSwapchain;
             _commandBuffer = _device.CreateCommandBuffer();
         }
 
@@ -36,7 +38,7 @@ namespace Vocore.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndFrame()
         {
-            _device.SwapBuffers();
+            _windowSwapchain?.Present();
         }
     }
 }
