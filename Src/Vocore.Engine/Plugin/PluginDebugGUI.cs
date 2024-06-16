@@ -54,7 +54,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         Shader ShaderBlit = builtInAssets.Shader_Blit;
         Font font = builtInAssets.Font_Default;
 
-        DebugGUIRenderer renderer = new(engine.Input, engine.Window.Size.x, engine.Window.Size.y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
+        DebugGUIRenderer renderer = new(engine.Input, engine.MainWindow.Size.x, engine.MainWindow.Size.y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
         DebugGUIStyle style = new DebugGUIStyle
         {
             Font = font,

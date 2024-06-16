@@ -24,10 +24,15 @@ namespace Vocore.Engine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void BeginFrameUpdate(float delta)
+        public void BeginFrameUpdate(GPUSwapchain? swapchain)
         {
+            if (swapchain == null)
+            {
+                return;
+            }
+
             _commandBuffer.Begin();
-            _commandBuffer.SetFrameBuffer(_renderingSystem.DefaultFrameBuffer);
+            _commandBuffer.SetFrameBuffer(swapchain.FrameBuffer);
             _commandBuffer.ClearColor(new Vector4(0, 0, 0, 1));
             _commandBuffer.ClearDepthStencil(1.0f, 0);
             _commandBuffer.End();

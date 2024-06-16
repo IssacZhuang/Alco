@@ -1,3 +1,5 @@
+using Vocore.Graphics;
+
 namespace Vocore.Engine;
 
 /// <summary>
@@ -5,6 +7,8 @@ namespace Vocore.Engine;
 /// </summary>
 public sealed class NoWindow : Window
 {
+    public static readonly NoInputSystem NoInputSystem = new NoInputSystem();
+
     /// <inheritdoc />
     public override WindowMode WindowMode { get; set; }
 
@@ -12,17 +16,18 @@ public sealed class NoWindow : Window
     public override int2 Size { get; set; }
 
     /// <inheritdoc />
-    public override float AspectRatio { get; }
-
-    /// <inheritdoc />
     public override string Title { get; set; } = "No Window";
+
+    public override GPUSwapchain? Swapchain => null;
+
+    public override InputSystem Input => NoInputSystem;
 
     protected override void Dispose(bool disposing)
     {
         
     }
 
-    internal override void Close()
+    public override void Close()
     {
         
     }

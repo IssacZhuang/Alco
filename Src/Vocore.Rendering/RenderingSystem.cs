@@ -96,11 +96,13 @@ public partial class RenderingSystem
             "hdr_pass"
         ));
 
+
+        int2 size = getSize();
         FrameBufferDescriptor descriptor = new FrameBufferDescriptor
         {
             RenderPass = _prefferedSDRPass,
-            Width = 0,
-            Height = 0,
+            Width = (uint)size.x,
+            Height = (uint)size.y,
             Name = "default_back_buffer"
         };
 

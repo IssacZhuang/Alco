@@ -6,6 +6,17 @@ namespace Vocore.Engine;
 public partial class GameEngine
 {
     private static string GraphicsLogPrefix = "[Graphics]";
+
+    public Window CreateWindow(WindowSetting setting)
+    {
+        if (setting.IsWindowDisabled)
+        {
+            return new NoWindow();
+        }
+
+        return new SilkWindow(GraphicsDevice, setting);
+    }
+
     private static GPUDevice CreateGraphicsDevice(GraphicsSetting setting)
     {
         if (setting.Backend == GraphicsBackend.None)
@@ -52,5 +63,10 @@ public partial class GameEngine
     private static void GraphicsLogInfo(string message)
     {
         Log.Info(GraphicsLogPrefix, message);
+    }
+
+    private int2 GetSwapChainSize()
+    {
+        return new int2(MainWindow.Size.x, MainWindow.Size.y);
     }
 }

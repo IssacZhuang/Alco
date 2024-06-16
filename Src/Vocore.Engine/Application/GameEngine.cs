@@ -24,14 +24,13 @@ public partial class GameEngine : IDisposable
 
     #region  Resources
     private readonly GPUDevice _graphicsDevice;
-    private readonly Window _window;
+    private readonly Window _mainWindow;
     private readonly BuiltInAssets _builtInAssets;
     private readonly AssetSystem _assets;
     private readonly InputSystem _input;
     private readonly RenderingSystem _rendering;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
-    private readonly GPUSwapchain? _windowSwapchain;
     #endregion
 
     #region  Internal Controller
@@ -94,10 +93,10 @@ public partial class GameEngine : IDisposable
     /// <summary>
     /// The window singleton of the game
     /// </summary>
-    public Window Window
+    public Window MainWindow
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _window;
+        get => _mainWindow;
     }
 
     /// <summary>
@@ -137,7 +136,7 @@ public partial class GameEngine : IDisposable
     public GPUSwapchain? WindowSwapchain
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _windowSwapchain;
+        get => _mainWindow.Swapchain;
     }
 
     /// <summary>
@@ -172,31 +171,12 @@ public partial class GameEngine : IDisposable
         _setting = setting;
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
-        _window = _graphicsDevice.CreateWindow(_setting.Window, out _input, out _windowSwapchain);
 
-        // if (_setting.HasGPU)
-        // {
-        //     // GraphicsWindow.CreateGraphicsDeviceWithWindow(
-        //     // _setting.Graphics,
-        //     // _setting.Window,
-        //     // out GPUDevice graphicsDevice,
-        //     // out SilkWindow slikWindow);
+        //main window
+        _mainWindow = CreateWindow(_setting.Window);
+        _input = _mainWindow.Input;
 
-        //     _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
-        //     _window = slikWindow;
-        //     _input = new SilkInputSystem(slikWindow.InternalWindow);
-
-
-        //     _window.OnResize += InternalResize;
-        // }
-        // else
-        // {
-        //     _window = new NoWindow();
-        //     _input = new NoInputSystem();
-        //     _graphicsDevice = GraphicsFactory.GetNoGPUDevice();
-        // }
-
-        _rendering = new RenderingSystem(_graphicsDevice);
+        _rendering = new RenderingSystem(_graphicsDevice, GetSwapChainSize);
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);
         _builtInAssets = new BuiltInAssets(_assets);
         InitializeDefaultAssetLoader();
@@ -314,7 +294,7 @@ public partial class GameEngine : IDisposable
             OnSystemPostTick(physicsDeltaTime);
         }
 
-        _graphics.BeginFrameUpdate(updateDeltaTime);
+        _graphics.BeginFrameUpdate(WindowSwapchain);
 
         OnSystemUpdate(updateDeltaTime);
 
@@ -333,9 +313,9 @@ public partial class GameEngine : IDisposable
         _assets.OnUpdate();
         _profiler.Update(updateDeltaTime);
         _input.Reset();//reset input state
-        if (_windowSwapchain != null)
+        if (WindowSwapchain != null)
         {
-            _rendering.BlitMainFrameBuffer(_windowSwapchain.FrameBuffer);
+            _rendering.BlitMainFrameBuffer(WindowSwapchain.FrameBuffer);
         }
 
 
@@ -431,7 +411,7 @@ public partial class GameEngine : IDisposable
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
         GraphicsDevice.Dispose();
-        Window.Close();
+        MainWindow.Close();
         Assets.Dispose();
         GC.SuppressFinalize(this);
     }

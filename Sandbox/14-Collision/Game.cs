@@ -58,7 +58,7 @@ public class Game : GameEngine
 
         _renderer.End();
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, Window.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, _entity.Shape, out RaycastHit3D rayCastHit);
 

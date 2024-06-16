@@ -1,4 +1,5 @@
 using System.Numerics;
+using Vocore.Graphics;
 
 namespace Vocore.Engine;
 
@@ -18,16 +19,24 @@ public abstract class Window : AutoDisposable
     public abstract int2 Size { get; set; }
 
     /// <summary>
-    /// Gets the aspect ratio of the window.
-    /// </summary>
-    public abstract float AspectRatio { get; }
-
-    /// <summary>
     /// Gets or sets the title of the window.
     /// </summary>
     public abstract string Title { get; set; }
 
-    internal Action<int2>? OnResize;
+    public abstract GPUSwapchain? Swapchain { get; }
+    public abstract InputSystem Input { get; }
 
-    internal abstract void Close();
+    public Action<int2>? OnResize;
+
+    public abstract void Close();
+
+
+    /// <summary>
+    /// Gets the aspect ratio of the window.
+    /// </summary>
+    public float AspectRatio
+    {
+        get => (float)Size.x / Size.y;
+    }
+
 }
