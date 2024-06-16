@@ -25,7 +25,7 @@ public partial class RenderingSystem
     private readonly GPUFrameBuffer _defaultBackBuffer;
     private GPURenderPass? _mainRenderPass;
     private GPUFrameBuffer? _mainFrameBuffer;
-    private ToneMap? _mainPassToSwapChain;
+    private ColorSpaceConvertRenderer? _mainPassToSwapChain;
 
     private GPUFrameBuffer _selectedFrameBuffer;
 
@@ -81,7 +81,6 @@ public partial class RenderingSystem
         _prefferedSDRFormat = device.PrefferedSDRFormat;
         _prefferedHDRFormat = device.PrefferedHDRFormat;
 
-
         _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
             [new(_prefferedSDRFormat)],
@@ -96,7 +95,6 @@ public partial class RenderingSystem
             "hdr_pass"
         ));
 
-
         int2 size = getSize();
         FrameBufferDescriptor descriptor = new FrameBufferDescriptor
         {
@@ -108,8 +106,6 @@ public partial class RenderingSystem
 
         _defaultBackBuffer = _device.CreateFrameBuffer(descriptor);
         _selectedFrameBuffer = _defaultBackBuffer;
-
-
     }
 
     /// <summary>
@@ -117,7 +113,7 @@ public partial class RenderingSystem
     /// </summary>
     /// <param name="renderPass">The custom render pass</param>
     /// <param name="toneMap">The tone mapping to convert color of custom render pass to the swap chain frame buffer</param>
-    public void SetMainRenderPass(GPURenderPass renderPass, ToneMap toneMap)
+    public void SetMainRenderPass(GPURenderPass renderPass, ColorSpaceConvertRenderer toneMap)
     {
         _mainRenderPass = renderPass;
         _mainPassToSwapChain = toneMap;
@@ -135,14 +131,19 @@ public partial class RenderingSystem
     }
 
 
+    public void BlitMainFrameBuffer(GPUFrameBuffer frameBuffer)
+    {
+        _mainPassToSwapChain?.Blit(frameBuffer);
+    }
+
     private void UpdateMainFrameBuffer()
     {
-        if(_mainRenderPass == null)
+        if (_mainRenderPass == null)
         {
             return;
         }
 
-        if(_mainPassToSwapChain == null)
+        if (_mainPassToSwapChain == null)
         {
             return;
         }
@@ -164,11 +165,6 @@ public partial class RenderingSystem
         _mainFrameBuffer = _device.CreateFrameBuffer(descriptor);
         _mainPassToSwapChain.SetInput(_mainFrameBuffer);
         _selectedFrameBuffer = _mainFrameBuffer;
-    }
-
-    public void BlitMainFrameBuffer(GPUFrameBuffer frameBuffer)
-    {
-        _mainPassToSwapChain?.Blit(frameBuffer);
     }
 
     internal void OnResize(int2 size)

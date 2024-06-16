@@ -2,7 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public abstract class ToneMap:AutoDisposable
+public class ColorSpaceConvertRenderer : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
@@ -17,9 +17,7 @@ public abstract class ToneMap:AutoDisposable
     private GPUPipeline? _pipeline;
 
 
-    public Shader Shader => _shader;
-
-    internal ToneMap(RenderingSystem renderingSystem, Shader toneMapShader)
+    internal ColorSpaceConvertRenderer(RenderingSystem renderingSystem, Shader toneMapShader)
     {
         if (!toneMapShader.IsGraphicsShader)
         {
@@ -69,7 +67,7 @@ public abstract class ToneMap:AutoDisposable
         _command.Begin();
         _command.SetFrameBuffer(target);
         _command.SetGraphicsPipeline(_pipeline!);
-        _command.SetVertexBuffer(0,_mesh.VertexBuffer);
+        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsPipeline(_pipeline!);
         _command.SetGraphicsResources(_shaderId_input, _inputGroup!);
@@ -81,7 +79,7 @@ public abstract class ToneMap:AutoDisposable
 
     protected virtual void OnSetGraphicsResources(GPUCommandBuffer command)
     {
-        
+
     }
 
     protected override void Dispose(bool disposing)

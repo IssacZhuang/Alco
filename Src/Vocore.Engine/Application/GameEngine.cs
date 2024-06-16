@@ -263,6 +263,14 @@ public partial class GameEngine : IDisposable
 
     }
 
+    /// <summary>
+    /// Called before the frame swap buffer. This method is usually used for handle the custom swap chain
+    /// </summary>
+    protected virtual void OnEndFrame()
+    {
+
+    }
+
 
     /// <summary>
     /// Called when player exit the game
@@ -315,14 +323,24 @@ public partial class GameEngine : IDisposable
         _assets.OnUpdate();
         _profiler.Update(updateDeltaTime);
         _input.Reset();//reset input state
+
+
         if (WindowSwapchain != null)
         {
             _rendering.BlitMainFrameBuffer(WindowSwapchain.FrameBuffer);
         }
 
+        try
+        {
+            OnEndFrame();
+        }
+        catch (Exception e)
+        {
+            Log.Error("[End Frame Error]", e);
+            TryErrorStop();
+        }
 
         OnSystemEndFrame();
-
         _graphics.EndFrame();//swap buffer
 
         if (_shouldResize)

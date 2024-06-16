@@ -2,7 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class ReinhardLuminanceToneMap : ToneMap
+public class ReinhardLuminanceToneMap : ColorSpaceConvertRenderer
 {
     private readonly GraphicsValueBuffer<ReinhardToneMapData> _data;
     private readonly uint _shaderId_data;
