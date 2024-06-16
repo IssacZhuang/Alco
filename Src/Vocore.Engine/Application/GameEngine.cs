@@ -174,6 +174,8 @@ public partial class GameEngine : IDisposable
 
         //main window
         _mainWindow = CreateWindow(_setting.Window);
+        _mainWindow.OnResize += InternalResize;
+
         _input = _mainWindow.Input;
 
         _rendering = new RenderingSystem(_graphicsDevice, GetSwapChainSize);
@@ -334,9 +336,10 @@ public partial class GameEngine : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalResize(int2 size)
     {
-        //this actually resize the surface of after swap frame buffer
-        _graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
 
+        //_graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
+        //this actually resize the surface of after swap frame buffer
+        WindowSwapchain?.Resize((uint)size.x, (uint)size.y);
         _setting.Window.Width = size.x;
         _setting.Window.Height = size.y;
         _shouldResize = true;

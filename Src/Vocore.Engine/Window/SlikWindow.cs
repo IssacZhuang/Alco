@@ -42,6 +42,7 @@ public class SilkWindow : Window
             SurfaceSource = GetSurfaceSource(silkWindow.Native!),
             Width = (uint)Size.x,
             Height = (uint)Size.y,
+            ColorFormat = device.PrefferedSurfaceFomat,
             IsVSyncEnabled = setting.VSync,
         };
 

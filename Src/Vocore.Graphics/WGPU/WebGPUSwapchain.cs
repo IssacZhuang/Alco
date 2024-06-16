@@ -63,7 +63,7 @@ internal unsafe class WebGPUSwapchain : GPUSwapchain
         {
             WGPUTextureFormat oldFormat = _surfaceFormat;
             _surfaceFormat = wgpuSurfaceGetPreferredFormat(_surface, adapter);
-            GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_surface} instead");
+            GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_surfaceFormat} instead");
         }
 
         //create render pass

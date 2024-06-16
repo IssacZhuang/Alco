@@ -70,7 +70,6 @@ internal partial class WebGPUDevice : GPUDevice
     // private readonly WebGPUSurfaceFrameBuffer _surfaceFrameBuffer;
     // private readonly WebGPURenderPass _surfaceRenderPass;
 
-    private bool _hasCommandSubmitted;
 
     #endregion
 
@@ -287,12 +286,12 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
     }
 
-    protected unsafe override void ResizeSurfaceCore(uint width, uint height)
-    {
-        // _width = width;
-        // _height = height;
-        // _surfaceFrameBuffer.UpdateSurfaceConfig(GetSurfaceConfig());
-    }
+    // protected unsafe override void ResizeSurfaceCore(uint width, uint height)
+    // {
+    //     // _width = width;
+    //     // _height = height;
+    //     // _surfaceFrameBuffer.UpdateSurfaceConfig(GetSurfaceConfig());
+    // }
 
     #endregion
 

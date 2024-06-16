@@ -140,11 +140,6 @@ internal class NoDevice : GPUDevice
         
     }
 
-    protected override void ResizeSurfaceCore(uint width, uint height)
-    {
-        
-    }
-
     protected override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
         

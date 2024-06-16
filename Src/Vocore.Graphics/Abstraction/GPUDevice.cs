@@ -275,8 +275,6 @@ public abstract class GPUDevice : IDisposable
         return CreateSwapchainCore(descriptor);
     }
 
-
-
     /// <summary>
     /// Destroys the GPU object. The object will be destroyed at the end of the frame.
     /// </summary>
@@ -295,26 +293,15 @@ public abstract class GPUDevice : IDisposable
         obj.Destroy();
     }
 
-    /// <exclude />
+    /// <summary>
+    /// Processes the deferred disposal of the GPU objects.
+    /// </summary>
     public void ProcessDestroy()
     {
         while (_deferredDisposal.TryDequeue(out BaseGPUObject? obj))
         {
             obj.Destroy();
         }
-    }
-
-    /// <summary>
-    /// Resizes the surface swap chain to the width and height. The depth and stencil buffer will also be resized if enabled.
-    /// </summary>
-    public void ResizeSurface(uint width, uint height)
-    {
-        if (width <= 0 || height <= 0)
-        {
-            //it might be the window is minimized
-            return;
-        }
-        ResizeSurfaceCore(width, height);
     }
 
     /// <summary>
@@ -485,8 +472,6 @@ public abstract class GPUDevice : IDisposable
 
     /// <exclude />
     public abstract GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor);
-    /// <exclude />
-    protected abstract void ResizeSurfaceCore(uint width, uint height);
 
     /// <exclude />
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
