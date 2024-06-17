@@ -18,8 +18,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        Assets.AddFileSource(new DirectoryFileSource("Assets"));
-
         _shader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
 

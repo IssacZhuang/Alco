@@ -2,7 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class ColorSpaceConvertRenderer : AutoDisposable
+public class ColorSpaceConverter : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
@@ -17,7 +17,7 @@ public class ColorSpaceConvertRenderer : AutoDisposable
     private GPUPipeline? _pipeline;
 
 
-    internal ColorSpaceConvertRenderer(RenderingSystem renderingSystem, Shader toneMapShader)
+    internal ColorSpaceConverter(RenderingSystem renderingSystem, Shader toneMapShader)
     {
         if (!toneMapShader.IsGraphicsShader)
         {

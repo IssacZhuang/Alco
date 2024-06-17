@@ -6,7 +6,7 @@ namespace Vocore.Engine;
 public class PluginHDR : BaseEnginePlugin
 {
     private Shader? _shader;
-    private ColorSpaceConvertRenderer? _toneMap;
+    private ColorSpaceConverter? _toneMap;
 
     public override int Order => -900;
     public override void OnPostInitialize(GameEngine engine)

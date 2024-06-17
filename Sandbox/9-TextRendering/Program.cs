@@ -9,7 +9,8 @@ GameEngineSetting setting = new GameEngineSetting
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
     }
-};
+}.With<PluginDefaultAssets>().
+With<PluginHDR>();
 
 using (Game game = new Game(setting))
 {

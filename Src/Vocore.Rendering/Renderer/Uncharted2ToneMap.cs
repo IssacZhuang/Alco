@@ -2,7 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class Uncharted2ToneMap : ColorSpaceConvertRenderer
+public class Uncharted2ToneMap : ColorSpaceConverter
 {
     private readonly GraphicsValueBuffer<U2ToneMapData> _data;
     private readonly uint _shaderId_data;

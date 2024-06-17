@@ -25,7 +25,7 @@ public partial class RenderingSystem
     private readonly GPUFrameBuffer _defaultBackBuffer;
     private GPURenderPass? _mainRenderPass;
     private GPUFrameBuffer? _mainFrameBuffer;
-    private ColorSpaceConvertRenderer? _mainPassToSwapChain;
+    private ColorSpaceConverter? _mainPassToSwapChain;
 
     private GPUFrameBuffer _selectedFrameBuffer;
 
@@ -112,11 +112,11 @@ public partial class RenderingSystem
     /// Use a custom render pass to create a frame buffer that used to replace the swap chain frame buffer. Usually used for post-processing and HDR rendering.
     /// </summary>
     /// <param name="renderPass">The custom render pass</param>
-    /// <param name="toneMap">The tone mapping to convert color of custom render pass to the swap chain frame buffer</param>
-    public void SetMainRenderPass(GPURenderPass renderPass, ColorSpaceConvertRenderer toneMap)
+    /// <param name="colorSpaceConverter">The tone mapping to convert color of custom render pass to the swap chain frame buffer</param>
+    public void SetMainRenderPass(GPURenderPass renderPass, ColorSpaceConverter colorSpaceConverter)
     {
         _mainRenderPass = renderPass;
-        _mainPassToSwapChain = toneMap;
+        _mainPassToSwapChain = colorSpaceConverter;
 
         UpdateMainFrameBuffer();
     }

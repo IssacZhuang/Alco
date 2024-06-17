@@ -35,7 +35,13 @@ public partial class RenderingSystem
     {
         return new WireframeRenderer(this, camera, shader);
     }
-    
+
+    public ColorSpaceConverter CreateColorSpaceConverter(Shader shader)
+    {
+        return new ColorSpaceConverter(this, shader);
+    }
+
+
     public Uncharted2ToneMap CreateUncharted2ToneMap(Shader shader)
     {
         return new Uncharted2ToneMap(this, shader);
