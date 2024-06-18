@@ -15,7 +15,7 @@ public class ReinhardLuminanceToneMap : ColorSpaceConverter
     public ReinhardLuminanceToneMap(RenderingSystem renderingSystem, Shader toneMapShader) : base(renderingSystem, toneMapShader)
     {
         _data = renderingSystem.CreateGraphicsValueBuffer<ReinhardToneMapData>("reinhard_luminance_tone_map_data");
-        _shaderId_data = toneMapShader.GetResourceId("data");
+        _shaderId_data = toneMapShader.GetResourceId("_data");
         _data.Value = ReinhardToneMapData.Default;
     }
 

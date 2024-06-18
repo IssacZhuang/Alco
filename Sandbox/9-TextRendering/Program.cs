@@ -10,7 +10,7 @@ GameEngineSetting setting = new GameEngineSetting
         Backend = GraphicsBackend.Vulkan,
     }
 }.With<PluginDefaultAssets>().
-With<PluginHDR>();
+With<PluginSDR>();
 
 using (Game game = new Game(setting))
 {

@@ -5,8 +5,8 @@
 
 #pragma RenderPass Surface
 
-DEFINE_TEX2D_SAMPLE(0, texture); // should be HDR image
-DEFINE_STRUCT(1, data){
+DEFINE_TEX2D_SAMPLE(0, _texture); // should be HDR image
+DEFINE_STRUCT(1, _data){
     float MaxLuminance;
     float Gamma;
 };
@@ -37,7 +37,7 @@ float3 change_luminance(float3 color, float new_luminance) {
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  float4 source = SAMPLE_TEX2D(texture, input.uv);
+  float4 source = SAMPLE_TEX2D(_texture, input.uv);
 
   float old_luminance = dot(source.rgb, float3(0.2126, 0.7152, 0.0722));
   float numerator = old_luminance * (1.0 + (old_luminance/(MaxLuminance*MaxLuminance)));

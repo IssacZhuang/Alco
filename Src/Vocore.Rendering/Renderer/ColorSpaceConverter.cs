@@ -28,7 +28,7 @@ public class ColorSpaceConverter : AutoDisposable
         _shader = toneMapShader;
 
         _mesh = renderingSystem.MeshFullScreen;
-        _shaderId_input = _shader.GetResourceId("texture");
+        _shaderId_input = _shader.GetResourceId("_texture");
 
         _command = _device.CreateCommandBuffer();
     }

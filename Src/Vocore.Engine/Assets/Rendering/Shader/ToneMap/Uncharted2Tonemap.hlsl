@@ -6,8 +6,8 @@
 
 #pragma RenderPass Surface
 
-DEFINE_TEX2D_SAMPLE(0, texture); // should be HDR image
-DEFINE_STRUCT(1, data){
+DEFINE_TEX2D_SAMPLE(0, _texture); // should be HDR image
+DEFINE_STRUCT(1, _data){
     float A;
     float B;
     float C;
@@ -42,7 +42,7 @@ V2F vs_main(Vertex2D input) {
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-    float3 hdrColor = max(0, SAMPLE_TEX2D(texture, input.uv).rgb - 0.004);
+    float3 hdrColor = max(0, SAMPLE_TEX2D(_texture, input.uv).rgb - 0.004);
     float3 ldrColor = Uncharted2Tonemap(hdrColor * Exposure);
 
     //white scale

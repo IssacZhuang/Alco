@@ -10,7 +10,7 @@ public class Uncharted2ToneMap : ColorSpaceConverter
     internal Uncharted2ToneMap(RenderingSystem renderingSystem, Shader toneMapShader) : base(renderingSystem, toneMapShader)
     {
         _data = renderingSystem.CreateGraphicsValueBuffer<U2ToneMapData>("u2_tone_map_buffer");
-        _shaderId_data = toneMapShader.GetResourceId("data");
+        _shaderId_data = toneMapShader.GetResourceId("_data");
         _data.Value = U2ToneMapData.Default;
     }
 

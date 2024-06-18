@@ -61,24 +61,44 @@ namespace Vocore.Engine
         /// </summary>
         public AssetsSetting Assets;
 
-        /// <summary>
-        /// The default game engine setting but no GPU interface required
-        /// </summary>
-        public readonly static GameEngineSetting NoGPU = new GameEngineSetting
+        public static GameEngineSetting CreateDefaultSDR()
         {
-            GametTickRate = 60,
-            Window = WindowSetting.NoWindow,
-            Graphics = GraphicsSetting.NoGPU,
-            Assets = AssetsSetting.Default
-        };
+            GameEngineSetting seting = new GameEngineSetting();
+            seting.With<PluginDefaultAssets>().
+            With<PluginHDR>();
+            return seting;
+        }
 
-        public readonly static GameEngineSetting GPUWithoutWindow = new GameEngineSetting
+        public static GameEngineSetting CreateDefaultHDR()
         {
-            GametTickRate = 60,
-            Window = WindowSetting.NoWindow,
-            Graphics = GraphicsSetting.Default,
-            Assets = AssetsSetting.Default
-        };
+            GameEngineSetting seting = new GameEngineSetting();
+            seting.With<PluginDefaultAssets>().
+            With<PluginHDR>();
+            return seting;
+        }
+
+        public static GameEngineSetting CreateNoGPU()
+        {
+            return new GameEngineSetting
+            {
+                GametTickRate = 60,
+                Window = WindowSetting.NoWindow,
+                Graphics = GraphicsSetting.NoGPU,
+                Assets = AssetsSetting.Default
+            };
+        }
+
+        public static GameEngineSetting CreateGPUWithoutWindow()
+        {
+            return new GameEngineSetting
+            {
+                GametTickRate = 60,
+                Window = WindowSetting.NoWindow,
+                Graphics = GraphicsSetting.Default,
+                Assets = AssetsSetting.Default
+            };
+        }
+
 
         public GameEngineSetting With(IEnginePlugin plugin)
         {
