@@ -7,10 +7,7 @@ namespace Vocore.Engine.Test;
 public class TestShader
 {
     //used to check engine built-in shader
-    public GameEngineSetting Setting = new GameEngineSetting()
-    {
-        Graphics = GraphicsSetting.NoGPU,
-    }.With<PluginDefaultAssets>();
+    public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine
     {

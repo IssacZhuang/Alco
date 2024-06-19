@@ -85,7 +85,7 @@ namespace Vocore.Engine
                 Window = WindowSetting.NoWindow,
                 Graphics = GraphicsSetting.NoGPU,
                 Assets = AssetsSetting.Default
-            };
+            }.With<PluginDefaultAssets>();
         }
 
         public static GameEngineSetting CreateGPUWithoutWindow()
@@ -96,7 +96,8 @@ namespace Vocore.Engine
                 Window = WindowSetting.NoWindow,
                 Graphics = GraphicsSetting.Default,
                 Assets = AssetsSetting.Default
-            };
+            }.With<PluginDefaultAssets>().
+            With<PluginSDR>();
         }
 
 
