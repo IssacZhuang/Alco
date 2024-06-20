@@ -54,5 +54,10 @@ namespace Vocore
         {
             return new int2((int)a.X, (int)a.Y);
         }
+
+        public override string ToString()
+        {
+            return $"({x}, {y})";
+        }
     }
 }

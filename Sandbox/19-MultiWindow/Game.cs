@@ -29,8 +29,8 @@ public class Game : GameEngine
         {
             Stop();
         }
-
-
+    
+        DebugGUI.Text(MainWindow.Position.ToString());
 
 
     }
@@ -38,14 +38,5 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         
-    }
-
-    private void AllocResource()
-    {
-        //test the garbage collector for both RAM and VRAM
-        //load asset without cache
-        //Assets.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
-        Rendering.CreateGraphicsArrayBuffer<Vector3>(1000);
-        Rendering.CreateRenderTexture(Rendering.DefaultRenderPass, 1280, 720);
     }
 }

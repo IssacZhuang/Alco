@@ -101,6 +101,13 @@ public class SilkWindow : Window
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input;
     }
+    public override int2 Position
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => new int2(_slikWindow.Position.X, _slikWindow.Position.Y);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _slikWindow.Position = new Vector2D<int>(value.x, value.y);
+    }
 
     private void OnSilkResize(Vector2D<int> size)
     {

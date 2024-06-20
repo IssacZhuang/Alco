@@ -22,6 +22,8 @@ public sealed class NoWindow : Window
 
     public override InputSystem Input => NoInputSystem;
 
+    public override int2 Position { get; set; }
+
     protected override void Dispose(bool disposing)
     {
         

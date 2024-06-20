@@ -14,6 +14,11 @@ public abstract class Window : AutoDisposable
     public abstract WindowMode WindowMode { get; set; }
 
     /// <summary>
+    /// Gets or sets the position of the window.
+    /// </summary> 
+    public abstract int2 Position { get; set; }
+
+    /// <summary>
     /// Gets or sets the size of the window.
     /// </summary>
     public abstract int2 Size { get; set; }

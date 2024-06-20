@@ -60,5 +60,10 @@ namespace Vocore
         {
             return new int4((int)a.X, (int)a.Y, (int)a.Z, (int)a.W);
         }
+
+        public override string ToString()
+        {
+            return $"({x}, {y}, {z}, {w})";
+        }
     }
 }
