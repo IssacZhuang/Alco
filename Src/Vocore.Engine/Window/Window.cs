@@ -6,7 +6,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Represents a window in the application.
 /// </summary>
-public abstract class Window : AutoDisposable
+public abstract class Window : AutoDisposable//todo : change to disposable
 {
     /// <summary>
     /// Gets or sets the window mode.

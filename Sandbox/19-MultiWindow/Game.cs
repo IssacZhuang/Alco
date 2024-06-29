@@ -6,12 +6,6 @@ using Vocore.Rendering;
 using Vocore.GUI;
 
 
-/*Note: 
-
-current problem:
-collocter large amount of GPU will block the GPUQueue
-
-*/
 
 public class Game : GameEngine
 {
