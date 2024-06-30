@@ -2,6 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+//todo: use render texture
 public class ColorSpaceConverter : AutoDisposable
 {
     private readonly GPUDevice _device;
@@ -12,6 +13,7 @@ public class ColorSpaceConverter : AutoDisposable
     private readonly uint _shaderId_input;
 
     private GPUFrameBuffer? _input;
+    
     private GPUResourceGroup? _inputGroup;
     private GPURenderPass? _renderPass;
     private GPUPipeline? _pipeline;
