@@ -15,6 +15,10 @@ public class WindowRenderTarget : BaseEngineSystem
     private readonly GPURenderPass? _renderPass;
     private RenderTexture _renderTarget;
 
+    private bool _shouldResize = false;
+    private uint _width;
+    private uint _height;
+
     public RenderTexture RenderTarget
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -49,6 +53,16 @@ public class WindowRenderTarget : BaseEngineSystem
         }
 
         _converter.Blit(_windowSwapchain.FrameBuffer);
+        _windowSwapchain.Present();
+
+        if (_shouldResize)
+        {
+            
+            _renderTarget.Dispose();
+            _renderTarget = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
+            _converter.SetInput(_renderTarget.FrameBuffer);
+            _shouldResize = false;
+        }
     }
 
     public override void Dispose()
@@ -58,9 +72,11 @@ public class WindowRenderTarget : BaseEngineSystem
 
     private void OnWindowResize(int2 size)
     {
-        _renderTarget.Dispose();
-        _renderTarget = _rendering.CreateRenderTexture(_renderPass!, (uint)size.x, (uint)size.y);
-        _converter.SetInput(_renderTarget.FrameBuffer);
+        _shouldResize = true;
+        _width = (uint)size.x;
+        _height = (uint)size.y;
+        
+        _windowSwapchain?.Resize(_width, _height);
     }
 
 }

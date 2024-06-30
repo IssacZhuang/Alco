@@ -23,6 +23,7 @@ public class Game : GameEngine
 
 
         _windowRenderTarget = CreateWindowRenderTarget(_window2, Rendering.PrefferedSDRPass, BuiltInAssets.Shader_Blit);
+        AddSystem(_windowRenderTarget);
     }
 
 
