@@ -21,23 +21,12 @@ public class WindowRenderTarget : BaseEngineSystem
         get => _renderTarget;
     }
 
-    public WindowRenderTarget(GameEngine engine, Window window, GPURenderPass? renderPass, Shader? blitShader)
+    internal WindowRenderTarget(GameEngine engine, Window window, GPURenderPass renderPass, Shader blitShader)
     {
         _window = window;
         _window.OnResize += OnWindowResize;
 
         _rendering = engine.Rendering;
-        BuiltInAssets builtInAssets = engine.BuiltInAssets;
-
-        if (blitShader == null)
-        {
-            blitShader = builtInAssets.Shader_Blit;
-        }
-
-        if (renderPass == null)
-        {
-            renderPass = _rendering.PrefferedSDRPass;
-        }
 
         _renderPass = renderPass;
         _converter = _rendering.CreateColorSpaceConverter(blitShader);

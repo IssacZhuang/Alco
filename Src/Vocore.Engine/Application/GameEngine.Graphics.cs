@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
+using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
@@ -15,6 +16,11 @@ public partial class GameEngine
         }
 
         return new SilkWindow(GraphicsDevice, setting);
+    }
+
+    public WindowRenderTarget CreateWindowRenderTarget(Window window, GPURenderPass renderPass, Shader blitShader)
+    {
+        return new WindowRenderTarget(this, window, renderPass, blitShader);
     }
 
     private static GPUDevice CreateGraphicsDevice(GraphicsSetting setting)

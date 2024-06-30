@@ -5,7 +5,7 @@ using Vocore.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(800, 450, "Multi window"),
+    Window = new WindowSetting(720, 405, "Multi window"),
 
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
