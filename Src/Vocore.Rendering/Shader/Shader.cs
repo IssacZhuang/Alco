@@ -74,8 +74,8 @@ public class Shader : AutoDisposable
     {
         _meta = result;
         _renderingSystem = renderingSystem;
-        _defaultPipeline = renderingSystem.CreatePipeline(result, renderingSystem.DefaultRenderPass);
-        _pipelines[renderingSystem.DefaultRenderPass] = _defaultPipeline;
+        _defaultPipeline = renderingSystem.CreatePipeline(result, renderingSystem.PrefferedSDRPass);
+        _pipelines[renderingSystem.PrefferedSDRPass] = _defaultPipeline;
         _reflectionInfo = result.ReflectionInfo;
 
         BuildResourceIndex();
@@ -155,7 +155,7 @@ public class Shader : AutoDisposable
         _meta = result;
 
         _defaultPipeline.Dispose();
-        _defaultPipeline = _renderingSystem.CreatePipeline(result, _renderingSystem.DefaultRenderPass);
+        _defaultPipeline = _renderingSystem.CreatePipeline(result, _renderingSystem.PrefferedHDRPass);
         _reflectionInfo = result.ReflectionInfo;
 
         ClearPipelineCache();

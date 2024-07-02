@@ -15,7 +15,8 @@ public class PluginHDR : BaseEnginePlugin
         _shader = engine.Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
         _toneMap = rendering.CreateReinhardLuminanceToneMap(_shader);
 
-        rendering.SetMainRenderPass(rendering.PrefferedHDRPass, _toneMap);
+        
+        engine.MainRenderTarget.SetRenderPass(rendering.PrefferedHDRPass, _toneMap);
     }
 
     public override void Dispose()

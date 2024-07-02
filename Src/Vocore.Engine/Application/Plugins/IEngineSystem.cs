@@ -38,10 +38,10 @@ public interface IEngineSystem:IDisposable
     /// </summary>
     void OnEndFrame();
     /// <summary>
-    /// Called when the window is resized
+    /// Called when the main window is resized
     /// </summary>
     /// <param name="size">The new size of the window</param>
-    void OnResize(int2 size);
+    void OnMainWindowResize(int2 size);
     /// <summary>
     /// Called when the engine stops
     /// </summary>

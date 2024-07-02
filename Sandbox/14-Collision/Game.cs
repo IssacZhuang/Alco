@@ -96,7 +96,7 @@ public class Game : GameEngine
 
 
 
-    protected override void OnResize(int2 size)
+    protected override void OnMainWindowResize(int2 size)
     {
         _camera.AspectRatio = (float)size.x / size.y;
         _camera.UpdateData();

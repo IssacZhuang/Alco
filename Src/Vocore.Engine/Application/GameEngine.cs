@@ -24,12 +24,14 @@ public partial class GameEngine : IDisposable
 
     #region  Resources
     private readonly GPUDevice _graphicsDevice;
-    private readonly Window _mainWindow;
     private readonly BuiltInAssets _builtInAssets;
     private readonly AssetSystem _assets;
     private readonly InputSystem _input;
     private readonly RenderingSystem _rendering;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
+
+    private readonly Window _mainWindow;
+    private readonly WindowRenderTarget _mainRenderTarget;
 
     #endregion
 
@@ -46,6 +48,8 @@ public partial class GameEngine : IDisposable
     private bool _isDisposed = false;
     private bool _isRunning = false;
     private bool _shouldResize = false;
+    //todo: use uint2
+    private int2 _windowSize;
 
     #endregion
 
@@ -98,6 +102,25 @@ public partial class GameEngine : IDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _mainWindow;
     }
+
+    public WindowRenderTarget MainRenderTarget
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _mainRenderTarget;
+    }
+
+    public RenderTexture MainRenderTexture
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _mainRenderTarget.RenderTarget;
+    }
+
+    public GPUFrameBuffer MainFrameBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _mainRenderTarget.RenderTarget.FrameBuffer;
+    }
+
 
     /// <summary>
     /// The asset manager of the game<br/>
@@ -172,16 +195,20 @@ public partial class GameEngine : IDisposable
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
 
-        //main window
-        _mainWindow = CreateWindow(_setting.Window);
-        _mainWindow.OnResize += InternalResize;
-
-        _input = _mainWindow.Input;
-
-        _rendering = new RenderingSystem(_graphicsDevice, GetSwapChainSize);
+        _rendering = new RenderingSystem(_graphicsDevice);
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);
         _builtInAssets = new BuiltInAssets(_assets);
+
+        _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
         InitializeDefaultAssetLoader();
+
+        //main window
+        _mainWindow = CreateWindow(_setting.Window);
+        _mainRenderTarget = CreateWindowRenderTarget(_mainWindow, _rendering.PrefferedSDRPass, _builtInAssets.Shader_Blit);
+        AddSystem(_mainRenderTarget);
+        _mainWindow.OnResize += MainWindowResize;
+
+        _input = _mainWindow.Input;
 
         _graphics = new EngineGraphics(this);
         _timer = new EngineTimer(this);
@@ -258,7 +285,7 @@ public partial class GameEngine : IDisposable
     /// Called when the window is resized
     /// </summary>
     /// <param name="size">The new size of the window</param>
-    protected virtual void OnResize(int2 size)
+    protected virtual void OnMainWindowResize(int2 size)
     {
 
     }
@@ -324,12 +351,6 @@ public partial class GameEngine : IDisposable
         _profiler.Update(updateDeltaTime);
         _input.Reset();//reset input state
 
-
-        if (WindowSwapchain != null)
-        {
-            _rendering.BlitMainFrameBuffer(WindowSwapchain.FrameBuffer);
-        }
-
         try
         {
             OnEndFrame();
@@ -345,42 +366,12 @@ public partial class GameEngine : IDisposable
 
         if (_shouldResize)
         {
-            int2 size = new int2(_setting.Window.Width, _setting.Window.Height);
-            InternalDelayResize(size);
-        }
-    }
-
-    //called when window push the resize event
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void InternalResize(int2 size)
-    {
-
-        //_graphicsDevice.ResizeSurface((uint)size.x, (uint)size.y);
-        //this actually resize the surface of after swap frame buffer
-        WindowSwapchain?.Resize((uint)size.x, (uint)size.y);
-        _setting.Window.Width = size.x;
-        _setting.Window.Height = size.y;
-        _shouldResize = true;
-    }
-
-    //called after swap frame buffer
-    private void InternalDelayResize(int2 size)
-    {
-        try
-        {
-            _rendering.OnResize(size);
-            OnResize(size);
-            OnSystemResize(size);
-        }
-        catch (Exception e)
-        {
-            Log.Error("[Resize Error]", e);
-        }
-        finally
-        {
+            OnMainWindowResize(_windowSize);
+            OnSystemMainWindowResize(_windowSize);
             _shouldResize = false;
         }
     }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalStart()
@@ -588,13 +579,13 @@ public partial class GameEngine : IDisposable
         }
     }
 
-    private void OnSystemResize(int2 size)
+    private void OnSystemMainWindowResize(int2 size)
     {
         for (int i = 0; i < _systems.Count; i++)
         {
             try
             {
-                _systems[i].OnResize(size);
+                _systems[i].OnMainWindowResize(size);
             }
             catch (Exception e)
             {
@@ -639,7 +630,11 @@ public partial class GameEngine : IDisposable
         }
     }
 
-
+    private void MainWindowResize(int2 size)
+    {
+        _shouldResize = true;
+        _windowSize = size;
+    }
 
     #endregion
 

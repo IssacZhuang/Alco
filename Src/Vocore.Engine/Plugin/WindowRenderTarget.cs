@@ -10,9 +10,9 @@ public class WindowRenderTarget : BaseEngineSystem
 {
     private readonly Window _window;
     private readonly RenderingSystem _rendering;
-    private readonly ColorSpaceConverter _converter;
     private readonly GPUSwapchain? _windowSwapchain;
-    private readonly GPURenderPass? _renderPass;
+    private ColorSpaceConverter _converter;
+    private GPURenderPass _renderPass;
     private RenderTexture _renderTarget;
 
     private bool _shouldResize = false;
@@ -43,6 +43,16 @@ public class WindowRenderTarget : BaseEngineSystem
         {
             _converter.SetInput(_renderTarget.FrameBuffer);
         }
+    }
+
+    public void SetRenderPass(GPURenderPass renderPass, ColorSpaceConverter colorSpaceConverter)
+    {
+        _converter.Dispose();
+        _converter = colorSpaceConverter;
+        _renderPass = renderPass;
+        _renderTarget.Dispose();
+        _renderTarget = _rendering.CreateRenderTexture(renderPass, _width, _height);
+        _converter.SetInput(_renderTarget.FrameBuffer);
     }
 
     public override void OnEndFrame()

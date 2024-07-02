@@ -11,7 +11,6 @@ GameEngineSetting setting = new GameEngineSetting
         Backend = GraphicsBackend.Vulkan,
     }
 }.With<PluginDefaultAssets>().
-With<PluginSDR>().
 //With<PluginBloom>().
 With<PluginDebugGUI>();
 

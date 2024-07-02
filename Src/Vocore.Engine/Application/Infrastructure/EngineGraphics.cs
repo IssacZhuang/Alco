@@ -31,19 +31,19 @@ namespace Vocore.Engine
                 return;
             }
 
-            _commandBuffer.Begin();
-            _commandBuffer.SetFrameBuffer(_renderingSystem.DefaultFrameBuffer);
-            _commandBuffer.ClearColor(new Vector4(0, 0, 0, 1));
-            _commandBuffer.ClearDepthStencil(1.0f, 0);
-            _commandBuffer.End();
-            _device.Submit(_commandBuffer);
+            // _commandBuffer.Begin();
+            // _commandBuffer.SetFrameBuffer(_renderingSystem.DefaultFrameBuffer);
+            // _commandBuffer.ClearColor(new Vector4(0, 0, 0, 1));
+            // _commandBuffer.ClearDepthStencil(1.0f, 0);
+            // _commandBuffer.End();
+            // _device.Submit(_commandBuffer);
         }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndFrame()
         {
-            _windowSwapchain?.Present();
+            // _windowSwapchain?.Present();
             _device.ProcessDestroy();
         }
     }

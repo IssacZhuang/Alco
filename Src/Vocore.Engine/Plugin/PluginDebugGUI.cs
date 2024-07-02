@@ -32,7 +32,7 @@ public class PluginDebugGUI : BaseEnginePlugin
             DebugGUI.CheckAndSubmit();
         }
 
-        public override void OnResize(int2 size)
+        public override void OnMainWindowResize(int2 size)
         {
             _renderer.SetResolution((float)size.x, (float)size.y);
         }

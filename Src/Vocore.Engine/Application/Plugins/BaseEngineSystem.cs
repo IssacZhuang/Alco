@@ -3,11 +3,11 @@ namespace Vocore.Engine;
 
 public abstract class BaseEngineSystem : IEngineSystem
 {
+
     public virtual int Order => 0;
 
-    
 
-    public virtual void OnResize(int2 size)
+    public virtual void OnMainWindowResize(int2 size)
     {
         
     }

@@ -15,7 +15,7 @@ public class PluginSDR : BaseEnginePlugin
         _shader = engine.Assets.Load<Shader>(BuiltInAssetsPath.Shader_Blit);
         _converter = rendering.CreateColorSpaceConverter(_shader);
 
-        rendering.SetMainRenderPass(rendering.PrefferedSDRPass, _converter);
+        //rendering.SetMainRenderPass(rendering.PrefferedSDRPass, _converter);
     }
 
     public override void Dispose()
