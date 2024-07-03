@@ -90,6 +90,6 @@ public class Game : GameEngine
         //load asset without cache
         //Assets.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
         Rendering.CreateGraphicsArrayBuffer<Vector3>(1000);
-        Rendering.CreateRenderTexture(Rendering.DefaultRenderPass, 1280, 720);
+        Rendering.CreateRenderTexture(Rendering.PrefferedSDRPass, 1280, 720);
     }
 }

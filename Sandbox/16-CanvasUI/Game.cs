@@ -155,7 +155,7 @@ public class Game : GameEngine
 
         //Log.Info(_button.Mask, _button.MaskState);
         _canvas.Tick(_root, delta);
-        _canvas.Update(Rendering.DefaultFrameBuffer, _root, delta);
+        _canvas.Update(MainFrameBuffer, _root, delta);
 
 
         DebugGUI.Text(FrameRate);

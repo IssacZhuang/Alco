@@ -54,7 +54,7 @@ public class Game : GameEngine
         Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
         spritePosition.Y = -spritePosition.Y;
 
-        _spriteRenderer.Begin(Rendering.DefaultFrameBuffer);
+        _spriteRenderer.Begin(MainFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
         if(_enabled){

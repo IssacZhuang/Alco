@@ -32,6 +32,9 @@ public class WindowRenderTarget : BaseEngineSystem
 
         _rendering = engine.Rendering;
 
+        _width = (uint)window.Size.x;
+        _height = (uint)window.Size.y;
+
         _renderPass = renderPass;
         _converter = _rendering.CreateColorSpaceConverter(blitShader);
         _renderTarget = _rendering.CreateRenderTexture(renderPass, (uint)window.Size.x, (uint)window.Size.y);

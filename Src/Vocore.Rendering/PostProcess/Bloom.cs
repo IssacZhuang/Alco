@@ -18,7 +18,10 @@ public class Bloom : PostProcess
     private readonly RenderingSystem _renderingSystem;
 
     private readonly Shader _blitShader;
+    private GPURenderPass? _blitPass;
+    private  GPUPipeline? _blitPipeline;
     private readonly uint _blitShaderId_texture;
+
     protected GPUFrameBuffer? _input;
     protected GPUResourceGroup? _inputGroup;
 
@@ -30,8 +33,6 @@ public class Bloom : PostProcess
     private readonly uint _clampShaderId_data;
 
     private readonly GraphicsValueBuffer<ClampShaderData> _clampShaderData;
-
-
 
     private readonly Shader _downSampleShader;
     private readonly GPUPipeline _downSamplePipeline;
@@ -228,10 +229,16 @@ public class Bloom : PostProcess
         _commandDownSample.End();
         _device.Submit(_commandDownSample);
 
+        if (_blitPass != target.RenderPass)
+        {
+            _blitPass = target.RenderPass;
+            _blitPipeline = _blitShader.GetPipelineVariant(_blitPass);
+        }
+
         //blit
         _commandBlit.Begin();
         _commandBlit.SetFrameBuffer(target);
-        _commandBlit.SetGraphicsPipeline(_blitShader.DefaultPipeline);
+        _commandBlit.SetGraphicsPipeline(_blitPipeline!);
         _commandBlit.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleGroups![_upSampleGroups.Length - 1]);

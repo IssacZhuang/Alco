@@ -11,7 +11,6 @@ GameEngineSetting setting = new GameEngineSetting
         DepthFormat = null
     },
 }.
-With<PluginDefaultAssets>().
 With<PluginHDR>().
 With<PluginBloom>().
 With<PluginDebugGUI>();
