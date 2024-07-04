@@ -43,6 +43,11 @@ public abstract class BaseEngineSystem : IEngineSystem
 
     }
 
+    public virtual void OnBeginFrame()
+    {
+
+    }
+
     public virtual void OnEndFrame()
     {
 

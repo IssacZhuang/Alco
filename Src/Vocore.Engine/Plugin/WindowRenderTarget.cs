@@ -11,6 +11,7 @@ public class WindowRenderTarget : BaseEngineSystem
     private readonly Window _window;
     private readonly RenderingSystem _rendering;
     private readonly GPUSwapchain? _windowSwapchain;
+    private readonly GPUCommandBuffer _command;
     private ColorSpaceConverter _converter;
     private GPURenderPass _renderPass;
     private RenderTexture _renderTarget;
@@ -46,6 +47,8 @@ public class WindowRenderTarget : BaseEngineSystem
         {
             _converter.SetInput(_renderTarget.FrameBuffer);
         }
+
+        _command = _rendering.GraphicsDevice.CreateCommandBuffer();
     }
 
     public void SetRenderPass(GPURenderPass renderPass, ColorSpaceConverter colorSpaceConverter)
@@ -56,6 +59,16 @@ public class WindowRenderTarget : BaseEngineSystem
         _renderTarget.Dispose();
         _renderTarget = _rendering.CreateRenderTexture(renderPass, _width, _height);
         _converter.SetInput(_renderTarget.FrameBuffer);
+    }
+
+    public override void OnBeginFrame()
+    {
+        _command.Begin();
+        _command.SetFrameBuffer(_renderTarget.FrameBuffer);
+        _command.ClearColor(new ColorFloat(0, 0, 0, 1));
+        _command.ClearDepthStencil(1, 0);
+        _command.End();
+        _rendering.GraphicsDevice.Submit(_command);
     }
 
     public override void OnEndFrame()

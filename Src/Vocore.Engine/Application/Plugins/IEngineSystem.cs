@@ -34,6 +34,10 @@ public interface IEngineSystem:IDisposable
     /// <param name="delta">The time since the last frame</param>
     void OnPostUpdate(float delta);
     /// <summary>
+    /// Called before rendering the update
+    /// </summary>
+    void OnBeginFrame();
+    /// <summary>
     /// Called before swapping the frame buffer
     /// </summary>
     void OnEndFrame();

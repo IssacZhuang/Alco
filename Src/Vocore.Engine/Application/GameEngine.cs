@@ -290,6 +290,11 @@ public partial class GameEngine : IDisposable
 
     }
 
+    protected virtual void OnBeginFrame()
+    {
+
+    }
+
     /// <summary>
     /// Called before the frame swap buffer. This method is usually used for handle the custom swap chain
     /// </summary>
@@ -332,6 +337,18 @@ public partial class GameEngine : IDisposable
         }
 
         _graphics.BeginFrameUpdate(WindowSwapchain);
+
+        try
+        {
+            OnBeginFrame();
+        }
+        catch (Exception e)
+        {
+            Log.Error("[Begin Frame Error]", e);
+            TryErrorStop();
+        }
+
+        OnSystemBeginFrame();
 
         OnSystemUpdate(updateDeltaTime);
 
@@ -556,6 +573,23 @@ public partial class GameEngine : IDisposable
             catch (Exception e)
             {
                 Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
+                Log.Error(e);
+                TryErrorStop();
+            }
+        }
+    }
+
+    private void OnSystemBeginFrame()
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            try
+            {
+                _systems[i].OnBeginFrame();
+            }
+            catch (Exception e)
+            {
+                Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
                 Log.Error(e);
                 TryErrorStop();
             }
