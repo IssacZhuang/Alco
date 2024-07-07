@@ -48,7 +48,7 @@ public class Game : GameEngine
         }
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
+        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
@@ -111,7 +111,7 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
+            new PixelFormat[] { MainFrameBuffer.RenderPass.Colors[0].Format},
             GraphicsDevice.PrefferedDepthStencilFormat,
             null,
             "quad_pipeline"

@@ -18,7 +18,7 @@ public class Game : GameEngine
 
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(Rendering.DefaultFrameBuffer);
+        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.ClearColor(new Vector4(0.2f, 0.2f, 0.2f, 1.0f));
         //duplicate clear test
         _commandBuffer.ClearColor(new Vector4(0.5f, 0.2f, 0.2f, 1.0f));

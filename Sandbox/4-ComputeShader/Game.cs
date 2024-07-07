@@ -7,6 +7,7 @@ using Vocore.Engine;
 
 
 using Vocore;
+using Vocore.GUI;
 
 public class Game : GameEngine
 {
@@ -84,16 +85,10 @@ public class Game : GameEngine
             Stop();
         }
 
-        if (Input.IsKeyDown(KeyCode.Left))
-        {
-            _iterationBuffer.Value--;
-        }
-
-        if (Input.IsKeyDown(KeyCode.Right))
-        {
-            _iterationBuffer.Value++;
-        }
-
+        int value = _iterationBuffer.Value;
+        DebugGUI.Slider(ref value, 1, 16);
+        _iterationBuffer.Value = value;
+        _iterationBuffer.UpdateBuffer();
         _timer += delta;
 
 
@@ -108,7 +103,7 @@ public class Game : GameEngine
         // GraphicsDevice.Submit(_commandBuffer);
 
         // _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(GraphicsDevice.SwapChainFrameBuffer);
+        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
@@ -180,7 +175,7 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { GraphicsDevice.PrefferedSurfaceFomat },
+            new PixelFormat[] { MainFrameBuffer.RenderPass.Colors[0].Format },
             GraphicsDevice.PrefferedDepthStencilFormat,
             null,
             "Quad Pipeline"

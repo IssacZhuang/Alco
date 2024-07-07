@@ -52,6 +52,7 @@ public class Game : GameEngine
         {
             Stop();
         }
+        
 
         _renderer.Begin(Rendering.DefaultFrameBuffer);
         _entity.OnDraw(_renderer);
