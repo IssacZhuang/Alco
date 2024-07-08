@@ -111,7 +111,7 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { MainFrameBuffer.RenderPass.Colors[0].Format},
+            new PixelFormat[] { GraphicsDevice.PrefferedSDRFormat },
             GraphicsDevice.PrefferedDepthStencilFormat,
             null,
             "quad_pipeline"

@@ -46,7 +46,7 @@ public class Game : GameEngine
         _angle += delta * 45;
         Rotation2D rotation = Rotation2D.FromDegree(_angle);
 
-        _renderer.Begin(Rendering.DefaultFrameBuffer);
+        _renderer.Begin(MainFrameBuffer);
         _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
 
         _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
