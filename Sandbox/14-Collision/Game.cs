@@ -54,7 +54,7 @@ public class Game : GameEngine
         }
         
 
-        _renderer.Begin(Rendering.DefaultFrameBuffer);
+        _renderer.Begin(MainFrameBuffer);
         _entity.OnDraw(_renderer);
 
         _renderer.End();
