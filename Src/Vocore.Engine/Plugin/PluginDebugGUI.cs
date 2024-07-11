@@ -20,7 +20,7 @@ public class PluginDebugGUI : BaseEnginePlugin
 
         public override void OnEndFrame()
         {
-            _renderer.Blit(_renderTarget.RenderTarget.FrameBuffer);
+            _renderer.Blit(_renderTarget.RenderTexture.FrameBuffer);
         }
 
         public override void OnPostUpdate(float delta)

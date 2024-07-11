@@ -14,16 +14,22 @@ public class WindowRenderTarget : BaseEngineSystem
     private readonly GPUCommandBuffer _command;
     private ColorSpaceConverter _converter;
     private GPURenderPass _renderPass;
-    private RenderTexture _renderTarget;
+    private RenderTexture _renderTexture;
 
     private bool _shouldResize = false;
     private uint _width;
     private uint _height;
 
-    public RenderTexture RenderTarget
+    public RenderTexture RenderTexture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _renderTarget;
+        get => _renderTexture;
+    }
+
+    public GPUFrameBuffer FrameBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _renderTexture.FrameBuffer;
     }
 
     internal WindowRenderTarget(GameEngine engine, Window window, GPURenderPass renderPass, Shader blitShader)
@@ -38,14 +44,14 @@ public class WindowRenderTarget : BaseEngineSystem
 
         _renderPass = renderPass;
         _converter = _rendering.CreateColorSpaceConverter(blitShader);
-        _renderTarget = _rendering.CreateRenderTexture(renderPass, (uint)window.Size.x, (uint)window.Size.y);
+        _renderTexture = _rendering.CreateRenderTexture(renderPass, (uint)window.Size.x, (uint)window.Size.y);
 
         _windowSwapchain = window.Swapchain;
         
 
         if (_windowSwapchain != null)
         {
-            _converter.SetInput(_renderTarget.FrameBuffer);
+            _converter.SetInput(_renderTexture.FrameBuffer);
         }
 
         _command = _rendering.GraphicsDevice.CreateCommandBuffer();
@@ -56,15 +62,15 @@ public class WindowRenderTarget : BaseEngineSystem
         _converter.Dispose();
         _converter = colorSpaceConverter;
         _renderPass = renderPass;
-        _renderTarget.Dispose();
-        _renderTarget = _rendering.CreateRenderTexture(renderPass, _width, _height);
-        _converter.SetInput(_renderTarget.FrameBuffer);
+        _renderTexture.Dispose();
+        _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
+        _converter.SetInput(_renderTexture.FrameBuffer);
     }
 
     public override void OnBeginFrame()
     {
         _command.Begin();
-        _command.SetFrameBuffer(_renderTarget.FrameBuffer);
+        _command.SetFrameBuffer(_renderTexture.FrameBuffer);
         _command.ClearColor(new ColorFloat(0, 0, 0, 1));
         _command.ClearDepthStencil(1, 0);
         _command.End();
@@ -84,9 +90,9 @@ public class WindowRenderTarget : BaseEngineSystem
         if (_shouldResize)
         {
             
-            _renderTarget.Dispose();
-            _renderTarget = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
-            _converter.SetInput(_renderTarget.FrameBuffer);
+            _renderTexture.Dispose();
+            _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
+            _converter.SetInput(_renderTexture.FrameBuffer);
             _shouldResize = false;
         }
     }

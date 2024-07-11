@@ -112,13 +112,13 @@ public partial class GameEngine : IDisposable
     public RenderTexture MainRenderTexture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainRenderTarget.RenderTarget;
+        get => _mainRenderTarget.RenderTexture;
     }
 
     public GPUFrameBuffer MainFrameBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainRenderTarget.RenderTarget.FrameBuffer;
+        get => _mainRenderTarget.RenderTexture.FrameBuffer;
     }
 
 
