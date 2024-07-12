@@ -43,6 +43,9 @@ public class Game : GameEngine
 
         _renderer1 = Rendering.CreateSpriteRenderer(_windowCamera1, _shader);
         _renderer2 = Rendering.CreateSpriteRenderer(_windowCamera2, _shader);
+
+        MainWindow.Position = new Vector2(276, 258);
+        _window2.Position = new Vector2(889, 410);
     }
 
     override protected void OnUpdate(float delta)
@@ -64,7 +67,8 @@ public class Game : GameEngine
         _windowCamera2.Position = ScreenToWorld(new Vector2(1920, 1080), _window2.Position, _window2.Size);
         _windowCamera2.UpdateBuffer();
 
-        DebugGUI.Text(_windowCamera2.Position.ToString());
+        DebugGUI.Text(MainWindow.Position.ToString());
+        DebugGUI.Text(_window2.Position.ToString());
 
         _renderer1.Begin(MainFrameBuffer);
         _renderer1.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(1, 0, 0, 1));
@@ -89,8 +93,8 @@ public class Game : GameEngine
 
     private Vector2 ScreenToWorld(Vector2 minotorSize, Vector2 windowPos, Vector2 windowSize)
     {
-        float x = windowPos.X + windowSize.X * 0.5f;
-        float y = minotorSize.Y - windowPos.Y - windowSize.Y * 0.5f;
+        float x = windowPos.X + windowSize.X * 0.5f - minotorSize.X * 0.5f;
+        float y = minotorSize.Y * 0.5f - windowPos.Y - windowSize.Y * 0.5f;
         return new Vector2(x, y);
     }
 }
