@@ -46,15 +46,6 @@ public class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Gets the GPU pipeline for default render pass.
-    /// </summary>
-    public GPUPipeline DefaultPipeline
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _defaultPipeline;
-    }
-
-    /// <summary>
     /// The amount of bind groups in the shader.
     /// </summary>
     /// <value>The bind group count.</value>
@@ -87,7 +78,7 @@ public class Shader : AutoDisposable
     /// </summary>
     /// <param name="name">The name of the resource.</param>
     /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
-    /// <returns>True if the resource ID was found, false otherwise.</returns>
+    /// <returns>True if the resource sID was found, false otherwise.</returns>
     public bool TryGetResourceId(string name, out uint resourceId)
     {
         return _resourceIds.TryGetValue(name, out resourceId);

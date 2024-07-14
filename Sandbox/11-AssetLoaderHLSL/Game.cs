@@ -36,6 +36,7 @@ public class Game : GameEngine
     private GPUBuffer _indexBuffer;
     private GPUBuffer _colorBuffer;
     private Shader _shader;//high level encapsulation of GPU pipeline
+    private ShaderPipelineState _pipelineState;
     private GPUResourceGroup _resourceGroupBuffer;
     private Texture2D _textureEmpty;
     private Texture2D _selected;
@@ -49,9 +50,6 @@ public class Game : GameEngine
         _vertexBuffer = CreateVertexBuffer();
         _indexBuffer = CreateIndexBuffer();
 
-        DirectoryFileSource fileSource = new DirectoryFileSource("Assets");
-        Assets.AddFileSource(fileSource);
-
         _colorBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
         {
             Name = "Color Buffer",
@@ -62,6 +60,7 @@ public class Game : GameEngine
         if (Assets.TryLoad("Shader.hlsl", out Shader? shader))
         {
             _shader = shader;
+            _pipelineState = new ShaderPipelineState(_shader);
         }
         else
         {
@@ -92,7 +91,7 @@ public class Game : GameEngine
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_shader.DefaultPipeline);
+        _commandBuffer.SetGraphicsPipeline(_pipelineState.GetPipeline(MainFrameBuffer.RenderPass));
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
         _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
         _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
