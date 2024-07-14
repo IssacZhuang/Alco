@@ -20,12 +20,7 @@ public class UniversalMaterial : Material
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _shader;
     }
-
-    public override GPUPipeline Pipeline
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _shader.DefaultPipeline;
-    }
+ 
 
     public UniversalMaterial(Shader shader)
     {
@@ -50,6 +45,11 @@ public class UniversalMaterial : Material
                     throw new ArgumentException("The resource type is not supported.");
             }
         }
+    }
+
+    public override GPUPipeline GetPipeline(GPURenderPass renderPass)
+    {
+        return _shader.GetPipelineVariant(renderPass);
     }
 
     public void ClearAt(uint id)
@@ -358,5 +358,7 @@ public class UniversalMaterial : Material
         _slots[id].group = group;
         _slots[id].owner = owner;
     }
+
+    
 }
 

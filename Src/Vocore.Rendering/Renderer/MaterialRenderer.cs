@@ -6,6 +6,7 @@ public class MaterialRenderer : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
+    private GPUFrameBuffer? _framebuffer;
     public MaterialRenderer(GPUDevice device)
     {
         _device = device;
@@ -16,13 +17,18 @@ public class MaterialRenderer : AutoDisposable
     {
         _command.Begin();
         _command.SetFrameBuffer(target);
+        _framebuffer = target;
     }
 
 
 
     public void Draw(IMesh mesh, Material material)
     {
-        _command.SetGraphicsPipeline(material.Pipeline);
+        if (_framebuffer == null)
+        {
+            throw new InvalidOperationException("Begin must be called before Draw");
+        }
+        _command.SetGraphicsPipeline(material.GetPipeline(_framebuffer.RenderPass));
         _command.SetVertexBuffer(0, mesh.VertexBuffer);
         _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         material.PushResourceToCommandBuffer(_command);
@@ -31,7 +37,11 @@ public class MaterialRenderer : AutoDisposable
 
     public void DrawWithConstant<T>(IMesh mesh, Material material, T constant, ShaderStage pushConstantStage) where T : unmanaged
     {
-        _command.SetGraphicsPipeline(material.Pipeline);
+        if (_framebuffer == null)
+        {
+            throw new InvalidOperationException("Begin must be called before Draw");
+        }
+        _command.SetGraphicsPipeline(material.GetPipeline(_framebuffer.RenderPass));
         _command.SetVertexBuffer(0, mesh.VertexBuffer);
         _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         material.PushResourceToCommandBuffer(_command);
