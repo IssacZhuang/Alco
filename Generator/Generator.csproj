@@ -5,16 +5,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Src\Vocore.Engine\Vocore.Engine.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Assets\**">
-      <Link>Assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>False</Visible>
-    </Content>
-  </ItemGroup>
 </Project>
