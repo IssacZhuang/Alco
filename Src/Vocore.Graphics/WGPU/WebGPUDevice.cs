@@ -312,6 +312,10 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
         Adapter = adapter;
 
+        WGPUAdapterProperties properties = default;
+        wgpuAdapterGetProperties(adapter, &properties);
+        GraphicsLogger.Info($"Graphics backend: {properties.backendType}");
+
         nuint supportedFeaturesCount = wgpuAdapterEnumerateFeatures(Adapter, null);
         WGPUFeatureName* supportedFeatures = stackalloc WGPUFeatureName[(int)supportedFeaturesCount];
         wgpuAdapterEnumerateFeatures(Adapter, supportedFeatures);

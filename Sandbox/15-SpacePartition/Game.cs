@@ -36,7 +36,7 @@ public class Game : GameEngine
 
         _spriteRenderer  = Rendering.CreateSpriteRenderer(_camera, _shaderSprite);
 
-        _dropletSystem = new DropletSystem(Rendering ,_camera, _shaderSprite, _texDroplet);
+        _dropletSystem = new DropletSystem(MainRenderTarget, Rendering, _camera, _shaderSprite, _texDroplet);
         _cubeSystem = new CubeSystem(_spriteRenderer, Rendering.TextureWhite);
     }
 

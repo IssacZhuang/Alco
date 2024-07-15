@@ -3,6 +3,7 @@
 using System.Buffers;
 using System.Numerics;
 using Vocore;
+using Vocore.Engine;
 using Vocore.Graphics;
 using Vocore.GUI;
 using Vocore.Rendering;
@@ -57,7 +58,7 @@ public class DropletSystem : IDisposable
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
     private readonly ParallelScheduler _scheduler = new ParallelScheduler(24);
-    private readonly GPUFrameBuffer _renderTarget;
+    private readonly WindowRenderTarget _renderTarget;
     private readonly JobParallelRender _jobParallelRender;
     private int _spawnRate = 100;
     private int _spawnHeight = 280;
@@ -67,7 +68,7 @@ public class DropletSystem : IDisposable
 
     private Random _random = new Random(123);
 
-    public DropletSystem(RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
+    public DropletSystem(WindowRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderer = new SpriteRenderer[RenderThreadCount];
         for (int i = 0; i < RenderThreadCount; i++)
@@ -76,9 +77,9 @@ public class DropletSystem : IDisposable
         }
         _renderRanges = new RenderRange[RenderThreadCount];
         _texture = texDroplet;
-        _renderTarget = system.DefaultFrameBuffer;
+        _renderTarget = windowRenderTarget;
 
-        _jobParallelRender = new JobParallelRender(_renderTarget, _renderer, _renderRanges, _activeList, _texture);
+        _jobParallelRender = new JobParallelRender(_renderTarget.RenderTexture.FrameBuffer, _renderer, _renderRanges, _activeList, _texture);
     }
 
     public void OnTick(float delta)
@@ -207,7 +208,7 @@ public class DropletSystem : IDisposable
 
     public void Render(int i)
     {
-        _renderer[i].Begin(_renderTarget);
+        _renderer[i].Begin(_renderTarget.RenderTexture.FrameBuffer);
         for (int j = _renderRanges[i].start; j < _renderRanges[i].end; j++)
         {
             var droplet = _activeList[j];

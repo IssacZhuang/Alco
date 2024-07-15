@@ -29,9 +29,6 @@ internal unsafe class WebGPUSwapchain : GPUSwapchain
         _surface = device.Instance.CreateSurface(descriptor.SurfaceSource);
 
         // check compatibility
-        WGPUAdapterProperties properties = default;
-        wgpuAdapterGetProperties(adapter, &properties);
-        GraphicsLogger.Info($"Graphics backend: {properties.backendType}");
 
         WGPUSurfaceCapabilities surfaceCapabilities = default;
         wgpuSurfaceGetCapabilities(_surface, adapter, &surfaceCapabilities);

@@ -14,7 +14,7 @@ public class Shader : AutoDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly ConcurrentDictionary<GPURenderPass, GPUPipeline> _pipelines = new ConcurrentDictionary<GPURenderPass, GPUPipeline>();
     private ShaderCompileResult _meta;
-    private GPUPipeline _defaultPipeline;
+
     private ShaderReflectionInfo _reflectionInfo;
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
 
@@ -24,7 +24,7 @@ public class Shader : AutoDisposable
     public ShaderStage Stages
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _defaultPipeline.Stages;
+        get => _meta.PreproccessResult.Stages;
     }
 
     /// <summary>
@@ -65,8 +65,6 @@ public class Shader : AutoDisposable
     {
         _meta = result;
         _renderingSystem = renderingSystem;
-        _defaultPipeline = renderingSystem.CreatePipeline(result, renderingSystem.PrefferedSDRPass);
-        _pipelines[renderingSystem.PrefferedSDRPass] = _defaultPipeline;
         _reflectionInfo = result.ReflectionInfo;
 
         BuildResourceIndex();
@@ -97,7 +95,7 @@ public class Shader : AutoDisposable
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_defaultPipeline.Name}");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_meta.PreproccessResult.Filename}");
     }
 
     /// <summary>
@@ -144,9 +142,6 @@ public class Shader : AutoDisposable
     internal void HotReload(ShaderCompileResult result)
     {
         _meta = result;
-
-        _defaultPipeline.Dispose();
-        _defaultPipeline = _renderingSystem.CreatePipeline(result, _renderingSystem.PrefferedHDRPass);
         _reflectionInfo = result.ReflectionInfo;
 
         ClearPipelineCache();
@@ -158,12 +153,11 @@ public class Shader : AutoDisposable
     {
         if (disposing)
         {
-            //dispose non-private managed resources
-            _defaultPipeline.Dispose();
             foreach (var pipeline in _pipelines.Values)
             {
                 pipeline.Dispose();
             }
+            _pipelines.Clear();
         }
     }
 }
