@@ -37,7 +37,7 @@ public class FileVector
         builder.AppendLine();
 
         //constructor single
-        builder.AppendLine($"        public {_vectorType}{_vectorSize}(int value)");
+        builder.AppendLine($"        public {_vectorType}{_vectorSize}({_vectorType} value)");
         builder.AppendLine("        {");
         for (int i = 0; i < _vectorSize; i++)
         {

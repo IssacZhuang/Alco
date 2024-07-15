@@ -13,6 +13,15 @@ public abstract class BaseGenerator
         File.WriteAllText(fullPath, content);
     }
 
+    protected void ClearFolder()
+    {
+        string fullPath = Path.Combine(SolutionFolder, OutputFolder);
+        if (Directory.Exists(fullPath))
+        {
+            Directory.Delete(fullPath, true);
+        }
+    }
+
     private static string GetSolutionFolder()
     {
         string? current = Directory.GetCurrentDirectory();

@@ -1,3 +1,4 @@
+//auto-generated
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -9,44 +10,43 @@ namespace Vocore
         public int x;
         public int y;
 
+        public int2(int value)
+        {
+            this.x = value;
+            this.y = value;
+        }
+
         public int2(int x, int y)
         {
             this.x = x;
             this.y = y;
         }
 
-        public int2(int v)
-        {
-            this.x = v;
-            this.y = v;
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int2 operator +(int2 a, int2 b)
         {
             return new int2(a.x + b.x, a.y + b.y);
         }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int2 operator -(int2 a, int2 b)
         {
             return new int2(a.x - b.x, a.y - b.y);
         }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int2 operator *(int2 a, int2 b)
         {
             return new int2(a.x * b.x, a.y * b.y);
         }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int2 operator /(int2 a, int2 b)
         {
             return new int2(a.x / b.x, a.y / b.y);
         }
 
-        //to vector2
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector2(int2 a)
         {
-            return new System.Numerics.Vector2(a.x, a.y);
+            return new Vector2(a.x, a.y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
