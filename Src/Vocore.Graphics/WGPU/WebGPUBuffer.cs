@@ -1,10 +1,11 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using WebGPU;
 using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUBuffer : GPUBuffer
+internal unsafe class WebGPUBuffer : GPUBuffer
 {
     #region Properties
     private readonly WGPUBuffer _buffer;
@@ -40,6 +41,18 @@ internal class WebGPUBuffer : GPUBuffer
     {
         wgpuBufferDestroy(_buffer);
         wgpuBufferRelease(_buffer);
+    }
+
+    public override Span<byte> GetData(uint offset, uint size)
+    {
+        IntPtr ptr = wgpuBufferGetMappedRange(_buffer, offset, size);
+        return new Span<byte>((byte*)ptr, (int)size);
+    }
+
+    public override void GetDataAsync(uint offset, uint size, AsyncReadBufferCallback callback)
+    {
+        GCHandle handle = GCHandle.Alloc(callback);
+        wgpuBufferMapAsync(_buffer, WGPUMapMode.Read, offset, size, &OnMapReadCallback, GCHandle.ToIntPtr(handle));
     }
 
     #endregion
@@ -79,4 +92,14 @@ internal class WebGPUBuffer : GPUBuffer
     }
 
     #endregion
+
+    [UnmanagedCallersOnly]
+    private static void OnMapReadCallback(WGPUBufferMapAsyncStatus status, nint data)
+    {
+        GCHandle handle = GCHandle.FromIntPtr(data);
+        AsyncReadBufferCallback callback = (AsyncReadBufferCallback)handle.Target!;
+        handle.Free();
+
+        
+    }
 }
