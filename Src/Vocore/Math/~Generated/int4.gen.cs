@@ -20,12 +20,44 @@ namespace Vocore
             this.w = value;
         }
 
+        public int4(uint value)
+        {
+            this.x = (int)value;
+            this.y = (int)value;
+            this.z = (int)value;
+            this.w = (int)value;
+        }
+
+        public int4(float value)
+        {
+            this.x = (int)value;
+            this.y = (int)value;
+            this.z = (int)value;
+            this.w = (int)value;
+        }
+
         public int4(int x, int y, int z, int w)
         {
             this.x = x;
             this.y = y;
             this.z = z;
             this.w = w;
+        }
+
+        public int4(uint x, uint y, uint z, uint w)
+        {
+            this.x = (int)x;
+            this.y = (int)y;
+            this.z = (int)z;
+            this.w = (int)w;
+        }
+
+        public int4(float x, float y, float z, float w)
+        {
+            this.x = (int)x;
+            this.y = (int)y;
+            this.z = (int)z;
+            this.w = (int)w;
         }
 
         public int4(int2 value, int z, int w)

@@ -39,7 +39,7 @@ public class BloomSystem : BaseEngineSystem
         _bloom.Blit(_engine.MainFrameBuffer);
     }
 
-    public override void OnMainWindowResize(int2 size)
+    public override void OnMainWindowResize(uint2 size)
     {
         _bloom.SetInput(_engine.MainFrameBuffer);
     }

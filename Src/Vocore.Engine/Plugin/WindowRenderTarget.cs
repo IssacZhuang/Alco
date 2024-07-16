@@ -102,11 +102,11 @@ public class WindowRenderTarget : BaseEngineSystem
         _window.OnResize -= OnWindowResize;
     }
 
-    private void OnWindowResize(int2 size)
+    private void OnWindowResize(uint2 size)
     {
         _shouldResize = true;
-        _width = (uint)size.x;
-        _height = (uint)size.y;
+        _width = size.x;
+        _height = size.y;
         
         _windowSwapchain?.Resize(_width, _height);
     }

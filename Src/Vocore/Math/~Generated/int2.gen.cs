@@ -16,10 +16,34 @@ namespace Vocore
             this.y = value;
         }
 
+        public int2(uint value)
+        {
+            this.x = (int)value;
+            this.y = (int)value;
+        }
+
+        public int2(float value)
+        {
+            this.x = (int)value;
+            this.y = (int)value;
+        }
+
         public int2(int x, int y)
         {
             this.x = x;
             this.y = y;
+        }
+
+        public int2(uint x, uint y)
+        {
+            this.x = (int)x;
+            this.y = (int)y;
+        }
+
+        public int2(float x, float y)
+        {
+            this.x = (int)x;
+            this.y = (int)y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -70,9 +70,4 @@ public partial class GameEngine
     {
         Log.Info(GraphicsLogPrefix, message);
     }
-
-    private int2 GetSwapChainSize()
-    {
-        return new int2(MainWindow.Size.x, MainWindow.Size.y);
-    }
 }

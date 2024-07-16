@@ -65,15 +65,15 @@ public class SilkWindow : Window
     }
 
     /// <inheritdoc />
-    public override int2 Size
+    public override uint2 Size
     {
         get
         {
-            return new int2(_slikWindow.Size.X, _slikWindow.Size.Y);
+            return new uint2(_slikWindow.Size.X, _slikWindow.Size.Y);
         }
         set
         {
-            _slikWindow.Size = new Vector2D<int>(value.x, value.y);
+            _slikWindow.Size = new Vector2D<int>((int)value.x, (int)value.y);
         }
     }
 
@@ -111,7 +111,7 @@ public class SilkWindow : Window
 
     private void OnSilkResize(Vector2D<int> size)
     {
-        OnResize?.Invoke(new int2(size.X, size.Y));
+        OnResize?.Invoke(new uint2((uint)size.X, (uint)size.Y));
     }
 
     public override void Close()

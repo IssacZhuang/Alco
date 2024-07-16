@@ -13,7 +13,7 @@ public sealed class NoWindow : Window
     public override WindowMode WindowMode { get; set; }
 
     /// <inheritdoc />
-    public override int2 Size { get; set; }
+    public override uint2 Size { get; set; }
 
     /// <inheritdoc />
     public override string Title { get; set; } = "No Window";

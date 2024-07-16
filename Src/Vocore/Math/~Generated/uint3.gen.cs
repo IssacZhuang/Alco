@@ -18,11 +18,39 @@ namespace Vocore
             this.z = value;
         }
 
+        public uint3(int value)
+        {
+            this.x = (uint)value;
+            this.y = (uint)value;
+            this.z = (uint)value;
+        }
+
+        public uint3(float value)
+        {
+            this.x = (uint)value;
+            this.y = (uint)value;
+            this.z = (uint)value;
+        }
+
         public uint3(uint x, uint y, uint z)
         {
             this.x = x;
             this.y = y;
             this.z = z;
+        }
+
+        public uint3(int x, int y, int z)
+        {
+            this.x = (uint)x;
+            this.y = (uint)y;
+            this.z = (uint)z;
+        }
+
+        public uint3(float x, float y, float z)
+        {
+            this.x = (uint)x;
+            this.y = (uint)y;
+            this.z = (uint)z;
         }
 
         public uint3(uint2 value, uint z)

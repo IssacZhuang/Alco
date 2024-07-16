@@ -21,7 +21,7 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     /// <summary>
     /// Gets or sets the size of the window.
     /// </summary>
-    public abstract int2 Size { get; set; }
+    public abstract uint2 Size { get; set; }
 
     /// <summary>
     /// Gets or sets the title of the window.
@@ -31,7 +31,7 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     public abstract GPUSwapchain? Swapchain { get; }
     public abstract InputSystem Input { get; }
 
-    public Action<int2>? OnResize;
+    public Action<uint2>? OnResize;
 
     public abstract void Close();
 

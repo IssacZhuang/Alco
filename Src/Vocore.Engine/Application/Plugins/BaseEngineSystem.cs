@@ -7,7 +7,7 @@ public abstract class BaseEngineSystem : IEngineSystem
     public virtual int Order => 0;
 
 
-    public virtual void OnMainWindowResize(int2 size)
+    public virtual void OnMainWindowResize(uint2 size)
     {
         
     }

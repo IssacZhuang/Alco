@@ -49,7 +49,7 @@ public partial class GameEngine : IDisposable
     private bool _isRunning = false;
     private bool _shouldResize = false;
     //todo: use uint2
-    private int2 _windowSize;
+    private uint2 _windowSize;
 
     #endregion
 
@@ -285,7 +285,7 @@ public partial class GameEngine : IDisposable
     /// Called when the window is resized
     /// </summary>
     /// <param name="size">The new size of the window</param>
-    protected virtual void OnMainWindowResize(int2 size)
+    protected virtual void OnMainWindowResize(uint2 size)
     {
 
     }
@@ -613,7 +613,7 @@ public partial class GameEngine : IDisposable
         }
     }
 
-    private void OnSystemMainWindowResize(int2 size)
+    private void OnSystemMainWindowResize(uint2 size)
     {
         for (int i = 0; i < _systems.Count; i++)
         {
@@ -664,7 +664,7 @@ public partial class GameEngine : IDisposable
         }
     }
 
-    private void MainWindowResize(int2 size)
+    private void MainWindowResize(uint2 size)
     {
         _shouldResize = true;
         _windowSize = size;

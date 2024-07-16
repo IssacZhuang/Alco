@@ -36,7 +36,7 @@ public class FileVector
         }
         builder.AppendLine();
 
-        //constructor single
+        //constructor single typed
         builder.AppendLine($"        public {_vectorType}{_vectorSize}({_vectorType} value)");
         builder.AppendLine("        {");
         for (int i = 0; i < _vectorSize; i++)
@@ -46,7 +46,11 @@ public class FileVector
         builder.AppendLine("        }");
         builder.AppendLine();
 
-        //constructor full
+        AppendConstructorSingle(builder, "int");
+        AppendConstructorSingle(builder, "uint");
+        AppendConstructorSingle(builder, "float");
+
+        //constructor full typed
         builder.Append($"        public {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
@@ -67,6 +71,10 @@ public class FileVector
         }
         builder.AppendLine("        }");
         builder.AppendLine();
+
+        AppendConstructorFull(builder, "int");
+        AppendConstructorFull(builder, "uint");
+        AppendConstructorFull(builder, "float");
 
         //constructor lower sized vector
         //like: public Vector4(Vector3 value, float w);
@@ -245,6 +253,47 @@ public class FileVector
         builder.AppendLine("}");
 
         return builder.ToString();
+    }
+
+    private void AppendConstructorSingle(StringBuilder builder, string type){
+        if (_vectorType != type)
+        {
+            builder.AppendLine($"        public {_vectorType}{_vectorSize}({type} value)");
+            builder.AppendLine("        {");
+            for (int i = 0; i < _vectorSize; i++)
+            {
+                builder.AppendLine($"            this.{FieldsLowerCase[i]} = ({_vectorType})value;");
+            }
+            builder.AppendLine("        }");
+            builder.AppendLine();
+        }
+    }
+
+
+    private void AppendConstructorFull(StringBuilder builder, string type){
+        if (_vectorType != type)
+        {
+            builder.Append($"        public {_vectorType}{_vectorSize}(");
+            for (int i = 0; i < _vectorSize; i++)
+            {
+                builder.Append($"{type} {FieldsLowerCase[i]}");
+                if (i < _vectorSize - 1)
+                {
+                    builder.Append(", ");
+                }
+                else
+                {
+                    builder.AppendLine(")");
+                }
+            }
+            builder.AppendLine("        {");
+            for (int i = 0; i < _vectorSize; i++)
+            {
+                builder.AppendLine($"            this.{FieldsLowerCase[i]} = ({_vectorType}){FieldsLowerCase[i]};");
+            }
+            builder.AppendLine("        }");
+            builder.AppendLine();
+        }
     }
 }
 
