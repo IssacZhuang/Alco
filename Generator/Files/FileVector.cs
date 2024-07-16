@@ -5,8 +5,8 @@ public class FileVector
 {
     public static readonly string[] FieldsLowerCase = new string[] { "x", "y", "z", "w" };
     public static readonly string[] FieldsUpperCase = new string[] { "X", "Y", "Z", "W" };
-    private string _vectorType;
-    private int _vectorSize;
+    private readonly string _vectorType;
+    private readonly int _vectorSize;
     public FileVector(string vectorType, int vectorSize)
     {
         _vectorType = vectorType;

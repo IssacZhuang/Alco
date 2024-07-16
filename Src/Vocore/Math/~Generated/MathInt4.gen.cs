@@ -1,3 +1,4 @@
+//auto-generated
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -24,7 +25,11 @@ namespace Vocore
             return new int4(abs(a.x), abs(a.y), abs(a.z), abs(a.w));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int4 select(int4 a, int4 b, bool test)
+        {
+            return test ? b : a;
+        }
 
     }
 }
-
