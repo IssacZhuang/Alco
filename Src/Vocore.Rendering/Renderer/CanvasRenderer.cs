@@ -6,7 +6,7 @@ namespace Vocore.Rendering;
 /// The renderer for UI rendering.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary>
-public partial class CanvasRenderer : AutoDisposable
+public partial class CanvasRenderer : AutoDisposable, IRenderer
 {
     private enum RenderingState
     {

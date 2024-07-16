@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine;
 
-public class WindowRenderTarget : BaseEngineSystem
+public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 {
     private readonly Window _window;
     private readonly RenderingSystem _rendering;

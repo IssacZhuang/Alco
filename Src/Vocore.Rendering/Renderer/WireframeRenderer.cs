@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class WireframeRenderer : AutoDisposable
+public class WireframeRenderer : AutoDisposable, IRenderer
 {
     public struct Vertex
     {
