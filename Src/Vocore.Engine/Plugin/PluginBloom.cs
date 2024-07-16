@@ -7,7 +7,7 @@ public class PluginBloom : BaseEnginePlugin
     public override int Order => 900;
     public override void OnPostInitialize(GameEngine engine)
     {
-        _bloomSystem = new BloomSystem(engine);
+        _bloomSystem = new BloomSystem(engine, engine.MainRenderTarget);
         engine.AddSystem(_bloomSystem);
     }
 
