@@ -6,26 +6,77 @@ namespace Vocore.Graphics;
 /// <summary>
 /// The buffer in the VRAM
 /// </summary> 
-public abstract class GPUBuffer: BaseGPUObject, IGPUBindableResource
+public unsafe abstract class GPUBuffer : BaseGPUObject, IGPUBindableResource
 {
-    public delegate void AsyncReadBufferCallback(Span<byte> data);
-
+    /// <summary>
+    /// The size of the buffer
+    /// </summary>
+    /// <value></value>
     public abstract uint Size { get; }
+    /// <summary>
+    /// The usage of the buffer
+    /// </summary> 
     public abstract BufferUsage Usage { get; }
+    /// <summary>
+    /// The type of the resource
+    /// </summary>
     public abstract BindableResourceType ResourceType { get; }
 
-    public abstract Span<byte> GetData(uint offset, uint size);
-    public abstract void GetDataAsync(uint offset, uint size, AsyncReadBufferCallback callback);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Span<byte> GetData()
+
+    /// <summary>
+    /// [Thread Safe]Try to get the mapped data pointer
+    /// </summary>
+    /// <param name="ptr">The pointer of the mapped data</param>
+    /// <returns><c>true</c> if the GPU data is mapped, <c>false</c> otherwise</returns>
+    public abstract bool TryGetMappedDataPointer(out void* ptr);
+    /// <summary>
+    /// Try to map the buffer to the CPU
+    /// </summary>
+    /// <param name="offset">The offset of the buffer</param>
+    /// <param name="size">The size of the buffer</param>
+    /// <returns><c>false</c> if the buffer is already mapped or pending, <c>true</c> otherwise</returns>
+    public abstract bool TryMapAsync(uint offset, uint size);
+
+    /// <summary>
+    /// Wait for the map completion
+    /// </summary>
+    public abstract void WaitForMapCompletion();
+
+    /// <summary>
+    /// Try to unmap the buffer
+    /// </summary>
+    /// <returns><c>false</c> if the buffer is not mapped or pending, <c>true</c> otherwise</returns>
+    public abstract bool TryUnmap();
+
+    /// <summary>
+    /// [Thread Safe]Try to get the data from the GPU
+    /// </summary>
+    /// <param name="dest">The destination pointer of copying data</param>
+    /// <param name="offset">The offset of the buffer</param>
+    /// <param name="size">The size of the data</param>
+    /// <returns><c>true</c> if the GPU data is mapped, <c>false</c> otherwise</returns>
+    public bool TryGetData(void* dest, uint offset, uint size)
     {
-        return GetData(0, Size);
+        if (TryGetMappedDataPointer(out void* ptr))
+        {
+            Unsafe.CopyBlock(dest, (byte*)ptr + offset, size);
+            return true;
+        }
+        return false;
     }
 
+    /// <summary>
+    /// [Thread Safe]Try to get the data from the GPU
+    /// </summary>
+    /// <param name="dest">The destination pointer of copying data</param>
+    /// <param name="size">The size of the data</param>
+    /// <returns><c>true</c> if the GPU data is mapped, <c>false</c> otherwise</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void GetDataAsync(AsyncReadBufferCallback callback)
+    public bool TryGetData(void* dest, uint size)
     {
-        GetDataAsync(0, Size, callback);
+        return TryGetData(dest, 0, size);
     }
+
+
 }

@@ -1,5 +1,6 @@
 
 
+
 namespace Vocore.Graphics.NoGPU;
 
 internal class NoBuffer : GPUBuffer
@@ -14,14 +15,25 @@ internal class NoBuffer : GPUBuffer
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public override Span<byte> GetData(uint offset, uint size)
+    public override unsafe bool TryGetMappedDataPointer(out void* ptr)
     {
-        return Span<byte>.Empty;
+        ptr = null;
+        return false;
     }
 
-    public override void GetDataAsync(uint offset, uint size, AsyncReadBufferCallback callback)
+    public override bool TryMapAsync(uint offset, uint size)
     {
-        callback.Invoke(Span<byte>.Empty);
+        return false;
+    }
+
+    public override bool TryUnmap()
+    {
+        return false;
+    }
+
+    public override void WaitForMapCompletion()
+    {
+        
     }
 
     protected override void Dispose(bool disposing)

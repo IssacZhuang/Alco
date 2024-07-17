@@ -7,10 +7,16 @@ namespace Vocore.Graphics.WebGPU;
 
 internal unsafe class WebGPUBuffer : GPUBuffer
 {
+    private const uint MAP_STATE_UNMAPPED = 0;
+    private const uint MAP_STATE_PENDING = 1;
+    private const uint MAP_STATE_MAPPED = 2;
+
+
     #region Properties
     private readonly WGPUBuffer _buffer;
     private readonly uint _size;
     private readonly BufferUsage _usage;
+    private uint _mapState;
 
     #endregion
 
@@ -37,22 +43,56 @@ internal unsafe class WebGPUBuffer : GPUBuffer
 
     protected override GPUDevice Device { get; }
 
+    public override unsafe bool TryGetMappedDataPointer(out void* ptr)
+    {
+        if (Volatile.Read(ref _mapState) == MAP_STATE_MAPPED)
+        {
+            ptr = (void*)wgpuBufferGetMappedRange(_buffer, 0, _size);
+            return true;
+        }
+
+        ptr = null;
+        return false;
+    }
+
+    public override bool TryMapAsync(uint offset, uint size)
+    {
+        if (Interlocked.Exchange(ref _mapState, MAP_STATE_PENDING) == MAP_STATE_UNMAPPED)
+        {
+            GCHandle handle = GCHandle.Alloc(this);
+            wgpuBufferMapAsync(_buffer, WGPUMapMode.Read, offset, size, &OnMapReadCallback, GCHandle.ToIntPtr(handle));
+            return true;
+        }
+
+        return false;
+    }
+
+    public override void WaitForMapCompletion()
+    {
+        while (Volatile.Read(ref _mapState) == MAP_STATE_PENDING)
+        {
+            // Spin
+        }
+    }
+
+    public override bool TryUnmap()
+    {
+        if (Interlocked.Exchange(ref _mapState, MAP_STATE_UNMAPPED) == MAP_STATE_MAPPED)
+        {
+            wgpuBufferUnmap(_buffer);
+            return true;
+        }
+
+        return false;
+    }
+
     protected override void Dispose(bool disposing)
     {
+        WaitForMapCompletion();
+        TryUnmap();
+
         wgpuBufferDestroy(_buffer);
         wgpuBufferRelease(_buffer);
-    }
-
-    public override Span<byte> GetData(uint offset, uint size)
-    {
-        IntPtr ptr = wgpuBufferGetMappedRange(_buffer, offset, size);
-        return new Span<byte>((byte*)ptr, (int)size);
-    }
-
-    public override void GetDataAsync(uint offset, uint size, AsyncReadBufferCallback callback)
-    {
-        GCHandle handle = GCHandle.Alloc(callback);
-        wgpuBufferMapAsync(_buffer, WGPUMapMode.Read, offset, size, &OnMapReadCallback, GCHandle.ToIntPtr(handle));
     }
 
     #endregion
@@ -89,6 +129,14 @@ internal unsafe class WebGPUBuffer : GPUBuffer
 
             _buffer = wgpuDeviceCreateBuffer(nativeDevice, &bufferDescriptor);
         }
+
+        _mapState = MAP_STATE_UNMAPPED;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void SetMapState(uint state)
+    {
+        Volatile.Write(ref _mapState, state);
     }
 
     #endregion
@@ -97,9 +145,20 @@ internal unsafe class WebGPUBuffer : GPUBuffer
     private static void OnMapReadCallback(WGPUBufferMapAsyncStatus status, nint data)
     {
         GCHandle handle = GCHandle.FromIntPtr(data);
-        AsyncReadBufferCallback callback = (AsyncReadBufferCallback)handle.Target!;
-        handle.Free();
 
-        
+        WebGPUBuffer buffer = (WebGPUBuffer)handle.Target!;
+        if (status == WGPUBufferMapAsyncStatus.Success)
+        {
+            buffer.SetMapState(MAP_STATE_MAPPED);
+        }
+        else
+        {
+            buffer.SetMapState(MAP_STATE_UNMAPPED);
+            GraphicsLogger.Error($"Failed to map the buffer, Status: {status}");
+        }
+
+        handle.Free();
     }
+
+
 }
