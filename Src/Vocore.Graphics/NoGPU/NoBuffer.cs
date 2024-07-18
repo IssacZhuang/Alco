@@ -15,10 +15,6 @@ internal class NoBuffer : GPUBuffer
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public override unsafe void GetData(void* dest, uint offset, uint size)
-    {
-        
-    }
 
     protected override void Dispose(bool disposing)
     {

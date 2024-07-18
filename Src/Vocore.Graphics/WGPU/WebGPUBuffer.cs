@@ -16,7 +16,6 @@ internal unsafe class WebGPUBuffer : GPUBuffer
     private readonly WGPUBuffer _buffer;
     private readonly uint _size;
     private readonly BufferUsage _usage;
-    private uint _mapState;
 
     #endregion
 
@@ -43,30 +42,8 @@ internal unsafe class WebGPUBuffer : GPUBuffer
 
     protected override GPUDevice Device { get; }
 
-    public override unsafe void GetData(void* dest, uint offset, uint size)
-    {
-        if ((_usage & BufferUsage.MapRead) == 0)
-        {
-            throw new GraphicsException("The GPUBuffer must be created with BufferUsage.MapRead to read data from the GPU");
-        }
-
-        if (Interlocked.Exchange(ref _mapState, MAP_STATE_PENDING) == MAP_STATE_UNMAPPED)
-        {
-            GCHandle handle = GCHandle.Alloc(this);
-            wgpuBufferMapAsync(_buffer, WGPUMapMode.Read, offset, size, &OnMapReadCallback, GCHandle.ToIntPtr(handle));
-            WaitForMapComplete();
-            void* data = (void*)wgpuBufferGetMappedRange(_buffer, offset, size);
-            Unsafe.CopyBlock(dest, data, size);
-            wgpuBufferUnmap(_buffer);
-            return;
-        }
-
-        throw new GraphicsException("The GPUBuffer.GetData is not concurrent access safe");
-    }
-
     protected override void Dispose(bool disposing)
     {
-        WaitForMapComplete();
         wgpuBufferDestroy(_buffer);
         wgpuBufferRelease(_buffer);
     }
@@ -106,39 +83,10 @@ internal unsafe class WebGPUBuffer : GPUBuffer
             _buffer = wgpuDeviceCreateBuffer(nativeDevice, &bufferDescriptor);
         }
 
-        _mapState = MAP_STATE_UNMAPPED;
+
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void SetMapState(uint state)
-    {
-        Volatile.Write(ref _mapState, state);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WaitForMapComplete()
-    {
-        while (Volatile.Read(ref _mapState) == MAP_STATE_PENDING) ;
-    }
 
     #endregion
 
-    [UnmanagedCallersOnly]
-    private static void OnMapReadCallback(WGPUBufferMapAsyncStatus status, nint data)
-    {
-        GCHandle handle = GCHandle.FromIntPtr(data);
-
-        WebGPUBuffer buffer = (WebGPUBuffer)handle.Target!;
-        if (status == WGPUBufferMapAsyncStatus.Success)
-        {
-            buffer.SetMapState(MAP_STATE_MAPPED);
-        }
-        else
-        {
-            buffer.SetMapState(MAP_STATE_UNMAPPED);
-            GraphicsLogger.Error($"Failed to map the buffer, Status: {status}");
-        }
-
-        handle.Free();
-    }
 }

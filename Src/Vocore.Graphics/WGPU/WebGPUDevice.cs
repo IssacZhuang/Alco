@@ -229,24 +229,17 @@ internal partial class WebGPUDevice : GPUDevice
             usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
             mappedAtCreation = true,
         };
-        WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Native, &tmpBufferDescriptor);
-        WGPUCommandEncoderDescriptor descriptor = new WGPUCommandEncoderDescriptor
-        {
-            label = null,
-        };
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Native, &descriptor);
+        WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
         wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
         void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
         Unsafe.CopyBlock(dest, pointer, size);
         wgpuBufferUnmap(tmpBuffer);
         wgpuBufferDestroy(tmpBuffer);
         wgpuBufferRelease(tmpBuffer);
-        WGPUCommandBufferDescriptor commandBufferDescriptor = new WGPUCommandBufferDescriptor
-        {
-            label = null,
-        };
 
-        WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, &commandBufferDescriptor);
+        WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
         wgpuCommandEncoderRelease(encoder);
         wgpuQueueSubmit(Queue, 1, &commandBuffer);
         wgpuCommandBufferRelease(commandBuffer);
