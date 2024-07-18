@@ -220,6 +220,38 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuQueueWriteBuffer(Queue, nativeBuffer, bufferOffset, data, size);
     }
 
+    protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
+    {
+        WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
+        WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
+        {
+            size = wgpuBufferGetSize(nativeBuffer),
+            usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
+            mappedAtCreation = true,
+        };
+        WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Native, &tmpBufferDescriptor);
+        WGPUCommandEncoderDescriptor descriptor = new WGPUCommandEncoderDescriptor
+        {
+            label = null,
+        };
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Native, &descriptor);
+        wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
+        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
+        Unsafe.CopyBlock(dest, pointer, size);
+        wgpuBufferUnmap(tmpBuffer);
+        wgpuBufferDestroy(tmpBuffer);
+        wgpuBufferRelease(tmpBuffer);
+        WGPUCommandBufferDescriptor commandBufferDescriptor = new WGPUCommandBufferDescriptor
+        {
+            label = null,
+        };
+
+        WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, &commandBufferDescriptor);
+        wgpuCommandEncoderRelease(encoder);
+        wgpuQueueSubmit(Queue, 1, &commandBuffer);
+        wgpuCommandBufferRelease(commandBuffer);
+    }
+
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSzie, uint mipLevel)
     {
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;

@@ -345,6 +345,18 @@ public abstract class GPUDevice : IDisposable
     }
 
     /// <summary>
+    /// Reads the data from the GPU buffer at the offset.
+    /// </summary>
+    /// <param name="buffer">The target GPU buffer.</param>
+    /// <param name="dest">The pointer to the destination.</param>
+    /// <param name="bufferOffset">The offset in the GPU buffer. (unit: byte)</param>
+    /// <param name="size">The size of the data. (unit: byte)</param>
+    public unsafe void ReadBuffer(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
+    {
+        ReadBufferCore(buffer, dest, bufferOffset, size);
+    }
+
+    /// <summary>
     /// Writes the data to the GPU texture at the mip level.
     /// </summary>
     /// <param name="texture">The target GPU texture.</param>
@@ -482,6 +494,8 @@ public abstract class GPUDevice : IDisposable
     // Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
+
+    protected abstract unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size);
 
     /// <exclude />
     protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel);

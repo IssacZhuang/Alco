@@ -154,10 +154,13 @@ internal class NoDevice : GPUDevice
         
     }
 
-    protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel)
+    protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
     {
         
     }
 
-    
+    protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel)
+    {
+        
+    }
 }

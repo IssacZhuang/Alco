@@ -19,14 +19,6 @@ public struct BufferDescriptor
     }
 
     /// <summary>
-    /// Validates the GPU buffer creation information.
-    /// </summary>
-    public readonly void Validate()
-    {
-        UtilsAssert.IsTrue(Size > 0, "Buffer size must be greater than 0");
-    }
-
-    /// <summary>
     /// The size of the buffer.
     /// </summary>
     public ulong Size { get; init; }
