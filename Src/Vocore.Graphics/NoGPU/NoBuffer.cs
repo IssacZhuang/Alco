@@ -15,23 +15,7 @@ internal class NoBuffer : GPUBuffer
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public override unsafe bool TryGetMappedDataPointer(out void* ptr)
-    {
-        ptr = null;
-        return false;
-    }
-
-    public override bool TryMapAsync(uint offset, uint size)
-    {
-        return false;
-    }
-
-    public override bool TryUnmap()
-    {
-        return false;
-    }
-
-    public override void WaitForMapCompletion()
+    public override unsafe void GetData(void* dest, uint offset, uint size)
     {
         
     }

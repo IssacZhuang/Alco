@@ -35,6 +35,7 @@ public class TestShader
     [Test(Description = "Test all shaders")]
     public void TestAllShaders()
     {
+        Setting.RunOnce = true;
         new ShaderValidator(Setting);
     }
 }

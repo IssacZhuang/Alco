@@ -92,11 +92,11 @@ public class Game : GameEngine
         DebugGUI.Text(_window2.Position.ToString());
 
         _renderer1.Begin(MainFrameBuffer);
-        _renderer1.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.5f, 1.5f, 1));
+        _renderer1.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
         _renderer1.End();
 
         _renderer2.Begin(_windowRenderTarget.FrameBuffer);
-        _renderer2.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.5f, 1.5f, 1));
+        _renderer2.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
         _renderer2.End();
 
 

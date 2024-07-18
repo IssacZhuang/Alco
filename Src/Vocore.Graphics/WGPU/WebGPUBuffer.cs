@@ -43,54 +43,30 @@ internal unsafe class WebGPUBuffer : GPUBuffer
 
     protected override GPUDevice Device { get; }
 
-    public override unsafe bool TryGetMappedDataPointer(out void* ptr)
+    public override unsafe void GetData(void* dest, uint offset, uint size)
     {
-        if (Volatile.Read(ref _mapState) == MAP_STATE_MAPPED)
+        if ((_usage & BufferUsage.MapRead) == 0)
         {
-            ptr = (void*)wgpuBufferGetMappedRange(_buffer, 0, _size);
-            return true;
+            throw new GraphicsException("The GPUBuffer must be created with BufferUsage.MapRead to read data from the GPU");
         }
 
-        ptr = null;
-        return false;
-    }
-
-    public override bool TryMapAsync(uint offset, uint size)
-    {
         if (Interlocked.Exchange(ref _mapState, MAP_STATE_PENDING) == MAP_STATE_UNMAPPED)
         {
             GCHandle handle = GCHandle.Alloc(this);
             wgpuBufferMapAsync(_buffer, WGPUMapMode.Read, offset, size, &OnMapReadCallback, GCHandle.ToIntPtr(handle));
-            return true;
-        }
-
-        return false;
-    }
-
-    public override void WaitForMapCompletion()
-    {
-        while (Volatile.Read(ref _mapState) == MAP_STATE_PENDING)
-        {
-            // Spin
-        }
-    }
-
-    public override bool TryUnmap()
-    {
-        if (Interlocked.Exchange(ref _mapState, MAP_STATE_UNMAPPED) == MAP_STATE_MAPPED)
-        {
+            WaitForMapComplete();
+            void* data = (void*)wgpuBufferGetMappedRange(_buffer, offset, size);
+            Unsafe.CopyBlock(dest, data, size);
             wgpuBufferUnmap(_buffer);
-            return true;
+            return;
         }
 
-        return false;
+        throw new GraphicsException("The GPUBuffer.GetData is not concurrent access safe");
     }
 
     protected override void Dispose(bool disposing)
     {
-        WaitForMapCompletion();
-        TryUnmap();
-
+        WaitForMapComplete();
         wgpuBufferDestroy(_buffer);
         wgpuBufferRelease(_buffer);
     }
@@ -139,6 +115,12 @@ internal unsafe class WebGPUBuffer : GPUBuffer
         Volatile.Write(ref _mapState, state);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WaitForMapComplete()
+    {
+        while (Volatile.Read(ref _mapState) == MAP_STATE_PENDING) ;
+    }
+
     #endregion
 
     [UnmanagedCallersOnly]
@@ -159,6 +141,4 @@ internal unsafe class WebGPUBuffer : GPUBuffer
 
         handle.Free();
     }
-
-
 }

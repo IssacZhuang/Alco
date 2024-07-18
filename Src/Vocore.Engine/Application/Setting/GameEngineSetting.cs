@@ -45,7 +45,12 @@ namespace Vocore.Engine
         /// The engine will stop when error catched
         /// </summary>
         public bool StopWhenError;
-        
+
+        /// <summary>
+        /// The engine will run once, then stop. Which mean the game will not loop.
+        /// </summary> 
+        public bool RunOnce;
+
         /// <summary>
         /// The window setting
         /// </summary>

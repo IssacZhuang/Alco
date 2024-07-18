@@ -240,10 +240,20 @@ public partial class GameEngine : IDisposable
     {
         InternalStart();
 
-        while (_isRunning)
+        if (_setting.RunOnce)
         {
+            _isRunning = true;
             InternalUpdate();
+            _isRunning = false;
         }
+        else
+        {
+            while (_isRunning)
+            {
+                InternalUpdate();
+            }
+        }
+
         InternalStop();
     }
 
