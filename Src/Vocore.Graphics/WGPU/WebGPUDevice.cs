@@ -229,7 +229,7 @@ internal partial class WebGPUDevice : GPUDevice
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
         WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
         {
-            size = wgpuBufferGetSize(nativeBuffer),
+            size = size,
             usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
             mappedAtCreation = false,
         };
@@ -261,6 +261,7 @@ internal partial class WebGPUDevice : GPUDevice
         // stopwatch.Restart();
 
         void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
+
         Unsafe.CopyBlock(dest, pointer, size);
 
         // stopwatch.Stop();
@@ -286,6 +287,7 @@ internal partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSzie, uint mipLevel)
     {
+        //todo: get pixel size by format
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
 
         WGPUImageCopyTexture copyTextureInfo = new WGPUImageCopyTexture
@@ -320,7 +322,67 @@ internal partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0)
     {
-        throw new NotImplementedException();
+        //todo: get pixel size by format
+
+        WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+
+        WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
+        {
+            size = pixelSize * texture.Width * texture.Height * texture.Depth,
+            usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
+            mappedAtCreation = false,
+        };
+
+        WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+
+        WGPUImageCopyTexture source = new WGPUImageCopyTexture
+        {
+            texture = nativeTexture,
+            mipLevel = mipLevel,
+            origin = new WGPUOrigin3D
+            {
+                x = 0,
+                y = 0,
+                z = 0,
+            },
+            aspect = WGPUTextureAspect.All,
+        };
+
+        WGPUImageCopyBuffer destBuffer = new WGPUImageCopyBuffer
+        {
+            buffer = tmpBuffer,
+            layout = new WGPUTextureDataLayout
+            {
+                offset = 0,
+                bytesPerRow = pixelSize * texture.Width,
+                rowsPerImage = texture.Height,
+            },
+        };
+
+        WGPUExtent3D copySize = new WGPUExtent3D
+        {
+            width = texture.Width,
+            height = texture.Height,
+            depthOrArrayLayers = texture.Depth,
+        };
+
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
+        wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &copySize);
+
+        WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
+        wgpuQueueSubmit(Queue, 1, &commandBuffer);
+
+        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, dataSize, &BufferMapCallback, 0);
+        wgpuDevicePoll(Device, WGPUBool.True, null);
+
+        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, dataSize);
+        Unsafe.CopyBlock(dest, pointer, dataSize);
+        wgpuBufferUnmap(tmpBuffer);
+
+        wgpuCommandEncoderRelease(encoder);
+        wgpuCommandBufferRelease(commandBuffer);
+        wgpuBufferDestroy(tmpBuffer);
+        wgpuBufferRelease(tmpBuffer);
     }
 
     #endregion
