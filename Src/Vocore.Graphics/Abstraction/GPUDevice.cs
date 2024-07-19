@@ -369,6 +369,12 @@ public abstract class GPUDevice : IDisposable
         WriteTextureCore(texture, data, dataSize, pixelSize, mipLevel);
     }
 
+    public unsafe void ReadTexture(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    {
+        ReadTextureCore(texture, dest, dataSize, pixelSize, mipLevel);
+    }
+    
+
     // polymorphism
 
     /// <summary>
@@ -550,11 +556,14 @@ public abstract class GPUDevice : IDisposable
     /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 
+    /// <exclude />
     protected abstract unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size);
 
     /// <exclude />
     protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel);
 
+    /// <exclude />
+    protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0);
     public virtual void Dispose()
     {
 

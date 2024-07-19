@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using WebGPU;
@@ -222,6 +223,9 @@ internal partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
     {
+        // Stopwatch stopwatch = new Stopwatch();
+        // stopwatch.Start();
+
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
         WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
         {
@@ -231,25 +235,53 @@ internal partial class WebGPUDevice : GPUDevice
         };
         WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
 
+        // stopwatch.Stop();
+        // GraphicsLogger.Info("create buffer: " + stopwatch.ElapsedTicks);
+
+        // stopwatch.Restart();
+
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
         wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
 
         WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
         
         wgpuQueueSubmit(Queue, 1, &commandBuffer);
+
+        // stopwatch.Stop();
+        // GraphicsLogger.Info("gpu copy: " + stopwatch.ElapsedTicks);
+
+        // stopwatch.Restart();
         
         wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size, &BufferMapCallback, 0);
         wgpuDevicePoll(Device, WGPUBool.True, null);
 
+        // stopwatch.Stop();
+        // GraphicsLogger.Info("map: " + stopwatch.ElapsedTicks);
+
+        // stopwatch.Restart();
+
         void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
         Unsafe.CopyBlock(dest, pointer, size);
 
+        // stopwatch.Stop();
+        // GraphicsLogger.Info("cpoy: " + stopwatch.ElapsedTicks);
+
+        // stopwatch.Restart();
+
         wgpuBufferUnmap(tmpBuffer);
+
+        // stopwatch.Stop();
+        // GraphicsLogger.Info("unmap: " + stopwatch.ElapsedTicks);
+
+        // stopwatch.Restart();
 
         wgpuCommandEncoderRelease(encoder);
         wgpuCommandBufferRelease(commandBuffer);
         wgpuBufferDestroy(tmpBuffer);
         wgpuBufferRelease(tmpBuffer);
+
+        // stopwatch.Stop();
+        // GraphicsLogger.Info("release: " + stopwatch.ElapsedTicks);
     }
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSzie, uint mipLevel)
@@ -284,6 +316,11 @@ internal partial class WebGPUDevice : GPUDevice
         };
 
         wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
+    }
+
+    protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    {
+        throw new NotImplementedException();
     }
 
     #endregion

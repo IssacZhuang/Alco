@@ -163,4 +163,9 @@ internal class NoDevice : GPUDevice
     {
         
     }
+
+    protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    {
+        
+    }
 }

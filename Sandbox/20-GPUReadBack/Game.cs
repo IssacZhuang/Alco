@@ -17,21 +17,21 @@ public class Game : GameEngine
         BufferDescriptor descriptorOutput = new BufferDescriptor
         {
             Name = "GPUReadBack",
-            Size = (uint)(length * sizeof(float)),
+            Size = (length * sizeof(float)),
             Usage = BufferUsage.CopyDst | BufferUsage.CopySrc | BufferUsage.Storage
         };
 
         using GPUBuffer bufferOutput = GraphicsDevice.CreateBuffer(descriptorOutput);
-        profiler.Start("write");
+        // profiler.Start("write");
         GraphicsDevice.WriteBuffer(bufferOutput, data);
-        ProfilerBlock write = profiler.End();
-        Log.Info($"Time write: {write.Miliseconds}ms");
+        // ProfilerBlock write = profiler.End();
+        // Log.Info($"Time write: {write.Miliseconds}ms");
 
         float[] output = new float[length];
-        profiler.Start("read");
+        // profiler.Start("read");
         GraphicsDevice.ReadBuffer(bufferOutput, output);
-        ProfilerBlock read = profiler.End();
-        Log.Info($"Time read: {read.Miliseconds}ms");
+        // ProfilerBlock read = profiler.End();
+        // Log.Info($"Time read: {read.Miliseconds}ms");
 
         for (int i = 0; i < 10; i++)
         {
