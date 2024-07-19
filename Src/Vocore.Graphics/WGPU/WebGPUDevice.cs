@@ -227,22 +227,29 @@ internal partial class WebGPUDevice : GPUDevice
         {
             size = wgpuBufferGetSize(nativeBuffer),
             usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
-            mappedAtCreation = true,
+            mappedAtCreation = false,
         };
         WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
 
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
         wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
-        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
-        Unsafe.CopyBlock(dest, pointer, size);
-        wgpuBufferUnmap(tmpBuffer);
-        wgpuBufferDestroy(tmpBuffer);
-        wgpuBufferRelease(tmpBuffer);
 
         WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-        wgpuCommandEncoderRelease(encoder);
+        
         wgpuQueueSubmit(Queue, 1, &commandBuffer);
+        
+        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size, &BufferMapCallback, 0);
+        wgpuDevicePoll(Device, WGPUBool.True, null);
+
+        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
+        Unsafe.CopyBlock(dest, pointer, size);
+
+        wgpuBufferUnmap(tmpBuffer);
+
+        wgpuCommandEncoderRelease(encoder);
         wgpuCommandBufferRelease(commandBuffer);
+        wgpuBufferDestroy(tmpBuffer);
+        wgpuBufferRelease(tmpBuffer);
     }
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSzie, uint mipLevel)
@@ -564,6 +571,16 @@ internal partial class WebGPUDevice : GPUDevice
     private unsafe static void OnUnhandleError(WGPUErrorType type, sbyte* message, nint pUserData)
     {
         throw new GraphicsException("Unhandle WebGPU error: " + Interop.GetString(message));
+    }
+
+    [UnmanagedCallersOnly]
+    private unsafe static void BufferMapCallback(WGPUBufferMapAsyncStatus status, nint userdata)
+    {
+        if (status != WGPUBufferMapAsyncStatus.Success)
+        {
+            GraphicsLogger.Error("Buffer map failed, status: " + status);
+        }
+
     }
 
     private static void LogCallback(WGPULogLevel level, string message, nint userdata = 0)

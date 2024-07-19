@@ -432,6 +432,61 @@ public abstract class GPUDevice : IDisposable
     }
 
     /// <summary>
+    /// Reads the data from the GPU buffer at the offset 0.
+    /// </summary>
+    /// <param name="buffer">The target GPU buffer.</param>
+    /// <param name="bufferOffset">The offset in the GPU buffer. (unit: byte)</param>
+    /// <param name="data">The value reference to store the data.</param>
+    /// <typeparam name="T">The type of the data.</typeparam>
+    public unsafe void ReadBuffer<T>(GPUBuffer buffer, uint bufferOffset, ref T data) where T : unmanaged
+    {
+        fixed (T* ptr = &data)
+        {
+            ReadBufferCore(buffer, (byte*)ptr, bufferOffset, (uint)sizeof(T));
+        }
+    }
+
+    /// <summary>
+    /// Reads the data from the GPU buffer at the offset 0.
+    /// </summary>
+    /// <param name="buffer">The target GPU buffer.</param>
+    /// <param name="data">The value reference to store the data.</param>
+    /// <typeparam name="T">The type of the data.</typeparam>
+    public unsafe void ReadBuffer<T>(GPUBuffer buffer, ref T data) where T : unmanaged
+    {
+        ReadBuffer(buffer, 0, ref data);
+    }
+
+    /// <summary>
+    /// Reads the data from the GPU buffer at the offset.
+    /// </summary>
+    /// <param name="buffer">The target GPU buffer.</param>
+    /// <param name="bufferOffset">The offset in the GPU buffer. (unit: byte)</param>
+    /// <param name="data">The array to store the data.</param>
+    /// <typeparam name="T">The type of the data.</typeparam>
+    public unsafe void ReadBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
+    {
+        fixed (T* ptr = data)
+        {
+            ReadBufferCore(buffer, (byte*)ptr, bufferOffset, (uint)(sizeof(T) * data.Length));
+        }
+    }
+
+    /// <summary>
+    /// Reads the data from the GPU buffer at the offset 0.
+    /// </summary>
+    /// <param name="buffer">The target GPU buffer.</param>
+    /// <param name="data">The array to store the data.</param>
+    /// <typeparam name="T">The type of the data.</typeparam>
+    public unsafe void ReadBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
+    {
+        fixed (T* ptr = data)
+        {
+            ReadBufferCore(buffer, (byte*)ptr, 0, (uint)(sizeof(T) * data.Length));
+        }
+    }
+
+    /// <summary>
     /// Writes the data to the GPU texture at the mip level.
     /// </summary>
     /// <param name="texture">The target GPU texture.</param>
