@@ -14,24 +14,18 @@ public class Game : GameEngine
         {
             data[i] = i;
         }
-        BufferDescriptor descriptorOutput = new BufferDescriptor
+        BufferDescriptor descriptor = new BufferDescriptor
         {
             Name = "GPUReadBack",
-            Size = (length * sizeof(float)),
+            Size = length * sizeof(float),
             Usage = BufferUsage.CopyDst | BufferUsage.CopySrc | BufferUsage.Storage
         };
 
-        using GPUBuffer bufferOutput = GraphicsDevice.CreateBuffer(descriptorOutput);
-        // profiler.Start("write");
-        GraphicsDevice.WriteBuffer(bufferOutput, data);
-        // ProfilerBlock write = profiler.End();
-        // Log.Info($"Time write: {write.Miliseconds}ms");
+        using GPUBuffer buffer = GraphicsDevice.CreateBuffer(descriptor);
+        GraphicsDevice.WriteBuffer(buffer, data);
 
         float[] output = new float[length];
-        // profiler.Start("read");
-        GraphicsDevice.ReadBuffer(bufferOutput, output);
-        // ProfilerBlock read = profiler.End();
-        // Log.Info($"Time read: {read.Miliseconds}ms");
+        GraphicsDevice.ReadBuffer(buffer, output);
 
         for (int i = 0; i < 10; i++)
         {

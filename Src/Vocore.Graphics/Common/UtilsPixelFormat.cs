@@ -32,4 +32,183 @@ public static class UtilsPixelFormat
             _ => false,
         };
     }
+
+    public static uint GetPixelSize(PixelFormat format)
+    {
+        //get the size of the pixel in bytes, throw exception if the format is compressed
+        switch (format)
+        {
+            case PixelFormat.R8Unorm:
+            case PixelFormat.R8Snorm:
+            case PixelFormat.R8Uint:
+            case PixelFormat.R8Sint:
+                return 1;
+            case PixelFormat.R16Uint:
+            case PixelFormat.R16Sint:
+            case PixelFormat.R16Float:
+            case PixelFormat.RG8Unorm:
+            case PixelFormat.RG8Snorm:
+            case PixelFormat.RG8Uint:
+            case PixelFormat.RG8Sint:
+                return 2;
+            case PixelFormat.R32Float:
+            case PixelFormat.R32Uint:
+            case PixelFormat.R32Sint:
+            case PixelFormat.RG16Uint:
+            case PixelFormat.RG16Sint:
+            case PixelFormat.RG16Float:
+            case PixelFormat.RGBA8Unorm:
+            case PixelFormat.RGBA8UnormSrgb:
+            case PixelFormat.RGBA8Snorm:
+            case PixelFormat.RGBA8Uint:
+            case PixelFormat.RGBA8Sint:
+            case PixelFormat.BGRA8Unorm:
+            case PixelFormat.BGRA8UnormSrgb:
+            case PixelFormat.RGB10A2Uint:
+            case PixelFormat.RGB10A2Unorm:
+            case PixelFormat.RG11B10Ufloat:
+            case PixelFormat.RGB9E5Ufloat:
+                return 4;
+            case PixelFormat.RG32Float:
+            case PixelFormat.RG32Uint:
+            case PixelFormat.RG32Sint:
+            case PixelFormat.RGBA16Uint:
+            case PixelFormat.RGBA16Sint:
+            case PixelFormat.RGBA16Float:
+                return 8;
+            case PixelFormat.RGBA32Float:
+            case PixelFormat.RGBA32Uint:
+            case PixelFormat.RGBA32Sint:
+                return 16;
+            case PixelFormat.Stencil8:
+                return 1;
+            case PixelFormat.Depth16Unorm:
+                return 2;
+            case PixelFormat.Depth24Plus:
+                return 3;
+            case PixelFormat.Depth24PlusStencil8:
+                return 4;
+            case PixelFormat.Depth32Float:
+                return 4;
+            case PixelFormat.Depth32FloatStencil8:
+                return 5;
+            default:
+                throw new Exception("Unsupported pixel format to get size");
+        }
+    }
+
+    
+
 }
+
+// namespace Vocore.Graphics;
+
+// public enum PixelFormat
+// {
+//     Undefined = 0,
+//     // 8-bit
+//     R8Unorm = 1,
+//     R8Snorm = 2,
+//     R8Uint = 3,
+//     R8Sint = 4,
+//     // 16-bit
+//     R16Uint = 5,
+//     R16Sint = 6,
+//     R16Float = 7,
+//     RG8Unorm = 8,
+//     RG8Snorm = 9,
+//     RG8Uint = 10,
+//     RG8Sint = 11,
+//     // 32-bit
+//     R32Float = 12,
+//     R32Uint = 13,
+//     R32Sint = 14,
+//     RG16Uint = 15,
+//     RG16Sint = 16,
+//     RG16Float = 17,
+//     RGBA8Unorm = 18,
+//     RGBA8UnormSrgb = 19,
+//     RGBA8Snorm = 20,
+//     RGBA8Uint = 21,
+//     RGBA8Sint = 22,
+//     BGRA8Unorm = 23,
+//     BGRA8UnormSrgb = 24,
+//     // Packed 32-bit
+//     RGB10A2Uint = 25,
+//     RGB10A2Unorm = 26,
+//     RG11B10Ufloat = 27,
+//     RGB9E5Ufloat = 28,
+//     // 64-bit
+//     RG32Float = 29,
+//     RG32Uint = 30,
+//     RG32Sint = 31,
+//     RGBA16Uint = 32,
+//     RGBA16Sint = 33,
+//     RGBA16Float = 34,
+//     // 128-bit
+//     RGBA32Float = 35,
+//     RGBA32Uint = 36,
+//     RGBA32Sint = 37,
+//     // Depth-stencil
+//     Stencil8 = 38,
+//     Depth16Unorm = 39,
+//     Depth24Plus = 40,
+//     Depth24PlusStencil8 = 41,
+//     Depth32Float = 42,
+//     Depth32FloatStencil8 = 43,
+//     // BC Compressed
+//     BC1RGBAUnorm = 44,
+//     BC1RGBAUnormSrgb = 45,
+//     BC2RGBAUnorm = 46,
+//     BC2RGBAUnormSrgb = 47,
+//     BC3RGBAUnorm = 48,
+//     BC3RGBAUnormSrgb = 49,
+//     BC4RUnorm = 50,
+//     BC4RSnorm = 51,
+//     BC5RGUnorm = 52,
+//     BC5RGSnorm = 53,
+//     BC6HRGBUfloat = 54,
+//     BC6HRGBFloat = 55,
+//     BC7RGBAUnorm = 56,
+//     BC7RGBAUnormSrgb = 57,
+//     // ETC Compressed
+//     ETC2RGB8Unorm = 58,
+//     ETC2RGB8UnormSrgb = 59,
+//     ETC2RGB8A1Unorm = 60,
+//     ETC2RGB8A1UnormSrgb = 61,
+//     ETC2RGBA8Unorm = 62,
+//     ETC2RGBA8UnormSrgb = 63,
+//     EACR11Unorm = 64,
+//     EACR11Snorm = 65,
+//     EACRG11Unorm = 66,
+//     EACRG11Snorm = 67,
+//     // ASTC Compressed
+//     ASTC4x4Unorm = 68,
+//     ASTC4x4UnormSrgb = 69,
+//     ASTC5x4Unorm = 70,
+//     ASTC5x4UnormSrgb = 71,
+//     ASTC5x5Unorm = 72,
+//     ASTC5x5UnormSrgb = 73,
+//     ASTC6x5Unorm = 74,
+//     ASTC6x5UnormSrgb = 75,
+//     ASTC6x6Unorm = 76,
+//     ASTC6x6UnormSrgb = 77,
+//     ASTC8x5Unorm = 78,
+//     ASTC8x5UnormSrgb = 79,
+//     ASTC8x6Unorm = 80,
+//     ASTC8x6UnormSrgb = 81,
+//     ASTC8x8Unorm = 82,
+//     ASTC8x8UnormSrgb = 83,
+//     ASTC10x5Unorm = 84,
+//     ASTC10x5UnormSrgb = 85,
+//     ASTC10x6Unorm = 86,
+//     ASTC10x6UnormSrgb = 87,
+//     ASTC10x8Unorm = 88,
+//     ASTC10x8UnormSrgb = 89,
+//     ASTC10x10Unorm = 90,
+//     ASTC10x10UnormSrgb = 91,
+//     ASTC12x10Unorm = 92,
+//     ASTC12x10UnormSrgb = 93,
+//     ASTC12x12Unorm = 94,
+//     ASTC12x12UnormSrgb = 95,
+// }
