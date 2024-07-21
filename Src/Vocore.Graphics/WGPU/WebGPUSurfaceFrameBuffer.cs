@@ -309,6 +309,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             get => NAME;
         }
 
+        public override PixelFormat PixelFormat { get; }
+
         protected override void Dispose(bool disposing)
         {
             //wgpuTextureDestroy(_texture);
@@ -340,6 +342,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
         protected override GPUDevice Device { get; }
 
+
+
         public unsafe WebGPUSurfaceTexture(WebGPUDevice device, WGPUSurface surface)
         {
             Device = device;
@@ -352,6 +356,8 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _height = wgpuTextureGetHeight(_texture);
 
             _defaultView = wgpuTextureCreateView(_texture, null);
+
+            PixelFormat = UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(_texture));
         }
 
         public unsafe void PresentAnDrop()
