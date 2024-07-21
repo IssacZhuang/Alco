@@ -9,6 +9,7 @@ public abstract class GPUTexture : BaseGPUObject
     public abstract uint Height { get; }
     public abstract uint Depth { get; }
     public abstract uint MipLevelCount { get; }
+    public abstract PixelFormat PixelFormat { get; }
 
     public uint GetMipWidth(uint mipLevel)
     {

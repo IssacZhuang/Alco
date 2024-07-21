@@ -37,6 +37,8 @@ internal class WebGPUTexture : WebGPUTextureBase
         get => _size.depthOrArrayLayers;
     }
 
+    public override PixelFormat PixelFormat { get; }
+
     protected override void Dispose(bool disposing)
     {
         wgpuTextureDestroy(_nativeTexture);
@@ -70,6 +72,8 @@ internal class WebGPUTexture : WebGPUTextureBase
         _size = descriptor.size;
         _mipLevelCount = descriptor.mipLevelCount;
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+
+        PixelFormat = UtilsWebGPU.PixelFormatToAbstract (descriptor.format);
     }
 
     internal unsafe WebGPUTexture(WebGPUDevice device, in TextureDescriptor descriptor)
@@ -98,6 +102,8 @@ internal class WebGPUTexture : WebGPUTextureBase
         };
 
         _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+
+        PixelFormat = descriptor.Format;
     }
 
     #endregion
