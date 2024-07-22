@@ -364,14 +364,14 @@ public abstract class GPUDevice : IDisposable
     /// <param name="dataSize">The size of the data. (unit: byte)</param>
     /// <param name="pixelSize">The size of the pixel in the texture. (unit: byte).<br/>For example, if the texture is R8G8B8A8_UNORM, the pixel size is 4.</param>
     /// <param name="mipLevel">The mip level of the texture.</param>
-    public unsafe void WriteTexture(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    public unsafe void WriteTexture(GPUTexture texture, byte* data, uint dataSize, uint mipLevel = 0)
     {
-        WriteTextureCore(texture, data, dataSize, pixelSize, mipLevel);
+        WriteTextureCore(texture, data, dataSize, mipLevel);
     }
 
-    public unsafe void ReadTexture(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    public unsafe void ReadTexture(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
-        ReadTextureCore(texture, dest, dataSize, pixelSize, mipLevel);
+        ReadTextureCore(texture, dest, dataSize, mipLevel);
     }
     
 
@@ -503,7 +503,7 @@ public abstract class GPUDevice : IDisposable
     {
         fixed (TColor* ptr = data)
         {
-            WriteTexture(texture, (byte*)ptr, (uint)(sizeof(TColor) * data.Length), (uint)sizeof(TColor), mipLevel);
+            WriteTexture(texture, (byte*)ptr, (uint)(sizeof(TColor) * data.Length), mipLevel);
         }
     }
 
@@ -560,10 +560,10 @@ public abstract class GPUDevice : IDisposable
     protected abstract unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size);
 
     /// <exclude />
-    protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSize, uint mipLevel);
+    protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel);
 
     /// <exclude />
-    protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0);
+    protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0);
     public virtual void Dispose()
     {
 

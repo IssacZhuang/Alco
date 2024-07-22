@@ -45,7 +45,7 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer
     {
         try
         {
-            asset = _renderingSystem.CreateTexture2D(preprocessed.Memory.Pointer, (uint)preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height, RenderingSystem.GetPixelSize(preprocessed.Comp));
+            asset = _renderingSystem.CreateTexture2D(preprocessed.Memory.Pointer, (uint)preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height);
         }
         catch (Exception e)
         {
