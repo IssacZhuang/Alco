@@ -1,4 +1,4 @@
-namespace Vocore.Graphics;
+namespace Vocore.ShaderCompiler;
 
 public class ShaderCompilationException : Exception
 {

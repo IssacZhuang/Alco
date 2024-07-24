@@ -1,6 +1,6 @@
-using static Vocore.Graphics.UtilsInterop;
+using static Vocore.ShaderCompiler.UtilsInterop;
 
-namespace Vocore.Graphics;
+namespace Vocore.ShaderCompiler;
 
 internal unsafe struct Utf32StringArray: IDisposable
 {

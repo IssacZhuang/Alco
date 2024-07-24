@@ -24,7 +24,7 @@ public static class UtilsShaderRelfection
             Result result = API.CreateShaderModule((nuint)spirv.Length, ptr, &module);
             if (result != Result.Success)
             {
-                throw new ShaderCompilationException($"Failed to create shader module, result{result}");
+                throw new ShaderReflectionException($"Failed to create shader module, result{result}");
             }
         }
 

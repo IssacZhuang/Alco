@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Vocore.Graphics;
 using Vocore.Rendering;
+using Vocore.ShaderCompiler;
 
 namespace Vocore.Engine.Test;
 
@@ -24,7 +25,7 @@ public class TestShaderCompiler
                 ";
 
         // Act
-        ShaderPragma[] pragmas = ShaderCompiler.PreprocessText(shaderText, "test.hlsl").Pragmas;
+        ShaderPragma[] pragmas = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl").Pragmas;
 
         // Assert
         Assert.That(pragmas.Length, Is.EqualTo(3));
@@ -51,7 +52,7 @@ public class TestShaderCompiler
                 // More comments";
 
         // Act
-        ShaderPragma[] pragmas = ShaderCompiler.PreprocessText(shaderText, "test.hlsl").Pragmas;
+        ShaderPragma[] pragmas = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl").Pragmas;
 
         // Assert
         Assert.That(pragmas.Length, Is.EqualTo(0));
@@ -61,29 +62,29 @@ public class TestShaderCompiler
     public void TestValidationEntries()
     {
         string shaderText = @"";
-        ShaderPreproccessResult result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
-        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+        ShaderPreproccessResult result = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => Rendering.ShaderCompiler.ValidatePreprocessResult(result));
 
         shaderText = @"
         // no fragment entry
         #pragma EntryVertex vs_main
         ";
-        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
-        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+        result = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => Rendering.ShaderCompiler.ValidatePreprocessResult(result));
 
         shaderText = @"
         // no vertex entry
         #pragma EntryFragment fs_main
         ";
-        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
-        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+        result = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => Rendering.ShaderCompiler.ValidatePreprocessResult(result));
 
         shaderText = @"
         // correct
         #pragma EntryVertex vs_main
         #pragma EntryFragment fs_main";
-        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
-        Assert.DoesNotThrow(() => ShaderCompiler.ValidatePreprocessResult(result));
+        result = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.DoesNotThrow(() => Rendering.ShaderCompiler.ValidatePreprocessResult(result));
         Assert.That(result.Stages.IsGraphicsShader(), Is.True);
         Assert.That(result.Stages.IsComputeShader(), Is.False);
         Assert.That(result.EntryVertex, Is.EqualTo("vs_main"));
@@ -92,8 +93,8 @@ public class TestShaderCompiler
         shaderText = @"
         // correct
         #pragma EntryCompute cs_main";
-        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
-        Assert.DoesNotThrow(() => ShaderCompiler.ValidatePreprocessResult(result));
+        result = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.DoesNotThrow(() => Rendering.ShaderCompiler.ValidatePreprocessResult(result));
         Assert.That(result.Stages.IsGraphicsShader(), Is.False);
         Assert.That(result.Stages.IsComputeShader(), Is.True);
         Assert.That(result.EntryCompute, Is.EqualTo("cs_main"));
@@ -104,8 +105,8 @@ public class TestShaderCompiler
         #pragma EntryCompute cs_main
         #pragma EntryFragment fs_main
         ";
-        result = ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
-        Assert.Catch<ShaderValidationException>(() => ShaderCompiler.ValidatePreprocessResult(result));
+        result = Rendering.ShaderCompiler.PreprocessText(shaderText, "test.hlsl");
+        Assert.Catch<ShaderValidationException>(() => Rendering.ShaderCompiler.ValidatePreprocessResult(result));
     }
 
     [Test(Description = "Shader compilation")]
@@ -139,7 +140,7 @@ public class TestShaderCompiler
 
         ";
 
-        Assert.DoesNotThrow(() => ShaderCompiler.Compile(shaderText, "test.hlsl"));
+        Assert.DoesNotThrow(() => Rendering.ShaderCompiler.Compile(shaderText, "test.hlsl"));
     }
 
     [Test(Description = "Test Serialization")]
@@ -185,7 +186,7 @@ float4 fs_main(VertexOutput input) : SV_Target0 {
 }
 
         ";
-        ShaderCompileResult result = ShaderCompiler.Compile(shaderText, "test.hlsl");
+        ShaderCompileResult result = Rendering.ShaderCompiler.Compile(shaderText, "test.hlsl");
         byte[] data = UtilsShaderSerialization.EncodeCompileResult(result);
         ShaderCompileResult result2 = UtilsShaderSerialization.DecodeCompileResult(data);
         Assert.IsTrue(result2.IsGraphicsShader == result.IsGraphicsShader);

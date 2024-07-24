@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Vocore.Graphics;
 using Vocore.Engine;
+using Vocore.ShaderCompiler;
 
 public class Game : GameEngine
 {

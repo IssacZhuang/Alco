@@ -1,7 +1,8 @@
 using System.Text;
+using Vocore.Graphics;
 using Vortice.Dxc;
 
-namespace Vocore.Graphics;
+namespace Vocore.ShaderCompiler;
 
 public static class ShaderCompilerDxc
 {

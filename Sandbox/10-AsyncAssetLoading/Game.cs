@@ -4,6 +4,7 @@ using System.Text;
 using Vocore.Graphics;
 using Vocore.Engine;
 using Vocore.Rendering;
+using Vocore.ShaderCompiler;
 using Vocore;
 using Vocore.IO;
 

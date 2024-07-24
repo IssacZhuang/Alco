@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
     <ProjectReference Include="..\Vocore.Graphics\Vocore.Graphics.csproj" />
+    <ProjectReference Include="..\Vocore.ShaderCompiler\Vocore.ShaderCompiler.csproj" />
   </ItemGroup>
    <ItemGroup>
     <Content

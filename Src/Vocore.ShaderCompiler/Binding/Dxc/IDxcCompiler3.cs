@@ -5,7 +5,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using SharpGen.Runtime;
-using Vocore.Graphics;
+using Vocore.ShaderCompiler;
 
 namespace Vortice.Dxc;
 

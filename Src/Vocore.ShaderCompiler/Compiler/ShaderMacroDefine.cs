@@ -1,7 +1,7 @@
 using System.Text;
 using Vortice.Dxc;
 
-namespace Vocore.Graphics;
+namespace Vocore.ShaderCompiler;
 
 public struct ShaderMacroDefine
 {

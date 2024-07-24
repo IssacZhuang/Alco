@@ -1,4 +1,4 @@
-namespace Vocore.Graphics;
+namespace Vocore.ShaderCompiler;
 
 /// <summary>
 /// The result code of the DirectX Shader Compiler. 
