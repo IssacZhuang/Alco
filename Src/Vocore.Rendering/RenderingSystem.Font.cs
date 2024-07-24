@@ -32,7 +32,7 @@ public partial class RenderingSystem
     {
         fixed (byte* bitmapPtr = bitmap)
         {
-            Texture2D texture = CreateTexture2D(bitmapPtr, (uint)bitmap.Length, (uint)width, (uint)height, 1, ImageLoadOption.Default with
+            Texture2D texture = CreateTexture2D(bitmapPtr, (uint)bitmap.Length, (uint)width, (uint)height, ImageLoadOption.Default with
             {
                 Format = PixelFormat.R8Unorm,
                 Name = name

@@ -22,7 +22,6 @@ public partial class RenderingSystem
             (uint)image.Memory.Length,
             (uint)image.Width,
             (uint)image.Height,
-            GetPixelSize(targetComponents),
             option
         );
     }
@@ -40,7 +39,6 @@ public partial class RenderingSystem
             (uint)image.Memory.Length,
             (uint)image.Width,
             (uint)image.Height,
-            GetPixelSize(targetComponents),
             option
         );
     }
@@ -60,7 +58,6 @@ public partial class RenderingSystem
             (uint)sizeof(Color32) * width * height,
             width,
             height,
-            4,
             option
         );
         Free(data);
@@ -71,7 +68,6 @@ public partial class RenderingSystem
         byte[] data,
         uint width,
         uint height,
-        uint pixelSize = 4,
         ImageLoadOption? option = null
     )
     {
@@ -82,7 +78,6 @@ public partial class RenderingSystem
                 (uint)data.Length,
                 width,
                 height,
-                pixelSize,
                 option
             );
         }
@@ -93,7 +88,6 @@ public partial class RenderingSystem
         uint size,
         uint width,
         uint height,
-        uint pixelSize = 4,
         ImageLoadOption? option = null
     )
     {
@@ -116,8 +110,7 @@ public partial class RenderingSystem
         device.WriteTexture(
             texture,
             data,
-            size,
-            pixelSize
+            size
         );
 
         TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
@@ -137,21 +130,4 @@ public partial class RenderingSystem
         );
     }
 
-
-    public static uint GetPixelSize(ColorComponents components)
-    {
-        switch (components)
-        {
-            case ColorComponents.RedGreenBlueAlpha:
-                return 4;
-            case ColorComponents.RedGreenBlue:
-                return 3;
-            case ColorComponents.GreyAlpha:
-                return 2;
-            case ColorComponents.Grey:
-                return 1;
-            default:
-                throw new NotSupportedException("The color components is not supported");
-        }
-    }
 }

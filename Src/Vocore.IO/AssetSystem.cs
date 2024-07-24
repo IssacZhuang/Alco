@@ -619,7 +619,9 @@ namespace Vocore.IO
                     if (_recongizedExtensions.Contains(extension))
                     {
                         //Log.Info($"Add file entry: {file}");
-                        _fileEntries.Add(ParseEntry(file), fileSource);
+                        if(!_fileEntries.TryAdd(ParseEntry(file), fileSource)){
+                            Log.Warning($"File entry already added: {file}");
+                        }
                     }
                 }
             }

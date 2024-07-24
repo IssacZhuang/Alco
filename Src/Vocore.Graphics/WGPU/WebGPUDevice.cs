@@ -285,7 +285,7 @@ internal partial class WebGPUDevice : GPUDevice
         // GraphicsLogger.Info("release: " + stopwatch.ElapsedTicks);
     }
 
-    protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint pixelSzie, uint mipLevel)
+    protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
     {
         //todo: get pixel size by format
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
@@ -306,7 +306,7 @@ internal partial class WebGPUDevice : GPUDevice
         WGPUTextureDataLayout textureDataLayout = new WGPUTextureDataLayout
         {
             offset = 0,
-            bytesPerRow = pixelSzie * texture.Width,
+            bytesPerRow = UtilsWebGPU.GetTextureBytesPerRow(texture.PixelFormat, texture.Width, texture.Height),
             rowsPerImage = texture.Height,
         };
 
@@ -320,7 +320,7 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
     }
 
-    protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint pixelSize, uint mipLevel = 0)
+    protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         //todo: get pixel size by format
 
@@ -328,7 +328,7 @@ internal partial class WebGPUDevice : GPUDevice
 
         WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
         {
-            size = pixelSize * texture.Width * texture.Height * texture.Depth,
+            size = dataSize,
             usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
             mappedAtCreation = false,
         };
@@ -354,7 +354,7 @@ internal partial class WebGPUDevice : GPUDevice
             layout = new WGPUTextureDataLayout
             {
                 offset = 0,
-                bytesPerRow = pixelSize * texture.Width,
+                bytesPerRow = UtilsWebGPU.GetTextureBytesPerRow(texture.PixelFormat, texture.Width, texture.Height),
                 rowsPerImage = texture.Height,
             },
         };

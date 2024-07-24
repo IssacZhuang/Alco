@@ -33,7 +33,13 @@ public static class UtilsPixelFormat
         };
     }
 
-    public static uint GetPixelSize(PixelFormat format)
+    /// <summary>
+    /// Try get pixel size in bytes, return 
+    /// </summary>
+    /// <param name="format"></param>
+    /// <param name="size"></param>
+    /// <returns></returns>
+    public static bool TryGetPixelSize(PixelFormat format, out uint size)
     {
         //get the size of the pixel in bytes, throw exception if the format is compressed
         switch (format)
@@ -42,7 +48,8 @@ public static class UtilsPixelFormat
             case PixelFormat.R8Snorm:
             case PixelFormat.R8Uint:
             case PixelFormat.R8Sint:
-                return 1;
+                size= 1;
+                return true;
             case PixelFormat.R16Uint:
             case PixelFormat.R16Sint:
             case PixelFormat.R16Float:
@@ -50,7 +57,8 @@ public static class UtilsPixelFormat
             case PixelFormat.RG8Snorm:
             case PixelFormat.RG8Uint:
             case PixelFormat.RG8Sint:
-                return 2;
+                size = 2;
+                return true;
             case PixelFormat.R32Float:
             case PixelFormat.R32Uint:
             case PixelFormat.R32Sint:
@@ -68,32 +76,42 @@ public static class UtilsPixelFormat
             case PixelFormat.RGB10A2Unorm:
             case PixelFormat.RG11B10Ufloat:
             case PixelFormat.RGB9E5Ufloat:
-                return 4;
+                size = 4;
+                return true;
             case PixelFormat.RG32Float:
             case PixelFormat.RG32Uint:
             case PixelFormat.RG32Sint:
             case PixelFormat.RGBA16Uint:
             case PixelFormat.RGBA16Sint:
             case PixelFormat.RGBA16Float:
-                return 8;
+                size =  8;
+                return true;
             case PixelFormat.RGBA32Float:
             case PixelFormat.RGBA32Uint:
             case PixelFormat.RGBA32Sint:
-                return 16;
+                size =  16;
+                return true;
             case PixelFormat.Stencil8:
-                return 1;
+                size = 1;
+                return true;
             case PixelFormat.Depth16Unorm:
-                return 2;
+                size = 2;
+                return true;
             case PixelFormat.Depth24Plus:
-                return 3;
+                size = 3;
+                return true;
             case PixelFormat.Depth24PlusStencil8:
-                return 4;
+                size = 4;
+                return true;
             case PixelFormat.Depth32Float:
-                return 4;
+                size = 4;
+                return true;
             case PixelFormat.Depth32FloatStencil8:
-                return 5;
+                size = 5;
+                return true;
             default:
-                throw new Exception("Unsupported pixel format to get size");
+                size = 0;
+                return false;
         }
     }
 
