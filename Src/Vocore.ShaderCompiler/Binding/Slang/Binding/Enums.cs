@@ -47,6 +47,84 @@ public enum SlangTargetFlags : uint
     SLANG_TARGET_FLAG_GENERATE_SPIRV_DIRECTLY = 1 << 10,
 }
 
+[Flags]
+public enum SlangCompileFlags : int
+{
+    SLANG_COMPILE_FLAG_NO_MANGLING = 1 << 3,
+
+    SLANG_COMPILE_FLAG_NO_CODEGEN = 1 << 4,
+
+    SLANG_COMPILE_FLAG_OBFUSCATE = 1 << 5,
+
+    SLANG_COMPILE_FLAG_NO_CHECKING = 0,
+    SLANG_COMPILE_FLAG_SPLIT_MIXED_TYPES = 0,
+}
+
+public enum SlangFloatingPointMode : int
+{
+    SLANG_FLOATING_POINT_MODE_DEFAULT = 0,
+    SLANG_FLOATING_POINT_MODE_FAST,
+    SLANG_FLOATING_POINT_MODE_PRECISE,
+}
+
+public enum SlangDebugInfoLevel : uint
+{
+    SLANG_DEBUG_INFO_LEVEL_NONE = 0,
+    SLANG_DEBUG_INFO_LEVEL_MINIMAL,
+    SLANG_DEBUG_INFO_LEVEL_STANDARD,
+    SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
+}
+
+public enum SlangDebugInfoFormat : uint
+{
+    SLANG_DEBUG_INFO_FORMAT_DEFAULT,         // Use the default debugging format for the target 
+    SLANG_DEBUG_INFO_FORMAT_C7,              // CodeView C7 format (typically means debugging infomation is embedded in the binary)
+    SLANG_DEBUG_INFO_FORMAT_PDB,             // Program database
+
+    SLANG_DEBUG_INFO_FORMAT_STABS,          // Stabs
+    SLANG_DEBUG_INFO_FORMAT_COFF,           // COFF debug info
+    SLANG_DEBUG_INFO_FORMAT_DWARF,          // DWARF debug info (we may want to support specifying the version)
+
+    SLANG_DEBUG_INFO_FORMAT_COUNT_OF,
+}
+
+public enum SlangOptimizationLevel : uint
+{
+    SLANG_OPTIMIZATION_LEVEL_NONE = 0,  /** Don't optimize at all. */
+    SLANG_OPTIMIZATION_LEVEL_DEFAULT,   /** Default optimization level: balance code quality and compilation time. */
+    SLANG_OPTIMIZATION_LEVEL_HIGH,      /** Optimize aggressively. */
+    SLANG_OPTIMIZATION_LEVEL_MAXIMAL,   /** Include optimizations that may take a very long time, or may involve severe space-vs-speed tradeoffs */
+}
+
+public enum SlangPassThrough : int
+{
+    SLANG_PASS_THROUGH_NONE,
+    SLANG_PASS_THROUGH_FXC,
+    SLANG_PASS_THROUGH_DXC,
+    SLANG_PASS_THROUGH_GLSLANG,
+    SLANG_PASS_THROUGH_SPIRV_DIS,
+    SLANG_PASS_THROUGH_CLANG,                   // Clang C/C++ compiler 
+    SLANG_PASS_THROUGH_VISUAL_STUDIO,           // Visual studio C/C++ compiler
+    SLANG_PASS_THROUGH_GCC,                     // GCC C/C++ compiler
+    SLANG_PASS_THROUGH_GENERIC_C_CPP,           // Generic C or C++ compiler, which is decided by the source type
+    SLANG_PASS_THROUGH_NVRTC,                   // NVRTC Cuda compiler
+    SLANG_PASS_THROUGH_LLVM,                    // LLVM 'compiler' - includes LLVM and Clang
+    SLANG_PASS_THROUGH_SPIRV_OPT,               // SPIRV-opt
+    SLANG_PASS_THROUGH_COUNT_OF,
+}
+
+public enum SlangContainerFormat : int
+{
+    SLANG_CONTAINER_FORMAT_NONE,
+    SLANG_CONTAINER_FORMAT_SLANG_MODULE,
+}
+
+public enum SlangDiagnosticFlags : int
+{
+    SLANG_DIAGNOSTIC_FLAG_VERBOSE_PATHS = 0x01,
+    SLANG_DIAGNOSTIC_FLAG_TREAT_WARNINGS_AS_ERRORS = 0x02
+}
+
 public enum SlangSourceLanguage : int
 {
     SLANG_SOURCE_LANGUAGE_UNKNOWN,
