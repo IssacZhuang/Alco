@@ -1,9 +1,13 @@
 using System.Runtime.InteropServices;
 
+using static SlangSharp.Slang;
+
 namespace SlangSharp;
 
 public class SlangCompileRequest : IDisposable
 {
+
+
     public nint Handle { get; }
 
     public SlangCompileRequest(SlangSession session)
@@ -13,37 +17,37 @@ public class SlangCompileRequest : IDisposable
 
     public void SetCodeGenTarget(SlangCompileTarget target)
     {
-        Slang.spSetCodeGenTarget(Handle, target);
+        spSetCodeGenTarget(Handle, target);
     }
 
     public void SetMatrixLayoutMode(SlangMatrixLayoutMode mode)
     {
-        Slang.spSetMatrixLayoutMode(Handle, mode);
+        spSetMatrixLayoutMode(Handle, mode);
     }
 
     public void SetTargetFlags(int targetIndex, SlangTargetFlags flags)
     {
-        Slang.spSetTargetFlags(Handle, targetIndex, flags);
+        spSetTargetFlags(Handle, targetIndex, flags);
     }
 
     public void SetTargetLineDirectiveMode(int targetIndex, SlangLineDirectiveMode mode)
     {
-        Slang.spSetTargetLineDirectiveMode(Handle, targetIndex, mode);
+        spSetTargetLineDirectiveMode(Handle, targetIndex, mode);
     }
 
     public int AddTranslationUnit(SlangSourceLanguage language, string name)
     {
-        return Slang.spAddTranslationUnit(Handle, language, name);
+        return spAddTranslationUnit(Handle, language, name);
     }
 
     public void AddTranslationUnitSourceFile(int translationUnitIndex, string path)
     {
-        Slang.spAddTranslationUnitSourceFile(Handle, translationUnitIndex, path);
+        spAddTranslationUnitSourceFile(Handle, translationUnitIndex, path);
     }
 
     public void AddTranslationUnitSourceString(int translationUnitIndex, string path, string source)
     {
-        Slang.spAddTranslationUnitSourceString(Handle, translationUnitIndex, path, source);
+        spAddTranslationUnitSourceString(Handle, translationUnitIndex, path, source);
     }
 
     public void AddEntryPoint(int translationUnitIndex, string name, SlangStage stage)
@@ -57,17 +61,17 @@ public class SlangCompileRequest : IDisposable
 
     public void AddSearchPath(string searchDir)
     {
-        Slang.spAddSearchPath(Handle, searchDir);
+        spAddSearchPath(Handle, searchDir);
     }
 
     public void AddPreprocessorDefine(string key, string val)
     {
-        Slang.spAddPreprocessorDefine(Handle, key, val);
+        spAddPreprocessorDefine(Handle, key, val);
     }
 
     public void ProcessCommandLineArguments(string[] args)
     {
-        SlangResult result = Slang.spProcessCommandLineArguments(Handle, args, args.Length);
+        SlangResult result = spProcessCommandLineArguments(Handle, args, args.Length);
         if (result.IsError)
         {
             throw new SlangException($"Failed to process command line arguments. {result}");
@@ -76,25 +80,25 @@ public class SlangCompileRequest : IDisposable
 
     public string Compile()
     {
-        SlangResult result = Slang.spCompile(Handle);
+        SlangResult result = spCompile(Handle);
         if (result.IsError)
         {
-            throw new SlangException($"Failed to compile. {result}");
+            throw new SlangException($"Failed to compile. {result}, \nMessgae:\n {GetDiagnosticOutput()}");
         }
 
-        IntPtr ptrStr = Slang.spGetCompileRequestCode(Handle, out nuint size);
+        IntPtr ptrStr = spGetCompileRequestCode(Handle, out nuint size);
         return UtilsSlangInterop.GetString(ptrStr, size);
     }
 
     public void Dispose()
     {
-        Slang.spDestroyCompileRequest(Handle);
+        spDestroyCompileRequest(Handle); 
     }
 
-    [UnmanagedCallersOnly]
-    private static void SlangDiagnosticCallback(IntPtr message, IntPtr userData)
+    private string GetDiagnosticOutput()
     {
-
+        IntPtr messgae = spGetDiagnosticOutput(Handle);
+        return UtilsSlangInterop.GetString(messgae);
     }
 }
 

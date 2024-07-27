@@ -12,7 +12,7 @@ public class TestSlang
     [Test(Description = "Test slang")]
     public void Test()
     {
-        var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "test_vertex.slang");
+        var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "shader.slang");
         var code = File.ReadAllText(path);
 
         SlangSession session = new();
@@ -22,6 +22,6 @@ public class TestSlang
         request.AddTranslationUnitSourceString(translationUnitIndex, path, code);
 
         string translatedCode = request.Compile();
-        TestContext.WriteLine(translatedCode);
+        TestContext.WriteLine("Code:\n" + translatedCode);
     }
 }

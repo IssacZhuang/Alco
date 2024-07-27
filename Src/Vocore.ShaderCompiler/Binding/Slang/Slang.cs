@@ -72,4 +72,9 @@ public static partial class Slang
 
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern void spDestroySession(IntPtr session);
+
+    internal static void spSetDiagnosticCallback(nint handle, Action<nint, nint> value, nint v)
+    {
+        throw new NotImplementedException();
+    }
 }
