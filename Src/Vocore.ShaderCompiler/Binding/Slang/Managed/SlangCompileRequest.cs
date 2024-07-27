@@ -78,7 +78,7 @@ public class SlangCompileRequest : IDisposable
         }
     }
 
-    public string Compile()
+    public byte[] Compile()
     {
         SlangResult result = spCompile(Handle);
         if (result.IsError)
@@ -87,7 +87,7 @@ public class SlangCompileRequest : IDisposable
         }
 
         IntPtr ptrStr = spGetCompileRequestCode(Handle, out nuint size);
-        return UtilsSlangInterop.GetString(ptrStr, size);
+        return UtilsSlangInterop.GetData(ptrStr, size);
     }
 
     public void Dispose()

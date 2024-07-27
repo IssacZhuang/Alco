@@ -17,11 +17,13 @@ public class TestSlang
 
         SlangSession session = new();
         SlangCompileRequest request = session.CreateCompileRequest();
-        request.SetCodeGenTarget(SlangCompileTarget.SLANG_HLSL);
+        request.SetCodeGenTarget(SlangCompileTarget.SLANG_SPIRV);
         int translationUnitIndex = request.AddTranslationUnit(SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
         request.AddTranslationUnitSourceString(translationUnitIndex, path, code);
 
-        string translatedCode = request.Compile();
-        TestContext.WriteLine("Code:\n" + translatedCode);
+        byte[] spirv = request.Compile();
+
+        var reflection =  UtilsShaderRelfection.GetSpirvReflection(spirv);
+        TestContext.WriteLine(reflection.ToString());
     }
 }

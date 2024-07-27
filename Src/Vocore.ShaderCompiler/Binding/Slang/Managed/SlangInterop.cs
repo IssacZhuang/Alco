@@ -25,4 +25,19 @@ internal unsafe static class UtilsSlangInterop
 
         return Encoding.UTF8.GetString(buffer, (int)size);
     }
+
+    public static byte[] GetData(IntPtr ptr, nuint size)
+    {
+        if (ptr == IntPtr.Zero)
+        {
+            return Array.Empty<byte>();
+        }
+
+        byte* buffer = (byte*)ptr;
+
+        byte[] data = new byte[size];
+        Marshal.Copy(ptr, data, 0, (int)size);
+
+        return data;
+    }
 }
