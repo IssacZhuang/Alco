@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using SlangSharp;
 
-internal unsafe static class UtilsSlangInterop
+public unsafe static class UtilsSlangInterop
 {
     public static string GetString(IntPtr ptr)
     {

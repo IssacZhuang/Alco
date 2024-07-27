@@ -15,10 +15,14 @@ public readonly struct SlangResult
     public static implicit operator SlangResult(int code) => new SlangResult(code);
     public static implicit operator int(SlangResult result) => result.Code;
 
+
     public override string ToString()
     {
         return $"Slang result code: {Code}";
     }
+
 }
+
+
 
 

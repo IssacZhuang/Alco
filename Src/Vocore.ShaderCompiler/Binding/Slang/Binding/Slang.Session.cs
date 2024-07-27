@@ -13,7 +13,7 @@ public static partial class Slang
     // SLANG_API void spDestroySession(
     //     SlangSession* session);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern void spDestroySession(IntPtr session);
+    public static extern void spDestroySession(SlangSession session);
 
     // SLANG_API void spSessionSetSharedLibraryLoader(
     //     SlangSession* session,
@@ -28,21 +28,21 @@ public static partial class Slang
     //     SlangSession* session,
     //     SlangCompileTarget target);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern SlangResult spSessionCheckCompileTargetSupport(IntPtr session, SlangCompileTarget target);
+    public static extern SlangResult spSessionCheckCompileTargetSupport(SlangSession session, SlangCompileTarget target);
 
     // SLANG_API SlangResult spSessionCheckPassThroughSupport(
     //     SlangSession*       session,
     //     SlangPassThrough    passThrough
     // );
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern SlangResult spSessionCheckPassThroughSupport(IntPtr session, SlangPassThrough passThrough);
+    public static extern SlangResult spSessionCheckPassThroughSupport(SlangSession session, SlangPassThrough passThrough);
 
     // SLANG_API void spAddBuiltins(
     //     SlangSession* session,
     //     char const* sourcePath,
     //     char const* sourceString);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern void spAddBuiltins(IntPtr session, [MarshalAs(UnmanagedType.LPStr)] string sourcePath, [MarshalAs(UnmanagedType.LPStr)] string sourceString);
+    public static extern void spAddBuiltins(SlangSession session, [MarshalAs(UnmanagedType.LPStr)] string sourcePath, [MarshalAs(UnmanagedType.LPStr)] string sourceString);
 
     // SLANG_API SlangProfileID spFindProfile(
     //     SlangSession* session,
