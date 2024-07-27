@@ -53,3 +53,57 @@ public readonly partial struct SlangCompileRequest
     /// <inheritdoc/>
     public override int GetHashCode() => Handle.GetHashCode();
 }
+
+public readonly partial struct SlangReflection
+{
+    public static readonly SlangReflection Null = IntPtr.Zero;
+    public readonly IntPtr Handle;
+
+    public bool IsNull => Handle == IntPtr.Zero;
+    public bool IsNotNull => Handle != IntPtr.Zero;
+
+
+    public SlangReflection(IntPtr handle)
+    {
+        Handle = handle;
+    }
+
+    public static implicit operator SlangReflection(IntPtr handle) => new SlangReflection(handle);
+
+    public static bool operator ==(SlangReflection left, SlangReflection right) => left.Handle == right.Handle;
+    public static bool operator !=(SlangReflection left, SlangReflection right) => left.Handle != right.Handle;
+    public static bool operator ==(SlangReflection left, nint right) => left.Handle == right;
+    public static bool operator !=(SlangReflection left, nint right) => left.Handle != right;
+    public bool Equals(SlangReflection other) => Handle == other.Handle;
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is SlangReflection handle && Equals(handle);
+    /// <inheritdoc/>
+    public override int GetHashCode() => Handle.GetHashCode();
+}
+
+public readonly partial struct SlangReflectionEntryPoint
+{
+    public static readonly SlangReflectionEntryPoint Null = IntPtr.Zero;
+    public readonly IntPtr Handle;
+
+    public bool IsNull => Handle == IntPtr.Zero;
+    public bool IsNotNull => Handle != IntPtr.Zero;
+
+
+    public SlangReflectionEntryPoint(IntPtr handle)
+    {
+        Handle = handle;
+    }
+
+    public static implicit operator SlangReflectionEntryPoint(IntPtr handle) => new SlangReflectionEntryPoint(handle);
+
+    public static bool operator ==(SlangReflectionEntryPoint left, SlangReflectionEntryPoint right) => left.Handle == right.Handle;
+    public static bool operator !=(SlangReflectionEntryPoint left, SlangReflectionEntryPoint right) => left.Handle != right.Handle;
+    public static bool operator ==(SlangReflectionEntryPoint left, nint right) => left.Handle == right;
+    public static bool operator !=(SlangReflectionEntryPoint left, nint right) => left.Handle != right;
+    public bool Equals(SlangReflectionEntryPoint other) => Handle == other.Handle;
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is SlangReflectionEntryPoint handle && Equals(handle);
+    /// <inheritdoc/>
+    public override int GetHashCode() => Handle.GetHashCode();
+}

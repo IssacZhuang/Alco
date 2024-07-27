@@ -28,9 +28,8 @@ public static class UtilsShaderRelfection
             }
         }
 
+        
 
-
-        //TODO: implement reflection info
         ShaderReflectionInfo info = new ShaderReflectionInfo
         {
             BindGroups = GetBindgGroupLayouts(module),

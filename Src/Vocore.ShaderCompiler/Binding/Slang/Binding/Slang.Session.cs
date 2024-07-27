@@ -7,7 +7,7 @@ public static partial class Slang
 
     // SLANG_API SlangSession* spCreateSession(const char* deprecated = 0);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spCreateSession([MarshalAs(UnmanagedType.LPStr)] string lpString);
+    public static extern SlangSession spCreateSession([MarshalAs(UnmanagedType.LPStr)] string lpString);
 
 
     // SLANG_API void spDestroySession(

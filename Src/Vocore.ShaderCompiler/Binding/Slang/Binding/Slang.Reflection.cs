@@ -6,18 +6,19 @@ public static partial class Slang
 {
 
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spGetReflection(IntPtr request);
+    public static extern SlangReflection spGetReflection(SlangCompileRequest request);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern uint spReflection_getEntryPointCount(IntPtr reflection);
+    public static extern uint spReflection_getEntryPointCount(SlangReflection request);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spReflection_getEntryPointByIndex(IntPtr reflection, uint index);
+    public static extern SlangReflectionEntryPoint spReflection_getEntryPointByIndex(SlangReflection request, uint index);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spReflection_findEntryPointByName(IntPtr reflection, [MarshalAs(UnmanagedType.LPStr)] string name);
+    public static extern SlangReflectionEntryPoint spReflection_findEntryPointByName(SlangReflection request, [MarshalAs(UnmanagedType.LPStr)] string name);
+
 
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern SlangStage spReflectionEntryPoint_getStage(IntPtr entryPoint);
+    public static extern SlangStage spReflectionEntryPoint_getStage(SlangReflectionEntryPoint entryPoint);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spReflectionEntryPoint_getName(IntPtr entryPoint);
+    public static extern IntPtr spReflectionEntryPoint_getName(SlangReflectionEntryPoint entryPoint);
 
 
 }

@@ -8,7 +8,7 @@ public static partial class Slang
     // SLANG_API SlangCompileRequest* spCreateCompileRequest(
     //     SlangSession* session);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spCreateCompileRequest(SlangSession session);
+    public static extern SlangCompileRequest spCreateCompileRequest(SlangSession session);
 
     // SLANG_API void spDestroyCompileRequest(
     //     SlangCompileRequest* request);
@@ -396,6 +396,12 @@ public static partial class Slang
     // SLANG_API void spSetDiagnosticFlags(SlangCompileRequest* request, SlangDiagnosticFlags flags);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern void spSetDiagnosticFlags(SlangCompileRequest request, SlangDiagnosticFlags flags);
+
+    // SLANG_API char const* spGetTranslationUnitSource(
+    // SlangCompileRequest * request,
+    // int                     translationUnitIndex);
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern IntPtr spGetTranslationUnitSource(SlangCompileRequest request, int translationUnitIndex);
 
 
     public delegate void SlangDiagnosticCallback(IntPtr message, IntPtr userData);

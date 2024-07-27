@@ -26,7 +26,7 @@ public unsafe static class UtilsSlangInterop
         return Encoding.UTF8.GetString(buffer, (int)size);
     }
 
-    public static byte[] GetData(IntPtr ptr, nuint size)
+    public static byte[] GetBytes(IntPtr ptr, nuint size)
     {
         if (ptr == IntPtr.Zero)
         {

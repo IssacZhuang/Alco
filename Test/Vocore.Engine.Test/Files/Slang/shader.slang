@@ -56,11 +56,11 @@ VertexOutput vertexMain(
 
 // Fragment Shader
 
-// [shader("fragment")]
-// float4 fragmentMain(
-//     CoarseVertex coarseVertex : CoarseVertex) : SV_Target
-// {
-//     float3 color = coarseVertex.color;
+[shader("fragment")]
+float4 fragmentMain(
+    CoarseVertex coarseVertex : CoarseVertex) : SV_Target
+{
+    float3 color = coarseVertex.color;
 
-//     return float4(color, 1.0);
-// }
+    return float4(color, 1.0);
+}
