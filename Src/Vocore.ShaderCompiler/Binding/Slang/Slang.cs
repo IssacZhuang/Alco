@@ -4,6 +4,7 @@ namespace SlangSharp;
 
 public static partial class Slang
 {
+
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern IntPtr spCreateCompileRequest(IntPtr session);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -23,21 +24,21 @@ public static partial class Slang
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern void spAddTranslationUnitSourceString(IntPtr request, int translationUnitIndex, [MarshalAs(UnmanagedType.LPStr)] string path, [MarshalAs(UnmanagedType.LPStr)] string source);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern int spAddEntryPoint(IntPtr request, int translationUnitIndex, [MarshalAs(UnmanagedType.LPStr)] string name, SlangStage stage);
+    public static extern SlangResult spAddEntryPoint(IntPtr request, int translationUnitIndex, [MarshalAs(UnmanagedType.LPStr)] string name, SlangStage stage);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern void spAddSearchPath(IntPtr request, [MarshalAs(UnmanagedType.LPStr)] string searchDir);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern void spAddPreprocessorDefine(IntPtr request, [MarshalAs(UnmanagedType.LPStr)] string key, [MarshalAs(UnmanagedType.LPStr)] string val);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern int spProcessCommandLineArguments(IntPtr request, [In] string[] args, int argCount);
+    public static extern SlangResult spProcessCommandLineArguments(IntPtr request, [In] string[] args, int argCount);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern int spCompile(IntPtr request);
+    public static extern SlangResult spCompile(IntPtr request);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern IntPtr spGetCompileRequestCode(IntPtr request, [Out] out nuint size);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern IntPtr spGetDiagnosticOutput(IntPtr request);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern int spGetDependencyFileCount(IntPtr request);
+    public static extern SlangResult spGetDependencyFileCount(IntPtr request);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern IntPtr spGetDependencyFilePath(IntPtr request, int index);
     [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
