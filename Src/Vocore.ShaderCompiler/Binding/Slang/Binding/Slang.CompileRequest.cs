@@ -50,31 +50,7 @@ public static partial class Slang
 
 
 
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spGetReflection(IntPtr request);
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern uint spReflection_getEntryPointCount(IntPtr reflection);
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spReflection_getEntryPointByIndex(IntPtr reflection, uint index);
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spReflection_findEntryPointByName(IntPtr reflection, [MarshalAs(UnmanagedType.LPStr)] string name);
 
 
 
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern SlangStage spReflectionEntryPoint_getStage(IntPtr entryPoint);
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spReflectionEntryPoint_getName(IntPtr entryPoint);
-
-
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern IntPtr spCreateSession([MarshalAs(UnmanagedType.LPStr)] string lpString);
-
-    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    public static extern void spDestroySession(IntPtr session);
-
-    internal static void spSetDiagnosticCallback(nint handle, Action<nint, nint> value, nint v)
-    {
-        throw new NotImplementedException();
-    }
 }
