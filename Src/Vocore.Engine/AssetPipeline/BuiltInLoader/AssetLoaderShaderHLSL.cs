@@ -29,7 +29,7 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
     protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
     {
         //compile to spirv and get reflection info
-        preprocessed = Rendering.ShaderCompiler.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+        preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         return true;
     }
 

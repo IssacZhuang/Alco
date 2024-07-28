@@ -57,9 +57,10 @@ public class TestSlang
 
         SlangResult result = spCompile(request);
 
+        TestContext.WriteLine(request.GetDiagnosticString());
         if (result.IsError)
         {
-            TestContext.WriteLine(request.GetDiagnosticString());
+            
             Assert.Fail("Failed to compile");
         }
 

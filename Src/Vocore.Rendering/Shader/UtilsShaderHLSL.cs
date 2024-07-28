@@ -5,7 +5,7 @@ using Vocore.ShaderCompiler;
 
 namespace Vocore.Rendering;
 
-public static class ShaderCompiler
+public static class UtilsShaderHLSL
 {
     /// <summary>
     /// Represents the key for the "#pragma" directive.
