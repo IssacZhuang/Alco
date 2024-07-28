@@ -19,15 +19,15 @@ public class ShaderCompileResult
             return ComputeShader.HasValue;
         }
     }
-    public ShaderStageSource? VertexShader { get; }
-    public ShaderStageSource? FragmentShader { get; }
-    public ShaderStageSource? ComputeShader { get; }
+    public ShaderModule? VertexShader { get; }
+    public ShaderModule? FragmentShader { get; }
+    public ShaderModule? ComputeShader { get; }
     public ShaderPreproccessResult PreproccessResult { get; }
     public ShaderReflectionInfo ReflectionInfo { get; }
 
-    internal ShaderCompileResult(ShaderStageSource? vertex,
-        ShaderStageSource? fragment,
-        ShaderStageSource? compute,
+    internal ShaderCompileResult(ShaderModule? vertex,
+        ShaderModule? fragment,
+        ShaderModule? compute,
         ShaderPreproccessResult preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
@@ -38,15 +38,15 @@ public class ShaderCompileResult
         ReflectionInfo = reflectionInfo;
     }
 
-    public static ShaderCompileResult CreateGraphics(ShaderStageSource vertex,
-        ShaderStageSource fragment,
+    public static ShaderCompileResult CreateGraphics(ShaderModule vertex,
+        ShaderModule fragment,
         ShaderPreproccessResult preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
     }
 
-    public static ShaderCompileResult CreateCompute(ShaderStageSource compute,
+    public static ShaderCompileResult CreateCompute(ShaderModule compute,
         ShaderPreproccessResult preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {

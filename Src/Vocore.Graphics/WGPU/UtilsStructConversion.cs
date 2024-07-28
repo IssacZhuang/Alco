@@ -126,7 +126,7 @@ internal static partial class UtilsWebGPU
         return wgpuInstanceCreateSurface(instance, &descriptor);
     }
 
-    public unsafe static WGPUShaderModule CreateShaderModule(this WGPUDevice device, in ShaderStageSource source)
+    public unsafe static WGPUShaderModule CreateShaderModule(this WGPUDevice device, in ShaderModule source)
     {
         WGPUShaderModuleDescriptor shaderDesc = new()
         {

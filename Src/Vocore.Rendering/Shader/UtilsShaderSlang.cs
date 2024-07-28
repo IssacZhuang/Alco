@@ -7,6 +7,6 @@ namespace Vocore.Rendering;
 
 public static class UtilsShaderSlang
 {
-
+    
 
 }

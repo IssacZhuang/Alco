@@ -150,8 +150,8 @@ public class Game : GameEngine
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroupBuffer, GPUBindGroup bindGroupTexture)
     {
         byte[] ShaderCode = LoadFile("DrawTexture.wgsl");
-        ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
-        ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "fs_main");
+        ShaderModule vertexShader = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
+        ShaderModule fragmentShader = new ShaderModule(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "fs_main");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
@@ -171,7 +171,7 @@ public class Game : GameEngine
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
-            new ShaderStageSource[] { vertexShader, fragmentShader },
+            new ShaderModule[] { vertexShader, fragmentShader },
             new VertexInputLayout[] { vertexLayout },
             rasterizer,
             blend,
@@ -190,7 +190,7 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
 
         //dxc
-        ShaderStageSource computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         //shaderc hlsl
         //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");

@@ -114,8 +114,8 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
 
         //dxc
-        ShaderStageSource vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        ShaderStageSource fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         //shaderc hlsl
         // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
@@ -157,7 +157,7 @@ public class Game : GameEngine
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
-            new ShaderStageSource[] { vertexShader, fragmentShader },
+            new ShaderModule[] { vertexShader, fragmentShader },
             new VertexInputLayout[] { vertexLayout },
             rasterizer,
             blend,

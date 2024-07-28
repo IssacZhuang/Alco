@@ -3,7 +3,7 @@ namespace Vocore.Graphics
     public struct ComputePipelineDescriptor
     {
         public ComputePipelineDescriptor(
-            ShaderStageSource computeShader,
+            ShaderModule computeShader,
             GPUBindGroup[] bindGroups,
             string name = "unnamed_compute_pipeline")
         {
@@ -12,7 +12,7 @@ namespace Vocore.Graphics
             Source = computeShader;
         }
 
-        public ShaderStageSource Source { get; init; }
+        public ShaderModule Source { get; init; }
         public GPUBindGroup[] BindGroups { get; init; }
         public string Name { get; init; } = "unnamed_compute_pipeline";
 

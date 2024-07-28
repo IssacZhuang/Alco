@@ -25,8 +25,8 @@ public partial class RenderingSystem
             {
                 bindGroups[i] = device.CreateBindGroup(info.BindGroups[i].ToDescriptor());
             }
-            ShaderStageSource vertex = result.VertexShader!.Value;
-            ShaderStageSource fragment = result.FragmentShader!.Value;
+            ShaderModule vertex = result.VertexShader!.Value;
+            ShaderModule fragment = result.FragmentShader!.Value;
 
             RasterizerState rasterizer = result.PreproccessResult.RasterizerState!.Value;
             BlendState blend = result.PreproccessResult.BlendState!.Value;
@@ -40,7 +40,7 @@ public partial class RenderingSystem
 
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,
-                new ShaderStageSource[] { vertex, fragment },
+                new ShaderModule[] { vertex, fragment },
                 info.VertexLayouts,
                 rasterizer,
                 blend,
@@ -67,7 +67,7 @@ public partial class RenderingSystem
             {
                 bindGroups[i] = device.CreateBindGroup(info.BindGroups[i].ToDescriptor());
             }
-            ShaderStageSource compute = result.ComputeShader!.Value;
+            ShaderModule compute = result.ComputeShader!.Value;
 
             ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
                 compute,

@@ -2,10 +2,10 @@ namespace Vocore.Graphics;
 
 public static class UtilsDescriptor
 {
-    public static bool IsGraphicsShader(this ShaderStageSource[] stages, out ShaderStageSource vertex, out ShaderStageSource pixel)
+    public static bool IsGraphicsShader(this ShaderModule[] stages, out ShaderModule vertex, out ShaderModule pixel)
     {
-        vertex = ShaderStageSource.Empty;
-        pixel = ShaderStageSource.Empty;
+        vertex = ShaderModule.Empty;
+        pixel = ShaderModule.Empty;
         for (int i = 0; i < stages.Length; i++)
         {
             if (stages[i].Stage.HasFlag(ShaderStage.Vertex))
@@ -22,9 +22,9 @@ public static class UtilsDescriptor
         return vertex.Stage != ShaderStage.None && pixel.Stage != ShaderStage.None;
     }
 
-    public static bool IsComputeShader(this ShaderStageSource[] stages, out ShaderStageSource compute)
+    public static bool IsComputeShader(this ShaderModule[] stages, out ShaderModule compute)
     {
-        compute = ShaderStageSource.Empty;
+        compute = ShaderModule.Empty;
         for (int i = 0; i < stages.Length; i++)
         {
             if (stages[i].Stage.HasFlag(ShaderStage.Compute))

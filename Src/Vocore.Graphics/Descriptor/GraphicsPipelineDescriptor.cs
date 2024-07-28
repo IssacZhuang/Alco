@@ -4,7 +4,7 @@ public struct GraphicsPipelineDescriptor
 {
     public GraphicsPipelineDescriptor(
         GPUBindGroup[] bindGroups,
-        ShaderStageSource[] shaderStages,
+        ShaderModule[] shaderStages,
         VertexInputLayout[] vertexInputLayouts,
         RasterizerState rasterizerState,
         BlendState blendState,
@@ -29,7 +29,7 @@ public struct GraphicsPipelineDescriptor
 
     public GraphicsPipelineDescriptor(
         GPUBindGroup[] bindGroups,
-        ShaderStageSource[] shaderStages,
+        ShaderModule[] shaderStages,
         VertexInputLayout[] vertexInputLayouts,
         RasterizerState rasterizerState,
         BlendState blendState,
@@ -55,7 +55,7 @@ public struct GraphicsPipelineDescriptor
     }
 
     public GPUBindGroup[] BindGroups { get; init; }
-    public ShaderStageSource[] ShaderStages { get; init; }
+    public ShaderModule[] ShaderStages { get; init; }
     public VertexInputLayout[] VertexInputLayouts { get; init; }
     public RasterizerState RasterizerState { get; init; } = RasterizerState.CullNone;
     public PrimitiveTopology PrimitiveTopology { get; init; } = PrimitiveTopology.TriangleList;

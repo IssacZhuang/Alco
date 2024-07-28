@@ -53,7 +53,7 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         // === Create shader modules ===============================
 
 
-        if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderStageSource vertex, out ShaderStageSource pixel))
+        if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderModule vertex, out ShaderModule pixel))
         {
             throw new GraphicsException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
         }

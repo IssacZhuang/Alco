@@ -6,6 +6,10 @@
 // use any of the new language features supported by Slang.
 //
 
+#pragma BlendState AlphaBlend
+#pragma DepthStencilState Read
+
+
 // Uniform data to be passed from application -> shader.
 cbuffer Uniforms
 {
@@ -18,6 +22,7 @@ struct VertexInput
     float3	position : POSITION;
     float3	color    : COLOR;
 };
+
 
 // Output of the vertex shader, and input to the fragment shader.
 struct CoarseVertex
@@ -38,6 +43,7 @@ struct VertexOutput
     CoarseVertex    coarseVertex    : CoarseVertex;
     float4          sv_position     : SV_Position;
 };
+
 
 [shader("vertex")]
 VertexOutput vertexMain(

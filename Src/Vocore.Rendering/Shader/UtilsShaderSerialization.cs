@@ -27,9 +27,9 @@ public static class UtilsShaderSerialization
            table.TryGetBinary("PreproccessResult", out byte[]? preproccessResultTable) &&
            table.TryGetBinary("ReflectionInfo", out byte[]? reflectionInfoTable))
         {
-            ShaderStageSource? vertexShader = DecodeStageSource(vertexShaderBytes);
-            ShaderStageSource? fragmentShader = DecodeStageSource(fragmentShaderBytes);
-            ShaderStageSource? computeShader = DecodeStageSource(computeShaderBytes);
+            ShaderModule? vertexShader = DecodeStageSource(vertexShaderBytes);
+            ShaderModule? fragmentShader = DecodeStageSource(fragmentShaderBytes);
+            ShaderModule? computeShader = DecodeStageSource(computeShaderBytes);
             ShaderPreproccessResult preproccessResult = DecodePreproccessResult(preproccessResultTable);
             ShaderReflectionInfo reflectionInfo = DecodeReflectionInfo(reflectionInfoTable);
 
@@ -114,7 +114,7 @@ public static class UtilsShaderSerialization
     }
 
     // shader stage source
-    public static byte[] EncodeStageSource(ShaderStageSource? source)
+    public static byte[] EncodeStageSource(ShaderModule? source)
     {
         if (source.HasValue)
         {
@@ -123,7 +123,7 @@ public static class UtilsShaderSerialization
         return Array.Empty<byte>();
     }
 
-    public static byte[] EncodeStageSource(ShaderStageSource source)
+    public static byte[] EncodeStageSource(ShaderModule source)
     {
         BinaryTable table = new BinaryTable
         {
@@ -136,7 +136,7 @@ public static class UtilsShaderSerialization
         return BinaryParser.EncodeTable(table);
     }
 
-    public static ShaderStageSource? DecodeStageSource(byte[] bytes)
+    public static ShaderModule? DecodeStageSource(byte[] bytes)
     {
         if (bytes.Length <= 0)
         {
@@ -149,7 +149,7 @@ public static class UtilsShaderSerialization
             table.TryGetBinary("Source", out byte[]? source) &&
             table.TryGetString("EntryPoint", out string? entryPoint))
         {
-            ShaderStageSource result = new ShaderStageSource
+            ShaderModule result = new ShaderModule
             {
                 Stage = (ShaderStage)stage,
                 Language = (ShaderLanguage)language,
