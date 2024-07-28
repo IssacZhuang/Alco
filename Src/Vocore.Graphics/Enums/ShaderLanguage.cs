@@ -5,6 +5,7 @@ namespace Vocore.Graphics
         Undefined,
         // supported
         HLSL,
+        SLANG,
         SPIRV,
         WGSL,
         // curently not supported

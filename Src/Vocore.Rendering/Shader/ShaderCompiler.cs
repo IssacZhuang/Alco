@@ -28,8 +28,6 @@ public static class ShaderCompiler
     public const string PragmaKeyPrimitiveTopology = "PrimitiveTopology";
     public const int MaxRecursionDepth = 32;
 
-    public static readonly byte[] SpirvHeader = new byte[] { 0x03, 0x02, 0x23, 0x07 };
-
     public static ShaderCompileResult Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         ShaderPreproccessResult preproccessed = PreprocessText(shaderText, filename, includeResolver);
@@ -63,23 +61,6 @@ public static class ShaderCompiler
         return PreprocessText(shaderText, filename, includeResolver, 0);
     }
 
-    public static bool HasSpirvHeader(byte[] data)
-    {
-        if (data.Length < SpirvHeader.Length)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < SpirvHeader.Length; i++)
-        {
-            if (data[i] != SpirvHeader[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     private static ShaderPreproccessResult PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver, int depth)
     {
