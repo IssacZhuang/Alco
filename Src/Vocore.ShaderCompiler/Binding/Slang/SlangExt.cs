@@ -14,9 +14,19 @@ public readonly partial struct SlangCompileRequest
         return UtilsSlangInterop.GetString(Slang.spGetCompileRequestCode(Handle, out nuint size), size);
     }
 
+    public string GetCodeByEntryPointIndex(int entryPointIndex)
+    {
+        return UtilsSlangInterop.GetString(Slang.spGetEntryPointCode(Handle, entryPointIndex, out nuint size), size);
+    }
+
     public byte[] GetBytes()
     {
         return UtilsSlangInterop.GetBytes(Slang.spGetCompileRequestCode(Handle, out nuint size), size);
+    }
+
+    public byte[] GetBytesByEntryPointIndex(int entryPointIndex)
+    {
+        return UtilsSlangInterop.GetBytes(Slang.spGetEntryPointCode(Handle, entryPointIndex, out nuint size), size);
     }
 }
 

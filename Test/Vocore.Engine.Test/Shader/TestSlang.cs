@@ -69,71 +69,35 @@ public class TestSlang
 
         var entryCount = spReflection_getEntryPointCount(reflection);
 
-        string vertexName = "";
+        int vertexIndex = 0;
+        int fragmentIndex = 0;
         for (uint i = 0; i < entryCount; i++)
         {
             SlangReflectionEntryPoint entry = spReflection_getEntryPointByIndex(reflection, i);
             if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_VERTEX)
             {
-                vertexName = entry.GetName();
-                TestContext.WriteLine($"Vertex name: {vertexName}");
+                vertexIndex = (int)i;
+                TestContext.WriteLine($"Vertex name: {entry.GetName()}");
             }
-        }
-
-        //get fragment name
-        string fragmentName = "";
-        for (uint i = 0; i < entryCount; i++)
-        {
-            SlangReflectionEntryPoint entry = spReflection_getEntryPointByIndex(reflection, i);
-            if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_FRAGMENT)
+            else if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_FRAGMENT)
             {
-                fragmentName = entry.GetName();
-                TestContext.WriteLine($"Fragment name: {fragmentName}");
+                fragmentIndex = (int)i;
+                TestContext.WriteLine($"Fragment name:\n{entry.GetName()}");
             }
         }
 
-        spDestroyCompileRequest(request);
+        
 
-        SlangCompileRequest requestVertex = spCreateCompileRequest(session);
+        byte[] vertexSpirv = request.GetBytesByEntryPointIndex(vertexIndex);
 
-        spSetCodeGenTarget(requestVertex, SlangCompileTarget.SLANG_SPIRV);
-        translationUnitIndex = spAddTranslationUnit(requestVertex, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
-        spAddTranslationUnitSourceString(requestVertex, translationUnitIndex, path, code);
-        //compile vertex to spirv
-        spAddEntryPoint(requestVertex, translationUnitIndex, vertexName, SlangStage.SLANG_STAGE_VERTEX);
+        var vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexSpirv);
 
-        result = spCompile(requestVertex);
-        if (result.IsError)
-        {
-            TestContext.WriteLine(request.GetDiagnosticString());
-            Assert.Fail("Failed to compile vertex");
-        }
-
-        byte[] vertexSpirv = requestVertex.GetBytes();
-        ShaderReflectionInfo vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexSpirv);
         TestContext.WriteLine($"Vertex reflection:\n{vertexReflection}");
-        //Todo: check reflection
-        spDestroyCompileRequest(requestVertex);
 
-        SlangCompileRequest requestFragment = spCreateCompileRequest(session);
+        byte[] fragmentSpirv = request.GetBytesByEntryPointIndex(fragmentIndex);
 
-        spSetCodeGenTarget(requestFragment, SlangCompileTarget.SLANG_SPIRV);
-        translationUnitIndex = spAddTranslationUnit(requestFragment, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
-        spAddTranslationUnitSourceString(requestFragment, translationUnitIndex, path, code);
+        var fragmentReflection = UtilsShaderRelfection.GetSpirvReflection(fragmentSpirv);
 
-        //compile fragment to spirv
-        spAddEntryPoint(requestFragment, translationUnitIndex, fragmentName, SlangStage.SLANG_STAGE_FRAGMENT);
-
-        result = spCompile(requestFragment);
-        if (result.IsError)
-        {
-            TestContext.WriteLine(request.GetDiagnosticString());
-            Assert.Fail("Failed to compile fragment");
-        }
-
-        byte[] fragmentSpirv = requestFragment.GetBytes();
-        ShaderReflectionInfo fragmentReflection = UtilsShaderRelfection.GetSpirvReflection(fragmentSpirv);
-        TestContext.WriteLine($"Fragment reflection:\n{fragmentReflection}");
-
+        TestContext.WriteLine($"Fragment reflection: {fragmentReflection}");
     }
 }
