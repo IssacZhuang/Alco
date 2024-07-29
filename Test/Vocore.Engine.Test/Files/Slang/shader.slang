@@ -1,3 +1,5 @@
+import library.lib;
+
 //shaders.slang
 
 //
@@ -6,14 +8,22 @@
 // use any of the new language features supported by Slang.
 //
 
+#define DEFINE_BUFFER(set) [[vk_binding(0, set)]] cbuffer
+
 #pragma BlendState AlphaBlend
 #pragma DepthStencilState Read
 
-
 // Uniform data to be passed from application -> shader.
-cbuffer Uniforms
+[[vk_binding(0, 0)]]
+cbuffer UniformsVertex
 {
     float4x4 modelViewProjection;
+}
+
+
+DEFINE_BUFFER(1) UniformsFragment
+{
+    float4 inputColor;
 }
 
 // Per-vertex attributes to be assembled from bound vertex buffers.
@@ -54,7 +64,7 @@ VertexOutput vertexMain(
     float3 position = vertexInput.position;
     float3 color    = vertexInput.color;
 
-    output.coarseVertex.color = color;
+    output.coarseVertex.color = color * inputColor.xyz;
     output.sv_position = mul(modelViewProjection, float4(position, 1.0));
 
     return output;
@@ -67,6 +77,6 @@ float4 fragmentMain(
     CoarseVertex coarseVertex : CoarseVertex) : SV_Target
 {
     float3 color = coarseVertex.color;
-
-    return float4(color, 1.0);
+    float grayscale = grayscale(color);
+    return float4(grayscale, grayscale, grayscale, 1.0) * inputColor;
 }

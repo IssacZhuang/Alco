@@ -54,7 +54,6 @@ public class TestSlang
 
         int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
         spAddTranslationUnitSourceString(request, translationUnitIndex, path, code);
-
         SlangResult result = spCompile(request);
 
         TestContext.WriteLine(request.GetDiagnosticString());
