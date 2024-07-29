@@ -3,21 +3,26 @@ using Vocore.Graphics;
 using SlangSharp;
 
 using static SlangSharp.Slang;
+using System.Runtime.InteropServices;
 
 namespace Vocore.ShaderCompiler;
 
 public static class ShaderCompilerSlang
 {
+    private readonly static SlangSession _session = spCreateSession("slang_compile_session");
+
     public static ShaderModule CrearteSpirvShaderSource(string slangCode, ShaderStage stage, string filename = "unnamed_shader.hlsl", ShaderMacroDefine[]? defines = null)
     {
-        byte[] spirv = ConvetHlslToSpirv(slangCode, filename, stage, defines, out string entry);
+        byte[] spirv = CompilelToSpirv(slangCode, filename, stage, defines, out string entry);
         return new ShaderModule(stage, ShaderLanguage.SPIRV, spirv, entry);
     }
 
-    public static byte[] ConvetHlslToSpirv(string slangCode, string filename, ShaderStage stage, ShaderMacroDefine[]? defines, out string entryName)
+    public static byte[] CompilelToSpirv(string slangCode, string filename, ShaderStage stage, ShaderMacroDefine[]? defines, out string entryName)
     {
-        SlangSession session = spCreateSession("slang_compile_session");
-        SlangCompileRequest request = spCreateCompileRequest(session);
+        //SlangSession session = spCreateSession("slang_compile_session");
+        //SlangCompileRequest request = spCreateCompileRequest(session);
+
+        SlangCompileRequest request = spCreateCompileRequest(_session);
 
         spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
         int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, filename);
@@ -64,9 +69,39 @@ public static class ShaderCompilerSlang
         byte[] spirv = request.GetBytesByEntryPointIndex(entryIndex);
 
         spDestroyCompileRequest(request);
-        spDestroySession(session);
+        //spDestroySession(session);
 
         return spirv;
+    }
+
+    public static byte[] CompileToSharedLibrary(string slangCode, string filename, ShaderMacroDefine[]? defines)
+    {
+        SlangCompileRequest request = spCreateCompileRequest(_session);
+        spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SHADER_SHARED_LIBRARY);
+        int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, filename);
+        spAddTranslationUnitSourceString(request, translationUnitIndex, filename, slangCode);
+
+        if (defines != null)
+        {
+            for (int i = 0; i < defines.Length; i++)
+            {
+                spAddPreprocessorDefine(request, defines[i].name, defines[i].value);
+            }
+        }
+
+        SlangResult result = spCompile(request);
+        if (result.IsError)
+        {
+            throw new ShaderCompilationException(request.GetDiagnosticString());
+        }
+
+        IntPtr ptr = spGetCompileRequestCode(request, out nuint size);
+        byte[] data = new byte[size];
+        Marshal.Copy(ptr, data, 0, (int)size);
+
+        spDestroyCompileRequest(request);
+
+        return data;
     }
 
     private static ShaderStage ConvertShaderStage(SlangStage stage)
