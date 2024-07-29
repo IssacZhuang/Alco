@@ -30,7 +30,7 @@ public static class UtilsShaderSerialization
             ShaderModule? vertexShader = DecodeStageSource(vertexShaderBytes);
             ShaderModule? fragmentShader = DecodeStageSource(fragmentShaderBytes);
             ShaderModule? computeShader = DecodeStageSource(computeShaderBytes);
-            ShaderPreproccessResult preproccessResult = DecodePreproccessResult(preproccessResultTable);
+            ShaderPreproccessResultHLSL preproccessResult = DecodePreproccessResult(preproccessResultTable);
             ShaderReflectionInfo reflectionInfo = DecodeReflectionInfo(reflectionInfoTable);
 
             return new ShaderCompileResult(vertexShader, fragmentShader, computeShader, preproccessResult, reflectionInfo);
@@ -42,7 +42,7 @@ public static class UtilsShaderSerialization
 
     // shader preproccess result
 
-    public static byte[] EncodePreproccessResult(ShaderPreproccessResult result)
+    public static byte[] EncodePreproccessResult(ShaderPreproccessResultHLSL result)
     {
         BinaryArray binaryPragmas = new BinaryArray();
         for (int i = 0; i < result.Pragmas.Length; i++)
@@ -67,7 +67,7 @@ public static class UtilsShaderSerialization
         return BinaryParser.EncodeTable(table);
     }
 
-    public static ShaderPreproccessResult DecodePreproccessResult(byte[] bytes)
+    public static ShaderPreproccessResultHLSL DecodePreproccessResult(byte[] bytes)
     {
         BinaryTable table = BinaryParser.DecodeTable(bytes);
         if (table.TryGetString("ShaderText", out string? shaderText) &&
@@ -92,7 +92,7 @@ public static class UtilsShaderSerialization
                 }
             }
 
-            ShaderPreproccessResult result = new ShaderPreproccessResult
+            ShaderPreproccessResultHLSL result = new ShaderPreproccessResultHLSL
             {
                 ShaderText = shaderText,
                 Filename = filename,

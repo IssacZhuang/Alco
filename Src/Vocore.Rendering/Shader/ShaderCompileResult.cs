@@ -22,13 +22,13 @@ public class ShaderCompileResult
     public ShaderModule? VertexShader { get; }
     public ShaderModule? FragmentShader { get; }
     public ShaderModule? ComputeShader { get; }
-    public ShaderPreproccessResult PreproccessResult { get; }
+    public ShaderPreproccessResultHLSL PreproccessResult { get; }
     public ShaderReflectionInfo ReflectionInfo { get; }
 
     internal ShaderCompileResult(ShaderModule? vertex,
         ShaderModule? fragment,
         ShaderModule? compute,
-        ShaderPreproccessResult preproccessResult,
+        ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         VertexShader = vertex;
@@ -40,14 +40,14 @@ public class ShaderCompileResult
 
     public static ShaderCompileResult CreateGraphics(ShaderModule vertex,
         ShaderModule fragment,
-        ShaderPreproccessResult preproccessResult,
+        ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
     }
 
     public static ShaderCompileResult CreateCompute(ShaderModule compute,
-        ShaderPreproccessResult preproccessResult,
+        ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);

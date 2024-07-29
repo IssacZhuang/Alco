@@ -2,7 +2,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public struct ShaderPreproccessResult
+public struct ShaderPreproccessResultHLSL
 {
 
     // common
@@ -22,4 +22,16 @@ public struct ShaderPreproccessResult
     public PrimitiveTopology? PrimitiveTopology { get; set; }
     // compute
     public string EntryCompute { get; set; }
+}
+
+
+public struct ShaderPreproccessResultSlang
+{
+    public string ShaderText { get; set; }
+    public string Filename { get; set; }
+    public ShaderPragma[] Pragmas { get; set; }
+    public RasterizerState? RasterizerState { get; set; }
+    public BlendState? BlendState { get; set; }
+    public DepthStencilState? DepthStencilState { get; set; }
+    public PrimitiveTopology? PrimitiveTopology { get; set; }
 }

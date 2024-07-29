@@ -7,6 +7,62 @@ namespace Vocore.Rendering;
 
 public static class UtilsShaderSlang
 {
-    
+    public static ShaderPreproccessResultSlang PreprocessSlang(string code, string filename)
+    {
+        ShaderPreproccessResultSlang result = new ShaderPreproccessResultSlang()
+        {
+            ShaderText = code,
+            Filename = filename,
+        };
+
+        ShaderPragma[] pragmas = UtilsShaderText.GetPragmas(code);
+        result.Pragmas = pragmas;
+
+        for(int i = 0; i < pragmas.Length; i++)
+        {
+            ShaderPragma pragma = pragmas[i];
+            if (UtilsShaderText.TryGetBlendState(pragma, out BlendState blendState))
+            {
+                result.BlendState = blendState;
+            }
+
+            if (UtilsShaderText.TryGetRasterizerState(pragma, out RasterizerState rasterizerState))
+            {
+                result.RasterizerState = rasterizerState;
+            }
+
+            if (UtilsShaderText.TryGetDepthStencilState(pragma, out DepthStencilState depthStencilState))
+            {
+                result.DepthStencilState = depthStencilState;
+            }
+
+            if (UtilsShaderText.TryGetPrimitiveTopology(pragma, out PrimitiveTopology? primitiveTopology))
+            {
+                result.PrimitiveTopology = primitiveTopology;
+            }
+        }
+
+        if (!result.RasterizerState.HasValue)
+        {
+            result.RasterizerState = RasterizerState.CullNone;
+        }
+
+        if (!result.DepthStencilState.HasValue)
+        {
+            result.DepthStencilState = DepthStencilState.Default;
+        }
+
+        if (!result.BlendState.HasValue)
+        {
+            result.BlendState = BlendState.Opaque;
+        }
+
+        if (!result.PrimitiveTopology.HasValue)
+        {
+            result.PrimitiveTopology = PrimitiveTopology.TriangleList;
+        }
+
+        return result;
+    }
 
 }
