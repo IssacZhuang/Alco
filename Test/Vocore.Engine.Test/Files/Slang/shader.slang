@@ -1,4 +1,4 @@
-import library.lib;
+import lib;
 
 //shaders.slang
 

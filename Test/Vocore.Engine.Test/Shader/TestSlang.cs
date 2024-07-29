@@ -20,8 +20,9 @@ public class TestSlang
 
         SlangSession session = spCreateSession("test_session");
         SlangCompileRequest request = spCreateCompileRequest(session);
-
-        spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
+    
+        int targetIndex = spAddCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
+        spSetTargetFlags(request, targetIndex, SlangTargetFlags.SLANG_TARGET_FLAG_GENERATE_SPIRV_DIRECTLY);
 
         int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
         spAddTranslationUnitSourceString(request, translationUnitIndex, path, code);
@@ -112,25 +113,8 @@ public class TestSlang
     {
         SlangSession session = spCreateSession("test_session");
 
-        var pathLibrary = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "library/lib.slang");
+        var pathLibrary = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "lib.slang");
         var codeLibrary = File.ReadAllText(pathLibrary);
-
-        SlangCompileRequest requestLibrary = spCreateCompileRequest(session);
-        spSetCodeGenTarget(requestLibrary, SlangCompileTarget.SLANG_SHADER_SHARED_LIBRARY);
-        int translationUnitIndexLibrary = spAddTranslationUnit(requestLibrary, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "lib.slang");
-        spAddTranslationUnitSourceString(requestLibrary, translationUnitIndexLibrary, "lib.slang", codeLibrary);
-        SlangResult resultLibrary = spCompile(requestLibrary);
-
-        if (resultLibrary.IsError)
-        {
-            Assert.Fail("Failed to compile library");
-        }
-
-        //error: pointer zero
-        IntPtr ptrLibrary = spGetCompileRequestCode(requestLibrary, out nuint sizeLibrary);
-
-        TestContext.WriteLine(ptrLibrary);
-
 
         var pathShader = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "shader.slang");
         var codeShader = File.ReadAllText(pathShader);
@@ -145,14 +129,8 @@ public class TestSlang
 
         int translationUnitIndex = spAddTranslationUnit(requestShader, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
         //use a fake path to avoid comppiler find the library by it path
+        spAddTranslationUnitSourceString(requestShader, translationUnitIndex, "lib", codeLibrary);
         spAddTranslationUnitSourceString(requestShader, translationUnitIndex, "test.slang", codeShader);
-        
-        SlangResult resultAddLib = spAddLibraryReference(requestShader, "library/lib.slang", ptrLibrary, sizeLibrary);
-
-        if (resultAddLib.IsError)
-        {
-            Assert.Fail("Failed to add library reference");
-        }
 
         SlangResult result = spCompile(requestShader);
 
