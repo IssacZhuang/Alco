@@ -2,6 +2,8 @@
 
 public readonly struct SlangResult
 {
+    public static readonly SlangResult Ok = new SlangResult(0);
+
     public readonly int Code;
 
     public SlangResult(int code)

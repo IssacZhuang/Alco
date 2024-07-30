@@ -1,9 +1,12 @@
+using System.Runtime.CompilerServices;
+
 namespace SlangSharp;
 
 public unsafe struct ISlangBlob
 {
     public VTable* Vtbl;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void* GetBufferPointer()
     {
         fixed (ISlangBlob* pThis = &this)
@@ -12,6 +15,7 @@ public unsafe struct ISlangBlob
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public nuint GetBufferSize()
     {
         fixed (ISlangBlob* pThis = &this)
@@ -36,6 +40,7 @@ public unsafe struct ISlangFileSystem
 {
     public VTable* Vtbl;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public SlangResult LoadFile(byte* path, out ISlangBlob* outBlob)
     {
         fixed (ISlangFileSystem* pThis = &this)
