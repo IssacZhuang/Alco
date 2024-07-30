@@ -23,6 +23,22 @@ public readonly struct SlangResult
 
 }
 
+// struct SlangUUID
+// {
+//     uint32_t data1;
+//     uint16_t data2;
+//     uint16_t data3;
+//     uint8_t data4[8];
+// };
+
+public unsafe struct SlangUUID
+{
+    public uint data1;
+    public ushort data2;
+    public ushort data3;
+    public fixed byte data4[8];
+}
+
 
 
 

@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace SlangSharp;
 
-public static partial class Slang
+public unsafe static partial class Slang
 {
 
     // SLANG_API SlangCompileRequest* spCreateCompileRequest(
@@ -18,7 +18,8 @@ public static partial class Slang
     // SLANG_API void spSetFileSystem(
     //     SlangCompileRequest* request,
     //     ISlangFileSystem* fileSystem);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern void spSetFileSystem(SlangCompileRequest request, ISlangFileSystem* fileSystem);
 
     // SLANG_API void spSetCompileFlags(
     //     SlangCompileRequest* request,
@@ -243,7 +244,8 @@ public static partial class Slang
     //     int translationUnitIndex,
     //     char const* path,
     //     ISlangBlob*             sourceBlob);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern void spAddTranslationUnitSourceBlob(SlangCompileRequest request, int translationUnitIndex, [MarshalAs(UnmanagedType.LPStr)] string path, ISlangBlob* sourceBlob);
 
     // SLANG_API int spAddEntryPoint(
     //     SlangCompileRequest* request,
@@ -332,7 +334,8 @@ public static partial class Slang
     //     int entryPointIndex,
     //     int targetIndex,
     //     ISlangBlob** outBlob);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangResult spGetEntryPointCodeBlob(SlangCompileRequest request, int entryPointIndex, int targetIndex, ISlangBlob** outBlob);
 
     // SLANG_API SlangResult spGetEntryPointHostCallable(
     //     SlangCompileRequest* request,
@@ -345,7 +348,8 @@ public static partial class Slang
     //     SlangCompileRequest* request,
     //     int targetIndex,
     //     ISlangBlob** outBlob);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangResult spGetTargetCodeBlob(SlangCompileRequest request, int targetIndex, ISlangBlob** outBlob);
 
     // SLANG_API SlangResult spGetTargetHostCallable(
     //     SlangCompileRequest* request,
@@ -362,24 +366,28 @@ public static partial class Slang
     // SLANG_API SlangResult spGetContainerCode(
     //     SlangCompileRequest* request,
     //     ISlangBlob** outBlob);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangResult spGetContainerCode(SlangCompileRequest request, ISlangBlob** outBlob);
 
     // SLANG_API SlangResult spLoadRepro(
     //     SlangCompileRequest* request,
     //     ISlangFileSystem* fileSystem,
     //     const void* data,
     //     size_t size);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangResult spLoadRepro(SlangCompileRequest request, ISlangFileSystem* fileSystem, IntPtr data, nuint size);
 
     // SLANG_API SlangResult spSaveRepro(
     //     SlangCompileRequest* request,
     //     ISlangBlob** outBlob
     // );
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangResult spSaveRepro(SlangCompileRequest request, ISlangBlob** outBlob);
 
     // SLANG_API SlangResult spEnableReproCapture(
     //     SlangCompileRequest* request);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangResult spEnableReproCapture(SlangCompileRequest request);
 
 
     // SLANG_API void spOverrideDiagnosticSeverity(
