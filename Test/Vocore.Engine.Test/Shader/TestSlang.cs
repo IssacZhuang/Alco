@@ -109,38 +109,44 @@ public class TestSlang
     }
 
     [Test(Description = "Test slang add library reference")]
-    public void TestLibraryReference()
+    public unsafe void TestLibraryReference()
     {
+
+        TestFileSystem system = new TestFileSystem(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang"));
+        SlangFileSystem slangFileSystem = new SlangFileSystem(system);
+
         SlangSession session = spCreateSession("test_session");
 
-        var pathLibrary = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "lib.slang");
-        var codeLibrary = File.ReadAllText(pathLibrary);
+        // var pathLibrary = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "lib.slang");
+        // var codeLibrary = File.ReadAllText(pathLibrary);
 
         var pathShader = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "shader.slang");
         var codeShader = File.ReadAllText(pathShader);
 
+        SlangCompileRequest request = spCreateCompileRequest(session);
+        spSetFileSystem(request, (ISlangFileSystem*)&slangFileSystem);
 
-        SlangCompileRequest requestShader = spCreateCompileRequest(session);
-
-        spSetCodeGenTarget(requestShader, SlangCompileTarget.SLANG_SPIRV);
+        spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
 
         //add library reference manually
-        
 
-        int translationUnitIndex = spAddTranslationUnit(requestShader, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
+
+        int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
+
+
         //use a fake path to avoid comppiler find the library by it path
-        spAddTranslationUnitSourceString(requestShader, translationUnitIndex, "lib", codeLibrary);
-        spAddTranslationUnitSourceString(requestShader, translationUnitIndex, "test.slang", codeShader);
+        //spAddTranslationUnitSourceString(request, translationUnitIndex, "lib", codeLibrary);
+        spAddTranslationUnitSourceString(request, translationUnitIndex, "test.slang", codeShader);
 
-        SlangResult result = spCompile(requestShader);
+        SlangResult result = spCompile(request);
 
-        TestContext.WriteLine(requestShader.GetDiagnosticString());
+        TestContext.WriteLine(request.GetDiagnosticString());
         if (result.IsError)
         {
             Assert.Fail("Failed to compile");
         }
 
-        SlangReflection reflection = spGetReflection(requestShader);
+        SlangReflection reflection = spGetReflection(request);
 
         //get vertex name
 
@@ -169,5 +175,31 @@ public class TestSlang
         Assert.That(fragmentIndex, Is.EqualTo(1));
 
 
+    }
+
+    private class TestFileSystem : ISlangFileSystemManaged
+    {
+        private string _basePath;
+
+        public TestFileSystem(string basePath)
+        {
+            _basePath = basePath;
+        }
+
+        public bool TryLoadFile(string filename, out byte[] data)
+        {
+            TestContext.WriteLine($"Try load file: {filename}");
+            var path = Path.Combine(_basePath, filename);
+            if (File.Exists(path))
+            {
+                data = File.ReadAllBytes(path);
+                return true;
+            }
+            else
+            {
+                data = Array.Empty<byte>();
+                return false;
+            }
+        }
     }
 }

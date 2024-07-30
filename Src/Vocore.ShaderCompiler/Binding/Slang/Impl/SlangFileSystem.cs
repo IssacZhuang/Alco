@@ -38,6 +38,7 @@ public unsafe struct SlangFileSystem : IDisposable
             QueryInterface = &ImplQueryInterface,
             AddRef = &ImplAddRef,
             Release = &ImplRelease,
+            CastAs = &ImplCastAs,
             LoadFile = &ImplLoadFile
         };
         return vtable;
@@ -62,13 +63,28 @@ public unsafe struct SlangFileSystem : IDisposable
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    public static void* ImplCastAs(ISlangFileSystem* pThis, SlangUUID* guid)
+    {
+        SlangUUID uuid = *guid;
+        if(uuid == ISlangUnknown.UUID
+        || uuid == ISlangCastable.UUID
+        || uuid == ISlangFileSystem.UUID)
+        {
+            return pThis;
+        }
+        
+        return null;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     public static SlangResult ImplLoadFile(ISlangFileSystem* pThis, byte* path, ISlangBlob** outBlob)
     {
         SlangFileSystem* p = (SlangFileSystem*)pThis;
         ISlangFileSystemManaged fileSystem = (ISlangFileSystemManaged)p->_handle.Target!;
-        string filename = GetString(path);
+        string filename = GetStringUtf8(path);
         if (fileSystem.TryLoadFile(filename, out byte[] data))
         {
+            //memory leak here
             SlangBlob* blob = Alloc<SlangBlob>(1);
             *blob = new SlangBlob(data);
             *outBlob = (ISlangBlob*)blob;

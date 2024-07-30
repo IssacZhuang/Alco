@@ -2,8 +2,74 @@ using System.Runtime.CompilerServices;
 
 namespace SlangSharp;
 
+public unsafe struct ISlangUnknown
+{
+    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+    public VTable* Vtbl;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public SlangResult QueryInterface(SlangUUID* uuid, void** outObject)
+    {
+        fixed (ISlangUnknown* pThis = &this)
+        {
+            return Vtbl->QueryInterface(pThis, uuid, outObject);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public uint AddRef()
+    {
+        fixed (ISlangUnknown* pThis = &this)
+        {
+            return Vtbl->AddRef(pThis);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public uint Release()
+    {
+        fixed (ISlangUnknown* pThis = &this)
+        {
+            return Vtbl->Release(pThis);
+        }
+    }
+
+    public struct VTable
+    {
+        public delegate* unmanaged[Stdcall]<ISlangUnknown*, SlangUUID*, void**, SlangResult> QueryInterface;
+        public delegate* unmanaged[Stdcall]<ISlangUnknown*, uint> AddRef;
+        public delegate* unmanaged[Stdcall]<ISlangUnknown*, uint> Release;
+    }
+}
+
+public unsafe struct ISlangCastable
+{
+    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x87ede0e1, 0x4852, 0x44b0, 0x8b, 0xf2, 0xcb, 0x31, 0x87, 0x4d, 0xe2, 0x39);
+    public VTable* Vtbl;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void* CastAs(SlangUUID* guid)
+    {
+        fixed (ISlangCastable* pThis = &this)
+        {
+            return Vtbl->CastAs(pThis, guid);
+        }
+    }
+
+    public struct VTable
+    {
+        //ISlangUnknown
+        public delegate* unmanaged[Stdcall]<ISlangCastable*, SlangUUID*, void**, SlangResult> QueryInterface;
+        public delegate* unmanaged[Stdcall]<ISlangCastable*, uint> AddRef;
+        public delegate* unmanaged[Stdcall]<ISlangCastable*, uint> Release;
+        //ISlangCastable
+        public delegate* unmanaged[Stdcall]<ISlangCastable*, SlangUUID*, void*> CastAs;
+    }
+}
+
 public unsafe struct ISlangBlob
 {
+    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x8BA5FB08, 0x5195, 0x40e2, 0xAC, 0x58, 0x0D, 0x98, 0x9C, 0x3A, 0x01, 0x02);
     public VTable* Vtbl;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -38,6 +104,7 @@ public unsafe struct ISlangBlob
 
 public unsafe struct ISlangFileSystem
 {
+    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x003A09FC, 0x3A4D, 0x4BA0, 0xAD, 0x60, 0x1F, 0xD8, 0x63, 0xA9, 0x15, 0xAB);
     public VTable* Vtbl;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -60,6 +127,8 @@ public unsafe struct ISlangFileSystem
         public delegate* unmanaged[Stdcall]<ISlangFileSystem*, SlangUUID*, void**, SlangResult> QueryInterface;
         public delegate* unmanaged[Stdcall]<ISlangFileSystem*, uint> AddRef;
         public delegate* unmanaged[Stdcall]<ISlangFileSystem*, uint> Release;
+        //ISlangCastable
+        public delegate* unmanaged[Stdcall]<ISlangFileSystem*, SlangUUID*, void*> CastAs;
         //ISlangFileSystem
         public delegate* unmanaged[Stdcall]<ISlangFileSystem*, byte*, ISlangBlob**, SlangResult> LoadFile;
     }
@@ -80,6 +149,16 @@ public unsafe struct ISlangFileSystem
 //         SlangResult QueryInterface(struct _GUID const& uuid, void** outObject) { return queryInterface(*(SlangUUID const*)&uuid, outObject); }
 // uint32_t AddRef() { return addRef(); }
 // uint32_t Release() { return release(); }
+//     };
+
+// class ISlangCastable : public ISlangUnknown
+//     {
+//         SLANG_COM_INTERFACE(0x87ede0e1, 0x4852, 0x44b0, { 0x8b, 0xf2, 0xcb, 0x31, 0x87, 0x4d, 0xe2, 0x39 });
+
+//             /// Can be used to cast to interfaces without reference counting. 
+//             /// Also provides access to internal implementations, when they provide a guid
+//             /// Can simulate a 'generated' interface as long as kept in scope by cast from. 
+//         virtual SLANG_NO_THROW void* SLANG_MCALL castAs(const SlangUUID& guid) = 0;
 //     };
 
 // struct ISlangFileSystem : public ISlangCastable

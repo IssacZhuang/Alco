@@ -8,7 +8,7 @@ public readonly partial struct SlangCompileRequest
 {
     public string GetDiagnosticString()
     {
-        return UtilsSlangInterop.GetString(spGetDiagnosticOutput(Handle));
+        return UtilsSlangInterop.GetStringAnsi(spGetDiagnosticOutput(Handle));
     }
 
     public string GetCode()
@@ -53,6 +53,6 @@ public readonly partial struct SlangReflectionEntryPoint
             throw new InvalidOperationException("The reflection entry point is null.");
         }
 
-        return UtilsSlangInterop.GetString(Slang.spReflectionEntryPoint_getName(this));
+        return UtilsSlangInterop.GetStringAnsi(Slang.spReflectionEntryPoint_getName(this));
     }
 }

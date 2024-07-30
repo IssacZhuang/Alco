@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Silk.NET.Core.Native;
 using SlangSharp;
 
 namespace SlangSharp;
@@ -34,17 +35,24 @@ internal unsafe static class UtilsSlangInterop
         }
     }
 
-    public static string GetString(void* ptr)
+
+    public static string GetStringUtf8(void* ptr)
     {
-        if (ptr == null)
+        Span<byte> span = new Span<byte>(ptr, int.MaxValue);
+        span = span.Slice(0, span.IndexOf<byte>(0));
+        if (span.Length == 0)
         {
             return string.Empty;
         }
 
-        return Marshal.PtrToStringAnsi((IntPtr)ptr)!;
+        fixed (byte* bytes = span)
+        {
+            return Encoding.UTF8.GetString(bytes, span.Length);
+        }
     }
 
-    public static string GetString(IntPtr ptr)
+
+    public static string GetStringAnsi(IntPtr ptr)
     {
         if (ptr == IntPtr.Zero)
         {
