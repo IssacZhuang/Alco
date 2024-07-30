@@ -6,14 +6,7 @@ namespace SlangSharp;
 
 public readonly unsafe struct SlangBlob : IDisposable
 {
-    private static readonly ISlangBlob.VTable _vtable = new()
-    {
-        QueryInterface = &ImplQueryInterface,
-        AddRef = &ImplAddRef,
-        Release = &ImplRelease,
-        GetBufferPointer = &ImplGetBufferPointer,
-        GetBufferSize = &ImplGetBufferSize,
-    };
+    private static readonly ISlangBlob.VTable* _vtable = AllocVtable();
     private readonly ISlangBlob _base;
 
     private readonly void* _data;
@@ -27,11 +20,29 @@ public readonly unsafe struct SlangBlob : IDisposable
             _size = (nuint)data.Length;
             Copy(ptr, _data, _size, _size);
         }
+
+        _base = new ISlangBlob
+        {
+            Vtbl = _vtable
+        };
     }
 
     public void Dispose()
     {
         Free(_data);
+    }
+
+    public static ISlangBlob.VTable* AllocVtable(){
+        ISlangBlob.VTable* vtable = Alloc<ISlangBlob.VTable>(1);
+        *vtable = new ISlangBlob.VTable
+        {
+            QueryInterface = &ImplQueryInterface,
+            AddRef = &ImplAddRef,
+            Release = &ImplRelease,
+            GetBufferPointer = &ImplGetBufferPointer,
+            GetBufferSize = &ImplGetBufferSize
+        };
+        return vtable;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
@@ -53,13 +64,13 @@ public readonly unsafe struct SlangBlob : IDisposable
     }
     
 
-    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void* ImplGetBufferPointer(ISlangBlob* pThis)
     {
         return ((SlangBlob*)pThis)->_data;
     }
 
-    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static nuint ImplGetBufferSize(ISlangBlob* pThis)
     {
         return ((SlangBlob*)pThis)->_size;
