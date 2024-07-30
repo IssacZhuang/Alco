@@ -3,6 +3,7 @@
 public readonly struct SlangResult
 {
     public static readonly SlangResult Ok = new SlangResult(0);
+    public static readonly SlangResult Failed = new SlangResult(-1);
 
     public readonly int Code;
 

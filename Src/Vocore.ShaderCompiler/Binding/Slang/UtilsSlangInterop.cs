@@ -34,6 +34,16 @@ internal unsafe static class UtilsSlangInterop
         }
     }
 
+    public static string GetString(void* ptr)
+    {
+        if (ptr == null)
+        {
+            return string.Empty;
+        }
+
+        return Marshal.PtrToStringAnsi((IntPtr)ptr)!;
+    }
+
     public static string GetString(IntPtr ptr)
     {
         if (ptr == IntPtr.Zero)

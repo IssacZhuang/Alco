@@ -10,8 +10,12 @@ public unsafe struct SlangFileSystem : IDisposable
 
     private ISlangFileSystem _base;
 
-    public SlangFileSystem()
+    internal GCHandle _handle;
+
+    public SlangFileSystem(ISlangFileSystemManaged fileSystem)
     {
+        _handle = GCHandle.Alloc(fileSystem);
+
         _base = new ISlangFileSystem
         {
             Vtbl = _vtable
@@ -20,7 +24,10 @@ public unsafe struct SlangFileSystem : IDisposable
 
     public void Dispose()
     {
-        
+        if (_handle.IsAllocated)
+        {
+            _handle.Free();
+        }
     }
 
     private static ISlangFileSystem.VTable* AllocVtable()
@@ -57,8 +64,20 @@ public unsafe struct SlangFileSystem : IDisposable
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     public static SlangResult ImplLoadFile(ISlangFileSystem* pThis, byte* path, ISlangBlob** outBlob)
     {
-        //Todo: Implement LoadFile
-        *outBlob = null;
-        return SlangResult.Ok;
+        SlangFileSystem* p = (SlangFileSystem*)pThis;
+        ISlangFileSystemManaged fileSystem = (ISlangFileSystemManaged)p->_handle.Target!;
+        string filename = GetString(path);
+        if (fileSystem.TryLoadFile(filename, out byte[] data))
+        {
+            SlangBlob* blob = Alloc<SlangBlob>(1);
+            *blob = new SlangBlob(data);
+            *outBlob = (ISlangBlob*)blob;
+            return SlangResult.Ok;
+        }
+        else
+        {
+            *outBlob = null;
+            return SlangResult.Failed;
+        }
     }
 }
