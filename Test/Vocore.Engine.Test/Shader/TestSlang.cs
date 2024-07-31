@@ -36,7 +36,7 @@ public class TestSlang
 
         SlangReflection reflection = spGetReflection(request);
         var entryCount = spReflection_getEntryPointCount(reflection);
-        TestContext.WriteLine($"Entry count: {entryCount}");
+        //TestContext.WriteLine($"Entry count: {entryCount}");
 
         spDestroyCompileRequest(request);
         spDestroySession(session);
@@ -81,12 +81,12 @@ public class TestSlang
             if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_VERTEX)
             {
                 vertexIndex = (int)i;
-                TestContext.WriteLine($"Vertex name: {entry.GetName()}");
+                //TestContext.WriteLine($"Vertex name: {entry.GetName()}");
             }
             else if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_FRAGMENT)
             {
                 fragmentIndex = (int)i;
-                TestContext.WriteLine($"Fragment name:\n{entry.GetName()}");
+                //TestContext.WriteLine($"Fragment name:\n{entry.GetName()}");
             }
         }
 
@@ -96,13 +96,13 @@ public class TestSlang
 
         var vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexSpirv);
 
-        TestContext.WriteLine($"Vertex reflection:\n{vertexReflection}");
+        //TestContext.WriteLine($"Vertex reflection:\n{vertexReflection}");
 
         byte[] fragmentSpirv = request.GetBytesByEntryPointIndex(fragmentIndex);
 
         var fragmentReflection = UtilsShaderRelfection.GetSpirvReflection(fragmentSpirv);
 
-        TestContext.WriteLine($"Fragment reflection: {fragmentReflection}");
+        //TestContext.WriteLine($"Fragment reflection: {fragmentReflection}");
 
         spDestroyCompileRequest(request);
         spDestroySession(session);
@@ -139,7 +139,7 @@ public class TestSlang
 
         SlangResult result = spCompile(request);
 
-        TestContext.WriteLine(request.GetDiagnosticString());
+        //TestContext.WriteLine(request.GetDiagnosticString());
         if (result.IsError)
         {
             Assert.Fail("Failed to compile");
@@ -159,12 +159,12 @@ public class TestSlang
             if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_VERTEX)
             {
                 vertexIndex = (int)i;
-                TestContext.WriteLine($"Vertex name: {entry.GetName()}");
+                //TestContext.WriteLine($"Vertex name: {entry.GetName()}");
             }
             else if (spReflectionEntryPoint_getStage(entry) == SlangStage.SLANG_STAGE_FRAGMENT)
             {
                 fragmentIndex = (int)i;
-                TestContext.WriteLine($"Fragment name:\n{entry.GetName()}");
+                //TestContext.WriteLine($"Fragment name:\n{entry.GetName()}");
             }
         }
 
@@ -173,6 +173,49 @@ public class TestSlang
         Assert.That(vertexIndex, Is.EqualTo(0));
         Assert.That(fragmentIndex, Is.EqualTo(1));
 
+
+    }
+
+    [Test(Description = "Test slang multi thread compile")]
+    public unsafe void TestMultiThreadCompile()
+    {
+        TestFileSystem system = new TestFileSystem(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang"));
+        SlangFileSystem slangFileSystem = new SlangFileSystem(system);
+        ISlangFileSystem* pFileSystem = (ISlangFileSystem*)&slangFileSystem;
+
+        
+
+        var pathShader = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "shader.slang");
+        var codeShader = File.ReadAllText(pathShader);
+
+
+        Parallel.For(0, 10, (i) =>
+        {
+            SlangSession session = spCreateSession("test_session");
+
+            SlangCompileRequest request = spCreateCompileRequest(session);
+            
+            spSetFileSystem(request, pFileSystem);
+
+            spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
+
+            int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
+
+            spAddTranslationUnitSourceString(request, translationUnitIndex, "test.slang", codeShader);
+
+            SlangResult result = spCompile(request);
+
+            TestContext.WriteLine(request.GetDiagnosticString());
+            if (result.IsError)
+            {
+                Assert.Fail("Failed to compile");
+            }
+
+            spDestroySession(session);
+        });
+
+
+        
 
     }
 
