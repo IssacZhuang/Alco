@@ -2,7 +2,7 @@
 namespace SlangSharp;
 
 
-public interface ISlangFileSystemManaged
+public unsafe interface ISlangFileSystemManaged
 {
-    bool TryLoadFile(string path, out byte[] data);
+    bool TryLoadFile(string path, out ISlangBlob* blob);
 }

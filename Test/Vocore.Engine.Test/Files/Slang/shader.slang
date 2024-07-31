@@ -38,6 +38,7 @@ struct VertexInput
 struct CoarseVertex
 {
     float3 color;
+    float4 unused;
 };
 
 // Output of the fragment shader

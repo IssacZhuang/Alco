@@ -96,13 +96,13 @@ public class TestSlang
 
         var vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexSpirv);
 
-        //TestContext.WriteLine($"Vertex reflection:\n{vertexReflection}");
+        TestContext.WriteLine($"Vertex reflection:\n{vertexReflection}");
 
         byte[] fragmentSpirv = request.GetBytesByEntryPointIndex(fragmentIndex);
 
         var fragmentReflection = UtilsShaderRelfection.GetSpirvReflection(fragmentSpirv);
 
-        //TestContext.WriteLine($"Fragment reflection: {fragmentReflection}");
+        TestContext.WriteLine($"Fragment reflection: {fragmentReflection}");
 
         spDestroyCompileRequest(request);
         spDestroySession(session);
@@ -180,10 +180,6 @@ public class TestSlang
     public unsafe void TestMultiThreadCompile()
     {
         TestFileSystem system = new TestFileSystem(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang"));
-        SlangFileSystem slangFileSystem = new SlangFileSystem(system);
-        ISlangFileSystem* pFileSystem = (ISlangFileSystem*)&slangFileSystem;
-
-        
 
         var pathShader = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "shader.slang");
         var codeShader = File.ReadAllText(pathShader);
@@ -195,7 +191,7 @@ public class TestSlang
 
             SlangCompileRequest request = spCreateCompileRequest(session);
             
-            spSetFileSystem(request, pFileSystem);
+            spSetFileSystem(request, system.Handle);
 
             spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
 
@@ -219,7 +215,7 @@ public class TestSlang
 
     }
 
-    private class TestFileSystem : ISlangFileSystemManaged
+    private class TestFileSystem : BaseSlangFileSystem
     {
         private string _basePath;
 
@@ -228,7 +224,7 @@ public class TestSlang
             _basePath = basePath;
         }
 
-        public bool TryLoadFile(string filename, out byte[] data)
+        public override bool TryLoadFile(string filename, out byte[] data)
         {
             TestContext.WriteLine($"Try load file: {filename}");
             var path = Path.Combine(_basePath, filename);
