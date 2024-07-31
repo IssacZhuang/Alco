@@ -26,7 +26,7 @@ public class TestSlang
 
         int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
         spAddTranslationUnitSourceString(request, translationUnitIndex, path, code);
-
+        
         SlangResult result = spCompile(request);
         if (result.IsError)
         {
@@ -217,7 +217,7 @@ public class TestSlang
 
     private class TestFileSystem : BaseSlangFileSystem
     {
-        private string _basePath;
+        private readonly string _basePath;
 
         public TestFileSystem(string basePath)
         {
