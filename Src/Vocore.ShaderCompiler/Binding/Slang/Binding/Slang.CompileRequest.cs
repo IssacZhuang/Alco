@@ -81,7 +81,8 @@ public unsafe static partial class Slang
     //     SlangCompileRequest* request,
     //     int targetIndex,
     //     SlangProfileID profile);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern void spSetTargetProfile(SlangCompileRequest request, int targetIndex, SlangProfileID profile);
 
     // SLANG_API void spSetTargetFlags(
     //     SlangCompileRequest* request,
@@ -101,7 +102,8 @@ public unsafe static partial class Slang
     //     slang::ICompileRequest* request,
     //     int targetIndex,
     //     SlangCapabilityID capability);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern void spAddTargetCapability(SlangCompileRequest request, int targetIndex, SlangCapabilityID capability);
 
     // SLANG_API void spSetTargetMatrixLayoutMode(
     //     SlangCompileRequest* request,

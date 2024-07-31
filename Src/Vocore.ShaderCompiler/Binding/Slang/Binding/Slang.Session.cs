@@ -47,12 +47,14 @@ public static partial class Slang
     // SLANG_API SlangProfileID spFindProfile(
     //     SlangSession* session,
     //     char const* name);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangProfileID spFindProfile(SlangSession session, [MarshalAs(UnmanagedType.LPStr)] string name);
 
     // SLANG_API SlangCapabilityID spFindCapability(
     //     SlangSession* session,
     //     char const* name);
-    // Currently not implemented
+    [DllImport("slang", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern SlangCapabilityID spFindCapability(SlangSession session, [MarshalAs(UnmanagedType.LPStr)] string name);
 
     // SLANG_API SlangResult spExtractRepro(
     //     SlangSession* session,

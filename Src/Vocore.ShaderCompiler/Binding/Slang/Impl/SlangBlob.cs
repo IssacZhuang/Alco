@@ -4,7 +4,7 @@ using static SlangSharp.UtilsSlangInterop;
 
 namespace SlangSharp;
 
-public readonly unsafe struct SlangBlob : IDisposable
+public unsafe struct SlangBlob : IDisposable
 {
     private static readonly ISlangBlob.VTable* _vtable = AllocVtable();
     private readonly ISlangBlob _base;
@@ -12,7 +12,10 @@ public readonly unsafe struct SlangBlob : IDisposable
     private readonly void* _data;
     private readonly nuint _size;
 
-    public SlangBlob(Span<byte> data)
+    private uint _refCount;
+    private uint _disposed;
+
+    public SlangBlob(Span<byte> data, uint initialRefCount = 1)
     {
         fixed (byte* ptr = data)
         {
@@ -20,6 +23,9 @@ public readonly unsafe struct SlangBlob : IDisposable
             _size = (nuint)data.Length;
             Copy(ptr, _data, _size, _size);
         }
+
+        _refCount = initialRefCount;
+        _disposed = 0;
 
         _base = new ISlangBlob
         {
@@ -29,7 +35,10 @@ public readonly unsafe struct SlangBlob : IDisposable
 
     public void Dispose()
     {
-        Free(_data);
+        if(Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            Free(_data);
+        }
     }
 
     public static ISlangBlob.VTable* AllocVtable(){
@@ -54,13 +63,22 @@ public readonly unsafe struct SlangBlob : IDisposable
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     public static uint ImplAddRef(ISlangBlob* pThis)
     {
-        return 1;
+        //Console.WriteLine($"AddRef: {((SlangBlob*)pThis)->_refCount + 1}");
+        return Interlocked.Increment(ref ((SlangBlob*)pThis)->_refCount);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     public static uint ImplRelease(ISlangBlob* pThis)
     {
-        return 0;
+        uint refCount = Interlocked.Decrement(ref ((SlangBlob*)pThis)->_refCount);
+        //Console.WriteLine($"Release: {refCount}");
+        if (refCount == 0)
+        {
+            //Console.WriteLine("Dispose");
+            ((SlangBlob*)pThis)->Dispose();
+        }
+        
+        return refCount;
     }
     
 

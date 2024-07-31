@@ -178,3 +178,13 @@ public enum SlangMatrixLayoutMode : uint
     SLANG_MATRIX_LAYOUT_ROW_MAJOR,
     SLANG_MATRIX_LAYOUT_COLUMN_MAJOR,
 }
+
+public enum SlangProfileID : uint
+{
+    SLANG_PROFILE_UNKNOWN,
+}
+
+public enum SlangCapabilityID
+{
+    SLANG_CAPABILITY_UNKNOWN = 0,
+}

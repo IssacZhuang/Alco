@@ -84,9 +84,9 @@ public unsafe struct SlangFileSystem : IDisposable
         string filename = GetStringUtf8(path);
         if (fileSystem.TryLoadFile(filename, out byte[] data))
         {
-            //memory leak here
-            SlangBlob* blob = Alloc<SlangBlob>(1);
-            *blob = new SlangBlob(data);
+            SlangBlob* blob = Alloc<SlangBlob>();
+            // initial ref count is 0 the C# side will not handle the blob, so it will dispose when slang library finish using it
+            *blob = new SlangBlob(data, 1);
             *outBlob = (ISlangBlob*)blob;
             return SlangResult.Ok;
         }

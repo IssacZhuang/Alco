@@ -36,25 +36,22 @@ public readonly struct SlangResult
 
 public unsafe struct SlangUUID
 {
-    public static unsafe SlangUUID FromComponents(
+    public SlangUUID(
         uint a, ushort b, ushort c,
         byte d0, byte d1, byte d2, byte d3, byte d4, byte d5, byte d6, byte d7)
     {
-        var uuid = new SlangUUID()
-        {
-            data1 = a,
-            data2 = b,
-            data3 = c
-        };
-        uuid.data4[0] = d0;
-        uuid.data4[1] = d1;
-        uuid.data4[2] = d2;
-        uuid.data4[3] = d3;
-        uuid.data4[4] = d4;
-        uuid.data4[5] = d5;
-        uuid.data4[6] = d6;
-        uuid.data4[7] = d7;
-        return uuid;
+        data1 = a;
+        data2 = b;
+        data3 = c;
+
+        data4[0] = d0;
+        data4[1] = d1;
+        data4[2] = d2;
+        data4[3] = d3;
+        data4[4] = d4;
+        data4[5] = d5;
+        data4[6] = d6;
+        data4[7] = d7;
     }
 
     //operator ==

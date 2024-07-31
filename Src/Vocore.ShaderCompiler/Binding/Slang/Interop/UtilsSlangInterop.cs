@@ -7,7 +7,7 @@ namespace SlangSharp;
 
 internal unsafe static class UtilsSlangInterop
 {
-    public static T* Alloc<T>(int count) where T : unmanaged
+    public static T* Alloc<T>(int count = 1) where T : unmanaged
     {
         return (T*)Marshal.AllocHGlobal(sizeof(T) * count);
     }

@@ -4,7 +4,7 @@ namespace SlangSharp;
 
 public unsafe struct ISlangUnknown
 {
-    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+    public static readonly SlangUUID UUID = new(0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
     public VTable* Vtbl;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,7 +44,7 @@ public unsafe struct ISlangUnknown
 
 public unsafe struct ISlangCastable
 {
-    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x87ede0e1, 0x4852, 0x44b0, 0x8b, 0xf2, 0xcb, 0x31, 0x87, 0x4d, 0xe2, 0x39);
+    public static readonly SlangUUID UUID = new(0x87ede0e1, 0x4852, 0x44b0, 0x8b, 0xf2, 0xcb, 0x31, 0x87, 0x4d, 0xe2, 0x39);
     public VTable* Vtbl;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -69,7 +69,7 @@ public unsafe struct ISlangCastable
 
 public unsafe struct ISlangBlob
 {
-    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x8BA5FB08, 0x5195, 0x40e2, 0xAC, 0x58, 0x0D, 0x98, 0x9C, 0x3A, 0x01, 0x02);
+    public static readonly SlangUUID UUID = new(0x8BA5FB08, 0x5195, 0x40e2, 0xAC, 0x58, 0x0D, 0x98, 0x9C, 0x3A, 0x01, 0x02);
     public VTable* Vtbl;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -104,7 +104,7 @@ public unsafe struct ISlangBlob
 
 public unsafe struct ISlangFileSystem
 {
-    public static readonly SlangUUID UUID = SlangUUID.FromComponents(0x003A09FC, 0x3A4D, 0x4BA0, 0xAD, 0x60, 0x1F, 0xD8, 0x63, 0xA9, 0x15, 0xAB);
+    public static readonly SlangUUID UUID = new(0x003A09FC, 0x3A4D, 0x4BA0, 0xAD, 0x60, 0x1F, 0xD8, 0x63, 0xA9, 0x15, 0xAB);
     public VTable* Vtbl;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

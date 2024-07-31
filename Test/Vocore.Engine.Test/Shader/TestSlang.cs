@@ -130,7 +130,6 @@ public class TestSlang
 
         //add library reference manually
 
-
         int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, "test_vertex.slang");
 
 
