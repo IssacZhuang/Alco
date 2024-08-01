@@ -209,10 +209,25 @@ public class TestSlang
 
             spDestroySession(session);
         });
+    }
 
+    [Test(Description = "Test slang managed compiler")]
+    public unsafe void TestManagedCompiler()
+    {
+        var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang", "shader.slang");
+        var code = File.ReadAllText(path);
 
-        
+        SlangCompileOption option = new SlangCompileOption
+        {
+            SourceLanguage = SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG,
+            CompileTarget = SlangCompileTarget.SLANG_SPIRV
+        };
 
+        TestFileSystem system = new TestFileSystem(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Slang"));
+        SlangCompiler compiler = new SlangCompiler(system);
+        SlangCompileResult[] results = compiler.Compile("test.slang", code, option);
+
+        Assert.That(results.Length, Is.EqualTo(2));
     }
 
     private class TestFileSystem : BaseSlangFileSystem

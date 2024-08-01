@@ -75,7 +75,7 @@ public class SlangCompiler : IDisposable
         spDestroySession(_session);
     }
 
-    private SlangCompileRequest MakeRequest(SlangCompileOption compileOption)
+    private unsafe SlangCompileRequest MakeRequest(SlangCompileOption compileOption)
     {
         SlangCompileRequest request = spCreateCompileRequest(_session);
 
@@ -89,6 +89,11 @@ public class SlangCompiler : IDisposable
         else
         {
             targetIndex = spAddCodeGenTarget(request, SlangCompileTarget.SLANG_SPIRV);
+        }
+
+        if (FileSystem != null)
+        {
+            spSetFileSystem(request, FileSystem.Handle);
         }
 
         if (compileOption.TargetFlags.HasValue)
