@@ -32,14 +32,14 @@ public static class UtilsShaderHLSL
         ValidatePreprocessResult(preproccessed);
         if (preproccessed.Stages.IsGraphicsShader())
         {
-            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename);
-            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename);
+            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename);
+            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, fragment.Source, true);
             return ShaderCompileResult.CreateGraphics(vertex, fragment, preproccessed, reflectionInfo);
         }
         else if (preproccessed.Stages.IsComputeShader())
         {
-            ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderSource(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename);
+            ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
             return ShaderCompileResult.CreateCompute(compute, preproccessed, reflectionInfo);
         }

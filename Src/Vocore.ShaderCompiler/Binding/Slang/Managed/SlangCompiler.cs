@@ -1,5 +1,5 @@
-using Vocore.Graphics;
-using Vocore.ShaderCompiler;
+
+
 using static SlangSharp.Slang;
 
 namespace SlangSharp;
@@ -7,7 +7,7 @@ namespace SlangSharp;
 public struct SlangCompileResult
 {
     public string EntryPoint;
-    public ShaderStage Stage;
+    public SlangStage Stage;
     public byte[] Spirv;
 }
 
@@ -17,7 +17,7 @@ public class SlangCompiler : IDisposable
     public BaseSlangFileSystem? FileSystem { get; set; }
 
 
-    public SlangCompiler(BaseSlangFileSystem fileSystem, string sessionName = "unnamed_session")
+    public SlangCompiler(BaseSlangFileSystem? fileSystem, string sessionName = "unnamed_session")
     {
         _session = spCreateSession(sessionName);
         FileSystem = fileSystem;
@@ -42,7 +42,7 @@ public class SlangCompiler : IDisposable
 
         if (result.IsError)
         {
-            throw new ShaderCompilationException(request.GetDiagnosticString());
+            throw new Exception(request.GetDiagnosticString());
         }
 
         SlangReflection reflection = spGetReflection(request);
@@ -60,7 +60,7 @@ public class SlangCompiler : IDisposable
             results[i] = new SlangCompileResult
             {
                 Spirv = request.GetBytesByEntryPointIndex((int)i),
-                Stage = ConvertShaderStage(entryStage),
+                Stage = entryStage,
                 EntryPoint = entryPoint.GetName()
             };
         }
@@ -150,31 +150,5 @@ public class SlangCompiler : IDisposable
         }
 
         return request;
-    }
-
-    private static ShaderStage ConvertShaderStage(SlangStage stage)
-    {
-        return stage switch
-        {
-            SlangStage.SLANG_STAGE_VERTEX => ShaderStage.Vertex,
-            SlangStage.SLANG_STAGE_FRAGMENT => ShaderStage.Fragment,
-            SlangStage.SLANG_STAGE_COMPUTE => ShaderStage.Compute,
-            SlangStage.SLANG_STAGE_HULL => ShaderStage.Hull,
-            SlangStage.SLANG_STAGE_DOMAIN => ShaderStage.Domain,
-            _ => throw new NotSupportedException("Unsupported shader stage")
-        };
-    }
-
-    private static SlangStage ConvertShaderStage(ShaderStage stage)
-    {
-        return stage switch
-        {
-            ShaderStage.Vertex => SlangStage.SLANG_STAGE_VERTEX,
-            ShaderStage.Fragment => SlangStage.SLANG_STAGE_FRAGMENT,
-            ShaderStage.Compute => SlangStage.SLANG_STAGE_COMPUTE,
-            ShaderStage.Hull => SlangStage.SLANG_STAGE_HULL,
-            ShaderStage.Domain => SlangStage.SLANG_STAGE_DOMAIN,
-            _ => throw new NotSupportedException("Unsupported shader stage")
-        };
     }
 }

@@ -6,7 +6,7 @@ namespace Vocore.ShaderCompiler;
 
 public static class ShaderCompilerDxc
 {
-    public static ShaderModule CrearteSpirvShaderSource(string hlslCode, ShaderStage stage, string entry, string filename = "unnamed_shader.hlsl", ShaderMacroDefine[]? defines = null)
+    public static ShaderModule CrearteSpirvShaderModule(string hlslCode, ShaderStage stage, string entry, string filename = "unnamed_shader.hlsl", ShaderMacroDefine[]? defines = null)
     {
         byte[] spirv = ConvetHlslToSpirv(hlslCode, filename, entry, stage, defines);
         return new ShaderModule(stage, ShaderLanguage.SPIRV, spirv, entry);

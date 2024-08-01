@@ -190,7 +190,7 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
 
         //dxc
-        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderSource(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
 
         //shaderc hlsl
         //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
