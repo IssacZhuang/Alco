@@ -92,6 +92,12 @@ public unsafe struct SlangUUID
     }
 }
 
+public struct PreprocessorMacroDesc
+{
+    public string name;
+    public string value;
+}
+
 
 
 

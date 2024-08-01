@@ -22,4 +22,5 @@ public struct SlangCompileOption
     public SlangDebugInfoLevel? DebugInfoLevel;
     public SlangDebugInfoFormat? DebugInfoFormat;
     public SlangDiagnosticFlags? DiagnosticFlags;
+    public PreprocessorMacroDesc[]? Macros;
 }

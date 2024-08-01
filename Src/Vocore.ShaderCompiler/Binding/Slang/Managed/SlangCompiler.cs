@@ -141,6 +141,14 @@ public class SlangCompiler : IDisposable
             spSetDiagnosticFlags(request, compileOption.DiagnosticFlags.Value);
         }
 
+        if(compileOption.Macros != null)
+        {
+            for(int i = 0; i < compileOption.Macros.Length; i++)
+            {
+                spAddPreprocessorDefine(request, compileOption.Macros[i].name, compileOption.Macros[i].value);
+            }
+        }
+
         return request;
     }
 
