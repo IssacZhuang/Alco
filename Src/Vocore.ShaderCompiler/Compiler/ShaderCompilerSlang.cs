@@ -74,48 +74,6 @@ public static class ShaderCompilerSlang
         return spirv;
     }
 
-    public static byte[] CompileToSharedLibrary(string slangCode, string filename, ShaderMacroDefine[]? defines)
-    {
-        SlangCompileRequest request = spCreateCompileRequest(_session);
-        spSetCodeGenTarget(request, SlangCompileTarget.SLANG_SHADER_SHARED_LIBRARY);
-        int translationUnitIndex = spAddTranslationUnit(request, SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG, filename);
-        spAddTranslationUnitSourceString(request, translationUnitIndex, filename, slangCode);
-
-        if (defines != null)
-        {
-            for (int i = 0; i < defines.Length; i++)
-            {
-                spAddPreprocessorDefine(request, defines[i].name, defines[i].value);
-            }
-        }
-
-        SlangResult result = spCompile(request);
-        if (result.IsError)
-        {
-            throw new ShaderCompilationException(request.GetDiagnosticString());
-        }
-
-        IntPtr ptr = spGetCompileRequestCode(request, out nuint size);
-        byte[] data = new byte[size];
-        Marshal.Copy(ptr, data, 0, (int)size);
-
-        spDestroyCompileRequest(request);
-
-        return data;
-    }
-
-    private static ShaderStage ConvertShaderStage(SlangStage stage)
-    {
-        return stage switch
-        {
-            SlangStage.SLANG_STAGE_VERTEX => ShaderStage.Vertex,
-            SlangStage.SLANG_STAGE_FRAGMENT => ShaderStage.Fragment,
-            SlangStage.SLANG_STAGE_COMPUTE => ShaderStage.Compute,
-            SlangStage.SLANG_STAGE_HULL => ShaderStage.Hull,
-            SlangStage.SLANG_STAGE_DOMAIN => ShaderStage.Domain,
-            _ => throw new NotSupportedException("Unsupported shader stage")
-        };
-    }
 
     private static SlangStage ConvertShaderStage(ShaderStage stage)
     {
