@@ -16,4 +16,26 @@ public struct RasterizerState
     public static readonly RasterizerState CullFront = new RasterizerState(FillMode.Solid, CullMode.Front, FrontFace.CounterClockwise);
     public static readonly RasterizerState CullBack = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.CounterClockwise);
     public static readonly RasterizerState Wireframe = new RasterizerState(FillMode.Wireframe, CullMode.None, FrontFace.CounterClockwise);
+
+    //operator ==
+    public static bool operator ==(RasterizerState left, RasterizerState right)
+    {
+        return left.FillMode == right.FillMode && left.CullMode == right.CullMode && left.FrontFace == right.FrontFace;
+    }
+
+    //operator !=
+    public static bool operator !=(RasterizerState left, RasterizerState right)
+    {
+        return left.FillMode != right.FillMode || left.CullMode != right.CullMode || left.FrontFace != right.FrontFace;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is RasterizerState state && this == state;
+    }
+
+    public override int GetHashCode()
+    {
+        return FillMode.GetHashCode() ^ CullMode.GetHashCode() ^ FrontFace.GetHashCode();
+    }
 }

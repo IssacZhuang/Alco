@@ -24,4 +24,30 @@ public struct StencilFaceState
         StencilOperation.Keep,
         StencilOperation.Keep,
         StencilOperation.Keep);
+
+    public static bool operator ==(StencilFaceState left, StencilFaceState right)
+    {
+        return left.Compare == right.Compare &&
+               left.StencilFailOperation == right.StencilFailOperation &&
+               left.DepthFailOperation == right.DepthFailOperation &&
+               left.PassOperation == right.PassOperation;
+    }
+
+    public static bool operator !=(StencilFaceState left, StencilFaceState right)
+    {
+        return left.Compare != right.Compare ||
+               left.StencilFailOperation != right.StencilFailOperation ||
+               left.DepthFailOperation != right.DepthFailOperation ||
+               left.PassOperation != right.PassOperation;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is StencilFaceState state && this == state;
+    }
+
+    public override int GetHashCode()
+    {
+        return Compare.GetHashCode() ^ StencilFailOperation.GetHashCode() ^ DepthFailOperation.GetHashCode() ^ PassOperation.GetHashCode();
+    }
 }

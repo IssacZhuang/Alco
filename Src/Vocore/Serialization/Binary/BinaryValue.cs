@@ -69,7 +69,7 @@ namespace Vocore
             return new BinaryValue(UtilsBinary.EncodeValue(value));
         }
 
-        public static BinaryValue CreateValueNullable<T>(Nullable<T> value) where T : unmanaged
+        public static BinaryValue CreateValueNullable<T>(T? value) where T : unmanaged
         {
             return new BinaryValue(UtilsBinary.EncodeNullableValue(value));
         }

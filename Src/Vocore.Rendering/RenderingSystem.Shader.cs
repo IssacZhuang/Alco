@@ -28,12 +28,12 @@ public partial class RenderingSystem
             ShaderModule vertex = result.VertexShader!.Value;
             ShaderModule fragment = result.FragmentShader!.Value;
 
-            RasterizerState rasterizer = result.PreproccessResult.RasterizerState!.Value;
-            BlendState blend = result.PreproccessResult.BlendState!.Value;
-            DepthStencilState depthStencil = result.PreproccessResult.DepthStencilState!.Value;
-            PrimitiveTopology primitiveTopology = result.PreproccessResult.PrimitiveTopology!.Value;
+            RasterizerState rasterizer = result.RasterizerState!.Value;
+            BlendState blend = result.BlendState!.Value;
+            DepthStencilState depthStencil = result.DepthStencilState!.Value;
+            PrimitiveTopology primitiveTopology = result.PrimitiveTopology!.Value;
 
-            string filename = result.PreproccessResult.Filename;
+            string filename = result.Filename;
 
             PixelFormat[] colors = renderPass.Colors.Select(x => x.Format).ToArray();
             PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
@@ -72,7 +72,7 @@ public partial class RenderingSystem
             ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
                 compute,
                 bindGroups,
-                result.PreproccessResult.Filename);
+                result.Filename);
 
             GPUPipeline pipeline = device.CreateComputePipeline(descriptor);
 

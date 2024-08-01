@@ -8,10 +8,19 @@ public static class UtilsShaderSerialization
     {
         BinaryTable table = new BinaryTable
         {
+            {"Filename", result.Filename},
+
             {"VertexShader", EncodeStageSource(result.VertexShader)},
             {"FragmentShader", EncodeStageSource(result.FragmentShader)},
             {"ComputeShader", EncodeStageSource(result.ComputeShader)},
-            {"PreproccessResult", EncodePreproccessResult(result.PreproccessResult)},
+
+            {"Stages", (int)result.Stages},
+
+            {"RasterizerState", BinaryValue.CreateValueNullable(result.RasterizerState)},
+            {"BlendState", BinaryValue.CreateValueNullable(result.BlendState)},
+            {"DepthStencilState", BinaryValue.CreateValueNullable(result.DepthStencilState)},
+            {"PrimitiveTopology", BinaryValue.CreateValueNullable(result.PrimitiveTopology)},
+
             {"ReflectionInfo", EncodeReflectionInfo(result.ReflectionInfo)}
         };
 
@@ -21,109 +30,127 @@ public static class UtilsShaderSerialization
     public static ShaderCompileResult DecodeCompileResult(byte[] bytes)
     {
         BinaryTable table = BinaryParser.DecodeTable(bytes);
-        if (table.TryGetBinary("VertexShader", out byte[]? vertexShaderBytes) &&
-           table.TryGetBinary("FragmentShader", out byte[]? fragmentShaderBytes) &&
-           table.TryGetBinary("ComputeShader", out byte[]? computeShaderBytes) &&
-           table.TryGetBinary("PreproccessResult", out byte[]? preproccessResultTable) &&
+        if (table.TryGetString("Filename", out string? filename) &&
+            table.TryGetBinary("VertexShader", out byte[]? vertexShaderBytes) &&
+            table.TryGetBinary("FragmentShader", out byte[]? fragmentShaderBytes) &&
+            table.TryGetBinary("ComputeShader", out byte[]? computeShaderBytes) &&
+            table.TryGetValue("Stages", out int stages) &&
+            table.TryGetNullableValue("RasterizerState", out RasterizerState? rasterizerState) &&
+            table.TryGetNullableValue("BlendState", out BlendState? blendState) &&
+            table.TryGetNullableValue("DepthStencilState", out DepthStencilState? depthStencilState) &&
+            table.TryGetNullableValue("PrimitiveTopology", out PrimitiveTopology? primitiveTopology) &&
            table.TryGetBinary("ReflectionInfo", out byte[]? reflectionInfoTable))
         {
-            ShaderModule? vertexShader = DecodeStageSource(vertexShaderBytes);
-            ShaderModule? fragmentShader = DecodeStageSource(fragmentShaderBytes);
-            ShaderModule? computeShader = DecodeStageSource(computeShaderBytes);
-            ShaderPreproccessResultHLSL preproccessResult = DecodePreproccessResult(preproccessResultTable);
+            ShaderModule? vertexShader = DecodeShaderModule(vertexShaderBytes);
+            ShaderModule? fragmentShader = DecodeShaderModule(fragmentShaderBytes);
+            ShaderModule? computeShader = DecodeShaderModule(computeShaderBytes);
+
+            ShaderStage shaderStage = (ShaderStage)stages;
+
             ShaderReflectionInfo reflectionInfo = DecodeReflectionInfo(reflectionInfoTable);
 
-            return new ShaderCompileResult(vertexShader, fragmentShader, computeShader, preproccessResult, reflectionInfo);
+            return new ShaderCompileResult(
+                filename,
+                vertexShader,
+                fragmentShader,
+                computeShader,
+                shaderStage,
+                rasterizerState,
+                blendState,
+                depthStencilState,
+                primitiveTopology,
+                reflectionInfo
+                );
         }
 
         throw new InvalidOperationException("Invalid shader compile result");
 
     }
 
-    // shader preproccess result
+    // // shader preproccess result
 
-    public static byte[] EncodePreproccessResult(ShaderPreproccessResultHLSL result)
-    {
-        BinaryArray binaryPragmas = new BinaryArray();
-        for (int i = 0; i < result.Pragmas.Length; i++)
-        {
-            binaryPragmas.Add(result.Pragmas[i].EncodeToBinary());
-        }
-        BinaryTable table = new BinaryTable
-        {
-            {"ShaderText", result.ShaderText },
-            {"Filename", result.Filename },
-            {"Stages", (int)result.Stages},
-            {"RasterizerState", BinaryValue.CreateValueNullable(result.RasterizerState)},
-            {"BlendState", BinaryValue.CreateValueNullable(result.BlendState)},
-            {"DepthStencilState", BinaryValue.CreateValueNullable(result.DepthStencilState)},
-            {"PrimitiveTopology", BinaryValue.CreateValueNullable(result.PrimitiveTopology)},
-            {"EntryVertex", result.EntryVertex},
-            {"EntryFragment", result.EntryFragment},
-            {"EntryCompute", result.EntryCompute},
-            {"Pragmas", binaryPragmas },
-        };
+    // public static byte[] EncodePreproccessResult(ShaderPreproccessResultHLSL result)
+    // {
+    //     BinaryArray binaryPragmas = new BinaryArray();
+    //     for (int i = 0; i < result.Pragmas.Length; i++)
+    //     {
+    //         binaryPragmas.Add(result.Pragmas[i].EncodeToBinary());
+    //     }
+    //     BinaryTable table = new BinaryTable
+    //     {
+    //         {"ShaderText", result.ShaderText },
+    //         {"Filename", result.Filename },
+    //         {"Stages", (int)result.Stages},
+    //         {"RasterizerState", BinaryValue.CreateValueNullable(result.RasterizerState)},
+    //         {"BlendState", BinaryValue.CreateValueNullable(result.BlendState)},
+    //         {"DepthStencilState", BinaryValue.CreateValueNullable(result.DepthStencilState)},
+    //         {"PrimitiveTopology", BinaryValue.CreateValueNullable(result.PrimitiveTopology)},
+    //         {"EntryVertex", result.EntryVertex},
+    //         {"EntryFragment", result.EntryFragment},
+    //         {"EntryCompute", result.EntryCompute},
+    //         {"Pragmas", binaryPragmas },
+    //     };
 
-        return BinaryParser.EncodeTable(table);
-    }
+    //     return BinaryParser.EncodeTable(table);
+    // }
 
-    public static ShaderPreproccessResultHLSL DecodePreproccessResult(byte[] bytes)
-    {
-        BinaryTable table = BinaryParser.DecodeTable(bytes);
-        if (table.TryGetString("ShaderText", out string? shaderText) &&
-            table.TryGetString("Filename", out string? filename) &&
-            table.TryGetValue("Stages", out int stages) &&
-            table.TryGetString("EntryVertex", out string? entryVertex) &&
-            table.TryGetString("EntryFragment", out string? entryFragment) &&
-            table.TryGetString("EntryCompute", out string? entryCompute) &&
-            //table.TryGetString("RenderPass", out string? renderPass) && removed
-            table.TryGetNullableValue("RasterizerState", out RasterizerState? rasterizerState) &&
-            table.TryGetNullableValue("BlendState", out BlendState? blendState) &&
-            table.TryGetNullableValue("DepthStencilState", out DepthStencilState? depthStencilState) &&
-            table.TryGetNullableValue("PrimitiveTopology", out PrimitiveTopology? primitiveTopology) &&
-            table.TryGetArray("Pragmas", out BinaryArray? binaryPragmas))
-        {
-            ShaderPragma[] pragmas = new ShaderPragma[binaryPragmas.Count];
-            for (int i = 0; i < binaryPragmas.Count; i++)
-            {
-                if (binaryPragmas.TryGetBinary(i, out byte[]? binaryPragma))
-                {
-                    pragmas[i] = ShaderPragma.DecodeFromBinary(binaryPragma);
-                }
-            }
+    // public static ShaderPreproccessResultHLSL DecodePreproccessResult(byte[] bytes)
+    // {
+    //     BinaryTable table = BinaryParser.DecodeTable(bytes);
+    //     if (table.TryGetString("ShaderText", out string? shaderText) &&
+    //         table.TryGetString("Filename", out string? filename) &&
+    //         table.TryGetValue("Stages", out int stages) &&
+    //         table.TryGetString("EntryVertex", out string? entryVertex) &&
+    //         table.TryGetString("EntryFragment", out string? entryFragment) &&
+    //         table.TryGetString("EntryCompute", out string? entryCompute) &&
+    //         //table.TryGetString("RenderPass", out string? renderPass) && removed
+    //         table.TryGetNullableValue("RasterizerState", out RasterizerState? rasterizerState) &&
+    //         table.TryGetNullableValue("BlendState", out BlendState? blendState) &&
+    //         table.TryGetNullableValue("DepthStencilState", out DepthStencilState? depthStencilState) &&
+    //         table.TryGetNullableValue("PrimitiveTopology", out PrimitiveTopology? primitiveTopology) &&
+    //         table.TryGetArray("Pragmas", out BinaryArray? binaryPragmas))
+    //     {
+    //         ShaderPragma[] pragmas = new ShaderPragma[binaryPragmas.Count];
+    //         for (int i = 0; i < binaryPragmas.Count; i++)
+    //         {
+    //             if (binaryPragmas.TryGetBinary(i, out byte[]? binaryPragma))
+    //             {
+    //                 pragmas[i] = ShaderPragma.DecodeFromBinary(binaryPragma);
+    //             }
+    //         }
 
-            ShaderPreproccessResultHLSL result = new ShaderPreproccessResultHLSL
-            {
-                ShaderText = shaderText,
-                Filename = filename,
-                Stages = (ShaderStage)stages,
-                EntryVertex = entryVertex,
-                EntryFragment = entryFragment,
-                EntryCompute = entryCompute,
-                RasterizerState = rasterizerState,
-                PrimitiveTopology = primitiveTopology,
-                BlendState = blendState,
-                DepthStencilState = depthStencilState,
-                Pragmas = pragmas,
-            };
+    //         ShaderPreproccessResultHLSL result = new ShaderPreproccessResultHLSL
+    //         {
+    //             ShaderText = shaderText,
+    //             Filename = filename,
+    //             Stages = (ShaderStage)stages,
+    //             EntryVertex = entryVertex,
+    //             EntryFragment = entryFragment,
+    //             EntryCompute = entryCompute,
+    //             RasterizerState = rasterizerState,
+    //             PrimitiveTopology = primitiveTopology,
+    //             BlendState = blendState,
+    //             DepthStencilState = depthStencilState,
+    //             Pragmas = pragmas,
+    //         };
 
-            return result;
-        }
+    //         return result;
+    //     }
 
-        throw new Exception("Unable to decode ShaderPreproccessResult from binary data.");
-    }
+    //     throw new Exception("Unable to decode ShaderPreproccessResult from binary data.");
+    // }
 
     // shader stage source
     public static byte[] EncodeStageSource(ShaderModule? source)
     {
         if (source.HasValue)
         {
-            return EncodeStageSource(source.Value);
+            return EncodeShaderModule(source.Value);
         }
         return Array.Empty<byte>();
     }
 
-    public static byte[] EncodeStageSource(ShaderModule source)
+    public static byte[] EncodeShaderModule(ShaderModule source)
     {
         BinaryTable table = new BinaryTable
         {
@@ -136,7 +163,7 @@ public static class UtilsShaderSerialization
         return BinaryParser.EncodeTable(table);
     }
 
-    public static ShaderModule? DecodeStageSource(byte[] bytes)
+    public static ShaderModule? DecodeShaderModule(byte[] bytes)
     {
         if (bytes.Length <= 0)
         {

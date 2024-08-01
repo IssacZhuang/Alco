@@ -194,6 +194,11 @@ float4 fs_main(VertexOutput input) : SV_Target0 {
         Assert.IsTrue(result2.ReflectionInfo.BindGroups.Length == result.ReflectionInfo.BindGroups.Length);
         Assert.IsTrue(result2.ReflectionInfo.VertexLayouts.Length == result.ReflectionInfo.VertexLayouts.Length);
         Assert.IsTrue(result2.ReflectionInfo.PushConstantsRanges.Length == result.ReflectionInfo.PushConstantsRanges.Length);
-        Assert.IsTrue(result2.PreproccessResult.Filename == result.PreproccessResult.Filename);
+        Assert.IsTrue(result2.Filename == result.Filename);
+        Assert.IsTrue(result2.Stages == result.Stages);
+        Assert.IsTrue(result2.RasterizerState == result.RasterizerState);
+        Assert.IsTrue(result2.BlendState == result.BlendState);
+        Assert.IsTrue(result2.DepthStencilState == result.DepthStencilState);
+        Assert.IsTrue(result2.PrimitiveTopology == result.PrimitiveTopology);
     }
 }

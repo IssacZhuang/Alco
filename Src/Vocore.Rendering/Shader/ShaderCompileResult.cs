@@ -19,37 +19,90 @@ public class ShaderCompileResult
             return ComputeShader.HasValue;
         }
     }
+    public string Filename { get; }
+
     public ShaderModule? VertexShader { get; }
     public ShaderModule? FragmentShader { get; }
     public ShaderModule? ComputeShader { get; }
-    public ShaderPreproccessResultHLSL PreproccessResult { get; }
+
+    public ShaderStage Stages { get; }
+
+    public RasterizerState? RasterizerState { get; }
+    public BlendState? BlendState { get; }
+    public DepthStencilState? DepthStencilState { get;  }
+    public PrimitiveTopology? PrimitiveTopology { get;  }
+
     public ShaderReflectionInfo ReflectionInfo { get; }
 
-    internal ShaderCompileResult(ShaderModule? vertex,
+    internal ShaderCompileResult(
+        string filename,
+        ShaderModule? vertex,
         ShaderModule? fragment,
         ShaderModule? compute,
-        ShaderPreproccessResultHLSL preproccessResult,
+        
+        ShaderStage stages,
+
+        RasterizerState? rasterizerState,
+        BlendState? blendState,
+        DepthStencilState? depthStencilState,
+        PrimitiveTopology? primitiveTopology,
+
         ShaderReflectionInfo reflectionInfo)
     {
+        Filename = filename;
+
         VertexShader = vertex;
         FragmentShader = fragment;
         ComputeShader = compute;
-        PreproccessResult = preproccessResult;
         ReflectionInfo = reflectionInfo;
+
+        Stages = stages;
+
+        RasterizerState = rasterizerState;
+        BlendState = blendState;
+        DepthStencilState = depthStencilState;
+        PrimitiveTopology = primitiveTopology;
+
     }
 
-    public static ShaderCompileResult CreateGraphics(ShaderModule vertex,
+    public static ShaderCompileResult CreateGraphics(
+        ShaderModule vertex,
         ShaderModule fragment,
         ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
-        return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
+        //return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
+        return new ShaderCompileResult(
+            preproccessResult.Filename, 
+            vertex, 
+            fragment, 
+            null, 
+            preproccessResult.Stages, 
+            preproccessResult.RasterizerState, 
+            preproccessResult.BlendState, 
+            preproccessResult.DepthStencilState, 
+            preproccessResult.PrimitiveTopology, 
+            reflectionInfo
+            );
     }
 
-    public static ShaderCompileResult CreateCompute(ShaderModule compute,
+    public static ShaderCompileResult CreateCompute(
+        ShaderModule compute,
         ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
-        return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);
+        //return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);
+        return new ShaderCompileResult(
+            preproccessResult.Filename, 
+            null, 
+            null, 
+            compute, 
+            preproccessResult.Stages, 
+            preproccessResult.RasterizerState, 
+            preproccessResult.BlendState, 
+            preproccessResult.DepthStencilState, 
+            preproccessResult.PrimitiveTopology, 
+            reflectionInfo
+            );
     }
 }

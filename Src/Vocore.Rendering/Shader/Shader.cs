@@ -24,7 +24,7 @@ public class Shader : AutoDisposable
     public ShaderStage Stages
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _meta.PreproccessResult.Stages;
+        get => _meta.Stages;
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ public class Shader : AutoDisposable
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_meta.PreproccessResult.Filename}");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_meta.Filename}");
     }
 
     /// <summary>

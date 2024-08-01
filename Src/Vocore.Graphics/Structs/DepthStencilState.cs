@@ -31,4 +31,32 @@ public struct DepthStencilState
     public CompareFunction DepthCompare { get; init; }
     public StencilFaceState FrontFace { get; init; } = StencilFaceState.Default;
     public StencilFaceState BackFace { get; init; } = StencilFaceState.Default;
+
+    public static bool operator ==(DepthStencilState left, DepthStencilState right)
+    {
+        return left.DepthWriteEnabled == right.DepthWriteEnabled &&
+               left.DepthBoundsTestEnabled == right.DepthBoundsTestEnabled &&
+               left.DepthCompare == right.DepthCompare &&
+               left.FrontFace == right.FrontFace &&
+               left.BackFace == right.BackFace;
+    }
+
+    public static bool operator !=(DepthStencilState left, DepthStencilState right)
+    {
+        return left.DepthWriteEnabled != right.DepthWriteEnabled ||
+               left.DepthBoundsTestEnabled != right.DepthBoundsTestEnabled ||
+               left.DepthCompare != right.DepthCompare ||
+               left.FrontFace != right.FrontFace ||
+               left.BackFace != right.BackFace;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is DepthStencilState state && this == state;
+    }
+
+    public override int GetHashCode()
+    {
+        return DepthWriteEnabled.GetHashCode() ^ DepthBoundsTestEnabled.GetHashCode() ^ DepthCompare.GetHashCode() ^ FrontFace.GetHashCode() ^ BackFace.GetHashCode();
+    }
 }

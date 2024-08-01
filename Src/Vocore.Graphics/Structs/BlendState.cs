@@ -41,5 +41,27 @@ namespace Vocore.Graphics
             Color = new BlendComponent(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add),
             Alpha = new BlendComponent(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add)
         };
+
+        //operator ==
+        public static bool operator ==(BlendState left, BlendState right)
+        {
+            return left.Color == right.Color && left.Alpha == right.Alpha;
+        }
+
+        //operator !=
+        public static bool operator !=(BlendState left, BlendState right)
+        {
+            return left.Color != right.Color || left.Alpha != right.Alpha;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is BlendState state && this == state;
+        }
+
+        public override int GetHashCode()
+        {
+            return Color.GetHashCode() ^ Alpha.GetHashCode();
+        }
     }
 }
