@@ -1,65 +1,61 @@
 using System;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections.Concurrent;
 
 namespace Vocore
 {
     public class ConcurrentPool<T> where T : class
     {
-        private readonly T?[] _stack;
-        private int _index = -1;
+        private readonly int _maxCount;
+        private int _count;
+        private readonly ConcurrentBag<T> _bag = new();
         private readonly Func<T>? _create;
 
         public int Count
         {
-            get { return Interlocked.CompareExchange(ref _index, 0, 0) + 1; }
+            get { return Volatile.Read(ref _count); }
         }
 
         public ConcurrentPool(int size)
         {
-            _stack = new T[size];
+            _maxCount = size;
         }
 
         public ConcurrentPool(int size, Func<T> create)
         {
-            _stack = new T[size];
+            _maxCount = size;
             _create = create;
         }
 
         public bool TryGet([NotNullWhen(true)] out T? result)
         {
-            int localIndex = Interlocked.Decrement(ref _index) + 1;
-
-            if (localIndex < 0)
+            if (_bag.TryTake(out result))
             {
-                Interlocked.Increment(ref _index);
-                return TryCreate(out result);
+                Interlocked.Decrement(ref _count);
+                return true;
             }
 
-            result = _stack[localIndex];
-            _stack[localIndex] = null;
 
-            if (result == null)
+            if (TryCreate(out result))
             {
-                Interlocked.Increment(ref _index);
-                return TryCreate(out result);
+                return true;
             }
+            
 
-            return true;
+            return false;
         }
 
         public bool TryReturn(T item)
         {
-            int localIndex = Interlocked.Increment(ref _index);
-
-            if (localIndex >= _stack.Length)
+            if (Interlocked.Increment(ref _count) <= _maxCount)
             {
-                Interlocked.Decrement(ref _index);
-                return false;
+                _bag.Add(item);
+                return true;
             }
 
-            _stack[localIndex] = item;
-            return true;
+            Interlocked.Decrement(ref _count);
+            return false;
         }
 
         private bool TryCreate([NotNullWhen(true)] out T? result)
@@ -75,11 +71,7 @@ namespace Vocore
 
         public void Clear()
         {
-            for (int i = 0; i < _stack.Length; i++)
-            {
-                _stack[i] = null;
-            }
-            Interlocked.Exchange(ref _index, -1);
+            _bag.Clear();
         }
     }
 }

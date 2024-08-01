@@ -120,6 +120,67 @@ namespace Vocore.Test
 
             Assert.IsTrue(bag.Count == count);
         }
+
+        [Test(Description = "ConcurrentPool vs concurrent stack")]
+        public void Test_ConcurrentPool_Vs_ConcurrentStack()
+        {
+            int count = 1000000;
+            ConcurrentPool<object> pool = new ConcurrentPool<object>(count);
+
+            ConcurrentStack<object> stack = new ConcurrentStack<object>();
+
+            ConcurrentBag<object> bag = new ConcurrentBag<object>();
+
+
+            object[] array = new object[count];
+            for (int i = 0; i < array.Length; i++)
+            {
+                array[i] = new object();
+            }
+
+            UtilsTest.Benchmark("ConcurrentPool", () =>
+            {
+                Parallel.For(0, count, (i) =>
+                {
+                    pool.TryReturn(array[i]);
+                });
+
+                Parallel.For(0, count, (i) =>
+                {
+                    pool.TryGet(out object item);
+
+                });
+            });
+
+
+            UtilsTest.Benchmark("ConcurrentStack", () =>
+            {
+
+                Parallel.For(0, count, (i) =>
+                {
+                    stack.Push(array[i]);
+                });
+
+                Parallel.For(0, count, (i) =>
+                {
+                    stack.TryPop(out object item);
+
+                });
+            });
+
+            UtilsTest.Benchmark("ConcurrentBag", () =>
+            {
+                Parallel.For(0, count, (i) =>
+                {
+                    bag.Add(array[i]);
+                });
+
+                Parallel.For(0, count, (i) =>
+                {
+                    bag.TryTake(out object item);
+                });
+            });
+        }
     }
 }
 
