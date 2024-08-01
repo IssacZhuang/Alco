@@ -86,6 +86,28 @@ public class ShaderCompileResult
             );
     }
 
+    public static ShaderCompileResult CreateGraphics(
+        ShaderModule vertex,
+        ShaderModule fragment,
+        ShaderStage stages,
+        ShaderPreproccessResultSlang preproccessResult,
+        ShaderReflectionInfo reflectionInfo)
+    {
+        //return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
+        return new ShaderCompileResult(
+            preproccessResult.Filename, 
+            vertex, 
+            fragment, 
+            null,
+            stages, 
+            preproccessResult.RasterizerState, 
+            preproccessResult.BlendState, 
+            preproccessResult.DepthStencilState, 
+            preproccessResult.PrimitiveTopology, 
+            reflectionInfo
+            );
+    }
+
     public static ShaderCompileResult CreateCompute(
         ShaderModule compute,
         ShaderPreproccessResultHLSL preproccessResult,
@@ -98,6 +120,27 @@ public class ShaderCompileResult
             null, 
             compute, 
             preproccessResult.Stages, 
+            preproccessResult.RasterizerState, 
+            preproccessResult.BlendState, 
+            preproccessResult.DepthStencilState, 
+            preproccessResult.PrimitiveTopology, 
+            reflectionInfo
+            );
+    }
+
+    public static ShaderCompileResult CreateCompute(
+        ShaderModule compute,
+        ShaderStage stages,
+        ShaderPreproccessResultSlang preproccessResult,
+        ShaderReflectionInfo reflectionInfo)
+    {
+        //return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);
+        return new ShaderCompileResult(
+            preproccessResult.Filename, 
+            null, 
+            null, 
+            compute, 
+            stages, 
             preproccessResult.RasterizerState, 
             preproccessResult.BlendState, 
             preproccessResult.DepthStencilState, 

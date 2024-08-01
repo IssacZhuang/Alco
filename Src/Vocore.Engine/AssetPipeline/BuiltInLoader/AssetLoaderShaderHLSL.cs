@@ -19,7 +19,7 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
 
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
-    public AssetLoaderShaderHLSL(RenderingSystem renderingSystem,Func<string, string>? includeResolver = null)
+    public AssetLoaderShaderHLSL(RenderingSystem renderingSystem, Func<string, string>? includeResolver = null)
     {
         _includeResolver = includeResolver;
         _renderingSystem = renderingSystem;

@@ -29,7 +29,7 @@ public unsafe abstract class BaseSlangFileSystem : IDisposable, ISlangFileSystem
             return true;
         }
 
-        if (TryLoadFile(path, out byte[] data))
+        if (TryLoadFile(path, out ReadOnlySpan<byte> data))
         {
             SlangBlob* slangBlob = Alloc<SlangBlob>();
             *slangBlob = new SlangBlob(data);
@@ -64,7 +64,7 @@ public unsafe abstract class BaseSlangFileSystem : IDisposable, ISlangFileSystem
         Free(_handle);
     }
 
-    public abstract bool TryLoadFile(string path, out byte[] data);
+    public abstract bool TryLoadFile(string path, out ReadOnlySpan<byte> data);
 
 
 }

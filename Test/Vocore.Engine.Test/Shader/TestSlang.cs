@@ -239,7 +239,7 @@ public class TestSlang
             _basePath = basePath;
         }
 
-        public override bool TryLoadFile(string filename, out byte[] data)
+        public override bool TryLoadFile(string filename, out ReadOnlySpan<byte> data)
         {
             TestContext.WriteLine($"Try load file: {filename}");
             var path = Path.Combine(_basePath, filename);

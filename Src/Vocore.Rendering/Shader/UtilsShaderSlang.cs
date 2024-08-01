@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using SlangSharp;
 using Vocore.Graphics;
 using Vocore.ShaderCompiler;
 
@@ -7,6 +8,55 @@ namespace Vocore.Rendering;
 
 public static class UtilsShaderSlang
 {
+    public static ShaderCompileResult Compile(string code, string filename, BaseSlangFileSystem? fileSystem = null)
+    {
+        ShaderPreproccessResultSlang preproccessed = PreprocessSlang(code, filename);
+        return Compile(preproccessed, fileSystem);
+    }
+
+    public static ShaderCompileResult Compile(ShaderPreproccessResultSlang preproccessed, BaseSlangFileSystem? fileSystem = null)
+    {
+        ShaderModule? vertexShader = null;
+        ShaderModule? fragmentShader = null;
+        ShaderModule? computeShader = null;
+
+        ShaderModule[] modules = ShaderCompilerSlang.CrearteSpirvShaderModules(preproccessed.ShaderText, preproccessed.Filename, null, fileSystem);
+        ShaderStage stages = ShaderStage.None;
+
+        for (int i = 0; i < modules.Length; i++)
+        {
+            ShaderModule module = modules[i];
+            if (module.Stage == ShaderStage.Vertex)
+            {
+                vertexShader = module;
+                stages |= ShaderStage.Vertex;
+            }
+            else if (module.Stage == ShaderStage.Fragment)
+            {
+                fragmentShader = module;
+                stages |= ShaderStage.Fragment;
+            }
+            else if (module.Stage == ShaderStage.Compute)
+            {
+                computeShader = module;
+                stages |= ShaderStage.Compute;
+            }
+        }
+
+        if (stages.IsGraphicsShader())
+        {
+            ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source);
+            return new ShaderCompileResult(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
+        }
+        else if (stages.IsComputeShader())
+        {
+            ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(computeShader!.Value.Source);
+            return new ShaderCompileResult(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
+        }
+
+        throw new Exception("Missing entry point for shader.");
+    }
+
     public static ShaderPreproccessResultSlang PreprocessSlang(string code, string filename)
     {
         ShaderPreproccessResultSlang result = new ShaderPreproccessResultSlang()

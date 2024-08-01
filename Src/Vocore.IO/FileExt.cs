@@ -5,6 +5,7 @@ public static class FileExt
     // shader 
     public const string ShaderBinary = ".scb";
     public const string ShaderHLSL = ".hlsl";
+    public const string ShaderSlang = ".slang";
     public const string ShaderHLSLInclude = ".hlslinc";
     public const string ShaderGLSL = ".glsl";
     public const string ShaderGLSLInclude = ".glslinc";

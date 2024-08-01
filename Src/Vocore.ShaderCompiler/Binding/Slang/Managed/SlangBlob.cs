@@ -15,7 +15,7 @@ public unsafe struct SlangBlob : IDisposable
     private uint _refCount;
     private uint _disposed;
 
-    public SlangBlob(Span<byte> data, uint initialRefCount = 1)
+    public SlangBlob(ReadOnlySpan<byte> data, uint initialRefCount = 1)
     {
         fixed (byte* ptr = data)
         {
