@@ -30,6 +30,7 @@ public static partial class UtilsShaderText
 
     public static ShaderPragma[] GetPragmas(string shaderText)
     {
+        shaderText = shaderText.Replace("\r\n", "\n");
         shaderText = RemoveComments(shaderText);
         string[] lines = shaderText.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         List<ShaderPragma> pragmas = new();
@@ -157,6 +158,7 @@ public static partial class UtilsShaderText
 
     public static bool TryGetBlendState(ShaderPragma pragma, out BlendState blendState)
     {
+        
         if (pragma.Name != PragmaKeyBlendState)
         {
             blendState = default;

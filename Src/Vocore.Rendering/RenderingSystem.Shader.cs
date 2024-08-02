@@ -51,6 +51,7 @@ public partial class RenderingSystem
                 info.PushConstantsRanges,
                 filename);
 
+            Log.Info(result.ReflectionInfo);
             GPUPipeline pipeline = device.CreateGraphicsPipeline(descriptor);
 
             foreach (var bindGroup in bindGroups)

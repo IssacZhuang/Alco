@@ -23,4 +23,6 @@ public struct SlangCompileOption
     public SlangDebugInfoFormat? DebugInfoFormat;
     public SlangDiagnosticFlags? DiagnosticFlags;
     public PreprocessorMacroDesc[]? Macros;
+
+    public bool PreserveParameters;
 }

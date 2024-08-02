@@ -413,7 +413,7 @@ internal partial class WebGPUDevice : GPUDevice
                 sType = (WGPUSType)WGPUNativeSType.InstanceExtras,
                 next = null,
             },
-            flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
+            flags = descriptor.Debug ? WGPUInstanceFlags.Debug : WGPUInstanceFlags.None,
             backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
         };
 

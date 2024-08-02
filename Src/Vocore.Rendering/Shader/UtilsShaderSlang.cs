@@ -71,6 +71,7 @@ public static class UtilsShaderSlang
         for(int i = 0; i < pragmas.Length; i++)
         {
             ShaderPragma pragma = pragmas[i];
+            
             if (UtilsShaderText.TryGetBlendState(pragma, out BlendState blendState))
             {
                 result.BlendState = blendState;

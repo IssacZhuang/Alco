@@ -30,6 +30,21 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
     {
         //compile to spirv and get reflection info
         preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+        //debug save spirv
+        string appPath = Environment.CurrentDirectory;
+        string filePathVetex = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".hlsl.vert.spv");
+        string filePathFragment = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".hlsl.frag.spv");
+        if (!Directory.Exists(Path.Combine(appPath, "spirv")))
+        {
+            Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
+        }
+
+
+
+        File.WriteAllBytes(filePathVetex, preprocessed.VertexShader!.Value.Source);
+        File.WriteAllBytes(filePathFragment, preprocessed.FragmentShader!.Value.Source);
+
+
         return true;
     }
 

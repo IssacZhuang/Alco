@@ -12,7 +12,7 @@ namespace Vocore.Engine;
 /// </summary>
 public class AssetLoaderShaderSlang : BaseAssetLoader<Shader, ShaderCompileResult>
 {
-    private static readonly string[] Extensions = new string[] { FileExt.ShaderHLSL };
+    private static readonly string[] Extensions = new string[] { FileExt.ShaderSlang };
 
     private readonly RenderingSystem _renderingSystem;
 
@@ -32,6 +32,20 @@ public class AssetLoaderShaderSlang : BaseAssetLoader<Shader, ShaderCompileResul
     protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
     {
         preprocessed = UtilsShaderSlang.Compile(Encoding.UTF8.GetString(file), filename, _fileSystem);
+        //debug save spirv
+        string appPath = Environment.CurrentDirectory;
+        string filePathVetex = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".slang.vert.spv");
+        string filePathFragment = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".slang.frag.spv");
+        if (!Directory.Exists(Path.Combine(appPath, "spirv")))
+        {
+            Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
+        }
+
+
+        
+        File.WriteAllBytes(filePathVetex, preprocessed.VertexShader!.Value.Source);
+        File.WriteAllBytes(filePathFragment, preprocessed.FragmentShader!.Value.Source);
+
         return true;
     }
 

@@ -462,6 +462,7 @@ public partial class GameEngine : IDisposable
             }
             throw new Exception($"Can not find the include file: {includeName}");
         }));
+        Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
     }
 
     private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)

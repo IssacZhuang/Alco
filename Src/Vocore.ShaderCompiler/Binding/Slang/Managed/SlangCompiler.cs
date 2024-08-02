@@ -149,6 +149,18 @@ public class SlangCompiler : IDisposable
             }
         }
 
+        List<string> args = new List<string>();
+
+        if(compileOption.PreserveParameters)
+        {
+            args.Add(COMPILER_OPTION_PRESERVE_PARAMETERS);
+        }
+
+        if (args.Count > 0)
+        {
+            spProcessCommandLineArguments(request,  args.ToArray(), args.Count);
+        }
+
         return request;
     }
 }

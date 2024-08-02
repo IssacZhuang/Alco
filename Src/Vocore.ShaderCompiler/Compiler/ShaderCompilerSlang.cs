@@ -17,7 +17,10 @@ public static class ShaderCompilerSlang
         SlangCompileOption option = new SlangCompileOption
         {
             SourceLanguage = SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG,
-            CompileTarget = SlangCompileTarget.SLANG_SPIRV
+            CompileTarget = SlangCompileTarget.SLANG_SPIRV,
+            OptimizationLevel = SlangOptimizationLevel.SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
+            MatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR,
+            PreserveParameters = true,
         };
 
         SlangCompileResult[] results = compiler.Compile(filename, slangCode, option);
