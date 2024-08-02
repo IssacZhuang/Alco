@@ -34,7 +34,7 @@ Texture2D _texture;
 SamplerState _textureSampler;
 
 [[vk_push_constant]]
-Constants constants;
+ConstantBuffer<Constants> constants;
 
 [shader("vertex")]
 V2F vs_main(Vertex2D input) {

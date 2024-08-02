@@ -4,6 +4,7 @@ using System.Text;
 using Vocore.Graphics;
 using Vocore.Engine;
 using Vocore.ShaderCompiler;
+using Vocore;
 
 public class Game : GameEngine
 {
@@ -112,16 +113,35 @@ public class Game : GameEngine
 
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroup)
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
-
+        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.slang"));
+        string appPath = Environment.CurrentDirectory;
 
         //dxc
-        ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        // ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
+        // ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.dxc.vert.spv");
+        // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.dxc.frag.spv");
 
         //shaderc
         // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
         // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+
+        //slang
+        ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.slang");
+        ShaderModule vertexShader = shaderModules[0];
+        ShaderModule fragmentShader = shaderModules[1];
+        string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
+        string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
+
+        Log.Info(UtilsShaderRelfection.GetSpirvReflection(vertexShader.Source));
+
+        if (!Directory.Exists(Path.Combine(appPath, "spirv")))
+        {
+            Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
+        }
+
+        File.WriteAllBytes(filePathVetex, vertexShader.Source);
+        File.WriteAllBytes(filePathFragment, fragmentShader.Source);
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {

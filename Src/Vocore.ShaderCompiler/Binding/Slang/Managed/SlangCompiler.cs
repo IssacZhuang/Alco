@@ -28,15 +28,18 @@ public class SlangCompiler : IDisposable
         _session = spCreateSession(sessionName);
     }
 
-    public SlangCompileResult[] Compile(string path, string code, SlangCompileOption? option = null)
+    public unsafe SlangCompileResult[] Compile(string path, string code, SlangCompileOption? option = null)
     {
         SlangCompileOption compileOption = option ?? SlangCompileOption.Default;
         SlangSourceLanguage sourceLanguage = compileOption.SourceLanguage ?? SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG;
 
-        SlangCompileRequest request = MakeRequest(compileOption);
+        SlangCompileRequest request = spCreateCompileRequest(_session);
+
 
         int translationUnitIndex = spAddTranslationUnit(request, sourceLanguage, path);
         spAddTranslationUnitSourceString(request, translationUnitIndex, path, code);
+
+        int targetIndex = PushOptions(request, compileOption);
 
         SlangResult result = spCompile(request);
 
@@ -57,13 +60,19 @@ public class SlangCompiler : IDisposable
             SlangReflectionEntryPoint entryPoint = spReflection_getEntryPointByIndex(reflection, i);
             SlangStage entryStage = spReflectionEntryPoint_getStage(entryPoint);
 
+            ISlangBlob* blob;
+            SlangResult result1 = spGetEntryPointCodeBlob(request, (int)i, targetIndex, &blob);
+            
+            byte[] data = UtilsSlangInterop.GetBytes((IntPtr)blob->GetBufferPointer(), blob->GetBufferSize());
+            
             results[i] = new SlangCompileResult
             {
-                Spirv = request.GetBytesByEntryPointIndex((int)i),
+                Spirv = data,
                 Stage = entryStage,
                 EntryPoint = entryPoint.GetName()
             };
         }
+
 
         spDestroyCompileRequest(request);
 
@@ -75,9 +84,8 @@ public class SlangCompiler : IDisposable
         spDestroySession(_session);
     }
 
-    private unsafe SlangCompileRequest MakeRequest(SlangCompileOption compileOption)
+    private unsafe int PushOptions(SlangCompileRequest request, SlangCompileOption compileOption)
     {
-        SlangCompileRequest request = spCreateCompileRequest(_session);
 
 
         int targetIndex;
@@ -141,7 +149,8 @@ public class SlangCompiler : IDisposable
             spSetDiagnosticFlags(request, compileOption.DiagnosticFlags.Value);
         }
 
-        if(compileOption.Macros != null)
+
+        if (compileOption.Macros != null)
         {
             for(int i = 0; i < compileOption.Macros.Length; i++)
             {
@@ -149,18 +158,22 @@ public class SlangCompiler : IDisposable
             }
         }
 
-        List<string> args = new List<string>();
+        List<string> args = new List<string>() { };
 
-        if(compileOption.PreserveParameters)
+        if (compileOption.PreserveParameters)
         {
             args.Add(COMPILER_OPTION_PRESERVE_PARAMETERS);
         }
 
         if (args.Count > 0)
         {
-            spProcessCommandLineArguments(request,  args.ToArray(), args.Count);
+            SlangResult result = spProcessCommandLineArguments(request, args.ToArray(), args.Count);
+            if (result.IsError)
+            {
+                //throw new Exception("Failed to process command line arguments");
+            }
         }
 
-        return request;
+        return targetIndex;
     }
 }
