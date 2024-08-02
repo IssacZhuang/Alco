@@ -35,9 +35,9 @@ struct TextData {
   float2 size;
 };
 
-DEFINE_STRUCT(0, _camera) { float4x4 viewProjection; };
+DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_STRUCT(1, _textBuffer) { TextData Data[MAX_INSTANCE_COUNT]; };
+DEFINE_UNIFORM(1, _textBuffer) { TextData Data[MAX_INSTANCE_COUNT]; };
 
 DEFINE_TEX2D_SAMPLE(2, _font);
 

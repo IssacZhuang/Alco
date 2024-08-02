@@ -7,7 +7,7 @@
 #pragma RenderPass Surface
 
 DEFINE_TEX2D_SAMPLE(0, _texture); // should be HDR image
-DEFINE_STRUCT(1, _data){
+DEFINE_UNIFORM(1, _data){
     float A;
     float B;
     float C;

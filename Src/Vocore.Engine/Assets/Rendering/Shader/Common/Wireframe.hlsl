@@ -18,7 +18,7 @@ struct V2F {
 };
 
 
-DEFINE_STRUCT(0, _camera) { float4x4 viewProjection; };
+DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
 
 V2F vs_main(Vertex2D input) {

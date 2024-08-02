@@ -6,7 +6,7 @@
 #pragma DepthStencilState None
 
 DEFINE_TEX2D_SAMPLE(0, texture);
-DEFINE_STRUCT(1, data) { 
+DEFINE_UNIFORM(1, data) { 
     float2 InvTextureSize;
     float Threshold; 
 };

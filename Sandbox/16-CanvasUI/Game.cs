@@ -34,7 +34,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/SpriteMasked.slang");
+        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/SpriteMasked.hlsl");
         _shaderText = Assets.Load<Shader>("Rendering/Shader/2D/TextMasked.hlsl");
         _font = Assets.Load<Font>("Font/Default.ttf");
 

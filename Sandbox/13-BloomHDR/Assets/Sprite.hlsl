@@ -21,7 +21,7 @@ struct Constants {
   float4 uvRect;
 };
 
-DEFINE_STRUCT(0, _camera) { float4x4 viewProjection; };
+DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
 DEFINE_TEX2D_SAMPLE(1, _texture);
 

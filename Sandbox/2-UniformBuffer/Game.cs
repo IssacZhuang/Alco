@@ -127,7 +127,7 @@ public class Game : GameEngine
         // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
 
         //slang
-        ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.slang");
+        ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.hlsl");
         ShaderModule vertexShader = shaderModules[0];
         ShaderModule fragmentShader = shaderModules[1];
         string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
