@@ -689,7 +689,7 @@ internal partial class WebGPUDevice : GPUDevice
             case WGPULogLevel.Error:
                 throw new GraphicsException(message);
             case WGPULogLevel.Warn:
-                GraphicsLogger.Warning(message +"\n" + Environment.StackTrace);
+                GraphicsLogger.Warning(message);
                 break;
             case WGPULogLevel.Info:
             case WGPULogLevel.Debug:

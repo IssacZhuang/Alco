@@ -45,7 +45,7 @@ public static class UtilsShaderSlang
 
         if (stages.IsGraphicsShader())
         {
-            ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source);
+            ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source, true);
             return new ShaderCompileResult(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
         }
         else if (stages.IsComputeShader())

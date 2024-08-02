@@ -11,14 +11,15 @@ public static class ShaderCompilerSlang
 {
     private readonly static SlangSession _session = spCreateSession("slang_compile_session");
 
-    public static ShaderModule[] CrearteSpirvShaderModules(string slangCode, string filename = "unnamed_shader.hlsl", ShaderMacroDefine[]? defines = null, BaseSlangFileSystem? fileSystem = null)
+    public static ShaderModule[] CrearteSpirvShaderModules(string slangCode, string filename = "unnamed_shader.slang", ShaderMacroDefine[]? defines = null, BaseSlangFileSystem? fileSystem = null)
     {
         using SlangCompiler compiler = new SlangCompiler(fileSystem);
         SlangCompileOption option = new SlangCompileOption
         {
             SourceLanguage = SlangSourceLanguage.SLANG_SOURCE_LANGUAGE_SLANG,
+            TargetFlags = SlangTargetFlags.SLANG_TARGET_FLAG_GENERATE_SPIRV_DIRECTLY,
             CompileTarget = SlangCompileTarget.SLANG_SPIRV,
-            OptimizationLevel = SlangOptimizationLevel.SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
+            OptimizationLevel = SlangOptimizationLevel.SLANG_OPTIMIZATION_LEVEL_NONE,
             MatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR,
             PreserveParameters = true,
         };
