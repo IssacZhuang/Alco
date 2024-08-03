@@ -9,11 +9,11 @@ public class Canvas : AutoDisposable
 {
     private class MousePointCaster : ICollisionCaster
     {
-        public ISelectable? hitSelectable;
+        public UINode? hitSelectable;
         public IScrollable? hitScrollable;
         public void OnHit(object hitObject, int userData)
         {
-            if (hitSelectable == null && hitObject is ISelectable node)
+            if (hitSelectable == null && hitObject is UINode node)
             {
                 hitSelectable = node;
             }
@@ -47,9 +47,9 @@ public class Canvas : AutoDisposable
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
-    private ISelectable? _holded;
-    private ISelectable? _hovered;
-    private ISelectable? _selected;
+    private UINode? _holded;
+    private UINode? _hovered;
+    private UINode? _selected;
 
 
 
@@ -95,19 +95,19 @@ public class Canvas : AutoDisposable
         }
     }
 
-    public ISelectable? Holded
+    public UINode? Holded
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _holded;
     }
 
-    public ISelectable? Hovered
+    public UINode? Hovered
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _hovered;
     }
 
-    public ISelectable? Selected
+    public UINode? Selected
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _selected;
@@ -177,7 +177,7 @@ public class Canvas : AutoDisposable
         _collisionWorld.BuildTree();
         _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
 
-        ISelectable? selectable = _mousePointCaster.hitSelectable;
+        UINode? selectable = _mousePointCaster.hitSelectable;
         _hovered = selectable;
 
         _holded?.OnDrag(worldPosition);
@@ -220,7 +220,7 @@ public class Canvas : AutoDisposable
         _debugRenderer?.Dispose();
     }
 
-    private void OnMouseDown(ISelectable? node)
+    private void OnMouseDown(UINode? node)
     {
         if (node == null)
         {
@@ -231,7 +231,7 @@ public class Canvas : AutoDisposable
         node.OnPressDown();
     }
 
-    private void OnMouseUp(ISelectable? node)
+    private void OnMouseUp(UINode? node)
     {
         _holded?.OnPressUp();
         if (node == _holded)

@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Vocore.GUI;
 
-public interface IScrollable : ISelectable
+public interface IScrollable
 {
 
     /// <summary>

@@ -322,8 +322,6 @@ internal partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
-        //todo: get pixel size by format
-
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
 
         WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor

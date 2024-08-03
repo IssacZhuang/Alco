@@ -36,6 +36,7 @@ public class UIScrollable : UISelectable, IScrollable
     {
         base.OnUpdate(canvas, delta);
     }
+    
     public void OnScroll(Vector2 displacement)
     {
         if (_content == null)

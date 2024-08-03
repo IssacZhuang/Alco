@@ -51,7 +51,7 @@ public class UISlider : UINode
         {
             return;
         }
-        node.OnDragEvent += OnHandleDrag;
+        node.EventOnDrag += OnHandleDrag;
     }
 
     private void UnregisterHandle(UISelectable? node)
@@ -60,7 +60,7 @@ public class UISlider : UINode
         {
             return;
         }
-        node.OnDragEvent -= OnHandleDrag;
+        node.EventOnDrag -= OnHandleDrag;
     }
 
     private void UpdateValue(float value)

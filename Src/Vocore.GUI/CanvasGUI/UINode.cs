@@ -22,6 +22,16 @@ public class UINode
     private MaskState _maskState = MaskState.None;
     private bool _isMaskDirty = true;
 
+    public virtual bool BubbleEvent { get; set; } = true;
+
+    public event Action? EventOnClick;
+    public event Action? EventOnHover;
+    public event Action? EventOnPressDown;
+    public event Action? EventOnPressUp;
+    public event Action? EventOnPressing;
+    public event Action<Vector2>? EventOnDrag;
+
+
     /// <summary>
     /// The parent of the node. Must be null if the node is a root node.
     /// </summary>
@@ -712,4 +722,62 @@ public class UINode
             _children[i].Update(canvas, delta);
         }
     }
+
+    #region Event
+
+    public virtual void OnClick()
+    {
+        EventOnClick?.Invoke();
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnClick();
+        }
+    }
+
+    public virtual void OnHover()
+    {
+        EventOnHover?.Invoke();
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnHover();
+        }
+    }
+
+    public virtual void OnPressing()
+    {
+        EventOnPressing?.Invoke();
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnPressing();
+        }
+    }
+
+    public virtual void OnPressDown()
+    {
+        EventOnPressDown?.Invoke();
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnPressDown();
+        }
+    }
+
+    public virtual void OnPressUp()
+    {
+        EventOnPressUp?.Invoke();
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnPressUp();
+        }
+    }
+
+    public void OnDrag(Vector2 mousePoisition)
+    {
+        EventOnDrag?.Invoke(mousePoisition);
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnDrag(mousePoisition);
+        }
+    }
+
+    #endregion
 }

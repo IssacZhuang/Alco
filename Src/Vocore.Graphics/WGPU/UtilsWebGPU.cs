@@ -8,7 +8,7 @@ internal static partial class UtilsWebGPU
 {
     public static uint GetTextureBytesPerRow(PixelFormat pixelFormat, uint width, uint height)
     {
-        //incompresed formats
+        //uncompresed formats
         if (UtilsPixelFormat.TryGetPixelSize(pixelFormat, out var pixelSize))
         { 
             return width * pixelSize;
