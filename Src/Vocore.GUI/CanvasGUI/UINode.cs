@@ -24,11 +24,11 @@ public class UINode
 
     public virtual bool BubbleEvent { get; set; } = true;
 
-    public event Action? EventOnClick;
-    public event Action? EventOnHover;
-    public event Action? EventOnPressDown;
-    public event Action? EventOnPressUp;
-    public event Action? EventOnPressing;
+    public event Action<Vector2>? EventOnClick;
+    public event Action<Vector2>? EventOnHover;
+    public event Action<Vector2>? EventOnPressDown;
+    public event Action<Vector2>? EventOnPressUp;
+    public event Action<Vector2>? EventOnPressing;
     public event Action<Vector2>? EventOnDrag;
 
 
@@ -725,52 +725,52 @@ public class UINode
 
     #region Event
 
-    public virtual void OnClick()
+    public virtual void OnClick(Vector2 mousePosition)
     {
-        EventOnClick?.Invoke();
+        EventOnClick?.Invoke(mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnClick();
+            Parent.OnClick(mousePosition);
         }
     }
 
-    public virtual void OnHover()
+    public virtual void OnHover(Vector2 mousePosition)
     {
-        EventOnHover?.Invoke();
+        EventOnHover?.Invoke(mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnHover();
+            Parent.OnHover(mousePosition);
         }
     }
 
-    public virtual void OnPressing()
+    public virtual void OnPressing(Vector2 mousePosition)
     {
-        EventOnPressing?.Invoke();
+        EventOnPressing?.Invoke(mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnPressing();
+            Parent.OnPressing(mousePosition);
         }
     }
 
-    public virtual void OnPressDown()
+    public virtual void OnPressDown(Vector2 mousePosition)
     {
-        EventOnPressDown?.Invoke();
+        EventOnPressDown?.Invoke(mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnPressDown();
+            Parent.OnPressDown(mousePosition);
         }
     }
 
-    public virtual void OnPressUp()
+    public virtual void OnPressUp(Vector2 mousePosition)
     {
-        EventOnPressUp?.Invoke();
+        EventOnPressUp?.Invoke(mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnPressUp();
+            Parent.OnPressUp(mousePosition);
         }
     }
 
-    public void OnDrag(Vector2 mousePoisition)
+    public virtual void OnDrag(Vector2 mousePoisition)
     {
         EventOnDrag?.Invoke(mousePoisition);
         if (BubbleEvent && Parent != null)

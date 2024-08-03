@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 using Vocore.Rendering;
@@ -212,31 +213,22 @@ public class UIButton : UISelectable
         }
     }
 
-    public override void OnClick()
-    {
-        base.OnClick();
-    }
 
-    public override void OnHover()
+    public override void OnHover(Vector2 mousePosition)
     {
-        base.OnHover();
+        base.OnHover(mousePosition);
         TryChangeTransitionState(SelectableState.Hover);
     }
 
-    public override void OnPressing()
+    public override void OnPressDown(Vector2 mousePosition)
     {
-        base.OnPressing();
-    }
-
-    public override void OnPressDown()
-    {
-        base.OnPressDown();
+        base.OnPressDown(mousePosition);
         TryChangeTransitionState(SelectableState.Pressing);
     }
 
-    public override void OnPressUp()
+    public override void OnPressUp(Vector2 mousePosition)
     {
-        base.OnPressUp();
+        base.OnPressUp(mousePosition);
         TryChangeTransitionState(SelectableState.Normal);
     }
 

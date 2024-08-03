@@ -101,7 +101,8 @@ public class Game : GameEngine
 
         UILayoutVertical layout = new UILayoutVertical()
         {
-            Size = new Vector2(160, 100),
+            Position = new Vector2(200, 100),
+            Size = new Vector2(100, 100),
             PaddingTop = 8,
             PaddingBottom = 8,
             Spacing = 4,
@@ -111,17 +112,27 @@ public class Game : GameEngine
 
         UISprite bgLayout = new UISprite()
         {
-            Size = new Vector2(160, 100),
-            Color = 0xffffff,
+            Position = new Vector2(200, 100),
+            Size = new Vector2(100, 200),
+            Color = 0xaaaaaa,
             Anchor = Anchor.Stretch,
-            IsLayoutAffected = false,
         };
 
-        layout.Add(bgLayout);
+        UIScrollable scrollable = new UIScrollable()
+        {
+            Position = new Vector2(200, 100),
+            Size = new Vector2(100, 200),
+            ScrollMode = SrollMode.Vertical,
+            IsMaskEnabled = true,
+        };
 
-        layout.Position = new Vector2(200, 100);
 
-        _root.Add(layout);
+        scrollable.Add(bgLayout);
+        scrollable.Add(layout);
+
+        scrollable.Content = layout;
+
+        _root.Add(scrollable);
 
         UISlider slider = _factory.CreateSlider();
         slider.Position = new Vector2(200, -100);

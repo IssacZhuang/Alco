@@ -10,24 +10,17 @@ public class Canvas : AutoDisposable
     private class MousePointCaster : ICollisionCaster
     {
         public UINode? hitSelectable;
-        public IScrollable? hitScrollable;
         public void OnHit(object hitObject, int userData)
         {
             if (hitSelectable == null && hitObject is UINode node)
             {
                 hitSelectable = node;
             }
-
-            if (hitScrollable == null && hitObject is IScrollable scrollable)
-            {
-                hitScrollable = scrollable;
-            }
         }
 
         public void Clear()
         {
             hitSelectable = null;
-            hitScrollable = null;
         }
     }
 
@@ -184,27 +177,26 @@ public class Canvas : AutoDisposable
 
         if (_inputTracker.IsMouseDown)
         {
-            OnMouseDown(selectable);
+            OnMouseDown(selectable, mousePosition);
         }
         else if (_inputTracker.IsMouseUp)
         {
-            OnMouseUp(selectable);
+            OnMouseUp(selectable, mousePosition);
         }
         else if (_inputTracker.IsMousePressing)
         {
-            selectable?.OnPressing();
+            selectable?.OnPressing(mousePosition);
         }
         else
         {
-            selectable?.OnHover();
+            selectable?.OnHover(mousePosition);
         }
 
-        IScrollable? scrollable = _mousePointCaster.hitScrollable;
 
-        if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))
-        {
-            scrollable?.OnScroll(scrollDelta);
-        }
+        // if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))
+        // {
+        //     scrollable?.OnScroll(scrollDelta);
+        // }
     }
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)
@@ -220,7 +212,7 @@ public class Canvas : AutoDisposable
         _debugRenderer?.Dispose();
     }
 
-    private void OnMouseDown(UINode? node)
+    private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
         if (node == null)
         {
@@ -228,15 +220,15 @@ public class Canvas : AutoDisposable
         }
         _holded = node;
         _selected = node;
-        node.OnPressDown();
+        node.OnPressDown(mousePosition);
     }
 
-    private void OnMouseUp(UINode? node)
+    private void OnMouseUp(UINode? node, Vector2 mousePosition)
     {
-        _holded?.OnPressUp();
+        _holded?.OnPressUp(mousePosition);
         if (node == _holded)
         {
-            _holded?.OnClick();
+            _holded?.OnClick(mousePosition);
         }
         
         _holded = null;

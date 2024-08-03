@@ -3,11 +3,11 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.GUI;
 
-public class UIScrollable : UISelectable, IScrollable
+public class UIScrollable : UISelectable
 {
     private UINode? _content;
+    private Vector2 _lastDragPosition;
     public SrollMode ScrollMode { get; set; }
-    public bool IgnoreOcclusion { get; set; }
     public UINode? Content
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -30,14 +30,32 @@ public class UIScrollable : UISelectable, IScrollable
         }
     }
 
-    
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
     }
-    
-    public void OnScroll(Vector2 displacement)
+
+    public override void OnPressDown(Vector2 mousePosition)
+    {
+        base.OnPressDown(mousePosition);
+        _lastDragPosition = mousePosition;
+    }
+
+    public override void OnDrag(Vector2 mousePoisition)
+    {
+        base.OnDrag(mousePoisition);
+        if (_content == null)
+        {
+            return;
+        }
+
+        Vector2 displacement = mousePoisition - _lastDragPosition;
+        _lastDragPosition = mousePoisition;
+        OnScroll(displacement);
+    }
+
+    protected void OnScroll(Vector2 displacement)
     {
         if (_content == null)
         {
