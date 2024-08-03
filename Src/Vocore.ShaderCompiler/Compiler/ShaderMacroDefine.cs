@@ -1,5 +1,4 @@
 using System.Text;
-using Vortice.Dxc;
 
 namespace Vocore.ShaderCompiler;
 
@@ -44,25 +43,5 @@ public struct ShaderMacroDefine
         sb.AppendLine(FirstLine);
 
         return sb.ToString();
-    }
-
-    public static DxcDefine[] ToDxcMacro(ShaderMacroDefine[]? macros)
-    {
-        if (macros == null || macros.Length == 0)
-        {
-            return Array.Empty<DxcDefine>();
-        }
-        DxcDefine[] dxcMacros = new DxcDefine[macros.Length];
-
-        for (int i = 0; i < macros.Length; i++)
-        {
-            dxcMacros[i] = new DxcDefine
-            {
-                Name = macros[i].name,
-                Value = macros[i].value
-            };
-        }
-
-        return dxcMacros;
     }
 }

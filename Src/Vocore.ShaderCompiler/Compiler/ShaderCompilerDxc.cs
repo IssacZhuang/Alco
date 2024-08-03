@@ -1,6 +1,6 @@
 using System.Text;
 using Vocore.Graphics;
-using Vortice.Dxc;
+using DirectXShaderCompiler.NET;
 
 namespace Vocore.ShaderCompiler;
 
@@ -15,41 +15,59 @@ public static class ShaderCompilerDxc
     public static byte[] ConvetHlslToSpirv(string hlslCode, string filename, string entry, ShaderStage stage, ShaderMacroDefine[]? defines = null)
     {
         // use custom optimization recipe to prevent layout changes
-        IDxcResult result = DxcCompiler.Compile(ConvertShaderStage(stage), hlslCode, entry, new DxcCompilerOptions()
-        {
-            GenerateSpirv = true,
-            SkipOptimizations = false,
-            OptimizationLevel = 3,
-            SpvPreserveInterface = true,
-            SpvPreserveBindings = true,
-        }, filename, ShaderMacroDefine.ToDxcMacro(defines));
+        // IDxcResult result = DxcCompiler.Compile(ConvertShaderStage(stage), hlslCode, entry, new DxcCompilerOptions()
+        // {
+        //     GenerateSpirv = true,
+        //     SkipOptimizations = false,
+        //     OptimizationLevel = 3,
+        //     SpvPreserveInterface = true,
+        //     SpvPreserveBindings = true,
+        // }, filename, ShaderMacroDefine.ToDxcMacro(defines));
 
-        if (result.GetStatus().Failure)
-        {
-            DxcResultCode dxcResult = DxcResultCode.GetDxcResult(result.GetStatus().Code);
-            if (dxcResult.Code != DxcResultCode.Unknown.Code)
-            {
-                throw new ShaderCompilationException($"{dxcResult}  Message: {result.GetErrors()}");
-            }
-            else
-            {
-                throw new ShaderCompilationException(result.GetErrors());
-            }
+        // if (result.GetStatus().Failure)
+        // {
+        //     DxcResultCode dxcResult = DxcResultCode.GetDxcResult(result.GetStatus().Code);
+        //     if (dxcResult.Code != DxcResultCode.Unknown.Code)
+        //     {
+        //         throw new ShaderCompilationException($"{dxcResult}  Message: {result.GetErrors()}");
+        //     }
+        //     else
+        //     {
+        //         throw new ShaderCompilationException(result.GetErrors());
+        //     }
 
+        // }
+
+        // return result.GetObjectBytecodeArray();
+
+        CompilerOptions options = new CompilerOptions(ConvertShaderStage(stage).ToProfile(6, 0))
+        {
+            entryPoint = entry,
+            generateAsSpirV = true,
+            optimization = OptimizationLevel.O3,
+            preserveInterface = true,
+            preserveBindings = true,
+        };
+
+        CompilationResult result = DirectXShaderCompiler.NET.ShaderCompiler.Compile(hlslCode, options);
+
+        if (result.compilationErrors != null)
+        {
+            throw new ShaderCompilationException($"Error on compiling shader '{filename}': {result.compilationErrors}");
         }
 
-        return result.GetObjectBytecodeArray();
+        return result.objectBytes;
     }
-   
-    private static DxcShaderStage ConvertShaderStage(ShaderStage stage)
+
+    private static ShaderType ConvertShaderStage(ShaderStage stage)
     {
         return stage switch
         {
-            ShaderStage.Vertex => DxcShaderStage.Vertex,
-            ShaderStage.Fragment => DxcShaderStage.Pixel,
-            ShaderStage.Compute => DxcShaderStage.Compute,
-            ShaderStage.Hull => DxcShaderStage.Hull,
-            ShaderStage.Domain => DxcShaderStage.Domain,
+            ShaderStage.Vertex => ShaderType.Vertex,
+            ShaderStage.Fragment => ShaderType.Fragment,
+            ShaderStage.Compute => ShaderType.Compute,
+            ShaderStage.Hull => ShaderType.Hull,
+            ShaderStage.Domain => ShaderType.Domain,
             _ => throw new NotSupportedException("Unsupported shader stage")
         };
     }
