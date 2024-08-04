@@ -173,7 +173,7 @@ public class Canvas : AutoDisposable
         UINode? selectable = _mousePointCaster.hitSelectable;
         _hovered = selectable;
 
-        _holded?.OnDrag(worldPosition);
+        
 
         if (_inputTracker.IsMouseDown)
         {
@@ -191,6 +191,8 @@ public class Canvas : AutoDisposable
         {
             selectable?.OnHover(mousePosition);
         }
+
+        _holded?.OnDrag(mousePosition);
 
 
         // if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))

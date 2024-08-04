@@ -34,6 +34,12 @@ public class UIScrollable : UISelectable
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
+
+        Vector2 contentSize = _content?.Size ?? Vector2.Zero;
+
+        DebugGUI.Text(Size.ToString());
+        DebugGUI.Text(contentSize.ToString());
+        DebugGUI.Text(_content!.Position.ToString());
     }
 
     public override void OnPressDown(Vector2 mousePosition)
@@ -50,7 +56,7 @@ public class UIScrollable : UISelectable
             return;
         }
 
-        Vector2 displacement = mousePoisition - _lastDragPosition;
+        Vector2 displacement = _lastDragPosition - mousePoisition;
         _lastDragPosition = mousePoisition;
         OnScroll(displacement);
     }
@@ -69,23 +75,26 @@ public class UIScrollable : UISelectable
     private void SetContentPosition(Vector2 position)
     {
         BoundingBox2D bound = Bound;
+        Vector2 contentSize = _content!.Size;
         Vector2 contentOffset = _content!.Size * _content.Pivot;
+        Vector2 contentPosition = _content.Position;
         bound.min -= contentOffset;
         bound.max -= contentOffset;
+
 
         if ((ScrollMode & SrollMode.Vertical) != 0)
         {
             _content.Position = new Vector2(_content.Position.X, position.Y);
 
             //clmap
-            if (_content.Position.Y < bound.min.Y)
-            {
-                _content.Position = new Vector2(_content.Position.X, bound.min.Y);
-            }
-            else if (_content.Position.Y > bound.max.Y)
-            {
-                _content.Position = new Vector2(_content.Position.X, bound.max.Y);
-            }
+            // if (_content.Position.Y < bound.min.Y)
+            // {
+            //     _content.Position = new Vector2(_content.Position.X, bound.min.Y);
+            // }
+            // else if (_content.Position.Y > bound.max.Y)
+            // {
+            //     _content.Position = new Vector2(_content.Position.X, bound.max.Y);
+            // }
         }
 
         if ((ScrollMode & SrollMode.Horizontal) != 0)
@@ -93,14 +102,14 @@ public class UIScrollable : UISelectable
             _content.Position = new Vector2(position.X, _content.Position.Y);
 
             //clmap
-            if (_content.Position.X < bound.min.X)
-            {
-                _content.Position = new Vector2(bound.min.X, _content.Position.Y);
-            }
-            else if (_content.Position.X > bound.max.X)
-            {
-                _content.Position = new Vector2(bound.max.X, _content.Position.Y);
-            }
+            // if (_content.Position.X < bound.min.X)
+            // {
+            //     _content.Position = new Vector2(bound.min.X, _content.Position.Y);
+            // }
+            // else if (_content.Position.X > bound.max.X)
+            // {
+            //     _content.Position = new Vector2(bound.max.X, _content.Position.Y);
+            // }
         }
     }
 }
