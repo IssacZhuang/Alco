@@ -49,6 +49,7 @@ public class UISprite : UINode
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
+        base.OnUpdate(canvas, delta);
         BoundingBox2D mask = Mask;
         if (!HasMask)
         {

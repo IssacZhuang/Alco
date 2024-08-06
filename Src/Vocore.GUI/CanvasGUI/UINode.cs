@@ -585,7 +585,7 @@ public class UINode
     }
     protected virtual void OnUpdate(Canvas canvas, float delta)
     {
-
+        TryRefreshMask();
     }
 
     private void TryRefreshTransform()

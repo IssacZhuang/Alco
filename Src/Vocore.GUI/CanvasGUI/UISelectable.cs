@@ -14,6 +14,7 @@ public class UISelectable : UINode
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
+        base.OnUpdate(canvas, delta);
         if (Interactable)
         {
             AddSelfForCollision(canvas);

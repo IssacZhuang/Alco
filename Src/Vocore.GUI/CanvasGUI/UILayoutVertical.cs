@@ -89,6 +89,8 @@ public class UILayoutVertical : UINode
         {
             UpdateLayout();
         }
+
+        DebugGUI.Text(HasMaskFromParent.ToString());
     }
 
     public void UpdateLayout()

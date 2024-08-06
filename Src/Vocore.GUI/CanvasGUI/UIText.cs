@@ -112,6 +112,7 @@ public class UIText : UINode
 
     protected unsafe override void OnUpdate(Canvas canvas, float delta)
     {
+        base.OnUpdate(canvas, delta);
         if (Font == null)
         {
             return;
