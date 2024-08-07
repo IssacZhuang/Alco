@@ -56,7 +56,7 @@ public class UIScrollable : UISelectable
             return;
         }
 
-        Vector2 displacement = _lastDragPosition - mousePoisition;
+        Vector2 displacement = mousePoisition -_lastDragPosition;
         _lastDragPosition = mousePoisition;
         OnScroll(displacement);
     }

@@ -102,7 +102,7 @@ public class Game : GameEngine
         UILayoutVertical layout = new UILayoutVertical()
         {
             Position = new Vector2(200, 100),
-            Size = new Vector2(100, 100),
+            Size = new Vector2(200, 100),
             PaddingTop = 8,
             PaddingBottom = 8,
             Spacing = 4,
@@ -122,7 +122,7 @@ public class Game : GameEngine
         {
             Position = new Vector2(200, 100),
             Size = new Vector2(100, 200),
-            ScrollMode = SrollMode.Vertical,
+            ScrollMode = SrollMode.Vertical | SrollMode.Horizontal,
             IsMaskEnabled = true,
         };
 

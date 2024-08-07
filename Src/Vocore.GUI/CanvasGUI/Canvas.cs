@@ -164,11 +164,11 @@ public class Canvas : AutoDisposable
         //the mosue position is in screen space, the origin is at the top left corner
         
         Vector2 mousePosition = _inputTracker.MousePosition;
-        Vector2 worldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
         
         _mousePointCaster.Clear();
         _collisionWorld.BuildTree();
-        _collisionWorld.CastPoint(_mousePointCaster, worldPosition);
+        _collisionWorld.CastPoint(_mousePointCaster, mouseWorldPosition);
 
         UINode? selectable = _mousePointCaster.hitSelectable;
         _hovered = selectable;
@@ -177,22 +177,22 @@ public class Canvas : AutoDisposable
 
         if (_inputTracker.IsMouseDown)
         {
-            OnMouseDown(selectable, mousePosition);
+            OnMouseDown(selectable, mouseWorldPosition);
         }
         else if (_inputTracker.IsMouseUp)
         {
-            OnMouseUp(selectable, mousePosition);
+            OnMouseUp(selectable, mouseWorldPosition);
         }
         else if (_inputTracker.IsMousePressing)
         {
-            selectable?.OnPressing(mousePosition);
+            selectable?.OnPressing(mouseWorldPosition);
         }
         else
         {
-            selectable?.OnHover(mousePosition);
+            selectable?.OnHover(mouseWorldPosition);
         }
 
-        _holded?.OnDrag(mousePosition);
+        _holded?.OnDrag(mouseWorldPosition);
 
 
         // if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))
