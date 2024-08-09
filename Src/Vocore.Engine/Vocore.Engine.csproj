@@ -35,6 +35,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>False</Visible>
+    </Content>
+  </ItemGroup>
 
   <!-- Assets Compiler-->
   <PropertyGroup>
@@ -47,5 +54,6 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)Assets\**\*.*" />
     <ProjectReference Include="..\Vocore.Tool.AssetsCompiler\Vocore.Tool.AssetsCompiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
   </ItemGroup>
+  
 
 </Project>
