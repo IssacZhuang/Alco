@@ -11,6 +11,7 @@ namespace Vocore.Engine;
 /// </summary>
 public unsafe class SilkInputSystem : InputSystem
 {
+    private static readonly int[] SilkKeyMap = BuildSilkKeyMap();
     private const int MaxKeyCount = 512;
     private const int MaxMouseCount = 16;
     private struct State
@@ -120,7 +121,7 @@ public unsafe class SilkInputSystem : InputSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool IsKeyDown(KeyCode key)
     {
-        int offset = key;
+        int offset = SilkKeyMap[(int)key];
 
         if (offset < 0 || offset >= MaxKeyCount)
         {
@@ -134,7 +135,7 @@ public unsafe class SilkInputSystem : InputSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool IsKeyUp(KeyCode key)
     {
-        int offset = key;
+        int offset = SilkKeyMap[(int)key];
 
         if (offset < 0 || offset >= MaxKeyCount)
         {
@@ -148,7 +149,7 @@ public unsafe class SilkInputSystem : InputSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool IsKeyPressing(KeyCode key)
     {
-        int offset = key;
+        int offset = SilkKeyMap[(int)key];
 
         if (offset < 0 || offset >= MaxKeyCount)
         {
@@ -313,5 +314,19 @@ public unsafe class SilkInputSystem : InputSystem
     {
         Log.Info($"Device {device.Name} is {(conneted ? "connected" : "disconnected")}");
         RefreshDevice();
+    }
+
+    private static int[] BuildSilkKeyMap()
+    {
+        int[] keyMap = new int[MaxKeyCount];
+        keyMap[(int)Key.Space] = (int)KeyCode.Space;
+        keyMap[(int)Key.Apostrophe] = (int)KeyCode.Apostrophe;
+        keyMap[(int)Key.Comma] = (int)KeyCode.Comma;
+        keyMap[(int)Key.Minus] = (int)KeyCode.Minus;
+        keyMap[(int)Key.Period] = (int)KeyCode.Period;
+        //todo: add more keys
+
+
+        return keyMap;
     }
 }
