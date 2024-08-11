@@ -107,7 +107,9 @@ public unsafe partial class Sdl3Window : Window
 
         _swapchain = device.CreateSwapchain(descriptor);
         //todo: implement sdl input system
-        _input = new Sdl3InputSystem(_window);
+        Sdl3InputSystem input = new Sdl3InputSystem(_window);
+        input.OnWindowResize += this.OnWindowResize;
+        _input = input;
     }
 
     public override void Close()
@@ -180,6 +182,11 @@ public unsafe partial class Sdl3Window : Window
         }
 
         throw new PlatformNotSupportedException();
+    }
+
+    private void OnWindowResize(uint2 size)
+    {
+        OnResize?.Invoke(size);
     }
 
     [LibraryImport("kernel32")]

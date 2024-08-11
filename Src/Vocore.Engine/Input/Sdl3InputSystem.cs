@@ -11,6 +11,8 @@ public unsafe class Sdl3InputSystem : InputSystem
     private const int MaxKeyCount = 512;
     private const int MaxMouseCount = 16;
 
+    internal event Action<uint2>? OnWindowResize;
+
     private struct State
     {
         public fixed bool iskeyDown[MaxKeyCount];
@@ -102,8 +104,8 @@ public unsafe class Sdl3InputSystem : InputSystem
         {
             switch (e.type)
             {
-                case SDL_EventType.KeyDown:
-                    
+                case SDL_EventType.WindowResized:
+                    OnWindowResize?.Invoke(new uint2(e.window.data1, e.window.data2));
                     break;
             }
         }
