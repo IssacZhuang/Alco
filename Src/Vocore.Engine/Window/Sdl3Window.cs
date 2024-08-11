@@ -1,4 +1,5 @@
 
+using System.Runtime.InteropServices;
 using SDL3;
 using Vocore.Graphics;
 
@@ -6,9 +7,21 @@ using static SDL3.SDL3;
 
 namespace Vocore.Engine;
 
-public unsafe class Sdl3Window : Window
+public unsafe partial class Sdl3Window : Window
 {
+    private static readonly byte* PropertyId_HWND = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.win32.hwnd");
+    private static readonly byte* PropertyId_NS_WINDOW = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.cocoa.window");
+
+    private static readonly byte* PropertyId_WAYLAND_DISPLAY = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.wayland.display");
+    private static readonly byte* PropertyId_WAYLAND_SURFACE = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.wayland.surface");
+
+    private static readonly byte* PropertyId_X11_DISPLAY = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.x11.display");
+    private static readonly byte* PropertyId_X11_WINDOW = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.x11.window");
+
+
     private readonly SDL_Window _window;
+    private readonly GPUSwapchain _swapchain;
+    private readonly InputSystem _input;
     private string _title;
 
     public override WindowMode WindowMode
@@ -62,9 +75,15 @@ public unsafe class Sdl3Window : Window
         }
     }
 
-    public override GPUSwapchain? Swapchain => throw new NotImplementedException();
+    public override GPUSwapchain? Swapchain
+    {
+        get => _swapchain;
+    }
 
-    public override InputSystem Input => throw new NotImplementedException();
+    public override InputSystem Input
+    {
+        get => _input;
+    }
 
 
     public Sdl3Window(GPUDevice device, WindowSetting setting)
@@ -76,7 +95,19 @@ public unsafe class Sdl3Window : Window
             throw new Exception("Failed to create SDL window");
         }
 
+        SwapchainDescriptor descriptor = new SwapchainDescriptor()
+        {
+            Name = $"{Title}_swapchain",
+            SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
+            Width = (uint)Size.x,
+            Height = (uint)Size.y,
+            ColorFormat = device.PrefferedSurfaceFomat,
+            IsVSyncEnabled = setting.VSync,
+        };
 
+        _swapchain = device.CreateSwapchain(descriptor);
+        //todo: implement sdl input system
+        _input = new NoInputSystem();
     }
 
     public override void Close()
@@ -112,4 +143,45 @@ public unsafe class Sdl3Window : Window
             _ => WindowMode.Normal
         };
     }
+
+
+    private static SurfaceSource GetSurfaceSource(SDL_Window window, bool useWayland)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+
+            IntPtr hwnd = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_HWND, IntPtr.Zero);
+            IntPtr hinstance = GetModuleHandleW(null);
+            return SurfaceSource.CreateWin32Window(hwnd, hinstance);
+        }
+        else if (OperatingSystem.IsMacOS() || OperatingSystem.IsMacCatalyst())
+        {
+            NSWindow nsWindow = new NSWindow(SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_NS_WINDOW, IntPtr.Zero));
+            CAMetalLayer layer = CAMetalLayer.New();
+            nsWindow.contentView.wantsLayer = true;
+            nsWindow.contentView.layer = layer.Handle;
+
+            return SurfaceSource.CreateMetalLayer(layer.Handle);
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            if (useWayland)
+            {
+                IntPtr display = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_WAYLAND_DISPLAY, IntPtr.Zero);
+                IntPtr surface = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_WAYLAND_SURFACE, IntPtr.Zero);
+                return SurfaceSource.CreateWaylandSurface(display, surface);
+            }
+            else
+            {
+                IntPtr display = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_X11_DISPLAY, IntPtr.Zero);
+                ulong xWindow = (ulong)SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_X11_WINDOW, IntPtr.Zero);
+                return SurfaceSource.CreateXlibWindow(display, xWindow);
+            }
+        }
+
+        throw new PlatformNotSupportedException();
+    }
+
+    [LibraryImport("kernel32")]
+    private static partial nint GetModuleHandleW(ushort* lpModuleName);
 }

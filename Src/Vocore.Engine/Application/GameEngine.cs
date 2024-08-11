@@ -6,7 +6,6 @@ using Vocore.Graphics;
 using Vocore.Rendering;
 using Vocore.IO;
 using System.Text;
-using Silk.NET.SPIRV;
 
 
 namespace Vocore.Engine;

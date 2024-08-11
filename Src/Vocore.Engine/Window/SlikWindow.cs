@@ -128,7 +128,7 @@ public class SilkWindow : Window
         }
     }
 
-    public static SurfaceSource GetSurfaceSource(INativeWindow window)
+    private static SurfaceSource GetSurfaceSource(INativeWindow window)
     {
         if (window.WinRT.HasValue)
         {

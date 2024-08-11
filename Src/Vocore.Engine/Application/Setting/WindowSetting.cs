@@ -43,6 +43,11 @@ public struct WindowSetting
     public WindowMode WindowMode { get; set; }
 
     /// <summary>
+    /// Use Wayland window on Linux
+    /// </summary>
+    public bool LinuxUseWayland { get; set; }
+
+    /// <summary>
     /// The default window setting
     /// </summary>
     public static readonly WindowSetting Default = new WindowSetting
@@ -51,7 +56,9 @@ public struct WindowSetting
         Height = 360,
         Title = "Vocore",
         IsWindowDisabled = false,
-        VSync = false
+        WindowMode = WindowMode.Normal,
+        VSync = false,
+        LinuxUseWayland = false
     };
 
 
@@ -64,6 +71,8 @@ public struct WindowSetting
         Height = 0,
         Title = "Vocore",
         IsWindowDisabled = true,
-        VSync = false
+        WindowMode = WindowMode.Normal,
+        VSync = false,
+        LinuxUseWayland = false
     };
 }
