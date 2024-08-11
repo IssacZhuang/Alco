@@ -14,7 +14,7 @@ GameEngineSetting setting = new GameEngineSetting
 With<PluginHDR>().
 With<PluginDebugGUI>();
 
-setting.Window.VSync = true;
+//setting.Window.VSync = true;
 
 using (Game game = new Game(setting))
 {

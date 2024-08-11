@@ -15,7 +15,7 @@ public partial class GameEngine
             return new NoWindow();
         }
 
-        return new SilkWindow(GraphicsDevice, setting);
+        return new Sdl3Window(GraphicsDevice, setting);
     }
 
     public WindowRenderTarget CreateWindowRenderTarget(Window window, GPURenderPass renderPass, Shader blitShader)

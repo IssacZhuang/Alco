@@ -107,7 +107,7 @@ public unsafe partial class Sdl3Window : Window
 
         _swapchain = device.CreateSwapchain(descriptor);
         //todo: implement sdl input system
-        _input = new NoInputSystem();
+        _input = new Sdl3InputSystem(_window);
     }
 
     public override void Close()
