@@ -107,6 +107,19 @@ public unsafe class Sdl3InputSystem : InputSystem
                 case SDL_EventType.WindowResized:
                     OnWindowResize?.Invoke(new uint2(e.window.data1, e.window.data2));
                     break;
+                case SDL_EventType.MouseButtonDown:
+                    Log.Info("Mouse Down: " + e.button.button);
+                    break;
+                case SDL_EventType.MouseButtonUp:
+                    Log.Info("Mouse Up: " + e.button.button);
+                    break;
+                case SDL_EventType.KeyDown:
+                    SDL_Keycode key = e.key.key;
+                    Log.Info("Key Down: " + key);
+                    break;
+                case SDL_EventType.KeyUp:
+                    Log.Info("Key Up: " + e.key.key);
+                    break;
             }
         }
     }

@@ -99,8 +99,8 @@ public unsafe partial class Sdl3Window : Window
         {
             Name = $"{Title}_swapchain",
             SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
-            Width = (uint)Size.x,
-            Height = (uint)Size.y,
+            Width = Size.x,
+            Height = Size.y,
             ColorFormat = device.PrefferedSurfaceFomat,
             IsVSyncEnabled = setting.VSync,
         };
@@ -108,7 +108,7 @@ public unsafe partial class Sdl3Window : Window
         _swapchain = device.CreateSwapchain(descriptor);
         //todo: implement sdl input system
         Sdl3InputSystem input = new Sdl3InputSystem(_window);
-        input.OnWindowResize += this.OnWindowResize;
+        input.OnWindowResize += OnWindowResize;
         _input = input;
     }
 
