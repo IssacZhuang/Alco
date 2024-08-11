@@ -7,9 +7,9 @@ namespace Vocore.Engine;
 /// </summary>
 public struct WindowSetting
 {
-    public WindowSetting(int wWidth, int height, string title)
+    public WindowSetting(int width, int height, string title)
     {
-        Width = wWidth;
+        Width = width;
         Height = height;
         Title = title;
     }
@@ -36,6 +36,11 @@ public struct WindowSetting
     /// The window is disabled
     /// </summary>
     public bool IsWindowDisabled { get; set; }
+
+    /// <summary>
+    /// The window mode
+    /// </summary>
+    public WindowMode WindowMode { get; set; }
 
     /// <summary>
     /// The default window setting

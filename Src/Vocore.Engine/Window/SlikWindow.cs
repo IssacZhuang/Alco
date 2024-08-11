@@ -56,11 +56,11 @@ public class SilkWindow : Window
     {
         get
         {
-            return (WindowMode)_slikWindow.WindowState;
+            return ConvertWindowState(_slikWindow.WindowState);
         }
         set
         {
-            _slikWindow.WindowState = value;
+            _slikWindow.WindowState = ConvertWindowState(value);
         }
     }
 
@@ -171,5 +171,39 @@ public class SilkWindow : Window
         }
 
         throw new PlatformNotSupportedException();
+    }
+
+    private WindowState ConvertWindowState(WindowMode mode)
+    {
+        switch (mode)
+        {
+            case WindowMode.Normal:
+                return WindowState.Normal;
+            case WindowMode.Minimized:
+                return WindowState.Minimized;
+            case WindowMode.Maximized:
+                return WindowState.Maximized;
+            case WindowMode.Fullscreen:
+                return WindowState.Fullscreen;
+        }
+
+        return WindowState.Normal;
+    }
+
+    private WindowMode ConvertWindowState(WindowState state)
+    {
+        switch (state)
+        {
+            case WindowState.Normal:
+                return WindowMode.Normal;
+            case WindowState.Minimized:
+                return WindowMode.Minimized;
+            case WindowState.Maximized:
+                return WindowMode.Maximized;
+            case WindowState.Fullscreen:
+                return WindowMode.Fullscreen;
+        }
+
+        return WindowMode.Normal;
     }
 }
