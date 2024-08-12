@@ -173,7 +173,6 @@ namespace Vocore.Test
                 // byte[] value = binArray2[i].Bytes;
                 // string str = Encoding.UTF8.GetString(value);
                 // Assert.IsFalse(str != data[i]);
-                // Todo
                 if (binArray2.TryGetString(i, out string value))
                 {
                     if (data[i] == null)

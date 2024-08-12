@@ -47,7 +47,7 @@ public partial class GameEngine : IDisposable
     private bool _isDisposed = false;
     private bool _isRunning = false;
     private bool _shouldResize = false;
-    //todo: use uint2
+
     private uint2 _windowSize;
 
     #endregion

@@ -32,7 +32,22 @@ public unsafe partial class Sdl3Window : Window
         }
         set
         {
-            //Todo: Implement this
+            switch (value)
+            {
+                case WindowMode.Normal:
+                    _ = SDL_SetWindowFullscreen(_window, false);
+                    _ = SDL_RestoreWindow(_window);
+                    break;
+                case WindowMode.Minimized:
+                    _ = SDL_MinimizeWindow(_window);
+                    break;
+                case WindowMode.Maximized:
+                    SDL_MaximizeWindow(_window);
+                    break;
+                case WindowMode.Fullscreen:
+                    SDL_SetWindowFullscreen(_window, true);
+                    break;
+            }
         }
     }
 
@@ -106,7 +121,7 @@ public unsafe partial class Sdl3Window : Window
         };
 
         _swapchain = device.CreateSwapchain(descriptor);
-        //todo: implement sdl input system
+
         Sdl3InputSystem input = new Sdl3InputSystem(_window);
         input.OnWindowResize += OnWindowResize;
         _input = input;
