@@ -14,9 +14,6 @@ public class NoInputSystem : InputSystem
     public override Vector2 MouseDelta { get; }
 
     /// <inheritdoc />
-    public override bool ForceMouseInScreenCenter { get; set; }
-
-    /// <inheritdoc />
     public override bool IsKeyDown(KeyCode key)
     {
         return false;

@@ -38,9 +38,6 @@ public unsafe class SilkInputSystem : InputSystem
     private IKeyboard? _defaultKeyboard;
 
     /// <inheritdoc />
-    public override bool ForceMouseInScreenCenter { get; set; }
-
-    /// <inheritdoc />
     public override Vector2 MousePosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -109,12 +106,6 @@ public unsafe class SilkInputSystem : InputSystem
         }
         _mouseDelta = _mousePosition - _defaultMouse.Position;
         _mousePosition = _defaultMouse.Position;
-
-        if (ForceMouseInScreenCenter)
-        {
-            _mousePosition = new Vector2(_window!.Size.X / 2, _window.Size.Y / 2);
-            _defaultMouse.Position = _mousePosition;
-        }
     }
 
     /// <inheritdoc />

@@ -77,7 +77,7 @@ public enum KeyCode
     ScrollLock,
     NumLock,
     PrintScreen,
-    Paus,
+    Pause,
     F1,
     F2,
     F3,

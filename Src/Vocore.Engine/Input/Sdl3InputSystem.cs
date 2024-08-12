@@ -6,12 +6,8 @@ namespace Vocore.Engine;
 
 public unsafe class Sdl3InputSystem : InputSystem
 {
-    private SDL_Window _window;
-
     private const int MaxKeyCount = 512;
     private const int MaxMouseCount = 16;
-
-    internal event Action<uint2>? OnWindowResize;
 
     private struct State
     {
@@ -22,6 +18,16 @@ public unsafe class Sdl3InputSystem : InputSystem
         public fixed bool isMouseUp[MaxMouseCount];
         public fixed bool isMousePressing[MaxMouseCount];
     }
+    private static readonly int[] SdlKeyMap = BuildSdlKepMap();
+    private SDL_Window _window;
+
+    
+
+    private State _state;
+
+    internal event Action<uint2>? OnWindowResize;
+
+    
 
     public override Vector2 MousePosition
     {
@@ -42,18 +48,6 @@ public unsafe class Sdl3InputSystem : InputSystem
         get
         {
             return new Vector2(0, 0);
-        }
-    }
-
-    public override bool ForceMouseInScreenCenter
-    {
-        get
-        {
-            return false;
-        }
-        set
-        {
-
         }
     }
 
@@ -108,17 +102,23 @@ public unsafe class Sdl3InputSystem : InputSystem
                     OnWindowResize?.Invoke(new uint2(e.window.data1, e.window.data2));
                     break;
                 case SDL_EventType.MouseButtonDown:
-                    Log.Info("Mouse Down: " + e.button.button);
+                    
                     break;
                 case SDL_EventType.MouseButtonUp:
-                    Log.Info("Mouse Up: " + e.button.button);
+                    
                     break;
                 case SDL_EventType.KeyDown:
-                    SDL_Keycode key = e.key.key;
-                    Log.Info("Key Down: " + key);
+                    Log.Info(e.key.key);
+                    Log.Info((int)e.key.key);
+                    Log.Info(SdlKeyMap.Length);
+                    int key = SdlKeyMap[(int)e.key.key];
+                    _state.iskeyDown[key] = true;
+                    _state.iskeyPressing[key] = true;
                     break;
                 case SDL_EventType.KeyUp:
-                    Log.Info("Key Up: " + e.key.key);
+                    key = SdlKeyMap[(int)e.key.key];
+                    _state.iskeyUp[key] = true;
+                    _state.iskeyPressing[key] = false;
                     break;
             }
         }
@@ -134,6 +134,7 @@ public unsafe class Sdl3InputSystem : InputSystem
 
     }
 
+    
     private static int[] BuildSdlKepMap()
     {
         int[] keyMap = new int[MaxKeyCount];
@@ -185,7 +186,81 @@ public unsafe class Sdl3InputSystem : InputSystem
         keyMap[(int)SDL_Keycode.Backslash] = (int)KeyCode.BackSlash;
         keyMap[(int)SDL_Keycode.RightBracket] = (int)KeyCode.RightBracket;
         keyMap[(int)SDL_Keycode.Grave] = (int)KeyCode.GraveAccent;
-      
+        //world 1,2 ??
+        keyMap[(int)SDL_Keycode.Escape] = (int)KeyCode.Escape;
+        keyMap[(int)SDL_Keycode.Return] = (int)KeyCode.Enter;
+        keyMap[(int)SDL_Keycode.Tab] = (int)KeyCode.Tab;
+        keyMap[(int)SDL_Keycode.Backspace] = (int)KeyCode.Backspace;
+        keyMap[(int)SDL_Keycode.Insert] = (int)KeyCode.Insert;
+        keyMap[(int)SDL_Keycode.Delete] = (int)KeyCode.Delete;
+        keyMap[(int)SDL_Keycode.Right] = (int)KeyCode.Right;
+        keyMap[(int)SDL_Keycode.Left] = (int)KeyCode.Left;
+        keyMap[(int)SDL_Keycode.Down] = (int)KeyCode.Down;
+        keyMap[(int)SDL_Keycode.Up] = (int)KeyCode.Up;
+        keyMap[(int)SDL_Keycode.PageUp] = (int)KeyCode.PageUp;
+        keyMap[(int)SDL_Keycode.PageDown] = (int)KeyCode.PageDown;
+        keyMap[(int)SDL_Keycode.Home] = (int)KeyCode.Home;
+        keyMap[(int)SDL_Keycode.End] = (int)KeyCode.End;
+        keyMap[(int)SDL_Keycode.Capslock] = (int)KeyCode.CapsLock;
+        keyMap[(int)SDL_Keycode.ScrollLock] = (int)KeyCode.ScrollLock;
+        keyMap[(int)SDL_Keycode.NumLockClear] = (int)KeyCode.NumLock;
+        keyMap[(int)SDL_Keycode.PrintScreen] = (int)KeyCode.PrintScreen;
+        keyMap[(int)SDL_Keycode.Pause] = (int)KeyCode.Pause;
+        //f1-f24
+        keyMap[(int)SDL_Keycode.F1] = (int)KeyCode.F1;
+        keyMap[(int)SDL_Keycode.F2] = (int)KeyCode.F2;
+        keyMap[(int)SDL_Keycode.F3] = (int)KeyCode.F3;
+        keyMap[(int)SDL_Keycode.F4] = (int)KeyCode.F4;
+        keyMap[(int)SDL_Keycode.F5] = (int)KeyCode.F5;
+        keyMap[(int)SDL_Keycode.F6] = (int)KeyCode.F6;
+        keyMap[(int)SDL_Keycode.F7] = (int)KeyCode.F7;
+        keyMap[(int)SDL_Keycode.F8] = (int)KeyCode.F8;
+        keyMap[(int)SDL_Keycode.F9] = (int)KeyCode.F9;
+        keyMap[(int)SDL_Keycode.F10] = (int)KeyCode.F10;
+        keyMap[(int)SDL_Keycode.F11] = (int)KeyCode.F11;
+        keyMap[(int)SDL_Keycode.F12] = (int)KeyCode.F12;
+        keyMap[(int)SDL_Keycode.F13] = (int)KeyCode.F13;
+        keyMap[(int)SDL_Keycode.F14] = (int)KeyCode.F14;
+        keyMap[(int)SDL_Keycode.F15] = (int)KeyCode.F15;
+        keyMap[(int)SDL_Keycode.F16] = (int)KeyCode.F16;
+        keyMap[(int)SDL_Keycode.F17] = (int)KeyCode.F17;
+        keyMap[(int)SDL_Keycode.F18] = (int)KeyCode.F18;
+        keyMap[(int)SDL_Keycode.F19] = (int)KeyCode.F19;
+        keyMap[(int)SDL_Keycode.F20] = (int)KeyCode.F20;
+        keyMap[(int)SDL_Keycode.F21] = (int)KeyCode.F21;
+        keyMap[(int)SDL_Keycode.F22] = (int)KeyCode.F22;
+        keyMap[(int)SDL_Keycode.F23] = (int)KeyCode.F23;
+        keyMap[(int)SDL_Keycode.F24] = (int)KeyCode.F24;
+        //keypad
+        keyMap[(int)SDL_Keycode.Kp0] = (int)KeyCode.Keypad0;
+        keyMap[(int)SDL_Keycode.Kp1] = (int)KeyCode.Keypad1;
+        keyMap[(int)SDL_Keycode.Kp2] = (int)KeyCode.Keypad2;
+        keyMap[(int)SDL_Keycode.Kp3] = (int)KeyCode.Keypad3;
+        keyMap[(int)SDL_Keycode.Kp4] = (int)KeyCode.Keypad4;
+        keyMap[(int)SDL_Keycode.Kp5] = (int)KeyCode.Keypad5;
+        keyMap[(int)SDL_Keycode.Kp6] = (int)KeyCode.Keypad6;
+        keyMap[(int)SDL_Keycode.Kp7] = (int)KeyCode.Keypad7;
+        keyMap[(int)SDL_Keycode.Kp8] = (int)KeyCode.Keypad8;
+        keyMap[(int)SDL_Keycode.Kp9] = (int)KeyCode.Keypad9;
+        keyMap[(int)SDL_Keycode.KpDecimal] = (int)KeyCode.KeypadDecimal;
+        keyMap[(int)SDL_Keycode.KpDivide] = (int)KeyCode.KeypadDivide;
+        keyMap[(int)SDL_Keycode.KpMultiply] = (int)KeyCode.KeypadMultiply;
+        keyMap[(int)SDL_Keycode.KpMinus] = (int)KeyCode.KeypadSubtract;
+        keyMap[(int)SDL_Keycode.KpPlus] = (int)KeyCode.KeypadAdd;
+        keyMap[(int)SDL_Keycode.KpEnter] = (int)KeyCode.KeypadEnter;
+        keyMap[(int)SDL_Keycode.KpEquals] = (int)KeyCode.KeypadEqual;
+        //left right shift, control, alt, super
+        keyMap[(int)SDL_Keycode.LeftShirt] = (int)KeyCode.ShiftLeft;
+        keyMap[(int)SDL_Keycode.LeftControl] = (int)KeyCode.ControlLeft;
+        keyMap[(int)SDL_Keycode.LeftAlt] = (int)KeyCode.AltLeft;
+        keyMap[(int)SDL_Keycode.LeftGui] = (int)KeyCode.SuperLeft;//windows key/ mac command key
+        keyMap[(int)SDL_Keycode.RightShirt] = (int)KeyCode.ShiftRight;
+        keyMap[(int)SDL_Keycode.RightControl] = (int)KeyCode.ControlRight;
+        keyMap[(int)SDL_Keycode.RightAlt] = (int)KeyCode.AltRight;
+        keyMap[(int)SDL_Keycode.RightGui] = (int)KeyCode.SuperRight;//windows key/ mac command key
+        //menu
+        keyMap[(int)SDL_Keycode.Menu] = (int)KeyCode.Menu;
+
         return keyMap;
     }
 }
@@ -262,7 +337,7 @@ public unsafe class Sdl3InputSystem : InputSystem
 //     ScrollLock,
 //     NumLock,
 //     PrintScreen,
-//     Paus,
+//     Pause,
 //     F1,
 //     F2,
 //     F3,

@@ -18,11 +18,6 @@ public abstract class InputSystem
     public abstract Vector2 MouseDelta { get; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether the mouse should be forced to stay in the center of the screen.
-    /// </summary>
-    public abstract bool ForceMouseInScreenCenter { get; set; }
-
-    /// <summary>
     /// Determines whether the specified key is currently being pressed down.
     /// </summary>
     /// <param name="key">The key to check.</param>
