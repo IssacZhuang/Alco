@@ -74,12 +74,12 @@ public unsafe class Sdl3InputSystem : InputSystem
 
     public override bool IsMouseDown(Mouse button)
     {
-        return false;
+        return _state.isMouseDown[(int)button];
     }
 
     public override bool IsMousePressing(Mouse button)
     {
-        return false;
+        return _state.isMousePressing[(int)button];
     }
 
     public override bool IsMouseScrolling(out Vector2 delta)
@@ -90,7 +90,7 @@ public unsafe class Sdl3InputSystem : InputSystem
 
     public override bool IsMouseUp(Mouse button)
     {
-        return false;
+        return _state.isMouseUp[(int)button];
     }
 
     internal override void DoEvent()
@@ -103,10 +103,14 @@ public unsafe class Sdl3InputSystem : InputSystem
                     OnWindowResize?.Invoke(new uint2(e.window.data1, e.window.data2));
                     break;
                 case SDL_EventType.MouseButtonDown:
-                    
+                    Mouse button = ConvertMosueButton(e.button.button);
+                    _state.isMouseDown[(int)button] = true;
+                    _state.isMousePressing[(int)button] = true;
                     break;
                 case SDL_EventType.MouseButtonUp:
-                    
+                    button = ConvertMosueButton(e.button.button);
+                    _state.isMouseUp[(int)button] = true;
+                    _state.isMousePressing[(int)button] = false;
                     break;
                 case SDL_EventType.KeyDown:
                     int key = SdlKeyMap[e.key.key];
@@ -124,12 +128,34 @@ public unsafe class Sdl3InputSystem : InputSystem
 
     internal override void Reset()
     {
-
+        for (int i = 0; i < MaxKeyCount; i++)
+        {
+            _state.iskeyDown[i] = false;
+            _state.iskeyUp[i] = false;
+        }
+        for (int i = 0; i < MaxMouseCount; i++)
+        {
+            _state.isMouseDown[i] = false;
+            _state.isMouseUp[i] = false;
+        }
     }
 
     internal override void Update()
     {
 
+    }
+
+    private static Mouse ConvertMosueButton(uint button)
+    {
+        return button switch
+        {
+            SDL_BUTTON_LEFT => Mouse.Left,
+            SDL_BUTTON_MIDDLE => Mouse.Middle,
+            SDL_BUTTON_RIGHT => Mouse.Right,
+            SDL_BUTTON_X1 => Mouse.Button4,
+            SDL_BUTTON_X2 => Mouse.Button5,
+            _ => Mouse.Unknown,
+        };
     }
 
 
