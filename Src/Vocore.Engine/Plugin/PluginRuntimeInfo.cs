@@ -1,5 +1,4 @@
 using System;
-using Silk.NET.Windowing;
 using Vocore.Graphics;
 
 namespace Vocore.Engine;

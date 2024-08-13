@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using Silk.NET.Input;
 
 namespace Vocore.Engine;
 

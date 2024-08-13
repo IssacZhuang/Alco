@@ -1,7 +1,6 @@
 
 
 using System.Runtime.CompilerServices;
-using Silk.NET.Windowing;
 
 namespace Vocore.Engine;
 

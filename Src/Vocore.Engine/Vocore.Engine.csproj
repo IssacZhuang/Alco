@@ -8,11 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishSingleFile>false</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-
-    <UseGLFW>true</UseGLFW>
-    <UseSDL>false</UseSDL>
-
-
+    
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
@@ -22,12 +18,6 @@
     <ProjectReference Include="..\Vocore.GUI\Vocore.GUI.csproj" />
     <ProjectReference Include="..\Vocore.IO\Vocore.IO.csproj" />
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Input.Sdl" Version="2.20.0" />
-    <PackageReference Condition="'$(UseSDL)' == 'true'" Include="Silk.NET.Windowing.Sdl" Version="2.20.0" />
-    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Input.Glfw" Version="2.20.0" />
-    <PackageReference Condition="'$(UseGLFW)' == 'true'" Include="Silk.NET.Windowing.Glfw" Version="2.20.0" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)Assets\**\*.*">
