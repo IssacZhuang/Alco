@@ -5,7 +5,6 @@ using Vocore;
 using Vocore.GUI;
 using System.Diagnostics;
 using Vocore.Graphics;
-using Silk.NET.Input;
 
 public class Game : GameEngine
 {

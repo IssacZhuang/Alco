@@ -6,11 +6,11 @@ namespace Vocore.Engine;
 
 public class UIInputTracker : IUIInputTracker
 {
-    private readonly InputSystem _system;
+    private readonly InputSystem _input;
     private readonly Window _window;
     public UIInputTracker(InputSystem system, Window window)
     {
-        _system = system;
+        _input = system;
         _window = window;
     }
 
@@ -23,29 +23,29 @@ public class UIInputTracker : IUIInputTracker
     public Vector2 MousePosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _system.MousePosition;
+        get => _window.GetLocalMousePosition(_input.MousePosition);
     }
 
     public bool IsMouseUp
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _system.IsMouseUp(Mouse.Left);
+        get => _input.IsMouseUp(Mouse.Left);
     }
 
     public bool IsMouseDown
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _system.IsMouseDown(Mouse.Left);
+        get => _input.IsMouseDown(Mouse.Left);
     }
 
     public bool IsMousePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _system.IsMousePressing(Mouse.Left);
+        get => _input.IsMousePressing(Mouse.Left);
     }
 
     public bool IsMouseScrolling(out Vector2 delta)
     {
-        return _system.IsMouseScrolling(out delta);
+        return _input.IsMouseScrolling(out delta);
     }
 }

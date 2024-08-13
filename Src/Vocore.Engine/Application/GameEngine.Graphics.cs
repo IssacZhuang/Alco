@@ -49,7 +49,7 @@ public partial class GameEngine
     private static void RegisterLogger()
     {
         GraphicsLogger.ErrorCallback = GraphicsLogError;
-        Graphics.GraphicsLogger.WarningCallback = GraphicsLogWarning;
+        GraphicsLogger.WarningCallback = GraphicsLogWarning;
         GraphicsLogger.InfoCallback = GraphicsLogInfo;
     }
 

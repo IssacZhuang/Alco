@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using Silk.NET.OpenAL;
 using Vocore.Graphics;
 
 namespace Vocore.Engine;
@@ -42,6 +44,13 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     public float AspectRatio
     {
         get => (float)Size.x / Size.y;
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector2 GetLocalMousePosition(Vector2 globalMousePosition)
+    {
+        return new Vector2(globalMousePosition.X - Position.x, globalMousePosition.Y - Position.y);
     }
 
 }

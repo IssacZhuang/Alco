@@ -35,12 +35,12 @@ public unsafe class Sdl3InputSystem : InputSystem
         get
         {
             Vector2 result = default;
-            SDL_GetMouseState(&result.X, &result.Y);
+            SDL_GetGlobalMouseState(&result.X, &result.Y);
             return result;
         }
         set
         {
-            SDL_WarpMouseInWindow(_window, (int)value.X, (int)value.Y);
+            _ = SDL_WarpMouseGlobal((int)value.X, (int)value.Y);
         }
     }
 
