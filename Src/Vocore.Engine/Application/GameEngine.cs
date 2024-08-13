@@ -25,10 +25,13 @@ public partial class GameEngine : IDisposable
     private readonly GPUDevice _graphicsDevice;
     private readonly BuiltInAssets _builtInAssets;
     private readonly AssetSystem _assets;
-    private readonly InputSystem _input;
+    
     private readonly RenderingSystem _rendering;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
+
+    private readonly Platform _platform;
+    private readonly InputSystem _input;
     private readonly Window _mainWindow;
     private readonly WindowRenderTarget _mainRenderTarget;
 
@@ -187,6 +190,8 @@ public partial class GameEngine : IDisposable
         _setting = setting;
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
+
+        _platform = _setting.Platform ?? new Sdl3Platform();
 
         _rendering = new RenderingSystem(_graphicsDevice);
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);

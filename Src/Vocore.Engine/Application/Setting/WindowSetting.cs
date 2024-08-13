@@ -33,11 +33,6 @@ public struct WindowSetting
     public bool VSync { get; set; }
 
     /// <summary>
-    /// The window is disabled
-    /// </summary>
-    public bool IsWindowDisabled { get; set; }
-
-    /// <summary>
     /// The window mode
     /// </summary>
     public WindowMode WindowMode { get; set; }
@@ -55,24 +50,9 @@ public struct WindowSetting
         Width = 640,
         Height = 360,
         Title = "Vocore",
-        IsWindowDisabled = false,
         WindowMode = WindowMode.Normal,
         VSync = false,
         LinuxUseWayland = false
     };
 
-
-    /// <summary>
-    /// The window is disabled
-    /// </summary>
-    public static readonly WindowSetting NoWindow = new WindowSetting
-    {
-        Width = 0,
-        Height = 0,
-        Title = "Vocore",
-        IsWindowDisabled = true,
-        WindowMode = WindowMode.Normal,
-        VSync = false,
-        LinuxUseWayland = false
-    };
 }

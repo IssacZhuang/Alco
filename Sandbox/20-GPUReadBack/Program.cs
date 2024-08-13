@@ -6,8 +6,8 @@ GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     RunOnce = true,
-    Window = WindowSetting.NoWindow,
-    Graphics = GraphicsSetting.Default
+    Graphics = GraphicsSetting.Default,
+    Platform = new ConsolePlatform()
 }.With<PluginDefaultAssets>();
 
 using (Game game = new Game(setting))

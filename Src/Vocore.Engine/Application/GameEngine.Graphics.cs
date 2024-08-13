@@ -10,12 +10,7 @@ public partial class GameEngine
 
     public Window CreateWindow(WindowSetting setting)
     {
-        if (setting.IsWindowDisabled)
-        {
-            return new NoWindow();
-        }
-
-        return new Sdl3Window(GraphicsDevice, setting);
+        return _platform.CreateWindow(_graphicsDevice, setting);
     }
 
     public WindowRenderTarget CreateWindowRenderTarget(Window window, GPURenderPass renderPass, Shader blitShader)

@@ -29,14 +29,6 @@ namespace Vocore.Engine
         }
 
         /// <summary>
-        /// Check if the game engine has window
-        /// </summary>
-        public bool HasWindow
-        {
-            get => !Window.IsWindowDisabled;
-        }
-
-        /// <summary>
         /// The rate of game logic tick
         /// </summary>
         public int GametTickRate;
@@ -66,6 +58,8 @@ namespace Vocore.Engine
         /// </summary>
         public AssetsSetting Assets;
 
+        public Platform? Platform;
+
         public static GameEngineSetting CreateDefaultSDR()
         {
             GameEngineSetting seting = new GameEngineSetting();
@@ -87,9 +81,9 @@ namespace Vocore.Engine
             return new GameEngineSetting
             {
                 GametTickRate = 60,
-                Window = WindowSetting.NoWindow,
                 Graphics = GraphicsSetting.NoGPU,
-                Assets = AssetsSetting.Default
+                Assets = AssetsSetting.Default,
+                Platform = new ConsolePlatform()
             }.With<PluginDefaultAssets>();
         }
 
@@ -98,9 +92,9 @@ namespace Vocore.Engine
             return new GameEngineSetting
             {
                 GametTickRate = 60,
-                Window = WindowSetting.NoWindow,
                 Graphics = GraphicsSetting.Default,
-                Assets = AssetsSetting.Default
+                Assets = AssetsSetting.Default,
+                Platform = new ConsolePlatform()
             }.With<PluginDefaultAssets>().
             With<PluginSDR>();
         }
