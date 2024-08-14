@@ -238,7 +238,7 @@ public partial class GameEngine : IDisposable
         _platform.OnTick += InternalTick;
         _platform.OnUpdate += InternalUpdate;
         InternalStart();
-        _platform.RunMainLoop();
+        _platform.RunMainLoop(_setting.RunOnce);
         InternalStop();
     }
 

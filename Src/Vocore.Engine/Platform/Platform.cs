@@ -10,7 +10,7 @@ public abstract class Platform : AutoDisposable
 
     public abstract InputSystem Input { get; }
 
-    public abstract void RunMainLoop();
+    public abstract void RunMainLoop(bool runOnce);
 
     public abstract void StopMainLoop();
 

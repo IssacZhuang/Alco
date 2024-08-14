@@ -8,7 +8,7 @@ namespace Vocore.Engine
     /// The tiemr module <br/>
     /// Have only one instance in the Class Engine
     /// </summary>
-    internal struct EngineTimer
+    public struct EngineTimer
     {
         // Frequency substracted by Physics Tick Rate
         public static int DefaultPhysicalTickRate = 60;

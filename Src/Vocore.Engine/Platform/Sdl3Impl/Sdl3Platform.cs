@@ -45,8 +45,17 @@ public class Sdl3Platform : Platform
         throw new InvalidOperationException("Invalid window type");
     }
 
-    public override void RunMainLoop()
+    public override void RunMainLoop(bool runOnce)
     {
+        if(runOnce)
+        {
+            _timer.Start();
+            _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+            DoTick(physicsDeltaTime);
+            DoUpdate(updateDeltaTime);
+            return;
+        }
+
         _timer.Start();
         while (!_isStopped)
         {

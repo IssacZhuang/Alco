@@ -6,6 +6,13 @@ public class ConsolePlatform : Platform
 {
     private readonly NoInputSystem _input = new NoInputSystem();
     public override InputSystem Input => _input;
+    private EngineTimer _timer;
+    private bool _isStopped = false;
+
+    public ConsolePlatform()
+    {
+        _timer = new EngineTimer();
+    }
 
     public override void CloseWindow(Window window)
     {
@@ -17,14 +24,34 @@ public class ConsolePlatform : Platform
         return new NoWindow();
     }
 
-    public override void RunMainLoop()
+    public override void RunMainLoop(bool runOnce)
     {
-        //todo: implement
+        if (runOnce)
+        {
+            _timer.Start();
+            _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+            DoTick(physicsDeltaTime);
+            DoUpdate(updateDeltaTime);
+            return;
+        }
+
+        _timer.Start();
+        while (!_isStopped)
+        {
+            _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
+
+            if (canInvokePhysicsTick)
+            {
+                DoTick(physicsDeltaTime);
+            }
+
+            DoUpdate(updateDeltaTime);
+        }
     }
 
     public override void StopMainLoop()
     {
-        //todo: implement
+        _isStopped = true;
     }
 
     protected override void Dispose(bool disposing)
