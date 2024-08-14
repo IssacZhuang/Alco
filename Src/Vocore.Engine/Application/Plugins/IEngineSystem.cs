@@ -42,11 +42,6 @@ public interface IEngineSystem:IDisposable
     /// </summary>
     void OnEndFrame();
     /// <summary>
-    /// Called when the main window is resized
-    /// </summary>
-    /// <param name="size">The new size of the window</param>
-    void OnMainWindowResize(uint2 size);
-    /// <summary>
     /// Called when the engine stops
     /// </summary>
     void OnStop();

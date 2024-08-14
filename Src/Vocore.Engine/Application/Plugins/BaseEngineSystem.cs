@@ -7,11 +7,6 @@ public abstract class BaseEngineSystem : IEngineSystem
     public virtual int Order => 0;
 
 
-    public virtual void OnMainWindowResize(uint2 size)
-    {
-        
-    }
-
     public virtual void OnStart()
     {
         
@@ -58,5 +53,8 @@ public abstract class BaseEngineSystem : IEngineSystem
 
     }
 
-    
+    public virtual void OnPostEndFrame()
+    {
+        
+    }
 }

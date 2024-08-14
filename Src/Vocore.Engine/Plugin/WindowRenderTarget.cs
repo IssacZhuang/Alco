@@ -20,6 +20,17 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private uint _width;
     private uint _height;
 
+    /// <summary>
+    /// Handle the window resize event on the end of the frame, safe to delete the GPU resources in the event.
+    /// </summary>
+    public event Action<uint2>? OnResize;
+
+    public Window Window
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _window;
+    }
+
     public RenderTexture RenderTexture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,13 +100,15 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 
         if (_shouldResize)
         {
-            
+
             _renderTexture.Dispose();
             _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
             _converter.SetInput(_renderTexture.FrameBuffer);
             _shouldResize = false;
+            OnResize?.Invoke(new uint2(_width, _height));
         }
     }
+
 
     public override void Dispose()
     {

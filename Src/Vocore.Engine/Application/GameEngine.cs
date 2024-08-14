@@ -47,9 +47,7 @@ public partial class GameEngine : IDisposable
     #region  State
     private int _engineThread;
     private bool _isDisposed = false;
-    private bool _shouldResize = false;
 
-    private uint2 _windowSize;
 
     #endregion
 
@@ -202,7 +200,6 @@ public partial class GameEngine : IDisposable
         _mainWindow = CreateWindow(_setting.Window);
         _mainRenderTarget = CreateWindowRenderTarget(_mainWindow, _rendering.PrefferedSDRPass, _builtInAssets.Shader_Blit);
         AddSystem(_mainRenderTarget);
-        _mainWindow.OnResize += MainWindowResize;
 
         _input = _platform.Input;
 
@@ -269,15 +266,6 @@ public partial class GameEngine : IDisposable
     /// </summary>
     /// <param name="delta">The time since last frame</param>
     protected virtual void OnUpdate(float delta)
-    {
-
-    }
-
-    /// <summary>
-    /// Called when the window is resized
-    /// </summary>
-    /// <param name="size">The new size of the window</param>
-    protected virtual void OnMainWindowResize(uint2 size)
     {
 
     }
@@ -365,13 +353,6 @@ public partial class GameEngine : IDisposable
 
         OnSystemEndFrame();
         _graphics.EndFrame();//swap buffer
-
-        if (_shouldResize)
-        {
-            OnMainWindowResize(_windowSize);
-            OnSystemMainWindowResize(_windowSize);
-            _shouldResize = false;
-        }
     }
 
 
@@ -598,22 +579,6 @@ public partial class GameEngine : IDisposable
         }
     }
 
-    private void OnSystemMainWindowResize(uint2 size)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try
-            {
-                _systems[i].OnMainWindowResize(size);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when resize system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
 
     private void OnSystemStop()
     {
@@ -649,11 +614,7 @@ public partial class GameEngine : IDisposable
         }
     }
 
-    private void MainWindowResize(uint2 size)
-    {
-        _shouldResize = true;
-        _windowSize = size;
-    }
+
 
     #endregion
 

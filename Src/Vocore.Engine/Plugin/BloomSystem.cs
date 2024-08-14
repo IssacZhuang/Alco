@@ -8,7 +8,7 @@ namespace Vocore.Engine;
 public class BloomSystem : BaseEngineSystem
 {
 
-    private readonly IRenderTarget _renderTarget;   
+    private readonly WindowRenderTarget _renderTarget;
     private readonly GameEngine _engine;
     private readonly RenderingSystem _rendering;
     private readonly Shader _blitShader;
@@ -19,7 +19,7 @@ public class BloomSystem : BaseEngineSystem
 
     public override int Order => 900;
 
-    public BloomSystem(GameEngine engine, IRenderTarget renderTarget)
+    public BloomSystem(GameEngine engine, WindowRenderTarget renderTarget)
     {
         _renderTarget = renderTarget;
 
@@ -35,6 +35,8 @@ public class BloomSystem : BaseEngineSystem
         _blitShader = builtInAssets.Shader_BloomBlit;
         _bloom = rendering.CreateBloom(_blitShader, _clampShader, _downSampleShader, _upSampleShader, 11);
         _bloom.SetInput(renderTarget.RenderTexture.FrameBuffer);
+
+        renderTarget.OnResize += OnRenderTargetResize;
     }
 
     public override void OnPostUpdate(float delta)
@@ -42,13 +44,14 @@ public class BloomSystem : BaseEngineSystem
         _bloom.Blit(_renderTarget.RenderTexture.FrameBuffer);
     }
 
-    public override void OnMainWindowResize(uint2 size)
+    private void OnRenderTargetResize(uint2 size)
     {
         _bloom.SetInput(_renderTarget.RenderTexture.FrameBuffer);
     }
 
     public override void Dispose()
     {
+        _renderTarget.OnResize -= OnRenderTargetResize;
         _bloom.Dispose();
         _clampShader.Dispose();
         _downSampleShader.Dispose();

@@ -12,10 +12,13 @@ public class PluginDebugGUI : BaseEnginePlugin
     {
         private readonly DebugGUIRenderer _renderer;
         private readonly WindowRenderTarget _renderTarget;
+
         public DebugGUISystem(DebugGUIRenderer renderer, WindowRenderTarget renderTarget)
         {
             _renderer = renderer;
             _renderTarget = renderTarget;
+
+            renderTarget.OnResize += OnRenderTargetResize;
         }
 
         public override void OnEndFrame()
@@ -28,13 +31,15 @@ public class PluginDebugGUI : BaseEnginePlugin
             DebugGUI.CheckAndSubmit();
         }
 
-        public override void OnMainWindowResize(uint2 size)
+
+        private void OnRenderTargetResize(uint2 size)
         {
             _renderer.SetResolution(size.x, size.y);
         }
 
         public override void Dispose()
         {
+            _renderTarget.OnResize -= OnRenderTargetResize;
             _renderer.Dispose();
         }
     }

@@ -108,9 +108,4 @@ public class Sdl3Platform : Platform
                 break;
         }
     }
-
-    private void ProcessResize()
-    {
-
-    }
 }

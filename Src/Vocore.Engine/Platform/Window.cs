@@ -30,10 +30,20 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     /// </summary>
     public abstract string Title { get; set; }
 
+    /// <summary>
+    /// The swapchain of the window.
+    /// </summary>
+    /// <value></value>
     public abstract GPUSwapchain? Swapchain { get; }
 
+    /// <summary>
+    /// The window resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="WindowRenderTarget.OnResize"/> for safe deletion.
+    /// </summary>
     public Action<uint2>? OnResize;
 
+    /// <summary>
+    /// Close the window.
+    /// </summary>
     public abstract void Close();
 
 
