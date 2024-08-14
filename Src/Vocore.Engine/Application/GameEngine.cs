@@ -407,6 +407,7 @@ public partial class GameEngine : IDisposable
         GraphicsDevice.Dispose();
         MainWindow.Close();
         Assets.Dispose();
+        _platform.Dispose();
         GC.SuppressFinalize(this);
     }
 

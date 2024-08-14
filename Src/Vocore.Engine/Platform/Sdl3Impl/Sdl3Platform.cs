@@ -6,18 +6,19 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Engine;
 
-public class Sdl3Platform : Platform
+public unsafe class Sdl3Platform : Platform
 {
-
-    
+    private const int PeepEventsCount = 64;
     private readonly Dictionary<SDL_WindowID, Sdl3Window> _windows = new();
     private readonly Sdl3InputSystem _input = new();
+    private NativeBuffer<SDL_Event> _events;
     private EngineTimer _timer;
     private bool _isStopped = false;
 
     public Sdl3Platform()
     {
         _timer = new EngineTimer();
+        _events = new NativeBuffer<SDL_Event>(PeepEventsCount);
     }
 
     public override InputSystem Input
@@ -60,15 +61,22 @@ public class Sdl3Platform : Platform
         while (!_isStopped)
         {
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
-            while (SDL_PollEvent(out SDL_Event e))
-            {
-                HandleEvent(e);
-            }
 
             if (canInvokePhysicsTick)
             {
                 DoTick(physicsDeltaTime);
             }
+
+            SDL_PumpEvents();
+            int eventRead;
+            do
+            {
+                eventRead = SDL_PeepEvents(_events.UnsafePointer, PeepEventsCount, SDL_EventAction.GetEvent, SDL_EventType.First, SDL_EventType.Last);
+                for (int i = 0; i < eventRead; i++)
+                {
+                    HandleEvent(_events[i]);
+                }
+            } while (eventRead > 0);
 
             //Log.Info(updateDeltaTime, physicsDeltaTime);
             DoUpdate(updateDeltaTime);
@@ -84,9 +92,10 @@ public class Sdl3Platform : Platform
 
     protected override void Dispose(bool disposing)
     {
-
+        _events.Dispose();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void HandleEvent(SDL_Event e)
     {
         switch (e.type)
