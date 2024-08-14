@@ -5,7 +5,9 @@ using System.Runtime.CompilerServices;
 namespace Vocore.Engine;
 
 
-
+/// <summary>
+/// The window mode
+/// </summary>
 public enum WindowMode
 {
     Normal = 0,

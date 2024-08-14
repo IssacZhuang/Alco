@@ -55,7 +55,11 @@ public abstract class Window : AutoDisposable//todo : change to disposable
         get => (float)Size.x / Size.y;
     }
 
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="globalMousePosition"></param>
+    /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector2 GetLocalMousePosition(Vector2 globalMousePosition)
     {

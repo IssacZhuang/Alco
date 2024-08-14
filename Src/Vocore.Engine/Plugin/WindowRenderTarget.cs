@@ -8,6 +8,7 @@ namespace Vocore.Engine;
 
 public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 {
+    public const int SystemOrder = 10000;
     private readonly Window _window;
     private readonly RenderingSystem _rendering;
     private readonly GPUSwapchain? _windowSwapchain;
@@ -42,6 +43,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderTexture.FrameBuffer;
     }
+
+    public override int Order => SystemOrder;
 
     internal WindowRenderTarget(GameEngine engine, Window window, GPURenderPass renderPass, Shader blitShader)
     {

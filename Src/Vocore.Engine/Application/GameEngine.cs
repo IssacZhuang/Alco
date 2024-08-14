@@ -37,9 +37,8 @@ public partial class GameEngine : IDisposable
 
     #endregion
 
-    #region  Internal Controller
-    internal EngineGraphics _graphics;
-    internal EngineProfiler _profiler;
+    #region  Internal Controllers
+    private EngineProfiler _profiler;
 
     #endregion
 
@@ -61,15 +60,6 @@ public partial class GameEngine : IDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _engineThread;
-    }
-
-    /// <summary>
-    /// Check if the current thread is the main thread
-    /// </summary>
-    public bool IsCalledFromMainThread
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _engineThread == Environment.CurrentManagedThreadId;
     }
 
     /// <summary>
@@ -148,12 +138,6 @@ public partial class GameEngine : IDisposable
         get => _rendering;
     }
 
-    public GPUSwapchain? WindowSwapchain
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainWindow.Swapchain;
-    }
-
     /// <summary>
     /// The frame updated in a second
     /// </summary>
@@ -203,7 +187,6 @@ public partial class GameEngine : IDisposable
 
         _input = _platform.Input;
 
-        _graphics = new EngineGraphics(this);
         _profiler = new EngineProfiler(this);
 
         InitializePlugins(_setting.Plugins);
@@ -310,8 +293,6 @@ public partial class GameEngine : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalUpdate(float delta)
     {
-        _graphics.BeginFrameUpdate(WindowSwapchain);
-
         try
         {
             OnBeginFrame();
@@ -352,7 +333,7 @@ public partial class GameEngine : IDisposable
         }
 
         OnSystemEndFrame();
-        _graphics.EndFrame();//swap buffer
+        _graphicsDevice.ProcessDestroy();
     }
 
 
