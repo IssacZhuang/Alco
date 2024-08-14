@@ -55,22 +55,4 @@ public class NoInputSystem : InputSystem
     {
         return true;
     }
-
-    /// <inheritdoc />
-    internal override void DoEvent()
-    {
-        // Empty implementation
-    }
-
-    /// <inheritdoc />
-    internal override void Reset()
-    {
-        // Empty implementation
-    }
-
-    /// <inheritdoc />
-    internal override void Update()
-    {
-        // Empty implementation
-    }
 }

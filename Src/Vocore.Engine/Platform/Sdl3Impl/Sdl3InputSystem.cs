@@ -20,14 +20,9 @@ public unsafe class Sdl3InputSystem : InputSystem
         public fixed bool isMousePressing[MaxMouseCount];
     }
     private static readonly FrozenDictionary<SDL_Keycode, int> SdlKeyMap = BuildSdlKepMap();
-    private SDL_Window _window;
 
-    
 
     private State _state;
-
-    internal event Action<uint2>? OnWindowResize;
-
     
 
     public override Vector2 MousePosition
@@ -52,9 +47,8 @@ public unsafe class Sdl3InputSystem : InputSystem
         }
     }
 
-    public Sdl3InputSystem(SDL_Window window)
+    public Sdl3InputSystem()
     {
-        _window = window;
     }
 
     public override bool IsKeyDown(KeyCode key)
@@ -93,40 +87,36 @@ public unsafe class Sdl3InputSystem : InputSystem
         return _state.isMouseUp[(int)button];
     }
 
-    internal override void DoEvent()
+
+    internal void OnSdlKeyDown(SDL_Keycode key)
     {
-        while (SDL_PollEvent(out SDL_Event e))
-        {
-            switch (e.type)
-            {
-                case SDL_EventType.WindowResized:
-                    OnWindowResize?.Invoke(new uint2(e.window.data1, e.window.data2));
-                    break;
-                case SDL_EventType.MouseButtonDown:
-                    Mouse button = ConvertMosueButton(e.button.button);
-                    _state.isMouseDown[(int)button] = true;
-                    _state.isMousePressing[(int)button] = true;
-                    break;
-                case SDL_EventType.MouseButtonUp:
-                    button = ConvertMosueButton(e.button.button);
-                    _state.isMouseUp[(int)button] = true;
-                    _state.isMousePressing[(int)button] = false;
-                    break;
-                case SDL_EventType.KeyDown:
-                    int key = SdlKeyMap[e.key.key];
-                    _state.iskeyDown[key] = true;
-                    _state.iskeyPressing[key] = true;
-                    break;
-                case SDL_EventType.KeyUp:
-                    key = SdlKeyMap[e.key.key];
-                    _state.iskeyUp[key] = true;
-                    _state.iskeyPressing[key] = false;
-                    break;
-            }
-        }
+        int k = SdlKeyMap[key];
+        _state.iskeyDown[k] = true;
+        _state.iskeyPressing[k] = true;
     }
 
-    internal override void Reset()
+    internal void OnSdlKeyUp(SDL_Keycode key)
+    {
+        int k = SdlKeyMap[key];
+        _state.iskeyUp[k] = true;
+        _state.iskeyPressing[k] = false;
+    }
+
+    internal void OnSdlMouseButtonDown(uint button)
+    {
+        Mouse b = ConvertMosueButton(button);
+        _state.isMouseDown[(int)b] = true;
+        _state.isMousePressing[(int)b] = true;
+    }
+
+    internal void OnSdlMouseButtonUp(uint button)
+    {
+        Mouse b = ConvertMosueButton(button);
+        _state.isMouseUp[(int)b] = true;
+        _state.isMousePressing[(int)b] = false;
+    }
+
+    internal void Reset()
     {
         for (int i = 0; i < MaxKeyCount; i++)
         {
@@ -139,12 +129,7 @@ public unsafe class Sdl3InputSystem : InputSystem
             _state.isMouseUp[i] = false;
         }
     }
-
-    internal override void Update()
-    {
-
-    }
-
+    
     private static Mouse ConvertMosueButton(uint button)
     {
         return button switch

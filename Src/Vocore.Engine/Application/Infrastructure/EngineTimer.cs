@@ -11,7 +11,7 @@ namespace Vocore.Engine
     internal struct EngineTimer
     {
         // Frequency substracted by Physics Tick Rate
-        public static int DefaultPhysicalTickRate = 30;
+        public static int DefaultPhysicalTickRate = 60;
         public static long Frequency = Stopwatch.Frequency;
         public static long MaxTimerTick = long.MaxValue / 2;
 
@@ -46,11 +46,11 @@ namespace Vocore.Engine
             }
         }
 
-        public EngineTimer(GameEngine engine)
+        public EngineTimer()
         {
             _stopwatch = new Stopwatch();
             _physicsTickRate = DefaultPhysicalTickRate;
-            _pyhsicsTickInterval = Frequency / DefaultPhysicalTickRate; // default 30 ticks per second
+            _pyhsicsTickInterval = Frequency / DefaultPhysicalTickRate;
             _pyhsicsDeltaTime = 1f / DefaultPhysicalTickRate;
             _detlaTimerTick = 0;
             _updateTickTimer = 0;

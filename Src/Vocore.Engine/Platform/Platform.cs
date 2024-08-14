@@ -8,6 +8,8 @@ public abstract class Platform : AutoDisposable
     public event Action<float>? OnTick;
     public event Action<float>? OnUpdate;
 
+    public abstract InputSystem Input { get; }
+
     public abstract void RunMainLoop();
 
     public abstract void StopMainLoop();

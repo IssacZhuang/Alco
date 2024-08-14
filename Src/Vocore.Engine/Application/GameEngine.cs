@@ -39,7 +39,6 @@ public partial class GameEngine : IDisposable
 
     #region  Internal Controller
     internal EngineGraphics _graphics;
-    internal EngineTimer _timer;
     internal EngineProfiler _profiler;
 
     #endregion
@@ -48,7 +47,6 @@ public partial class GameEngine : IDisposable
     #region  State
     private int _engineThread;
     private bool _isDisposed = false;
-    private bool _isRunning = false;
     private bool _shouldResize = false;
 
     private uint2 _windowSize;
@@ -206,10 +204,9 @@ public partial class GameEngine : IDisposable
         AddSystem(_mainRenderTarget);
         _mainWindow.OnResize += MainWindowResize;
 
-        _input = _mainWindow.Input;
+        _input = _platform.Input;
 
         _graphics = new EngineGraphics(this);
-        _timer = new EngineTimer(this);
         _profiler = new EngineProfiler(this);
 
         InitializePlugins(_setting.Plugins);
@@ -229,7 +226,6 @@ public partial class GameEngine : IDisposable
     public void Run()
     {
         _engineThread = Environment.CurrentManagedThreadId;
-        _isRunning = true;
 
         Assets.SetMainThread();
 
@@ -242,22 +238,10 @@ public partial class GameEngine : IDisposable
     /// </summary>
     private void InternaleRun()
     {
+        _platform.OnTick += InternalTick;
+        _platform.OnUpdate += InternalUpdate;
         InternalStart();
-
-        if (_setting.RunOnce)
-        {
-            _isRunning = true;
-            InternalUpdate();
-            _isRunning = false;
-        }
-        else
-        {
-            while (_isRunning)
-            {
-                InternalUpdate();
-            }
-        }
-
+        _platform.RunMainLoop();
         InternalStop();
     }
 
@@ -320,30 +304,24 @@ public partial class GameEngine : IDisposable
 
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void InternalUpdate()
+    private void InternalTick(float delta)
     {
-        _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
-        _input.DoEvent();
-        _input.Update();
-
-        if (canInvokePhysicsTick)
+        OnSystemTick(delta);
+        try
         {
-            OnSystemTick(physicsDeltaTime);
-
-            try
-            {
-                OnTick(physicsDeltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error("[Tick Error]", e);
-                TryErrorStop();
-            }
-
-            OnSystemPostTick(physicsDeltaTime);
+            OnTick(delta);
         }
+        catch (Exception e)
+        {
+            Log.Error("[Tick Error]", e);
+            TryErrorStop();
+        }
+        OnSystemPostTick(delta);
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void InternalUpdate(float delta)
+    {
         _graphics.BeginFrameUpdate(WindowSwapchain);
 
         try
@@ -358,11 +336,11 @@ public partial class GameEngine : IDisposable
 
         OnSystemBeginFrame();
 
-        OnSystemUpdate(updateDeltaTime);
+        OnSystemUpdate(delta);
 
         try
         {
-            OnUpdate(updateDeltaTime);
+            OnUpdate(delta);
         }
         catch (Exception e)
         {
@@ -370,11 +348,10 @@ public partial class GameEngine : IDisposable
             TryErrorStop();
         }
 
-        OnSystemPostUpdate(updateDeltaTime);
+        OnSystemPostUpdate(delta);
 
         _assets.OnUpdate();
-        _profiler.Update(updateDeltaTime);
-        _input.Reset();//reset input state
+        _profiler.Update(delta);
 
         try
         {
@@ -401,7 +378,6 @@ public partial class GameEngine : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalStart()
     {
-        _timer.Start();
         try
         {
             OnStart();
@@ -699,7 +675,7 @@ public partial class GameEngine : IDisposable
     /// </summary>
     public void Stop()
     {
-        _isRunning = false;
+        _platform.StopMainLoop();
     }
 
     public void AddSystem(IEngineSystem system)

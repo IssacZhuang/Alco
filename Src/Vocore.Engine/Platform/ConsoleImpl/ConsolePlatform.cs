@@ -4,6 +4,9 @@ namespace Vocore.Engine;
 
 public class ConsolePlatform : Platform
 {
+    private readonly NoInputSystem _input = new NoInputSystem();
+    public override InputSystem Input => _input;
+
     public override void CloseWindow(Window window)
     {
         

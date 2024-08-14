@@ -1,4 +1,5 @@
 
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SDL3;
 using Vocore.Graphics;
@@ -21,8 +22,9 @@ public unsafe partial class Sdl3Window : Window
 
     private readonly SDL_Window _window;
     private readonly GPUSwapchain _swapchain;
-    private readonly InputSystem _input;
     private string _title;
+
+    internal SDL_WindowID WindowId => SDL_GetWindowID(_window);
 
     public override WindowMode WindowMode
     {
@@ -35,7 +37,7 @@ public unsafe partial class Sdl3Window : Window
             switch (value)
             {
                 case WindowMode.Normal:
-                    _ = SDL_SetWindowFullscreen(_window, false);
+                    //_ = SDL_SetWindowFullscreen(_window, false);
                     _ = SDL_RestoreWindow(_window);
                     break;
                 case WindowMode.Minimized:
@@ -95,11 +97,6 @@ public unsafe partial class Sdl3Window : Window
         get => _swapchain;
     }
 
-    public override InputSystem Input
-    {
-        get => _input;
-    }
-
 
     public Sdl3Window(GPUDevice device, WindowSetting setting)
     {
@@ -121,10 +118,6 @@ public unsafe partial class Sdl3Window : Window
         };
 
         _swapchain = device.CreateSwapchain(descriptor);
-
-        Sdl3InputSystem input = new Sdl3InputSystem(_window);
-        input.OnWindowResize += OnWindowResize;
-        _input = input;
     }
 
     public override void Close()
@@ -199,7 +192,8 @@ public unsafe partial class Sdl3Window : Window
         throw new PlatformNotSupportedException();
     }
 
-    private void OnWindowResize(uint2 size)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void DoResize(uint2 size)
     {
         OnResize?.Invoke(size);
     }

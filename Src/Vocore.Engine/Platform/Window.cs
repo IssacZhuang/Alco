@@ -31,7 +31,6 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     public abstract string Title { get; set; }
 
     public abstract GPUSwapchain? Swapchain { get; }
-    public abstract InputSystem Input { get; }
 
     public Action<uint2>? OnResize;
 

@@ -66,19 +66,4 @@ public abstract class InputSystem
     /// <param name="delta">The delta scroll value.</param>
     /// <returns><c>true</c> if the mouse is currently scrolling; otherwise, <c>false</c>.</returns>
     public abstract bool IsMouseScrolling(out Vector2 delta);
-
-    /// <summary>
-    /// Updates the input state.
-    /// </summary>
-    internal abstract void Update();
-
-    /// <summary>
-    /// Processes input events.
-    /// </summary>
-    internal abstract void DoEvent();
-
-    /// <summary>
-    /// Resets the input state.
-    /// </summary>
-    internal abstract void Reset();
 }
