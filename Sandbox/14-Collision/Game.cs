@@ -44,6 +44,8 @@ public class Game : GameEngine
 
         _entity = CreateCube(Color);
         _entity.transform.position = new Vector3(2, 0, 0);
+
+        MainWindow.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)
@@ -59,7 +61,9 @@ public class Game : GameEngine
 
         _renderer.End();
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(Input.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
+        Vector2 localMousePosition = MainWindow.GetLocalMousePosition(Input.MousePosition);
+
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, _entity.Shape, out RaycastHit3D rayCastHit);
 
@@ -97,7 +101,7 @@ public class Game : GameEngine
 
 
 
-    protected override void OnMainWindowResize(uint2 size)
+    protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.x / size.y;
         _camera.UpdateData();
