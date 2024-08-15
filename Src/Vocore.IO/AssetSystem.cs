@@ -12,10 +12,7 @@ namespace Vocore.IO
     public sealed partial  class AssetSystem
     {
         private const int FetchFinishJobAttempCount = 20;
-        // key: filename, value: asset
-        private readonly ConcurrentWeakCache<object> _weakCache = new ConcurrentWeakCache<object>();
-        // key: filename, value: asset
-        private readonly ConcurrentDictionary<string, object> _strongCache = new ConcurrentDictionary<string, object>();
+        private readonly Dictionary<string, AssetHandle> _assetLookup = new Dictionary<string, AssetHandle>();
         // key: extension, value: asset loader
         private readonly Dictionary<string, IBaseAssetHandler> _assetLoaders = new Dictionary<string, IBaseAssetHandler>();
         // key: filename, value: file source
@@ -23,6 +20,8 @@ namespace Vocore.IO
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
+
+        private readonly object _lockHandle = new object();
 
         private bool _isEntryDirty = false;
         private bool _isRecongizedExtensionsDirty = false;
@@ -32,12 +31,14 @@ namespace Vocore.IO
         private struct AsyncPreprocessJob : IJob
         {
             public string name;
-            public object? processed;
+            public AssetHandle handle;
+            public object? asset;
             public Func<object?> onCreate;
-            public Action<object> onComplete;
+            
+            public AssetCacheMode cacheMode;
             public void Execute()
             {
-                processed = onCreate();
+                asset = onCreate();
             }
         }
 
@@ -59,28 +60,6 @@ namespace Vocore.IO
             _asyncLoadQueue.Dispose();
         }
 
-       
 
-        private void SetCache(string filename, object asset, AssetCacheMode cacheMode)
-        {
-            if (cacheMode == AssetCacheMode.Recyclable)
-            {
-                SetWeakCache(filename, asset);
-            }
-            else if (cacheMode == AssetCacheMode.Persistent)
-            {
-                SetStrongCache(filename, asset);
-            }
-        }
-
-        private void SetWeakCache(string filename, object asset)
-        {
-            _weakCache.Set(filename, asset);
-        }
-
-        private void SetStrongCache(string filename, object asset)
-        {
-            _strongCache[filename] = asset;
-        }
     }
 }

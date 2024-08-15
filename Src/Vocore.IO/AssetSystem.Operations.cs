@@ -22,11 +22,16 @@ public sealed partial class AssetSystem
         failedReason = string.Empty;
         try
         {
+            AssetHandle handle = GetAssetHandle(filename);
             //try load from cache
-            if (TryLoadFromCacheCore(filename, out asset))
+            object? cachedAsset = handle.CachedAsset;
+            if (cachedAsset is TAsset cached)
             {
+                asset = cached;
                 return true;
             }
+
+            handle.IsLoading = true;
 
             // check the asset loader
             if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
@@ -52,7 +57,10 @@ public sealed partial class AssetSystem
             }
 
             // try add to cache
-            SetCache(filename, newAsset, cacheMode);
+            handle.SetCache(newAsset, cacheMode);
+
+            handle.IsLoading = false;
+
             asset = newAsset;
             return true;
         }
@@ -87,7 +95,7 @@ public sealed partial class AssetSystem
     /// <exception cref="Exception">Thrown when the asset failed to load.</exception>
     public TAsset Load<TAsset>(string filename, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
     {
-        if (TryLoad<TAsset>(filename, out TAsset? asset, out string? failedReason, cacheMode))
+        if (TryLoad(filename, out TAsset? asset, out string? failedReason, cacheMode))
         {
             return asset;
         }
@@ -108,10 +116,18 @@ public sealed partial class AssetSystem
         TryRefreshEntries();
         filename = ParseEntry(filename);
 
+        AssetHandle handle = GetAssetHandle(filename);
         //try load from cache
-        if (TryLoadFromCacheCore(filename, out TAsset? asset))
+        object? cachedAsset = handle.CachedAsset;
+        if (cachedAsset is TAsset cached)
         {
-            onComplete(asset);
+            onComplete(cached);
+            return;
+        }
+
+        if (handle.IsLoading)
+        {
+            handle.OnLoadComplete += (asset) => onComplete((TAsset)asset);
             return;
         }
 
@@ -119,15 +135,15 @@ public sealed partial class AssetSystem
         if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
         {
             Log.Error($"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}");
-            // action(null);
             return;
         }
 
         AsyncPreprocessJob job = new AsyncPreprocessJob()
         {
             name = filename,
-            onCreate = GetOnCreateAction(filename, assetLoaderT, cacheMode), // on main thread
-            onComplete = GetOnCompleteAction(onComplete) // on main thread
+            onCreate = GetOnCreateAction(filename, assetLoaderT), // on worker thread
+            handle = handle,
+            cacheMode = cacheMode
         };
 
         _asyncLoadQueue.Push(job);
@@ -157,7 +173,7 @@ public sealed partial class AssetSystem
 
 
     //on worker thread
-    private Func<object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT, AssetCacheMode cacheMode) where TAsset : class
+    private Func<object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
     {
         return () =>
         {
@@ -172,8 +188,6 @@ public sealed partial class AssetSystem
                 Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
                 return null;
             }
-
-            SetCache(filename, newAsset, cacheMode);
 
             return newAsset;
         };
@@ -195,40 +209,6 @@ public sealed partial class AssetSystem
         };
     }
 
-    private bool TryLoadFromCacheCore<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset) where TAsset : class
-    {
-        if (_strongCache.TryGetValue(filename, out object? strongAsset))
-        {
-            if (strongAsset is TAsset strongAssetT)
-            {
-                asset = strongAssetT;
-                return true;
-            }
-            else
-            {
-                Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {strongAsset.GetType().Name}");
-                asset = null;
-                return false;
-            }
-        }
-        if (_weakCache.TryGet(filename, out object? weakAsset))
-        {
-            if (weakAsset is TAsset weakAssetT)
-            {
-                asset = weakAssetT;
-                return true;
-            }
-            else
-            {
-                Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {weakAsset.GetType().Name}");
-                asset = null;
-                return false;
-            }
-        }
-
-        asset = null;
-        return false;
-    }
 
     private bool TryLoadDataFromSource(string filename, out ReadOnlySpan<byte> data)
     {
@@ -241,5 +221,18 @@ public sealed partial class AssetSystem
         }
         data = default;
         return false;
+    }
+
+    private AssetHandle GetAssetHandle(string filename)
+    {
+        Monitor.Enter(_lockHandle);
+        if (!_assetLookup.TryGetValue(filename, out AssetHandle? handle))
+        {
+            handle = new AssetHandle();
+            _assetLookup.Add(filename, handle);
+        }
+        Monitor.Exit(_lockHandle);
+
+        return handle;
     }
 }
