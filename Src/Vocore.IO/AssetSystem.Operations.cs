@@ -1,0 +1,268 @@
+using System.Diagnostics.CodeAnalysis;
+
+namespace Vocore.IO;
+
+public sealed partial class AssetSystem
+{
+    /// <summary>
+    /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+    /// <param name="failedReason">When this method returns, contains the reason why the asset failed to load if unsuccessful; otherwise, <c>null</c>.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
+    public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    {
+        CheckThread();
+        TryRefreshEntries();
+        filename = ParseEntry(filename);
+
+        failedReason = string.Empty;
+        try
+        {
+            //try load from cache
+            if (TryLoadFromCacheCore(filename, out asset))
+            {
+                return true;
+            }
+
+            // check the asset loader
+            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+            {
+                asset = null;
+                return false;
+            }
+
+            // IO
+            if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
+            {
+                failedReason = $"Trying to get asset {filename} but the file does not exist";
+                asset = null;
+                return false;
+            }
+
+            // preprocess the asset
+            if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
+            {
+                failedReason = $"Trying to get asset {filename} but the asset loader failed to preprocess the asset";
+                asset = null;
+                return false;
+            }
+
+            // create the asset
+            if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+            {
+                failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
+                asset = null;
+                return false;
+            }
+
+            // try add to cache
+            SetCache(filename, newAsset, cacheMode);
+            asset = newAsset;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            failedReason = $"Exception on loading asset '{filename}': {ex}";
+            asset = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
+    public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    {
+        return TryLoad(filename, out asset, out _, cacheMode);
+    }
+
+    /// <summary>
+    /// Load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns>The loaded asset.</returns>
+    /// <exception cref="Exception">Thrown when the asset failed to load.</exception>
+    public TAsset Load<TAsset>(string filename, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    {
+        if (TryLoad<TAsset>(filename, out TAsset? asset, out string? failedReason, cacheMode))
+        {
+            return asset;
+        }
+        throw new Exception(failedReason);
+    }
+
+
+    /// <summary>
+    /// Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of asset.</typeparam>
+    /// <param name="filename">Path and name of the asset file.</param>
+    /// <param name="onComplete">The callback action when the asset is loaded.</param>
+    /// <param name="cacheMode">Whether to cache the asset.</param>
+    public void LoadAsync<TAsset>(string filename, Action<TAsset> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    {
+        CheckThread();
+        TryRefreshEntries();
+        filename = ParseEntry(filename);
+
+        //try load from cache
+        if (TryLoadFromCacheCore(filename, out TAsset? asset))
+        {
+            onComplete(asset);
+            return;
+        }
+
+        // check the asset loader
+        if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+        {
+            Log.Error($"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}");
+            // action(null);
+            return;
+        }
+
+        AsyncPreprocessJob job = new AsyncPreprocessJob()
+        {
+            name = filename,
+            onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT), // on worker thread
+            onCreate = GetOnCreateAction(filename, assetLoaderT, cacheMode), // on main thread
+            onComplete = GetOnCompleteAction(onComplete) // on main thread
+        };
+
+        _asyncLoadQueue.Push(job);
+    }
+
+    /// <summary>
+    /// Try to load the raw data of the asset from the file source.
+    /// </summary>
+    /// <param name="filename">The filename of the asset.</param>
+    /// <param name="data">The raw data of the asset if it is loaded successfully; otherwise, <c>null</c>.</param>
+    /// <returns><c>True</c> if the asset is loaded successfully.</returns>
+    public bool TryLoadRaw(string filename, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
+    {
+        CheckThread();
+        TryRefreshEntries();
+        filename = ParseEntry(filename);
+
+        if (TryLoadDataFromSource(filename, out data))
+        {
+            return true;
+        }
+
+        Log.Error($"Trying to get asset {filename} but the file does not exist");
+        data = default;
+        return false;
+    }
+
+    //on worker thread
+    private Func<object?> GetAsyncPreprocessAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+    {
+        return () =>
+        {
+            if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
+            {
+                Log.Error($"Trying to get asset {filename} but the file does not exist");
+                return null;
+            }
+
+            if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
+            {
+                Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
+                return null;
+            }
+
+            return preprocessed;
+        };
+    }
+
+    //on main thread
+    private Func<object, object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT, AssetCacheMode cacheMode) where TAsset : class
+    {
+        return (object preprocessed) =>
+        {
+            if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+            {
+                Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                return null;
+            }
+
+            SetCache(filename, newAsset, cacheMode);
+
+            return newAsset;
+        };
+    }
+
+    //on main thread
+    private Action<object> GetOnCompleteAction<TAsset>(Action<TAsset> action) where TAsset : class
+    {
+        return (object asset) =>
+        {
+            if (asset is TAsset newAsset)
+            {
+                action(newAsset);
+            }
+            else
+            {
+                Log.Error($"Can not cast asset:{asset.GetType().Name} to type {typeof(TAsset).Name}");
+            }
+        };
+    }
+
+    private bool TryLoadFromCacheCore<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset) where TAsset : class
+    {
+        if (_strongCache.TryGetValue(filename, out object? strongAsset))
+        {
+            if (strongAsset is TAsset strongAssetT)
+            {
+                asset = strongAssetT;
+                return true;
+            }
+            else
+            {
+                Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {strongAsset.GetType().Name}");
+                asset = null;
+                return false;
+            }
+        }
+        if (_weakCache.TryGet(filename, out object? weakAsset))
+        {
+            if (weakAsset is TAsset weakAssetT)
+            {
+                asset = weakAssetT;
+                return true;
+            }
+            else
+            {
+                Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset is already loaded with type {weakAsset.GetType().Name}");
+                asset = null;
+                return false;
+            }
+        }
+
+        asset = null;
+        return false;
+    }
+
+    private bool TryLoadDataFromSource(string filename, out ReadOnlySpan<byte> data)
+    {
+        if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+        {
+            if (fileSource.TryGetData(filename, out data))
+            {
+                return true;
+            }
+        }
+        data = default;
+        return false;
+    }
+}
