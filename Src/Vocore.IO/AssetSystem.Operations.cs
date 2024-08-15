@@ -125,9 +125,10 @@ public sealed partial class AssetSystem
             return;
         }
 
+        handle.OnLoadComplete += (asset) => onComplete((TAsset)asset);
+        
         if (handle.IsLoading)
         {
-            handle.OnLoadComplete += (asset) => onComplete((TAsset)asset);
             return;
         }
 
