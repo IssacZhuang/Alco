@@ -21,7 +21,7 @@ public sealed partial class AssetSystem
                     continue;
                 }
 
-                if (job.preprocessed == null)
+                if (job.processed == null)
                 {
                     Log.Error($"The preprocessed asset of '{job.name}' is null, the asset manager failed to load the asset");
                     continue;
@@ -29,7 +29,7 @@ public sealed partial class AssetSystem
 
                 try
                 {
-                    object? asset = job.onCreate(job.preprocessed);
+                    object? asset = job.processed;
                     if (asset == null)
                     {
                         Log.Error($"Failed to create asset: {job.name}");

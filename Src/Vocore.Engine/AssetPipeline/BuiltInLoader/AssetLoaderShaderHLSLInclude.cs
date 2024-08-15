@@ -8,7 +8,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Represents an asset loader for HLSL include files.
 /// </summary>
-public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string, string>
+public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string>
 {
     private static readonly string[] Extensions = new string[] { FileExt.ShaderHLSLInclude };
 
@@ -19,16 +19,9 @@ public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string, string>
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out string? preprocessed)
+    protected override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out string? asset)
     {
-        preprocessed = Encoding.UTF8.GetString(file);
-        return true;
-    }
-
-    /// <inheritdoc/>
-    protected override bool TryCreateAssetCore(string filename, string preprocessed, [NotNullWhen(true)] out string? asset)
-    {
-        asset = preprocessed; 
+        asset = Encoding.UTF8.GetString(file); 
         return true;
     }
 }

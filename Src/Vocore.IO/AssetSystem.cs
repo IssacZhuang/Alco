@@ -32,13 +32,12 @@ namespace Vocore.IO
         private struct AsyncPreprocessJob : IJob
         {
             public string name;
-            public object? preprocessed;
-            public Func<object?> onPreprocess;
-            public Func<object, object?> onCreate;
+            public object? processed;
+            public Func<object?> onCreate;
             public Action<object> onComplete;
             public void Execute()
             {
-                preprocessed = onPreprocess();
+                processed = onCreate();
             }
         }
 

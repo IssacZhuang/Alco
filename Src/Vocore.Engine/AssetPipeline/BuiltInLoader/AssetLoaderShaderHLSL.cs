@@ -9,7 +9,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Convert a shader text file to a shader object. This loader will compile the shader to SPIR-V and create a GPU shader object from it
 /// </summary>
-public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult>
+public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader>
 {
     private static readonly string[] Extensions = new string[] { FileExt.ShaderHLSL};
     private readonly Func<string, string>? _includeResolver;
@@ -26,31 +26,9 @@ public class AssetLoaderShaderHLSL : BaseAssetLoader<Shader, ShaderCompileResult
     }
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
+    protected override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
     {
-        //compile to spirv and get reflection info
-        preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
-        //debug save spirv
-        string appPath = Environment.CurrentDirectory;
-        string filePathVetex = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".hlsl.vert.spv");
-        string filePathFragment = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".hlsl.frag.spv");
-        if (!Directory.Exists(Path.Combine(appPath, "spirv")))
-        {
-            Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
-        }
-
-
-
-        File.WriteAllBytes(filePathVetex, preprocessed.VertexShader!.Value.Source);
-        File.WriteAllBytes(filePathFragment, preprocessed.FragmentShader!.Value.Source);
-
-
-        return true;
-    }
-
-    /// <inheritdoc/>
-    protected override bool TryCreateAssetCore(string filename, ShaderCompileResult preprocessed, [NotNullWhen(true)] out Shader? asset)
-    {
+        ShaderCompileResult preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         asset = _renderingSystem.CreateShader(preprocessed); // create GPU object
         return true;
     }

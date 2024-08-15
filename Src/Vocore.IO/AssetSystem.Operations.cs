@@ -43,16 +43,8 @@ public sealed partial class AssetSystem
                 return false;
             }
 
-            // preprocess the asset
-            if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
-            {
-                failedReason = $"Trying to get asset {filename} but the asset loader failed to preprocess the asset";
-                asset = null;
-                return false;
-            }
-
             // create the asset
-            if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+            if (!assetLoaderT.TryCreateAsset(filename, data, out TAsset? newAsset))
             {
                 failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
                 asset = null;
@@ -134,7 +126,6 @@ public sealed partial class AssetSystem
         AsyncPreprocessJob job = new AsyncPreprocessJob()
         {
             name = filename,
-            onPreprocess = GetAsyncPreprocessAction(filename, assetLoaderT), // on worker thread
             onCreate = GetOnCreateAction(filename, assetLoaderT, cacheMode), // on main thread
             onComplete = GetOnCompleteAction(onComplete) // on main thread
         };
@@ -164,8 +155,9 @@ public sealed partial class AssetSystem
         return false;
     }
 
+
     //on worker thread
-    private Func<object?> GetAsyncPreprocessAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+    private Func<object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT, AssetCacheMode cacheMode) where TAsset : class
     {
         return () =>
         {
@@ -175,22 +167,7 @@ public sealed partial class AssetSystem
                 return null;
             }
 
-            if (!assetLoaderT.TryAsyncPreprocess(filename, data, out object? preprocessed))
-            {
-                Log.Error($"Trying to get asset {filename} but the asset loader failed to preprocess the asset");
-                return null;
-            }
-
-            return preprocessed;
-        };
-    }
-
-    //on main thread
-    private Func<object, object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT, AssetCacheMode cacheMode) where TAsset : class
-    {
-        return (object preprocessed) =>
-        {
-            if (!assetLoaderT.TryCreateAsset(filename, preprocessed, out TAsset? newAsset))
+            if (!assetLoaderT.TryCreateAsset(filename, data, out TAsset? newAsset))
             {
                 Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
                 return null;

@@ -10,7 +10,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Convert a shader text file to a shader object. This loader will compile the shader to SPIR-V and create a GPU shader object from it
 /// </summary>
-public class AssetLoaderShaderSlang : BaseAssetLoader<Shader, ShaderCompileResult>
+public class AssetLoaderShaderSlang : BaseAssetLoader<Shader>
 {
     private static readonly string[] Extensions = new string[] { FileExt.ShaderSlang };
 
@@ -29,29 +29,9 @@ public class AssetLoaderShaderSlang : BaseAssetLoader<Shader, ShaderCompileResul
     }
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderCompileResult? preprocessed)
+    protected override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
     {
-        preprocessed = UtilsShaderSlang.Compile(Encoding.UTF8.GetString(file), filename, _fileSystem);
-        //debug save spirv
-        string appPath = Environment.CurrentDirectory;
-        string filePathVetex = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".slang.vert.spv");
-        string filePathFragment = Path.Combine(appPath, "spirv", Path.GetFileNameWithoutExtension(filename) + ".slang.frag.spv");
-        if (!Directory.Exists(Path.Combine(appPath, "spirv")))
-        {
-            Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
-        }
-
-
-        
-        File.WriteAllBytes(filePathVetex, preprocessed.VertexShader!.Value.Source);
-        File.WriteAllBytes(filePathFragment, preprocessed.FragmentShader!.Value.Source);
-
-        return true;
-    }
-
-    /// <inheritdoc/>
-    protected override bool TryCreateAssetCore(string filename, ShaderCompileResult preprocessed, [NotNullWhen(true)] out Shader? asset)
-    {
+        ShaderCompileResult preprocessed = UtilsShaderSlang.Compile(Encoding.UTF8.GetString(file), filename, _fileSystem);
         asset = _renderingSystem.CreateShader(preprocessed); 
         return true;
     }

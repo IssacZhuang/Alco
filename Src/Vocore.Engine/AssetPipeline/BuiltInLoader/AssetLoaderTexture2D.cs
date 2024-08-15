@@ -11,7 +11,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Represents an asset loader for Texture2D assets.
 /// </summary>
-public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer>
+public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D>
 {
     private static readonly string[] Extensions = new string[] {
         FileExt.ImagePNG,
@@ -34,17 +34,12 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer
     }
 
     /// <inheritdoc/>
-    protected override bool TryAsyncPreprocessCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ImageResultBuffer? preprocessed)
+    protected unsafe override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Texture2D? asset)
     {
-        preprocessed = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
-        return true;
-    }
-
-    /// <inheritdoc/>
-    protected unsafe override bool TryCreateAssetCore(string filename, ImageResultBuffer preprocessed, [NotNullWhen(true)] out Texture2D? asset)
-    {
+        ImageResultBuffer? preprocessed = null;
         try
         {
+            preprocessed = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
             asset = _renderingSystem.CreateTexture2D(preprocessed.Memory.Pointer, (uint)preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height);
         }
         catch (Exception e)
@@ -55,7 +50,7 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D, ImageResultBuffer
         }
         finally
         {
-            preprocessed.Dispose();
+            preprocessed?.Dispose();
         }
 
         return true;

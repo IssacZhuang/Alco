@@ -66,8 +66,8 @@ public class Game : GameEngine
         _textureEmpty = Rendering.CreateTexture2D(16, 16, 0xffffffff);
         _selected = _textureEmpty;
 
-        DirectoryFileSource fileSource = new DirectoryFileSource("Assets");
-        Assets.AddFileSource(fileSource);
+        //DirectoryFileSource fileSource = new DirectoryFileSource("Assets");
+        //Assets.AddFileSource(fileSource);
     }
 
     protected override void OnUpdate(float delta)
