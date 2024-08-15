@@ -11,7 +11,7 @@ namespace Vocore.Engine;
 /// <summary>
 /// Represents an asset loader for Texture2D assets.
 /// </summary>
-public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D>
+public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
 {
     private static readonly string[] Extensions = new string[] {
         FileExt.ImagePNG,
@@ -24,9 +24,9 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D>
 
     private readonly RenderingSystem _renderingSystem;
 
-    public override string Name => "AssetLoader.Texture2D";
+    public string Name => "AssetLoader.Texture2D";
 
-    public override IReadOnlyList<string> FileExtensions => Extensions;
+    public IReadOnlyList<string> FileExtensions => Extensions;
 
     public AssetLoaderTexture2D(RenderingSystem renderingSystem)
     {
@@ -34,7 +34,7 @@ public class AssetLoaderTexture2D : BaseAssetLoader<Texture2D>
     }
 
     /// <inheritdoc/>
-    protected unsafe override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Texture2D? asset)
+    public unsafe bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Texture2D? asset)
     {
         ImageResultBuffer? preprocessed = null;
         try

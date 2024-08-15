@@ -10,15 +10,15 @@ namespace Vocore.Engine;
 /// <summary>
 /// Convert a shader text file to a shader object. This loader will compile the shader to SPIR-V and create a GPU shader object from it
 /// </summary>
-public class AssetLoaderShaderSlang : BaseAssetLoader<Shader>
+public class AssetLoaderShaderSlang : IAssetLoader<Shader>
 {
     private static readonly string[] Extensions = new string[] { FileExt.ShaderSlang };
 
     private readonly RenderingSystem _renderingSystem;
 
-    public override string Name => "AssetLoader.Shader.Slang";
+    public string Name => "AssetLoader.Shader.Slang";
 
-    public override IReadOnlyList<string> FileExtensions => Extensions;
+    public IReadOnlyList<string> FileExtensions => Extensions;
 
     private SlangAssetFileSystem _fileSystem;
 
@@ -29,7 +29,7 @@ public class AssetLoaderShaderSlang : BaseAssetLoader<Shader>
     }
 
     /// <inheritdoc/>
-    protected override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
+    public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
     {
         ShaderCompileResult preprocessed = UtilsShaderSlang.Compile(Encoding.UTF8.GetString(file), filename, _fileSystem);
         asset = _renderingSystem.CreateShader(preprocessed); 

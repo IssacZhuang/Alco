@@ -8,19 +8,19 @@ namespace Vocore.Engine;
 /// <summary>
 /// The loader for true type font file
 /// </summary>
-public class AssetLoaderFontTTF : BaseAssetLoader<Font>
+public class AssetLoaderFontTTF : IAssetLoader<Font>
 {
-    private static readonly string[] Extensions = new string[] { FileExt.FontTrueType };
+    private static readonly string[] Extensions = [FileExt.FontTrueType];
     private readonly RenderingSystem _renderingSystem;
     
-    public override string Name => "AssetLoader.Font.TTF";
-    public override IReadOnlyList<string> FileExtensions => Extensions;
+    public string Name => "AssetLoader.Font.TTF";
+    public IReadOnlyList<string> FileExtensions => Extensions;
 
     public AssetLoaderFontTTF(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
     }
-    protected override bool TryCreateAssetCore(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Font? asset)
+    public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Font? asset)
     {
         FontAtlasPacker? packer = null;
         try
