@@ -206,9 +206,6 @@ public partial class GameEngine : IDisposable
     public void Run()
     {
         _engineThread = Environment.CurrentManagedThreadId;
-
-        Assets.SetMainThread();
-
         InternaleRun();
     }
 

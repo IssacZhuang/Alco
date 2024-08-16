@@ -21,7 +21,7 @@ namespace Vocore.IO
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
 
-        private readonly object _lockHandle = new object();
+        private readonly object _lock = new object();
 
         private bool _isEntryDirty = false;
         private bool _isRecongizedExtensionsDirty = false;

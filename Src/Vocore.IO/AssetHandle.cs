@@ -15,9 +15,9 @@ internal class AssetHandle
     public bool IsLoading
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Volatile.Read(ref _isLoading);
+        get => _isLoading;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => Volatile.Write(ref _isLoading, value);
+        set => _isLoading = value;
     }
 
 
@@ -57,8 +57,9 @@ internal class AssetHandle
         OnLoadComplete?.Invoke(asset);
     }
 
-    public void ClearLoadComplete()
+    public void ResetLoadingState()
     {
+        _isLoading = false;
         OnLoadComplete = null;
     }
 }
