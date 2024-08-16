@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Vocore.Test;
+
+public class Test_Lock
+{
+    [Test(Description = "Test lock performance")]
+    public void TestLockPerformance()
+    {
+        int count = 1000000;
+        //no lock vs lock vs mutex
+        List<int> list = new List<int>();
+        //warm up
+        for (int i = 0; i < count; i++)
+        {
+            list.Add(i);
+        }
+        list.Clear();
+
+        //no lock
+        UtilsTest.Benchmark("No Lock", () =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                list.Add(i);
+            }
+        });
+
+        //lock single thread
+        object lockObject = new object();
+        UtilsTest.Benchmark("Lock single thread", () =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                lock (lockObject)
+                {
+                    list.Add(i);
+                }
+            }
+        });
+
+        //mutex single thread
+        // banned: to slow
+        // Mutex mutex = new Mutex();
+        // UtilsTest.Benchmark("Mutex single thread", () =>
+        // {
+        //     for (int i = 0; i < count; i++)
+        //     {
+        //         mutex.WaitOne();
+        //         list.Add(i);
+        //         mutex.ReleaseMutex();
+        //     }
+        // });
+
+        //lock multi thread
+        UtilsTest.Benchmark("Lock multi thread", () =>
+        {
+            Parallel.For(0, count, (i) =>
+            {
+                lock (lockObject)
+                {
+                    list.Add(i);
+                }
+            });
+        });
+
+        //mutex multi thread
+        // UtilsTest.Benchmark("Mutex multi thread", () =>
+        // {
+        //     Parallel.For(0, count, (i) =>
+        //     {
+        //         mutex.WaitOne();
+        //         list.Add(i);
+        //         mutex.ReleaseMutex();
+        //     });
+        // });
+
+
+        //custom scheduler
+        using ParallelScheduler scheduler = new ParallelScheduler(16, "TestScheduler");
+        //lock multi thread
+        UtilsTest.Benchmark("Lock multi thread 2", () =>
+        {
+            scheduler.For(count, (i) =>
+            {
+                lock (lockObject)
+                {
+                    list.Add(i);
+                }
+            });
+        });
+
+        //mutex multi thread
+        // UtilsTest.Benchmark("Mutex multi thread 2", () =>
+        // {
+        //     scheduler.For(count, (i) =>
+        //     {
+        //         mutex.WaitOne();
+        //         list.Add(i);
+        //         mutex.ReleaseMutex();
+        //     });
+        // });
+
+    }
+}
