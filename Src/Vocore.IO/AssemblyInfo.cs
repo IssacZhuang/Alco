@@ -1,3 +1,4 @@
 using System.Runtime.CompilerServices;
 
 [assembly:InternalsVisibleTo("Vocore.Engine")]
+[assembly: InternalsVisibleTo("Vocore.Engine.Test")]

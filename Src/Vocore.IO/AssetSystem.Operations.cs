@@ -38,6 +38,7 @@ public sealed partial class AssetSystem
                 if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
                 {
                     asset = null;
+                    failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
                     return false;
                 }
 
