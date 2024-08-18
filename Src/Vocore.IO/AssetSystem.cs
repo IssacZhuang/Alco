@@ -12,7 +12,7 @@ namespace Vocore.IO
     public sealed partial  class AssetSystem
     {
         private const int FetchFinishJobAttempCount = 20;
-        private readonly Dictionary<string, AssetHandle> _assetLookup = new Dictionary<string, AssetHandle>();
+        private readonly ConcurrentDictionary<string, AssetHandle> _assetLookup = new ConcurrentDictionary<string, AssetHandle>();
         // key: extension, value: asset loader
         private readonly Dictionary<string, IBaseAssetHandler> _assetLoaders = new Dictionary<string, IBaseAssetHandler>();
         // key: filename, value: file source
@@ -21,11 +21,12 @@ namespace Vocore.IO
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
 
-        private readonly object _lock = new object();
+        private readonly object _lockHandleLookup = new object();
+        private readonly object _lockEntry = new object();
+        private readonly object _lockExtensions = new object();
 
-        private bool _isEntryDirty = false;
-        private bool _isRecongizedExtensionsDirty = false;
-        private int _ownerThreadId;
+        private volatile bool _isEntryDirty = false;
+        private volatile bool _isRecongizedExtensionsDirty = false;
 
         // Threads
         private struct AsyncPreprocessJob : IJob
@@ -49,7 +50,6 @@ namespace Vocore.IO
                 throw new ArgumentException("Thread count must be greater than 0");
             }
 
-            _ownerThreadId = Environment.CurrentManagedThreadId;
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
         }
 

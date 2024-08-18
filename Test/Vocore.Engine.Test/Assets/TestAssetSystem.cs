@@ -108,14 +108,19 @@ public class TestAssetSystem
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.AddFileSource(new TestFileSource());
 
-        int count = 20;
+        int count = 100;
         TestFastAsset[] fastAssets = new TestFastAsset[count];
         TestSlowAsset[] slowAssets = new TestSlowAsset[count];
 
+        Profiler profiler = new Profiler();
+
+        profiler.Start();
         Parallel.For(0, count, i =>
         {
             fastAssets[i] = assetSystem.Load<TestFastAsset>("test.fast");
         });
+
+        TestContext.WriteLine($"Concurrent Load Time for fast asset: {profiler.End().Miliseconds}");
 
         TestFastAsset check = null;
         //all assets in the array should be the same
@@ -131,10 +136,14 @@ public class TestAssetSystem
             }
         }
 
+        
+        profiler.Start();
         Parallel.For(0, count, i =>
         {
             slowAssets[i] = assetSystem.Load<TestSlowAsset>("test.slow");
         });
+
+        TestContext.WriteLine($"Concurrent Load Time for slow asset: {profiler.End().Miliseconds}");
 
         TestSlowAsset checkSlow = null;
         //all assets in the array should be the same

@@ -67,30 +67,33 @@ public sealed partial class AssetSystem
             return;
         }
 
-        _fileEntries.Clear();
-        foreach (var fileSource in _fileSources)
+        lock (_lockEntry)
         {
-            foreach (var file in fileSource.AllFileNames)
+            if (!_isEntryDirty && !forced)
             {
-                string extension = Path.GetExtension(file);
+                return;
+            }
 
-
-                if (_recongizedExtensions.Contains(extension))
+            _fileEntries.Clear();
+            foreach (var fileSource in _fileSources)
+            {
+                foreach (var file in fileSource.AllFileNames)
                 {
-                    //Log.Info($"Add file entry: {file}");
-                    if (!_fileEntries.TryAdd(ParseEntry(file), fileSource))
+                    string extension = Path.GetExtension(file);
+
+
+                    if (_recongizedExtensions.Contains(extension))
                     {
-                        Log.Warning($"File entry already added: {file}");
+                        //Log.Info($"Add file entry: {file}");
+                        if (!_fileEntries.TryAdd(ParseEntry(file), fileSource))
+                        {
+                            Log.Warning($"File entry already added: {file}");
+                        }
                     }
                 }
             }
+            _isEntryDirty = false;
         }
-        _isEntryDirty = false;
-    }
-
-    private static string ParseEntry(string entry)
-    {
-        return entry.Replace('\\', '/');
     }
 
     private void UpdateRecongizedExtensions(bool forced = false)
@@ -100,14 +103,29 @@ public sealed partial class AssetSystem
             return;
         }
 
-        _recongizedExtensions.Clear();
-        foreach (var loader in _assetLoaders.Values)
+        lock (_lockExtensions)
         {
-            foreach (var extension in loader.FileExtensions)
+            if (!_isRecongizedExtensionsDirty && !forced)
             {
-                _recongizedExtensions.Add(extension);
+                return;
             }
+            
+            _recongizedExtensions.Clear();
+            foreach (var loader in _assetLoaders.Values)
+            {
+                foreach (var extension in loader.FileExtensions)
+                {
+                    _recongizedExtensions.Add(extension);
+                }
+            }
+            _isRecongizedExtensionsDirty = false;
         }
-        _isRecongizedExtensionsDirty = false;
+
+
+    }
+
+    private static string ParseEntry(string entry)
+    {
+        return entry.Replace('\\', '/');
     }
 }

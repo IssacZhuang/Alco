@@ -15,16 +15,16 @@ public sealed partial class AssetSystem
     /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
     public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
     {
-        lock (_lock)
-        {
-            TryRefreshEntries();
-            filename = ParseEntry(filename);
+        TryRefreshEntries();
+        filename = ParseEntry(filename);
 
-            failedReason = string.Empty;
-            try
+        failedReason = string.Empty;
+        try
+        {
+            AssetHandle handle = GetAssetHandle(filename);
+            //try load from cache
+            lock (handle)
             {
-                AssetHandle handle = GetAssetHandle(filename);
-                //try load from cache
                 object? cachedAsset = handle.CachedAsset;
                 if (cachedAsset is TAsset cached)
                 {
@@ -66,13 +66,14 @@ public sealed partial class AssetSystem
                 asset = newAsset;
                 return true;
             }
-            catch (Exception ex)
-            {
-                failedReason = $"Exception on loading asset '{filename}': {ex}";
-                asset = null;
-                return false;
-            }
         }
+        catch (Exception ex)
+        {
+            failedReason = $"Exception on loading asset '{filename}': {ex}";
+            asset = null;
+            return false;
+        }
+
     }
 
     /// <summary>
@@ -115,12 +116,15 @@ public sealed partial class AssetSystem
     /// <param name="cacheMode">Whether to cache the asset.</param>
     public void LoadAsync<TAsset>(string filename, Action<TAsset> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
     {
-        lock (_lock)
-        {
-            TryRefreshEntries();
-            filename = ParseEntry(filename);
 
-            AssetHandle handle = GetAssetHandle(filename);
+        TryRefreshEntries();
+        filename = ParseEntry(filename);
+
+        AssetHandle handle = GetAssetHandle(filename);
+        lock (handle)
+        {
+
+
             //try load from cache
             object? cachedAsset = handle.CachedAsset;
             if (cachedAsset is TAsset cached)
@@ -153,6 +157,7 @@ public sealed partial class AssetSystem
 
             _asyncLoadQueue.Push(job);
         }
+
     }
 
     /// <summary>
@@ -163,10 +168,8 @@ public sealed partial class AssetSystem
     /// <returns><c>True</c> if the asset is loaded successfully.</returns>
     public bool TryLoadRaw(string filename, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
     {
-        lock (_lock)
-        {
-            TryRefreshEntries();
-        }
+
+        TryRefreshEntries();
 
         filename = ParseEntry(filename);
 
@@ -217,13 +220,20 @@ public sealed partial class AssetSystem
 
     private AssetHandle GetAssetHandle(string filename)
     {
-        if (!_assetLookup.TryGetValue(filename, out AssetHandle? handle))
+        if (_assetLookup.TryGetValue(filename, out AssetHandle? handle))
         {
-            handle = new AssetHandle();
-            _assetLookup.Add(filename, handle);
+            return handle;
         }
 
-        return handle;
+        AssetHandle newHandle = new AssetHandle();
+        if (_assetLookup.TryAdd(filename, newHandle))
+        {
+            return newHandle;
+        }
+        //otherwise handle is added by another thread
+
+        return _assetLookup[filename];
+
     }
 
     // Only called from the GameEngine class
@@ -238,12 +248,14 @@ public sealed partial class AssetSystem
             }
             else if (result == StealingResult.Success)
             {
+                AssetHandle handle = job.handle;
                 if (exception != null)
                 {
                     Log.Error($"Exception on loading asset '{job.name}': {exception}");
-                    lock (_lock)
+
+                    lock (handle)
                     {
-                        job.handle.ResetLoadingState();
+                        handle.ResetLoadingState();
                     }
                     continue;
                 }
@@ -251,9 +263,9 @@ public sealed partial class AssetSystem
                 if (job.asset == null)
                 {
                     Log.Error($"The preprocessed asset of '{job.name}' is null, the asset manager failed to load the asset");
-                    lock (_lock)
+                    lock (handle)
                     {
-                        job.handle.ResetLoadingState();
+                        handle.ResetLoadingState();
                     }
                     continue;
                 }
@@ -262,16 +274,15 @@ public sealed partial class AssetSystem
                 if (asset == null)
                 {
                     Log.Error($"Failed to create asset: {job.name}");
-                    lock (_lock)
+                    lock (handle)
                     {
-                        job.handle.ResetLoadingState();
+                        handle.ResetLoadingState();
                     }
                     continue;
                 }
 
-                lock (_lock)
+                lock (handle)
                 {
-                    AssetHandle handle = job.handle;
                     try
                     {
                         handle.DoLoadComplete(asset);
