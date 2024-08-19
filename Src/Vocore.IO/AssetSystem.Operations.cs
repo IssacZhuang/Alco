@@ -155,6 +155,7 @@ public sealed partial class AssetSystem
                 cacheMode = cacheMode
             };
 
+            //todo: not thread safe here
             _asyncLoadQueue.Push(job);
         }
 

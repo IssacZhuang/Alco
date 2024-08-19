@@ -29,7 +29,6 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CircularWorkStealingDeque<Task> _inputs;
     private bool _isDisposed;
-    private int _ownerThreadId;
     private int _count;
 
 
@@ -38,7 +37,6 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         _cancellationTokenSource = new CancellationTokenSource();
         _event = new ManualResetEvent(false);
         _inputs = new CircularWorkStealingDeque<Task>(512);
-        _ownerThreadId = Environment.CurrentManagedThreadId;
         _count = 0;
 
         _threadData = new WorkerData[threadCount];
@@ -63,23 +61,13 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     }
 
     /// <summary>
-    /// Set the owner thread id.
-    /// </summary>
-    /// <param name="id">The owner thread id.</param>
-    public void SetOnwerThreadId(int id)
-    {
-        _ownerThreadId = id;
-    }
-
-    /// <summary>
     /// Push a job to the queue.
-    /// <br/> This method can only be called by the owner thread.
+    /// <br/> This method is not thread-safe.
     /// </summary>
     /// <param name="job">The job to do.</param>
     /// <param name="startImmediately">Start the worker immediately.</param>
     public void Push(TJob job)
     {
-        CheckThread();
         if (job == null)
         {
             return;
@@ -92,14 +80,13 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 
     /// <summary>
     /// Try to get a finished task.
-    /// <br/> This method can only be called by the owner thread.
+    /// <br/> This method is not thread-safe.
     /// </summary>
     /// <param name="job">The finished job.</param>
     /// <param name="exception">The exception if the job failed.</param>
     /// <returns><see cref="StealingResult.Success"/> if a finished task is found, <see cref="StealingResult.Empty"/> if no finished task is found, <see cref="StealingResult.CASFailed"/> if the queue is interrupted.</returns>
     public StealingResult TryGetFinishedTask([NotNullWhen(true)] out TJob? job, out Exception? exception)
     {
-        CheckThread();
         job = default;
         bool hasAbort = false;
         exception = null;
@@ -132,12 +119,11 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
 
     /// <summary>
     /// Wait for all tasks to be completed.
-    /// <br/> This method can only be called by the owner thread.
+    /// <br/> This method is not thread-safe.
     /// </summary>
     /// <returns>An enumerable of the finished tasks.</returns>
     public IEnumerable<JobExcuteResult<TJob>> WaitForAllCompleted()
     {
-        CheckThread();
         StealingResult result;
         while (true)
         {
@@ -157,14 +143,6 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         yield break;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckThread()
-    {
-        if (Environment.CurrentManagedThreadId != _ownerThreadId)
-        {
-            throw new InvalidOperationException("This method can only be called by the owner thread.");
-        }
-    }
 
     private ThreadStart ThreadWorker(int index){
         return () => ThreadLoop(_cancellationTokenSource.Token, index);
