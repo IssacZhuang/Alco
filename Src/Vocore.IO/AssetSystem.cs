@@ -20,8 +20,7 @@ namespace Vocore.IO
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
-
-        private readonly object _lockHandleLookup = new object();
+        private AtomicSpinLock _lockJobQueue = new AtomicSpinLock();
         private readonly object _lockEntry = new object();
         private readonly object _lockExtensions = new object();
 

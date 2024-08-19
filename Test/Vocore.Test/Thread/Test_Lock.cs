@@ -7,6 +7,22 @@ namespace Vocore.Test;
 
 public class Test_Lock
 {
+
+    [Test(Description = "Test CAS lock")]
+    public void TestCASLock()
+    {
+        AtomicSpinLock @lock = new AtomicSpinLock();
+        int count = 1000000;
+        List<int> list = new List<int>();
+        Parallel.For(0, count, (i) =>
+        {
+            @lock.Lock();
+            list.Add(i);
+            @lock.Unlock();
+        });
+        Assert.That(list.Count, Is.EqualTo(count));
+    }
+
     [Test(Description = "Test lock performance")]
     public void TestLockPerformance()
     {
@@ -42,6 +58,18 @@ public class Test_Lock
             }
         });
 
+        //cas lock single thread
+        UtilsTest.Benchmark("CAS Lock single thread", () =>
+        {
+            AtomicSpinLock @lock = new AtomicSpinLock();
+            for (int i = 0; i < count; i++)
+            {
+                @lock.Lock();
+                list.Add(i);
+                @lock.Unlock();
+            }
+        });
+
         //mutex single thread
         // banned: to slow
         // Mutex mutex = new Mutex();
@@ -67,6 +95,18 @@ public class Test_Lock
             });
         });
 
+        //cas lock multi thread
+        UtilsTest.Benchmark("CAS Lock multi thread", () =>
+        {
+            Parallel.For(0, count, (i) =>
+            {
+                AtomicSpinLock @lock = new AtomicSpinLock();
+                @lock.Lock();
+                list.Add(i);
+                @lock.Unlock();
+            });
+        });
+
         //mutex multi thread
         // UtilsTest.Benchmark("Mutex multi thread", () =>
         // {
@@ -80,7 +120,7 @@ public class Test_Lock
 
 
         //custom scheduler
-        using ParallelScheduler scheduler = new ParallelScheduler(16, "TestScheduler");
+        using ParallelScheduler scheduler = new ParallelScheduler(8, "TestScheduler");
         //lock multi thread
         UtilsTest.Benchmark("Lock multi thread 2", () =>
         {
@@ -90,6 +130,18 @@ public class Test_Lock
                 {
                     list.Add(i);
                 }
+            });
+        });
+
+        //cas lock multi thread
+        UtilsTest.Benchmark("CAS Lock multi thread 2", () =>
+        {
+            scheduler.For(count, (i) =>
+            {
+                AtomicSpinLock @lock = new AtomicSpinLock();
+                @lock.Lock();
+                list.Add(i);
+                @lock.Unlock();
             });
         });
 

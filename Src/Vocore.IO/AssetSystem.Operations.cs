@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Vocore.IO;
 
@@ -155,8 +156,7 @@ public sealed partial class AssetSystem
                 cacheMode = cacheMode
             };
 
-            //todo: not thread safe here
-            _asyncLoadQueue.Push(job);
+            PushJob(job);
         }
 
     }
@@ -219,6 +219,7 @@ public sealed partial class AssetSystem
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private AssetHandle GetAssetHandle(string filename)
     {
         if (_assetLookup.TryGetValue(filename, out AssetHandle? handle))
@@ -234,7 +235,14 @@ public sealed partial class AssetSystem
         //otherwise handle is added by another thread
 
         return _assetLookup[filename];
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void PushJob(AsyncPreprocessJob job)
+    {
+        _lockJobQueue.Lock();
+        _asyncLoadQueue.Push(job);
+        _lockJobQueue.Unlock();
     }
 
     // Only called from the GameEngine class
