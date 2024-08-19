@@ -11,7 +11,7 @@ namespace Vocore.IO
     /// </summary> 
     public sealed partial  class AssetSystem
     {
-        private const int FetchFinishJobAttempCount = 20;
+        private const int FetchJobAttempCount = 20;
         private readonly ConcurrentDictionary<string, AssetHandle> _assetLookup = new ConcurrentDictionary<string, AssetHandle>();
         // key: extension, value: asset loader
         private readonly Dictionary<string, IBaseAssetHandler> _assetLoaders = new Dictionary<string, IBaseAssetHandler>();

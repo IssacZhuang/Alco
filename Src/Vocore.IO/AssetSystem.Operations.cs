@@ -104,7 +104,7 @@ public sealed partial class AssetSystem
         {
             return asset;
         }
-        throw new Exception(failedReason);
+        throw new AssetLoadException(failedReason);
     }
 
 
@@ -139,7 +139,7 @@ public sealed partial class AssetSystem
             {
                 string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
                 Log.Error(failedReason);
-                onComplete(null!, new Exception(failedReason));
+                onComplete(null!, new AssetLoadException(failedReason));
                 return;
             }
 
@@ -150,6 +150,8 @@ public sealed partial class AssetSystem
                 return;
             }
 
+            handle.IsLoading = true;
+
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
                 name = filename,
@@ -159,6 +161,7 @@ public sealed partial class AssetSystem
             };
 
             PushJob(job);
+
         }
 
     }
@@ -194,14 +197,14 @@ public sealed partial class AssetSystem
         {
             if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
             {
-                Log.Error($"Trying to get asset {filename} but the file does not exist");
-                return null;
+                //Log.Error($"Trying to get asset {filename} but the file does not exist");
+                throw new AssetLoadException($"Trying to get asset {filename} but the file does not exist");
             }
 
             if (!assetLoaderT.TryCreateAsset(filename, data, out TAsset? newAsset))
             {
-                Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
-                return null;
+                //Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
+                throw new AssetLoadException($"Trying to get asset {filename} but the asset loader failed to load the asset");
             }
 
             return newAsset;
@@ -250,7 +253,9 @@ public sealed partial class AssetSystem
     // Only called from the GameEngine class
     internal void OnUpdate()
     {
-        for (int i = 0; i < FetchFinishJobAttempCount; i++)
+        int count = 0;
+        //allow cas failed in serveral times
+        while (count < FetchJobAttempCount)
         {
             StealingResult result = _asyncLoadQueue.TryGetFinishedTask(out AsyncPreprocessJob job, out Exception? exception);
             if (result == StealingResult.Empty)
@@ -259,61 +264,49 @@ public sealed partial class AssetSystem
             }
             else if (result == StealingResult.Success)
             {
-                AssetHandle handle = job.handle;
-                // if (exception != null)
-                // {
-                //     Log.Error($"Exception on loading asset '{job.name}': {exception}");
+                HanleFinishedJob(job, exception);
+            }
+            else
+            {
+                //cas failed
+                count++;
+            }
+        }
+    }
 
-                //     lock (handle)
-                //     {
-                //         handle.ResetLoadingState();
-                //     }
-                //     continue;
-                // }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void HanleFinishedJob(AsyncPreprocessJob job, Exception? exception)
+    {
+        AssetHandle handle = job.handle;
 
-                // object? asset = job.asset;
-                // if (asset == null)
-                // {
-                //     Log.Error($"Failed to create asset: {job.name}");
-                //     lock (handle)
-                //     {
-                //         handle.ResetLoadingState();
-                //     }
-                //     continue;
-                // }
+        if (exception != null)
+        {
+            Log.Error($"Exception on creating asset '{job.name}': {exception}");
+        }
 
-                if (exception != null)
-                {
-                    Log.Error($"Exception on creating asset '{job.name}': {exception}");
-                }
+        object? asset = job.asset;
+        if (asset == null)
+        {
+            Log.Error($"Failed to load asset: {job.name}");
+        }
 
-                object? asset = job.asset;
-                if (asset == null)
-                {
-                    Log.Error($"Failed to load asset: {job.name}");
-                }
+        lock (handle)
+        {
 
-                lock (handle)
-                {
-
-                    try
-                    {
-                        handle.DoLoadComplete(asset!, exception);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error($"Exception on creating asset '{job.name}': {e}");
-                    }
-
-                    if (job.asset != null)
-                    {
-                        handle.SetCache(job.asset, job.cacheMode);
-                    }
-                    handle.ResetLoadingState();
-                }
+            try
+            {
+                handle.DoLoadComplete(asset!, exception);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"Exception on creating asset '{job.name}': {e}");
             }
 
-
+            if (job.asset != null)
+            {
+                handle.SetCache(job.asset, job.cacheMode);
+            }
+            handle.ResetLoadingState();
         }
     }
 
