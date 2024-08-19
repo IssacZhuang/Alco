@@ -81,7 +81,7 @@ public class Game : GameEngine
 
         if (Input.IsKeyDown(KeyCode.Space))
         {
-            Assets.LoadAsync<Texture2D>("test.png", (texture) =>
+            Assets.LoadAsync<Texture2D>("test.png", (texture, exception) =>
             {
                 _selected = texture;
             });

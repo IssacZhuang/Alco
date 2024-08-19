@@ -115,7 +115,7 @@ public sealed partial class AssetSystem
     /// <param name="filename">Path and name of the asset file.</param>
     /// <param name="onComplete">The callback action when the asset is loaded.</param>
     /// <param name="cacheMode">Whether to cache the asset.</param>
-    public void LoadAsync<TAsset>(string filename, Action<TAsset> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    public void LoadAsync<TAsset>(string filename, Action<TAsset, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
     {
 
         TryRefreshEntries();
@@ -130,18 +130,20 @@ public sealed partial class AssetSystem
             object? cachedAsset = handle.CachedAsset;
             if (cachedAsset is TAsset cached)
             {
-                onComplete(cached);
+                onComplete(cached, null);
                 return;
             }
 
             // check the asset loader
             if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
             {
-                Log.Error($"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}");
+                string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
+                Log.Error(failedReason);
+                onComplete(null!, new Exception(failedReason));
                 return;
             }
 
-            handle.OnLoadComplete += (asset) => onComplete((TAsset)asset);
+            handle.OnLoadComplete += (asset, exception) => onComplete((TAsset)asset, exception);
 
             if (handle.IsLoading)
             {
@@ -258,49 +260,55 @@ public sealed partial class AssetSystem
             else if (result == StealingResult.Success)
             {
                 AssetHandle handle = job.handle;
+                // if (exception != null)
+                // {
+                //     Log.Error($"Exception on loading asset '{job.name}': {exception}");
+
+                //     lock (handle)
+                //     {
+                //         handle.ResetLoadingState();
+                //     }
+                //     continue;
+                // }
+
+                // object? asset = job.asset;
+                // if (asset == null)
+                // {
+                //     Log.Error($"Failed to create asset: {job.name}");
+                //     lock (handle)
+                //     {
+                //         handle.ResetLoadingState();
+                //     }
+                //     continue;
+                // }
+
                 if (exception != null)
                 {
-                    Log.Error($"Exception on loading asset '{job.name}': {exception}");
-
-                    lock (handle)
-                    {
-                        handle.ResetLoadingState();
-                    }
-                    continue;
-                }
-
-                if (job.asset == null)
-                {
-                    Log.Error($"The preprocessed asset of '{job.name}' is null, the asset manager failed to load the asset");
-                    lock (handle)
-                    {
-                        handle.ResetLoadingState();
-                    }
-                    continue;
+                    Log.Error($"Exception on creating asset '{job.name}': {exception}");
                 }
 
                 object? asset = job.asset;
                 if (asset == null)
                 {
-                    Log.Error($"Failed to create asset: {job.name}");
-                    lock (handle)
-                    {
-                        handle.ResetLoadingState();
-                    }
-                    continue;
+                    Log.Error($"Failed to load asset: {job.name}");
                 }
 
                 lock (handle)
                 {
+
                     try
                     {
-                        handle.DoLoadComplete(asset);
+                        handle.DoLoadComplete(asset!, exception);
                     }
                     catch (Exception e)
                     {
                         Log.Error($"Exception on creating asset '{job.name}': {e}");
                     }
-                    handle.SetCache(job.asset, job.cacheMode);
+
+                    if (job.asset != null)
+                    {
+                        handle.SetCache(job.asset, job.cacheMode);
+                    }
                     handle.ResetLoadingState();
                 }
             }

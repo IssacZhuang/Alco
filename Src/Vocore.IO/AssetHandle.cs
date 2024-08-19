@@ -10,7 +10,7 @@ internal class AssetHandle
 
     public Func<object>? FuncLoad;//might be async
     //todo: add error handling in the load complete callback
-    public event Action<object>? OnLoadComplete;//on main thread
+    public event AssetAsyncLoadDelegate? OnLoadComplete;//on main thread
 
     public bool IsLoading
     {
@@ -52,9 +52,9 @@ internal class AssetHandle
         
     }
 
-    public void DoLoadComplete(object asset)
+    public void DoLoadComplete(object asset, Exception? exception)
     {
-        OnLoadComplete?.Invoke(asset);
+        OnLoadComplete?.Invoke(asset, exception);
     }
 
     public void ResetLoadingState()
