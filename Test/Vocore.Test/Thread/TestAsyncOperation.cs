@@ -8,7 +8,7 @@ using Vocore;
 
 namespace Vocore.Test
 {
-    public class Test_AsyncOperation
+    public class TestAsyncOperation
     {
         [Test(Description = "AsyncOperationBatch vs Task+Lock")]
         public void TestThread()

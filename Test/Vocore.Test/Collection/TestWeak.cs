@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Vocore.Test
 {
-    public class Test_Weak
+    public class TestWeak
     {
         private class TestObject
         {
@@ -16,7 +16,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "WeakReference")]
-        public void Test_WeakReference()
+        public void TestWeakReference()
         {
             TestObject obj = new TestObject(){
                 Value = 123
@@ -40,7 +40,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "WeakCache")]
-        public void Test_WeakCache()
+        public void TestWeakCache()
         {
             WeakCache<TestObject> cache = new WeakCache<TestObject>();
             TestObject obj = new TestObject(){

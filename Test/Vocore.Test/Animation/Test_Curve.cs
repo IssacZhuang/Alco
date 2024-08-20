@@ -5,10 +5,10 @@ using System.Diagnostics;
 
 namespace Vocore.Test
 {
-    public class Test_Curve
+    public class TestCurve
     {
         [Test(Description = "linear vs hermite vs cache performance")]
-        public void Test_CurvePerformance()
+        public void TestCurvePerformance()
         {
             int pointCount = 1000000;
             float[] t = new float[pointCount];

@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Vocore.Test;
 
-public class Test_Serialize
+public class TestSerialize
 {
     private class TestObject1 : ISerializable
     {

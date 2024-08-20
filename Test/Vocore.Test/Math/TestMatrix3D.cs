@@ -7,7 +7,7 @@ using static Vocore.math;
 namespace Vocore.Test;
 
 [TestFixture]
-public class MatrixTest3D
+public class TestMatrix3D
 {
     [Test]
     public void TestMatrix4trs()

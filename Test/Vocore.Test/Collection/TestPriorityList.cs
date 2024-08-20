@@ -5,10 +5,10 @@ using Vocore;
 
 namespace Vocore.Test
 {
-    public class Test_PriorityList
+    public class TestPriorityList
     {
-        [Test(Description = "Test_PriorityList add")]
-        public void Test_Add()
+        [Test(Description = "TestPriorityList add")]
+        public void TestAdd()
         {
             PriorityList<int> list = new PriorityList<int>();
             list.Add(1);
@@ -40,8 +40,8 @@ namespace Vocore.Test
             }
         }
 
-        [Test(Description = "Test_PriorityList remove")]
-        public void Test_Remove()
+        [Test(Description = "TestPriorityList remove")]
+        public void TestRemove()
         {
             PriorityList<int> list = new PriorityList<int>();
             list.Add(1);
@@ -79,7 +79,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Benckmark PriorityList vs List add element")]
-        public void Test_VsList()
+        public void TestVsList()
         {
             PriorityList<int> list = new PriorityList<int>();
             List<int> list2 = new List<int>();
@@ -104,7 +104,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "PriorityList vs List remove element benchmark:")]
-        public void Test_VsList2()
+        public void TestVsList2()
         {
             PriorityList<int> list = new PriorityList<int>();
             List<int> list2 = new List<int>();

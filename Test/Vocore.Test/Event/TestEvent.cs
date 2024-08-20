@@ -68,10 +68,10 @@ namespace Vocore.Test
             _tracker.Invoke(evt, data);
         }
     }
-    public class Test_Event
+    public class TestEvent
     {
         [Test(Description ="Event send and recieve")]
-        public void Test_Send()
+        public void TestSend()
         {
             EventTestObject obj = new EventTestObject();
             obj.InvokeEvent(EventTestObject.TestEvent, 1);
@@ -85,7 +85,7 @@ namespace Vocore.Test
         }
 
         [Test(Description ="Bechmark event send and recieve")]
-        public void Test_Send_Benchmark()
+        public void TestSend_Benchmark()
         {
             EventTestObject2 obj = new EventTestObject2();
             EventId evt = EventGenerator.Generate("TestEvent");

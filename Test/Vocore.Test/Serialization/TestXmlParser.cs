@@ -75,12 +75,12 @@ namespace Vocore.Test
         }
     }
 
-    public class Test_XmlParser
+    public class TestXmlParser
     {
         public static readonly string path = "TestFiles/TestObject.xml";
 
-        [Test(Description = "Test_ParseXml")]
-        public void Test_ParseXml()
+        [Test(Description = "TestParseXml")]
+        public void TestParseXml()
         {
 
 
@@ -113,7 +113,7 @@ namespace Vocore.Test
 
 
         [Test(Description = "ParseXml - Missing Content")]
-        public void Test_ParseXml_MissingContent()
+        public void TestParseXml_MissingContent()
         {
 
             XmlParser parser = new XmlParser("Vocore.Test");
@@ -145,8 +145,8 @@ namespace Vocore.Test
         }
 
 
-        [Test(Description = "Test_ParseXml - Child")]
-        public void Test_ParseXml_Child()
+        [Test(Description = "TestParseXml - Child")]
+        public void TestParseXml_Child()
         {
 
             XmlParser parser = new XmlParser("Vocore.Test");

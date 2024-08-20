@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Vocore.Unsafe;
 
-public class Test_Native
+public class TestNative
 {
     [Test(Description = "native chunk list add")]
     public unsafe void TestMiniHeapAlloc()

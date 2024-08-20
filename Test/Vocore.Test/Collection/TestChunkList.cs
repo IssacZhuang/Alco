@@ -5,7 +5,7 @@ using TestFramework;
 
 namespace Vocore.Test
 {
-    public class Test_ChunkList
+    public class TestChunkList
     {
         [Test(Description = "chunkList add")]
         public void TestAdd()

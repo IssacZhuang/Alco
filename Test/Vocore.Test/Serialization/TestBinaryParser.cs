@@ -5,7 +5,7 @@ using System.Xml;
 
 namespace Vocore.Test
 {
-    public class Test_BinaryParser
+    public class TestBinaryParser
     {
         public static BinaryArray NoiseArray()
         {
@@ -33,7 +33,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "BinaryParser Fast string bytes convert")]
-        public void Test_FastStringBytesConvert()
+        public void TestFastStringBytesConvert()
         {
             string str = "abslk\n\n\tdjfas-,./;'][1231]";
             byte[] bytes = UtilsBinary.FastStringToBytes(str);
@@ -63,7 +63,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Test BinaryParser object")]
-        public void Test_ParseObject()
+        public void TestParseObject()
         {
 
             // some random data
@@ -141,7 +141,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Test BinaryParser list")]
-        public void Test_ParseList()
+        public void TestParseList()
         {
             // some random data
             string[] data = new string[5]{
@@ -188,7 +188,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Test BinaryParser convert")]
-        public void Test_Convert()
+        public void TestConvert()
         {
             BinaryTable table = new BinaryTable
             {
@@ -221,7 +221,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Test BinaryParser vs XML serialization")]
-        public void Test_Serialization()
+        public void TestSerialization()
         {
             StructForSerialize value = new StructForSerialize
             {
@@ -271,7 +271,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Test BinaryParser vs XML deserialization")]
-        public void Test_Deserialization()
+        public void TestDeserialization()
         {
             StructForSerialize value = new StructForSerialize
             {
@@ -337,7 +337,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Test BinaryParser vs XML size")]
-        public void Test_Size()
+        public void TestSize()
         {
             StructForSerialize value = new StructForSerialize
             {

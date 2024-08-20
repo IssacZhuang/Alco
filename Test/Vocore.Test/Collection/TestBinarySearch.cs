@@ -5,10 +5,10 @@ using Vocore;
 
 namespace Vocore.Test
 {
-    public class Test_BinarySearch
+    public class TestBinarySearch
     {
         [Test(Description = "binary search")]
-        public void Test_Search()
+        public void TestSearch()
         {
             int[] array = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             int index = AlgoBinarySearch.BinarySearch<int>(array, 5);
@@ -16,7 +16,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "binary search floor")]
-        public void Test_SearchFloor()
+        public void TestSearchFloor()
         {
             int[] array = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             int index = AlgoBinarySearch.BinarySearchFloor<int>(array, 5);
@@ -34,7 +34,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "binary search ceil")]
-        public void Test_SearchCeil()
+        public void TestSearchCeil()
         {
             int[] array = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             int index = AlgoBinarySearch.BinarySearchCeil<int>(array, 5);

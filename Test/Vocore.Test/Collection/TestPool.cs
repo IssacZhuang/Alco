@@ -3,10 +3,10 @@ using System.Threading.Tasks;
 
 namespace Vocore.Test
 {
-    public class Test_Pool
+    public class TestPool
     {
         [Test(Description = "ArrayPool")]
-        public void Test_ArrayPool()
+        public void TestArrayPool()
         {
             Pool<object> pool = new Pool<object>(10);
 
@@ -48,7 +48,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "ConcurrentPool single thread test")]
-        public void Test_ConcurrentPool()
+        public void TestConcurrentPool()
         {
             ConcurrentPool<object> pool = new ConcurrentPool<object>(10);
 
@@ -89,7 +89,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "ConcurrentPool multi thread test")]
-        public void Test_ConcurrentPool_MultiThread()
+        public void TestConcurrentPool_MultiThread()
         {
             int count = 1000;
             ConcurrentPool<object> pool = new ConcurrentPool<object>(count);
@@ -122,7 +122,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "ConcurrentPool vs concurrent stack")]
-        public void Test_ConcurrentPool_Vs_ConcurrentStack()
+        public void TestConcurrentPool_Vs_ConcurrentStack()
         {
             int count = 1000000;
             ConcurrentPool<object> pool = new ConcurrentPool<object>(count);

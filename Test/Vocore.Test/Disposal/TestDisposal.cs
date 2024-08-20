@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 
 namespace Vocore.Test;
 
-public class Test_Disposal
+public class TestDisposal
 {
     private class TestDisposable : AutoDisposable
     {
@@ -15,7 +15,7 @@ public class Test_Disposal
     }
 
     [Test]
-    public void Test_ConcurrentDisposa()
+    public void TestConcurrentDisposa()
     {
         TestDisposable disposable = new TestDisposable();
         Parallel.For(0, 1000, (i) =>

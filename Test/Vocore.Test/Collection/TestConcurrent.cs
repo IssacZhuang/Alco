@@ -9,10 +9,10 @@ using Vocore;
 
 namespace Vocore.Test
 {
-    public class Test_Concurrent
+    public class TestConcurrent
     {
         [Test(Description = "Circular Working Stealing Deque Push&Pop")]
-        public void Test_CircularSinglePushPop()
+        public void TestCircularSinglePushPop()
         {
             int count = 1000000;
             CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
@@ -47,7 +47,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Circular Working Stealing Deque Single Push&Steal")]
-        public void Test_CircularSingleSteal()
+        public void TestCircularSingleSteal()
         {
             int count = 1000000;
             CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
@@ -83,7 +83,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "Circular Working Stealing Single Push & Concurrent Steal")]
-        public void Test_CircularConcurrentSteal()
+        public void TestCircularConcurrentSteal()
         {
             int count = 1000000;
             CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
@@ -129,7 +129,7 @@ namespace Vocore.Test
         }
 
         [Test(Description ="Circular Working Stealing Deque vs .Net concurrent queue")]
-        public void Test_WorkStealingDequeVsConcurrentQueue()
+        public void TestWorkStealingDequeVsConcurrentQueue()
         {
             int count = 1000000;
             CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
@@ -193,7 +193,7 @@ namespace Vocore.Test
         }
 
         [Test(Description ="Index Working Stealing Deque Pop&Steal")]
-        public void Test_IndexWorkStealing()
+        public void TestIndexWorkStealing()
         {
             int count = 1000000;
             IndexWorkStealingDeque deque = new IndexWorkStealingDeque();

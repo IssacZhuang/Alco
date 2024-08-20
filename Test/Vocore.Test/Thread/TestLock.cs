@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Vocore.Test;
 
-public class Test_Lock
+public class TestLock
 {
 
     [Test(Description = "Test CAS lock")]

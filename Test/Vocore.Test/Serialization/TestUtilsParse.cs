@@ -6,12 +6,12 @@ using Vocore;
 
 namespace Vocore.Test
 {
-    internal class Test_UtilsParse
+    internal class TestUtilsParse
     {
         ParseHelper _parseHelper = ParseHelper.Default;
 
         [Test(Description = "UtilsParse.ToInt")]
-        public void Test_ToInt()
+        public void TestToInt()
         {
             string str = "123";
             int i = _parseHelper.StrToInt(str);
@@ -20,7 +20,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToFloat")]
-        public void Test_ToFloat()
+        public void TestToFloat()
         {
             string str = "123.456";
             float f = _parseHelper.StrToFloat(str);
@@ -29,7 +29,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToBool")]
-        public void Test_ToBool()
+        public void TestToBool()
         {
             string str = "True";
             bool b = _parseHelper.StrToBool(str);
@@ -38,7 +38,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToLong")]
-        public void Test_ToLong()
+        public void TestToLong()
         {
             string str = "1234567890";
             long l = _parseHelper.StrToLong(str);
@@ -47,7 +47,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToDouble")]
-        public void Test_ToDouble()
+        public void TestToDouble()
         {
             string str = "123.456789";
             double d = _parseHelper.StrToDouble(str);
@@ -56,7 +56,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToSByte")]
-        public void Test_ToSByte()
+        public void TestToSByte()
         {
             string str = "123";
             sbyte sb = _parseHelper.StrToSByte(str);
@@ -65,7 +65,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToByte")]
-        public void Test_ToByte()
+        public void TestToByte()
         {
             string str = "123";
             byte b = _parseHelper.StrToByte(str);
@@ -74,7 +74,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToVector2")]
-        public void Test_ToVector2()
+        public void TestToVector2()
         {
             string str = "(123.456,789.012)";
             Vector2 v = _parseHelper.StrToFloat2(str);
@@ -83,7 +83,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToVector3")]
-        public void Test_ToVector3()
+        public void TestToVector3()
         {
             string str = "(123.456,789.012,345.678)";
             Vector3 v = _parseHelper.StrToVector3(str);
@@ -92,7 +92,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToVector4Adaptive")]
-        public void Test_ToVector4Adaptive()
+        public void TestToVector4Adaptive()
         {
             string str = "(123.456,789.012,345.678,901.234)";
             Vector4 v = _parseHelper.StrToFloat4Adaptive(str);
@@ -101,7 +101,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToQuaternion")]
-        public void Test_ToQuaternion()
+        public void TestToQuaternion()
         {
             string str = "(123.456,789.012,345.678,901.234)";
             Quaternion q = _parseHelper.StrToQuaternion(str);
@@ -110,7 +110,7 @@ namespace Vocore.Test
         }
 
         [Test(Description = "UtilsParse.ToType")]
-        public void Test_ToType()
+        public void TestToType()
         {
             string str = "System.Int32";
             Type t = _parseHelper.StrToType(str);

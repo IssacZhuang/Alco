@@ -3,7 +3,7 @@ using System.Text;
 using NUnit.Framework;
 using Vocore.IO;
 
-namespace Tests
+namespace ValvePak.Tests
 {
 	[TestFixture]
 	public class WriteTest

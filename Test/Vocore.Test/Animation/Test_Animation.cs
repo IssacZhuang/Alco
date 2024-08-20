@@ -4,10 +4,10 @@ using NUnit.Framework;
 
 namespace Vocore.Test;
 
-public class Test_Animation
+public class TestAnimation
 {
     [Test(Description = "animation curve event test")]
-    public void Test_Event()
+    public void TestEvent()
     {
         float[] t = new float[] { 0, 1, 3, 7 };
         float[] value = new float[] { 0, 5, 4, 8 };

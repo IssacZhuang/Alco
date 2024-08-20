@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using NUnit.Framework;
 using Vocore.IO;
 
-namespace Tests
+namespace ValvePak.Tests
 {
 	[TestFixture]
 	public class MemoryMappedTest

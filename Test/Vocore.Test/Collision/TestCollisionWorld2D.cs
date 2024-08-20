@@ -33,7 +33,7 @@ public class TestCollisionWorld2D
     }
 
     [Test(Description = "collision world 3d")]
-    public void Test_CollisionWorld2D()
+    public void TestShapeCast2D()
     {
         using CollisionWorld2D world = new CollisionWorld2D();
 
@@ -113,7 +113,7 @@ public class TestCollisionWorld2D
     }
 
     [Test]
-    public void Test_PointCast2D()
+    public void TestPointCast2D()
     {
         using CollisionWorld2D world = new CollisionWorld2D();
 
