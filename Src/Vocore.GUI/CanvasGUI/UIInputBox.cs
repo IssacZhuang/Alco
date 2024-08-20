@@ -168,7 +168,7 @@ public class UIInputBox : UISelectable
         if (_canInputText)
         {
             _canInputText = false;
-            canvas.SetTextInput(Bound, _textLength);
+            canvas.SetTextInput(RenderTransform, _textLength);
         }
     }
 

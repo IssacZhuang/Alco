@@ -18,6 +18,6 @@ namespace Vocore.GUI
         public bool IsMouseDown { get; }
         public bool IsMousePressing { get; }
         public bool IsMouseScrolling(out Vector2 delta);
-        public void SetTextInput(int x, int y, int width, int height, int cursor);
+        public void SetTextInput(float xNorm, float yNorm, float widthNorm, float heightNorm, int cursor);
     }
 }

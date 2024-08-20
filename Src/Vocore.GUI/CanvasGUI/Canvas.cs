@@ -206,12 +206,20 @@ public class Canvas : AutoDisposable
         _collisionWorld.PushTarget(node, shape);
     }
 
-    public void SetTextInput(BoundingBox2D bound, int cursor)
+    public void SetTextInput(Transform2D renderTransform, int cursor)
     {
-        Vector2 min = UtilsCanvas.CanvasPointToScreen(bound.min, _camera.Size, _camera.Size);
-        Vector2 max = UtilsCanvas.CanvasPointToScreen(bound.max, _camera.Size, _camera.Size);
-        int width = (int)(max.X - min.X);
-        _inputTracker?.SetTextInput((int)min.X, (int)min.Y, (int)(bound.max.X - bound.min.X), (int)(max.Y - min.Y), cursor);
+        Vector2 position = renderTransform.position;
+        Vector2 size = renderTransform.scale;
+        //normalize to 0-1 top left corner
+        float widthNorm = size.X * _invCameraSize.X;
+        float heightNorm = size.Y * _invCameraSize.Y;
+        //top left corner
+        float x = position.X - size.X * 0.5f;
+        float y = position.Y + size.Y * 0.5f;
+        //normalize to 0-1 top left corner
+        float xNorm = x * _invCameraSize.X + 0.5f;
+        float yNorm = 0.5f - y * _invCameraSize.Y;
+        _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
     protected override void Dispose(bool disposing)
