@@ -208,9 +208,10 @@ public class Canvas : AutoDisposable
 
     public void SetTextInput(BoundingBox2D bound, int cursor)
     {
-        int width = (int)(bound.max.X - bound.min.X);
-        int height = (int)(bound.max.Y - bound.min.Y);
-        _inputTracker?.SetTextInput((int)bound.min.X, (int)bound.min.Y, width, height, cursor);
+        Vector2 min = UtilsCanvas.CanvasPointToScreen(bound.min, _camera.Size, _camera.Size);
+        Vector2 max = UtilsCanvas.CanvasPointToScreen(bound.max, _camera.Size, _camera.Size);
+        int width = (int)(max.X - min.X);
+        _inputTracker?.SetTextInput((int)min.X, (int)min.Y, (int)(bound.max.X - bound.min.X), (int)(max.Y - min.Y), cursor);
     }
 
     protected override void Dispose(bool disposing)

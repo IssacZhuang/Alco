@@ -123,7 +123,7 @@ public unsafe partial class Sdl3Window : Window
 
     public override void StartTextInput(int x, int y, int width, int height, int cursor)
     {
-        Rectangle rectangle = new Rectangle(-x, -y, -width, -height);
+        Rectangle rectangle = new Rectangle(x, y, width, height);
         int result = SDL_SetTextInputArea(_window, &rectangle, cursor);
         SDL_StartTextInput(_window);
         
