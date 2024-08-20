@@ -246,7 +246,7 @@ public class TestAssetSystem
             Assert.IsNull(asset);
         });
 
-        int count = assetSystem.WaitForAllJobComplete();
+        int count = assetSystem.DebugWaitForAllJobComplete();
 
         Assert.That(count, Is.EqualTo(4));
 
@@ -297,7 +297,7 @@ public class TestAssetSystem
         TestContext.WriteLine($"dispatch load job: {profiler.End().Miliseconds}");
 
         profiler.Start();
-        int jobCount = assetSystem.WaitForAllJobComplete();
+        int jobCount = assetSystem.DebugWaitForAllJobComplete();
 
         TestContext.WriteLine($"Wait for all job complete: {profiler.End().Miliseconds}");
 
@@ -359,7 +359,7 @@ public class TestAssetSystem
             }
         });
 
-        jobCount = assetSystem.WaitForAllJobComplete();
+        jobCount = assetSystem.DebugWaitForAllJobComplete();
 
         Assert.That(jobCount, Is.EqualTo(2));
 
@@ -375,4 +375,41 @@ public class TestAssetSystem
         assetSystem.Dispose();
     }
 
+    [Test]
+    public void TestGarbagCollect()
+    {
+        AssetSystem assetSystem = new AssetSystem(2);
+        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
+        assetSystem.AddFileSource(new TestFileSource());
+
+        var fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.None);
+
+        Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
+
+        //AssetCacheMode.Recyclable by default
+        fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.Recyclable);
+
+        //before release reference
+        Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
+        //release reference
+        fastAsset = null;
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
+
+        fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.Persistent);
+
+        fastAsset = null;
+        
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
+
+        assetSystem.Dispose();
+    }
 }

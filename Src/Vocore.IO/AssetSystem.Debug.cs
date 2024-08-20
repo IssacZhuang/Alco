@@ -5,7 +5,7 @@ public sealed partial class AssetSystem
     // for unit test only
 
     //return finished job count
-    internal int WaitForAllJobComplete()
+    internal int DebugWaitForAllJobComplete()
     {
         var list = _asyncLoadQueue.WaitForAllCompleted();
 
@@ -17,6 +17,11 @@ public sealed partial class AssetSystem
         }
 
         return count;
+    }
+
+    internal bool DebugIsAssetCached(string assetPath)
+    {
+        return _assetLookup.TryGetValue(assetPath, out AssetHandle? handle) && handle.CachedAsset != null;
     }
 
 }
