@@ -113,6 +113,9 @@ public unsafe class Sdl3Platform : Platform
             case SDL_EventType.MouseButtonUp:
                 _input.OnSdlMouseButtonUp(e.button.button);
                 break;
+            case SDL_EventType.TextInput:
+                Log.Info("Text Input:", e.text.GetText());
+                break;
             case SDL_EventType.Quit:
                 StopMainLoop();
                 break;

@@ -55,6 +55,10 @@ public abstract class Window : AutoDisposable//todo : change to disposable
         get => (float)Size.x / Size.y;
     }
 
+    public abstract void StartTextInput(int x, int y, int width, int height, int cursor);
+
+    public abstract void EndTextInput();
+
     /// <summary>
     /// 
     /// </summary>

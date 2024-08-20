@@ -206,6 +206,13 @@ public class Canvas : AutoDisposable
         _collisionWorld.PushTarget(node, shape);
     }
 
+    public void SetTextInput(BoundingBox2D bound, int cursor)
+    {
+        int width = (int)(bound.max.X - bound.min.X);
+        int height = (int)(bound.max.Y - bound.min.Y);
+        _inputTracker?.SetTextInput((int)bound.min.X, (int)bound.min.Y, width, height, cursor);
+    }
+
     protected override void Dispose(bool disposing)
     {
         _collisionWorld.Dispose();

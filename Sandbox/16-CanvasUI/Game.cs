@@ -98,6 +98,21 @@ public class Game : GameEngine
         _root.Add(bg);
         _root.Add(label);
 
+        UIInputBox inputBox = new UIInputBox()
+        {
+            Font = _font,
+            Position = new Vector2(0, -140),
+            Size = new Vector2(100, 100),
+            Color = 0xffffff,
+            AlignHorizontal = TextAlign.Left,
+            AlignVertical = TextAlign.Top,
+            OverflowHorizontal = OverflowModeHorizontal.NextLine,
+            OverflowVertical = OverflowModeVertical.Clamp,
+            Text = "Input Box",
+        };
+
+        _root.Add(inputBox);
+
         UILayoutVertical layout = new UILayoutVertical()
         {
             Position = new Vector2(200, 100),

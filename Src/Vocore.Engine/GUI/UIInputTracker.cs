@@ -48,4 +48,9 @@ public class UIInputTracker : IUIInputTracker
     {
         return _input.IsMouseScrolling(out delta);
     }
+
+    public void SetTextInput(int x, int y, int width, int height, int cursor)
+    {
+        _window.StartTextInput(x, y, width, height, cursor);
+    }
 }

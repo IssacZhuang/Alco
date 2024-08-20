@@ -26,8 +26,20 @@ public sealed class NoWindow : Window
         
     }
 
+    public override void StartTextInput(int x, int y, int width, int height, int cursor)
+    {
+
+    }
+
+    public override void EndTextInput()
+    {
+
+    }
+
     public override void Close()
     {
         
     }
+
+    
 }

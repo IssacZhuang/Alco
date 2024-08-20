@@ -1,4 +1,5 @@
 
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SDL3;
@@ -44,10 +45,10 @@ public unsafe partial class Sdl3Window : Window
                     _ = SDL_MinimizeWindow(_window);
                     break;
                 case WindowMode.Maximized:
-                    SDL_MaximizeWindow(_window);
+                    _ = SDL_MaximizeWindow(_window);
                     break;
                 case WindowMode.Fullscreen:
-                    SDL_SetWindowFullscreen(_window, true);
+                    _ = SDL_SetWindowFullscreen(_window, true);
                     break;
             }
         }
@@ -118,6 +119,20 @@ public unsafe partial class Sdl3Window : Window
         };
 
         _swapchain = device.CreateSwapchain(descriptor);
+    }
+
+    public override void StartTextInput(int x, int y, int width, int height, int cursor)
+    {
+
+        SDL_StartTextInput(_window);
+        Rectangle rectangle = new Rectangle(x, y, width, height);
+        int result = SDL_SetTextInputArea(_window, &rectangle, cursor);
+        Log.Info("StartTextInput", result);
+    }
+
+    public override void EndTextInput()
+    {
+        _ = SDL_StopTextInput(_window);
     }
 
     public override void Close()
