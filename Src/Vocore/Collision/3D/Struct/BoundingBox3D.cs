@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 
 namespace Vocore
@@ -15,6 +16,18 @@ namespace Vocore
         /// The right top corner of the box
         /// </summary>
         public Vector3 max;
+
+        public Vector3 Center
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (min + max) * 0.5f;
+        }
+
+        public Vector3 Size
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => max - min;
+        }
 
         public BoundingBox3D(Vector3 min, Vector3 max)
         {

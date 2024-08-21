@@ -206,17 +206,17 @@ public class Canvas : AutoDisposable
         _collisionWorld.PushTarget(node, shape);
     }
 
-    public void SetTextInput(Transform2D renderTransform, int cursor)
+    public void SetTextInput(ITextInput node, int cursor)
     {
-        Vector2 position = renderTransform.position;
-        Vector2 size = renderTransform.scale;
-        //normalize to 0-1 top left corner
+        Vector2 position = node.InputArea.Center;
+        Vector2 size = node.InputArea.Size;
+
         float widthNorm = size.X * _invCameraSize.X;
         float heightNorm = size.Y * _invCameraSize.Y;
-        //top left corner
+
         float x = position.X - size.X * 0.5f;
         float y = position.Y + size.Y * 0.5f;
-        //normalize to 0-1 top left corner
+
         float xNorm = x * _invCameraSize.X + 0.5f;
         float yNorm = 0.5f - y * _invCameraSize.Y;
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);

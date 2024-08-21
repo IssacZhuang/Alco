@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Vocore
 {
@@ -13,6 +14,20 @@ namespace Vocore
         /// The right top corner of the box
         /// </summary>
         public Vector2 max;
+
+
+        public Vector2 Center
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (min + max) * 0.5f;
+        }
+
+        public Vector2 Size
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => max - min;
+        }
+
         public BoundingBox2D(Vector2 min, Vector2 max)
         {
             this.min = min;

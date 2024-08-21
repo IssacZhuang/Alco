@@ -102,7 +102,7 @@ public class Game : GameEngine
         {
             Font = _font,
             Position = new Vector2(0, -140),
-            Size = new Vector2(100, 100),
+            Size = new Vector2(100, 50),
             Color = 0xffffff,
             AlignHorizontal = TextAlign.Left,
             AlignVertical = TextAlign.Top,

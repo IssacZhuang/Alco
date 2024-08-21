@@ -7,9 +7,9 @@ using Vocore.Rendering;
 namespace Vocore.GUI;
 
 /// <summary>
-/// The input box UI node.
+/// The single line input box UI node.
 /// </summary>
-public class UIInputBox : UISelectable
+public class UIInputBox : UISelectable, ITextInput
 {
     public const int MinSpanFormattableSize = 32;
     private struct Line
@@ -29,6 +29,8 @@ public class UIInputBox : UISelectable
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
     private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
     private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
+    private int _textSelectionStart;
+    private int _textSelectionEnd;
 
 
     public Font? Font { get; set; }
@@ -108,6 +110,12 @@ public class UIInputBox : UISelectable
         set => _textPivot.X = value;
     }
 
+    public BoundingBox2D InputArea
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Bound;
+    }
+
     public UIInputBox()
     {
 
@@ -168,7 +176,7 @@ public class UIInputBox : UISelectable
         if (_canInputText)
         {
             _canInputText = false;
-            canvas.SetTextInput(RenderTransform, _textLength);
+            canvas.SetTextInput(this, 0);
         }
     }
 
