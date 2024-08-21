@@ -97,7 +97,7 @@ public class UISlider : UINode
         _valueText.SetText(UtilsText.ToCharSpan(_value));
     }
 
-    private void OnHandleDrag(Vector2 mousePosition)
+    private void OnHandleDrag(Canvas canvas, Vector2 mousePosition)
     {
         if (_handle == null)
         {

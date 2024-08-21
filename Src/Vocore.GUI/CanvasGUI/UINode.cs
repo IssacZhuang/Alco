@@ -24,12 +24,14 @@ public class UINode
 
     public virtual bool BubbleEvent { get; set; } = true;
 
-    public event Action<Vector2>? EventOnClick;
-    public event Action<Vector2>? EventOnHover;
-    public event Action<Vector2>? EventOnPressDown;
-    public event Action<Vector2>? EventOnPressUp;
-    public event Action<Vector2>? EventOnPressing;
-    public event Action<Vector2>? EventOnDrag;
+    public event Action<Canvas, Vector2>? EventOnClick;
+    public event Action<Canvas, Vector2>? EventOnHover;
+    public event Action<Canvas, Vector2>? EventOnPressDown;
+    public event Action<Canvas, Vector2>? EventOnPressUp;
+    public event Action<Canvas, Vector2>? EventOnPressing;
+    public event Action<Canvas, Vector2>? EventOnDrag;
+    public event Action<Canvas, Vector2>? EventOnSelect;
+    public event Action<Canvas, Vector2>? EventOnDeselect;
 
 
     /// <summary>
@@ -725,57 +727,75 @@ public class UINode
 
     #region Event
 
-    public virtual void OnClick(Vector2 mousePosition)
+    public virtual void OnClick(Canvas canvas, Vector2 mousePosition)
     {
-        EventOnClick?.Invoke(mousePosition);
+        EventOnClick?.Invoke(canvas, mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnClick(mousePosition);
+            Parent.OnClick(canvas, mousePosition);
         }
     }
 
-    public virtual void OnHover(Vector2 mousePosition)
+    public virtual void OnHover(Canvas canvas, Vector2 mousePosition)
     {
-        EventOnHover?.Invoke(mousePosition);
+        EventOnHover?.Invoke(canvas, mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnHover(mousePosition);
+            Parent.OnHover(canvas, mousePosition);
         }
     }
 
-    public virtual void OnPressing(Vector2 mousePosition)
+    public virtual void OnPressing(Canvas canvas, Vector2 mousePosition)
     {
-        EventOnPressing?.Invoke(mousePosition);
+        EventOnPressing?.Invoke(canvas, mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnPressing(mousePosition);
+            Parent.OnPressing(canvas, mousePosition);
         }
     }
 
-    public virtual void OnPressDown(Vector2 mousePosition)
+    public virtual void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
-        EventOnPressDown?.Invoke(mousePosition);
+        EventOnPressDown?.Invoke(canvas, mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnPressDown(mousePosition);
+            Parent.OnPressDown(canvas, mousePosition);
         }
     }
 
-    public virtual void OnPressUp(Vector2 mousePosition)
+    public virtual void OnPressUp(Canvas canvas, Vector2 mousePosition)
     {
-        EventOnPressUp?.Invoke(mousePosition);
+        EventOnPressUp?.Invoke(canvas, mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnPressUp(mousePosition);
+            Parent.OnPressUp(canvas, mousePosition);
         }
     }
 
-    public virtual void OnDrag(Vector2 mousePoisition)
+    public virtual void OnDrag(Canvas canvas, Vector2 mousePoisition)
     {
-        EventOnDrag?.Invoke(mousePoisition);
+        EventOnDrag?.Invoke(canvas, mousePoisition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnDrag(mousePoisition);
+            Parent.OnDrag(canvas, mousePoisition);
+        }
+    }
+
+    public virtual void OnSelect(Canvas canvas, Vector2 mousePosition)
+    {
+        EventOnSelect?.Invoke(canvas, mousePosition);
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnSelect(canvas, mousePosition);
+        }
+    }
+
+    public virtual void OnDeselect(Canvas canvas, Vector2 mousePosition)
+    {
+        EventOnDeselect?.Invoke(canvas, mousePosition);
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnDeselect(canvas, mousePosition);
         }
     }
 

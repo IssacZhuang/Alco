@@ -125,10 +125,7 @@ public unsafe partial class Sdl3Window : Window
     {
         Rectangle rectangle = new Rectangle(x, y, width, height);
         int result = SDL_SetTextInputArea(_window, &rectangle, cursor);
-        SDL_StartTextInput(_window);
-        
-        
-        Log.Info("StartTextInput", result);
+        _ = SDL_StartTextInput(_window);
     }
 
     public override void EndTextInput()

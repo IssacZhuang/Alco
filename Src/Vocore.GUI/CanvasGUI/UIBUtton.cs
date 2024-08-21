@@ -214,21 +214,21 @@ public class UIButton : UISelectable
     }
 
 
-    public override void OnHover(Vector2 mousePosition)
+    public override void OnHover(Canvas canvas, Vector2 mousePosition)
     {
-        base.OnHover(mousePosition);
+        base.OnHover(canvas, mousePosition);
         TryChangeTransitionState(SelectableState.Hover);
     }
 
-    public override void OnPressDown(Vector2 mousePosition)
+    public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
-        base.OnPressDown(mousePosition);
+        base.OnPressDown(canvas, mousePosition);
         TryChangeTransitionState(SelectableState.Pressing);
     }
 
-    public override void OnPressUp(Vector2 mousePosition)
+    public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
     {
-        base.OnPressUp(mousePosition);
+        base.OnPressUp(canvas, mousePosition);
         TryChangeTransitionState(SelectableState.Normal);
     }
 

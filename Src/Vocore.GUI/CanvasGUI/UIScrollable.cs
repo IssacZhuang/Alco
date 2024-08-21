@@ -42,15 +42,15 @@ public class UIScrollable : UISelectable
         // DebugGUI.Text(_content!.Position.ToString());
     }
 
-    public override void OnPressDown(Vector2 mousePosition)
+    public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
-        base.OnPressDown(mousePosition);
+        base.OnPressDown(canvas, mousePosition);
         _lastDragPosition = mousePosition;
     }
 
-    public override void OnDrag(Vector2 mousePoisition)
+    public override void OnDrag(Canvas canvas, Vector2 mousePoisition)
     {
-        base.OnDrag(mousePoisition);
+        base.OnDrag(canvas, mousePoisition);
         if (_content == null)
         {
             return;

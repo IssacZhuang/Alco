@@ -25,7 +25,6 @@ public class UIInputBox : UISelectable, ITextInput
     private string _tmpStr = string.Empty;
     private bool _isTmpStrReadDirty;
     private bool _isTmpStrWriteDirty;
-    private bool _canInputText;
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
     private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
     private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
@@ -172,12 +171,6 @@ public class UIInputBox : UISelectable, ITextInput
             renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
             transform.position.Y -= lineHeight;
         }
-
-        if (_canInputText)
-        {
-            _canInputText = false;
-            canvas.SetTextInput(this, 0);
-        }
     }
 
     public unsafe void SetText(string str)
@@ -243,9 +236,16 @@ public class UIInputBox : UISelectable, ITextInput
         SetText(_text.Span);
     }
 
-    public override void OnClick(Vector2 mousePosition)
+    public override void OnSelect(Canvas canvas, Vector2 mousePosition)
     {
-        base.OnClick(mousePosition);
-        _canInputText = true;
+        base.OnSelect(canvas, mousePosition);
+        canvas.StartTextInput(this, 0);
+    }
+
+    public override void OnDeselect(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnDeselect(canvas, mousePosition);
+        Log.Info("Deselect");
+        canvas.EndTextInput();
     }
 }

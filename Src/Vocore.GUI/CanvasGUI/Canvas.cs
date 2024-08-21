@@ -185,14 +185,14 @@ public class Canvas : AutoDisposable
         }
         else if (_inputTracker.IsMousePressing)
         {
-            selectable?.OnPressing(mouseWorldPosition);
+            selectable?.OnPressing(this, mouseWorldPosition);
         }
         else
         {
-            selectable?.OnHover(mouseWorldPosition);
+            selectable?.OnHover(this, mouseWorldPosition);
         }
 
-        _holded?.OnDrag(mouseWorldPosition);
+        _holded?.OnDrag(this, mouseWorldPosition);
 
 
         // if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))
@@ -206,7 +206,7 @@ public class Canvas : AutoDisposable
         _collisionWorld.PushTarget(node, shape);
     }
 
-    public void SetTextInput(ITextInput node, int cursor)
+    public void StartTextInput(ITextInput node, int cursor)
     {
         Vector2 position = node.InputArea.Center;
         Vector2 size = node.InputArea.Size;
@@ -222,6 +222,11 @@ public class Canvas : AutoDisposable
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
+    public void EndTextInput()
+    {
+        _inputTracker?.EndTextInput();
+    }
+
     protected override void Dispose(bool disposing)
     {
         _collisionWorld.Dispose();
@@ -232,21 +237,24 @@ public class Canvas : AutoDisposable
 
     private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
-        if (node == null)
-        {
-            return;
-        }
         _holded = node;
+
+        node?.OnPressDown(this, mousePosition);
+
+        if (_selected != null && _selected != node)
+        {
+            _selected.OnDeselect(this, mousePosition);
+        }
         _selected = node;
-        node.OnPressDown(mousePosition);
+        _selected?.OnSelect(this, mousePosition);
     }
 
     private void OnMouseUp(UINode? node, Vector2 mousePosition)
     {
-        _holded?.OnPressUp(mousePosition);
+        _holded?.OnPressUp(this, mousePosition);
         if (node == _holded)
         {
-            _holded?.OnClick(mousePosition);
+            _holded?.OnClick(this, mousePosition);
         }
         
         _holded = null;
