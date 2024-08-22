@@ -7,17 +7,17 @@ namespace Vocore.GUI;
 /// <summary>
 /// The label UI node.
 /// </summary>
-public class UIText : UINode
+public class UIText : UISelectable
 {
     public const int MinSpanFormattableSize = 32;
-    private struct Line
+    protected struct Line
     {
         public int start;
         public int count;
         public float width;
     }
-    private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
-    private readonly List<Line> _lines = new List<Line>();
+    protected readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
+    protected readonly List<Line> _lines = new List<Line>();
     private int _textLength;
     private float _fontSize = 16f;
     private string _tmpStr = string.Empty;
@@ -107,7 +107,8 @@ public class UIText : UINode
 
     public UIText()
     {
-
+        //default false, override by InputBox
+        Interactable = false;
     }
 
     protected unsafe override void OnUpdate(Canvas canvas, float delta)
