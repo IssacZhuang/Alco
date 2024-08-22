@@ -130,6 +130,7 @@ public class UIText : UINode
 
         CanvasRenderer renderer = canvas.Renderer;
         Transform2D transform = WorldTransform;
+        float scaleY = transform.scale.Y;
         transform.position += transform.scale * Size * TextPivot;
         transform.scale *= _fontSize;
         float lineHeight = _fontSize * LineSpacing;
@@ -159,7 +160,7 @@ public class UIText : UINode
         for (int i = 0; i < _lines.Count; i++)
         {
             renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
-            transform.position.Y -= lineHeight;
+            transform.position.Y -= lineHeight * scaleY;
         }
     }
 

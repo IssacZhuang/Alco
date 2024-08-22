@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
@@ -17,6 +18,12 @@ public class UIInputBox : UISelectable, ITextInput
         public int start;
         public int count;
         public float width;
+    }
+
+    private struct TextPosition
+    {
+        public int line;
+        public float offset;
     }
     private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     private readonly List<Line> _lines = new List<Line>();
@@ -140,6 +147,7 @@ public class UIInputBox : UISelectable, ITextInput
 
         CanvasRenderer renderer = canvas.Renderer;
         Transform2D transform = WorldTransform;
+        float scaleY = transform.scale.Y;
         transform.position += transform.scale * Size * TextPivot;
         transform.scale *= _fontSize;
         float lineHeight = _fontSize * LineSpacing;
@@ -169,7 +177,7 @@ public class UIInputBox : UISelectable, ITextInput
         for (int i = 0; i < _lines.Count; i++)
         {
             renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
-            transform.position.Y -= lineHeight;
+            transform.position.Y -= lineHeight * scaleY;
         }
     }
 
@@ -194,7 +202,6 @@ public class UIInputBox : UISelectable, ITextInput
         _isTmpStrReadDirty = true;
         _isTmpStrWriteDirty = false;
         _text.EnsureSizeWithoutCopy(length);
-
         _textLength = length;
         Line line = new Line()
         {
@@ -236,6 +243,50 @@ public class UIInputBox : UISelectable, ITextInput
         SetText(_text.Span);
     }
 
+    private void FindTextByPosition(Vector2 mousePosition)
+    {
+        if (Font == null)
+        {
+            return;
+        }
+
+        Transform2D worldTransform = WorldTransform;
+        float lineHeight = _fontSize * LineSpacing * worldTransform.scale.Y;
+        float textWidthMultiplier = _fontSize * worldTransform.scale.X;
+        Vector2 textPosition = worldTransform.position + worldTransform.scale * Size * TextPivot;
+
+        float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
+        textPosition.Y += offsetY;
+
+        float localY = mousePosition.Y - textPosition.Y;
+        int line = (int)(localY / -lineHeight);
+
+        //DebugGUI.Text("line: " + line.ToString());
+
+        if (line < 0 || line >= _lines.Count)
+        {
+            return;
+        }
+
+        Line textLine = _lines[line];
+        float textStartX = textPosition.X - textLine.width * textWidthMultiplier * (_textPivot.X + 0.5f);
+        int start = textLine.start;
+        float offset = 0;
+        char c = '\0';
+        for (int i = 0; i < textLine.count; i++)
+        {
+            c = _text[start + i];
+            GlyphInfo glyph = Font.GetGlyph(c);
+            offset += glyph.Advance;
+            if (textStartX + offset * textWidthMultiplier > mousePosition.X)
+            {
+                break;
+            }
+        }
+        DebugGUI.Text($"c: {c}");
+        //DebugGUI.Text($"textStartX: {textStartX}, {textPosition.X}, {Size.X}, {_textPivot.X}, {textLine.width}");
+    }
+
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
     {
         base.OnSelect(canvas, mousePosition);
@@ -245,7 +296,12 @@ public class UIInputBox : UISelectable, ITextInput
     public override void OnDeselect(Canvas canvas, Vector2 mousePosition)
     {
         base.OnDeselect(canvas, mousePosition);
-        Log.Info("Deselect");
         canvas.EndTextInput();
+    }
+
+    public override void OnHover(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnHover(canvas, mousePosition);
+        FindTextByPosition(mousePosition);
     }
 }

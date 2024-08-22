@@ -17,7 +17,7 @@ public class Game : GameEngine
     private CanvasUIFactory _factory;
 
     private UINode _root;
-    private UIText _label;
+    private UIInputBox _label;
     private UISlider _slider;
     private UILayoutVertical _layout;
 
@@ -26,6 +26,7 @@ public class Game : GameEngine
     private float _alignVertical = TextAlign.Top;
     private float _lineSpacing = 1f;
     private float _fontSize = 16;
+    private float _labelScale = 1f;
     private float _progress = 0f;
     private float _pivotY = 0f;
     private int _itemCount = 0;
@@ -79,7 +80,7 @@ public class Game : GameEngine
             Color = 0x2c2c2c
         };
 
-        UIText label = new UIText()
+        UIInputBox label = new UIInputBox()
         {
             Font = _font,
             Position = new Vector2(0, 0),
@@ -102,13 +103,13 @@ public class Game : GameEngine
         {
             Font = _font,
             Position = new Vector2(0, -140),
-            Size = new Vector2(100, 50),
+            Size = new Vector2(100, 100),
             Color = 0xffffff,
             AlignHorizontal = TextAlign.Left,
             AlignVertical = TextAlign.Top,
             OverflowHorizontal = OverflowModeHorizontal.NextLine,
             OverflowVertical = OverflowModeVertical.Clamp,
-            Text = "Input Box",
+            Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
         };
 
         _root.Add(inputBox);
@@ -202,6 +203,11 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32))
         {
             _label.FontSize = _fontSize;
+        }
+
+        if (DebugGUI.SliderWithText("Label Scale", ref _labelScale, 0.5f, 2f))
+        {
+            _label.Scale = new Vector2(_labelScale);
         }
 
         if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))
