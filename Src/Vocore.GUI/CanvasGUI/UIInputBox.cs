@@ -24,12 +24,17 @@ public class UIInputBox : UIText, ITextInput
         Interactable = true;
     }
 
-    
-    private void FindTextByPosition(Vector2 mousePosition)
+
+    private bool TryFindTextByPosition(Vector2 mousePosition, out int line, out float charOffset, out float charAdvance, out float mouseAdvance)
     {
+
         if (Font == null)
         {
-            return;
+            line = -1;
+            charOffset = 0;
+            charAdvance = 0;
+            mouseAdvance = 0;
+            return false;
         }
 
         Transform2D worldTransform = WorldTransform;
@@ -41,13 +46,17 @@ public class UIInputBox : UIText, ITextInput
         textPosition.Y += offsetY;
 
         float localY = mousePosition.Y - textPosition.Y;
-        int line = (int)(localY / -lineHeight);
+        line = (int)(localY / -lineHeight);
 
         //DebugGUI.Text("line: " + line.ToString());
 
         if (line < 0 || line >= _lines.Count)
         {
-            return;
+            line = -1;
+            charOffset = 0;
+            charAdvance = 0;
+            mouseAdvance = 0;
+            return false;
         }
 
         Line textLine = _lines[line];
@@ -55,18 +64,25 @@ public class UIInputBox : UIText, ITextInput
         int start = textLine.start;
         float offset = 0;
         char c = '\0';
+        GlyphInfo glyph = default;
         for (int i = 0; i < textLine.count; i++)
         {
             c = _text[start + i];
-            GlyphInfo glyph = Font.GetGlyph(c);
+            glyph = Font.GetGlyph(c);
             offset += glyph.Advance;
             if (textStartX + offset * textWidthMultiplier > mousePosition.X)
             {
                 break;
             }
         }
-        DebugGUI.Text($"c: {c}");
+
+        charOffset = (offset - glyph.Advance) * textWidthMultiplier;
+        charAdvance = glyph.Advance * textWidthMultiplier;
+        mouseAdvance = mousePosition.X - textStartX - charOffset;
+        //DebugGUI.Text($"c: {c}");
         //DebugGUI.Text($"textStartX: {textStartX}, {textPosition.X}, {Size.X}, {_textPivot.X}, {textLine.width}");
+
+        return true;
     }
 
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
@@ -84,6 +100,9 @@ public class UIInputBox : UIText, ITextInput
     public override void OnHover(Canvas canvas, Vector2 mousePosition)
     {
         base.OnHover(canvas, mousePosition);
-        FindTextByPosition(mousePosition);
+        if (TryFindTextByPosition(mousePosition, out int line, out float charOffset, out float charAdvance, out float mouseAdvance))
+        {
+            DebugGUI.Text($"line: {line}, charOffset: {charOffset}, charAdvance: {charAdvance}, mouseAdvance: {mouseAdvance}");
+        }
     }
 }
