@@ -76,6 +76,7 @@ public class Game : GameEngine
 
         UISprite bg = new UISprite()
         {
+            Position = new Vector2(50, 0),
             Size = new Vector2(100, 100),
             Color = 0x2c2c2c
         };
@@ -83,7 +84,7 @@ public class Game : GameEngine
         UIInputBox label = new UIInputBox()
         {
             Font = _font,
-            Position = new Vector2(0, 0),
+            Position = new Vector2(50, 0),
             Size = new Vector2(100, 100),
             Color = 0xffffff,
             AlignHorizontal = TextAlign.Left,

@@ -772,12 +772,12 @@ public class UINode
         }
     }
 
-    public virtual void OnDrag(Canvas canvas, Vector2 mousePoisition)
+    public virtual void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
-        EventOnDrag?.Invoke(canvas, mousePoisition);
+        EventOnDrag?.Invoke(canvas, mousePosition);
         if (BubbleEvent && Parent != null)
         {
-            Parent.OnDrag(canvas, mousePoisition);
+            Parent.OnDrag(canvas, mousePosition);
         }
     }
 

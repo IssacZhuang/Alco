@@ -12,6 +12,14 @@ namespace Vocore.GUI;
 /// </summary>
 public class UIInputBox : UIText, ITextInput
 {
+    private Vector2 _cursorPosition;
+    private bool _isSelecting;
+
+    /// <summary>
+    /// The cursor scale based on the font size.
+    /// </summary>
+    /// <returns></returns>
+    public Vector2 CursorScale = new Vector2(0.1f, 1f);
 
     public BoundingBox2D InputArea
     {
@@ -22,6 +30,16 @@ public class UIInputBox : UIText, ITextInput
     public UIInputBox(): base()
     {
         Interactable = true;
+    }
+
+    protected override void OnUpdate(Canvas canvas, float delta)
+    {
+        base.OnUpdate(canvas, delta);
+        if (_isSelecting)
+        {
+            //draw the cursor
+            canvas.Renderer.DrawQuad(_cursorPosition + WorldTransform.position, CursorScale * FontSize * WorldTransform.scale, 0xffffffff, Bound);
+        }
     }
 
 
@@ -40,6 +58,8 @@ public class UIInputBox : UIText, ITextInput
         Transform2D worldTransform = WorldTransform;
         float lineHeight = FontSize * LineSpacing * worldTransform.scale.Y;
         float textWidthMultiplier = FontSize * worldTransform.scale.X;
+
+        //bug: the text height not in used
         Vector2 textPosition = worldTransform.position + worldTransform.scale * Size * TextPivot;
 
         float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - TextPivot.Y);
@@ -47,8 +67,6 @@ public class UIInputBox : UIText, ITextInput
 
         float localY = mousePosition.Y - textPosition.Y;
         line = (int)(localY / -lineHeight);
-
-        //DebugGUI.Text("line: " + line.ToString());
 
         if (line < 0 || line >= _lines.Count)
         {
@@ -79,8 +97,6 @@ public class UIInputBox : UIText, ITextInput
         charOffset = (offset - glyph.Advance) * textWidthMultiplier;
         charAdvance = glyph.Advance * textWidthMultiplier;
         mouseAdvance = mousePosition.X - textStartX - charOffset;
-        //DebugGUI.Text($"c: {c}");
-        //DebugGUI.Text($"textStartX: {textStartX}, {textPosition.X}, {Size.X}, {_textPivot.X}, {textLine.width}");
 
         return true;
     }
@@ -89,20 +105,25 @@ public class UIInputBox : UIText, ITextInput
     {
         base.OnSelect(canvas, mousePosition);
         canvas.StartTextInput(this, 0);
+        _isSelecting = true;
     }
 
     public override void OnDeselect(Canvas canvas, Vector2 mousePosition)
     {
         base.OnDeselect(canvas, mousePosition);
         canvas.EndTextInput();
+        _isSelecting = false;
     }
 
-    public override void OnHover(Canvas canvas, Vector2 mousePosition)
+    public override void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
-        base.OnHover(canvas, mousePosition);
+        base.OnDrag(canvas, mousePosition);
         if (TryFindTextByPosition(mousePosition, out int line, out float charOffset, out float charAdvance, out float mouseAdvance))
         {
-            DebugGUI.Text($"line: {line}, charOffset: {charOffset}, charAdvance: {charAdvance}, mouseAdvance: {mouseAdvance}");
+
+            //DebugGUI.Text($"line: {line}, charOffset: {charOffset}, charAdvance: {charAdvance}, mouseAdvance: {mouseAdvance}");
+            //get the cursor position
+            _cursorPosition = new Vector2(charOffset + charAdvance * 0.5f, -line * FontSize * LineSpacing * WorldTransform.scale.Y);
         }
     }
 }
