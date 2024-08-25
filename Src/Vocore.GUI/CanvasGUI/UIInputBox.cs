@@ -43,16 +43,12 @@ public class UIInputBox : UIText, ITextInput
     }
 
 
-    private bool TryFindTextByPosition(Vector2 mousePosition, out int line, out float charOffset, out float charAdvance, out float mouseAdvance)
+    private void ProceesMousePosition(Vector2 mousePosition)
     {
 
         if (Font == null)
         {
-            line = -1;
-            charOffset = 0;
-            charAdvance = 0;
-            mouseAdvance = 0;
-            return false;
+            return;
         }
 
         Transform2D worldTransform = WorldTransform;
@@ -66,15 +62,11 @@ public class UIInputBox : UIText, ITextInput
         textPosition.Y += offsetY;
 
         float localY = mousePosition.Y - textPosition.Y;
-        line = (int)(localY / -lineHeight);
+        int line = (int)(localY / -lineHeight);
 
         if (line < 0 || line >= _lines.Count)
         {
-            line = -1;
-            charOffset = 0;
-            charAdvance = 0;
-            mouseAdvance = 0;
-            return false;
+            return;
         }
 
         Line textLine = _lines[line];
@@ -94,11 +86,13 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
-        charOffset = (offset - glyph.Advance) * textWidthMultiplier;
-        charAdvance = glyph.Advance * textWidthMultiplier;
-        mouseAdvance = mousePosition.X - textStartX - charOffset;
+        DebugGUI.Text(c);
 
-        return true;
+        // charOffset = worldTransform.position.X + textStartX + (offset - glyph.Advance) * textWidthMultiplier;
+        // charAdvance = glyph.Advance * textWidthMultiplier;
+        // mouseAdvance = mousePosition.X - textStartX - charOffset;
+
+        return;
     }
 
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
@@ -118,12 +112,6 @@ public class UIInputBox : UIText, ITextInput
     public override void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
         base.OnDrag(canvas, mousePosition);
-        if (TryFindTextByPosition(mousePosition, out int line, out float charOffset, out float charAdvance, out float mouseAdvance))
-        {
-
-            //DebugGUI.Text($"line: {line}, charOffset: {charOffset}, charAdvance: {charAdvance}, mouseAdvance: {mouseAdvance}");
-            //get the cursor position
-            _cursorPosition = new Vector2(charOffset + charAdvance * 0.5f, -line * FontSize * LineSpacing * WorldTransform.scale.Y);
-        }
+        ProceesMousePosition(mousePosition);
     }
 }
