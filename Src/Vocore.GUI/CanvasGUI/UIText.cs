@@ -160,7 +160,8 @@ public class UIText : UISelectable
 
         for (int i = 0; i < _lines.Count; i++)
         {
-            renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
+            //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
+            DrawLine(renderer, i, _text.Slice(_lines[i].start, _lines[i].count), transform, mask);
             transform.position.Y -= lineHeight * scaleY;
         }
     }
@@ -221,6 +222,11 @@ public class UIText : UISelectable
         {
             _lines.Add(line);
         }
+    }
+
+    protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
+    {
+        renderer.DrawChars(Font!, chars, transform.Matrix, _textPivot, Color, 1f, mask);
     }
 
     protected void RefreshTextLineBreak()

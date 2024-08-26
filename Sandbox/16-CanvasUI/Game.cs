@@ -91,7 +91,7 @@ public class Game : GameEngine
             AlignVertical = TextAlign.Top,
             OverflowHorizontal = OverflowModeHorizontal.NextLine,
             OverflowVertical = OverflowModeVertical.Clamp,
-            Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
+            Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbb",
         };
 
 

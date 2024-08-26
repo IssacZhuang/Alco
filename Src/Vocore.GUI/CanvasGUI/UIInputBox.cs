@@ -12,7 +12,14 @@ namespace Vocore.GUI;
 /// </summary>
 public class UIInputBox : UIText, ITextInput
 {
-    private Vector2 _cursorPosition;
+    private struct CursorPosition
+    {
+        public static readonly CursorPosition Empty = new CursorPosition();
+        public int line;
+        public int charIndexInLine;
+        public float charOffsetInLine;//the scale and font size not in used
+    }
+    private CursorPosition _cursorPosition;
     private bool _isSelecting;
 
     /// <summary>
@@ -35,20 +42,15 @@ public class UIInputBox : UIText, ITextInput
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
-        if (_isSelecting)
-        {
-            //draw the cursor
-            canvas.Renderer.DrawQuad(_cursorPosition + WorldTransform.position, CursorScale * FontSize * WorldTransform.scale, 0xffffffff, Bound);
-        }
+        DebugGUI.Text(TextPivot.value.ToString());
     }
 
-
-    private void ProceesMousePosition(Vector2 mousePosition)
+    private CursorPosition ProceesMousePosition(Vector2 mousePosition)
     {
 
         if (Font == null)
         {
-            return;
+            return CursorPosition.Empty;
         }
 
         Transform2D worldTransform = WorldTransform;
@@ -66,7 +68,7 @@ public class UIInputBox : UIText, ITextInput
 
         if (line < 0 || line >= _lines.Count)
         {
-            return;
+            return CursorPosition.Empty;
         }
 
         Line textLine = _lines[line];
@@ -75,9 +77,11 @@ public class UIInputBox : UIText, ITextInput
         float offset = 0;
         char c = '\0';
         GlyphInfo glyph = default;
+        int charIndexInLine = 0;
         for (int i = 0; i < textLine.count; i++)
         {
-            c = _text[start + i];
+            charIndexInLine = start + i;
+            c = _text[charIndexInLine];
             glyph = Font.GetGlyph(c);
             offset += glyph.Advance;
             if (textStartX + offset * textWidthMultiplier > mousePosition.X)
@@ -88,11 +92,12 @@ public class UIInputBox : UIText, ITextInput
 
         DebugGUI.Text(c);
 
-        // charOffset = worldTransform.position.X + textStartX + (offset - glyph.Advance) * textWidthMultiplier;
-        // charAdvance = glyph.Advance * textWidthMultiplier;
-        // mouseAdvance = mousePosition.X - textStartX - charOffset;
-
-        return;
+        return new CursorPosition
+        {
+            line = line,
+            charIndexInLine = charIndexInLine,
+            charOffsetInLine = offset - glyph.Advance
+        };
     }
 
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
@@ -112,6 +117,17 @@ public class UIInputBox : UIText, ITextInput
     public override void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
         base.OnDrag(canvas, mousePosition);
-        ProceesMousePosition(mousePosition);
+        _cursorPosition = ProceesMousePosition(mousePosition);
+    }
+
+    protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
+    {
+        base.DrawLine(renderer, line, chars, transform, mask);
+        Transform2D cursorTransform = transform;
+        cursorTransform.position.Y -= transform.scale.Y * TextPivot.Y;
+        if (_isSelecting && _cursorPosition.line == line)
+        {
+            renderer.DrawQuad(cursorTransform.position, CursorScale * cursorTransform.scale, 0xffffffff, Bound);
+        }
     }
 }
