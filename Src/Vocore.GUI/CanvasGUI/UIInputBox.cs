@@ -39,12 +39,6 @@ public class UIInputBox : UIText, ITextInput
         Interactable = true;
     }
 
-    protected override void OnUpdate(Canvas canvas, float delta)
-    {
-        base.OnUpdate(canvas, delta);
-        DebugGUI.Text(TextPivot.value.ToString());
-    }
-
     private CursorPosition ProceesMousePosition(Vector2 mousePosition)
     {
 
@@ -60,11 +54,13 @@ public class UIInputBox : UIText, ITextInput
         //bug: the text height not in used
         Vector2 textPosition = worldTransform.position + worldTransform.scale * Size * TextPivot;
 
-        float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - TextPivot.Y);
+        float offsetY = (_lines.Count) * lineHeight * (0.5f - TextPivot.Y);
         textPosition.Y += offsetY;
 
         float localY = mousePosition.Y - textPosition.Y;
+
         int line = (int)(localY / -lineHeight);
+        DebugGUI.Text($"{localY}, {mousePosition.Y}, {textPosition.Y}, {lineHeight}, {line}");
 
         if (line < 0 || line >= _lines.Count)
         {
