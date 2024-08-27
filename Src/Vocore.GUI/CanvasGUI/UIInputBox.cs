@@ -48,13 +48,12 @@ public class UIInputBox : UIText, ITextInput
         }
 
         Transform2D worldTransform = WorldTransform;
-        float lineHeight = FontSize * LineSpacing * worldTransform.scale.Y;
+        float lineHeight = LineHeight;
         float textWidthMultiplier = FontSize * worldTransform.scale.X;
 
-        //bug: the text height not in used
         Vector2 textPosition = worldTransform.position + worldTransform.scale * Size * TextPivot;
 
-        float offsetY = (_lines.Count) * lineHeight * (0.5f - TextPivot.Y);
+        float offsetY = _lines.Count * lineHeight * (0.5f - TextPivot.Y);
         textPosition.Y += offsetY;
 
         float localY = mousePosition.Y - textPosition.Y;
@@ -118,12 +117,16 @@ public class UIInputBox : UIText, ITextInput
 
     protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
     {
-        base.DrawLine(renderer, line, chars, transform, mask);
-        Transform2D cursorTransform = transform;
-        cursorTransform.position.Y -= transform.scale.Y * TextPivot.Y;
+        float textAdvances = renderer.DrawChars(Font!, chars, transform.Matrix, TextPivot, Color, 1f, mask);
+
+        Vector2 cursorPosition = transform.position;
+        cursorPosition.Y -= transform.scale.Y * TextPivot.Y;
+        //cursorTransform.position.X += (_cursorPosition.charOffsetInLine + (textAdvances * (TextPivot.X - 0.5f))) * transform.scale.X * FontSize;
+
         if (_isSelecting && _cursorPosition.line == line)
         {
-            renderer.DrawQuad(cursorTransform.position, CursorScale * cursorTransform.scale, 0xffffffff, Bound);
+            DebugGUI.Text(cursorPosition.X);
+            renderer.DrawQuad(cursorPosition, CursorScale * transform.scale, 0xffffffff, Bound);
         }
     }
 }

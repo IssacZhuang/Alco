@@ -26,8 +26,14 @@ public class UIText : UISelectable
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
     private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
     private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
-    
-    
+
+    protected float LineHeight
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _fontSize * LineSpacing * WorldTransform.scale.Y;
+    }
+
+
     public Font? Font { get; set; }
     public float FontSize
     {
@@ -134,7 +140,7 @@ public class UIText : UISelectable
         float scaleY = transform.scale.Y;
         transform.position += transform.scale * Size * TextPivot;
         transform.scale *= _fontSize;
-        float lineHeight = _fontSize * LineSpacing;
+        float lineHeight = LineHeight;
         float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
         transform.position.Y += offsetY;
 
@@ -162,7 +168,7 @@ public class UIText : UISelectable
         {
             //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
             DrawLine(renderer, i, _text.Slice(_lines[i].start, _lines[i].count), transform, mask);
-            transform.position.Y -= lineHeight * scaleY;
+            transform.position.Y -= lineHeight;
         }
     }
 
@@ -226,7 +232,7 @@ public class UIText : UISelectable
 
     protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
     {
-        renderer.DrawChars(Font!, chars, transform.Matrix, _textPivot, Color, 1f, mask);
+
     }
 
     protected void RefreshTextLineBreak()
