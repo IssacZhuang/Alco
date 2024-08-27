@@ -137,7 +137,6 @@ public class UIText : UISelectable
 
         CanvasRenderer renderer = canvas.Renderer;
         Transform2D transform = WorldTransform;
-        float scaleY = transform.scale.Y;
         transform.position += transform.scale * Size * TextPivot;
         transform.scale *= _fontSize;
         float lineHeight = LineHeight;

@@ -59,7 +59,7 @@ public class UIInputBox : UIText, ITextInput
         float localY = mousePosition.Y - textPosition.Y;
 
         int line = (int)(localY / -lineHeight);
-        DebugGUI.Text($"{localY}, {mousePosition.Y}, {textPosition.Y}, {lineHeight}, {line}");
+        //DebugGUI.Text($"{localY}, {mousePosition.Y}, {textPosition.Y}, {lineHeight}, {line}");
 
         if (line < 0 || line >= _lines.Count)
         {
@@ -75,24 +75,28 @@ public class UIInputBox : UIText, ITextInput
         int charIndexInLine = 0;
         for (int i = 0; i < textLine.count; i++)
         {
-            charIndexInLine = start + i;
-            c = _text[charIndexInLine];
+            int index = start + i;
+            c = _text[index];
             glyph = Font.GetGlyph(c);
-            offset += glyph.Advance;
-            if (textStartX + offset * textWidthMultiplier > mousePosition.X)
+
+            if (textStartX + (offset + glyph.Advance * 0.5) * textWidthMultiplier > mousePosition.X)
             {
+                
                 break;
             }
+
+            charIndexInLine = index;
+            offset += glyph.Advance;
         }
 
-        DebugGUI.Text(c);
+        DebugGUI.Text(_text[charIndexInLine]);
 
         return new CursorPosition
         {
             line = line,
             charIndexInLine = charIndexInLine,
-            charOffsetInLine = offset - glyph.Advance
-        };
+            charOffsetInLine = offset
+        }; ;
     }
 
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
@@ -119,13 +123,15 @@ public class UIInputBox : UIText, ITextInput
     {
         float textAdvances = renderer.DrawChars(Font!, chars, transform.Matrix, TextPivot, Color, 1f, mask);
 
+
         Vector2 cursorPosition = transform.position;
         cursorPosition.Y -= transform.scale.Y * TextPivot.Y;
-        //cursorTransform.position.X += (_cursorPosition.charOffsetInLine + (textAdvances * (TextPivot.X - 0.5f))) * transform.scale.X * FontSize;
+        cursorPosition.X += _cursorPosition.charOffsetInLine * transform.scale.X;
 
         if (_isSelecting && _cursorPosition.line == line)
         {
             DebugGUI.Text(cursorPosition.X);
+            DebugGUI.Text($"{_cursorPosition.charOffsetInLine}, {textAdvances}, {cursorPosition.X}");
             renderer.DrawQuad(cursorPosition, CursorScale * transform.scale, 0xffffffff, Bound);
         }
     }
