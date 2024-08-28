@@ -15,9 +15,12 @@ public class UIInputBox : UIText, ITextInput
 {
     private struct CursorPosition
     {
-        public static readonly CursorPosition Zero = new CursorPosition();
+        public static readonly CursorPosition Head = new CursorPosition()
+        {
+            charIndex = -1,
+        };
         public int line;
-        public int charIndexInLine;
+        public int charIndex;
         public float charOffsetInLine;//the scale and font size not in used
     }
     private CursorPosition _cursorPosition;
@@ -28,6 +31,16 @@ public class UIInputBox : UIText, ITextInput
     /// </summary>
     /// <returns></returns>
     public Vector2 CursorScale = new Vector2(0.1f, 1f);
+
+    /// <summary>
+    /// The cursor color.
+    /// </summary>
+    public ColorFloat CursorColor = 0xffffff;
+
+    /// <summary>
+    /// The color of the text selection area.
+    /// </summary>
+    public ColorFloat SelectionAreaColor = 0x007ACC;
 
     public BoundingBox2D InputArea
     {
@@ -45,50 +58,8 @@ public class UIInputBox : UIText, ITextInput
 
         if (Font == null)
         {
-            return CursorPosition.Zero;
+            return CursorPosition.Head;
         }
-
-        // Transform2D worldTransform = WorldTransform;
-        // float lineHeight = LineSpacing* FontSize * worldTransform.scale.Y;
-        // float textWidthMultiplier = FontSize * worldTransform.scale.X;
-
-        // Vector2 textPosition = worldTransform.position + worldTransform.scale * Size * TextPivot;
-
-        // float offsetY = _lines.Count * lineHeight * (0.5f - TextPivot.Y);
-        // textPosition.Y += offsetY;
-
-        // float localY = mousePosition.Y - textPosition.Y;
-
-        // int line = (int)(localY / -lineHeight);
-        // //DebugGUI.Text($"{localY}, {mousePosition.Y}, {textPosition.Y}, {lineHeight}, {line}");
-
-        // if (line < 0 || line >= _lines.Count)
-        // {
-        //     return CursorPosition.Empty;
-        // }
-
-        // Line textLine = _lines[line];
-        // float textStartX = textPosition.X - textLine.width * textWidthMultiplier * (TextPivot.X + 0.5f);
-        // int start = textLine.start;
-        // float offset = 0;
-        // char c = '\0';
-        // GlyphInfo glyph = default;
-        // int charIndexInLine = 0;
-        // for (int i = 0; i < textLine.count; i++)
-        // {
-        //     int index = start + i;
-        //     c = _text[index];
-        //     glyph = Font.GetGlyph(c);
-
-        //     if (textStartX + (offset + glyph.Advance * 0.5) * textWidthMultiplier > mousePosition.X)
-        //     {
-
-        //         break;
-        //     }
-
-        //     charIndexInLine = index;
-        //     offset += glyph.Advance;
-        // }
 
         //use local transform
         Vector2 localMousePosition = math.tolocal(WorldTransform, mousePosition);
@@ -105,20 +76,23 @@ public class UIInputBox : UIText, ITextInput
 
         int line = (int)(localY / -lineHeight);
 
-        DebugGUI.Text($"{localY}, {localMousePosition.Y}, {transform.position.Y}, {lineHeight}, {line}");
-
-        if (line < 0 || line >= _lines.Count)
+        if (line < 0)
         {
-            return CursorPosition.Zero;
+            return CursorPosition.Head;
+        }
+
+        if (line >= _lines.Count)
+        {
+            line = _lines.Count - 1;
         }
 
         Line textLine = _lines[line];
         float textStartX = transform.position.X - textLine.width * FontSize * (TextPivot.X + 0.5f);
         int start = textLine.start;
         float offset = 0;
-        char c = '\0';
-        GlyphInfo glyph = default;
-        int charIndexInLine = 0;
+        char c;
+        GlyphInfo glyph;
+        int charIndexInLine = textLine.start - 1;
         for (int i = 0; i < textLine.count; i++)
         {
             int index = start + i;
@@ -134,12 +108,10 @@ public class UIInputBox : UIText, ITextInput
             offset += glyph.Advance;
         }
 
-        DebugGUI.Text(_text[charIndexInLine]);
-
         return new CursorPosition
         {
             line = line,
-            charIndexInLine = charIndexInLine,
+            charIndex = charIndexInLine,
             charOffsetInLine = offset
         }; ;
     }
@@ -168,21 +140,19 @@ public class UIInputBox : UIText, ITextInput
     {
         float textAdvances = renderer.DrawChars(Font!, chars, math.transform(WorldTransform, transform).Matrix, TextPivot, Color, 1f, mask);
 
-
-        // Vector2 cursorPosition = transform.position;
-        // cursorPosition.Y -= transform.scale.Y * TextPivot.Y;
-        // cursorPosition.X += _cursorPosition.charOffsetInLine * transform.scale.X;
-
-
         if (_isSelecting && _cursorPosition.line == line)
         {
             Transform2D cursorTransform = transform;
-            cursorTransform.position.X += _cursorPosition.charOffsetInLine * transform.scale.X;
+            cursorTransform.position.X += _cursorPosition.charOffsetInLine * transform.scale.X - (0.5f + TextPivot.X) * textAdvances * FontSize;
             cursorTransform.position.Y -= TextPivot.Y * FontSize * LineSpacing;
             cursorTransform.scale *= CursorScale;
 
-            DebugGUI.Text($"{_cursorPosition.charOffsetInLine}, {textAdvances}, {cursorTransform.position.X}");
-            renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, 0xffffffff, Bound);
+            if (_cursorPosition.charIndex >= 0)
+            {
+                DebugGUI.Text($"{_text[_cursorPosition.charIndex]}");
+            }
+            //DebugGUI.Text($"{_cursorPosition.charIndex}");
+            renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
         }
     }
 }

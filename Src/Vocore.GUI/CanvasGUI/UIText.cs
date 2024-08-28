@@ -130,12 +130,6 @@ public class UIText : UISelectable
         }
 
         CanvasRenderer renderer = canvas.Renderer;
-        // Transform2D transform = WorldTransform;
-        // transform.position += transform.scale * Size * TextPivot;
-        // transform.scale *= _fontSize;
-        // float lineHeight = LineHeight;
-        // float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
-        // transform.position.Y += offsetY;
 
         //use local transform
         Transform2D transform = Transform2D.Identity;
