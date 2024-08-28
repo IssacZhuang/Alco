@@ -17,7 +17,7 @@ public class Game : GameEngine
     private CanvasUIFactory _factory;
 
     private UINode _root;
-    private UIInputBox _label;
+    private UIInputBox _inputBox;
     private UISlider _slider;
     private UILayoutVertical _layout;
 
@@ -29,6 +29,7 @@ public class Game : GameEngine
     private float _labelScale = 1f;
     private float _progress = 0f;
     private float _pivotY = 0f;
+    private float _angle = 0f;
     private int _itemCount = 0;
 
 
@@ -81,7 +82,7 @@ public class Game : GameEngine
             Color = 0x2c2c2c
         };
 
-        UIInputBox label = new UIInputBox()
+        UIInputBox inputBox = new UIInputBox()
         {
             Font = _font,
             Position = new Vector2(50, 0),
@@ -95,12 +96,12 @@ public class Game : GameEngine
         };
 
 
-        _label = label;
+        _inputBox = inputBox;
 
         _root.Add(bg);
-        _root.Add(label);
+        _root.Add(inputBox);
 
-        UIInputBox inputBox = new UIInputBox()
+        UIText label = new UIText()
         {
             Font = _font,
             Position = new Vector2(0, -140),
@@ -113,7 +114,7 @@ public class Game : GameEngine
             Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
         };
 
-        _root.Add(inputBox);
+        _root.Add(label);
 
         UILayoutVertical layout = new UILayoutVertical()
         {
@@ -188,27 +189,32 @@ public class Game : GameEngine
         DebugGUI.Text(FrameRate);
         if (DebugGUI.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
         {
-            _label.AlignHorizontal = _alignHorizontal;
+            _inputBox.AlignHorizontal = _alignHorizontal;
         }
 
         if (DebugGUI.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
         {
-            _label.AlignVertical = _alignVertical;
+            _inputBox.AlignVertical = _alignVertical;
         }
 
         if (DebugGUI.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f))
         {
-            _label.LineSpacing = _lineSpacing;
+            _inputBox.LineSpacing = _lineSpacing;
         }
 
         if (DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32))
         {
-            _label.FontSize = _fontSize;
+            _inputBox.FontSize = _fontSize;
         }
 
         if (DebugGUI.SliderWithText("Label Scale", ref _labelScale, 0.5f, 2f))
         {
-            _label.Scale = new Vector2(_labelScale);
+            _inputBox.Scale = new Vector2(_labelScale);
+        }
+
+        if (DebugGUI.SliderWithText("Angle", ref _angle, 0, 360))
+        {
+            _inputBox.Rotation = Rotation2D.FromDegree(_angle);
         }
 
         if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))

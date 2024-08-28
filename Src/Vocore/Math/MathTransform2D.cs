@@ -29,6 +29,12 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 toworld(Transform2D parent, Vector2 localPosition)
+        {
+            return mul(parent.rotation, parent.scale * localPosition) + parent.position;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform2D tolocal(Transform2D parent, Transform2D world)
         {
             Rotation2D invRot = inverse(parent.rotation);
@@ -38,6 +44,12 @@ namespace Vocore
                 rotation = invRot * world.rotation,
                 scale = world.scale / parent.scale
             };
+        }
+
+        public static Vector2 tolocal(Transform2D parent, Vector2 worldPosition)
+        {
+            Rotation2D invRot = inverse(parent.rotation);
+            return mul(invRot, worldPosition - parent.position) / parent.scale;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

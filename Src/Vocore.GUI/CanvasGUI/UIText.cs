@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 using Vocore.Rendering;
@@ -26,13 +27,6 @@ public class UIText : UISelectable
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
     private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
     private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
-
-    protected float LineHeight
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _fontSize * LineSpacing * WorldTransform.scale.Y;
-    }
-
 
     public Font? Font { get; set; }
     public float FontSize
@@ -136,12 +130,21 @@ public class UIText : UISelectable
         }
 
         CanvasRenderer renderer = canvas.Renderer;
-        Transform2D transform = WorldTransform;
-        transform.position += transform.scale * Size * TextPivot;
-        transform.scale *= _fontSize;
-        float lineHeight = LineHeight;
-        float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
+        // Transform2D transform = WorldTransform;
+        // transform.position += transform.scale * Size * TextPivot;
+        // transform.scale *= _fontSize;
+        // float lineHeight = LineHeight;
+        // float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - _textPivot.Y);
+        // transform.position.Y += offsetY;
+
+        //use local transform
+        Transform2D transform = Transform2D.Identity;
+        transform.position = Size * TextPivot;
+        transform.scale = new Vector2(FontSize);
+        float lineHeight = LineSpacing* FontSize;
+        float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - TextPivot.Y);
         transform.position.Y += offsetY;
+
 
         BoundingBox2D mask = Mask;
         if (!HasMask)
@@ -231,7 +234,7 @@ public class UIText : UISelectable
 
     protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
     {
-
+        renderer.DrawChars(Font!, chars, math.transform(WorldTransform, transform).Matrix, TextPivot, Color, 1f, mask);
     }
 
     protected void RefreshTextLineBreak()
