@@ -42,7 +42,7 @@ public class UIInputBox : UIText, ITextInput
     /// <summary>
     /// The color of the text selection area.
     /// </summary>
-    public ColorFloat SelectionAreaColor = 0x007ACC77u;
+    public ColorFloat SelectionAreaColor = 0x00447744u;
 
     public BoundingBox2D InputArea
     {
@@ -145,23 +145,22 @@ public class UIInputBox : UIText, ITextInput
         _selectionEndPosition = _cursorPosition;
     }
 
-    protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
+    protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
-        float textAdvances = renderer.DrawChars(Font!, chars, math.transform(WorldTransform, transform).Matrix, TextPivot, Color, 1f, mask);
+        float textAdvances = renderer.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
 
         if (!_isSelecting)
         {
             return;
         }
 
-        Transform2D baseTransform = transform;
+        Transform2D baseTransform = textLineTransform;
         baseTransform.position.Y -= TextPivot.Y * FontSize * LineSpacing;
 
         if (_cursorPosition.line == line)
         {
-            Transform2D cursorTransform = transform;
-            cursorTransform.position.X += _cursorPosition.charOffsetInLine * transform.scale.X - (0.5f + TextPivot.X) * textAdvances * FontSize;
-            cursorTransform.position.Y -= TextPivot.Y * FontSize * LineSpacing;
+            Transform2D cursorTransform = baseTransform;
+            cursorTransform.position.X += _cursorPosition.charOffsetInLine * textLineTransform.scale.X - (0.5f + TextPivot.X) * textAdvances * FontSize;
             cursorTransform.scale *= CursorScale;
 
             if (_cursorPosition.charIndex >= 0)
@@ -173,29 +172,36 @@ public class UIInputBox : UIText, ITextInput
         }
 
         //draw selection area
-        if (line == _selectionStartPosition.line)
+        CursorPosition start = _selectionStartPosition;
+        CursorPosition end = _selectionEndPosition;
+        if (start.line > end.line || (start.line == end.line && start.charIndex > end.charIndex))
         {
-            float width = (textAdvances - _selectionStartPosition.charOffsetInLine) * FontSize;
+            (end, start) = (start, end);
+        }
+
+        if (line == start.line)
+        {
+            float width = (textAdvances - start.charOffsetInLine) * FontSize;
             Transform2D selectionTransform = baseTransform;
-            selectionTransform.position.X += (_selectionStartPosition.charOffsetInLine + width * 0.5f) * transform.scale.X - (0.5f + TextPivot.X) * textAdvances * FontSize;
+            selectionTransform.position.X += start.charOffsetInLine * FontSize - (0.5f + TextPivot.X) * textAdvances * FontSize;
             selectionTransform.scale = new Vector2(width, FontSize * LineSpacing);
 
             renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
         }
 
-        if (line > _selectionStartPosition.line && line < _selectionEndPosition.line)
+        if (line > start.line && line < end.line)
         {
             float width = textAdvances * FontSize;
             Transform2D selectionTransform = baseTransform;
-            selectionTransform.position.X -= (0.5f + TextPivot.X) * textAdvances * FontSize;
+            selectionTransform.position.X -= TextPivot.X * width;
             selectionTransform.scale = new Vector2(width, FontSize * LineSpacing);
 
             renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
         }
 
-        if (line == _selectionEndPosition.line)
+        if (end.line > start.line && line == end.line)
         {
-            float width = _selectionEndPosition.charOffsetInLine * FontSize;
+            float width = end.charOffsetInLine * FontSize;
             Transform2D selectionTransform = baseTransform;
             selectionTransform.position.X -= (0.5f + TextPivot.X) * textAdvances * FontSize;
             selectionTransform.scale = new Vector2(width, FontSize * LineSpacing);

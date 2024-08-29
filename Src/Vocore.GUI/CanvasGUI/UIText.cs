@@ -226,9 +226,9 @@ public class UIText : UISelectable
         }
     }
 
-    protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D transform, BoundingBox2D mask)
+    protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
-        renderer.DrawChars(Font!, chars, math.transform(WorldTransform, transform).Matrix, TextPivot, Color, 1f, mask);
+        renderer.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
     }
 
     protected void RefreshTextLineBreak()
