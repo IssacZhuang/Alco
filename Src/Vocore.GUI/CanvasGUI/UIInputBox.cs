@@ -52,7 +52,31 @@ public class UIInputBox : UIText, ITextInput
     public BoundingBox2D InputArea
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Bound;
+        get
+        {
+            //base on the cursor position
+            if (_cursorPosition.line < 0)
+            {
+                return Bound;
+            }
+
+            Line textLine = _lines[_cursorPosition.line];
+            float lineHeight = LineSpacing * FontSize;
+            Transform2D transform = Transform2D.Identity;
+            ReadOnlySpan<char> chars = _text.Span.Slice(textLine.start, textLine.count);
+            
+            transform.position = Size * TextPivot;
+            transform.position.X -= (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars) * FontSize;
+            transform.position.Y += _lines.Count * lineHeight * (0.5f - TextPivot.Y);
+            transform.position.Y -= lineHeight * (_cursorPosition.line + 1.5f);
+            transform.scale = new Vector2(FontSize);
+
+            transform = math.transform(WorldTransform, transform);
+            //calculate bounding box based on the transform
+            Vector2 min = transform.position - new Vector2(0, lineHeight * 0.5f);
+            Vector2 max = min + new Vector2(textLine.width * FontSize, lineHeight);
+            return new BoundingBox2D(min, max);
+        }
     }
 
     public UIInputBox() : base()
