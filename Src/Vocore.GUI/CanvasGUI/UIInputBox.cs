@@ -13,7 +13,7 @@ namespace Vocore.GUI;
 /// </summary>
 public class UIInputBox : UIText, ITextInput
 {
-    private struct CursorPosition
+    protected struct CursorPosition
     {
         public static readonly CursorPosition Head = new CursorPosition()
         {
@@ -27,6 +27,8 @@ public class UIInputBox : UIText, ITextInput
     private CursorPosition _selectionStartPosition;
     private CursorPosition _selectionEndPosition;
     private bool _isSelecting;
+    private bool _isCursorVisible;
+    private float _timerCursorBlink;
 
     /// <summary>
     /// The cursor scale based on the font size.
@@ -44,18 +46,35 @@ public class UIInputBox : UIText, ITextInput
     /// </summary>
     public ColorFloat SelectionAreaColor = 0x003a7a77u;
 
+    public bool IsEditable { get; set; } = true;
+    public float CursorBlinkInterval = 0.5f;
+
     public BoundingBox2D InputArea
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => Bound;
     }
 
-    public UIInputBox(): base()
+    public UIInputBox() : base()
     {
         Interactable = true;
     }
 
-    private CursorPosition GetCursorPosition(Vector2 mousePosition)
+    protected override void OnUpdate(Canvas canvas, float delta)
+    {
+        base.OnUpdate(canvas, delta);
+        if (IsEditable)
+        {
+            _timerCursorBlink += delta;
+            if (_timerCursorBlink > CursorBlinkInterval)
+            {
+                _timerCursorBlink = 0;
+                _isCursorVisible = !_isCursorVisible;
+            }
+        }
+    }
+
+    protected CursorPosition GetCursorPosition(Vector2 mousePosition)
     {
 
         if (Font == null)
@@ -152,75 +171,77 @@ public class UIInputBox : UIText, ITextInput
         if (_isSelecting)
         {
             Transform2D baseTransform = textLineTransform;
-        //the left point of the text = textLineTransform.position.X + textOffsetX
-        float textOffsetX = -(0.5f + TextPivot.X) * textAdvances * FontSize;
+            //the left point of the text = textLineTransform.position.X + textOffsetX
+            float textOffsetX = -(0.5f + TextPivot.X) * textAdvances * FontSize;
 
-        if (_cursorPosition.line == line)
-        {
-            Transform2D cursorTransform = baseTransform;
-            cursorTransform.position.Y -= TextPivot.Y * FontSize * LineSpacing;
-            cursorTransform.position.X += _cursorPosition.charOffsetInLine * FontSize + textOffsetX;
-            cursorTransform.scale *= CursorScale;
-
-            if (_cursorPosition.charIndex >= 0)
+            if (_cursorPosition.line == line && _isCursorVisible && IsEditable)
             {
-                DebugGUI.Text($"{_text[_cursorPosition.charIndex]}");
-            }
-            //DebugGUI.Text($"{_cursorPosition.charIndex}");
-            renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
-        }
+                Transform2D cursorTransform = baseTransform;
+                cursorTransform.position.Y -= TextPivot.Y * FontSize * LineSpacing;
+                cursorTransform.position.X += _cursorPosition.charOffsetInLine * FontSize + textOffsetX;
+                cursorTransform.scale *= CursorScale;
 
-        //draw selection area
-
-        Transform2D selectionTransform = baseTransform;
-        selectionTransform.position.Y -= TextPivot.Y * FontSize;
-
-        CursorPosition start = _selectionStartPosition;
-        CursorPosition end = _selectionEndPosition;
-        if (start.line > end.line || (start.line == end.line && start.charIndex > end.charIndex))
-        {
-            (end, start) = (start, end);
-        }
-
-        if (line == start.line)
-        {
-            float baseX = baseTransform.position.X + textOffsetX;
-            float selectionLeftX = baseX + start.charOffsetInLine * FontSize;
-
-            float width;
-            float selectionRightX;
-
-            if (line == end.line)
-            {
-                selectionRightX = baseX + end.charOffsetInLine * FontSize;
-                width = (end.charOffsetInLine - start.charOffsetInLine) * FontSize;
-            }
-            else
-            {
-                selectionRightX = baseX + textAdvances * FontSize;
-                width = (textAdvances - start.charOffsetInLine) * FontSize;
+                // if (_cursorPosition.charIndex >= 0)
+                // {
+                //     DebugGUI.Text($"{_text[_cursorPosition.charIndex]}");
+                // }
+                //DebugGUI.Text($"{_cursorPosition.charIndex}");
+                renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
             }
 
-            selectionTransform.position.X = (selectionLeftX + selectionRightX) * 0.5f;
-            selectionTransform.scale = new Vector2(width, FontSize);
+            //draw selection area
 
-            renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
-        }else if (line > start.line && line < end.line)
-        {
-            float width = textAdvances * FontSize;
-            selectionTransform.position.X -= TextPivot.X * width;
-            selectionTransform.scale = new Vector2(width, FontSize);
+            Transform2D selectionTransform = baseTransform;
+            selectionTransform.position.Y -= TextPivot.Y * FontSize;
 
-            renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
-        }else if (end.line > start.line && line == end.line)
-        {
-            float width = end.charOffsetInLine * FontSize;
-            
-            selectionTransform.position.X += textOffsetX + width * 0.5f;
-            selectionTransform.scale = new Vector2(width, FontSize);
+            CursorPosition start = _selectionStartPosition;
+            CursorPosition end = _selectionEndPosition;
+            if (start.line > end.line || (start.line == end.line && start.charIndex > end.charIndex))
+            {
+                (end, start) = (start, end);
+            }
 
-            renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
-        }
+            if (line == start.line)
+            {
+                float baseX = baseTransform.position.X + textOffsetX;
+                float selectionLeftX = baseX + start.charOffsetInLine * FontSize;
+
+                float width;
+                float selectionRightX;
+
+                if (line == end.line)
+                {
+                    selectionRightX = baseX + end.charOffsetInLine * FontSize;
+                    width = (end.charOffsetInLine - start.charOffsetInLine) * FontSize;
+                }
+                else
+                {
+                    selectionRightX = baseX + textAdvances * FontSize;
+                    width = (textAdvances - start.charOffsetInLine) * FontSize;
+                }
+
+                selectionTransform.position.X = (selectionLeftX + selectionRightX) * 0.5f;
+                selectionTransform.scale = new Vector2(width, FontSize);
+
+                renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
+            }
+            else if (line > start.line && line < end.line)
+            {
+                float width = textAdvances * FontSize;
+                selectionTransform.position.X -= TextPivot.X * width;
+                selectionTransform.scale = new Vector2(width, FontSize);
+
+                renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
+            }
+            else if (end.line > start.line && line == end.line)
+            {
+                float width = end.charOffsetInLine * FontSize;
+
+                selectionTransform.position.X += textOffsetX + width * 0.5f;
+                selectionTransform.scale = new Vector2(width, FontSize);
+
+                renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
+            }
         }
 
         base.DrawLine(renderer, line, chars, textLineTransform, mask);
