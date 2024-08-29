@@ -42,7 +42,7 @@ public class UIInputBox : UIText, ITextInput
     /// <summary>
     /// The color of the text selection area.
     /// </summary>
-    public ColorFloat SelectionAreaColor = 0x00335544u;
+    public ColorFloat SelectionAreaColor = 0x003a7a77u;
 
     public BoundingBox2D InputArea
     {
@@ -147,14 +147,11 @@ public class UIInputBox : UIText, ITextInput
 
     protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
-        float textAdvances = renderer.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
+        float textAdvances = Font!.GetNormalizedTextWidth(chars);
 
-        if (!_isSelecting)
+        if (_isSelecting)
         {
-            return;
-        }
-
-        Transform2D baseTransform = textLineTransform;
+            Transform2D baseTransform = textLineTransform;
         //the left point of the text = textLineTransform.position.X + textOffsetX
         float textOffsetX = -(0.5f + TextPivot.X) * textAdvances * FontSize;
 
@@ -224,5 +221,8 @@ public class UIInputBox : UIText, ITextInput
 
             renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
         }
+        }
+
+        base.DrawLine(renderer, line, chars, textLineTransform, mask);
     }
 }

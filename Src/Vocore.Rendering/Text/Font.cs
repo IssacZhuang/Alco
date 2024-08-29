@@ -40,7 +40,7 @@ public unsafe class Font : AutoDisposable
         return width;
     }
 
-    public float GetNormalizedTextWidth(Span<char> str)
+    public float GetNormalizedTextWidth(ReadOnlySpan<char> str)
     {
         float width = 0;
         for (int i = 0; i < str.Length; i++)
@@ -50,6 +50,7 @@ public unsafe class Font : AutoDisposable
 
         return width;
     }
+    
 
     public float GetNormalizedTextWidth(char* str, int strLength)
     {
