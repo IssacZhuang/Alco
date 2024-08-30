@@ -55,7 +55,7 @@ public class UIInputBox : UIText, ITextInput
         get
         {
             //base on the cursor position
-            if (_cursorPosition.line < 0)
+            if (_cursorPosition.line < 0 || Font == null)
             {
                 return Bound;
             }
@@ -66,9 +66,12 @@ public class UIInputBox : UIText, ITextInput
             ReadOnlySpan<char> chars = _text.Span.Slice(textLine.start, textLine.count);
             
             transform.position = Size * TextPivot;
-            transform.position.X -= (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars) * FontSize;
-            transform.position.Y += _lines.Count * lineHeight * (0.5f - TextPivot.Y);
-            transform.position.Y -= lineHeight * (_cursorPosition.line + 1.5f);
+            // transform.position.X -= (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars) * FontSize;
+            // transform.position.X += _cursorPosition.charOffsetInLine * FontSize;
+            // transform.position.Y += _lines.Count * lineHeight * (0.5f - TextPivot.Y);
+            // transform.position.Y -= lineHeight * (_cursorPosition.line + 1.5f);
+            transform.position.X += (_cursorPosition.charOffsetInLine - (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars)) * FontSize;
+            transform.position.Y += (_lines.Count * (0.5f - TextPivot.Y) - (_cursorPosition.line + 1.5f)) * lineHeight;
             transform.scale = new Vector2(FontSize);
 
             transform = math.transform(WorldTransform, transform);
@@ -164,7 +167,6 @@ public class UIInputBox : UIText, ITextInput
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
     {
         base.OnSelect(canvas, mousePosition);
-        canvas.StartTextInput(this, 0);
         _isSelecting = true;
     }
 
@@ -179,6 +181,12 @@ public class UIInputBox : UIText, ITextInput
     {
         base.OnPressDown(canvas, mousePosition);
         _selectionStartPosition = GetCursorPosition(mousePosition);
+    }
+
+    public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnPressUp(canvas, mousePosition);
+        canvas.StartTextInput(this, 0);
     }
 
     public override void OnDrag(Canvas canvas, Vector2 mousePosition)
