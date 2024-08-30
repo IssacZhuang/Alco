@@ -209,7 +209,7 @@ public class UIInputBox : UIText, ITextInput
             if (_cursorPosition.line == line && _isCursorVisible && IsEditable)
             {
                 Transform2D cursorTransform = baseTransform;
-                cursorTransform.position.Y -= TextPivot.Y * FontSize * LineSpacing;
+                cursorTransform.position.Y -= TextPivot.Y * FontSize;
                 cursorTransform.position.X += _cursorPosition.charOffsetInLine * FontSize + textOffsetX;
                 cursorTransform.scale *= CursorScale;
 
