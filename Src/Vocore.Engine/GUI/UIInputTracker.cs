@@ -23,7 +23,7 @@ public class UIInputTracker : IUIInputTracker
     public Vector2 MousePosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _window.GetLocalMousePosition(_input.MousePosition);
+        get => _window.MousePosition;
     }
 
     public bool IsMouseUp

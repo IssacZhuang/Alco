@@ -1,5 +1,6 @@
 
 using System.Drawing;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SDL3;
@@ -68,6 +69,17 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
+    public override int2 MousePosition
+    {
+        get
+        {
+            Vector2 globalPosition = default;
+            SDL_GetGlobalMouseState(&globalPosition.X, &globalPosition.Y);
+            int2 result = new int2((int)globalPosition.X, (int)globalPosition.Y);
+            return result - Position;
+        }
+    }
+
     public override uint2 Size
     {
         get
@@ -97,6 +109,7 @@ public unsafe partial class Sdl3Window : Window
     {
         get => _swapchain;
     }
+
 
 
     public Sdl3Window(GPUDevice device, WindowSetting setting)

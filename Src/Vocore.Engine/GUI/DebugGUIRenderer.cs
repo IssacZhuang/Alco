@@ -18,7 +18,7 @@ public class DebugGUIRenderer : BaseDebugGUIRenderer
     public override Vector2 MousePosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _window.GetLocalMousePosition(_input.MousePosition);
+        get => _window.MousePosition;
     }
 
     public override bool IsMouseClicked

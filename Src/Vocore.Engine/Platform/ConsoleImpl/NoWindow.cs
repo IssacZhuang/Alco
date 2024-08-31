@@ -21,6 +21,11 @@ public sealed class NoWindow : Window
 
     public override int2 Position { get; set; }
 
+    public override int2 MousePosition
+    {
+        get => new int2(0, 0);
+    }
+
     protected override void Dispose(bool disposing)
     {
         

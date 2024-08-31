@@ -21,6 +21,11 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     public abstract int2 Position { get; set; }
 
     /// <summary>
+    /// Gets the mouse position in the window. This is the local position of the mouse. Use <see cref="InputSystem.MousePosition"/> for global position.
+    /// </summary>
+    public abstract int2 MousePosition { get; }
+
+    /// <summary>
     /// Gets or sets the size of the window.
     /// </summary>
     public abstract uint2 Size { get; set; }
@@ -58,16 +63,4 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     public abstract void StartTextInput(int x, int y, int width, int height, int cursor);
 
     public abstract void EndTextInput();
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="globalMousePosition"></param>
-    /// <returns></returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2 GetLocalMousePosition(Vector2 globalMousePosition)
-    {
-        return new Vector2(globalMousePosition.X - Position.x, globalMousePosition.Y - Position.y);
-    }
-
 }
