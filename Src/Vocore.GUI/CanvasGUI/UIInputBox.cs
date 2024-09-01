@@ -196,6 +196,26 @@ public class UIInputBox : UIText, ITextInput
         _selectionEndPosition = _cursorPosition;
     }
 
+    public void OnTextInput(string text)
+    {
+        //replace the selected text
+        if (_selectionStartPosition.charIndex >= 0)
+        {
+            int start = _selectionStartPosition.charIndex;
+            int end = _selectionEndPosition.charIndex;
+            if (start > end)
+            {
+                (start, end) = (end, start);
+            }
+
+            int count = end - start + 1;
+            for (int i = 0; i < count; i++)
+            {
+                _text[start + i] = _text[end + i];
+            }
+        }
+    }
+
     protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
         float textAdvances = Font!.GetNormalizedTextWidth(chars);

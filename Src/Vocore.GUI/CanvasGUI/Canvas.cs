@@ -40,9 +40,12 @@ public class Canvas : AutoDisposable
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
     private IUIInputTracker? _inputTracker;
+
+
     private UINode? _holded;
     private UINode? _hovered;
     private UINode? _selected;
+    private ITextInput? _textInput;
 
 
 
@@ -210,6 +213,8 @@ public class Canvas : AutoDisposable
 
     public void StartTextInput(ITextInput node, int cursor)
     {
+        _textInput = node;
+
         Vector2 position = node.InputArea.Center;
         Vector2 size = node.InputArea.Size;
 
@@ -221,6 +226,7 @@ public class Canvas : AutoDisposable
 
         float xNorm = x * _invCameraSize.X + 0.5f;
         float yNorm = 0.5f - y * _invCameraSize.Y;
+
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
@@ -265,7 +271,10 @@ public class Canvas : AutoDisposable
 
     private void OnTextInput(string text)
     {
-
+        if (_textInput == null)
+        {
+            return;
+        }
     }
 
     private void DebugDraw(GPUFrameBuffer target, UINode root)
