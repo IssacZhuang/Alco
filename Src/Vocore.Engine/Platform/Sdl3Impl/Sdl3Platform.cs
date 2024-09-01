@@ -114,8 +114,8 @@ public unsafe class Sdl3Platform : Platform
                 _input.OnSdlMouseButtonUp(e.button.button);
                 break;
             case SDL_EventType.TextInput:
-            
-                Log.Info("Text Input:", e.text.GetText());
+                Sdl3Window window1 = _windows[e.window.windowID];
+                window1.DoTextInput(e.text.GetText() ?? string.Empty);
                 break;
             case SDL_EventType.Quit:
                 StopMainLoop();

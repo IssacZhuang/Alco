@@ -5,10 +5,11 @@ using Vocore.Graphics;
 
 namespace Vocore.Engine;
 
+
 /// <summary>
 /// Represents a window in the application.
 /// </summary>
-public abstract class Window : AutoDisposable//todo : change to disposable
+public unsafe abstract class Window : AutoDisposable//todo : change to disposable
 {
     /// <summary>
     /// Gets or sets the window mode.
@@ -44,7 +45,12 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     /// <summary>
     /// The window resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="WindowRenderTarget.OnResize"/> for safe deletion.
     /// </summary>
-    public Action<uint2>? OnResize;
+    public event Action<uint2>? OnResize;
+
+    /// <summary>
+    /// The text input event.
+    /// </summary>
+    public event Action<string>? OnTextInput;
 
     /// <summary>
     /// Close the window.
@@ -63,4 +69,16 @@ public abstract class Window : AutoDisposable//todo : change to disposable
     public abstract void StartTextInput(int x, int y, int width, int height, int cursor);
 
     public abstract void EndTextInput();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoResize(uint2 size)
+    {
+        OnResize?.Invoke(size);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void DoTextInput(string text)
+    {
+        OnTextInput?.Invoke(text);
+    }
 }

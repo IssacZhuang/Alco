@@ -84,7 +84,9 @@ public class Canvas : AutoDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
+            _inputTracker?.UnregisterTextInput(OnTextInput);
             _inputTracker = value;
+            _inputTracker?.RegisterTextInput(OnTextInput);
         }
     }
 
@@ -229,6 +231,7 @@ public class Canvas : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        _inputTracker?.UnregisterTextInput(OnTextInput);
         _collisionWorld.Dispose();
         _renderer.Dispose();
         _camera.Dispose();
@@ -258,6 +261,11 @@ public class Canvas : AutoDisposable
         }
         
         _holded = null;
+    }
+
+    private void OnTextInput(string text)
+    {
+
     }
 
     private void DebugDraw(GPUFrameBuffer target, UINode root)

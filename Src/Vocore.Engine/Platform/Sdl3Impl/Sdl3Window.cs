@@ -218,11 +218,9 @@ public unsafe partial class Sdl3Window : Window
         throw new PlatformNotSupportedException();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void DoResize(uint2 size)
-    {
-        OnResize?.Invoke(size);
-    }
+    
+
+    
 
     [LibraryImport("kernel32")]
     private static partial nint GetModuleHandleW(ushort* lpModuleName);

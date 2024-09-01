@@ -8,6 +8,12 @@ public class UIInputTracker : IUIInputTracker
 {
     private readonly InputSystem _input;
     private readonly Window _window;
+
+    public event Action<string>? OnTextInput
+    {
+        add => _window.OnTextInput += value;
+        remove => _window.OnTextInput -= value;
+    }
     public UIInputTracker(InputSystem system, Window window)
     {
         _input = system;
@@ -59,5 +65,15 @@ public class UIInputTracker : IUIInputTracker
     public void EndTextInput()
     {
         _window.EndTextInput();
+    }
+
+    public void RegisterTextInput(Action<string> action)
+    {
+        _window.OnTextInput += action;
+    }
+
+    public void UnregisterTextInput(Action<string> action)
+    {
+        _window.OnTextInput -= action;
     }
 }
