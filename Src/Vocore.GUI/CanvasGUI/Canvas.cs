@@ -271,10 +271,7 @@ public class Canvas : AutoDisposable
 
     private void OnTextInput(string text)
     {
-        if (_textInput == null)
-        {
-            return;
-        }
+        _textInput?.OnTextInput(text);
     }
 
     private void DebugDraw(GPUFrameBuffer target, UINode root)

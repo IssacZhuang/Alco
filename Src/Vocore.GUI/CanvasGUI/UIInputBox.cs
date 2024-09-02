@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Vocore.Graphics;
@@ -181,6 +178,8 @@ public class UIInputBox : UIText, ITextInput
     {
         base.OnPressDown(canvas, mousePosition);
         _selectionStartPosition = GetCursorPosition(mousePosition);
+        _selectionEndPosition = _selectionStartPosition;
+        _cursorPosition = _selectionStartPosition;
     }
 
     public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
@@ -199,20 +198,21 @@ public class UIInputBox : UIText, ITextInput
     public void OnTextInput(string text)
     {
         //replace the selected text
-        if (_selectionStartPosition.charIndex >= 0)
-        {
-            int start = _selectionStartPosition.charIndex;
-            int end = _selectionEndPosition.charIndex;
-            if (start > end)
-            {
-                (start, end) = (end, start);
-            }
+        int selectionStart = _selectionStartPosition.charIndex;
+        int selectionEnd = _selectionEndPosition.charIndex;
 
-            int count = end - start + 1;
-            for (int i = 0; i < count; i++)
-            {
-                _text[start + i] = _text[end + i];
-            }
+        if (selectionStart > selectionEnd)
+        {
+            (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
+        }
+
+        if (selectionStart == selectionEnd)
+        {
+            InsertText(selectionStart, text);
+        }
+        else
+        {
+            ReplaceText(selectionStart, selectionEnd - selectionStart + 1, text);
         }
     }
 
@@ -297,5 +297,57 @@ public class UIInputBox : UIText, ITextInput
         }
 
         base.DrawLine(renderer, line, chars, textLineTransform, mask);
+    }
+
+
+    protected void ReplaceText(int start, int count, ReadOnlySpan<char> str)
+    {
+
+        int diff = str.Length - count;
+        if (diff > 0)
+        {
+            _text.EnsureSize(_text.Length + diff);
+        }
+
+        Span<char> text = _text.Data;
+
+        if (diff != 0)
+        {
+            //move the text
+            for (int i = _text.Length - 1; i >= start + count; i--)
+            {
+                text[i + diff] = text[i];
+            }
+        }
+
+        for (int i = 0; i < str.Length; i++)
+        {
+            text[start + i] = str[i];
+        }
+    }
+
+    protected void DeleteText(int start, int count)
+    {
+        Span<char> text = _text.Data;
+        for (int i = start + count; i < _text.Length; i++)
+        {
+            text[i - count] = text[i];
+        }
+    }
+
+    protected void InsertText(int start, ReadOnlySpan<char> str)
+    {
+        int originalLength = _text.Length;
+        _text.EnsureSize(_text.Length + str.Length);
+        Span<char> text = _text.Data;
+        for (int i = originalLength - 1; i >= start; i--)
+        {
+            text[i + str.Length] = text[i];
+        }
+
+        for (int i = 0; i < str.Length; i++)
+        {
+            text[start + i] = str[i];
+        }
     }
 }
