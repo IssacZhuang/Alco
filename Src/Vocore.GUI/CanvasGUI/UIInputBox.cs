@@ -18,7 +18,7 @@ public class UIInputBox : UIText, ITextInput
         };
         public int line;
         public int charIndex;
-        public float charOffsetInLine;//the scale and font size not in used
+        public float charOffsetInLine;//just a cache value. the scale and font size not in used
     }
     private CursorPosition _cursorPosition;
     private CursorPosition _selectionStartPosition;
@@ -195,7 +195,7 @@ public class UIInputBox : UIText, ITextInput
         _selectionEndPosition = _cursorPosition;
     }
 
-    public void OnTextInput(string text)
+    public void OnTextInput(Canvas canvas, string text)
     {
         //replace the selected text
         int selectionStart = _selectionStartPosition.charIndex;
@@ -208,12 +208,17 @@ public class UIInputBox : UIText, ITextInput
 
         if (selectionStart == selectionEnd)
         {
-            InsertText(selectionStart, text);
+            InsertText(_cursorPosition.charIndex + 1, text);
         }
         else
         {
             ReplaceText(selectionStart, selectionEnd - selectionStart + 1, text);
+            _selectionStartPosition = CursorPosition.Head;
+            _selectionEndPosition = CursorPosition.Head;
         }
+
+        //refresh IME position
+        canvas.StartTextInput(this, 0);
     }
 
     protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
@@ -248,6 +253,8 @@ public class UIInputBox : UIText, ITextInput
 
             CursorPosition start = _selectionStartPosition;
             CursorPosition end = _selectionEndPosition;
+
+            DebugGUI.Text($"{_text[_cursorPosition.charIndex]}");
             if (start.line > end.line || (start.line == end.line && start.charIndex > end.charIndex))
             {
                 (end, start) = (start, end);
@@ -324,6 +331,8 @@ public class UIInputBox : UIText, ITextInput
         {
             text[start + i] = str[i];
         }
+
+        RefreshTextLineBreak();
     }
 
     protected void DeleteText(int start, int count)
@@ -333,6 +342,8 @@ public class UIInputBox : UIText, ITextInput
         {
             text[i - count] = text[i];
         }
+
+        RefreshTextLineBreak();
     }
 
     protected void InsertText(int start, ReadOnlySpan<char> str)
@@ -390,10 +401,18 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
-        int charOffsetInLine = newCharIndex - line.start;
-
         _cursorPosition.charIndex = newCharIndex;
-        _cursorPosition.charOffsetInLine = charOffsetInLine;
         _cursorPosition.line = lineIndex;
+
+        if (Font == null)
+        {
+            _cursorPosition.charOffsetInLine = 0;
+            return;
+        }
+
+        int charCountInLine = newCharIndex - line.start + 1;
+
+        Span<char> text = _text.Data;
+        _cursorPosition.charOffsetInLine = Font.GetNormalizedTextWidth(text.Slice(line.start, charCountInLine));
     }
 }
