@@ -349,5 +349,51 @@ public class UIInputBox : UIText, ITextInput
         {
             text[start + i] = str[i];
         }
+        RefreshTextLineBreak();
+        IncreaseCursorPosition(str.Length);
+    }
+
+    private void IncreaseCursorPosition(int count)
+    {
+        if (count == 0)
+        {
+            return;
+        }
+
+        int lineIndex = _cursorPosition.line;
+        Line line = _lines[lineIndex];
+        int newCharIndex = _cursorPosition.charIndex + count;
+        newCharIndex = math.clamp(newCharIndex, 0, _text.Length - 1);
+
+        if (count > 0)
+        {
+            while (newCharIndex > line.start + line.count - 1)
+            {
+                if (lineIndex >= _lines.Count - 1)
+                {
+                    break;
+                }
+                lineIndex++;
+                line = _lines[lineIndex];
+            }
+        }
+        else
+        {
+            while (newCharIndex < line.start)
+            {
+                if (lineIndex <= 0)
+                {
+                    break;
+                }
+                lineIndex--;
+                line = _lines[lineIndex];
+            }
+        }
+
+        int charOffsetInLine = newCharIndex - line.start;
+
+        _cursorPosition.charIndex = newCharIndex;
+        _cursorPosition.charOffsetInLine = charOffsetInLine;
+        _cursorPosition.line = lineIndex;
     }
 }
