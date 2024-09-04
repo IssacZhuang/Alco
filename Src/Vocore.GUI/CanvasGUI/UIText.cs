@@ -17,7 +17,7 @@ public class UIText : UISelectable
         public int count;
         public float width;
     }
-    protected readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
+    private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     protected readonly List<Line> _lines = new List<Line>();
     private int _textLength;
     private float _fontSize = 16f;
@@ -43,6 +43,16 @@ public class UIText : UISelectable
     }
     public float LineSpacing { get; set; } = 1f;
     public ColorFloat Color { get; set; } = 0xffffff;
+
+    public Span<char> TextSpan
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            Span<char> span = _text.Data;
+            return span.Slice(0, _textLength);
+        }
+    }
 
 
     public string Text
@@ -233,6 +243,45 @@ public class UIText : UISelectable
 
     protected void RefreshTextLineBreak()
     {
-        SetText(_text.Span);
+        Span<char> text = TextSpan;
+        Line line = new Line()
+        {
+            start = 0
+        };
+
+        _lines.Clear();
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            GlyphInfo glyph = Font!.GetGlyph(c);
+
+            //line break
+            if (c == '\n' ||
+            c == '\r' ||
+            (_overflowHorizontal == OverflowModeHorizontal.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X))
+            {
+                _lines.Add(line);
+                Line newLine = new Line()
+                {
+                    start = line.start + line.count,
+                };
+                line = newLine;
+            }
+
+            line.count++;
+            line.width += glyph.Advance;
+        }
+
+        if (line.count > 0)
+        {
+            _lines.Add(line);
+        }
+    }
+
+    protected Span<char> ResizeText(int length)
+    {
+        _text.EnsureSize(length);
+        _textLength = length;
+        return TextSpan;
     }
 }

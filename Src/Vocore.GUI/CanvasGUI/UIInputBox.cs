@@ -60,8 +60,8 @@ public class UIInputBox : UIText, ITextInput
             Line textLine = _lines[_cursorPosition.line];
             float lineHeight = LineSpacing * FontSize;
             Transform2D transform = Transform2D.Identity;
-            ReadOnlySpan<char> chars = _text.Span.Slice(textLine.start, textLine.count);
-            
+            ReadOnlySpan<char> chars = TextSpan.Slice(textLine.start, textLine.count);
+
             transform.position = Size * TextPivot;
             // transform.position.X -= (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars) * FontSize;
             // transform.position.X += _cursorPosition.charOffsetInLine * FontSize;
@@ -87,6 +87,8 @@ public class UIInputBox : UIText, ITextInput
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
+
+
         if (IsEditable)
         {
             _timerCursorBlink += delta;
@@ -137,11 +139,14 @@ public class UIInputBox : UIText, ITextInput
         float offset = 0;
         char c;
         GlyphInfo glyph;
+
+        Span<char> text = TextSpan;
+
         int charIndexInLine = textLine.start - 1;
         for (int i = 0; i < textLine.count; i++)
         {
             int index = start + i;
-            c = _text[index];
+            c = text[index];
             glyph = Font.GetGlyph(c);
 
             if (textStartX + (offset + glyph.Advance * 0.5) * FontSize > localMousePosition.X)
@@ -206,16 +211,24 @@ public class UIInputBox : UIText, ITextInput
             (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
         }
 
+        int diff;
+
         if (selectionStart == selectionEnd)
         {
+            diff = text.Length;
             InsertText(_cursorPosition.charIndex + 1, text);
         }
         else
         {
-            ReplaceText(selectionStart, selectionEnd - selectionStart + 1, text);
+            diff = text.Length - (selectionEnd - selectionStart);
+            DeleteText(selectionStart + 1, selectionEnd - selectionStart);
+            InsertText(selectionStart + 1, text);
             _selectionStartPosition = CursorPosition.Head;
             _selectionEndPosition = CursorPosition.Head;
         }
+
+        RefreshTextLineBreak();
+        IncreaseCursorPosition(diff);
 
         //refresh IME position
         canvas.StartTextInput(this, 0);
@@ -238,11 +251,6 @@ public class UIInputBox : UIText, ITextInput
                 cursorTransform.position.X += _cursorPosition.charOffsetInLine * FontSize + textOffsetX;
                 cursorTransform.scale *= CursorScale;
 
-                // if (_cursorPosition.charIndex >= 0)
-                // {
-                //     DebugGUI.Text($"{_text[_cursorPosition.charIndex]}");
-                // }
-                //DebugGUI.Text($"{_cursorPosition.charIndex}");
                 renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
             }
 
@@ -254,7 +262,6 @@ public class UIInputBox : UIText, ITextInput
             CursorPosition start = _selectionStartPosition;
             CursorPosition end = _selectionEndPosition;
 
-            DebugGUI.Text($"{_text[_cursorPosition.charIndex]}");
             if (start.line > end.line || (start.line == end.line && start.charIndex > end.charIndex))
             {
                 (end, start) = (start, end);
@@ -307,50 +314,23 @@ public class UIInputBox : UIText, ITextInput
     }
 
 
-    protected void ReplaceText(int start, int count, ReadOnlySpan<char> str)
-    {
-
-        int diff = str.Length - count;
-        if (diff > 0)
-        {
-            _text.EnsureSize(_text.Length + diff);
-        }
-
-        Span<char> text = _text.Data;
-
-        if (diff != 0)
-        {
-            //move the text
-            for (int i = _text.Length - 1; i >= start + count; i--)
-            {
-                text[i + diff] = text[i];
-            }
-        }
-
-        for (int i = 0; i < str.Length; i++)
-        {
-            text[start + i] = str[i];
-        }
-
-        RefreshTextLineBreak();
-    }
-
     protected void DeleteText(int start, int count)
     {
-        Span<char> text = _text.Data;
-        for (int i = start + count; i < _text.Length; i++)
+        Span<char> text = TextSpan;
+        for (int i = start; i < text.Length - count; i++)
         {
-            text[i - count] = text[i];
+            text[i] = text[i + count];
         }
 
-        RefreshTextLineBreak();
+        ResizeText(text.Length - count);
     }
 
     protected void InsertText(int start, ReadOnlySpan<char> str)
     {
-        int originalLength = _text.Length;
-        _text.EnsureSize(_text.Length + str.Length);
-        Span<char> text = _text.Data;
+        Span<char> text = TextSpan;
+        int originalLength = text.Length;
+        text = ResizeText(text.Length + str.Length);
+
         for (int i = originalLength - 1; i >= start; i--)
         {
             text[i + str.Length] = text[i];
@@ -360,21 +340,24 @@ public class UIInputBox : UIText, ITextInput
         {
             text[start + i] = str[i];
         }
-        RefreshTextLineBreak();
-        IncreaseCursorPosition(str.Length);
     }
 
     private void IncreaseCursorPosition(int count)
     {
-        if (count == 0)
-        {
-            return;
-        }
 
         int lineIndex = _cursorPosition.line;
         Line line = _lines[lineIndex];
         int newCharIndex = _cursorPosition.charIndex + count;
-        newCharIndex = math.clamp(newCharIndex, 0, _text.Length - 1);
+
+        // if (newCharIndex < 0)
+        // {
+        //     _cursorPosition = CursorPosition.Head;
+        //     return;
+        // }
+
+        Span<char> text = TextSpan;
+
+        newCharIndex = math.clamp(newCharIndex, 0, text.Length - 1);
 
         if (count > 0)
         {
@@ -386,11 +369,12 @@ public class UIInputBox : UIText, ITextInput
                 }
                 lineIndex++;
                 line = _lines[lineIndex];
+                
             }
         }
-        else
+        else if (count < 0)
         {
-            while (newCharIndex < line.start)
+            while ( newCharIndex < line.start)
             {
                 if (lineIndex <= 0)
                 {
@@ -399,6 +383,10 @@ public class UIInputBox : UIText, ITextInput
                 lineIndex--;
                 line = _lines[lineIndex];
             }
+        }
+        else
+        {
+
         }
 
         _cursorPosition.charIndex = newCharIndex;
@@ -412,7 +400,6 @@ public class UIInputBox : UIText, ITextInput
 
         int charCountInLine = newCharIndex - line.start + 1;
 
-        Span<char> text = _text.Data;
         _cursorPosition.charOffsetInLine = Font.GetNormalizedTextWidth(text.Slice(line.start, charCountInLine));
     }
 }
