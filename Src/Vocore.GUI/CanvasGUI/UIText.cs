@@ -19,6 +19,7 @@ public class UIText : UISelectable
     }
     private readonly ArrayBuffer<char> _text = new ArrayBuffer<char>(); // for less GC
     protected readonly List<Line> _lines = new List<Line>();
+    private bool _isLineBreakDirty;
     private int _textLength;
     private float _fontSize = 16f;
     private string _tmpStr = string.Empty;
@@ -134,6 +135,11 @@ public class UIText : UISelectable
             SetText(_tmpStr);
         }
 
+        if (_isLineBreakDirty)
+        {
+            RefreshTextLineBreak();
+        }
+
         if (_textLength == 0)
         {
             return;
@@ -201,39 +207,12 @@ public class UIText : UISelectable
         _text.EnsureSizeWithoutCopy(length);
 
         _textLength = length;
-        Line line = new Line()
-        {
-            start = 0
-        };
-
-        _lines.Clear();
         for (int i = 0; i < length; i++)
         {
-            char c = str[i];
-            GlyphInfo glyph = Font!.GetGlyph(c);
-            _text[i] = c;
-
-            //line break
-            if (c == '\n' ||
-            c == '\r' ||
-            (_overflowHorizontal == OverflowModeHorizontal.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X))
-            {
-                _lines.Add(line);
-                Line newLine = new Line()
-                {
-                    start = line.start + line.count,
-                };
-                line = newLine;
-            }
-
-            line.count++;
-            line.width += glyph.Advance;
+            _text[i] = str[i];
         }
 
-        if (line.count > 0)
-        {
-            _lines.Add(line);
-        }
+        SetLineBreakDirty();
     }
 
     protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
@@ -241,8 +220,14 @@ public class UIText : UISelectable
         renderer.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
     }
 
-    protected void RefreshTextLineBreak()
+    protected void SetLineBreakDirty()
     {
+        _isLineBreakDirty = true;
+    }
+
+    private void RefreshTextLineBreak()
+    {
+        _isLineBreakDirty = false;
         Span<char> text = TextSpan;
         Line line = new Line()
         {

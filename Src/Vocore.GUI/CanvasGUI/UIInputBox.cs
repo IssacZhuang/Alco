@@ -227,7 +227,7 @@ public class UIInputBox : UIText, ITextInput
             _selectionEndPosition = CursorPosition.Head;
         }
 
-        RefreshTextLineBreak();
+        SetLineBreakDirty();
         IncreaseCursorPosition(diff);
 
         //refresh IME position
