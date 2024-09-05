@@ -165,19 +165,19 @@ public class UIInputBox : UIText, ITextInput
 
         Span<char> text = TextSpan;
 
-        int charIndex = textLine.start - 1;
+        int charIndex = textLine.start;
         for (int i = 0; i < textLine.count; i++)
         {
             int index = start + i;
             c = text[index];
             glyph = Font.GetGlyph(c);
+            charIndex = index;
 
             if (textStartX + (offset + glyph.Advance * 0.5) * FontSize > localMousePosition.X)
             {
                 break;
             }
 
-            charIndex = index;
             offset += glyph.Advance;
         }
 
@@ -242,16 +242,16 @@ public class UIInputBox : UIText, ITextInput
         if (selectionStart == selectionEnd)
         {
             diff = text.Length;
-            InsertText(_cursorPosition + 1, text);
+            InsertText(_cursorPosition, text);
         }
         else
         {
             diff = isInverted ? text.Length - (selectionEnd - selectionStart) : -text.Length;
             //Log.Info($"diff: {diff}", selectionStart + 1, selectionEnd - selectionStart - 1, TextSpan.Length);
-            DeleteText(selectionStart + 1, selectionEnd - selectionStart);
-            InsertText(selectionStart + 1, text);
-            _selectionStartPosition = -1;
-            _selectionEndPosition = -1;
+            DeleteText(selectionStart, selectionEnd - selectionStart);
+            InsertText(selectionStart, text);
+            _selectionStartPosition = 0;
+            _selectionEndPosition = 0;
         }
 
         SetLineBreakDirty();
@@ -415,18 +415,8 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
-        // for (int i = 0; i < _lines.Count; i++)
-        // {
-        //     Line line = _lines[i];
-        //     if (charIndex >= line.start && charIndex < line.start + line.count)
-        //     {
-        //         lineIndex = i;
-        //         break;
-        //     }
-        // }
-
         Line textLine = _lines[lineIndex];
-        int charCountInLine = charIndex - textLine.start + 1;
+        int charCountInLine = charIndex - textLine.start;
 
         return new CursorPositionCache
         {
