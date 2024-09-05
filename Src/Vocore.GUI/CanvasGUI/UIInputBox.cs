@@ -56,11 +56,14 @@ public class UIInputBox : UIText, ITextInput
     public bool IsEditable { get; set; } = true;
     public float CursorBlinkInterval = 0.5f;
 
-    public BoundingBox2D InputArea
+    protected BoundingBox2D InputArea
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
+            TryRefreshCursorPosition();
+            TryRefreshTextLineBreak();
+
             //base on the cursor position
             if (_cursorPositionCache.line < 0 || Font == null)
             {
@@ -93,21 +96,16 @@ public class UIInputBox : UIText, ITextInput
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
-        if (_isCursorOrSelectionDirty)
-        {
-            _cursorPositionCache = CalcCursorPositionCache(_cursorPosition);
-            _selectionStartPositionCache = CalcCursorPositionCache(_selectionStartPosition);
-            _selectionEndPositionCache = CalcCursorPositionCache(_selectionEndPosition);
-            _isCursorOrSelectionDirty = false;
-        }
+        TryRefreshCursorPosition();
 
         if (_isInputAreaDirty)
         {
-            canvas.StartTextInput(this, 0);
+            canvas.StartTextInput(this, InputArea, 0);
             _isInputAreaDirty = false;
         }
 
-        base.OnUpdate(canvas, delta);
+        base.OnUpdate(canvas, delta);//refresh text line break
+
 
 
         if (IsEditable)
@@ -206,14 +204,14 @@ public class UIInputBox : UIText, ITextInput
         _cursorPosition = GetCursorPosition(mousePosition);
         _selectionStartPosition = _cursorPosition;
         _selectionEndPosition = _cursorPosition;
-        _isCursorOrSelectionDirty = true;
+        SetCursorPositionOrSelectionDirty();
     }
 
     public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
     {
         base.OnPressUp(canvas, mousePosition);
         _isInputAreaDirty = true;
-        canvas.StartTextInput(this, 0);
+        canvas.StartTextInput(this, InputArea, 0);
     }
 
     public override void OnDrag(Canvas canvas, Vector2 mousePosition)
@@ -223,7 +221,7 @@ public class UIInputBox : UIText, ITextInput
         // _selectionEndPositionCache = _cursorPositionCache;
         _cursorPosition = GetCursorPosition(mousePosition);
         _selectionEndPosition = _cursorPosition;
-        _isCursorOrSelectionDirty = true;
+        SetCursorPositionOrSelectionDirty();
     }
 
     public void OnTextInput(Canvas canvas, string text)
@@ -371,19 +369,17 @@ public class UIInputBox : UIText, ITextInput
             text[start + i] = str[i];
         }
 
-        _isCursorOrSelectionDirty = true;
+        SetCursorPositionOrSelectionDirty();
     }
 
-    private void IncreaseCursorPosition(int count)
+    protected void IncreaseCursorPosition(int count)
     {
         _cursorPosition += count;
         _cursorPosition = math.clamp(_cursorPosition, 0, TextSpan.Length - 1);
-        _isCursorOrSelectionDirty = true;
-
-        _isCursorOrSelectionDirty = true;
+        SetCursorPositionOrSelectionDirty();
     }
 
-    private CursorPositionCache CalcCursorPositionCache(int charIndex)
+    protected CursorPositionCache CalcCursorPositionCache(int charIndex)
     {
         if (Font == null)
         {
@@ -437,5 +433,23 @@ public class UIInputBox : UIText, ITextInput
             line = lineIndex,
             charOffsetInLine = Font.GetNormalizedTextWidth(text.Slice(textLine.start, charCountInLine))
         };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void TryRefreshCursorPosition()
+    {
+        if (_isCursorOrSelectionDirty)
+        {
+            _cursorPositionCache = CalcCursorPositionCache(_cursorPosition);
+            _selectionStartPositionCache = CalcCursorPositionCache(_selectionStartPosition);
+            _selectionEndPositionCache = CalcCursorPositionCache(_selectionEndPosition);
+            _isCursorOrSelectionDirty = false;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void SetCursorPositionOrSelectionDirty()
+    {
+        _isCursorOrSelectionDirty = true;
     }
 }

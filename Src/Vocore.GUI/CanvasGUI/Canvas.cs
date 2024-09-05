@@ -211,12 +211,12 @@ public class Canvas : AutoDisposable
         _collisionWorld.PushTarget(node, shape);
     }
 
-    public void StartTextInput(ITextInput node, int cursor)
+    public void StartTextInput(ITextInput node, BoundingBox2D inputArea, int cursor)
     {
         _textInput = node;
 
-        Vector2 position = node.InputArea.Center;
-        Vector2 size = node.InputArea.Size;
+        Vector2 position = inputArea.Center;
+        Vector2 size = inputArea.Size;
 
         float widthNorm = size.X * _invCameraSize.X;
         float heightNorm = size.Y * _invCameraSize.Y;

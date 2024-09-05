@@ -38,7 +38,7 @@ public class UIText : UISelectable
             _fontSize = value;
             if (_overflowHorizontal == OverflowModeHorizontal.NextLine)
             {
-                RefreshTextLineBreak();
+                TryRefreshTextLineBreak();
             }
         }
     }
@@ -137,7 +137,7 @@ public class UIText : UISelectable
 
         if (_isLineBreakDirty)
         {
-            RefreshTextLineBreak();
+            TryRefreshTextLineBreak();
         }
 
         if (_textLength == 0)
@@ -225,8 +225,12 @@ public class UIText : UISelectable
         _isLineBreakDirty = true;
     }
 
-    private void RefreshTextLineBreak()
+    protected void TryRefreshTextLineBreak()
     {
+        if (!_isLineBreakDirty)
+        {
+            return;
+        }
         _isLineBreakDirty = false;
         Span<char> text = TextSpan;
         Line line = new Line()
@@ -235,6 +239,12 @@ public class UIText : UISelectable
         };
 
         _lines.Clear();
+
+        if (_textLength == 0)
+        {
+            return;
+        }
+
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
