@@ -250,10 +250,9 @@ public class UIText : UISelectable
             char c = text[i];
             GlyphInfo glyph = Font!.GetGlyph(c);
 
+
             //line break
-            if (c == '\n' ||
-            c == '\r' ||
-            (_overflowHorizontal == OverflowModeHorizontal.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X))
+            if (_overflowHorizontal == OverflowModeHorizontal.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X)
             {
                 _lines.Add(line);
                 Line newLine = new Line()
@@ -265,6 +264,17 @@ public class UIText : UISelectable
 
             line.count++;
             line.width += glyph.Advance;
+
+            if (c == '\n' ||
+            c == '\r')
+            {
+                _lines.Add(line);
+                Line newLine = new Line()
+                {
+                    start = line.start + line.count,
+                };
+                line = newLine;
+            }
         }
 
         if (line.count > 0)
