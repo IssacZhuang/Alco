@@ -107,6 +107,7 @@ namespace Vocore
 
         private Node _root;
         private int _nodeSize;
+        private int _treeDepth;
         private bool _isDisposed;
 
         public int Size => _nodeSize;
@@ -239,6 +240,7 @@ namespace Vocore
         {
             _nodes.EnsureSizeWithoutCopy(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
             BuildBottomTop(colliders);
+            _treeDepth = (int)math.log2(colliders.Length + 1) + 1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -258,7 +260,7 @@ namespace Vocore
         private RayCastResult3D CastRayFirstHit(ref Ray3D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
-            Node* stack = stackalloc Node[_nodeSize / 2 + 2];
+            Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
             RayCastResult3D result = RayCastResult3D.none;
@@ -305,7 +307,7 @@ namespace Vocore
         private RayCastResult3D CastRay(ref Ray3D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
-            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
             RayCastResult3D result = RayCastResult3D.none;
@@ -405,7 +407,7 @@ namespace Vocore
 
         private ColliderCastResult3D CastColliderCore(ColliderRef3D collider, Node node) 
         {
-            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
             ColliderCastResult3D result = ColliderCastResult3D.None;
@@ -451,7 +453,7 @@ namespace Vocore
 
         private void CastColliderCollectorCore(ColliderRef3D collider, Node node, NativeArrayList<ColliderCastResult3D>* result)
         {
-            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
             BoundingBox3D aabb = collider.GetBoundingBox();
@@ -496,7 +498,7 @@ namespace Vocore
 
         private void CastPointCollectorCore(Vector3 point, Node node, NativeArrayList<ColliderCastResult3D>* result)
         {
-            Node* stack = stackalloc Node[_nodeSize / ChildCount + ChildCount];
+            Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
 

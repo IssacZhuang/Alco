@@ -67,6 +67,30 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float log(float a)
+        {
+            return MathF.Log(a);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float log(float a, float b)
+        {
+            return MathF.Log(a, b);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float log2(float a)
+        {
+            return MathF.Log(a, 2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float log10(float a)
+        {
+            return MathF.Log10(a);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float radians(float a)
         {
             return a * TORADIANS;
