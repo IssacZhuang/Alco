@@ -118,9 +118,9 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
-        DebugGUI.Text(_cursorPosition);
+        // DebugGUI.Text($"{_cursorPosition}, {TextSpan[_cursorPosition]}");
+        // DebugGUI.Text($"{_selectionStartPosition}, {_selectionEndPosition}");
 
-        
     }
 
     protected int GetCursorPosition(Vector2 mousePosition)
@@ -237,17 +237,18 @@ public class UIInputBox : UIText, ITextInput
             (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
         }
 
-        int diff;
 
         if (selectionStart == selectionEnd)
         {
-            diff = text.Length;
             InsertText(_cursorPosition, text);
         }
         else
         {
-            diff = isInverted ? text.Length - (selectionEnd - selectionStart) : -text.Length;
-            //Log.Info($"diff: {diff}", selectionStart + 1, selectionEnd - selectionStart - 1, TextSpan.Length);
+            if (isInverted)
+            {
+                _cursorPosition = selectionEnd;
+            }
+
             DeleteText(selectionStart, selectionEnd - selectionStart);
             InsertText(selectionStart, text);
             _selectionStartPosition = 0;
@@ -255,8 +256,8 @@ public class UIInputBox : UIText, ITextInput
         }
 
         SetLineBreakDirty();
-        IncreaseCursorPosition(diff);
 
+        IncreaseCursorPosition(text.Length);
         //refresh IME position
         _isInputAreaDirty = true;
         //canvas.StartTextInput(this, 0);
@@ -350,26 +351,31 @@ public class UIInputBox : UIText, ITextInput
             text[i] = text[i + count];
         }
 
+        _cursorPosition -= count;
         ResizeText(text.Length - count);
     }
 
-    protected void InsertText(int start, ReadOnlySpan<char> str)
+    /// <summary>
+    /// Insert text before char at index.
+    /// </summary>
+    /// <param name="index"></param>
+    /// <param name="str"></param>
+    protected void InsertText(int index, ReadOnlySpan<char> str)
     {
         Span<char> text = TextSpan;
         int originalLength = text.Length;
         text = ResizeText(text.Length + str.Length);
 
-        for (int i = originalLength - 1; i >= start; i--)
+        for (int i = originalLength - 1; i >= index; i--)
         {
             text[i + str.Length] = text[i];
         }
 
         for (int i = 0; i < str.Length; i++)
         {
-            text[start + i] = str[i];
+            text[index + i] = str[i];
         }
 
-        SetCursorPositionOrSelectionDirty();
     }
 
     protected void IncreaseCursorPosition(int count)
