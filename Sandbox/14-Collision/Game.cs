@@ -61,7 +61,7 @@ public class Game : GameEngine
 
         _renderer.End();
 
-        Vector2 localMousePosition = MainWindow.GetLocalMousePosition(Input.MousePosition);
+        Vector2 localMousePosition = MainWindow.MousePosition;
 
         Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
 

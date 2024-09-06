@@ -60,7 +60,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(Input.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainWindow.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
 
         if (Input.IsMouseDown(Mouse.Right))
         {

@@ -185,7 +185,7 @@ public class DropletSystem : IDisposable
 
         DebugGUI.Text("Active: 0", _activeList.Count);
 
-        DebugGUI.Slider(ref _spawnRate, 0, 400);
+        DebugGUI.Slider(ref _spawnRate, 0, 1000);
         DebugGUI.SameLine();
         DebugGUI.Text("Spawn Rate");
 
