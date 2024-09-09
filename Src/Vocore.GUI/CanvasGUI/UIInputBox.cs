@@ -10,9 +10,9 @@ namespace Vocore.GUI;
 /// </summary>
 public class UIInputBox : UIText, ITextInput
 {
-    protected struct CursorPositionCache
+    protected struct CursorPositionRednerCache
     {
-        public static readonly CursorPositionCache Head = new CursorPositionCache()
+        public static readonly CursorPositionRednerCache Zero = new CursorPositionRednerCache()
         {
             line = 0,
             charOffsetInLine = 0,
@@ -22,13 +22,26 @@ public class UIInputBox : UIText, ITextInput
         public float charOffsetInLine;//just a cache value. the scale and font size not in used
     }
 
+    protected struct CursorPosition
+    {
+        public static readonly CursorPosition Zero = new CursorPosition()
+        {
+            line = 0,
+            charIndexInLine = 0,
+        };
+        public int line;
+        public int charIndexInLine;
+    }
+
     private bool _isCursorOrSelectionDirty;
-    private int _cursorPosition;
-    private CursorPositionCache _cursorPositionCache;
-    private int _selectionStartPosition;
-    private CursorPositionCache _selectionStartPositionCache;
-    private int _selectionEndPosition;
-    private CursorPositionCache _selectionEndPositionCache;
+
+    //the char index might be greater than the text range because of the cursor position can be at the end of the line
+    private CursorPosition _cursorPosition;
+    private CursorPositionRednerCache _cursorPositionCache;
+    private CursorPosition _selectionStartPosition;
+    private CursorPositionRednerCache _selectionStartPositionCache;
+    private CursorPosition _selectionEndPosition;
+    private CursorPositionRednerCache _selectionEndPositionCache;
 
 
     private bool _isInputAreaDirty;
@@ -53,7 +66,15 @@ public class UIInputBox : UIText, ITextInput
     /// </summary>
     public ColorFloat SelectionAreaColor = 0x003a7a77u;
 
+    /// <summary>
+    /// It will block input when set to false.
+    /// </summary>
+    /// <value></value>
     public bool IsEditable { get; set; } = true;
+
+    /// <summary>
+    /// The interval of the cursor blink.
+    /// </summary>
     public float CursorBlinkInterval = 0.5f;
 
     protected BoundingBox2D InputArea
@@ -118,17 +139,20 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
-        // DebugGUI.Text($"{_cursorPosition}, {TextSpan[_cursorPosition]}");
-        // DebugGUI.Text($"{_selectionStartPosition}, {_selectionEndPosition}");
+        int charIndex = GetCharIndex(_cursorPosition);
+        charIndex = math.clamp(charIndex, 0, TextSpan.Length - 1);
+
+        DebugGUI.Text($"{charIndex}, {TextSpan[charIndex]}, {(int)TextSpan[charIndex]}");
+        //DebugGUI.Text($"{_selectionStartPosition}, {_selectionEndPosition}");
 
     }
 
-    protected int GetCursorPosition(Vector2 mousePosition)
+    protected CursorPosition GetCursorPosition(Vector2 mousePosition)
     {
 
         if (Font == null)
         {
-            return 0;
+            return CursorPosition.Zero;
         }
 
         //use local transform
@@ -148,7 +172,7 @@ public class UIInputBox : UIText, ITextInput
 
         if (line < 0)
         {
-            return 0;
+            return CursorPosition.Zero;
         }
 
         if (line >= _lines.Count)
@@ -166,23 +190,29 @@ public class UIInputBox : UIText, ITextInput
         Span<char> text = TextSpan;
 
         int charIndex = textLine.start;
+        charIndex = textLine.start + textLine.count;
+
         for (int i = 0; i < textLine.count; i++)
         {
             int index = start + i;
             c = text[index];
             glyph = Font.GetGlyph(c);
-            charIndex = index;
-
-            if (textStartX + (offset + glyph.Advance * 0.5) * FontSize > localMousePosition.X)
-            {
-                break;
-            }
 
             offset += glyph.Advance;
+
+            if (textStartX + (offset - glyph.Advance * 0.5) * FontSize > localMousePosition.X)
+            {
+                charIndex = index;
+                break;
+            }
         }
 
 
-        return charIndex;
+        return new CursorPosition
+        {
+            line = line,
+            charIndexInLine = charIndex - textLine.start
+        };
     }
 
     public override void OnSelect(Canvas canvas, Vector2 mousePosition)
@@ -227,8 +257,11 @@ public class UIInputBox : UIText, ITextInput
     public void OnTextInput(Canvas canvas, string text)
     {
         //replace the selected text
-        int selectionStart = _selectionStartPosition;
-        int selectionEnd = _selectionEndPosition;
+        // int selectionStart = _selectionStartPosition;
+        // int selectionEnd = _selectionEndPosition;
+        int selectionStart = GetCharIndex(_selectionStartPosition);
+        int selectionEnd = GetCharIndex(_selectionEndPosition);
+        int cursorCharIndex = GetCharIndex(_cursorPosition);
 
         bool isInverted = selectionStart > selectionEnd;
 
@@ -240,19 +273,20 @@ public class UIInputBox : UIText, ITextInput
 
         if (selectionStart == selectionEnd)
         {
-            InsertText(_cursorPosition, text);
+            InsertText(cursorCharIndex, text);
         }
         else
         {
             if (isInverted)
             {
-                _cursorPosition = selectionEnd;
+                //_cursorPosition = selectionEnd;
+                _cursorPosition = _selectionStartPosition;
             }
 
             DeleteText(selectionStart, selectionEnd - selectionStart);
             InsertText(selectionStart, text);
-            _selectionStartPosition = 0;
-            _selectionEndPosition = 0;
+            _selectionStartPosition = CursorPosition.Zero;
+            _selectionEndPosition = CursorPosition.Zero;
         }
 
         SetLineBreakDirty();
@@ -288,8 +322,8 @@ public class UIInputBox : UIText, ITextInput
             Transform2D selectionTransform = baseTransform;
             selectionTransform.position.Y -= TextPivot.Y * FontSize;
 
-            CursorPositionCache start = _selectionStartPositionCache;
-            CursorPositionCache end = _selectionEndPositionCache;
+            CursorPositionRednerCache start = _selectionStartPositionCache;
+            CursorPositionRednerCache end = _selectionEndPositionCache;
 
             if (start.line > end.line || (start.line == end.line && start.charOffsetInLine > end.charOffsetInLine))
             {
@@ -351,7 +385,7 @@ public class UIInputBox : UIText, ITextInput
             text[i] = text[i + count];
         }
 
-        _cursorPosition -= count;
+        IncreaseCursorPosition(-count);
         ResizeText(text.Length - count);
     }
 
@@ -380,65 +414,92 @@ public class UIInputBox : UIText, ITextInput
 
     protected void IncreaseCursorPosition(int count)
     {
-        _cursorPosition += count;
-        _cursorPosition = math.clamp(_cursorPosition, 0, TextSpan.Length - 1);
+        if (count == 0)
+        {
+            return;
+        }
+
+
+
+        Line textLine = _lines[_cursorPosition.line];
+        int charIndexInLine = _cursorPosition.charIndexInLine + count;
+        if (count > 0)
+        {
+            while (charIndexInLine > textLine.count)
+            {
+                charIndexInLine -= textLine.count;
+                _cursorPosition.line++;
+                if (_cursorPosition.line >= _lines.Count)
+                {
+                    _cursorPosition.line = _lines.Count - 1;
+                    break;
+                }
+                textLine = _lines[_cursorPosition.line];
+            }
+        }
+        else
+        {
+            while (charIndexInLine < 0)
+            {
+                _cursorPosition.line--;
+                if (_cursorPosition.line < 0)
+                {
+                    _cursorPosition.line = 0;
+                    charIndexInLine = 0;
+                    break;
+                }
+                textLine = _lines[_cursorPosition.line];
+                charIndexInLine += textLine.count;
+            }
+        }
+
+        _cursorPosition.charIndexInLine = charIndexInLine;
         SetCursorPositionOrSelectionDirty();
     }
 
-    protected CursorPositionCache CalcCursorPositionCache(int charIndex)
+    protected CursorPositionRednerCache CalcCursorPositionRenderCache(CursorPosition cursor)
     {
         if (Font == null)
         {
-            return CursorPositionCache.Head;
+            return CursorPositionRednerCache.Zero;
         }
 
-        if (charIndex < 0)
+        if (cursor.charIndexInLine < 0 || cursor.line < 0)
         {
-            return CursorPositionCache.Head;
+            return CursorPositionRednerCache.Zero;
         }
 
-        int lineIndex = 0;
+        int lineIndex = cursor.line;
         Span<char> text = TextSpan;
-        //binary search
-        int start = 0;
-        int end = _lines.Count - 1;
-        while (start <= end)
-        {
-            int mid = (start + end) / 2;
-            Line line = _lines[mid];
-            if (charIndex < line.start)
-            {
-                end = mid - 1;
-            }
-            else if (charIndex >= line.start + line.count)
-            {
-                start = mid + 1;
-            }
-            else
-            {
-                lineIndex = mid;
-                break;
-            }
-        }
 
         Line textLine = _lines[lineIndex];
-        int charCountInLine = charIndex - textLine.start;
+        int charIndexInLine = cursor.charIndexInLine;
 
-        return new CursorPositionCache
+        //if is after the last char in the last line
+        if (lineIndex == _lines.Count - 1 && charIndexInLine > textLine.count)
+        {
+            return new CursorPositionRednerCache
+            {
+                line = lineIndex,
+                charOffsetInLine = Font.GetNormalizedTextWidth(text.Slice(textLine.start, textLine.count))
+            };
+        }
+
+        return new CursorPositionRednerCache
         {
             line = lineIndex,
-            charOffsetInLine = Font.GetNormalizedTextWidth(text.Slice(textLine.start, charCountInLine))
+            charOffsetInLine = Font.GetNormalizedTextWidth(text.Slice(textLine.start, charIndexInLine))
         };
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //[MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected void TryRefreshCursorPosition()
     {
         if (_isCursorOrSelectionDirty)
         {
-            _cursorPositionCache = CalcCursorPositionCache(_cursorPosition);
-            _selectionStartPositionCache = CalcCursorPositionCache(_selectionStartPosition);
-            _selectionEndPositionCache = CalcCursorPositionCache(_selectionEndPosition);
+            _cursorPositionCache = CalcCursorPositionRenderCache(_cursorPosition);
+            _selectionStartPositionCache = CalcCursorPositionRenderCache(_selectionStartPosition);
+            _selectionEndPositionCache = CalcCursorPositionRenderCache(_selectionEndPosition);
             _isCursorOrSelectionDirty = false;
         }
     }
@@ -447,5 +508,10 @@ public class UIInputBox : UIText, ITextInput
     protected void SetCursorPositionOrSelectionDirty()
     {
         _isCursorOrSelectionDirty = true;
+    }
+
+    protected int GetCharIndex(CursorPosition cursor)
+    {
+        return _lines[cursor.line].start + cursor.charIndexInLine;
     }
 }
