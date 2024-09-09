@@ -200,7 +200,9 @@ public class UIInputBox : UIText, ITextInput
 
             offset += glyph.Advance;
 
-            if (textStartX + (offset - glyph.Advance * 0.5) * FontSize > localMousePosition.X)
+            //the line break is not calculated for the cursor position
+            //otherwise, the text input will be on the next line
+            if (textStartX + (offset - glyph.Advance * 0.5) * FontSize > localMousePosition.X || c == '\n' || c == '\r')
             {
                 charIndex = index;
                 break;
