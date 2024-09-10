@@ -29,7 +29,16 @@ public class UIText : UISelectable
     private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
     private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
 
+    /// <summary>
+    /// The font for rendering text. The text will not display if the font is null.
+    /// </summary>
+    /// <value></value>
     public Font? Font { get; set; }
+
+    /// <summary>
+    /// The font size for rendering text.
+    /// </summary>
+    /// <value></value>
     public float FontSize
     {
         get => _fontSize;
@@ -42,9 +51,23 @@ public class UIText : UISelectable
             }
         }
     }
+
+    /// <summary>
+    /// The normalized line spacing, the line height is FontSize * LineSpacing.
+    /// </summary>
+    /// <value></value>
     public float LineSpacing { get; set; } = 1f;
+
+    /// <summary>
+    /// The text color.
+    /// </summary>
+    /// <value></value>
     public ColorFloat Color { get; set; } = 0xffffff;
 
+    /// <summary>
+    /// The text data.
+    /// </summary>
+    /// <value></value>
     public Span<char> TextSpan
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -55,7 +78,10 @@ public class UIText : UISelectable
         }
     }
 
-
+    /// <summary>
+    /// The text string.
+    /// </summary>
+    /// <value></value>
     public string Text
     {
         get
@@ -75,6 +101,10 @@ public class UIText : UISelectable
         }
     }
 
+    /// <summary>
+    /// The text pivot relative to the self container.
+    /// </summary>
+    /// <value></value>
     public Pivot TextPivot
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -83,6 +113,7 @@ public class UIText : UISelectable
         set => _textPivot = value;
     }
 
+    
     public OverflowModeHorizontal OverflowHorizontal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
