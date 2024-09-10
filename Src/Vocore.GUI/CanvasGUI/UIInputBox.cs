@@ -251,7 +251,7 @@ public class UIInputBox : UIText, ITextInput
         int position = GetCursorPosition(mousePosition);
         _selectionStartPosition = position;
         _selectionEndPosition = position;
-        SetCursorPositionOrSelectionDirty();
+        SerSelectionDirty();
 
     }
 
@@ -267,7 +267,7 @@ public class UIInputBox : UIText, ITextInput
         base.OnDrag(canvas, mousePosition);
         int position = GetCursorPosition(mousePosition);
         _selectionEndPosition = position;
-        SetCursorPositionOrSelectionDirty();
+        SerSelectionDirty();
     }
 
     public void OnTextInput(Canvas canvas, string text)
@@ -297,10 +297,6 @@ public class UIInputBox : UIText, ITextInput
         }
 
         IncreaseCursorPosition(text.Length);
-        SetLineBreakDirty();
-        SetCursorPositionOrSelectionDirty();
-        
-
         //refresh IME position
         _isInputAreaDirty = true;
     }
@@ -394,6 +390,7 @@ public class UIInputBox : UIText, ITextInput
         }
 
         ResizeText(text.Length - count);
+        SetLineBreakDirty();
         // IncreaseCursorPosition(-count);
     }
 
@@ -418,6 +415,7 @@ public class UIInputBox : UIText, ITextInput
             text[index + i] = str[i];
         }
 
+        SetLineBreakDirty();
     }
 
     protected void IncreaseCursorPosition(int count)
@@ -431,7 +429,7 @@ public class UIInputBox : UIText, ITextInput
         _selectionEndPosition = math.clamp(_selectionEndPosition, 0, TextSpan.Length);
         _selectionStartPosition = _selectionEndPosition;
 
-        SetCursorPositionOrSelectionDirty();
+        SerSelectionDirty();
     }
 
     protected CursorPositionRednerCache CalcCursorPositionRenderCache(int charIndex)
@@ -486,7 +484,7 @@ public class UIInputBox : UIText, ITextInput
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected void SetCursorPositionOrSelectionDirty()
+    protected void SerSelectionDirty()
     {
         _isSelectionDirty = true;
     }
@@ -524,16 +522,14 @@ public class UIInputBox : UIText, ITextInput
             if (_selectionEndPosition < TextSpan.Length)
             {
                 DeleteText(_selectionEndPosition, 1);
-                SetLineBreakDirty();
-                SetCursorPositionOrSelectionDirty();
+                SerSelectionDirty();
             }
         }
         else
         {
             DeleteText(_selectionStartPosition, _selectionEndPosition - _selectionStartPosition);
             _selectionEndPosition = _selectionStartPosition;
-            SetLineBreakDirty();
-            SetCursorPositionOrSelectionDirty();
+            SerSelectionDirty();
         }
     }
 
@@ -546,7 +542,7 @@ public class UIInputBox : UIText, ITextInput
                 DeleteText(_selectionEndPosition - 1, 1);
                 IncreaseCursorPosition(-1);
                 SetLineBreakDirty();
-                SetCursorPositionOrSelectionDirty();
+                SerSelectionDirty();
             }
         }
         else
@@ -554,13 +550,14 @@ public class UIInputBox : UIText, ITextInput
             DeleteText(_selectionStartPosition, _selectionEndPosition - _selectionStartPosition);
             _selectionEndPosition = _selectionStartPosition;
             SetLineBreakDirty();
-            SetCursorPositionOrSelectionDirty();
+            SerSelectionDirty();
         }
     }
 
     public void HandleKeyEnter()
     {
         InsertText(CursorCharIndex, "\n");
+        IncreaseCursorPosition(1);
     }
 
     public void HandleKeyTab()
@@ -569,12 +566,15 @@ public class UIInputBox : UIText, ITextInput
         {
             case TabAction.Spaces2:
                 InsertText(CursorCharIndex, "  ");
+                IncreaseCursorPosition(2);
                 break;
             case TabAction.Spaces4:
                 InsertText(CursorCharIndex, "    ");
+                IncreaseCursorPosition(4);
                 break;
             case TabAction.Tab:
                 InsertText(CursorCharIndex, "\t");
+                IncreaseCursorPosition(1);
                 break;
         }
     }
@@ -608,10 +608,10 @@ public class UIInputBox : UIText, ITextInput
             float textLineOffset = textLine.width;
             float cursorOffset = CursorOffsetInLine;
             float offset = cursorOffset / textLineOffset;
-            int charIndex = textLine.start + (int)(textLine.count * offset);
+            int charIndex = textLine.start + (int)math.round(textLine.count * offset);
             _selectionStartPosition = charIndex;
             _selectionEndPosition = charIndex;
-            SetCursorPositionOrSelectionDirty();
+            SerSelectionDirty();
         }
     }
 
@@ -629,10 +629,10 @@ public class UIInputBox : UIText, ITextInput
             float textLineOffset = textLine.width;
             float cursorOffset = CursorOffsetInLine;
             float offset = cursorOffset / textLineOffset;
-            int charIndex = textLine.start + (int)(textLine.count * offset);
+            int charIndex = textLine.start + (int)math.round(textLine.count * offset);
             _selectionStartPosition = charIndex;
             _selectionEndPosition = charIndex;
-            SetCursorPositionOrSelectionDirty();
+            SerSelectionDirty();
         }
     }
 }

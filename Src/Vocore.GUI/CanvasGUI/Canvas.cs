@@ -32,7 +32,6 @@ public class Canvas : AutoDisposable
 
     //for debug
     private readonly CanvasRenderer _renderer;
-    private readonly Stack<UINode> _nodeStack = new Stack<UINode>();
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -101,6 +100,7 @@ public class Canvas : AutoDisposable
     public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Shader shaderSprite, Shader shaderText)
     {
         _inputTracker = inputTracker;
+        _inputTracker.RegisterTextInput(OnTextInput);
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
         _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
