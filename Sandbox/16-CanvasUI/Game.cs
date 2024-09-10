@@ -64,8 +64,7 @@ public class Game : GameEngine
         _factory = new CanvasUIFactory(style);
 
         UIInputTracker inputTracker = new UIInputTracker(Input, MainWindow);
-        _canvas = Rendering.CreateCanvas(_shaderSprite, _shaderText);
-        _canvas.InputTracker = inputTracker;
+        _canvas = Rendering.CreateCanvas(inputTracker, _shaderSprite, _shaderText);
         _canvas.Size = new Vector2(setting.Window.Width, setting.Window.Height);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 

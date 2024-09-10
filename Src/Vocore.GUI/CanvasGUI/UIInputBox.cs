@@ -6,11 +6,19 @@ using Vocore.Rendering;
 
 namespace Vocore.GUI;
 
+public enum TabAction
+{
+    Spaces4,
+    Spaces2,
+    Tab
+}
+
 /// <summary>
 /// The single line input box UI node.
 /// </summary>
 public class UIInputBox : UIText, ITextInput
 {
+
     protected struct CursorPositionRednerCache
     {
         public static readonly CursorPositionRednerCache Zero = new CursorPositionRednerCache()
@@ -43,6 +51,8 @@ public class UIInputBox : UIText, ITextInput
     private bool _isCursorVisible;
 
     private float _timerCursorBlink;
+
+    public TabAction TabAction { get; set; } = TabAction.Spaces4;
 
     /// <summary>
     /// The cursor scale based on the font size.
@@ -505,5 +515,124 @@ public class UIInputBox : UIText, ITextInput
         }
 
         return _lines.Count - 1;
+    }
+
+    public void HandleKeyDelete()
+    {
+        if (_selectionStartPosition == _selectionEndPosition)
+        {
+            if (_selectionEndPosition < TextSpan.Length)
+            {
+                DeleteText(_selectionEndPosition, 1);
+                SetLineBreakDirty();
+                SetCursorPositionOrSelectionDirty();
+            }
+        }
+        else
+        {
+            DeleteText(_selectionStartPosition, _selectionEndPosition - _selectionStartPosition);
+            _selectionEndPosition = _selectionStartPosition;
+            SetLineBreakDirty();
+            SetCursorPositionOrSelectionDirty();
+        }
+    }
+
+    public void HandleKeyBackspace()
+    {
+        if (_selectionStartPosition == _selectionEndPosition)
+        {
+            if (_selectionEndPosition > 0)
+            {
+                DeleteText(_selectionEndPosition - 1, 1);
+                IncreaseCursorPosition(-1);
+                SetLineBreakDirty();
+                SetCursorPositionOrSelectionDirty();
+            }
+        }
+        else
+        {
+            DeleteText(_selectionStartPosition, _selectionEndPosition - _selectionStartPosition);
+            _selectionEndPosition = _selectionStartPosition;
+            SetLineBreakDirty();
+            SetCursorPositionOrSelectionDirty();
+        }
+    }
+
+    public void HandleKeyEnter()
+    {
+        InsertText(CursorCharIndex, "\n");
+    }
+
+    public void HandleKeyTab()
+    {
+        switch(TabAction)
+        {
+            case TabAction.Spaces2:
+                InsertText(CursorCharIndex, "  ");
+                break;
+            case TabAction.Spaces4:
+                InsertText(CursorCharIndex, "    ");
+                break;
+            case TabAction.Tab:
+                InsertText(CursorCharIndex, "\t");
+                break;
+        }
+    }
+
+    public void HandleKeyEscape()
+    {
+        
+    }
+
+    public void HandleKeyArrowLeft()
+    {
+        IncreaseCursorPosition(-1);
+    }
+
+    public void HandleKeyArrowRight()
+    {
+        IncreaseCursorPosition(1);
+    }
+
+    public void HandleKeyArrowUp()
+    {
+        if (_lines.Count == 0)
+        {
+            return;
+        }
+
+        int line = CursorLine;
+        if (line > 0)
+        {
+            Line textLine = _lines[line - 1];
+            float textLineOffset = textLine.width;
+            float cursorOffset = CursorOffsetInLine;
+            float offset = cursorOffset / textLineOffset;
+            int charIndex = textLine.start + (int)(textLine.count * offset);
+            _selectionStartPosition = charIndex;
+            _selectionEndPosition = charIndex;
+            SetCursorPositionOrSelectionDirty();
+        }
+    }
+
+    public void HandleKeyArrowDown()
+    {
+        if (_lines.Count == 0)
+        {
+            return;
+        }
+
+        int line = CursorLine;
+        if (line < _lines.Count - 1)
+        {
+            Line textLine = _lines[line + 1];
+            float textLineOffset = textLine.width;
+            float cursorOffset = CursorOffsetInLine;
+            float offset = cursorOffset / textLineOffset;
+            int charIndex = textLine.start + (int)(textLine.count * offset);
+            _selectionStartPosition = charIndex;
+            _selectionEndPosition = charIndex;
+            SetCursorPositionOrSelectionDirty();
+        }
     }
 }

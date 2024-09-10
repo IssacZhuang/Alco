@@ -37,7 +37,7 @@ public class Canvas : AutoDisposable
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
-    private IUIInputTracker? _inputTracker;
+    private readonly IUIInputTracker _inputTracker;
 
 
     private UINode? _holded;
@@ -78,19 +78,6 @@ public class Canvas : AutoDisposable
         get => _invCameraSize;
     }
 
-    public IUIInputTracker? InputTracker
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _inputTracker;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            _inputTracker?.UnregisterTextInput(OnTextInput);
-            _inputTracker = value;
-            _inputTracker?.RegisterTextInput(OnTextInput);
-        }
-    }
-
     public UINode? Holded
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -111,8 +98,9 @@ public class Canvas : AutoDisposable
 
     public Vector4 DebugDrawColor { get; set; }
 
-    public Canvas(RenderingSystem system, Shader shaderSprite, Shader shaderText)
+    public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Shader shaderSprite, Shader shaderText)
     {
+        _inputTracker = inputTracker;
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
         _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
@@ -177,10 +165,38 @@ public class Canvas : AutoDisposable
         _holded?.OnDrag(this, mouseWorldPosition);
 
 
-        // if (_inputTracker.IsMouseScrolling(out Vector2 scrollDelta))
-        // {
-        //     scrollable?.OnScroll(scrollDelta);
-        // }
+        if (_inputTracker.IsKeyBackspaceDown)
+        {
+            _textInput?.HandleKeyBackspace();
+        }
+        else if (_inputTracker.IsKeyDeleteDown)
+        {
+            _textInput?.HandleKeyDelete();
+        }
+        else if (_inputTracker.IsKeyEnterDown)
+        {
+            _textInput?.HandleKeyEnter();
+        }
+        else if (_inputTracker.IsKeyTabDown)
+        {
+            _textInput?.HandleKeyTab();
+        }
+        else if (_inputTracker.IsKeyLeftDown)
+        {
+            _textInput?.HandleKeyArrowLeft();
+        }
+        else if (_inputTracker.IsKeyRightDown)
+        {
+            _textInput?.HandleKeyArrowRight();
+        }
+        else if (_inputTracker.IsKeyUp)
+        {
+            _textInput?.HandleKeyArrowUp();
+        }
+        else if (_inputTracker.IsKeyDown)
+        {
+            _textInput?.HandleKeyArrowDown();
+        }
     }
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)

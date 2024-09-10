@@ -50,6 +50,66 @@ public class UIInputTracker : IUIInputTracker
         get => _input.IsMousePressing(Mouse.Left);
     }
 
+    public bool IsKeyDeleteDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Delete);
+    }
+
+    public bool IsKeyBackspaceDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Backspace);
+    }
+
+    public bool IsKeyEnterDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Enter);
+    }
+
+    public bool IsKeyTabDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Tab);
+    }
+
+    public bool IsKeyLeftDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Left);
+    }
+
+    public bool IsKeyRightDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Right);
+    }
+
+    public bool IsKeyUp
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Up);
+    }
+
+    public bool IsKeyDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Down);
+    }
+
+    public bool IsKeyLeft
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Left);
+    }
+
+    public bool IsKeyRight
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyDown(KeyCode.Right);
+    }
+
     public bool IsMouseScrolling(out Vector2 delta)
     {
         return _input.IsMouseScrolling(out delta);
