@@ -47,8 +47,7 @@ public class UIInputBox : UIText, ITextInput
     private bool _isCursorOrSelectionDirty;
 
     //the char index might be greater than the text range because of the cursor position can be at the end of the line
-    private CursorPosition _cursorPosition;
-    private CursorPositionRednerCache _cursorPositionCache;
+
     private CursorPosition _selectionStartPosition;
     private CursorPositionRednerCache _selectionStartPositionCache;
     private CursorPosition _selectionEndPosition;
@@ -88,6 +87,30 @@ public class UIInputBox : UIText, ITextInput
     /// </summary>
     public float CursorBlinkInterval = 0.5f;
 
+    protected int CursorCharIndex
+    {
+        get
+        {
+            return GetCharIndex(_selectionEndPosition);
+        }
+    }
+
+    protected float CursorOffsetInLine
+    {
+        get
+        {
+            return _selectionEndPositionCache.charOffsetInLine;
+        }
+    }
+
+    protected int CursorLine
+    {
+        get
+        {
+            return GetLine(CursorCharIndex);
+        }
+    }
+
     protected BoundingBox2D InputArea
     {
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -96,20 +119,22 @@ public class UIInputBox : UIText, ITextInput
             TryRefreshCursorRenderCache();
             TryRefreshTextLineBreak();
 
+
+            int line = CursorLine;
             //base on the cursor position
-            if (_cursorPositionCache.line < 0 || Font == null)
+            if (line < 0 || Font == null)
             {
                 return Bound;
             }
 
-            Line textLine = _lines[_cursorPositionCache.line];
+            Line textLine = _lines[line];
             float lineHeight = LineSpacing * FontSize;
             Transform2D transform = Transform2D.Identity;
             ReadOnlySpan<char> chars = TextSpan.Slice(textLine.start, textLine.count);
 
             transform.position = Size * TextPivot;
-            transform.position.X += (_cursorPositionCache.charOffsetInLine - (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars)) * FontSize;
-            transform.position.Y += (_lines.Count * (0.5f - TextPivot.Y) - (_cursorPositionCache.line + 1.5f)) * lineHeight;
+            transform.position.X += (CursorOffsetInLine - (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars)) * FontSize;
+            transform.position.Y += (_lines.Count * (0.5f - TextPivot.Y) - (line + 1.5f)) * lineHeight;
             transform.scale = new Vector2(FontSize);
 
             transform = math.transform(WorldTransform, transform);
@@ -128,8 +153,6 @@ public class UIInputBox : UIText, ITextInput
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
-       
-
         base.OnUpdate(canvas, delta);//refresh text line break
 
         TryRefreshCursorRenderCache();
@@ -199,8 +222,7 @@ public class UIInputBox : UIText, ITextInput
 
         Span<char> text = TextSpan;
 
-        int charIndex = textLine.start;
-        charIndex = textLine.start + textLine.count;
+        int charIndex = textLine.start + textLine.count;
 
         for (int i = 0; i < textLine.count; i++)
         {
@@ -243,9 +265,9 @@ public class UIInputBox : UIText, ITextInput
     public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
         base.OnPressDown(canvas, mousePosition);
-        _cursorPosition = GetCursorPosition(mousePosition);
-        _selectionStartPosition = _cursorPosition;
-        _selectionEndPosition = _cursorPosition;
+        CursorPosition position = GetCursorPosition(mousePosition);
+        _selectionStartPosition = position;
+        _selectionEndPosition = position;
         SetCursorPositionOrSelectionDirty();
 
     }
@@ -260,8 +282,8 @@ public class UIInputBox : UIText, ITextInput
     public override void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
         base.OnDrag(canvas, mousePosition);
-        _cursorPosition = GetCursorPosition(mousePosition);
-        _selectionEndPosition = _cursorPosition;
+        CursorPosition position = GetCursorPosition(mousePosition);
+        _selectionEndPosition = position;
         SetCursorPositionOrSelectionDirty();
     }
 
@@ -270,7 +292,7 @@ public class UIInputBox : UIText, ITextInput
         //replace the selected text
         int selectionStart = GetCharIndex(_selectionStartPosition);
         int selectionEnd = GetCharIndex(_selectionEndPosition);
-        int cursorCharIndex = GetCharIndex(_cursorPosition);
+        int cursorCharIndex = CursorCharIndex;
 
         bool isInverted = selectionStart > selectionEnd;
 
@@ -285,16 +307,10 @@ public class UIInputBox : UIText, ITextInput
         }
         else
         {
-            if (isInverted)
-            {
-                //_cursorPosition = _selectionEndPosition;
-                _cursorPosition = _selectionStartPosition;
-            }
-
             DeleteText(selectionStart, selectionEnd - selectionStart);
+            _selectionEndPosition = _selectionStartPosition;
             InsertText(selectionStart, text);
-            _selectionStartPosition = CursorPosition.Zero;
-            _selectionEndPosition = CursorPosition.Zero;
+
         }
 
         IncreaseCursorPosition(text.Length);
@@ -316,11 +332,11 @@ public class UIInputBox : UIText, ITextInput
             //the left point of the text = textLineTransform.position.X + textOffsetX
             float textOffsetX = -(0.5f + TextPivot.X) * textAdvances * FontSize;
 
-            if (_cursorPositionCache.line == line && _isCursorVisible && IsEditable)
+            if (CursorLine == line && _isCursorVisible && IsEditable)
             {
                 Transform2D cursorTransform = baseTransform;
                 cursorTransform.position.Y -= TextPivot.Y * FontSize;
-                cursorTransform.position.X += _cursorPositionCache.charOffsetInLine * FontSize + textOffsetX;
+                cursorTransform.position.X += CursorOffsetInLine * FontSize + textOffsetX;
                 cursorTransform.scale *= CursorScale;
 
                 renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
@@ -395,7 +411,6 @@ public class UIInputBox : UIText, ITextInput
         }
 
         ResizeText(text.Length - count);
-        ClampCursorPosition();
         // IncreaseCursorPosition(-count);
     }
 
@@ -430,77 +445,7 @@ public class UIInputBox : UIText, ITextInput
             return;
         }
 
-        Line textLine = _lines[_cursorPosition.line];
-        int charIndexInLine = _cursorPosition.charIndexInLine + count;
-        int charIndex = textLine.start + charIndexInLine;
-
-        Log.Info(_cursorPosition.line, textLine.start, charIndexInLine, charIndex, TextSpan.Length);
-        if (count > 0)
-        {
-            //handle last char, the char index might be greater than the text range
-            if (charIndex >= TextSpan.Length)
-            {
-                _cursorPosition.line = _lines.Count - 1;
-                _cursorPosition.charIndexInLine = _lines[_cursorPosition.line].count;
-                return;
-            }
-
-            while (charIndexInLine > textLine.count)
-            {
-                charIndexInLine -= textLine.count;
-                _cursorPosition.line++;
-                if (_cursorPosition.line >= _lines.Count)
-                {
-                    _cursorPosition.line = _lines.Count - 1;
-                    break;
-                }
-                textLine = _lines[_cursorPosition.line];
-            }
-        }
-        else
-        {
-            while (charIndexInLine < 0)
-            {
-                _cursorPosition.line--;
-                if (_cursorPosition.line < 0)
-                {
-                    _cursorPosition.line = 0;
-                    charIndexInLine = 0;
-                    break;
-                }
-                textLine = _lines[_cursorPosition.line];
-                charIndexInLine += textLine.count;
-            }
-        }
-
-        _cursorPosition.charIndexInLine = charIndexInLine;
         SetCursorPositionOrSelectionDirty();
-    }
-
-    protected void ClampCursorPosition()
-    {
-        if (_cursorPosition.line < 0)
-        {
-            _cursorPosition.line = 0;
-            _cursorPosition.charIndexInLine = 0;
-        }
-        else if (_cursorPosition.line >= _lines.Count)
-        {
-            _cursorPosition.line = _lines.Count - 1;
-            _cursorPosition.charIndexInLine = _lines[_cursorPosition.line].count;
-        }
-        else
-        {
-            Line textLine = _lines[_cursorPosition.line];
-            if (_cursorPosition.charIndexInLine < 0)
-            {
-                _cursorPosition.charIndexInLine = 0;
-            }
-            else if (_cursorPosition.charIndexInLine > textLine.count)
-            {
-                _cursorPosition.charIndexInLine = textLine.count;
-            }
-        }
     }
 
     protected CursorPositionRednerCache CalcCursorPositionRenderCache(CursorPosition cursor)
@@ -545,7 +490,6 @@ public class UIInputBox : UIText, ITextInput
         if (_isCursorOrSelectionDirty)
         {
             TryRefreshTextLineBreak();
-            _cursorPositionCache = CalcCursorPositionRenderCache(_cursorPosition);
             _selectionStartPositionCache = CalcCursorPositionRenderCache(_selectionStartPosition);
             _selectionEndPositionCache = CalcCursorPositionRenderCache(_selectionEndPosition);
             _isCursorOrSelectionDirty = false;
@@ -561,5 +505,31 @@ public class UIInputBox : UIText, ITextInput
     protected int GetCharIndex(CursorPosition cursor)
     {
         return _lines[cursor.line].start + cursor.charIndexInLine;
+    }
+
+    protected int GetLine(int charIndex)
+    {
+        //binary search
+        int left = 0;
+        int right = _lines.Count - 1;
+        while (left <= right)
+        {
+            int mid = left + (right - left) / 2;
+            Line line = _lines[mid];
+            if (charIndex >= line.start && charIndex < line.start + line.count)
+            {
+                return mid;
+            }
+            else if (charIndex < line.start)
+            {
+                right = mid - 1;
+            }
+            else
+            {
+                left = mid + 1;
+            }
+        }
+
+        return _lines.Count - 1;
     }
 }
