@@ -55,6 +55,12 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float round(float a)
+        {
+            return MathF.Round(a);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float pow(float a, float b)
         {
             return MathF.Pow(a, b);
