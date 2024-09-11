@@ -166,6 +166,8 @@ public class UIInputBox : UIText, ITextInput
                 _isCursorVisible = !_isCursorVisible;
             }
         }
+
+        DebugShowLineBreak();
     }
 
     private int GetCursorPosition(Vector2 mousePosition)
@@ -448,7 +450,7 @@ public class UIInputBox : UIText, ITextInput
         int charIndexInLine = charIndex - textLine.start;
 
         //if is after the last char in the last line
-        if (lineIndex == _lines.Count - 1 && charIndexInLine > textLine.count)
+        if (lineIndex == _lines.Count - 1 && charIndexInLine >= textLine.count)
         {
             return new CursorPositionRednerCache
             {
@@ -678,5 +680,13 @@ public class UIInputBox : UIText, ITextInput
         }
 
         return TextSpan.Slice(selectionStart, selectionEnd - selectionStart);
+    }
+
+    private void DebugShowLineBreak()
+    {
+        for (int i = 0; i < _lines.Count; i++)
+        {
+            DebugGUI.Text($"Line {i}: start: {_lines[i].start}, count: {_lines[i].count}");
+        }
     }
 }

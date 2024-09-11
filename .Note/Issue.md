@@ -4,7 +4,7 @@ todo bugs:
 the gpu surface is lost when sdl window is minimized
 
 [2]
-the text input at the last char in the ui input box will cause error
+double '\n' input required to break line in the ui input box
 
 [3]
-double '\n' input required to break line in the ui input box
+the gpu instancing for text rendering has error when the text is too long
