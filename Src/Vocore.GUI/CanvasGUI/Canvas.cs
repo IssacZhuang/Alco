@@ -165,6 +165,7 @@ public class Canvas : AutoDisposable
         _holded?.OnDrag(this, mouseWorldPosition);
 
 
+        //input box shortcut
         if (_inputTracker.IsKeyBackspaceDown)
         {
             _textInput?.HandleKeyBackspace();
@@ -175,7 +176,7 @@ public class Canvas : AutoDisposable
         }
         else if (_inputTracker.IsKeyEnterDown)
         {
-            _textInput?.HandleKeyEnter();
+            _textInput?.OnTextInput(this, "\n");
         }
         else if (_inputTracker.IsKeyTabDown)
         {
@@ -196,6 +197,24 @@ public class Canvas : AutoDisposable
         else if (_inputTracker.IsKeyDown)
         {
             _textInput?.HandleKeyArrowDown();
+        }
+        else if (_inputTracker.IsKeySelectAllDown)
+        {
+            _textInput?.SelectAll();
+        }
+        else if (_inputTracker.IsKeyCopyDown)
+        {
+            if (_textInput != null)
+            {
+                _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
+            }
+        }else if (_inputTracker.IsKeyPasteDown)
+        {
+            ReadOnlySpan<char> text = _inputTracker.GetClipboardText();
+            if (text.Length > 0)
+            {
+                _textInput?.OnTextInput(this, text);
+            }
         }
     }
 

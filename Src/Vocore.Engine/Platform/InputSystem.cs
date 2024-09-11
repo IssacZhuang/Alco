@@ -66,4 +66,15 @@ public abstract class InputSystem
     /// <param name="delta">The delta scroll value.</param>
     /// <returns><c>true</c> if the mouse is currently scrolling; otherwise, <c>false</c>.</returns>
     public abstract bool IsMouseScrolling(out Vector2 delta);
+
+    /// <summary>
+    /// Copy the specified text to the clipboard.
+    /// </summary>
+    /// <param name="text"></param>
+    public abstract void CopyToClipboard(ReadOnlySpan<char> text);
+
+    /// <summary>
+    /// Gets the text from the clipboard.
+    /// </summary>
+    public abstract ReadOnlySpan<char> GetClipboardText();
 }

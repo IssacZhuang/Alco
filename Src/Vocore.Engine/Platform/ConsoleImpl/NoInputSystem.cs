@@ -13,6 +13,16 @@ public class NoInputSystem : InputSystem
     /// <inheritdoc />
     public override Vector2 MouseDelta { get; }
 
+    public override void CopyToClipboard(ReadOnlySpan<char> text)
+    {
+        
+    }
+
+    public override ReadOnlySpan<char> GetClipboardText()
+    {
+        return ReadOnlySpan<char>.Empty;
+    }
+
     /// <inheritdoc />
     public override bool IsKeyDown(KeyCode key)
     {

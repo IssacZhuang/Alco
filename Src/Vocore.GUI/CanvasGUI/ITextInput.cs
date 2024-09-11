@@ -2,7 +2,7 @@ namespace Vocore.GUI;
 
 public interface ITextInput
 {
-    public void OnTextInput(Canvas canvas,string text);
+    public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text);
     public void HandleKeyDelete();
     public void HandleKeyBackspace();
     public void HandleKeyEnter();
@@ -12,4 +12,6 @@ public interface ITextInput
     public void HandleKeyArrowRight();
     public void HandleKeyArrowUp();
     public void HandleKeyArrowDown();
+    public void SelectAll();
+    public Span<char> GetSelectedText();
 }

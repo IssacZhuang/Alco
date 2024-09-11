@@ -19,7 +19,7 @@ public enum TabAction
 public class UIInputBox : UIText, ITextInput
 {
 
-    protected struct CursorPositionRednerCache
+    private struct CursorPositionRednerCache
     {
         public static readonly CursorPositionRednerCache Zero = new CursorPositionRednerCache()
         {
@@ -81,7 +81,7 @@ public class UIInputBox : UIText, ITextInput
     /// </summary>
     public float CursorBlinkInterval = 0.5f;
 
-    protected int CursorCharIndex
+    private int CursorCharIndex
     {
         get
         {
@@ -89,7 +89,7 @@ public class UIInputBox : UIText, ITextInput
         }
     }
 
-    protected float CursorOffsetInLine
+    private float CursorOffsetInLine
     {
         get
         {
@@ -97,7 +97,7 @@ public class UIInputBox : UIText, ITextInput
         }
     }
 
-    protected int CursorLine
+    private int CursorLine
     {
         get
         {
@@ -105,7 +105,7 @@ public class UIInputBox : UIText, ITextInput
         }
     }
 
-    protected BoundingBox2D InputArea
+    private BoundingBox2D InputArea
     {
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -168,7 +168,7 @@ public class UIInputBox : UIText, ITextInput
         }
     }
 
-    protected int GetCursorPosition(Vector2 mousePosition)
+    private int GetCursorPosition(Vector2 mousePosition)
     {
 
         if (Font == null)
@@ -270,7 +270,7 @@ public class UIInputBox : UIText, ITextInput
         SerSelectionDirty();
     }
 
-    public void OnTextInput(Canvas canvas, string text)
+    public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text)
     {
         //replace the selected text
         int selectionStart = _selectionStartPosition;
@@ -399,7 +399,7 @@ public class UIInputBox : UIText, ITextInput
     /// </summary>
     /// <param name="index"></param>
     /// <param name="str"></param>
-    protected void InsertText(int index, ReadOnlySpan<char> str)
+    private void InsertText(int index, ReadOnlySpan<char> str)
     {
         Span<char> text = TextSpan;
         int originalLength = text.Length;
@@ -418,7 +418,7 @@ public class UIInputBox : UIText, ITextInput
         SetLineBreakDirty();
     }
 
-    protected void IncreaseCursorPosition(int count)
+    private void IncreaseCursorPosition(int count)
     {
         if (count == 0)
         {
@@ -432,7 +432,7 @@ public class UIInputBox : UIText, ITextInput
         SerSelectionDirty();
     }
 
-    protected CursorPositionRednerCache CalcCursorPositionRenderCache(int charIndex)
+    private CursorPositionRednerCache CalcCursorPositionRenderCache(int charIndex)
     {
         if (Font == null)
         {
@@ -471,7 +471,7 @@ public class UIInputBox : UIText, ITextInput
     }
 
     //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected void TryRefreshCursorRenderCache()
+    private void TryRefreshCursorRenderCache()
     {
         
         if (_isSelectionDirty)
@@ -484,12 +484,12 @@ public class UIInputBox : UIText, ITextInput
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected void SerSelectionDirty()
+    private void SerSelectionDirty()
     {
         _isSelectionDirty = true;
     }
 
-    protected int GetLine(int charIndex)
+    private int GetLine(int charIndex)
     {
         //binary search
         int left = 0;
@@ -527,9 +527,7 @@ public class UIInputBox : UIText, ITextInput
         }
         else
         {
-            DeleteText(_selectionStartPosition, _selectionEndPosition - _selectionStartPosition);
-            _selectionEndPosition = _selectionStartPosition;
-            SerSelectionDirty();
+            DeleteSelectionText();
         }
     }
 
@@ -547,10 +545,7 @@ public class UIInputBox : UIText, ITextInput
         }
         else
         {
-            DeleteText(_selectionStartPosition, _selectionEndPosition - _selectionStartPosition);
-            _selectionEndPosition = _selectionStartPosition;
-            SetLineBreakDirty();
-            SerSelectionDirty();
+            DeleteSelectionText();
         }
     }
 
@@ -581,7 +576,8 @@ public class UIInputBox : UIText, ITextInput
 
     public void HandleKeyEscape()
     {
-        
+        _selectionStartPosition = _selectionEndPosition;
+        SerSelectionDirty();
     }
 
     public void HandleKeyArrowLeft()
@@ -634,5 +630,51 @@ public class UIInputBox : UIText, ITextInput
             _selectionEndPosition = charIndex;
             SerSelectionDirty();
         }
+    }
+
+    private void DeleteSelectionText()
+    {
+        int selectionStart = _selectionStartPosition;
+        int selectionEnd = _selectionEndPosition;
+
+        if (selectionStart > selectionEnd)
+        {
+            (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
+        }
+
+        DeleteText(selectionStart, selectionEnd - selectionStart);
+        _selectionEndPosition = _selectionStartPosition;
+        SerSelectionDirty();
+    }
+
+    private void ResetBlink()
+    {
+        _timerCursorBlink = 0;
+        _isCursorVisible = true;
+    }
+
+    public void SelectAll()
+    {
+        _selectionStartPosition = 0;
+        _selectionEndPosition = TextSpan.Length;
+        SerSelectionDirty();
+    }
+
+    public Span<char> GetSelectedText()
+    {
+        if (_selectionStartPosition == _selectionEndPosition)
+        {
+            return Span<char>.Empty;
+        }
+
+        int selectionStart = _selectionStartPosition;
+        int selectionEnd = _selectionEndPosition;
+
+        if (selectionStart > selectionEnd)
+        {
+            (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
+        }
+
+        return TextSpan.Slice(selectionStart, selectionEnd - selectionStart);
     }
 }

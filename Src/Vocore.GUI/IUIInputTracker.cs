@@ -28,10 +28,17 @@ namespace Vocore.GUI
         public bool IsKeyDown { get; }
         public bool IsKeyLeft { get; }
         public bool IsKeyRight { get; }
-        
+        public bool IsKeySelectAllDown { get; }
+
+        public bool IsKeyCopyDown { get; }
+
+        public bool IsKeyPasteDown { get; }
+
         public bool IsMouseScrolling(out Vector2 delta);
         public void SetTextInput(float xNorm, float yNorm, float widthNorm, float heightNorm, int cursor);
         public void EndTextInput();
+        public void CopyToClipboard(ReadOnlySpan<char> text);
+        public ReadOnlySpan<char> GetClipboardText();
 
         public void RegisterTextInput(Action<string> action);
         public void UnregisterTextInput(Action<string> action);

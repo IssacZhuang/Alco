@@ -272,6 +272,16 @@ public unsafe class Sdl3InputSystem : InputSystem
 
         return keyMap.ToFrozenDictionary();
     }
+
+    public override void CopyToClipboard(ReadOnlySpan<char> text)
+    {
+        SDL_SetClipboardText(text);
+    }
+
+    public override ReadOnlySpan<char> GetClipboardText()
+    {
+        return SDL_GetClipboardText();
+    }
 }
 
 // public enum KeyCode

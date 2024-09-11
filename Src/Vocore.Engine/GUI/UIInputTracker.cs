@@ -110,6 +110,25 @@ public class UIInputTracker : IUIInputTracker
         get => _input.IsKeyDown(KeyCode.Right);
     }
 
+    public bool IsKeySelectAllDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyDown(KeyCode.A);
+    }
+
+    public bool IsKeyCopyDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyDown(KeyCode.C);
+    }
+
+    public bool IsKeyPasteDown
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyDown(KeyCode.V);
+    }
+
+
     public bool IsMouseScrolling(out Vector2 delta)
     {
         return _input.IsMouseScrolling(out delta);
@@ -135,5 +154,15 @@ public class UIInputTracker : IUIInputTracker
     public void UnregisterTextInput(Action<string> action)
     {
         _window.OnTextInput -= action;
+    }
+
+    public void CopyToClipboard(ReadOnlySpan<char> text)
+    {
+        _input.CopyToClipboard(text);
+    }
+
+    public ReadOnlySpan<char> GetClipboardText()
+    {
+        return _input.GetClipboardText();
     }
 }
