@@ -251,7 +251,7 @@ public class UIInputBox : UIText, ITextInput
         int position = GetCursorPosition(mousePosition);
         _selectionStartPosition = position;
         _selectionEndPosition = position;
-        SerSelectionDirty();
+        SetSelectionDirty();
 
     }
 
@@ -267,7 +267,7 @@ public class UIInputBox : UIText, ITextInput
         base.OnDrag(canvas, mousePosition);
         int position = GetCursorPosition(mousePosition);
         _selectionEndPosition = position;
-        SerSelectionDirty();
+        SetSelectionDirty();
     }
 
     public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text)
@@ -275,7 +275,6 @@ public class UIInputBox : UIText, ITextInput
         //replace the selected text
         int selectionStart = _selectionStartPosition;
         int selectionEnd = _selectionEndPosition;
-        int cursorCharIndex = CursorCharIndex;
 
         bool isInverted = selectionStart > selectionEnd;
 
@@ -284,19 +283,14 @@ public class UIInputBox : UIText, ITextInput
             (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
         }
 
-        if (selectionStart == selectionEnd)
-        {
-            InsertText(cursorCharIndex, text);
-        }
-        else
+        if (selectionStart != selectionEnd)
         {
             DeleteText(selectionStart, selectionEnd - selectionStart);
-            _selectionEndPosition = _selectionStartPosition;
-            InsertText(selectionStart, text);
-
         }
 
-        IncreaseCursorPosition(text.Length);
+        InsertText(selectionStart, text);
+        _selectionEndPosition = _selectionStartPosition = selectionStart + text.Length;
+        SetSelectionDirty();
         //refresh IME position
         _isInputAreaDirty = true;
     }
@@ -429,7 +423,7 @@ public class UIInputBox : UIText, ITextInput
         _selectionEndPosition = math.clamp(_selectionEndPosition, 0, TextSpan.Length);
         _selectionStartPosition = _selectionEndPosition;
 
-        SerSelectionDirty();
+        SetSelectionDirty();
     }
 
     private CursorPositionRednerCache CalcCursorPositionRenderCache(int charIndex)
@@ -484,7 +478,7 @@ public class UIInputBox : UIText, ITextInput
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SerSelectionDirty()
+    private void SetSelectionDirty()
     {
         _isSelectionDirty = true;
     }
@@ -522,7 +516,7 @@ public class UIInputBox : UIText, ITextInput
             if (_selectionEndPosition < TextSpan.Length)
             {
                 DeleteText(_selectionEndPosition, 1);
-                SerSelectionDirty();
+                SetSelectionDirty();
             }
         }
         else
@@ -540,7 +534,7 @@ public class UIInputBox : UIText, ITextInput
                 DeleteText(_selectionEndPosition - 1, 1);
                 IncreaseCursorPosition(-1);
                 SetLineBreakDirty();
-                SerSelectionDirty();
+                SetSelectionDirty();
             }
         }
         else
@@ -577,7 +571,7 @@ public class UIInputBox : UIText, ITextInput
     public void HandleKeyEscape()
     {
         _selectionStartPosition = _selectionEndPosition;
-        SerSelectionDirty();
+        SetSelectionDirty();
     }
 
     public void HandleKeyArrowLeft()
@@ -607,7 +601,7 @@ public class UIInputBox : UIText, ITextInput
             int charIndex = textLine.start + (int)math.round(textLine.count * offset);
             _selectionStartPosition = charIndex;
             _selectionEndPosition = charIndex;
-            SerSelectionDirty();
+            SetSelectionDirty();
         }
     }
 
@@ -628,7 +622,7 @@ public class UIInputBox : UIText, ITextInput
             int charIndex = textLine.start + (int)math.round(textLine.count * offset);
             _selectionStartPosition = charIndex;
             _selectionEndPosition = charIndex;
-            SerSelectionDirty();
+            SetSelectionDirty();
         }
     }
 
@@ -637,14 +631,22 @@ public class UIInputBox : UIText, ITextInput
         int selectionStart = _selectionStartPosition;
         int selectionEnd = _selectionEndPosition;
 
-        if (selectionStart > selectionEnd)
+        bool isInverted = selectionStart > selectionEnd;
+
+        if (isInverted)
         {
             (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
         }
 
-        DeleteText(selectionStart, selectionEnd - selectionStart);
-        _selectionEndPosition = _selectionStartPosition;
-        SerSelectionDirty();
+        if (selectionStart != selectionEnd)
+        {
+            DeleteText(selectionStart, selectionEnd - selectionStart);
+        }
+
+        _selectionEndPosition = _selectionStartPosition = selectionStart;
+        SetSelectionDirty();
+        //refresh IME position
+        _isInputAreaDirty = true;
     }
 
     private void ResetBlink()
@@ -657,7 +659,7 @@ public class UIInputBox : UIText, ITextInput
     {
         _selectionStartPosition = 0;
         _selectionEndPosition = TextSpan.Length;
-        SerSelectionDirty();
+        SetSelectionDirty();
     }
 
     public Span<char> GetSelectedText()
