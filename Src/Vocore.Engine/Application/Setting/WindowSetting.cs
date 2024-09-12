@@ -38,6 +38,17 @@ public struct WindowSetting
     public WindowMode WindowMode { get; set; }
 
     /// <summary>
+    /// Is the window borderless
+    /// </summary>
+    public bool IsBorderless { get; set; }
+
+    /// <summary>
+    /// Is the window transparent, otherwise it will be black background
+    /// </summary>
+    /// <value></value>
+    public bool IsTransparent { get; set; }
+
+    /// <summary>
     /// Use Wayland window on Linux
     /// </summary>
     public bool LinuxUseWayland { get; set; }

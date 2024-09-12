@@ -120,10 +120,6 @@ public unsafe class Sdl3Platform : Platform
             case SDL_EventType.Quit:
                 StopMainLoop();
                 break;
-            case SDL_EventType.WindowCloseRequested:
-                Log.Info("Window close requested");
-                //todo: implement
-                break;
             case SDL_EventType.WindowResized:
                 Sdl3Window window = _windows[e.window.windowID];
                 window.DoResize(new uint2(e.window.data1, e.window.data2));

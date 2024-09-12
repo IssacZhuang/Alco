@@ -114,7 +114,19 @@ public unsafe partial class Sdl3Window : Window
 
     public Sdl3Window(GPUDevice device, WindowSetting setting)
     {
-        _window = SDL_CreateWindow(setting.Title, setting.Width, setting.Height, ConvetWindowMode(setting.WindowMode));
+        SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
+
+        if (setting.IsBorderless)
+        {
+            flags |= SDL_WindowFlags.Borderless;
+        }
+
+        if (setting.IsTransparent)
+        {
+            flags |= SDL_WindowFlags.Transparent;
+        }
+
+        _window = SDL_CreateWindow(setting.Title, setting.Width, setting.Height, flags);
         _title = setting.Title;
         if (_window.IsNull)
         {
