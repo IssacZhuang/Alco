@@ -234,69 +234,6 @@ public class UIInputBox : UIText, ITextInput
         return charIndex;
     }
 
-    public override void OnSelect(Canvas canvas, Vector2 mousePosition)
-    {
-        base.OnSelect(canvas, mousePosition);
-        _isSelecting = true;
-    }
-
-    public override void OnDeselect(Canvas canvas, Vector2 mousePosition)
-    {
-        base.OnDeselect(canvas, mousePosition);
-        canvas.EndTextInput();
-        _isSelecting = false;
-    }
-
-    public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
-    {
-        base.OnPressDown(canvas, mousePosition);
-        int position = GetCursorPosition(mousePosition);
-        _selectionStartPosition = position;
-        _selectionEndPosition = position;
-        SetSelectionDirty();
-
-    }
-
-    public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
-    {
-        base.OnPressUp(canvas, mousePosition);
-        _isInputAreaDirty = true;
-        canvas.StartTextInput(this, InputArea, 0);
-    }
-
-    public override void OnDrag(Canvas canvas, Vector2 mousePosition)
-    {
-        base.OnDrag(canvas, mousePosition);
-        int position = GetCursorPosition(mousePosition);
-        _selectionEndPosition = position;
-        SetSelectionDirty();
-    }
-
-    public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text)
-    {
-        //replace the selected text
-        int selectionStart = _selectionStartPosition;
-        int selectionEnd = _selectionEndPosition;
-
-        bool isInverted = selectionStart > selectionEnd;
-
-        if (isInverted)
-        {
-            (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
-        }
-
-        if (selectionStart != selectionEnd)
-        {
-            DeleteText(selectionStart, selectionEnd - selectionStart);
-        }
-
-        InsertText(selectionStart, text);
-        _selectionEndPosition = _selectionStartPosition = selectionStart + text.Length;
-        SetSelectionDirty();
-        //refresh IME position
-        _isInputAreaDirty = true;
-    }
-
     protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
         float textAdvances = Font!.GetNormalizedTextWidth(chars);
@@ -511,6 +448,83 @@ public class UIInputBox : UIText, ITextInput
         return _lines.Count - 1;
     }
 
+    private void ResetBlink()
+    {
+        _timerCursorBlink = 0;
+        _isCursorVisible = true;
+    }
+
+
+    #region  Handle UI Events
+
+    public override void OnSelect(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnSelect(canvas, mousePosition);
+        _isSelecting = true;
+    }
+
+    public override void OnDeselect(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnDeselect(canvas, mousePosition);
+        canvas.EndTextInput();
+        _isSelecting = false;
+    }
+
+    public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnPressDown(canvas, mousePosition);
+        int position = GetCursorPosition(mousePosition);
+        _selectionStartPosition = position;
+        _selectionEndPosition = position;
+        SetSelectionDirty();
+        ResetBlink();
+    }
+
+    public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnPressUp(canvas, mousePosition);
+        _isInputAreaDirty = true;
+        canvas.StartTextInput(this, InputArea, 0);
+    }
+
+    public override void OnDrag(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnDrag(canvas, mousePosition);
+        int position = GetCursorPosition(mousePosition);
+        _selectionEndPosition = position;
+        SetSelectionDirty();
+    }
+
+    #endregion
+
+    #region Handle Keyborad Events
+
+    public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text)
+    {
+        //replace the selected text
+        int selectionStart = _selectionStartPosition;
+        int selectionEnd = _selectionEndPosition;
+
+        bool isInverted = selectionStart > selectionEnd;
+
+        if (isInverted)
+        {
+            (selectionStart, selectionEnd) = (selectionEnd, selectionStart);
+        }
+
+        if (selectionStart != selectionEnd)
+        {
+            DeleteText(selectionStart, selectionEnd - selectionStart);
+        }
+
+        InsertText(selectionStart, text);
+        _selectionEndPosition = _selectionStartPosition = selectionStart + text.Length;
+        SetSelectionDirty();
+        //refresh IME position
+        _isInputAreaDirty = true;
+        ResetBlink();
+    }
+
     public void HandleKeyDelete()
     {
         if (_selectionStartPosition == _selectionEndPosition)
@@ -525,6 +539,7 @@ public class UIInputBox : UIText, ITextInput
         {
             DeleteSelectionText();
         }
+        ResetBlink();
     }
 
     public void HandleKeyBackspace()
@@ -543,12 +558,14 @@ public class UIInputBox : UIText, ITextInput
         {
             DeleteSelectionText();
         }
+        ResetBlink();
     }
 
     public void HandleKeyEnter()
     {
         InsertText(CursorCharIndex, "\n");
         IncreaseCursorPosition(1);
+        ResetBlink();
     }
 
     public void HandleKeyTab()
@@ -568,22 +585,26 @@ public class UIInputBox : UIText, ITextInput
                 IncreaseCursorPosition(1);
                 break;
         }
+        ResetBlink();
     }
 
     public void HandleKeyEscape()
     {
         _selectionStartPosition = _selectionEndPosition;
         SetSelectionDirty();
+        ResetBlink();
     }
 
     public void HandleKeyArrowLeft()
     {
         IncreaseCursorPosition(-1);
+        ResetBlink();
     }
 
     public void HandleKeyArrowRight()
     {
         IncreaseCursorPosition(1);
+        ResetBlink();
     }
 
     public void HandleKeyArrowUp()
@@ -605,6 +626,7 @@ public class UIInputBox : UIText, ITextInput
             _selectionEndPosition = charIndex;
             SetSelectionDirty();
         }
+        ResetBlink();
     }
 
     public void HandleKeyArrowDown()
@@ -626,6 +648,8 @@ public class UIInputBox : UIText, ITextInput
             _selectionEndPosition = charIndex;
             SetSelectionDirty();
         }
+
+        ResetBlink();
     }
 
     private void DeleteSelectionText()
@@ -649,12 +673,6 @@ public class UIInputBox : UIText, ITextInput
         SetSelectionDirty();
         //refresh IME position
         _isInputAreaDirty = true;
-    }
-
-    private void ResetBlink()
-    {
-        _timerCursorBlink = 0;
-        _isCursorVisible = true;
     }
 
     public void SelectAll()
@@ -682,6 +700,8 @@ public class UIInputBox : UIText, ITextInput
         return TextSpan.Slice(selectionStart, selectionEnd - selectionStart);
     }
 
+    #endregion
+
     private void DebugShowLineBreak()
     {
         for (int i = 0; i < _lines.Count; i++)
@@ -689,4 +709,6 @@ public class UIInputBox : UIText, ITextInput
             DebugGUI.Text($"Line {i}: start: {_lines[i].start}, count: {_lines[i].count}");
         }
     }
+
+
 }
