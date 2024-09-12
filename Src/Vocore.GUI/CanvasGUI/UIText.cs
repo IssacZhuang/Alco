@@ -308,10 +308,9 @@ public class UIText : UISelectable
             }
         }
 
-        if (line.count > 0)
-        {
-            _lines.Add(line);
-        }
+        //add the last line
+        //this can be an empty line if the last char is '\n'
+        _lines.Add(line);
     }
 
     protected Span<char> ResizeText(int length)
