@@ -124,6 +124,15 @@ public unsafe class Sdl3Platform : Platform
                 Sdl3Window window = _windows[e.window.windowID];
                 window.DoResize(new uint2(e.window.data1, e.window.data2));
                 break;
+            case SDL_EventType.WindowMinimized:
+                Sdl3Window window2 = _windows[e.window.windowID];
+                window2.DoMinimize();
+                break;
+            case SDL_EventType.WindowRestored:
+                Sdl3Window windo3 = _windows[e.window.windowID];
+                windo3.DoRestore();
+                break;
+            
         }
     }
 }

@@ -48,6 +48,16 @@ public unsafe abstract class Window : AutoDisposable//todo : change to disposabl
     public event Action<uint2>? OnResize;
 
     /// <summary>
+    /// The window minimize event. It will destroy the surface texture on this event.
+    /// </summary>
+    public event Action? OnMinimize;
+
+    /// <summary>
+    /// The window restore event. It will recreate the surface texture on this event.
+    /// </summary>
+    public event Action? OnRestore;
+
+    /// <summary>
     /// The text input event.
     /// </summary>
     public event Action<string>? OnTextInput;
@@ -77,7 +87,19 @@ public unsafe abstract class Window : AutoDisposable//todo : change to disposabl
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void DoTextInput(string text)
+    public void DoMinimize()
+    {
+        OnMinimize?.Invoke();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoRestore()
+    {
+        OnRestore?.Invoke();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoTextInput(string text)
     {
         OnTextInput?.Invoke(text);
     }
