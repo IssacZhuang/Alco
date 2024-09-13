@@ -1,7 +1,3 @@
-todo bugs:
+todo optimization:
 
-[1]
-the gpu surface is lost when sdl window is minimized
-
-[2]
-the gpu instancing for text rendering has error when the text is too long
+[1] the text rendering will submit command buffer many time when rendering large amount of text

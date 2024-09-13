@@ -127,8 +127,9 @@ public partial class CanvasRenderer
 
             if (remainInstanceCount <= 0)
             {
-                FlushBuffer();
+                FlushBuffer();//state will be reset to None
                 BeginDraw();
+                SetState(RenderingState.Text);
                 continue;
             }
 

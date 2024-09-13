@@ -102,7 +102,6 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         FlushBuffer();
         _renderTarget = null;
         _isDrawing = false;
-        _state = RenderingState.None;
     }
 
     /// <summary>
@@ -117,6 +116,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
     // called when command end or text buffer is full
     private void FlushBuffer()
     {
+        _state = RenderingState.None;
         _textBufferGPU.UpdateBufferRanged(0, (uint)_textInstanceIndex);
         _command.End();
         _device.Submit(_command);
