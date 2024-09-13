@@ -167,7 +167,7 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
-        DebugShowLineBreak();
+        //DebugShowLineBreak();
     }
 
     private int GetCursorPosition(Vector2 mousePosition)

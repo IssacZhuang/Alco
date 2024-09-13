@@ -18,6 +18,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private RenderTexture _renderTexture;
 
     private bool _shouldResize = false;
+    private bool _isMinimized = false;
     private uint _width;
     private uint _height;
 
@@ -50,6 +51,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     {
         _window = window;
         _window.OnResize += OnWindowResize;
+        _window.OnMinimize += OnWindowMinimize;
+        _window.OnRestore += OnWindowRestore;
 
         _rendering = engine.Rendering;
 
@@ -98,15 +101,17 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
             return;
         }
 
+        if (_isMinimized)
+        {
+            return;
+        }
+
         _converter.Blit(_windowSwapchain.FrameBuffer);
         _windowSwapchain.Present();
 
         if (_shouldResize)
         {
-
-            _renderTexture.Dispose();
-            _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
-            _converter.SetInput(_renderTexture.FrameBuffer);
+            RecreateRenderTexture();
             _shouldResize = false;
             OnResize?.Invoke(new uint2(_width, _height));
         }
@@ -116,6 +121,15 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     public override void Dispose()
     {
         _window.OnResize -= OnWindowResize;
+        _window.OnMinimize -= OnWindowMinimize;
+        _window.OnRestore -= OnWindowRestore;
+    }
+
+    private void RecreateRenderTexture()
+    {
+        _renderTexture.Dispose();
+        _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
+        _converter.SetInput(_renderTexture.FrameBuffer);
     }
 
     private void OnWindowResize(uint2 size)
@@ -125,6 +139,17 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _height = size.y;
         
         _windowSwapchain?.Resize(_width, _height);
+    }
+
+    private void OnWindowMinimize()
+    {
+        _isMinimized = true;
+    }
+
+    private void OnWindowRestore()
+    {
+        _isMinimized = false;
+        //RecreateRenderTexture();
     }
 
 }
