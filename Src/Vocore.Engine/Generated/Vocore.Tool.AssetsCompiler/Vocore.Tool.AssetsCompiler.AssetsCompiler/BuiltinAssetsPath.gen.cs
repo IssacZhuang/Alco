@@ -11,13 +11,9 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_Sprite = "Rendering/Shader/2D/Sprite.hlsl";
 
-   public const string Shader_SpriteAlphaClip = "Rendering/Shader/2D/SpriteAlphaClip.hlsl";
-
    public const string Shader_SpriteMasked = "Rendering/Shader/2D/SpriteMasked.hlsl";
 
    public const string Shader_Text = "Rendering/Shader/2D/Text.hlsl";
-
-   public const string Shader_TextAlphaClip = "Rendering/Shader/2D/TextAlphaClip.hlsl";
 
    public const string Shader_TextMasked = "Rendering/Shader/2D/TextMasked.hlsl";
 

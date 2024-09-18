@@ -16,13 +16,9 @@ public partial class BuiltInAssets
 
     public Shader Shader_Sprite => GetShader("Rendering/Shader/2D/Sprite.hlsl");
 
-    public Shader Shader_SpriteAlphaClip => GetShader("Rendering/Shader/2D/SpriteAlphaClip.hlsl");
-
     public Shader Shader_SpriteMasked => GetShader("Rendering/Shader/2D/SpriteMasked.hlsl");
 
     public Shader Shader_Text => GetShader("Rendering/Shader/2D/Text.hlsl");
-
-    public Shader Shader_TextAlphaClip => GetShader("Rendering/Shader/2D/TextAlphaClip.hlsl");
 
     public Shader Shader_TextMasked => GetShader("Rendering/Shader/2D/TextMasked.hlsl");
 

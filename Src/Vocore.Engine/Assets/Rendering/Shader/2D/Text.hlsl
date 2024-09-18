@@ -37,14 +37,14 @@ struct TextData {
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_UNIFORM(1, _textBuffer) { TextData Data[MAX_INSTANCE_COUNT]; };
+DEFINE_STORAGE(1, TextData, _textBuffer);
 
 DEFINE_TEX2D_SAMPLE(2, _font);
 
 PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input) {
-  TextData data = Data[constants.instanceStart + input.instanceId];
+  TextData data = _textBuffer[constants.instanceStart + input.instanceId];
   float2 vertexPos = input.position * data.size;
   float4 position =
       float4(vertexPos + data.offset + constants.vertexOffset, 0.0f, 1.0f);
@@ -59,7 +59,7 @@ V2F vs_main(Vertex2D input) {
 }
 
 float4 fs_main(V2F input) : SV_TARGET {
-  TextData data = Data[input.instanceId];
+  TextData data = _textBuffer[input.instanceId];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
   // float r = _font.Sample(_fontSampler, uv).r;
   float r = SAMPLE_TEX2D(_font, uv).r;

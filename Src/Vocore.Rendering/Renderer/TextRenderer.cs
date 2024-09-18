@@ -122,7 +122,7 @@ public class TextRenderer : AutoDisposable, IRenderer
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadonly);
+        _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadWrite);
     }
 
     private void Flush()

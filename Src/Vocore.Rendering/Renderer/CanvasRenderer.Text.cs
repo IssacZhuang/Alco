@@ -19,7 +19,7 @@ public partial class CanvasRenderer
 
     public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0);
 
-    private const int MaxTextInstancingCount = 300;
+    private const int MaxTextInstancingCount = 1024;
     private readonly Shader _shaderText;
     private GPUPipeline? _pipelineText;
     private readonly Mesh _meshText;
@@ -39,7 +39,7 @@ public partial class CanvasRenderer
         _command.SetVertexBuffer(0, _meshText.VertexBuffer);
         _command.SetIndexBuffer(_meshText.IndexBuffer, _meshText.IndexFormat);
         _command.SetGraphicsResources(_textShaderId_camera, Camera.EntryReadonly);
-        _command.SetGraphicsResources(_textShaderId_textBuffer, _textBufferGPU.EntryReadonly);
+        _command.SetGraphicsResources(_textShaderId_textBuffer, _textBufferGPU.EntryReadWrite);
     }
 
 
