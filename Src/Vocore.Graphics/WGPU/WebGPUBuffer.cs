@@ -68,8 +68,8 @@ internal unsafe class WebGPUBuffer : GPUBuffer
         _size = UtilsBuffer.GetBufferSize(descriptor.Size);
         //_size = (uint)descriptor.Size;
         _usage = descriptor.Usage;
-        
-        fixed (sbyte* name = descriptor.Name.GetUtf8Span())
+
+        fixed (byte* name = descriptor.Name.GetUtf8Span())
         {
             WGPUBufferDescriptor bufferDescriptor = new()
             {

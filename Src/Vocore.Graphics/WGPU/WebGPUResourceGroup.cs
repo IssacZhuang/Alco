@@ -93,7 +93,7 @@ internal unsafe class WebGPUResourceGroup : GPUResourceGroup
             entries[i] = nativeEntry;
         }
 
-        fixed (sbyte* ptrName = Name.GetUtf8Span())
+        fixed (byte* ptrName = Name.GetUtf8Span())
         {
             WGPUBindGroupDescriptor nativeDescriptor = new WGPUBindGroupDescriptor
             {

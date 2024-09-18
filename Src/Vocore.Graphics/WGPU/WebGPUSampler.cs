@@ -51,7 +51,7 @@ internal class WebGPUSampler : GPUSampler
         Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
-        fixed (sbyte* ptrName = descriptor.Name.GetUtf8Span())
+        fixed (byte* ptrName = descriptor.Name.GetUtf8Span())
         {
             WGPUSamplerDescriptor nativeDescriptor = new WGPUSamplerDescriptor()
             {

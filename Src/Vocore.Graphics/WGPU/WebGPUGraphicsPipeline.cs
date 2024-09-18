@@ -103,8 +103,8 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
         }
 
         // TODO: bind groups/pipline layout
-        fixed (sbyte* pVertexEntry = vertex.EntryPoint.GetUtf8Span())
-        fixed (sbyte* pPixelEntry = pixel.EntryPoint.GetUtf8Span())
+        fixed (byte* pVertexEntry = vertex.EntryPoint.GetUtf8Span())
+        fixed (byte* pPixelEntry = pixel.EntryPoint.GetUtf8Span())
         {
 
 

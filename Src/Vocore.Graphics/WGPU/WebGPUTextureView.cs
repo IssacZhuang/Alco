@@ -60,7 +60,7 @@ internal class WebGPUTextureView : WebGPUTextureViewBase
         _texture = (WebGPUTextureBase)descriptor.Texture;
         _dimension = descriptor.Dimension;
 
-        fixed (sbyte* ptrName = descriptor.Name.GetUtf8Span())
+        fixed (byte* ptrName = descriptor.Name.GetUtf8Span())
         {
             WGPUTextureViewDescriptor viewDescriptor = new WGPUTextureViewDescriptor()
             {

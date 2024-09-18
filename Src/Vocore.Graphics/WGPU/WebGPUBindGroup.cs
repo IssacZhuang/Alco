@@ -52,7 +52,7 @@ internal class WebGPUBindGroup : GPUBindGroup
             nativeEntries[i] = entries[i].ConvertToWebGPU();
         }
 
-        fixed (sbyte* ptrName = Name.GetUtf8Span())
+        fixed (byte* ptrName = Name.GetUtf8Span())
         {
             WGPUBindGroupLayoutDescriptor nativeDescriptor = new WGPUBindGroupLayoutDescriptor()
             {

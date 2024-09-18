@@ -47,8 +47,10 @@ internal class WebGPUComputePipeline : GPUPipeline
 
         WGPUDevice nativeDevice = device.Native;
 
-        fixed (sbyte* ptrEntry = descriptor.Source.EntryPoint.GetUtf8Span())
-        fixed (sbyte* ptrName = Name.GetUtf8Span())
+
+
+        fixed (byte* ptrEntry = descriptor.Source.EntryPoint.GetUtf8Span())
+        fixed (byte* ptrName = Name.GetUtf8Span())
         {
             WGPUShaderModule module = nativeDevice.CreateShaderModule(descriptor.Source);
 

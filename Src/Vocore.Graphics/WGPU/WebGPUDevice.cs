@@ -252,7 +252,7 @@ internal partial class WebGPUDevice : GPUDevice
 
         // stopwatch.Restart();
         
-        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size, &BufferMapCallback, 0);
+        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size, &BufferMapCallback, null);
         wgpuDevicePoll(Device, WGPUBool.True, null);
 
         // stopwatch.Stop();
@@ -370,7 +370,7 @@ internal partial class WebGPUDevice : GPUDevice
         WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
         wgpuQueueSubmit(Queue, 1, &commandBuffer);
 
-        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, dataSize, &BufferMapCallback, 0);
+        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, dataSize, &BufferMapCallback, null);
         wgpuDevicePoll(Device, WGPUBool.True, null);
 
         void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, dataSize);
@@ -438,7 +438,7 @@ internal partial class WebGPUDevice : GPUDevice
 
 
         WGPUAdapter adapter = WGPUAdapter.Null;
-        wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, new nint(&adapter));
+        wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, &adapter);
         Adapter = adapter;
 
         WGPUAdapterProperties properties = default;
@@ -467,7 +467,7 @@ internal partial class WebGPUDevice : GPUDevice
         }
 
         // create device
-        fixed (sbyte* name = descriptor.Name.GetUtf8Span())
+        fixed (byte* name = descriptor.Name.GetUtf8Span())
         {
             WGPUDeviceDescriptor deviceDescriptor = new()
             {
@@ -505,11 +505,11 @@ internal partial class WebGPUDevice : GPUDevice
             deviceDescriptor.requiredLimits = &requiredLimits;
 
 
-            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, new nint(&device));
+            wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, &device);
             Device = device;
         }
 
-        wgpuDeviceSetUncapturedErrorCallback(Device, &OnUnhandleError);
+        //wgpuDeviceSetUncapturedErrorCallback(Device, &OnUnhandleError);
 
         //get queue
         Queue = wgpuDeviceGetQueue(Device);
@@ -637,7 +637,7 @@ internal partial class WebGPUDevice : GPUDevice
     #region Callbacks
 
     [UnmanagedCallersOnly]
-    private unsafe static void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter candidateAdapter, sbyte* message, nint pUserData)
+    private unsafe static void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter candidateAdapter, byte* message, nint pUserData)
     {
         if (status == WGPURequestAdapterStatus.Success)
         {
@@ -651,7 +651,7 @@ internal partial class WebGPUDevice : GPUDevice
     }
 
     [UnmanagedCallersOnly]
-    private unsafe static void OnDeviceRequestEnded(WGPURequestDeviceStatus status, WGPUDevice device, sbyte* message, nint pUserData)
+    private unsafe static void OnDeviceRequestEnded(WGPURequestDeviceStatus status, WGPUDevice device, byte* message, void* pUserData)
     {
         if (status == WGPURequestDeviceStatus.Success)
         {
@@ -664,14 +664,14 @@ internal partial class WebGPUDevice : GPUDevice
         }
     }
 
-    [UnmanagedCallersOnly]
-    private unsafe static void OnUnhandleError(WGPUErrorType type, sbyte* message, nint pUserData)
-    {
-        throw new GraphicsException("Unhandle WebGPU error: " + Interop.GetString(message));
-    }
+    // [UnmanagedCallersOnly]
+    // private unsafe static void OnUnhandleError(WGPUErrorType type, sbyte* message, nint pUserData)
+    // {
+    //     throw new GraphicsException("Unhandle WebGPU error: " + Interop.GetString(message));
+    // }
 
     [UnmanagedCallersOnly]
-    private unsafe static void BufferMapCallback(WGPUBufferMapAsyncStatus status, nint userdata)
+    private unsafe static void BufferMapCallback(WGPUBufferMapAsyncStatus status, void* userdata)
     {
         if (status != WGPUBufferMapAsyncStatus.Success)
         {

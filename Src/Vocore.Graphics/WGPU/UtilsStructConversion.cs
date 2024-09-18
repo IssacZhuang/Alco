@@ -17,7 +17,7 @@ internal static partial class UtilsWebGPU
         switch (surface)
         {
             case HtmlCanvasSurfaceSource htmlCanvasSurface:
-                fixed (sbyte* ptr = htmlCanvasSurface.Selector.GetUtf8Span())
+                fixed (byte* ptr = htmlCanvasSurface.Selector.GetUtf8Span())
                 {
                     WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasChain =
                     new WGPUSurfaceDescriptorFromCanvasHTMLSelector()
@@ -38,7 +38,7 @@ internal static partial class UtilsWebGPU
                 WGPUSurfaceDescriptorFromAndroidNativeWindow widnowChain =
                 new WGPUSurfaceDescriptorFromAndroidNativeWindow()
                 {
-                    window = androidWindowSurface.Window,
+                    window = (void*)androidWindowSurface.Window,
                     chain = new WGPUChainedStruct()
                     {
                         sType = WGPUSType.SurfaceDescriptorFromAndroidNativeWindow,
@@ -52,7 +52,7 @@ internal static partial class UtilsWebGPU
                 WGPUSurfaceDescriptorFromMetalLayer metalLayerChain =
                 new WGPUSurfaceDescriptorFromMetalLayer()
                 {
-                    layer = metalLayerSurface.Layer,
+                    layer = (void*)metalLayerSurface.Layer,
                     chain = new WGPUChainedStruct()
                     {
                         sType = WGPUSType.SurfaceDescriptorFromMetalLayer,
@@ -66,8 +66,8 @@ internal static partial class UtilsWebGPU
                 WGPUSurfaceDescriptorFromWindowsHWND win32Chain =
                 new WGPUSurfaceDescriptorFromWindowsHWND()
                 {
-                    hinstance =win32Surface.HInstance,
-                    hwnd = win32Surface.Hwnd,
+                    hinstance = (void*)win32Surface.HInstance,
+                    hwnd = (void*)win32Surface.Hwnd,
                     chain = new WGPUChainedStruct()
                     {
                         sType = WGPUSType.SurfaceDescriptorFromWindowsHWND,
@@ -81,8 +81,8 @@ internal static partial class UtilsWebGPU
                 WGPUSurfaceDescriptorFromWaylandSurface surfaceChain =
                 new WGPUSurfaceDescriptorFromWaylandSurface()
                 {
-                    display = waylandSurface.Display,
-                    surface = waylandSurface.Surface,
+                    display = (void*)waylandSurface.Display,
+                    surface = (void*)waylandSurface.Surface,
                     chain = new WGPUChainedStruct()
                     {
                         sType = WGPUSType.SurfaceDescriptorFromWaylandSurface,
@@ -96,7 +96,7 @@ internal static partial class UtilsWebGPU
                 WGPUSurfaceDescriptorFromXcbWindow surfaceXlibChain =
                 new WGPUSurfaceDescriptorFromXcbWindow()
                 {
-                    connection = xcbWindowSurface.Connection,
+                    connection = (void*)xcbWindowSurface.Connection,
                     window = xcbWindowSurface.Window,
                     chain = new WGPUChainedStruct()
                     {
@@ -111,7 +111,7 @@ internal static partial class UtilsWebGPU
                 WGPUSurfaceDescriptorFromXlibWindow surfaceXcbChain =
                 new WGPUSurfaceDescriptorFromXlibWindow()
                 {
-                    display = xlibWindowSurface.Display,
+                    display = (void*)xlibWindowSurface.Display,
                     window = xlibWindowSurface.Window,
                     chain = new WGPUChainedStruct()
                     {
@@ -158,7 +158,7 @@ internal static partial class UtilsWebGPU
         else if (source.Language == ShaderLanguage.WGSL)
         {
             string code = Encoding.UTF8.GetString(source.Source);
-            fixed (sbyte* ptr = code.GetUtf8Span())
+            fixed (byte* ptr = code.GetUtf8Span())
             {
                 WGPUShaderModuleWGSLDescriptor descriptor = new WGPUShaderModuleWGSLDescriptor()
                 {
@@ -178,7 +178,7 @@ internal static partial class UtilsWebGPU
         else if (source.Language == ShaderLanguage.GLSL)
         {
             string code = Encoding.UTF8.GetString(source.Source);
-            fixed (sbyte* ptr = code.GetUtf8Span())
+            fixed (byte* ptr = code.GetUtf8Span())
             {
                 WGPUShaderModuleGLSLDescriptor descriptor = new WGPUShaderModuleGLSLDescriptor()
                 {

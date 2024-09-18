@@ -33,7 +33,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
     private WGPUCommandBuffer _buffer;
 
     //release on dispose
-    private readonly sbyte* _nativeName;
+    private readonly byte* _nativeName;
 
     #endregion
 
@@ -326,10 +326,10 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         _renderPass = WGPURenderPassEncoder.Null;
         _computePass = WGPUComputePassEncoder.Null;
 
-        ReadOnlySpan<sbyte> nameSpan = Name.GetUtf8Span();
-        fixed (sbyte* ptr = nameSpan)
+        ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
+        fixed (byte* ptr = nameSpan)
         {
-            _nativeName = UtilsInterop.Alloc<sbyte>(nameSpan.Length + 1);
+            _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
             UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
         }
 
