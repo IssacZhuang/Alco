@@ -161,6 +161,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             loadOp = WGPULoadOp.Load,
             storeOp = WGPUStoreOp.Store,
             clearValue = colorInfo.clearColor,
+            depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
         };
 
         _colorViewsWrapper = new WebGPUTextureViewWrapper[1];

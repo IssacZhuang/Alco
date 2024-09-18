@@ -170,6 +170,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 loadOp = WGPULoadOp.Load,
                 storeOp = WGPUStoreOp.Store,
                 clearValue = colorInfo.clearColor,
+                depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
             };
         }
 

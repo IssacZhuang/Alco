@@ -19,16 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--PackageReference Include="Silk.NET.Shaderc" Version="2.20.0" /-->
-    <!-- <PackageReference Include="Silk.NET.Shaderc.Native" Version="2.20.0" /> -->
     <PackageReference Include="Silk.NET.SPIRV.Reflect" Version="2.20.0" />
     <PackageReference Include="Silk.NET.SPIRV.Reflect.Native" Version="2.20.0" />
-    <PackageReference Include="SharpGen.Runtime" Version="2.1.2-beta" />
-    <PackageReference Include="SharpGen.Runtime.COM" Version="2.1.2-beta" />
 
     <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.Vulkan" Version="1.8.5" />
     <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.VulkanMemoryAllocator" Version="1.4.3" />
     <PackageReference Condition="'$(UseWebGPU)' == 'true'" Include="Alimer.Bindings.WebGPU" Version="1.5.0" />
+    <PackageReference Condition="'$(UseWebGPU)' == 'true'" Include="Alimer.WebGPU.Native" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

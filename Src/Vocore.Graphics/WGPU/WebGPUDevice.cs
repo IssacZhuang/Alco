@@ -441,9 +441,11 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, &adapter);
         Adapter = adapter;
 
-        WGPUAdapterProperties properties = default;
-        wgpuAdapterGetProperties(adapter, &properties);
-        GraphicsLogger.Info($"Graphics backend: {properties.backendType}");
+        WGPUAdapterInfo info = default;
+        wgpuAdapterGetInfo(adapter, &info);
+        GraphicsLogger.Info($"Graphics backend: {info.backendType}");
+
+        wgpuAdapterInfoFreeMembers(info);
 
         nuint supportedFeaturesCount = wgpuAdapterEnumerateFeatures(Adapter, null);
         WGPUFeatureName* supportedFeatures = stackalloc WGPUFeatureName[(int)supportedFeaturesCount];
@@ -637,7 +639,7 @@ internal partial class WebGPUDevice : GPUDevice
     #region Callbacks
 
     [UnmanagedCallersOnly]
-    private unsafe static void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter candidateAdapter, byte* message, nint pUserData)
+    private unsafe static void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter candidateAdapter, byte* message, void* pUserData)
     {
         if (status == WGPURequestAdapterStatus.Success)
         {

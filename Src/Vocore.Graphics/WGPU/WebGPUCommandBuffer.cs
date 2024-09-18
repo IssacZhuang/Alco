@@ -136,7 +136,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 
         if (_frameBuffer == null)
         {
-            throw new GraphicsException("Framebuffer must be setted before ClearDepthStencil");
+            throw new GraphicsException("Framebuffer must be setted before ClearColor");
         }
 
         if (_renderPass != WGPURenderPassEncoder.Null)
@@ -262,11 +262,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected unsafe override void SetComputePipelineCore(GPUPipeline pipeline)
     {
-        if (_computePass == WGPUComputePassEncoder.Null)
-        {
-            _computePass = wgpuCommandEncoderBeginComputePass(_encoder, null);
-        }
-
+        CheckComputePass();
         //ValidateComputePass();
 
         _computePipeline = ((WebGPUComputePipeline)pipeline).Native;
@@ -376,12 +372,15 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void CheckRenderPass(bool throwIfNotExist = false)
     {
         if (_renderPass != WGPURenderPassEncoder.Null)
         {
             return;
         }
+
+        TryFinishCurrentComputePass();
 
         if (_frameBuffer != null)
         {
@@ -406,6 +405,19 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         {
             throw ExceptionNoFramebuffer;
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CheckComputePass()
+    {
+        if (_computePass != WGPUComputePassEncoder.Null)
+        {
+            return;
+        }
+
+        TryFinishCurrentRenderPass();
+
+        _computePass = wgpuCommandEncoderBeginComputePass(_encoder, null);
     }
 
 

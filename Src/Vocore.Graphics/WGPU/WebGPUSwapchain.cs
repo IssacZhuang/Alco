@@ -44,7 +44,7 @@ internal unsafe class WebGPUSwapchain : GPUSwapchain
         {
             _supportedSurfaceFormats[i] = surfaceCapabilities.formats[i];
         }
-        wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
+        
 
         _surfaceFormat = UtilsWebGPU.PixelFormatToWebGPU(descriptor.ColorFormat);
         bool isFormatSupported = false;
@@ -59,9 +59,11 @@ internal unsafe class WebGPUSwapchain : GPUSwapchain
         if (!isFormatSupported)
         {
             WGPUTextureFormat oldFormat = _surfaceFormat;
-            _surfaceFormat = wgpuSurfaceGetPreferredFormat(_surface, adapter);
+            _surfaceFormat = _supportedSurfaceFormats[0];
             GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_surfaceFormat} instead");
         }
+
+        wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
 
         //create render pass
         DepthAttachment? depth = null;
