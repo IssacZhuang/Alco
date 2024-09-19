@@ -23,9 +23,7 @@ struct V2F {
 
 struct Constants {
   float4x4 model;
-  // the start of instance id in OpenGL is always 0, so use a custom instance start
   float2 vertexOffset; // to offset the text to pivot point
-  uint instanceStart;
 };
 
 struct TextData {
@@ -44,7 +42,7 @@ DEFINE_TEX2D_SAMPLE(2, _font);
 PUSH_CONSTANT Constants constants;
 
 V2F vs_main(Vertex2D input) {
-  TextData data = _textBuffer[constants.instanceStart + input.instanceId];
+  TextData data = _textBuffer[input.instanceId];
   float2 vertexPos = input.position * data.size;
   float4 position =
       float4(vertexPos + data.offset + constants.vertexOffset, 0.0f, 1.0f);
@@ -54,7 +52,7 @@ V2F vs_main(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = position;
   output.uv = input.uv;
-  output.instanceId = constants.instanceStart + input.instanceId;
+  output.instanceId = input.instanceId;
   return output;
 }
 

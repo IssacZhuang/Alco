@@ -18,7 +18,6 @@ public class TextRenderer : AutoDisposable, IRenderer
         public Matrix4x4 Model;
         // the start of instance id in OpenGL is always 0, so use a custom instance start
         public Vector2 VertexOffset;
-        public uint InstanceStart;
     }
 
     public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, -0.5f);
@@ -264,7 +263,6 @@ public class TextRenderer : AutoDisposable, IRenderer
         Constant constant = new Constant
         {
             Model = matrix,
-            InstanceStart = 0,
             VertexOffset = textAreaSize * realPivot
         };
 
@@ -288,7 +286,6 @@ public class TextRenderer : AutoDisposable, IRenderer
 
 
             uint instanceStart = (uint)_instanceIndex;
-            constant.InstanceStart = instanceStart;
 
             for (uint i = 0; i < drawCount; i++)
             {
@@ -300,7 +297,7 @@ public class TextRenderer : AutoDisposable, IRenderer
 
             _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
             _command.PushConstants(ShaderStage.Vertex, 0, constant);
-            _command.DrawIndexed(_mesh.IndexCount, (uint)drawCount, 0, 0, 0);
+            _command.DrawIndexed(_mesh.IndexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 
         return x;

@@ -12,9 +12,7 @@ public partial class CanvasRenderer
     {
         public Matrix4x4 Model;
         public BoundingBox2D Mask;
-        // the start of instance id in OpenGL is always 0, so use a custom instance start
         public Vector2 VertexOffset;
-        public uint InstanceStart;
     }
 
     public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0);
@@ -110,7 +108,6 @@ public partial class CanvasRenderer
         {
             Model = matrix,
             Mask = mask,    
-            InstanceStart = 0,
             VertexOffset = textAreaSize * realPivot
         };
 
@@ -135,7 +132,6 @@ public partial class CanvasRenderer
 
 
             uint instanceStart = (uint)_textInstanceIndex;
-            constant.InstanceStart = instanceStart;
 
             for (uint i = 0; i < drawCount; i++)
             {
@@ -147,7 +143,7 @@ public partial class CanvasRenderer
 
             _command.SetGraphicsResources(_textShaderId_font, font.Texture.EntrySample);
             _command.PushConstants(ShaderStage.Vertex, 0, constant);
-            _command.DrawIndexed(_meshText.IndexCount, (uint)drawCount, 0, 0, 0);
+            _command.DrawIndexed(_meshText.IndexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 
         return x;
