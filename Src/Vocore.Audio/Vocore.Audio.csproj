@@ -6,10 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Silk.NET.OpenAL" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.Enumeration" Version="2.21.0" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+    <PackageReference Include="SteamAudio.NET" Version="4.5.3" />
   </ItemGroup>
 </Project>

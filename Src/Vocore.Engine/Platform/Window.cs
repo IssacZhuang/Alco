@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Silk.NET.OpenAL;
 using Vocore.Graphics;
 
 namespace Vocore.Engine;
