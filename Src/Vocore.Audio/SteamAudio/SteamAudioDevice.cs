@@ -8,7 +8,7 @@ namespace Vocore.Audio.Steam;
 
 internal unsafe class SteamAudioDevice : AudioDevice
 {
-    private readonly Context _context;
+    private Context _context;
 
     public Context Context
     {
@@ -39,7 +39,7 @@ internal unsafe class SteamAudioDevice : AudioDevice
 
     protected override void Dispose(bool disposing)
     {
-
+        ContextRelease(ref _context);
     }
 
     private static void LogCallback(LogLevel level, string message)

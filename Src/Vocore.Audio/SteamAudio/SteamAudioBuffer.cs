@@ -38,6 +38,6 @@ internal class SteamAudioBuffer : AudioBuffer
 
     private void AllocateBuffer()
     {
-
+        
     }
 }
