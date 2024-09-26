@@ -3,7 +3,7 @@ using static StbVorbisSharp.StbVorbis;
 
 namespace StbVorbisSharp
 {
-	public unsafe class Vorbis : IDisposable
+	internal unsafe class Vorbis : IDisposable
 	{
 		private readonly byte[] _data;
 		private readonly stb_vorbis_info _vorbisInfo;
