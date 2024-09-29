@@ -3,7 +3,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_TryLockSpinlock(global::SDL3.SDL_SpinLock* @lock)
         {
@@ -58,7 +58,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_AtomicCompareAndSwap(global::SDL3.SDL_AtomicInt* a, int oldval, int newval)
         {
@@ -105,7 +105,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_AtomicCompareAndSwapPointer(nint a, nint oldval, nint newval)
         {
@@ -168,11 +168,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_AudioDeviceID* SDL_GetAudioPlaybackDevices(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_AudioDeviceID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -191,11 +191,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_AudioDeviceID* SDL_GetAudioRecordingDevices(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_AudioDeviceID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -230,11 +230,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int* SDL_GetAudioDeviceChannelMap(global::SDL3.SDL_AudioDeviceID devid, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             int* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -277,7 +277,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_AudioDevicePaused(global::SDL3.SDL_AudioDeviceID dev)
         {
@@ -428,11 +428,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int* SDL_GetAudioStreamInputChannelMap(global::SDL3.SDL_AudioStream stream, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             int* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -451,11 +451,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int* SDL_GetAudioStreamOutputChannelMap(global::SDL3.SDL_AudioStream stream, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             int* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -610,7 +610,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_LoadWAV_IO(global::SDL3.SDL_IOStream src, bool closeio, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
         {
@@ -641,7 +641,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_LoadWAV(global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
         {
@@ -663,7 +663,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_LoadWAV(global::System.ReadOnlySpan<char> path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
         {
@@ -754,11 +754,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_CameraID* SDL_GetCameras(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_CameraID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -777,11 +777,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_CameraSpec** SDL_GetCameraSupportedFormats(global::SDL3.SDL_CameraID devid, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_CameraSpec** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -888,7 +888,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetClipboardText(global::System.ReadOnlySpan<byte> text)
         {
@@ -910,7 +910,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetClipboardText(global::System.ReadOnlySpan<char> text)
         {
@@ -953,7 +953,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasClipboardText()
         {
@@ -984,7 +984,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetPrimarySelectionText(global::System.ReadOnlySpan<byte> text)
         {
@@ -1006,7 +1006,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetPrimarySelectionText(global::System.ReadOnlySpan<char> text)
         {
@@ -1049,7 +1049,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasPrimarySelectionText()
         {
@@ -1096,7 +1096,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_GetClipboardData(global::System.ReadOnlySpan<byte> mime_type, nuint* size)
         {
@@ -1118,7 +1118,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_GetClipboardData(global::System.ReadOnlySpan<char> mime_type, nuint* size)
         {
@@ -1153,7 +1153,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasClipboardData(byte* mime_type)
         {
@@ -1176,7 +1176,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasClipboardData(global::System.ReadOnlySpan<byte> mime_type)
         {
@@ -1201,7 +1201,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasClipboardData(global::System.ReadOnlySpan<char> mime_type)
         {
@@ -1256,7 +1256,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasAltiVec()
         {
@@ -1279,7 +1279,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasMMX()
         {
@@ -1302,7 +1302,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasSSE()
         {
@@ -1325,7 +1325,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasSSE2()
         {
@@ -1348,7 +1348,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasSSE3()
         {
@@ -1371,7 +1371,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasSSE41()
         {
@@ -1394,7 +1394,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasSSE42()
         {
@@ -1417,7 +1417,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasAVX()
         {
@@ -1440,7 +1440,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasAVX2()
         {
@@ -1463,7 +1463,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasAVX512F()
         {
@@ -1486,7 +1486,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasARMSIMD()
         {
@@ -1509,7 +1509,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasNEON()
         {
@@ -1532,7 +1532,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasLSX()
         {
@@ -1555,7 +1555,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasLASX()
         {
@@ -1594,7 +1594,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, byte* default_location, bool allow_many)
         {
@@ -1615,7 +1615,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<byte> default_location, bool allow_many)
         {
@@ -1638,7 +1638,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<char> default_location, bool allow_many)
         {
@@ -1681,7 +1681,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<byte> default_location)
         {
@@ -1701,7 +1701,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<char> default_location)
         {
@@ -1734,7 +1734,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, byte* default_location, bool allow_many)
         {
@@ -1755,7 +1755,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> default_location, bool allow_many)
         {
@@ -1778,7 +1778,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> default_location, bool allow_many)
         {
@@ -1821,7 +1821,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetError(global::System.ReadOnlySpan<byte> fmt)
         {
@@ -1843,7 +1843,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetError(global::System.ReadOnlySpan<char> fmt)
         {
@@ -1918,7 +1918,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasEvent(global::SDL3.SDL_EventType type)
         {
@@ -1941,7 +1941,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasEvents(global::SDL3.SDL_EventType minType, global::SDL3.SDL_EventType maxType)
         {
@@ -1980,7 +1980,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_PollEvent(global::SDL3.SDL_Event* @event)
         {
@@ -2003,7 +2003,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WaitEvent(global::SDL3.SDL_Event* @event)
         {
@@ -2026,7 +2026,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WaitEventTimeout(global::SDL3.SDL_Event* @event, int timeoutMS)
         {
@@ -2065,7 +2065,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetEventFilter(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> filter, nint userdata)
         {
@@ -2112,7 +2112,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_SetEventEnabled(global::SDL3.SDL_EventType type, bool enabled)
         {
@@ -2133,7 +2133,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_EventEnabled(global::SDL3.SDL_EventType type)
         {
@@ -2188,7 +2188,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetPrefPathPtr(global::System.ReadOnlySpan<byte> org, global::System.ReadOnlySpan<byte> app)
         {
@@ -2211,7 +2211,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetPrefPathPtr(global::System.ReadOnlySpan<char> org, global::System.ReadOnlySpan<char> app)
         {
@@ -2267,7 +2267,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CreateDirectory(global::System.ReadOnlySpan<byte> path)
         {
@@ -2289,7 +2289,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CreateDirectory(global::System.ReadOnlySpan<char> path)
         {
@@ -2332,7 +2332,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_EnumerateDirectory(global::System.ReadOnlySpan<byte> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
         {
@@ -2354,7 +2354,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_EnumerateDirectory(global::System.ReadOnlySpan<char> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
         {
@@ -2397,7 +2397,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RemovePath(global::System.ReadOnlySpan<byte> path)
         {
@@ -2419,7 +2419,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RemovePath(global::System.ReadOnlySpan<char> path)
         {
@@ -2462,7 +2462,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RenamePath(global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
@@ -2485,7 +2485,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RenamePath(global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
@@ -2533,7 +2533,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CopyFile(global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
@@ -2556,7 +2556,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CopyFile(global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
@@ -2604,7 +2604,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetPathInfo(global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_PathInfo* info)
         {
@@ -2626,7 +2626,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetPathInfo(global::System.ReadOnlySpan<char> path, global::SDL3.SDL_PathInfo* info)
         {
@@ -2669,7 +2669,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte** SDL_GlobDirectory(global::System.ReadOnlySpan<byte> path, global::System.ReadOnlySpan<byte> pattern, global::SDL3.SDL_GlobFlags flags, int* count)
         {
@@ -2692,7 +2692,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte** SDL_GlobDirectory(global::System.ReadOnlySpan<char> path, global::System.ReadOnlySpan<char> pattern, global::SDL3.SDL_GlobFlags flags, int* count)
         {
@@ -2740,7 +2740,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddGamepadMapping(global::System.ReadOnlySpan<byte> mapping)
         {
@@ -2762,7 +2762,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddGamepadMapping(global::System.ReadOnlySpan<char> mapping)
         {
@@ -2797,7 +2797,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddGamepadMappingsFromIO(global::SDL3.SDL_IOStream src, bool closeio)
         {
@@ -2828,7 +2828,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddGamepadMappingsFromFile(global::System.ReadOnlySpan<byte> file)
         {
@@ -2850,7 +2850,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddGamepadMappingsFromFile(global::System.ReadOnlySpan<char> file)
         {
@@ -2893,11 +2893,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte** SDL_GetGamepadMappings(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             byte** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -2940,7 +2940,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, global::System.ReadOnlySpan<byte> mapping)
         {
@@ -2962,7 +2962,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, global::System.ReadOnlySpan<char> mapping)
         {
@@ -2997,7 +2997,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasGamepad()
         {
@@ -3020,11 +3020,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_JoystickID* SDL_GetGamepads(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_JoystickID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -3043,7 +3043,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsGamepad(global::SDL3.SDL_JoystickID instance_id)
         {
@@ -3298,7 +3298,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GamepadConnected(global::SDL3.SDL_Gamepad gamepad)
         {
@@ -3329,7 +3329,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_SetGamepadEventsEnabled(bool enabled)
         {
@@ -3350,7 +3350,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GamepadEventsEnabled()
         {
@@ -3373,11 +3373,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadBinding** SDL_GetGamepadBindings(global::SDL3.SDL_Gamepad gamepad, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_GamepadBinding** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -3412,7 +3412,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadType SDL_GetGamepadTypeFromString(global::System.ReadOnlySpan<byte> str)
         {
@@ -3434,7 +3434,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadType SDL_GetGamepadTypeFromString(global::System.ReadOnlySpan<char> str)
         {
@@ -3485,7 +3485,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadAxis SDL_GetGamepadAxisFromString(global::System.ReadOnlySpan<byte> str)
         {
@@ -3507,7 +3507,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadAxis SDL_GetGamepadAxisFromString(global::System.ReadOnlySpan<char> str)
         {
@@ -3550,7 +3550,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GamepadHasAxis(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadAxis axis)
         {
@@ -3589,7 +3589,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadButton SDL_GetGamepadButtonFromString(global::System.ReadOnlySpan<byte> str)
         {
@@ -3611,7 +3611,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_GamepadButton SDL_GetGamepadButtonFromString(global::System.ReadOnlySpan<char> str)
         {
@@ -3654,7 +3654,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GamepadHasButton(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadButton button)
         {
@@ -3725,7 +3725,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GamepadHasSensor(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type)
         {
@@ -3748,7 +3748,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetGamepadSensorEnabled(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type, bool enabled)
         {
@@ -3771,7 +3771,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GamepadSensorEnabled(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type)
         {
@@ -3874,7 +3874,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::System.Guid SDL_StringToGUID(global::System.ReadOnlySpan<byte> pchGUID)
         {
@@ -3896,7 +3896,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::System.Guid SDL_StringToGUID(global::System.ReadOnlySpan<char> pchGUID)
         {
@@ -3931,11 +3931,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_HapticID* SDL_GetHaptics(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_HapticID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -3994,7 +3994,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsMouseHaptic()
         {
@@ -4025,7 +4025,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsJoystickHaptic(global::SDL3.SDL_Joystick joystick)
         {
@@ -4096,7 +4096,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HapticEffectSupported(global::SDL3.SDL_Haptic haptic, global::SDL3.SDL_HapticEffect* effect)
         {
@@ -4207,7 +4207,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HapticRumbleSupported(global::SDL3.SDL_Haptic haptic)
         {
@@ -4310,7 +4310,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_hid_device SDL_hid_open_path(global::System.ReadOnlySpan<byte> path)
         {
@@ -4332,7 +4332,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_hid_device SDL_hid_open_path(global::System.ReadOnlySpan<char> path)
         {
@@ -4479,7 +4479,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_hid_ble_scan(bool active)
         {
@@ -4500,7 +4500,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetHintWithPriority(byte* name, byte* value, global::SDL3.SDL_HintPriority priority)
         {
@@ -4523,7 +4523,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetHintWithPriority(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, global::SDL3.SDL_HintPriority priority)
         {
@@ -4549,7 +4549,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetHintWithPriority(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, global::SDL3.SDL_HintPriority priority)
         {
@@ -4593,7 +4593,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetHint(byte* name, byte* value)
         {
@@ -4616,7 +4616,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetHint(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
         {
@@ -4642,7 +4642,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetHint(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
         {
@@ -4686,7 +4686,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ResetHint(byte* name)
         {
@@ -4709,7 +4709,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ResetHint(global::System.ReadOnlySpan<byte> name)
         {
@@ -4734,7 +4734,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ResetHint(global::System.ReadOnlySpan<char> name)
         {
@@ -4789,7 +4789,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetHintPtr(global::System.ReadOnlySpan<byte> name)
         {
@@ -4811,7 +4811,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetHintPtr(global::System.ReadOnlySpan<char> name)
         {
@@ -4846,7 +4846,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetHintBoolean(byte* name, bool default_value)
         {
@@ -4872,7 +4872,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetHintBoolean(global::System.ReadOnlySpan<byte> name, bool default_value)
         {
@@ -4900,7 +4900,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetHintBoolean(global::System.ReadOnlySpan<char> name, bool default_value)
         {
@@ -4949,7 +4949,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddHintCallback(global::System.ReadOnlySpan<byte> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
@@ -4971,7 +4971,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_AddHintCallback(global::System.ReadOnlySpan<char> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
@@ -5014,7 +5014,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_DelHintCallback(global::System.ReadOnlySpan<byte> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
@@ -5034,7 +5034,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_DelHintCallback(global::System.ReadOnlySpan<char> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
@@ -5115,7 +5115,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetAppMetadata(global::System.ReadOnlySpan<byte> appname, global::System.ReadOnlySpan<byte> appversion, global::System.ReadOnlySpan<byte> appidentifier)
         {
@@ -5139,7 +5139,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetAppMetadata(global::System.ReadOnlySpan<char> appname, global::System.ReadOnlySpan<char> appversion, global::System.ReadOnlySpan<char> appidentifier)
         {
@@ -5192,7 +5192,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetAppMetadataProperty(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
         {
@@ -5215,7 +5215,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetAppMetadataProperty(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
         {
@@ -5263,7 +5263,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetAppMetadataPropertyPtr(global::System.ReadOnlySpan<byte> name)
         {
@@ -5285,7 +5285,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetAppMetadataPropertyPtr(global::System.ReadOnlySpan<char> name)
         {
@@ -5328,7 +5328,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_IOStream SDL_IOFromFile(global::System.ReadOnlySpan<byte> file, global::System.ReadOnlySpan<byte> mode)
         {
@@ -5351,7 +5351,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_IOStream SDL_IOFromFile(global::System.ReadOnlySpan<char> file, global::System.ReadOnlySpan<char> mode)
         {
@@ -5487,7 +5487,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_LoadFile_IO(global::SDL3.SDL_IOStream src, nuint* datasize, bool closeio)
         {
@@ -5518,7 +5518,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_LoadFile(global::System.ReadOnlySpan<byte> file, nuint* datasize)
         {
@@ -5540,7 +5540,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_LoadFile(global::System.ReadOnlySpan<char> file, nuint* datasize)
         {
@@ -5575,7 +5575,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU8(global::SDL3.SDL_IOStream src, byte* value)
         {
@@ -5598,7 +5598,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS8(global::SDL3.SDL_IOStream src, sbyte* value)
         {
@@ -5621,7 +5621,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU16LE(global::SDL3.SDL_IOStream src, ushort* value)
         {
@@ -5644,7 +5644,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS16LE(global::SDL3.SDL_IOStream src, short* value)
         {
@@ -5667,7 +5667,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU16BE(global::SDL3.SDL_IOStream src, ushort* value)
         {
@@ -5690,7 +5690,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS16BE(global::SDL3.SDL_IOStream src, short* value)
         {
@@ -5713,7 +5713,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU32LE(global::SDL3.SDL_IOStream src, uint* value)
         {
@@ -5736,7 +5736,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS32LE(global::SDL3.SDL_IOStream src, int* value)
         {
@@ -5759,7 +5759,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU32BE(global::SDL3.SDL_IOStream src, uint* value)
         {
@@ -5782,7 +5782,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS32BE(global::SDL3.SDL_IOStream src, int* value)
         {
@@ -5805,7 +5805,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU64LE(global::SDL3.SDL_IOStream src, ulong* value)
         {
@@ -5828,7 +5828,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS64LE(global::SDL3.SDL_IOStream src, long* value)
         {
@@ -5851,7 +5851,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadU64BE(global::SDL3.SDL_IOStream src, ulong* value)
         {
@@ -5874,7 +5874,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ReadS64BE(global::SDL3.SDL_IOStream src, long* value)
         {
@@ -5897,7 +5897,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU8(global::SDL3.SDL_IOStream dst, byte value)
         {
@@ -5920,7 +5920,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS8(global::SDL3.SDL_IOStream dst, sbyte value)
         {
@@ -5943,7 +5943,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU16LE(global::SDL3.SDL_IOStream dst, ushort value)
         {
@@ -5966,7 +5966,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS16LE(global::SDL3.SDL_IOStream dst, short value)
         {
@@ -5989,7 +5989,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU16BE(global::SDL3.SDL_IOStream dst, ushort value)
         {
@@ -6012,7 +6012,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS16BE(global::SDL3.SDL_IOStream dst, short value)
         {
@@ -6035,7 +6035,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU32LE(global::SDL3.SDL_IOStream dst, uint value)
         {
@@ -6058,7 +6058,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS32LE(global::SDL3.SDL_IOStream dst, int value)
         {
@@ -6081,7 +6081,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU32BE(global::SDL3.SDL_IOStream dst, uint value)
         {
@@ -6104,7 +6104,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS32BE(global::SDL3.SDL_IOStream dst, int value)
         {
@@ -6127,7 +6127,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU64LE(global::SDL3.SDL_IOStream dst, ulong value)
         {
@@ -6150,7 +6150,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS64LE(global::SDL3.SDL_IOStream dst, long value)
         {
@@ -6173,7 +6173,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteU64BE(global::SDL3.SDL_IOStream dst, ulong value)
         {
@@ -6196,7 +6196,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WriteS64BE(global::SDL3.SDL_IOStream dst, long value)
         {
@@ -6235,7 +6235,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasJoystick()
         {
@@ -6258,11 +6258,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_JoystickID* SDL_GetJoysticks(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_JoystickID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -6385,7 +6385,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsJoystickVirtual(global::SDL3.SDL_JoystickID instance_id)
         {
@@ -6560,7 +6560,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_JoystickConnected(global::SDL3.SDL_Joystick joystick)
         {
@@ -6623,7 +6623,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_SetJoystickEventsEnabled(bool enabled)
         {
@@ -6644,7 +6644,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_JoystickEventsEnabled()
         {
@@ -6683,7 +6683,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetJoystickAxisInitialState(global::SDL3.SDL_Joystick joystick, int axis, short* state)
         {
@@ -6786,7 +6786,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasKeyboard()
         {
@@ -6809,11 +6809,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_KeyboardID* SDL_GetKeyboards(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_KeyboardID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -6920,7 +6920,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, global::System.ReadOnlySpan<byte> name)
         {
@@ -6942,7 +6942,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, global::System.ReadOnlySpan<char> name)
         {
@@ -6993,7 +6993,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Scancode SDL_GetScancodeFromName(global::System.ReadOnlySpan<byte> name)
         {
@@ -7015,7 +7015,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Scancode SDL_GetScancodeFromName(global::System.ReadOnlySpan<char> name)
         {
@@ -7066,7 +7066,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Keycode SDL_GetKeyFromName(global::System.ReadOnlySpan<byte> name)
         {
@@ -7088,7 +7088,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Keycode SDL_GetKeyFromName(global::System.ReadOnlySpan<char> name)
         {
@@ -7139,7 +7139,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_TextInputActive(global::SDL3.SDL_Window window)
         {
@@ -7194,7 +7194,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasScreenKeyboardSupport()
         {
@@ -7217,7 +7217,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ScreenKeyboardShown(global::SDL3.SDL_Window window)
         {
@@ -7248,7 +7248,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_LoadObject(global::System.ReadOnlySpan<byte> sofile)
         {
@@ -7270,7 +7270,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_LoadObject(global::System.ReadOnlySpan<char> sofile)
         {
@@ -7313,7 +7313,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial delegate* unmanaged<void> SDL_LoadFunction(nint handle, global::System.ReadOnlySpan<byte> name)
         {
@@ -7335,7 +7335,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial delegate* unmanaged<void> SDL_LoadFunction(nint handle, global::System.ReadOnlySpan<char> name)
         {
@@ -7378,11 +7378,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Locale** SDL_GetPreferredLocales(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_Locale** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -7441,7 +7441,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_Log(global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7461,7 +7461,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_Log(global::System.ReadOnlySpan<char> fmt)
         {
@@ -7502,7 +7502,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogVerbose(int category, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7522,7 +7522,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogVerbose(int category, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7563,7 +7563,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogDebug(int category, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7583,7 +7583,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogDebug(int category, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7624,7 +7624,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogInfo(int category, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7644,7 +7644,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogInfo(int category, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7685,7 +7685,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogWarn(int category, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7705,7 +7705,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogWarn(int category, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7746,7 +7746,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogError(int category, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7766,7 +7766,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogError(int category, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7807,7 +7807,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogCritical(int category, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7827,7 +7827,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogCritical(int category, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7868,7 +7868,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogMessage(int category, global::SDL3.SDL_LogPriority priority, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -7888,7 +7888,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_LogMessage(int category, global::SDL3.SDL_LogPriority priority, global::System.ReadOnlySpan<char> fmt)
         {
@@ -7953,7 +7953,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, global::System.ReadOnlySpan<byte> title, global::System.ReadOnlySpan<byte> message, global::SDL3.SDL_Window window)
         {
@@ -7976,7 +7976,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, global::System.ReadOnlySpan<char> title, global::System.ReadOnlySpan<char> message, global::SDL3.SDL_Window window)
         {
@@ -8048,7 +8048,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_OpenURL(global::System.ReadOnlySpan<byte> url)
         {
@@ -8070,7 +8070,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_OpenURL(global::System.ReadOnlySpan<char> url)
         {
@@ -8105,7 +8105,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasMouse()
         {
@@ -8128,11 +8128,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_MouseID* SDL_GetMice(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_MouseID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -8207,7 +8207,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetRelativeMouseMode(bool enabled)
         {
@@ -8230,7 +8230,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CaptureMouse(bool enabled)
         {
@@ -8253,7 +8253,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRelativeMouseMode()
         {
@@ -8348,7 +8348,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_CursorVisible()
         {
@@ -8571,11 +8571,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_PenID* SDL_GetPens(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_PenID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -8618,7 +8618,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_PenConnected(global::SDL3.SDL_PenID instance_id)
         {
@@ -8817,7 +8817,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint value, delegate* unmanaged<nint, nint, void> cleanup, nint userdata)
         {
@@ -8839,7 +8839,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint value, delegate* unmanaged<nint, nint, void> cleanup, nint userdata)
         {
@@ -8882,7 +8882,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint value)
         {
@@ -8904,7 +8904,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint value)
         {
@@ -8947,7 +8947,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
         {
@@ -8970,7 +8970,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
         {
@@ -9018,7 +9018,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, long value)
         {
@@ -9040,7 +9040,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, long value)
         {
@@ -9083,7 +9083,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, float value)
         {
@@ -9105,7 +9105,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, float value)
         {
@@ -9140,7 +9140,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, byte* name, bool value)
         {
@@ -9163,7 +9163,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, bool value)
         {
@@ -9188,7 +9188,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, bool value)
         {
@@ -9225,7 +9225,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, byte* name)
         {
@@ -9248,7 +9248,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
         {
@@ -9273,7 +9273,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
         {
@@ -9320,7 +9320,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_PropertyType SDL_GetPropertyType(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
         {
@@ -9342,7 +9342,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_PropertyType SDL_GetPropertyType(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
         {
@@ -9385,7 +9385,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_GetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint default_value)
         {
@@ -9407,7 +9407,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nint SDL_GetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint default_value)
         {
@@ -9450,7 +9450,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetStringPropertyPtr(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> default_value)
         {
@@ -9473,7 +9473,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_GetStringPropertyPtr(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> default_value)
         {
@@ -9521,7 +9521,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial long SDL_GetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, long default_value)
         {
@@ -9543,7 +9543,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial long SDL_GetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, long default_value)
         {
@@ -9586,7 +9586,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial float SDL_GetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, float default_value)
         {
@@ -9608,7 +9608,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial float SDL_GetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, float default_value)
         {
@@ -9643,7 +9643,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, byte* name, bool default_value)
         {
@@ -9669,7 +9669,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, bool default_value)
         {
@@ -9697,7 +9697,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, bool default_value)
         {
@@ -9746,7 +9746,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
         {
@@ -9768,7 +9768,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
         {
@@ -9827,7 +9827,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_PointInRect(global::System.Drawing.Point* p, global::System.Drawing.Rectangle* r)
         {
@@ -9850,7 +9850,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RectEmpty(global::System.Drawing.Rectangle* r)
         {
@@ -9873,7 +9873,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RectsEqual(global::System.Drawing.Rectangle* a, global::System.Drawing.Rectangle* b)
         {
@@ -9896,7 +9896,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasRectIntersection(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B)
         {
@@ -9919,7 +9919,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRectIntersection(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B, global::System.Drawing.Rectangle* result)
         {
@@ -9950,7 +9950,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRectEnclosingPoints(global::System.Drawing.Point* points, int count, global::System.Drawing.Rectangle* clip, global::System.Drawing.Rectangle* result)
         {
@@ -9973,7 +9973,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRectAndLineIntersection(global::System.Drawing.Rectangle* rect, int* X1, int* Y1, int* X2, int* Y2)
         {
@@ -9996,7 +9996,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_PointInRectFloat(global::System.Drawing.PointF* p, global::System.Drawing.RectangleF* r)
         {
@@ -10019,7 +10019,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RectEmptyFloat(global::System.Drawing.RectangleF* r)
         {
@@ -10042,7 +10042,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RectsEqualEpsilon(global::System.Drawing.RectangleF* a, global::System.Drawing.RectangleF* b, float epsilon)
         {
@@ -10065,7 +10065,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RectsEqualFloat(global::System.Drawing.RectangleF* a, global::System.Drawing.RectangleF* b)
         {
@@ -10088,7 +10088,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_HasRectIntersectionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B)
         {
@@ -10111,7 +10111,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRectIntersectionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B, global::System.Drawing.RectangleF* result)
         {
@@ -10142,7 +10142,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRectEnclosingPointsFloat(global::System.Drawing.PointF* points, int count, global::System.Drawing.RectangleF* clip, global::System.Drawing.RectangleF* result)
         {
@@ -10165,7 +10165,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetRectAndLineIntersectionFloat(global::System.Drawing.RectangleF* rect, float* X1, float* Y1, float* X2, float* Y2)
         {
@@ -10212,7 +10212,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CreateWindowAndRenderer(global::System.ReadOnlySpan<byte> title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer)
         {
@@ -10234,7 +10234,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CreateWindowAndRenderer(global::System.ReadOnlySpan<char> title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer)
         {
@@ -10277,7 +10277,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Renderer SDL_CreateRenderer(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> name)
         {
@@ -10299,7 +10299,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Renderer SDL_CreateRenderer(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> name)
         {
@@ -10382,12 +10382,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetRenderOutputSize(global::SDL3.SDL_Renderer renderer, out int w, out int h)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -10407,12 +10407,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetCurrentRenderOutputSize(global::SDL3.SDL_Renderer renderer, out int w, out int h)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -10648,12 +10648,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetRenderLogicalPresentation(global::SDL3.SDL_Renderer renderer, out int w, out int h, global::SDL3.SDL_RendererLogicalPresentation* mode, global::SDL3.SDL_ScaleMode* scale_mode)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -10721,7 +10721,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RenderViewportSet(global::SDL3.SDL_Renderer renderer)
         {
@@ -10768,7 +10768,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_RenderClipEnabled(global::SDL3.SDL_Renderer renderer)
         {
@@ -11071,11 +11071,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_SensorID* SDL_GetSensors(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_SensorID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -11286,7 +11286,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_getenvPtr(global::System.ReadOnlySpan<byte> name)
         {
@@ -11308,7 +11308,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_getenvPtr(global::System.ReadOnlySpan<char> name)
         {
@@ -11351,7 +11351,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_setenv(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, int overwrite)
         {
@@ -11374,7 +11374,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_setenv(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, int overwrite)
         {
@@ -11422,7 +11422,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_unsetenv(global::System.ReadOnlySpan<byte> name)
         {
@@ -11444,7 +11444,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_unsetenv(global::System.ReadOnlySpan<char> name)
         {
@@ -11791,7 +11791,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strlen(global::System.ReadOnlySpan<byte> str)
         {
@@ -11813,7 +11813,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strlen(global::System.ReadOnlySpan<char> str)
         {
@@ -11856,7 +11856,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strnlen(global::System.ReadOnlySpan<byte> str, nuint maxlen)
         {
@@ -11878,7 +11878,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strnlen(global::System.ReadOnlySpan<char> str, nuint maxlen)
         {
@@ -11921,7 +11921,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strlcpy(global::System.ReadOnlySpan<byte> dst, global::System.ReadOnlySpan<byte> src, nuint maxlen)
         {
@@ -11944,7 +11944,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strlcpy(global::System.ReadOnlySpan<char> dst, global::System.ReadOnlySpan<char> src, nuint maxlen)
         {
@@ -11992,7 +11992,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_utf8strlcpy(global::System.ReadOnlySpan<byte> dst, global::System.ReadOnlySpan<byte> src, nuint dst_bytes)
         {
@@ -12015,7 +12015,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_utf8strlcpy(global::System.ReadOnlySpan<char> dst, global::System.ReadOnlySpan<char> src, nuint dst_bytes)
         {
@@ -12063,7 +12063,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strlcat(global::System.ReadOnlySpan<byte> dst, global::System.ReadOnlySpan<byte> src, nuint maxlen)
         {
@@ -12086,7 +12086,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_strlcat(global::System.ReadOnlySpan<char> dst, global::System.ReadOnlySpan<char> src, nuint maxlen)
         {
@@ -12134,7 +12134,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strdupPtr(global::System.ReadOnlySpan<byte> str)
         {
@@ -12156,7 +12156,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strdupPtr(global::System.ReadOnlySpan<char> str)
         {
@@ -12199,7 +12199,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strndupPtr(global::System.ReadOnlySpan<byte> str, nuint maxlen)
         {
@@ -12221,7 +12221,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strndupPtr(global::System.ReadOnlySpan<char> str, nuint maxlen)
         {
@@ -12264,7 +12264,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strrevPtr(global::System.ReadOnlySpan<byte> str)
         {
@@ -12286,7 +12286,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strrevPtr(global::System.ReadOnlySpan<char> str)
         {
@@ -12329,7 +12329,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_struprPtr(global::System.ReadOnlySpan<byte> str)
         {
@@ -12351,7 +12351,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_struprPtr(global::System.ReadOnlySpan<char> str)
         {
@@ -12394,7 +12394,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strlwrPtr(global::System.ReadOnlySpan<byte> str)
         {
@@ -12416,7 +12416,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strlwrPtr(global::System.ReadOnlySpan<char> str)
         {
@@ -12459,7 +12459,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strchrPtr(global::System.ReadOnlySpan<byte> str, int c)
         {
@@ -12481,7 +12481,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strchrPtr(global::System.ReadOnlySpan<char> str, int c)
         {
@@ -12524,7 +12524,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strrchrPtr(global::System.ReadOnlySpan<byte> str, int c)
         {
@@ -12546,7 +12546,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strrchrPtr(global::System.ReadOnlySpan<char> str, int c)
         {
@@ -12589,7 +12589,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strstrPtr(global::System.ReadOnlySpan<byte> haystack, global::System.ReadOnlySpan<byte> needle)
         {
@@ -12612,7 +12612,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strstrPtr(global::System.ReadOnlySpan<char> haystack, global::System.ReadOnlySpan<char> needle)
         {
@@ -12660,7 +12660,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strnstrPtr(global::System.ReadOnlySpan<byte> haystack, global::System.ReadOnlySpan<byte> needle, nuint maxlen)
         {
@@ -12683,7 +12683,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strnstrPtr(global::System.ReadOnlySpan<char> haystack, global::System.ReadOnlySpan<char> needle, nuint maxlen)
         {
@@ -12731,7 +12731,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strcasestrPtr(global::System.ReadOnlySpan<byte> haystack, global::System.ReadOnlySpan<byte> needle)
         {
@@ -12754,7 +12754,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strcasestrPtr(global::System.ReadOnlySpan<char> haystack, global::System.ReadOnlySpan<char> needle)
         {
@@ -12802,7 +12802,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strtok_rPtr(global::System.ReadOnlySpan<byte> s1, global::System.ReadOnlySpan<byte> s2, byte** saveptr)
         {
@@ -12825,7 +12825,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_strtok_rPtr(global::System.ReadOnlySpan<char> s1, global::System.ReadOnlySpan<char> s2, byte** saveptr)
         {
@@ -12873,7 +12873,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_utf8strlen(global::System.ReadOnlySpan<byte> str)
         {
@@ -12895,7 +12895,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_utf8strlen(global::System.ReadOnlySpan<char> str)
         {
@@ -12938,7 +12938,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_utf8strnlen(global::System.ReadOnlySpan<byte> str, nuint bytes)
         {
@@ -12960,7 +12960,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial nuint SDL_utf8strnlen(global::System.ReadOnlySpan<char> str, nuint bytes)
         {
@@ -13003,7 +13003,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_itoaPtr(int value, global::System.ReadOnlySpan<byte> str, int radix)
         {
@@ -13025,7 +13025,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_itoaPtr(int value, global::System.ReadOnlySpan<char> str, int radix)
         {
@@ -13068,7 +13068,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_uitoaPtr(uint value, global::System.ReadOnlySpan<byte> str, int radix)
         {
@@ -13090,7 +13090,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_uitoaPtr(uint value, global::System.ReadOnlySpan<char> str, int radix)
         {
@@ -13133,7 +13133,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_ltoaPtr(global::System.Runtime.InteropServices.CLong value, global::System.ReadOnlySpan<byte> str, int radix)
         {
@@ -13155,7 +13155,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_ltoaPtr(global::System.Runtime.InteropServices.CLong value, global::System.ReadOnlySpan<char> str, int radix)
         {
@@ -13198,7 +13198,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_ultoaPtr(global::System.Runtime.InteropServices.CULong value, global::System.ReadOnlySpan<byte> str, int radix)
         {
@@ -13220,7 +13220,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_ultoaPtr(global::System.Runtime.InteropServices.CULong value, global::System.ReadOnlySpan<char> str, int radix)
         {
@@ -13263,7 +13263,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_lltoaPtr(long value, global::System.ReadOnlySpan<byte> str, int radix)
         {
@@ -13285,7 +13285,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_lltoaPtr(long value, global::System.ReadOnlySpan<char> str, int radix)
         {
@@ -13328,7 +13328,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_ulltoaPtr(ulong value, global::System.ReadOnlySpan<byte> str, int radix)
         {
@@ -13350,7 +13350,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_ulltoaPtr(ulong value, global::System.ReadOnlySpan<char> str, int radix)
         {
@@ -13393,7 +13393,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_atoi(global::System.ReadOnlySpan<byte> str)
         {
@@ -13415,7 +13415,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_atoi(global::System.ReadOnlySpan<char> str)
         {
@@ -13458,7 +13458,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial double SDL_atof(global::System.ReadOnlySpan<byte> str)
         {
@@ -13480,7 +13480,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial double SDL_atof(global::System.ReadOnlySpan<char> str)
         {
@@ -13523,7 +13523,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::System.Runtime.InteropServices.CLong SDL_strtol(global::System.ReadOnlySpan<byte> str, byte** endp, int @base)
         {
@@ -13545,7 +13545,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::System.Runtime.InteropServices.CLong SDL_strtol(global::System.ReadOnlySpan<char> str, byte** endp, int @base)
         {
@@ -13588,7 +13588,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::System.Runtime.InteropServices.CULong SDL_strtoul(global::System.ReadOnlySpan<byte> str, byte** endp, int @base)
         {
@@ -13610,7 +13610,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::System.Runtime.InteropServices.CULong SDL_strtoul(global::System.ReadOnlySpan<char> str, byte** endp, int @base)
         {
@@ -13653,7 +13653,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial long SDL_strtoll(global::System.ReadOnlySpan<byte> str, byte** endp, int @base)
         {
@@ -13675,7 +13675,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial long SDL_strtoll(global::System.ReadOnlySpan<char> str, byte** endp, int @base)
         {
@@ -13718,7 +13718,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial ulong SDL_strtoull(global::System.ReadOnlySpan<byte> str, byte** endp, int @base)
         {
@@ -13740,7 +13740,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial ulong SDL_strtoull(global::System.ReadOnlySpan<char> str, byte** endp, int @base)
         {
@@ -13783,7 +13783,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial double SDL_strtod(global::System.ReadOnlySpan<byte> str, byte** endp)
         {
@@ -13805,7 +13805,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial double SDL_strtod(global::System.ReadOnlySpan<char> str, byte** endp)
         {
@@ -13848,7 +13848,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strcmp(global::System.ReadOnlySpan<byte> str1, global::System.ReadOnlySpan<byte> str2)
         {
@@ -13871,7 +13871,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strcmp(global::System.ReadOnlySpan<char> str1, global::System.ReadOnlySpan<char> str2)
         {
@@ -13919,7 +13919,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strncmp(global::System.ReadOnlySpan<byte> str1, global::System.ReadOnlySpan<byte> str2, nuint maxlen)
         {
@@ -13942,7 +13942,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strncmp(global::System.ReadOnlySpan<char> str1, global::System.ReadOnlySpan<char> str2, nuint maxlen)
         {
@@ -13990,7 +13990,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strcasecmp(global::System.ReadOnlySpan<byte> str1, global::System.ReadOnlySpan<byte> str2)
         {
@@ -14013,7 +14013,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strcasecmp(global::System.ReadOnlySpan<char> str1, global::System.ReadOnlySpan<char> str2)
         {
@@ -14061,7 +14061,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strncasecmp(global::System.ReadOnlySpan<byte> str1, global::System.ReadOnlySpan<byte> str2, nuint maxlen)
         {
@@ -14084,7 +14084,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_strncasecmp(global::System.ReadOnlySpan<char> str1, global::System.ReadOnlySpan<char> str2, nuint maxlen)
         {
@@ -14140,7 +14140,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_UCS4ToUTF8Ptr(uint codepoint, global::System.ReadOnlySpan<byte> dst)
         {
@@ -14162,7 +14162,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_UCS4ToUTF8Ptr(uint codepoint, global::System.ReadOnlySpan<char> dst)
         {
@@ -14205,7 +14205,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_sscanf(global::System.ReadOnlySpan<byte> text, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -14228,7 +14228,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_sscanf(global::System.ReadOnlySpan<char> text, global::System.ReadOnlySpan<char> fmt)
         {
@@ -14276,7 +14276,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_vsscanf(global::System.ReadOnlySpan<byte> text, global::System.ReadOnlySpan<byte> fmt, byte* ap)
         {
@@ -14299,7 +14299,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_vsscanf(global::System.ReadOnlySpan<char> text, global::System.ReadOnlySpan<char> fmt, byte* ap)
         {
@@ -14347,7 +14347,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_snprintf(global::System.ReadOnlySpan<byte> text, nuint maxlen, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -14370,7 +14370,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_snprintf(global::System.ReadOnlySpan<char> text, nuint maxlen, global::System.ReadOnlySpan<char> fmt)
         {
@@ -14426,7 +14426,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_vsnprintf(global::System.ReadOnlySpan<byte> text, nuint maxlen, global::System.ReadOnlySpan<byte> fmt, byte* ap)
         {
@@ -14449,7 +14449,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_vsnprintf(global::System.ReadOnlySpan<char> text, nuint maxlen, global::System.ReadOnlySpan<char> fmt, byte* ap)
         {
@@ -14505,7 +14505,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_asprintf(byte** strp, global::System.ReadOnlySpan<byte> fmt)
         {
@@ -14527,7 +14527,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_asprintf(byte** strp, global::System.ReadOnlySpan<char> fmt)
         {
@@ -14570,7 +14570,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_vasprintf(byte** strp, global::System.ReadOnlySpan<byte> fmt, byte* ap)
         {
@@ -14592,7 +14592,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_vasprintf(byte** strp, global::System.ReadOnlySpan<char> fmt, byte* ap)
         {
@@ -15075,7 +15075,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_iconv_data_t SDL_iconv_open(global::System.ReadOnlySpan<byte> tocode, global::System.ReadOnlySpan<byte> fromcode)
         {
@@ -15098,7 +15098,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_iconv_data_t SDL_iconv_open(global::System.ReadOnlySpan<char> tocode, global::System.ReadOnlySpan<char> fromcode)
         {
@@ -15162,7 +15162,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_iconv_stringPtr(global::System.ReadOnlySpan<byte> tocode, global::System.ReadOnlySpan<byte> fromcode, global::System.ReadOnlySpan<byte> inbuf, nuint inbytesleft)
         {
@@ -15186,7 +15186,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte* SDL_iconv_stringPtr(global::System.ReadOnlySpan<char> tocode, global::System.ReadOnlySpan<char> fromcode, global::System.ReadOnlySpan<char> inbuf, nuint inbytesleft)
         {
@@ -15271,7 +15271,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Storage SDL_OpenTitleStorage(global::System.ReadOnlySpan<byte> @override, global::SDL3.SDL_PropertiesID props)
         {
@@ -15293,7 +15293,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Storage SDL_OpenTitleStorage(global::System.ReadOnlySpan<char> @override, global::SDL3.SDL_PropertiesID props)
         {
@@ -15336,7 +15336,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Storage SDL_OpenUserStorage(global::System.ReadOnlySpan<byte> org, global::System.ReadOnlySpan<byte> app, global::SDL3.SDL_PropertiesID props)
         {
@@ -15359,7 +15359,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Storage SDL_OpenUserStorage(global::System.ReadOnlySpan<char> org, global::System.ReadOnlySpan<char> app, global::SDL3.SDL_PropertiesID props)
         {
@@ -15407,7 +15407,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Storage SDL_OpenFileStorage(global::System.ReadOnlySpan<byte> path)
         {
@@ -15429,7 +15429,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Storage SDL_OpenFileStorage(global::System.ReadOnlySpan<char> path)
         {
@@ -15480,7 +15480,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_StorageReady(global::SDL3.SDL_Storage storage)
         {
@@ -15511,7 +15511,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, ulong* length)
         {
@@ -15533,7 +15533,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, ulong* length)
         {
@@ -15576,7 +15576,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, nint destination, ulong length)
         {
@@ -15598,7 +15598,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, nint destination, ulong length)
         {
@@ -15641,7 +15641,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, nint source, ulong length)
         {
@@ -15663,7 +15663,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, nint source, ulong length)
         {
@@ -15706,7 +15706,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path)
         {
@@ -15728,7 +15728,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path)
         {
@@ -15771,7 +15771,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
         {
@@ -15793,7 +15793,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
         {
@@ -15836,7 +15836,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path)
         {
@@ -15858,7 +15858,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path)
         {
@@ -15901,7 +15901,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
@@ -15924,7 +15924,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
@@ -15972,7 +15972,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
@@ -15995,7 +15995,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
@@ -16043,7 +16043,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_PathInfo* info)
         {
@@ -16065,7 +16065,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, global::SDL3.SDL_PathInfo* info)
         {
@@ -16116,7 +16116,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte** SDL_GlobStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, global::System.ReadOnlySpan<byte> pattern, global::SDL3.SDL_GlobFlags flags, int* count)
         {
@@ -16139,7 +16139,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte** SDL_GlobStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, global::System.ReadOnlySpan<char> pattern, global::SDL3.SDL_GlobFlags flags, int* count)
         {
@@ -16259,7 +16259,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SurfaceHasAlternateImages(global::SDL3.SDL_Surface* surface)
         {
@@ -16282,11 +16282,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Surface** SDL_GetSurfaceImages(global::SDL3.SDL_Surface* surface, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_Surface** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -16329,7 +16329,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Surface* SDL_LoadBMP_IO(global::SDL3.SDL_IOStream src, bool closeio)
         {
@@ -16360,7 +16360,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Surface* SDL_LoadBMP(global::System.ReadOnlySpan<byte> file)
         {
@@ -16382,7 +16382,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Surface* SDL_LoadBMP(global::System.ReadOnlySpan<char> file)
         {
@@ -16417,7 +16417,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SaveBMP_IO(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_IOStream dst, bool closeio)
         {
@@ -16448,7 +16448,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SaveBMP(global::SDL3.SDL_Surface* surface, global::System.ReadOnlySpan<byte> file)
         {
@@ -16470,7 +16470,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SaveBMP(global::SDL3.SDL_Surface* surface, global::System.ReadOnlySpan<char> file)
         {
@@ -16505,7 +16505,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetSurfaceRLE(global::SDL3.SDL_Surface* surface, bool enabled)
         {
@@ -16528,7 +16528,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SurfaceHasRLE(global::SDL3.SDL_Surface* surface)
         {
@@ -16551,7 +16551,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetSurfaceColorKey(global::SDL3.SDL_Surface* surface, bool enabled, uint key)
         {
@@ -16574,7 +16574,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SurfaceHasColorKey(global::SDL3.SDL_Surface* surface)
         {
@@ -16653,7 +16653,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_SetSurfaceClipRect(global::SDL3.SDL_Surface* surface, global::System.Drawing.Rectangle* rect)
         {
@@ -16740,7 +16740,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_PremultiplyAlpha(int width, int height, global::SDL3.SDL_PixelFormat src_format, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, nint dst, int dst_pitch, bool linear)
         {
@@ -16763,7 +16763,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_PremultiplySurfaceAlpha(global::SDL3.SDL_Surface* surface, bool linear)
         {
@@ -16922,7 +16922,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged<nint, int> fn, global::System.ReadOnlySpan<byte> name, nint data, delegate* unmanaged<void> pfnBeginThread, delegate* unmanaged<void> pfnEndThread)
         {
@@ -16944,7 +16944,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged<nint, int> fn, global::System.ReadOnlySpan<char> name, nint data, delegate* unmanaged<void> pfnBeginThread, delegate* unmanaged<void> pfnEndThread)
         {
@@ -17075,7 +17075,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_TimeToDateTime(long ticks, global::SDL3.SDL_DateTime* dt, bool localTime)
         {
@@ -17218,11 +17218,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_TouchID* SDL_GetTouchDevices(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_TouchID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -17257,11 +17257,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Finger** SDL_GetTouchFingers(global::SDL3.SDL_TouchID touchID, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_Finger** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -17328,11 +17328,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_DisplayID* SDL_GetDisplays(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_DisplayID* __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -17415,11 +17415,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_DisplayMode** SDL_GetFullscreenDisplayModes(global::SDL3.SDL_DisplayID displayID, out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_DisplayMode** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -17438,7 +17438,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetClosestFullscreenDisplayMode(global::SDL3.SDL_DisplayID displayID, int w, int h, float refresh_rate, bool include_high_density_modes, global::SDL3.SDL_DisplayMode* mode)
         {
@@ -17549,11 +17549,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Window SDL_GetWindows(out int count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             global::SDL3.SDL_Window __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __count_native = &count)
@@ -17580,7 +17580,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Window SDL_CreateWindow(global::System.ReadOnlySpan<byte> title, int w, int h, global::SDL3.SDL_WindowFlags flags)
         {
@@ -17602,7 +17602,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_Window SDL_CreateWindow(global::System.ReadOnlySpan<char> title, int w, int h, global::SDL3.SDL_WindowFlags flags)
         {
@@ -17701,7 +17701,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowTitle(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> title)
         {
@@ -17723,7 +17723,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowTitle(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> title)
         {
@@ -17782,12 +17782,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetWindowPosition(global::SDL3.SDL_Window window, out int x, out int y)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out x);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out y);
+            x = default;
+            y = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __y_native = &y)
@@ -17815,12 +17815,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetWindowSize(global::SDL3.SDL_Window window, out int w, out int h)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -17872,12 +17872,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetWindowSizeInPixels(global::SDL3.SDL_Window window, out int w, out int h)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -17905,12 +17905,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetWindowMinimumSize(global::SDL3.SDL_Window window, out int w, out int h)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -17938,12 +17938,12 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GetWindowMaximumSize(global::SDL3.SDL_Window window, out int w, out int h)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out w);
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out h);
+            w = default;
+            h = default;
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
@@ -17963,7 +17963,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowBordered(global::SDL3.SDL_Window window, bool bordered)
         {
@@ -17986,7 +17986,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowResizable(global::SDL3.SDL_Window window, bool resizable)
         {
@@ -18009,7 +18009,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowAlwaysOnTop(global::SDL3.SDL_Window window, bool on_top)
         {
@@ -18080,7 +18080,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowFullscreen(global::SDL3.SDL_Window window, bool fullscreen)
         {
@@ -18111,7 +18111,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_WindowHasSurface(global::SDL3.SDL_Window window)
         {
@@ -18182,7 +18182,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowKeyboardGrab(global::SDL3.SDL_Window window, bool grabbed)
         {
@@ -18205,7 +18205,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowMouseGrab(global::SDL3.SDL_Window window, bool grabbed)
         {
@@ -18228,7 +18228,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetWindowKeyboardGrab(global::SDL3.SDL_Window window)
         {
@@ -18251,7 +18251,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GetWindowMouseGrab(global::SDL3.SDL_Window window)
         {
@@ -18322,7 +18322,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_SetWindowFocusable(global::SDL3.SDL_Window window, bool focusable)
         {
@@ -18385,7 +18385,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_ScreenSaverEnabled()
         {
@@ -18432,7 +18432,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GL_LoadLibrary(global::System.ReadOnlySpan<byte> path)
         {
@@ -18454,7 +18454,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_GL_LoadLibrary(global::System.ReadOnlySpan<char> path)
         {
@@ -18497,7 +18497,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial delegate* unmanaged<void> * SDL_GL_GetProcAddress(global::System.ReadOnlySpan<byte> proc)
         {
@@ -18519,7 +18519,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial delegate* unmanaged<void> * SDL_GL_GetProcAddress(global::System.ReadOnlySpan<char> proc)
         {
@@ -18562,7 +18562,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial delegate* unmanaged<void> * SDL_EGL_GetProcAddress(global::System.ReadOnlySpan<byte> proc)
         {
@@ -18584,7 +18584,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial delegate* unmanaged<void> * SDL_EGL_GetProcAddress(global::System.ReadOnlySpan<char> proc)
         {
@@ -18627,7 +18627,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GL_ExtensionSupported(byte* extension)
         {
@@ -18650,7 +18650,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GL_ExtensionSupported(global::System.ReadOnlySpan<byte> extension)
         {
@@ -18675,7 +18675,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_GL_ExtensionSupported(global::System.ReadOnlySpan<char> extension)
         {
@@ -18842,7 +18842,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_Vulkan_LoadLibrary(global::System.ReadOnlySpan<byte> path)
         {
@@ -18864,7 +18864,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_Vulkan_LoadLibrary(global::System.ReadOnlySpan<char> path)
         {
@@ -18915,11 +18915,11 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial byte** SDL_Vulkan_GetInstanceExtensions(out uint count)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out count);
+            count = default;
             byte** __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (uint* __count_native = &count)
@@ -18954,7 +18954,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_Vulkan_GetPresentationSupport(nint instance, nint physicalDevice, uint queueFamilyIndex)
         {
@@ -19017,7 +19017,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial void SDL_SetiOSEventPump(bool enabled)
         {
@@ -19062,7 +19062,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsAndroidTV()
         {
@@ -19085,7 +19085,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsChromebook()
         {
@@ -19108,7 +19108,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsDeXMode()
         {
@@ -19179,7 +19179,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RequestAndroidPermission(global::System.ReadOnlySpan<byte> permission, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> cb, nint userdata)
         {
@@ -19201,7 +19201,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_RequestAndroidPermission(global::System.ReadOnlySpan<char> permission, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> cb, nint userdata)
         {
@@ -19244,7 +19244,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ShowAndroidToast(global::System.ReadOnlySpan<byte> message, int duration, int gravity, int xoffset, int yoffset)
         {
@@ -19266,7 +19266,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial int SDL_ShowAndroidToast(global::System.ReadOnlySpan<char> message, int duration, int gravity, int xoffset, int yoffset)
         {
@@ -19325,7 +19325,7 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_IsTablet()
         {
@@ -19412,7 +19412,7 @@ namespace SDL3
 {
     public static unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_DisplayID SDL_GetDisplayForPoint(in global::SDL3.SDL_Point point)
         {
@@ -19434,7 +19434,7 @@ namespace SDL3
 {
     public static unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial global::SDL3.SDL_DisplayID SDL_GetDisplayForRect(in global::SDL3.SDL_Rect rect)
         {
@@ -19456,11 +19456,11 @@ namespace SDL3
 {
     public static unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "8.0.10.36612")]
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.10.43107")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
         public static partial bool SDL_PollEvent(out global::SDL3.SDL_Event @event)
         {
-            global::System.Runtime.CompilerServices.Unsafe.SkipInit(out @event);
+            @event = default;
             bool __retVal;
             int __retVal_native;
             // Pin - Pin data in preparation for calling the P/Invoke.
