@@ -6,17 +6,39 @@ namespace Vocore.Audio;
 public unsafe class AudioClip : BaseAudioObject
 {
     private readonly float* _data;
-    private readonly uint _size;
+    private readonly int _size;
+    private readonly int _channel;
     private readonly int _sampleRate;
 
-    internal AudioClip(float* data, uint size, int frequency)
+    public float* UnsafePointer
+    {
+        get => _data;
+    }
+
+    public int Size
+    {
+        get => _size;
+    }
+
+    public int Channel
+    {
+        get => _channel;
+    }
+
+    public int SampleRate
+    {
+        get => _sampleRate;
+    }
+
+    internal AudioClip(float* data, int size, int channel, int sampleRate)
     {
         _data = data;
         _size = size;
-        _sampleRate = frequency;
+        _channel = channel;
+        _sampleRate = sampleRate;
     }
 
-    public static AudioClip Create(ReadOnlySpan<float> data, int frequency)
+    public static AudioClip Create(ReadOnlySpan<float> data, int channel, int frequency)
     {
         var ptr = (float*)Marshal.AllocHGlobal(data.Length * sizeof(float));
         fixed (float* p = data)
@@ -24,7 +46,7 @@ public unsafe class AudioClip : BaseAudioObject
             Unsafe.CopyBlock(ptr, p, (uint)(data.Length * sizeof(float)));
         }
 
-        return new AudioClip(ptr, (uint)data.Length, frequency);
+        return new AudioClip(ptr, data.Length, channel, frequency);
     }
 
     /// <summary>
@@ -35,9 +57,9 @@ public unsafe class AudioClip : BaseAudioObject
     /// <param name="size">The size of the data</param>
     /// <param name="sampleRate">The frequency of the data</param>
     /// <returns></returns>
-    public static AudioClip UnsafeCreate(float* data, uint size, int sampleRate)
+    public static AudioClip UnsafeCreate(float* data, int size, int channel, int sampleRate)
     {
-        return new AudioClip(data, size, sampleRate);
+        return new AudioClip(data, size, channel, sampleRate);
     }
 
 

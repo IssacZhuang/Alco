@@ -5,15 +5,24 @@ using StbVorbisSharp;
 
 namespace Vocore.Audio;
 
+/// <summary>
+/// The utils to decode audio, all the audio will be decoded into float32 format by default
+/// </summary>
 public unsafe static class UtilsAudioDecode
 {
     public const float Int16ToFloat32 = 1 / 32768f;
-    public static AudioClip DecodeOgg(ReadOnlySpan<byte> data, bool interleaved = true)
+
+    /// <summary>
+    /// Decode the ogg data into pcm data
+    /// </summary>
+    /// <param name="data">The source data of ogg</param>
+    /// <param name="outData">The decoded data pointer</param>
+    /// <param name="channel">The channels of audio</param>
+    /// <param name="sampleRate">The sample rate of audio</param>
+    public static void DecodeOgg(ReadOnlySpan<byte> data, out float* outData, out int size, out int channel, out int sampleRate)
     {
         short* result = null;// the result of stb vorbis is interleaved
         var length = 0;
-
-        int sampleRate, channel;
 
         fixed (byte* b = data)
         {
@@ -28,58 +37,45 @@ public unsafe static class UtilsAudioDecode
             sampleRate = s;
         }
 
-        float* pcmData = (float*)Marshal.AllocHGlobal(length * sizeof(float));
-        if (interleaved)
+        size = length * sizeof(float);
+        float* pcmData = (float*)Marshal.AllocHGlobal(size);
+
+        int simdLength = length / Vector128<short>.Count;
+        for (int i = 0; i < simdLength; i++)
         {
-            //use original data
-            // for (int i = 0; i < length; i++)
-            // {
-            //     pcmData[i] = result[i] * Int16ToFloat32;
-            // }
-            int simdLength = length / Vector128<short>.Count;
-            for (int i = 0; i < simdLength; i++)
+            Vector128<short> inputVec = Vector128<short>.Zero;
+            for (int j = 0; j < Vector128<short>.Count; j++)
             {
-                Vector128<short> inputVec = Vector128<short>.Zero;
-                for (int j = 0; j < Vector128<short>.Count; j++)
-                {
-                    inputVec = inputVec.WithElement(j, result[i * Vector128<short>.Count + j]);
-                }
-
-                Vector128<float> outputVec = Vector128<float>.Zero;
-                for (int j = 0; j < Vector128<float>.Count; j++)
-                {
-                    outputVec = outputVec.WithElement(j, inputVec.GetElement(j) * Int16ToFloat32);
-                }
-
-                for (int j = 0; j < Vector128<float>.Count; j++)
-                {
-                    pcmData[i * Vector128<float>.Count + j] = outputVec.GetElement(j);
-                }
+                inputVec = inputVec.WithElement(j, result[i * Vector128<short>.Count + j]);
             }
 
-            // Handle remaining elements
-            for (int i = simdLength * Vector128<short>.Count; i < length; i++)
+            Vector128<float> outputVec = Vector128<float>.Zero;
+            for (int j = 0; j < Vector128<float>.Count; j++)
             {
-                pcmData[i] = result[i] * Int16ToFloat32;
+                outputVec = outputVec.WithElement(j, inputVec.GetElement(j) * Int16ToFloat32);
+            }
+
+            for (int j = 0; j < Vector128<float>.Count; j++)
+            {
+                pcmData[i * Vector128<float>.Count + j] = outputVec.GetElement(j);
             }
         }
-        else
+
+        // Handle remaining elements
+        for (int i = simdLength * Vector128<short>.Count; i < length; i++)
         {
-            //interleave to deinterleave
-            int samplesPerChannel = length / channel;
-            for (int channelIndex = 0; channelIndex < channel; channelIndex++)
-            {
-                int channelStart = channelIndex * samplesPerChannel;
-                for (int i = 0; i < samplesPerChannel; i++)
-                {
-                    pcmData[channelStart + i] = result[i * channel] * Int16ToFloat32;
-                }
-            }
+            pcmData[i] = result[i] * Int16ToFloat32;
         }
 
         CRuntime.free(result);
-        return AudioClip.UnsafeCreate(pcmData, (uint)length, sampleRate);
+        outData = pcmData;
     }
 
-    
+    public static AudioClip CreateAudioClipFromOgg(ReadOnlySpan<byte> data)
+    {
+        DecodeOgg(data, out float* pcm, out int size, out int channel, out int sampleRate);
+        return AudioClip.UnsafeCreate(pcm, size, channel, sampleRate);
+    }
+
+
 }

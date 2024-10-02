@@ -10,10 +10,10 @@ public abstract class AudioDevice : BaseAudioObject
     {
     }
 
-    public AudioBuffer CreateBuffer()
+    public AudioSource CreateSource()
     {
-        return CreateBufferCore();
+        return CreateSourceCore();
     }
 
-    protected abstract AudioBuffer CreateBufferCore();
+    protected abstract AudioSource CreateSourceCore();
 }
