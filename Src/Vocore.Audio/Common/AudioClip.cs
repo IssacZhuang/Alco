@@ -15,6 +15,10 @@ public unsafe class AudioClip : BaseAudioObject
         get => _data;
     }
 
+    /// <summary>
+    /// The data size in bytes
+    /// </summary>
+    /// <value></value>
     public int Size
     {
         get => _size;

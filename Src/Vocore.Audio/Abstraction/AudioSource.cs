@@ -3,8 +3,10 @@ namespace Vocore.Audio;
 public abstract class AudioSource : BaseAudioObject
 {
     public abstract AudioClip? AudioClip { get; set; }
+    public abstract float Volume { get; set; }
     public AudioSource()
     {
+        Volume = 1f;
     }
 
     public bool TryPlay()

@@ -1,3 +1,4 @@
+using System.Numerics;
 using Silk.NET.OpenAL;
 
 namespace Vocore.Audio.OpenAL;
@@ -8,6 +9,32 @@ internal unsafe class OpenALDevice : AudioDevice
     private static readonly AL AL = AL.GetApi();
 
     private readonly Device* _device;
+
+    public override Vector3 ListenerPosition
+    {
+        get
+        {
+            AL.GetListenerProperty(ListenerVector3.Position, out float x, out float y, out float z);
+            return new Vector3(x, y, z);
+        }
+        set
+        {
+            AL.SetListenerProperty(ListenerVector3.Position, value.X, value.Y, value.Z);
+        }
+    }
+
+    public override Vector3 ListenerVelocity
+    {
+        get
+        {
+            AL.GetListenerProperty(ListenerVector3.Velocity, out float x, out float y, out float z);
+            return new Vector3(x, y, z);
+        }
+        set
+        {
+            AL.SetListenerProperty(ListenerVector3.Velocity, value.X, value.Y, value.Z);
+        }
+    }
 
     public OpenALDevice()
     {
@@ -22,7 +49,8 @@ internal unsafe class OpenALDevice : AudioDevice
 
     protected override AudioSource CreateSourceCore()
     {
-        throw new NotImplementedException();
+        return new OpenALSource();
     }
+
 
 }
