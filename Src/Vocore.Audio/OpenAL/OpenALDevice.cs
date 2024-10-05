@@ -39,6 +39,7 @@ internal unsafe class OpenALDevice : AudioDevice
     public OpenALDevice()
     {
         _device = ALC.OpenDevice(string.Empty);
+        ALC.MakeContextCurrent(ALC.CreateContext(_device, null));
 
     }
 

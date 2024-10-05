@@ -1,3 +1,5 @@
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using Silk.NET.OpenAL;
 
 namespace Vocore.Audio.OpenAL;
@@ -15,16 +17,47 @@ internal class OpenALSource : AudioSource
 
     public override float Volume
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             AL.GetSourceProperty(_source, SourceFloat.Gain, out float value);
             return value;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
             AL.SetSourceProperty(_source, SourceFloat.Gain, value);
         }
     }
+    public override Vector3 Position
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            AL.GetSourceProperty(_source, SourceVector3.Position, out Vector3 value);
+            return value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            AL.SetSourceProperty(_source, SourceVector3.Position, value);
+        }
+    }
+    public override Vector3 Velocity
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            AL.GetSourceProperty(_source, SourceVector3.Velocity, out Vector3 value);
+            return value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            AL.SetSourceProperty(_source, SourceVector3.Velocity, value);
+        }
+    }
+
 
     public OpenALSource() : base()
     {
@@ -48,6 +81,8 @@ internal class OpenALSource : AudioSource
             _isClipBuffered = false;
         }
     }
+
+
 
     protected override void PlayCore()
     {

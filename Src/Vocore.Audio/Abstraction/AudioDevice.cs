@@ -13,6 +13,8 @@ public abstract class AudioDevice : BaseAudioObject
 
     public AudioDevice()
     {
+        ListenerPosition = Vector3.Zero;
+        ListenerVelocity = Vector3.Zero;
     }
 
     public AudioSource CreateSource()

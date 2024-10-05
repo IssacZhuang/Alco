@@ -14,7 +14,7 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _device = AudioDeviceFactory.CreateOpenALDevice();
-        _clip = UtilsAudioDecode.CreateAudioClipFromOgg(LoadFile("shot.ogg"));
+        _clip = UtilsAudioDecode.CreateAudioClipFromOgg(LoadFile("Shot.ogg"));
         _source = _device.CreateSource();
         _source.AudioClip = _clip;
     }
