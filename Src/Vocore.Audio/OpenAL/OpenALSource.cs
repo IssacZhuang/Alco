@@ -9,11 +9,10 @@ internal class OpenALSource : AudioSource
     private static readonly ALContext ALC = ALContext.GetApi();
     private static readonly AL AL = AL.GetApi();
 
-    private readonly uint _buffer;
     private readonly uint _source;
 
     private AudioClip? _clip;
-    private bool _isClipBuffered;
+    private bool _isClipSet;
 
     public override float Gain
     {
@@ -76,7 +75,6 @@ internal class OpenALSource : AudioSource
 
     public OpenALSource() : base()
     {
-        _buffer = AL.GenBuffer();
         _source = AL.GenSource();
 
         Gain = 1f;
@@ -87,7 +85,6 @@ internal class OpenALSource : AudioSource
 
     protected override void Dispose(bool disposing)
     {
-        AL.DeleteBuffer(_buffer);
         AL.DeleteSource(_source);
     }
 
@@ -98,7 +95,7 @@ internal class OpenALSource : AudioSource
         {
             if (value == _clip) return;
             _clip = value;
-            _isClipBuffered = false;
+            _isClipSet = false;
         }
     }
 
@@ -112,7 +109,7 @@ internal class OpenALSource : AudioSource
 
     private unsafe void TryBufferClip()
     {
-        if (_isClipBuffered)
+        if (_isClipSet)
         {
             return;
         }
@@ -122,13 +119,7 @@ internal class OpenALSource : AudioSource
             return;
         }
 
-        _isClipBuffered = true;
-        AL.BufferData(_buffer, UtilsOpenAL.GetBufferFormat(_clip.Channel),
-        _clip.UnsafePointer,
-        _clip.Size,
-        _clip.SampleRate
-        );
-
-        AL.SetSourceProperty(_source, SourceInteger.Buffer, _buffer);
+        _isClipSet = true;
+        AL.SetSourceProperty(_source, SourceInteger.Buffer, ((OpenALAudioClip)_clip).Buffer);
     }
 }

@@ -40,7 +40,7 @@ public abstract class AudioSource : BaseAudioObject
             throw new AudioException("The audio clip is not setted");
         }
 
-        this.PlayCore();
+        PlayCore();
     }
 
     protected abstract void PlayCore();

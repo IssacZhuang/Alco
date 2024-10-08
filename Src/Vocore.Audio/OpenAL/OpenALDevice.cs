@@ -53,5 +53,8 @@ internal unsafe class OpenALDevice : AudioDevice
         return new OpenALSource();
     }
 
-
+    protected override AudioClip CreateClipCore(ReadOnlySpan<float> data, int channel, int sampleRate)
+    {
+        return new OpenALAudioClip(data, channel, sampleRate);
+    }
 }

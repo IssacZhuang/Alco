@@ -15,6 +15,7 @@ public unsafe static class UtilsAudioDecode
     /// </summary>
     /// <param name="data">The source data of ogg</param>
     /// <param name="outData">The decoded data pointer</param>
+    /// <param name="size">The size in bytes of decoded data</param>
     /// <param name="channel">The channels of audio</param>
     /// <param name="sampleRate">The sample rate of audio</param>
     public static void DecodeOgg(ReadOnlySpan<byte> data, out float* outData, out int size, out int channel, out int sampleRate)
@@ -35,10 +36,12 @@ public unsafe static class UtilsAudioDecode
         }
     }
 
-    public static AudioClip CreateAudioClipFromOgg(ReadOnlySpan<byte> data)
+    public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         DecodeOgg(data, out float* pcm, out int size, out int channel, out int sampleRate);
-        return AudioClip.UnsafeCreate(pcm, size, channel, sampleRate);
+        AudioClip clip = device.CreateClip(new ReadOnlySpan<float>(pcm, size / sizeof(float)), channel, sampleRate);
+        Marshal.FreeHGlobal((IntPtr)pcm);
+        return clip;
     }
 
 
