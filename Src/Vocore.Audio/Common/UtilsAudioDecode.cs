@@ -20,15 +20,19 @@ public unsafe static class UtilsAudioDecode
     public static void DecodeOgg(ReadOnlySpan<byte> data, out float* outData, out int size, out int channel, out int sampleRate)
     {
         //todo: performance optimization
-        VorbisReader reader = new VorbisReader(new MemoryStream(data.ToArray()), false);
-        channel = reader.Channels;
-        sampleRate = reader.SampleRate;
-        int length = (int)reader.TotalSamples * channel;
-        size = length * sizeof(float);
-        float* pcmData = (float*)Marshal.AllocHGlobal(size);
-        Span<float> pcmSpan = new Span<float>(pcmData, length);
-        reader.ReadSamples(pcmSpan);
-        outData = pcmData;
+        fixed (byte* ptr = data)
+        {
+            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
+            VorbisReader reader = new VorbisReader(stream, false);
+            channel = reader.Channels;
+            sampleRate = reader.SampleRate;
+            int length = (int)reader.TotalSamples * channel;
+            size = length * sizeof(float);
+            float* pcmData = (float*)Marshal.AllocHGlobal(size);
+            Span<float> pcmSpan = new Span<float>(pcmData, length);
+            reader.ReadSamples(pcmSpan);
+            outData = pcmData;
+        }
     }
 
     public static AudioClip CreateAudioClipFromOgg(ReadOnlySpan<byte> data)
