@@ -35,6 +35,8 @@ public sealed partial class AssetSystem
 
                 handle.IsLoading = true;
 
+                
+
                 // check the asset loader
                 if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
                 {
@@ -42,6 +44,9 @@ public sealed partial class AssetSystem
                     failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
                     return false;
                 }
+
+                // profile
+                StartProfile<TAsset>(filename);
 
                 // IO
                 if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
@@ -58,6 +63,9 @@ public sealed partial class AssetSystem
                     asset = null;
                     return false;
                 }
+
+                // profile
+                EndProfile();
 
                 // try add to cache
                 handle.SetCache(newAsset, cacheMode);
@@ -195,6 +203,8 @@ public sealed partial class AssetSystem
     {
         return () =>
         {
+            StartProfile<TAsset>(filename);
+
             if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
             {
                 //Log.Error($"Trying to get asset {filename} but the file does not exist");
@@ -206,6 +216,8 @@ public sealed partial class AssetSystem
                 //Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
                 throw new AssetLoadException($"Trying to get asset {filename} but the asset loader failed to load the asset");
             }
+
+            EndProfile();
 
             return newAsset;
         };

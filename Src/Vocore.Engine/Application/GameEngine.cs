@@ -174,7 +174,7 @@ public partial class GameEngine : IDisposable
         _platform = _setting.Platform ?? new Sdl3Platform();
 
         _rendering = new RenderingSystem(_graphicsDevice);
-        _assets = new AssetSystem(_setting.Assets.LoaderThreadCount);
+        _assets = new AssetSystem(_setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
         _builtInAssets = new BuiltInAssets(_assets);
 
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));

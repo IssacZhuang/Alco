@@ -11,6 +11,8 @@ namespace Vocore.IO
     /// </summary> 
     public sealed partial  class AssetSystem
     {
+        private readonly ThreadLocal<AssetProfiler> Profiler = new ThreadLocal<AssetProfiler>(() => new AssetProfiler());
+
         private const int FetchJobAttempCount = 20;
         private readonly ConcurrentDictionary<string, AssetHandle> _assetLookup = new ConcurrentDictionary<string, AssetHandle>();
         // key: extension, value: asset loader
@@ -42,21 +44,26 @@ namespace Vocore.IO
             }
         }
 
-        internal AssetSystem(int threadCount)
+        public bool IsProfileEnabled { get; set; } = false;
+
+        internal AssetSystem(int threadCount, bool isProfileEnabled = false)
         {
             if (threadCount <= 0)
             {
                 throw new ArgumentException("Thread count must be greater than 0");
             }
 
+            IsProfileEnabled = isProfileEnabled;
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
+
         }
 
-        
+
 
         internal void Dispose()
         {
             _asyncLoadQueue.Dispose();
+            Profiler.Dispose();
         }
 
 
