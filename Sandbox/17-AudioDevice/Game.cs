@@ -7,7 +7,6 @@ using Vocore.GUI;
 
 public class Game : GameEngine
 {
-    private AudioDevice _device;
     private AudioClip _clip;
     private AudioSource _source;
 
@@ -16,9 +15,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _device = AudioDeviceFactory.CreateOpenALDevice();
-        _clip = _device.CreateAudioClipFromOgg(LoadFile("Shot.ogg"));
-        _source = _device.CreateSource();
+
+        _clip = Assets.Load<AudioClip>("Shot.ogg");
+        _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
         _source.AudioClip = _clip;
     }

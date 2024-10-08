@@ -39,7 +39,7 @@ public unsafe static class UtilsAudioDecode
     public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         DecodeOgg(data, out float* pcm, out int size, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateClip(new ReadOnlySpan<float>(pcm, size / sizeof(float)), channel, sampleRate);
+        AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(pcm, size / sizeof(float)), channel, sampleRate);
         Marshal.FreeHGlobal((IntPtr)pcm);
         return clip;
     }

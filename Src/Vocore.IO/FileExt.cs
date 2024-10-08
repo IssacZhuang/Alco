@@ -41,4 +41,9 @@ public static class FileExt
     //font
     public const string FontTrueType = ".ttf";
 
+    //audio
+    public const string AudioWav = ".wav";
+    public const string AudioOgg = ".ogg";
+    public const string AudioMp3 = ".mp3";
+    public const string AudioFlac = ".flac";
 }

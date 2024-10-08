@@ -48,12 +48,12 @@ internal unsafe class OpenALDevice : AudioDevice
         ALC.CloseDevice(_device);
     }
 
-    protected override AudioSource CreateSourceCore()
+    protected override AudioSource CreateAudioSourceCore()
     {
         return new OpenALSource();
     }
 
-    protected override AudioClip CreateClipCore(ReadOnlySpan<float> data, int channel, int sampleRate)
+    protected override AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate)
     {
         return new OpenALAudioClip(data, channel, sampleRate);
     }

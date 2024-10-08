@@ -6,6 +6,7 @@ using Vocore.Graphics;
 using Vocore.Rendering;
 using Vocore.IO;
 using System.Text;
+using Vocore.Audio;
 
 
 namespace Vocore.Engine;
@@ -23,9 +24,11 @@ public partial class GameEngine : IDisposable
 
     #region  Resources
     private readonly GPUDevice _graphicsDevice;
+    private readonly AudioDevice _audioDevice;
+
     private readonly BuiltInAssets _builtInAssets;
     private readonly AssetSystem _assets;
-    
+
     private readonly RenderingSystem _rendering;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
@@ -80,6 +83,16 @@ public partial class GameEngine : IDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _graphicsDevice;
+    }
+
+    /// <summary>
+    /// The audio device of the game
+    /// </summary>
+    /// <value></value>
+    public AudioDevice AudioDevice
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _audioDevice;
     }
 
     /// <summary>
@@ -170,6 +183,7 @@ public partial class GameEngine : IDisposable
         _setting = setting;
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
+        _audioDevice = AudioDeviceFactory.CreateOpenALDevice();
 
         _platform = _setting.Platform ?? new Sdl3Platform();
 
@@ -403,6 +417,7 @@ public partial class GameEngine : IDisposable
             throw new Exception($"Can not find the include file: {includeName}");
         }));
         Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
+        Assets.RegisterAssetLoader(new AssetLoaderAudioVorbis(AudioDevice));
     }
 
     private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)

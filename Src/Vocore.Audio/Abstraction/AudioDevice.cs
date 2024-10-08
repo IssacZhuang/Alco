@@ -17,17 +17,17 @@ public abstract class AudioDevice : BaseAudioObject
         ListenerVelocity = Vector3.Zero;
     }
 
-    public AudioClip CreateClip(ReadOnlySpan<float> data, int channel, int sampleRate)
+    public AudioClip CreateAudioClip(ReadOnlySpan<float> data, int channel, int sampleRate)
     {
-        return CreateClipCore(data, channel, sampleRate);
+        return CreateAudioClipCore(data, channel, sampleRate);
     }
 
-    public AudioSource CreateSource()
+    public AudioSource CreateAudioSource()
     {
-        return CreateSourceCore();
+        return CreateAudioSourceCore();
     }
 
-    protected abstract AudioSource CreateSourceCore();
+    protected abstract AudioSource CreateAudioSourceCore();
 
-    protected abstract AudioClip CreateClipCore(ReadOnlySpan<float> data, int channel, int sampleRate);
+    protected abstract AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate);
 }
