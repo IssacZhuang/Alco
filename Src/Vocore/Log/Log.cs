@@ -40,17 +40,17 @@ namespace Vocore{
 
         public static void Info(ReadOnlySpan<char> message)
         {
-            ConsolePrint(message, ConsoleColor.White);
+            Print(message, ConsoleColor.White);
         }
 
         public static void Info<T> (T message)
         {
             if (message == null)
             {
-                ConsolePrint(Null, ConsoleColor.White);
+                Print(Null, ConsoleColor.White);
                 return;
             }
-            ConsolePrint(message.ToString()??string.Empty, ConsoleColor.White);
+            Print(message.ToString()??string.Empty, ConsoleColor.White);
         }
 
         public static void Info<T1, T2> (T1 message1, T2 message2)
@@ -59,7 +59,7 @@ namespace Vocore{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+            Print(Builder.ToString(), ConsoleColor.White);
         }
 
         public static void Info<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
@@ -70,7 +70,7 @@ namespace Vocore{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+            Print(Builder.ToString(), ConsoleColor.White);
         }
 
         public static void Info<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
@@ -83,7 +83,7 @@ namespace Vocore{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+            Print(Builder.ToString(), ConsoleColor.White);
         }
 
         public static void Info<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -98,7 +98,7 @@ namespace Vocore{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.White);
+            Print(Builder.ToString(), ConsoleColor.White);
         }
 
         // public static void Warning(params object[] messages)
@@ -116,10 +116,10 @@ namespace Vocore{
         {
             if (message == null)
             {
-                ConsolePrint(Null, ConsoleColor.Yellow);
+                Print(Null, ConsoleColor.Yellow);
                 return;
             }
-            ConsolePrint(message.ToString()??string.Empty, ConsoleColor.Yellow);
+            Print(message.ToString()??string.Empty, ConsoleColor.Yellow);
         }
 
         public static void Warning<T1, T2> (T1 message1, T2 message2)
@@ -128,7 +128,7 @@ namespace Vocore{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+            Print(Builder.ToString(), ConsoleColor.Yellow);
         }
 
         public static void Warning<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
@@ -139,7 +139,7 @@ namespace Vocore{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+            Print(Builder.ToString(), ConsoleColor.Yellow);
         }
 
         public static void Warning<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
@@ -152,7 +152,7 @@ namespace Vocore{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+            Print(Builder.ToString(), ConsoleColor.Yellow);
         }
 
         public static void Warning<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -167,7 +167,7 @@ namespace Vocore{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
+            Print(Builder.ToString(), ConsoleColor.Yellow);
         }
 
         // public static void Error(params object[] messages)
@@ -185,10 +185,10 @@ namespace Vocore{
         {
             if (message == null)
             {
-                ConsolePrint(Null, ConsoleColor.Red);
+                Print(Null, ConsoleColor.Red);
                 return;
             }
-            ConsolePrint(message.ToString()??string.Empty, ConsoleColor.Red);
+            Print(message.ToString()??string.Empty, ConsoleColor.Red);
         }
 
         public static void Error<T1, T2> (T1 message1, T2 message2)
@@ -197,7 +197,7 @@ namespace Vocore{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+            Print(Builder.ToString(), ConsoleColor.Red);
         }
 
         public static void Error<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
@@ -208,7 +208,7 @@ namespace Vocore{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+            Print(Builder.ToString(), ConsoleColor.Red);
         }
 
         public static void Error<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
@@ -221,7 +221,7 @@ namespace Vocore{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+            Print(Builder.ToString(), ConsoleColor.Red);
         }
 
         public static void Error<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -236,11 +236,11 @@ namespace Vocore{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            ConsolePrint(Builder.ToString(), ConsoleColor.Red);
+            Print(Builder.ToString(), ConsoleColor.Red);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ConsolePrint(string str, ConsoleColor color)
+        public static void Print(string str, ConsoleColor color = ConsoleColor.White)
         {
             Console.ForegroundColor = color;
             Console.WriteLine(str);
@@ -248,7 +248,7 @@ namespace Vocore{
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ConsolePrint(ReadOnlySpan<char> str, ConsoleColor color)
+        public static void Print(ReadOnlySpan<char> str, ConsoleColor color = ConsoleColor.White)
         {
             Console.ForegroundColor = color;
             Console.Out.WriteLine(str);
