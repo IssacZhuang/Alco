@@ -15,7 +15,7 @@ internal class OpenALSource : AudioSource
     private AudioClip? _clip;
     private bool _isClipBuffered;
 
-    public override float Volume
+    public override float Gain
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -29,6 +29,21 @@ internal class OpenALSource : AudioSource
             AL.SetSourceProperty(_source, SourceFloat.Gain, value);
         }
     }
+
+    public override float Pitch
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            AL.GetSourceProperty(_source, SourceFloat.Pitch, out float value);
+            return value;
+        }
+        set
+        {
+            AL.SetSourceProperty(_source, SourceFloat.Pitch, value);
+        }
+    }
+
     public override Vector3 Position
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -63,6 +78,11 @@ internal class OpenALSource : AudioSource
     {
         _buffer = AL.GenBuffer();
         _source = AL.GenSource();
+
+        Gain = 1f;
+        Pitch = 1f;
+        Position = Vector3.Zero;
+        Velocity = Vector3.Zero;
     }
 
     protected override void Dispose(bool disposing)
