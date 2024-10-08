@@ -9,6 +9,7 @@ internal unsafe class OpenALDevice : AudioDevice
     private static readonly AL AL = AL.GetApi();
 
     private readonly Device* _device;
+    private readonly Lock _lock = new Lock();
 
     public override Vector3 ListenerPosition
     {
@@ -50,11 +51,18 @@ internal unsafe class OpenALDevice : AudioDevice
 
     protected override AudioSource CreateAudioSourceCore()
     {
-        return new OpenALSource();
+        //lock
+        lock (_lock)
+        {
+            return new OpenALSource();
+        }
     }
 
     protected override AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate)
     {
-        return new OpenALAudioClip(data, channel, sampleRate);
+        lock (_lock)
+        {
+            return new OpenALAudioClip(data, channel, sampleRate);
+        }
     }
 }
