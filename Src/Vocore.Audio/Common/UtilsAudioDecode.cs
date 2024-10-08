@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
-using Hebron.Runtime;
-using StbVorbisSharp;
+using NVorbis;
 
 namespace Vocore.Audio;
 
@@ -10,8 +10,6 @@ namespace Vocore.Audio;
 /// </summary>
 public unsafe static class UtilsAudioDecode
 {
-    public const float Int16ToFloat32 = 1 / 32768f;
-
     /// <summary>
     /// Decode the ogg data into pcm data
     /// </summary>
@@ -21,53 +19,15 @@ public unsafe static class UtilsAudioDecode
     /// <param name="sampleRate">The sample rate of audio</param>
     public static void DecodeOgg(ReadOnlySpan<byte> data, out float* outData, out int size, out int channel, out int sampleRate)
     {
-        short* result = null;// the result of stb vorbis is interleaved
-        var length = 0;
-
-        fixed (byte* b = data)
-        {
-            int c, s;
-            length = StbVorbis.stb_vorbis_decode_memory(b, data.Length, &c, &s, ref result);
-            if (length == -1)
-            {
-                throw new Exception("Unable to decode ogg");
-            }
-
-            channel = c;
-            sampleRate = s;
-        }
-
+        //todo: performance optimization
+        VorbisReader reader = new VorbisReader(new MemoryStream(data.ToArray()), false);
+        channel = reader.Channels;
+        sampleRate = reader.SampleRate;
+        int length = (int)reader.TotalSamples * channel;
         size = length * sizeof(float);
         float* pcmData = (float*)Marshal.AllocHGlobal(size);
-
-        int simdLength = length / Vector128<short>.Count;
-        for (int i = 0; i < simdLength; i++)
-        {
-            Vector128<short> inputVec = Vector128<short>.Zero;
-            for (int j = 0; j < Vector128<short>.Count; j++)
-            {
-                inputVec = inputVec.WithElement(j, result[i * Vector128<short>.Count + j]);
-            }
-
-            Vector128<float> outputVec = Vector128<float>.Zero;
-            for (int j = 0; j < Vector128<float>.Count; j++)
-            {
-                outputVec = outputVec.WithElement(j, inputVec.GetElement(j) * Int16ToFloat32);
-            }
-
-            for (int j = 0; j < Vector128<float>.Count; j++)
-            {
-                pcmData[i * Vector128<float>.Count + j] = outputVec.GetElement(j);
-            }
-        }
-
-        // Handle remaining elements
-        for (int i = simdLength * Vector128<short>.Count; i < length; i++)
-        {
-            pcmData[i] = result[i] * Int16ToFloat32;
-        }
-
-        CRuntime.free(result);
+        Span<float> pcmSpan = new Span<float>(pcmData, length);
+        reader.ReadSamples(pcmSpan);
         outData = pcmData;
     }
 
