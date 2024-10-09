@@ -16,7 +16,7 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _clip = Assets.Load<AudioClip>("Arrow.mp3");
+        _clip = Assets.Load<AudioClip>("Sword.mp3");
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
         _source.AudioClip = _clip;
