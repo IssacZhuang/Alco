@@ -16,7 +16,7 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _clip = Assets.Load<AudioClip>("Shot.ogg");
+        _clip = Assets.Load<AudioClip>("Arrow.mp3");
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
         _source.AudioClip = _clip;
@@ -29,7 +29,7 @@ public class Game : GameEngine
             _source.Gain = _gain;
         }
 
-        if (DebugGUI.SliderWithText("Pitch ", ref _pitch, 0, 1))
+        if (DebugGUI.SliderWithText("Pitch ", ref _pitch, 0, 2))
         {
             _source.Pitch = _pitch;
         }

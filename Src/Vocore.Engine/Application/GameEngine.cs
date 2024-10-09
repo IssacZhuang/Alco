@@ -418,6 +418,7 @@ public partial class GameEngine : IDisposable
         }));
         Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
         Assets.RegisterAssetLoader(new AssetLoaderAudioVorbis(AudioDevice));
+        Assets.RegisterAssetLoader(new AssetLoaderAudioMpge(AudioDevice));
     }
 
     private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)
