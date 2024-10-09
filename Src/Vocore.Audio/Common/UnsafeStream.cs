@@ -25,7 +25,7 @@ internal unsafe class UnsafeStream : Stream
 
     public override bool CanRead
     {
-        get => _position < _size;
+        get => true;
     }
 
     public override bool CanSeek
