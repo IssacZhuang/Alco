@@ -93,6 +93,7 @@ internal class OpenALSource : AudioSource
         get => _clip;
         set
         {
+            Stop();
             if (value == _clip) return;
             _clip = value;
             _isClipSet = false;
@@ -121,5 +122,15 @@ internal class OpenALSource : AudioSource
 
         _isClipSet = true;
         AL.SetSourceProperty(_source, SourceInteger.Buffer, ((OpenALAudioClip)_clip).Buffer);
+    }
+
+    protected override void StopCore()
+    {
+        if (_clip == null)
+        {
+            return;
+        }
+
+        AL.SourceStop(_source);
     }
 }

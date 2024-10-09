@@ -3,8 +3,10 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using CSCore;
 using CSCore.Codecs;
+using CSCore.Codecs.AIFF;
+using CSCore.Codecs.FLAC;
 using CSCore.Codecs.MP3;
-using NLayer;
+using CSCore.Codecs.WAV;
 using NVorbis;
 
 namespace Vocore.Audio;
@@ -18,11 +20,9 @@ public unsafe static class UtilsAudioDecode
     /// Decode the ogg data into pcm data
     /// </summary>
     /// <param name="data">The source data of ogg</param>
-    /// <param name="outData">The decoded data pointer</param>
-    /// <param name="size">The size in bytes of decoded data</param>
     /// <param name="channel">The channels of audio</param>
     /// <param name="sampleRate">The sample rate of audio</param>
-    public static void DecodeOgg(ReadOnlySpan<byte> data, out float* outData, out int size, out int channel, out int sampleRate)
+    public static float[] DecodeOgg(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
         //todo: performance optimization
         fixed (byte* ptr = data)
@@ -32,14 +32,18 @@ public unsafe static class UtilsAudioDecode
             channel = reader.Channels;
             sampleRate = reader.SampleRate;
             int length = (int)reader.TotalSamples * channel;
-            size = length * sizeof(float);
-            float* pcmData = (float*)Marshal.AllocHGlobal(size);
-            Span<float> pcmSpan = new Span<float>(pcmData, length);
-            reader.ReadSamples(pcmSpan);
-            outData = pcmData;
+            float[] buffer = new float[length];
+            reader.ReadSamples(buffer, 0, length);
+            return buffer;
         }
     }
 
+    /// <summary>
+    /// Decode the mp3 data into pcm data
+    /// </summary>
+    /// <param name="data">The source data of mp3</param>
+    /// <param name="channel">The channels of audio</param>
+    /// <param name="sampleRate">The sample rate of audio</param>
     public static float[] DecodeMpge(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
         fixed (byte* ptr = data)
@@ -56,17 +60,85 @@ public unsafe static class UtilsAudioDecode
         }
     }
 
+    public static float[] DecodeWave(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
+    {
+        fixed (byte* ptr = data)
+        {
+            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
+            using WaveFileReader reader = new WaveFileReader(stream);
+            channel = reader.WaveFormat.Channels;
+            sampleRate = reader.WaveFormat.SampleRate;
+            int length = (int)reader.Length / channel;
+            float[] buffer = new float[length];
+            using var source = reader.ToSampleSource();
+            source.Read(buffer, 0, length);
+            return buffer;
+        }
+    }
+
+    public static float[] DecodeAiff(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
+    {
+        fixed (byte* ptr = data)
+        {
+            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
+            using AiffReader reader = new AiffReader(stream);
+            channel = reader.WaveFormat.Channels;
+            sampleRate = reader.WaveFormat.SampleRate;
+            int length = (int)reader.Length / channel;
+            float[] buffer = new float[length];
+            using var source = reader.ToSampleSource();
+            source.Read(buffer, 0, length);
+            return buffer;
+        }
+    }
+
+    public static float[] DecodeFlac(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
+    {
+        fixed (byte* ptr = data)
+        {
+            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
+            using FlacFile reader = new FlacFile(stream);
+            channel = reader.WaveFormat.Channels;
+            sampleRate = reader.WaveFormat.SampleRate;
+            int length = (int)reader.Length / channel;
+            float[] buffer = new float[length];
+            using var source = reader.ToSampleSource();
+            source.Read(buffer, 0, length);
+            return buffer;
+        }
+    }
+
     public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
     {
-        DecodeOgg(data, out float* pcm, out int size, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(pcm, size / sizeof(float)), channel, sampleRate);
-        Marshal.FreeHGlobal((IntPtr)pcm);
+        float[] buffer = DecodeOgg(data, out int channel, out int sampleRate);
+        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
         return clip;
     }
 
     public static AudioClip CreateAudioClipFromMpge(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         float[] buffer = DecodeMpge(data, out int channel, out int sampleRate);
+        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
+        return clip;
+    }
+
+    public static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
+    {
+        float[] buffer = DecodeWave(data, out int channel, out int sampleRate);
+        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
+        return clip;
+    }
+
+    public static AudioClip CreateAudioClipFromAiff(this AudioDevice device, ReadOnlySpan<byte> data)
+    {
+        float[] buffer = DecodeAiff(data, out int channel, out int sampleRate);
+        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
+        return clip;
+    }
+
+    public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data)
+    {
+        float[] buffer = DecodeFlac(data, out int channel, out int sampleRate);
         AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
         return clip;
     }

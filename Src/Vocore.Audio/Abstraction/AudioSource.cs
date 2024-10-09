@@ -43,6 +43,12 @@ public abstract class AudioSource : BaseAudioObject
         PlayCore();
     }
 
+    public void Stop()
+    {
+        StopCore();
+    }
+
     protected abstract void PlayCore();
+    protected abstract void StopCore();
 
 }

@@ -7,8 +7,9 @@ using Vocore.GUI;
 
 public class Game : GameEngine
 {
-    private AudioClip _clip;
-    private AudioSource _source;
+    private readonly AudioClip _clipMp3;
+    private readonly AudioClip _clipOgg;
+    private readonly AudioSource _source;
 
     private float _gain = 1f;
     private float _pitch = 1f;
@@ -16,10 +17,10 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _clip = Assets.Load<AudioClip>("Sword.mp3");
+        _clipMp3 = Assets.Load<AudioClip>("Sword.mp3");
+        _clipOgg = Assets.Load<AudioClip>("Shot.ogg");
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
-        _source.AudioClip = _clip;
     }
 
     protected override void OnUpdate(float delta)
@@ -34,8 +35,15 @@ public class Game : GameEngine
             _source.Pitch = _pitch;
         }
 
-        if (DebugGUI.Button("play"))
+        if (DebugGUI.Button("play Sword.mp3"))
         {
+            _source.AudioClip = _clipMp3;
+            _source.Play();
+        }
+        
+        if (DebugGUI.Button("play Shot.ogg"))
+        {
+            _source.AudioClip = _clipOgg;
             _source.Play();
         }
     }
