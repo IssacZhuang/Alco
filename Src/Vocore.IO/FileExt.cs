@@ -46,4 +46,5 @@ public static class FileExt
     public const string AudioOgg = ".ogg";
     public const string AudioMp3 = ".mp3";
     public const string AudioFlac = ".flac";
+    public const string AudioAiff = ".aiff";
 }

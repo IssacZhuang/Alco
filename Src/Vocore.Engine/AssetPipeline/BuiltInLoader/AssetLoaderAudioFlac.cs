@@ -7,22 +7,22 @@ namespace Vocore.Engine;
 /// <summary>
 /// The loader for ogg audio
 /// </summary>
-public class AssetLoaderAudioVorbis : IAssetLoader<AudioClip>
+public class AssetLoaderAudioFlac : IAssetLoader<AudioClip>
 {
     private readonly AudioDevice _device;
 
     public string Name => "AssetLoader.Audio.Vorbis";
 
-    public IReadOnlyList<string> FileExtensions { get; } = [FileExt.AudioOgg];
+    public IReadOnlyList<string> FileExtensions { get; } = [FileExt.AudioFlac];
 
-    public AssetLoaderAudioVorbis(AudioDevice device)
+    public AssetLoaderAudioFlac(AudioDevice device)
     {
         _device = device;
     }
 
     public bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out AudioClip? asset)
     {
-        asset = _device.CreateAudioClipFromOgg(data);
+        asset = _device.CreateAudioClipFromFlac(data);
         return true;
     }
 }

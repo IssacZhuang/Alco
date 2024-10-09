@@ -9,7 +9,7 @@ namespace Vocore.Engine;
 /// </summary>
 public class AssetLoaderAudioMpge : IAssetLoader<AudioClip>
 {
-    private AudioDevice _device;
+    private readonly AudioDevice _device;
 
     public string Name => "AssetLoader.Audio.Vorbis";
 
