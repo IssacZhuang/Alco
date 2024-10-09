@@ -4,11 +4,9 @@ namespace NLayer
 {
     public class MpegFrameDecoder
     {
-        Decoder.LayerIDecoder _layerIDecoder;
-        Decoder.LayerIIDecoder _layerIIDecoder;
-        Decoder.LayerIIIDecoder _layerIIIDecoder;
-
-        float[] _eqFactors;
+        Decoder.LayerIDecoder? _layerIDecoder;
+        Decoder.LayerIIDecoder? _layerIIDecoder;
+        Decoder.LayerIIIDecoder? _layerIIIDecoder;
 
         // channel buffers for getting data out of the decoders...
         // we do it this way so the stereo interleaving code is in one place: DecodeFrameImpl(...)
@@ -84,7 +82,7 @@ namespace NLayer
         {
             frame.Reset();
 
-            Decoder.LayerDecoderBase curDecoder = null;
+            Decoder.LayerDecoderBase? curDecoder = null;
             switch (frame.Layer)
             {
                 case MpegLayer.LayerI:
@@ -112,7 +110,6 @@ namespace NLayer
 
             if (curDecoder != null)
             {
-                curDecoder.SetEQ(_eqFactors);
                 curDecoder.StereoMode = StereoMode;
 
                 var cnt = curDecoder.DecodeFrame(frame, _ch0, _ch1);

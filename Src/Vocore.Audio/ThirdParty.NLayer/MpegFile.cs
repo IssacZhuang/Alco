@@ -7,7 +7,7 @@ namespace NLayer
         public const float Inv256 = 1.0f / 256.0f;
 
         System.IO.Stream _stream;
-        bool _closeStream, _eofFound;
+        bool _closeStream;
 
         Decoder.MpegStreamReader _reader;
         MpegFrameDecoder _decoder;
@@ -21,7 +21,10 @@ namespace NLayer
         /// <param name="fileName">The file which contains Mpeg data.</param>
         public MpegFile(string fileName)
         {
-            Init(System.IO.File.Open(fileName, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read), true);
+            _stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            _closeStream = true;
+            _reader = new Decoder.MpegStreamReader(_stream);
+            _decoder = new MpegFrameDecoder();
         }
 
         /// <summary>
@@ -30,13 +33,8 @@ namespace NLayer
         /// <param name="stream">The input stream which contains Mpeg data.</param>
         public MpegFile(System.IO.Stream stream)
         {
-            Init(stream, false);
-        }
-
-        void Init(System.IO.Stream stream, bool closeStream)
-        {
             _stream = stream;
-            _closeStream = closeStream;
+            _closeStream = false;
 
             _reader = new Decoder.MpegStreamReader(_stream);
 
@@ -130,10 +128,6 @@ namespace NLayer
                     }
 
                     _position = newPos * sizeof(float) * _reader.Channels;
-                    _eofFound = false;
-
-                    // clear the decoder & buffer
-                    _readBufOfs = _readBufLen = 0;
                 }
             }
         }
@@ -190,7 +184,6 @@ namespace NLayer
         }
 
         float[] _readBuf = new float[1152 * 2];
-        int _readBufLen, _readBufOfs;
 
         int ReadSamplesImpl(Span<float> buffer, int index, int count)
         {

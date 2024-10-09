@@ -22,7 +22,7 @@ namespace NLayer.Decoder
             },
         };
 
-        internal static MpegFrame TrySync(uint syncMark)
+        internal static MpegFrame? TrySync(uint syncMark)
         {
             if ((syncMark & 0xFFE00000) == 0xFFE00000   // frame sync
              && (syncMark & 0x00180000) != 0x00080000   // MPEG version != reserved
@@ -238,7 +238,7 @@ namespace NLayer.Decoder
             crc &= 0xFFFF;
         }
 
-        internal VBRInfo ParseVBR()
+        internal VBRInfo? ParseVBR()
         {
             var buf = new byte[4];
 
@@ -344,7 +344,7 @@ namespace NLayer.Decoder
             return info;
         }
 
-        VBRInfo ParseVBRI()
+        VBRInfo? ParseVBRI()
         {
             VBRInfo info = new VBRInfo();
             info.Channels = Channels;

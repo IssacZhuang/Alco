@@ -189,22 +189,12 @@ namespace NLayer.Decoder
         List<float[]> _synBuf = new List<float[]>(2);
         List<int> _bufOffset = new List<int>(2);
 
-        float[] _eq;
-
         internal LayerDecoderBase()
         {
             StereoMode = StereoMode.Both;
         }
 
         abstract internal int DecodeFrame(IMpegFrame frame, float[] ch0, float[] ch1);
-
-        internal void SetEQ(float[] eq)
-        {
-            if (eq == null || eq.Length == 32)
-            {
-                _eq = eq;
-            }
-        }
 
         internal StereoMode StereoMode { get; set; }
 
@@ -221,14 +211,6 @@ namespace NLayer.Decoder
             float[] synBuf;
             int k;
             GetBufAndOffset(channel, out synBuf, out k);
-
-            if (_eq != null)
-            {
-                for (int i = 0; i < 32; i++)
-                {
-                    data[i] *= _eq[i];
-                }
-            }
 
             DCT32(data, synBuf, k);
 

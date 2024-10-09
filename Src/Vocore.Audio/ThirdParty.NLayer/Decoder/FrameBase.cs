@@ -13,7 +13,7 @@ namespace NLayer.Decoder
         internal long Offset { get; private set; }
         internal int Length { get; set; }
 
-        MpegStreamReader _reader;
+        MpegStreamReader? _reader;
 
         byte[]? _savedBuffer;
 
@@ -52,7 +52,7 @@ namespace NLayer.Decoder
             }
             else
             {
-                return _reader.Read(Offset + offset, buffer, index, count);
+                return _reader!.Read(Offset + offset, buffer, index, count);
             }
         }
 
@@ -67,7 +67,7 @@ namespace NLayer.Decoder
             }
             else
             {
-                return _reader.ReadByte(Offset + offset);
+                return _reader!.ReadByte(Offset + offset);
             }
         }
 
@@ -80,7 +80,7 @@ namespace NLayer.Decoder
         internal void SaveBuffer()
         {
             _savedBuffer = new byte[Length];
-            _reader.Read(Offset, _savedBuffer, 0, Length);
+            _reader!.Read(Offset, _savedBuffer, 0, Length);
             System.Threading.Interlocked.Add(ref _totalAllocation, Length);
         }
 

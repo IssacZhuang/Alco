@@ -10,7 +10,7 @@ namespace NLayer.Decoder
     /// </summary>
     class RiffHeaderFrame : FrameBase
     {
-        internal static RiffHeaderFrame TrySync(uint syncMark)
+        internal static RiffHeaderFrame? TrySync(uint syncMark)
         {
             if (syncMark == 0x52494646U)
             {
