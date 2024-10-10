@@ -9,6 +9,7 @@ public class Game : GameEngine
 {
     private AudioClip? _clipMp3;
     private AudioClip? _clipOgg;
+    private AudioClip? _clipWavPcm16;
     private readonly AudioSource _source;
 
     private float _gain = 1f;
@@ -50,6 +51,16 @@ public class Game : GameEngine
             {
                 _clipOgg = asset;
                 _source.AudioClip = _clipOgg;
+                _source.Play();
+            });
+        }
+
+        if (DebugGUI.Button("play ShotPcm16.wav"))
+        {
+            Assets.LoadAsync<AudioClip>("ShotPcm16.wav", (asset, e) =>
+            {
+                _clipWavPcm16 = asset;
+                _source.AudioClip = _clipWavPcm16;
                 _source.Play();
             });
         }

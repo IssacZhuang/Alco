@@ -64,14 +64,7 @@ public unsafe static class UtilsAudioDecode
     {
         fixed (byte* ptr = data)
         {
-            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            using WaveFileReader reader = new WaveFileReader(stream);
-            channel = reader.WaveFormat.Channels;
-            sampleRate = reader.WaveFormat.SampleRate;
-            int length = (int)reader.Length / channel;
-            float[] buffer = new float[length];
-            using var source = reader.ToSampleSource();
-            source.Read(buffer, 0, length);
+            float[] buffer = WaveDecoder.DecodeWaveAudioToFloat32(data, out channel, out sampleRate);
             return buffer;
         }
     }
