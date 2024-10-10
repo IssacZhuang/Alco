@@ -9,25 +9,36 @@ public static unsafe class WaveDecoder
 
     public static float[] DecodeWaveAudioToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        WaveHeader header = default;
+
         fixed (byte* ptr = data)
         {
             byte* p = ptr;
-            header = *(WaveHeader*)p;
-            p += sizeof(WaveHeader);
-            Console.WriteLine(header);
-            Console.WriteLine(header.FileSize);
-            Console.WriteLine(header.FmtSize);
+
+            WaveChunckRiff riff = *(WaveChunckRiff*)p;
+            p += sizeof(WaveChunckRiff);
+            Console.WriteLine((nint)p - (nint)ptr);
+
+            WaveChunckFmt fmt = *(WaveChunckFmt*)p;
+            p += 8;//skip "fmt " and fmt.FmtSize
+            p += fmt.FmtSize;
+            Console.WriteLine((nint)p - (nint)ptr);
+
+            WaveChunckData header = *(WaveChunckData*)p;
+            p += sizeof(WaveChunckData);
+
+            Console.WriteLine($"Format: {fmt.FmtSize}");
+            Console.WriteLine($"Data: {header.DataSize}");
+            Console.WriteLine((nint)p - (nint)ptr);
 
             float[] result = new float[header.DataSize / sizeof(float)];
 
-            switch (header.WaveFormat)
+            switch (fmt.WaveFormat)
             {
                 case WaveFormat.PCM:
-                    DecodePCM(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), header.BitsPerSample);
+                    DecodePCM(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.BitsPerSample);
                     break;
                 case WaveFormat.IEEEFloat:
-                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), header.BitsPerSample);
+                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.BitsPerSample);
                     break;
                 case WaveFormat.ALaw:
                     DecodeALaw(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result));
@@ -41,8 +52,8 @@ public static unsafe class WaveDecoder
                     throw new NotSupportedException();
             }
 
-            channel = header.Channels;
-            sampleRate = (int)header.SampleRate;
+            channel = fmt.Channels;
+            sampleRate = (int)fmt.SampleRate;
             return result;
         }
     }
