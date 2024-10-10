@@ -41,7 +41,7 @@ public static unsafe class WaveDecoder
             switch (fmt.WaveFormat)
             {
                 case WaveFormat.PCM:
-                    DecodePCM(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.BitsPerSample);
+                    DecodePCM(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.Channels, fmt.BitsPerSample);
                     break;
                 case WaveFormat.IEEEFloat:
                     DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.BitsPerSample);
@@ -98,10 +98,10 @@ public static unsafe class WaveDecoder
         }
     }
 
-    public static void DecodePCM(ReadOnlySpan<byte> input, Span<float> result, ushort bitDepth)
+    public static void DecodePCM(ReadOnlySpan<byte> input, Span<float> result, ushort channels, ushort bitDepth)
     {
         Console.WriteLine($"PCM: {input.Length} {result.Length} {bitDepth}");
-        if (input.Length != result.Length * bitDepth / 8)
+        if (input.Length != result.Length * bitDepth * channels / 8)
         {
             throw new ArgumentException("The input and result length does not match.");
         }
