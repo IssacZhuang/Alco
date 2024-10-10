@@ -1,10 +1,24 @@
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Vocore.Audio;
 
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct WaveChunckData
 {
+    public static readonly byte[] ChunckName = Encoding.ASCII.GetBytes("data");
+    public static bool IsDataChunk(byte* ptr)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (ptr[i] != ChunckName[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /// <summary>
     /// "data" text in ASCII
     /// </summary>

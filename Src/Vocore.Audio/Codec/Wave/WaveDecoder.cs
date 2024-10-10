@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Vocore.Audio;
 
 public static unsafe class WaveDecoder
@@ -23,12 +25,16 @@ public static unsafe class WaveDecoder
             p += fmt.FmtSize;
             Console.WriteLine((nint)p - (nint)ptr);
 
-            WaveChunckData header = *(WaveChunckData*)p;
-            p += sizeof(WaveChunckData);
+            WaveChunckUnknown chunck = *(WaveChunckUnknown*)p;
+            
 
-            Console.WriteLine($"Format: {fmt.FmtSize}");
-            Console.WriteLine($"Data: {header.DataSize}");
-            Console.WriteLine((nint)p - (nint)ptr);
+            while (!WaveChunckData.IsDataChunk(p)){
+                p += 8;//skip "data" and chunck.Size
+                p += chunck.Size;
+                chunck = *(WaveChunckUnknown*)p;
+            }
+
+            WaveChunckData header = *(WaveChunckData*)p;
 
             float[] result = new float[header.DataSize / sizeof(float)];
 

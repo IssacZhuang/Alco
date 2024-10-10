@@ -5,6 +5,13 @@ internal struct Int24
     public byte Byte0;
     public byte Byte1;
     public byte Byte2;
+
+    public Int24(byte byte0, byte byte1, byte byte2)
+    {
+        Byte0 = byte0;
+        Byte1 = byte1;
+        Byte2 = byte2;
+    }
 }
 
 internal class UtilsBitConvert
