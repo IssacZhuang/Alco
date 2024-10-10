@@ -16,41 +16,40 @@ public static unsafe class WaveDecoder
         {
             byte* p = ptr;
 
-            WaveChunckRiff riff = *(WaveChunckRiff*)p;
+            WaveChunckRiff chunckRiff = *(WaveChunckRiff*)p;
             p += sizeof(WaveChunckRiff);
-            Console.WriteLine((nint)p - (nint)ptr);
 
-            WaveChunckFmt fmt = *(WaveChunckFmt*)p;
+            WaveChunckFmt chunckFmt = *(WaveChunckFmt*)p;
             p += 8;//skip "fmt " and fmt.FmtSize
-            p += fmt.FmtSize;
-            Console.WriteLine((nint)p - (nint)ptr);
+            p += chunckFmt.FmtSize;
 
-            WaveChunckUnknown chunck = *(WaveChunckUnknown*)p;
-            
+            WaveChunckUnknown chunckUnknown = *(WaveChunckUnknown*)p;
+
 
             while (!WaveChunckData.IsDataChunk(p)){
                 p += 8;//skip "data" and chunck.Size
-                p += chunck.Size;
-                chunck = *(WaveChunckUnknown*)p;
+                p += chunckUnknown.Size;
+                chunckUnknown = *(WaveChunckUnknown*)p;
             }
 
-            WaveChunckData header = *(WaveChunckData*)p;
+            WaveChunckData chunckData = *(WaveChunckData*)p;
 
-            float[] result = new float[header.DataSize / sizeof(float)];
+            int smapleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
+            float[] result = new float[smapleCount];
 
-            switch (fmt.WaveFormat)
+            switch (chunckFmt.WaveFormat)
             {
                 case WaveFormat.PCM:
-                    DecodePCM(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.Channels, fmt.BitsPerSample);
+                    DecodePCM(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result), chunckFmt.BitsPerSample);
                     break;
                 case WaveFormat.IEEEFloat:
-                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result), fmt.BitsPerSample);
+                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result), chunckFmt.BitsPerSample);
                     break;
                 case WaveFormat.ALaw:
-                    DecodeALaw(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result));
+                    DecodeALaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result));
                     break;
                 case WaveFormat.MuLaw:
-                    DecodeMuLaw(new ReadOnlySpan<byte>(p, (int)header.DataSize), new Span<float>(result));
+                    DecodeMuLaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result));
                     break;
                 case WaveFormat.Extensible:
                     throw new NotSupportedException("Extensible format is not supported.");
@@ -58,19 +57,14 @@ public static unsafe class WaveDecoder
                     throw new NotSupportedException();
             }
 
-            channel = fmt.Channels;
-            sampleRate = (int)fmt.SampleRate;
+            channel = chunckFmt.Channels;
+            sampleRate = (int)chunckFmt.SampleRate;
             return result;
         }
     }
 
-    public static void DecodeIEEEFloat(ReadOnlySpan<byte> input, Span<float> result, ushort bitDepth)
+    private static void DecodeIEEEFloat(ReadOnlySpan<byte> input, Span<float> result, ushort bitDepth)
     {
-        if (input.Length != result.Length * sizeof(float))
-        {
-            throw new ArgumentException("The input and result length does not match.");
-        }
-
         switch (bitDepth)
         {
             case 32:
@@ -98,14 +92,8 @@ public static unsafe class WaveDecoder
         }
     }
 
-    public static void DecodePCM(ReadOnlySpan<byte> input, Span<float> result, ushort channels, ushort bitDepth)
+    private static void DecodePCM(ReadOnlySpan<byte> input, Span<float> result, ushort bitDepth)
     {
-        Console.WriteLine($"PCM: {input.Length} {result.Length} {bitDepth}");
-        if (input.Length != result.Length * bitDepth * channels / 8)
-        {
-            throw new ArgumentException("The input and result length does not match.");
-        }
-
         switch (bitDepth)
         {
             case 8:
@@ -153,13 +141,8 @@ public static unsafe class WaveDecoder
         }
     }
 
-    public static void DecodeALaw(ReadOnlySpan<byte> input, Span<float> result)
+    private static void DecodeALaw(ReadOnlySpan<byte> input, Span<float> result)
     {
-        if (input.Length != result.Length)
-        {
-            throw new ArgumentException("The input and result length does not match.");
-        }
-
         for (int i = 0; i < result.Length; i++)
         {
             short int16 = ALawDecoder.ALawToLinearSample(input[i]);
@@ -167,13 +150,8 @@ public static unsafe class WaveDecoder
         }
     }
 
-    public static void DecodeMuLaw(ReadOnlySpan<byte> input, Span<float> result)
+    private static void DecodeMuLaw(ReadOnlySpan<byte> input, Span<float> result)
     {
-        if (input.Length != result.Length)
-        {
-            throw new ArgumentException("The input and result length does not match.");
-        }
-
         for (int i = 0; i < result.Length; i++)
         {
             short int16 = MuLawDecoder.MuLawToLinearSample(input[i]);
