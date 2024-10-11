@@ -24,29 +24,7 @@ public static unsafe class WaveDecoder
         {
             byte* p = ptr;
 
-            WaveChunckRiff chunckRiff = *(WaveChunckRiff*)p;
-            p += sizeof(WaveChunckRiff);
-
-            WaveChunckFmt chunckFmt = *(WaveChunckFmt*)p;
-            p += 8;//skip "fmt " and fmt.FmtSize
-            p += chunckFmt.FmtSize;
-
-            WaveChunckUnknown chunckUnknown = *(WaveChunckUnknown*)p;
-
-
-            while (!WaveChunckData.IsDataChunk(p)){
-                p += 8;//skip "data" and chunck.Size
-                p += chunckUnknown.Size;
-                chunckUnknown = *(WaveChunckUnknown*)p;
-            }
-
-            WaveChunckData chunckData = *(WaveChunckData*)p;
-
-            //validate the data size to prevent potential overflow
-            if (p + chunckData.DataSize > ptr + data.Length)
-            {
-                throw new InvalidDataException("Invalid data size in wave file.");
-            }
+            ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData);
 
             int smapleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
             float[] result = new float[smapleCount];
@@ -71,30 +49,7 @@ public static unsafe class WaveDecoder
         {
             byte* p = ptr;
 
-            WaveChunckRiff chunckRiff = *(WaveChunckRiff*)p;
-            p += sizeof(WaveChunckRiff);
-
-            WaveChunckFmt chunckFmt = *(WaveChunckFmt*)p;
-            p += 8;//skip "fmt " and fmt.FmtSize
-            p += chunckFmt.FmtSize;
-
-            WaveChunckUnknown chunckUnknown = *(WaveChunckUnknown*)p;
-
-
-            while (!WaveChunckData.IsDataChunk(p))
-            {
-                p += 8;//skip "data" and chunck.Size
-                p += chunckUnknown.Size;
-                chunckUnknown = *(WaveChunckUnknown*)p;
-            }
-
-            WaveChunckData chunckData = *(WaveChunckData*)p;
-
-            //validate the data size to prevent potential overflow
-            if (p + chunckData.DataSize > ptr + data.Length)
-            {
-                throw new InvalidDataException("Invalid data size in wave file.");
-            }
+            ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData);
 
             sampleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
             float* result = (float*)Marshal.AllocHGlobal(sampleCount * sizeof(float));
@@ -106,6 +61,28 @@ public static unsafe class WaveDecoder
             sampleRate = (int)chunckFmt.SampleRate;
             return result;
         }
+    }
+
+    private static void ReadHeader(ref byte* p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData)
+    {
+        chunckRiff = *(WaveChunckRiff*)p;
+        p += sizeof(WaveChunckRiff);
+
+        chunckFmt = *(WaveChunckFmt*)p;
+        p += 8;//skip "fmt " and fmt.FmtSize
+        p += chunckFmt.FmtSize;
+
+        WaveChunckUnknown chunckUnknown = *(WaveChunckUnknown*)p;
+
+        while (!WaveChunckData.IsDataChunk(p))
+        {
+            p += 8;//skip "data" and chunck.Size
+            p += chunckUnknown.Size;
+            chunckUnknown = *(WaveChunckUnknown*)p;
+        }
+
+        chunckData = *(WaveChunckData*)p;
+        p += sizeof(WaveChunckData);
     }
 
     private static void DecodeData(ReadOnlySpan<byte> input, Span<float> result, WaveFormat format, ushort bitDepth)
@@ -132,6 +109,11 @@ public static unsafe class WaveDecoder
         switch (bitDepth)
         {
             case 32:
+                if (input.Length < result.Length * 4)
+                {
+                    throw new ArgumentException($"Invalid data length on decoding 32-bit IEEE float data.");
+                }
+
                 fixed (byte* p = input)
                 {
                     float* src = (float*)p;
@@ -142,6 +124,11 @@ public static unsafe class WaveDecoder
                 }
                 break;
             case 64:
+                if (input.Length < result.Length * 8)
+                {
+                    throw new ArgumentException($"Invalid data length on decoding 64-bit IEEE float data.");
+                }
+
                 fixed (byte* p = input)
                 {
                     double* src = (double*)p;
@@ -161,6 +148,12 @@ public static unsafe class WaveDecoder
         switch (bitDepth)
         {
             case 8:
+                //validate the length to prevent pointer overflow
+                if (input.Length < result.Length)
+                {
+                    throw new ArgumentException($"Invalid data length on decoding 8-bit PCM data.");
+                }
+
                 fixed (byte* p = input)
                 {
                     byte* src = p;
@@ -171,6 +164,11 @@ public static unsafe class WaveDecoder
                 }
                 break;
             case 16:
+                if (input.Length < result.Length * 2)
+                {
+                    throw new ArgumentException($"Invalid data length on decoding 16-bit PCM data.");
+                }
+
                 fixed (byte* p = input)
                 {
                     short* src = (short*)p;
@@ -181,6 +179,11 @@ public static unsafe class WaveDecoder
                 }
                 break;
             case 24:
+                if (input.Length < result.Length * 3)
+                {
+                    throw new ArgumentException($"Invalid data length on decoding 24-bit PCM data.");
+                }
+
                 fixed (byte* p = input)
                 {
                     Int24* src = (Int24*)p;
@@ -191,6 +194,11 @@ public static unsafe class WaveDecoder
                 }
                 break;
             case 32:
+                if (input.Length < result.Length * 4)
+                {
+                    throw new ArgumentException($"Invalid data length on decoding 32-bit PCM data.");
+                }
+
                 fixed (byte* p = input)
                 {
                     int* src = (int*)p;
@@ -207,6 +215,11 @@ public static unsafe class WaveDecoder
 
     private static void DecodeALaw(ReadOnlySpan<byte> input, Span<float> result)
     {
+        if (input.Length < result.Length)
+        {
+            throw new ArgumentException($"Invalid data length on decoding A-Law data.");
+        }
+
         for (int i = 0; i < result.Length; i++)
         {
             short int16 = ALawDecoder.ALawToLinearSample(input[i]);
@@ -216,6 +229,11 @@ public static unsafe class WaveDecoder
 
     private static void DecodeMuLaw(ReadOnlySpan<byte> input, Span<float> result)
     {
+        if (input.Length < result.Length)
+        {
+            throw new ArgumentException($"Invalid data length on decoding Mu-Law data.");
+        }
+
         for (int i = 0; i < result.Length; i++)
         {
             short int16 = MuLawDecoder.MuLawToLinearSample(input[i]);
