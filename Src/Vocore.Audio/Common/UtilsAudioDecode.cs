@@ -44,6 +44,13 @@ public unsafe static class UtilsAudioDecode
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Decode the wave data into pcm data
+    /// </summary>
+    /// <param name="data">The source data of wave</param>
+    /// <param name="channel">The channels of audio</param>
+    /// <param name="sampleRate">The sample rate of audio</param>
+    /// <returns></returns>
     public static float[] DecodeWave(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
         fixed (byte* ptr = data)
@@ -77,10 +84,11 @@ public unsafe static class UtilsAudioDecode
         return clip;
     }
 
-    public static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
+    public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
     {
-        float[] buffer = DecodeWave(data, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
+        float* buffer = WaveDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+        AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+        Marshal.FreeHGlobal((IntPtr)buffer);
         return clip;
     }
 

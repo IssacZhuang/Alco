@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Vocore.Audio;
@@ -9,6 +10,13 @@ public static unsafe class WaveDecoder
     private const float Inv8388608 = 1f / 8388608f;
     private const float Inv2147483648 = 1f / 2147483648f;
 
+    /// <summary>
+    /// Decode wave audio data to float32 array.
+    /// </summary>
+    /// <param name="data">The wave audio file data</param>
+    /// <param name="channel">The channels of audio</param>
+    /// <param name="sampleRate">The sample rate of audio</param>
+    /// <returns></returns>
     public static float[] DecodeWaveAudioToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
 
@@ -50,6 +58,67 @@ public static unsafe class WaveDecoder
                     break;
                 case WaveFormat.MuLaw:
                     DecodeMuLaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result));
+                    break;
+                case WaveFormat.Extensible:
+                    throw new NotSupportedException("Extensible format is not supported.");
+                default:
+                    throw new NotSupportedException();
+            }
+
+            channel = chunckFmt.Channels;
+            sampleRate = (int)chunckFmt.SampleRate;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Decode wave audio data to float32 memory. The memory is not managed by the GC, so you need to free it manually.
+    /// </summary>
+    /// <param name="data">The wave audio file data</param>
+    /// <param name="channel">The channels of audio</param>
+    /// <param name="sampleRate">The sample rate of audio</param>
+    /// <returns></returns>
+    public static float* DecodeWaveAudioToFloat32Unsafe(ReadOnlySpan<byte> data, out int channel, out int sampleCount, out int sampleRate){
+        fixed (byte* ptr = data)
+        {
+            byte* p = ptr;
+
+            WaveChunckRiff chunckRiff = *(WaveChunckRiff*)p;
+            p += sizeof(WaveChunckRiff);
+
+            WaveChunckFmt chunckFmt = *(WaveChunckFmt*)p;
+            p += 8;//skip "fmt " and fmt.FmtSize
+            p += chunckFmt.FmtSize;
+
+            WaveChunckUnknown chunckUnknown = *(WaveChunckUnknown*)p;
+
+
+            while (!WaveChunckData.IsDataChunk(p))
+            {
+                p += 8;//skip "data" and chunck.Size
+                p += chunckUnknown.Size;
+                chunckUnknown = *(WaveChunckUnknown*)p;
+            }
+
+            WaveChunckData chunckData = *(WaveChunckData*)p;
+
+            sampleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
+            float* result = (float*)Marshal.AllocHGlobal(sampleCount * sizeof(float));
+            Span<float> resultSpan = new(result, sampleCount);
+
+            switch (chunckFmt.WaveFormat)
+            {
+                case WaveFormat.PCM:
+                    DecodePCM(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, chunckFmt.BitsPerSample);
+                    break;
+                case WaveFormat.IEEEFloat:
+                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, chunckFmt.BitsPerSample);
+                    break;
+                case WaveFormat.ALaw:
+                    DecodeALaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan);
+                    break;
+                case WaveFormat.MuLaw:
+                    DecodeMuLaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan);
                     break;
                 case WaveFormat.Extensible:
                     throw new NotSupportedException("Extensible format is not supported.");
