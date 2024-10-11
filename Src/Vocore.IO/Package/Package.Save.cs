@@ -242,8 +242,9 @@ public partial class Package
 			// TODO: It is possible to transform these hashes while writing the file to remove seeking and stream reading
 			using var fileTreeMD5 = MD5.Create();
 			using var fullFileMD5 = MD5.Create();
-
+#pragma warning disable CA2022
 			stream.Read(buffer, 0, headerSize);
+#pragma warning restore CA2022
 			fullFileMD5.TransformBlock(buffer, 0, headerSize, null, 0);
 
 			int bytesRead;

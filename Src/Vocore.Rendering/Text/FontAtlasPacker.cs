@@ -45,7 +45,7 @@ public unsafe class FontAtlasPacker : AutoDisposable
 
     public void Add(ReadOnlySpan<byte> ttf, float fontSize, IEnumerable<int2> unicodeRanges)
     {
-        if (ttf == null)
+        if (ttf == ReadOnlySpan<byte>.Empty)
         {
             throw new ArgumentNullException(nameof(ttf));
         }

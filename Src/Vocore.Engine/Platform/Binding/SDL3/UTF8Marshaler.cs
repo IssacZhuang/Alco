@@ -82,7 +82,7 @@ static unsafe class Utf8CustomMarshaller
         public void FromManaged(ReadOnlySpan<char> managed, Span<byte> buffer)
         {
             this._allocated = false;
-            if (managed == null)
+            if (managed == Span<char>.Empty)
             {
                 this._unmanagedValue = (byte*)null;
             }
