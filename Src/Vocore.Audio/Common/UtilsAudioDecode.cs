@@ -1,12 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
-using CSCore;
-using CSCore.Codecs;
-using CSCore.Codecs.AIFF;
-using CSCore.Codecs.FLAC;
-using CSCore.Codecs.MP3;
-using CSCore.Codecs.WAV;
+
 using NVorbis;
 
 namespace Vocore.Audio;
@@ -46,18 +41,7 @@ public unsafe static class UtilsAudioDecode
     /// <param name="sampleRate">The sample rate of audio</param>
     public static float[] DecodeMpge(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        fixed (byte* ptr = data)
-        {
-            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            using DmoMp3Decoder decoder = new DmoMp3Decoder(stream);
-            channel = decoder.WaveFormat.Channels;
-            sampleRate = decoder.WaveFormat.SampleRate;
-            int length = (int)decoder.Length / channel;
-            float[] buffer = new float[length];
-            using var source = decoder.ToSampleSource();
-            source.Read(buffer, 0, length);
-            return buffer;
-        }
+        throw new NotImplementedException();
     }
 
     public static float[] DecodeWave(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
@@ -71,34 +55,12 @@ public unsafe static class UtilsAudioDecode
 
     public static float[] DecodeAiff(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        fixed (byte* ptr = data)
-        {
-            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            using AiffReader reader = new AiffReader(stream);
-            channel = reader.WaveFormat.Channels;
-            sampleRate = reader.WaveFormat.SampleRate;
-            int length = (int)reader.Length / channel;
-            float[] buffer = new float[length];
-            using var source = reader.ToSampleSource();
-            source.Read(buffer, 0, length);
-            return buffer;
-        }
+        throw new NotImplementedException();
     }
 
     public static float[] DecodeFlac(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        fixed (byte* ptr = data)
-        {
-            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            using FlacFile reader = new FlacFile(stream);
-            channel = reader.WaveFormat.Channels;
-            sampleRate = reader.WaveFormat.SampleRate;
-            int length = (int)reader.Length / channel;
-            float[] buffer = new float[length];
-            using var source = reader.ToSampleSource();
-            source.Read(buffer, 0, length);
-            return buffer;
-        }
+        throw new NotImplementedException();
     }
 
     public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
