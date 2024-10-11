@@ -9,17 +9,14 @@ public static unsafe class VorbisDecoder
             // ----------- Header -----------
 
             byte* p = ptr;
-            VorbisHeader header = *(VorbisHeader*)p;
-            p += sizeof(VorbisHeader);
+            OggHeader header = *(OggHeader*)p;
+            p += sizeof(OggHeader);
 
             byte* pSegmentLengths = p;
             p += header.PageSegments;
 
 
             // ----------- Metadata -----------
-
-            byte packetType = *p;
-            p += sizeof(byte);
 
             //skip comments
             uint vendorStringLength = *(uint*)p;

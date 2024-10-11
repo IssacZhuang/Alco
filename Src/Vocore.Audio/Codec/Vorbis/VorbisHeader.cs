@@ -6,19 +6,25 @@ namespace Vocore.Audio;
 public unsafe struct VorbisHeader
 {
     [FieldOffset(0)]
-    public uint CapturePattern;
-    [FieldOffset(4)]
-    public byte Version;
-    [FieldOffset(5)]
-    public VorbisHeaderType HeaderType;
-    [FieldOffset(6)]
-    public ulong GranulePosition;
-    [FieldOffset(14)]
-    public uint SerialNumber;
-    [FieldOffset(18)]
-    public uint PageSequenceNumber;
-    [FieldOffset(22)]
-    public uint Checksum;
-    [FieldOffset(26)]
-    public byte PageSegments;
+    public VorbisPacketType Type;
+    [FieldOffset(1)]
+    public fixed byte Vendor[6];//always "vorbis"
+    [FieldOffset(7)]
+    public uint Version;
+    [FieldOffset(11)]
+    public byte Channels;
+    [FieldOffset(12)]
+    public uint SampleRate;
+    [FieldOffset(16)]
+    public uint BitrateMax;
+    [FieldOffset(20)]
+    public uint BitrateNominal;
+    [FieldOffset(24)]
+    public uint BitrateMin;
+    [FieldOffset(28)]
+    public byte BlockSize0;
+    [FieldOffset(29)]
+    public byte BlockSize1;
+    [FieldOffset(30)]
+    public byte FramingFlag;
 }

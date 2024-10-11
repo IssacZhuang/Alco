@@ -1,6 +1,6 @@
 namespace Vocore.Audio;
 
-public enum VorbisHeaderType : byte
+public enum OggPageFlag : byte
 {
     Continuation = 0x01,
     Beginning = 0x02,
