@@ -42,28 +42,16 @@ public static unsafe class WaveDecoder
 
             WaveChunckData chunckData = *(WaveChunckData*)p;
 
+            //validate the data size to prevent potential overflow
+            if (p + chunckData.DataSize > ptr + data.Length)
+            {
+                throw new InvalidDataException("Invalid data size in wave file.");
+            }
+
             int smapleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
             float[] result = new float[smapleCount];
 
-            switch (chunckFmt.WaveFormat)
-            {
-                case WaveFormat.PCM:
-                    DecodePCM(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result), chunckFmt.BitsPerSample);
-                    break;
-                case WaveFormat.IEEEFloat:
-                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result), chunckFmt.BitsPerSample);
-                    break;
-                case WaveFormat.ALaw:
-                    DecodeALaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result));
-                    break;
-                case WaveFormat.MuLaw:
-                    DecodeMuLaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), new Span<float>(result));
-                    break;
-                case WaveFormat.Extensible:
-                    throw new NotSupportedException("Extensible format is not supported.");
-                default:
-                    throw new NotSupportedException();
-            }
+            DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), result, chunckFmt.WaveFormat, chunckFmt.BitsPerSample);
 
             channel = chunckFmt.Channels;
             sampleRate = (int)chunckFmt.SampleRate;
@@ -102,33 +90,40 @@ public static unsafe class WaveDecoder
 
             WaveChunckData chunckData = *(WaveChunckData*)p;
 
+            //validate the data size to prevent potential overflow
+            if (p + chunckData.DataSize > ptr + data.Length)
+            {
+                throw new InvalidDataException("Invalid data size in wave file.");
+            }
+
             sampleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
             float* result = (float*)Marshal.AllocHGlobal(sampleCount * sizeof(float));
             Span<float> resultSpan = new(result, sampleCount);
 
-            switch (chunckFmt.WaveFormat)
-            {
-                case WaveFormat.PCM:
-                    DecodePCM(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, chunckFmt.BitsPerSample);
-                    break;
-                case WaveFormat.IEEEFloat:
-                    DecodeIEEEFloat(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, chunckFmt.BitsPerSample);
-                    break;
-                case WaveFormat.ALaw:
-                    DecodeALaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan);
-                    break;
-                case WaveFormat.MuLaw:
-                    DecodeMuLaw(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan);
-                    break;
-                case WaveFormat.Extensible:
-                    throw new NotSupportedException("Extensible format is not supported.");
-                default:
-                    throw new NotSupportedException();
-            }
+            DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, chunckFmt.WaveFormat, chunckFmt.BitsPerSample);
 
             channel = chunckFmt.Channels;
             sampleRate = (int)chunckFmt.SampleRate;
             return result;
+        }
+    }
+
+    private static void DecodeData(ReadOnlySpan<byte> input, Span<float> result, WaveFormat format, ushort bitDepth)
+    {
+        switch (format)
+        {
+            case WaveFormat.PCM:
+                DecodePCM(input, result, bitDepth);
+                break;
+            case WaveFormat.IEEEFloat:
+                DecodeIEEEFloat(input, result, bitDepth);
+                break;
+            case WaveFormat.ALaw:
+                DecodeALaw(input, result);
+                break;
+            case WaveFormat.MuLaw:
+                DecodeMuLaw(input, result);
+                break;
         }
     }
 
