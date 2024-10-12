@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Vocore.Audio;
 
@@ -6,6 +7,19 @@ namespace Vocore.Audio;
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct WaveChunckRiff
 {
+    public static readonly byte[] ChunckName = Encoding.ASCII.GetBytes("RIFF");
+    public static bool IsRiffChunk(byte* ptr)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (ptr[i] != ChunckName[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /// <summary>
     /// "RIFF" text in ASCII
     /// </summary>

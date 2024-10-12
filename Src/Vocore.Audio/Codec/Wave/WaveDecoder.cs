@@ -19,6 +19,10 @@ public static unsafe class WaveDecoder
     /// <returns></returns>
     public static float[] DecodeWaveAudioToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
+        if (data.Length < sizeof(WaveChunckRiff) + sizeof(WaveChunckFmt) + sizeof(WaveChunckData))
+        {
+            throw new ArgumentException("Invalid data length for wave audio decoding.");
+        }
 
         fixed (byte* ptr = data)
         {
@@ -45,6 +49,11 @@ public static unsafe class WaveDecoder
     /// <param name="sampleRate">The sample rate of audio</param>
     /// <returns></returns>
     public static float* DecodeWaveAudioToFloat32Unsafe(ReadOnlySpan<byte> data, out int channel, out int sampleCount, out int sampleRate){
+        if (data.Length < sizeof(WaveChunckRiff) + sizeof(WaveChunckFmt) + sizeof(WaveChunckData))
+        {
+            throw new ArgumentException("Invalid data length for wave audio decoding.");
+        }
+
         fixed (byte* ptr = data)
         {
             byte* p = ptr;
@@ -65,8 +74,18 @@ public static unsafe class WaveDecoder
 
     private static void ReadHeader(ref byte* p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData)
     {
+        if (!WaveChunckRiff.IsRiffChunk(p))
+        {
+            throw new ArgumentException("Riff chunk is not found in the wave file.");
+        }
+
         chunckRiff = *(WaveChunckRiff*)p;
         p += sizeof(WaveChunckRiff);
+
+        if (!WaveChunckFmt.IsFmtChunk(p))
+        {
+            throw new ArgumentException("Fmt chunk is not found in the wave file.");
+        }
 
         chunckFmt = *(WaveChunckFmt*)p;
         p += 8;//skip "fmt " and fmt.FmtSize
