@@ -7,9 +7,6 @@ using Vocore.GUI;
 
 public class Game : GameEngine
 {
-    private AudioClip? _clipMp3;
-    private AudioClip? _clipOgg;
-    private AudioClip? _clipWavPcm16;
     private readonly AudioSource _source;
 
     private float _gain = 1f;
@@ -39,8 +36,8 @@ public class Game : GameEngine
         {
             Assets.LoadAsync<AudioClip>("Sword.mp3", (asset, e) =>
             {
-                _clipMp3 = asset;
-                _source.AudioClip = _clipMp3;
+
+                _source.AudioClip = asset;
                 _source.Play();
             });
         }
@@ -49,8 +46,7 @@ public class Game : GameEngine
         {
             Assets.LoadAsync<AudioClip>("Shot.ogg", (asset, e) =>
             {
-                _clipOgg = asset;
-                _source.AudioClip = _clipOgg;
+                _source.AudioClip = asset;
                 _source.Play();
             });
         }
@@ -59,8 +55,25 @@ public class Game : GameEngine
         {
             Assets.LoadAsync<AudioClip>("ShotPcm16.wav", (asset, e) =>
             {
-                _clipWavPcm16 = asset;
-                _source.AudioClip = _clipWavPcm16;
+                _source.AudioClip = asset;
+                _source.Play();
+            });
+        }
+
+        if (DebugGUI.Button("play ShotPcm24.wav"))
+        {
+            Assets.LoadAsync<AudioClip>("ShotPcm24.wav", (asset, e) =>
+            {
+                _source.AudioClip = asset;
+                _source.Play();
+            });
+        }
+
+        if (DebugGUI.Button("play ShotPcm32.wav"))
+        {
+            Assets.LoadAsync<AudioClip>("ShotPcm32.wav", (asset, e) =>
+            {
+                _source.AudioClip = asset;
                 _source.Play();
             });
         }

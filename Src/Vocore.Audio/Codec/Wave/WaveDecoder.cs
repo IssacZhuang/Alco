@@ -28,12 +28,12 @@ public static unsafe class WaveDecoder
         {
             byte* p = ptr;
 
-            ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData);
+            ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData, out WaveFormat format);
 
             int smapleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
             float[] result = new float[smapleCount];
 
-            DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), result, chunckFmt.WaveFormat, chunckFmt.BitsPerSample);
+            DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), result, format, chunckFmt.BitsPerSample);
 
             channel = chunckFmt.Channels;
             sampleRate = (int)chunckFmt.SampleRate;
@@ -58,13 +58,13 @@ public static unsafe class WaveDecoder
         {
             byte* p = ptr;
 
-            ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData);
+            ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData, out WaveFormat format);
 
             sampleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
             float* result = (float*)Marshal.AllocHGlobal(sampleCount * sizeof(float));
             Span<float> resultSpan = new(result, sampleCount);
 
-            DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, chunckFmt.WaveFormat, chunckFmt.BitsPerSample);
+            DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, format, chunckFmt.BitsPerSample);
 
             channel = chunckFmt.Channels;
             sampleRate = (int)chunckFmt.SampleRate;
@@ -72,7 +72,7 @@ public static unsafe class WaveDecoder
         }
     }
 
-    private static void ReadHeader(ref byte* p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData)
+    private static void ReadHeader(ref byte* p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData, out WaveFormat format)
     {
         if (!WaveChunckRiff.IsRiffChunk(p))
         {
@@ -88,6 +88,13 @@ public static unsafe class WaveDecoder
         }
 
         chunckFmt = *(WaveChunckFmt*)p;
+        format = chunckFmt.WaveFormat;
+        if (chunckFmt.WaveFormat == WaveFormat.Extensible)
+        {
+            WaveExtensionData extensionData = *(WaveExtensionData*)(p + sizeof(WaveChunckFmt));
+            format = extensionData.GetWaveFormat();
+        }
+
         p += 8;//skip "fmt " and fmt.FmtSize
         p += chunckFmt.FmtSize;
 
@@ -120,6 +127,11 @@ public static unsafe class WaveDecoder
             case WaveFormat.MuLaw:
                 DecodeMuLaw(input, result);
                 break;
+            case WaveFormat.Extensible:
+                DecodePCM(input, result, bitDepth);
+                break;
+            default:
+                throw new NotSupportedException($"Wave format {format} is not supported.");
         }
     }
 
@@ -229,6 +241,22 @@ public static unsafe class WaveDecoder
                 break;
             default:
                 throw new NotSupportedException($"Bit depth {bitDepth} is not supported for PCM format.");
+        }
+    }
+
+    private static void DecodeExtensible(ReadOnlySpan<byte> input, Span<float> result, ushort bitDepth)
+    {
+        switch (bitDepth)
+        {
+            case 16:
+                DecodePCM(input, result, bitDepth);
+                break;
+            case 24:
+                DecodePCM(input, result, bitDepth);
+                break;
+            case 32:
+                DecodeIEEEFloat(input, result, bitDepth);
+                break;
         }
     }
 

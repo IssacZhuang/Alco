@@ -18,6 +18,11 @@ internal class UtilsBitConvert
 {
     public static int Int24ToInt32(Int24 value)
     {
-        return value.Byte0 | (value.Byte1 << 8) | (value.Byte2 << 16);
+        int temp = value.Byte0 | (value.Byte1 << 8) | (value.Byte2 << 16);
+        if ((temp & 0x800000) != 0)
+        {
+            temp |= unchecked((int)0xff000000);
+        }
+        return temp;
     }
 }
