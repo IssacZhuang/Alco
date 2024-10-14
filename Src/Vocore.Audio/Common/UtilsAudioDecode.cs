@@ -22,6 +22,7 @@ public unsafe static class UtilsAudioDecode
         //todo: performance optimization
         fixed (byte* ptr = data)
         {
+            VorbisDecoder.DecodeVorbisAudioToFloat32(data, out channel, out sampleRate);
             UnsafeStream stream = new UnsafeStream(ptr, data.Length);
             VorbisReader reader = new VorbisReader(stream, false);
             channel = reader.Channels;

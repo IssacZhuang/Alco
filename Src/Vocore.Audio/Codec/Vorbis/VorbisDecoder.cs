@@ -9,18 +9,39 @@ public static unsafe class VorbisDecoder
             // ----------- Header -----------
 
             byte* p = ptr;
-            OggPage header = *(OggPage*)p;
-            p += sizeof(OggPage);
+            ReadPage(ref p, out OggPage page);
 
-            byte* pSegmentLengths = p;
-            p += header.PageSegments;
+            Console.WriteLine(page.ToString());
+            while ((page.PageFlag & OggPageFlag.End) != OggPageFlag.End)
+            {
+                ReadPage(ref p, out page);
+                Console.WriteLine(page.ToString());
+            }
 
-
-            
-
-            
         }
 
         throw new NotImplementedException();
+    }
+
+    private static void ReadPage(ref byte* p, out OggPage page)
+    {
+        byte* pStart = p;
+        if (!OggPage.IsOggHeader(p))
+        {
+            throw new Exception("Invalid Ogg page header");
+        }
+
+        page = *(OggPage*)p;
+        p += sizeof(OggPage);
+
+        byte* pSegmentTable = p;
+        p += page.PageSegments;
+
+        //skip segment
+        for (int i = 0; i < page.PageSegments; i++)
+        {
+            p += pSegmentTable[i];
+        }
+
     }
 }

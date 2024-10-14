@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Vocore.Audio;
 
-[StructLayout(LayoutKind.Explicit)]
+[StructLayout(LayoutKind.Explicit, Pack = 1)]
 public unsafe struct OggPage
 {
     private static readonly byte[] Name = Encoding.ASCII.GetBytes("OggS");
@@ -37,4 +37,9 @@ public unsafe struct OggPage
     public uint Checksum;
     [FieldOffset(26)]
     public byte PageSegments;
+
+    public override string ToString()
+    {
+        return $"OggS\n Version: {Version}\n PageFlag: {PageFlag}\n GranulePosition: {GranulePosition}\n SerialNumber: {SerialNumber}\n PageSequenceNumber: {PageSequenceNumber}\n Checksum: {Checksum}\n PageSegments: {PageSegments}";
+    }
 }
