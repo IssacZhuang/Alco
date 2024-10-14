@@ -4,7 +4,7 @@ using System.Text;
 namespace Vocore.Audio;
 
 
-[StructLayout(LayoutKind.Explicit)]
+[StructLayout(LayoutKind.Explicit, Pack = 1)]
 public unsafe struct WaveChunckRiff
 {
     public static readonly byte[] ChunckName = Encoding.ASCII.GetBytes("RIFF");
