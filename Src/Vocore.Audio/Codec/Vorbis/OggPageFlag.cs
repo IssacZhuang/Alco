@@ -1,6 +1,6 @@
 namespace Vocore.Audio;
 
-public enum OggPageFlag : byte
+internal enum OggPageFlag : byte
 {
     None = 0x00,
     Continuation = 0x01,

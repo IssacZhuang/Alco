@@ -1,3 +1,6 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 namespace Vocore.Audio;
 
 public static unsafe class VorbisDecoder
@@ -6,27 +9,85 @@ public static unsafe class VorbisDecoder
     {
         fixed (byte* ptr = data)
         {
-            // ----------- Header -----------
-
             byte* p = ptr;
-            ReadPage(ref p, out OggPage page);
 
-            Console.WriteLine(page.ToString());
-            while ((page.PageFlag & OggPageFlag.End) != OggPageFlag.End)
+
+            uint totlaSegmentSize = GetTotalSegmentSize(p, out uint packetCount);
+
+            uint* packetSizes = stackalloc uint[(int)packetCount];
+            int indexPacketSizes = 0;
+
+            byte* vorbisData = (byte*)Allocator.Alloc((int)totlaSegmentSize);
+            byte* pVorbisData = vorbisData;
+
+
+            OggPage page;
+            do
             {
-                ReadPage(ref p, out page);
-                Console.WriteLine(page.ToString());
-            }
+                page = *(OggPage*)p;
+                p += sizeof(OggPage);
+
+                byte* pSegmentTable = p;
+                p += page.PageSegments;
+
+
+                uint segmentSize = 0;
+                byte size = 0;
+
+                for (int i = 0; i < page.PageSegments; i++)
+                {
+                    size = pSegmentTable[i];
+
+                    packetSizes[indexPacketSizes] += size;
+                    segmentSize += size;
+
+                    if (size < 255)
+                    {
+                        Console.WriteLine($"packetSizes[{indexPacketSizes}] = {packetSizes[indexPacketSizes]}");
+                        indexPacketSizes++;
+                    }
+                }
+
+                Unsafe.CopyBlock(pVorbisData, p, segmentSize);
+                pVorbisData += segmentSize;
+
+                p += segmentSize;
+
+                //todo: continution page check
+
+
+            } while ((page.PageFlag & OggPageFlag.End) != OggPageFlag.End);
+
+            //reset pointer
+            pVorbisData = vorbisData;
+            indexPacketSizes = 0;
+
+            VorbisIdentificationHeader identificationHeader = *(VorbisIdentificationHeader*)pVorbisData;
+            Console.WriteLine("type:" + identificationHeader.Type);
+            pVorbisData += packetSizes[indexPacketSizes++];
+
+            VorbisHeaderType type = *(VorbisHeaderType*)pVorbisData;
+            Console.WriteLine("type:" + type);
+            pVorbisData += packetSizes[indexPacketSizes++];
+
+            type = *(VorbisHeaderType*)pVorbisData;
+            Console.WriteLine("type:" + type);
+            pVorbisData += packetSizes[indexPacketSizes++];
 
         }
 
         throw new NotImplementedException();
     }
 
-    private static void ReadPage(ref byte* p, out OggPage page)
+    //vorbis operations
+
+
+
+
+
+    private static void ReadPage(ref byte* p, out OggPage page, out uint segmentSize, out uint packetCount)
     {
-        byte* pStart = p;
-        if (!OggPage.IsOggHeader(p))
+        if (!UtilsVorbis.IsOggHeader(p))
         {
             throw new Exception("Invalid Ogg page header");
         }
@@ -37,11 +98,48 @@ public static unsafe class VorbisDecoder
         byte* pSegmentTable = p;
         p += page.PageSegments;
 
-        //skip segment
+        uint packetSize = 0;
+
+        segmentSize = 0;
+        packetCount = 0;
+
         for (int i = 0; i < page.PageSegments; i++)
         {
-            p += pSegmentTable[i];
+            byte size = pSegmentTable[i];
+
+            packetSize += size;
+            segmentSize += size;
+            p += size;
+
+            if (segmentSize < 255)
+            {
+                packetCount++;
+                segmentSize = 0;
+            }
         }
 
+        if (segmentSize > 0)
+        {
+            packetCount++;
+        }
+    }
+
+    private static uint GetTotalSegmentSize(byte* p, out uint totalPacketCount)
+    {
+        uint totalSegmentSize = 0;
+        totalPacketCount = 0;
+
+        ReadPage(ref p, out OggPage page, out uint segmentSize, out uint packetCount);
+        totalSegmentSize += segmentSize;
+        totalPacketCount += packetCount;
+
+        while ((page.PageFlag & OggPageFlag.End) != OggPageFlag.End)
+        {
+            ReadPage(ref p, out page, out segmentSize, out packetCount);
+            totalSegmentSize += segmentSize;
+            totalPacketCount += packetCount;
+        }
+
+        return totalSegmentSize;
     }
 }

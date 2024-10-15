@@ -2,11 +2,11 @@ using System.Runtime.InteropServices;
 
 namespace Vocore.Audio;
 
-[StructLayout(LayoutKind.Explicit)]
-public unsafe struct VorbisHeader
+[StructLayout(LayoutKind.Explicit, Pack = 1)]
+internal unsafe struct VorbisIdentificationHeader
 {
     [FieldOffset(0)]
-    public VorbisPacketType Type;
+    public VorbisHeaderType Type;
     [FieldOffset(1)]
     public fixed byte Vendor[6];//always "vorbis"
     [FieldOffset(7)]
@@ -27,4 +27,9 @@ public unsafe struct VorbisHeader
     public byte BlockSize1;
     [FieldOffset(30)]
     public byte FramingFlag;
+
+    override public string ToString()
+    {
+        return $"VorbisHeader\n Type: {Type}\n Version: {Version}\n Channels: {Channels}\n SampleRate: {SampleRate}\n BitrateMax: {BitrateMax}\n BitrateNominal: {BitrateNominal}\n BitrateMin: {BitrateMin}\n BlockSize0: {BlockSize0}\n BlockSize1: {BlockSize1}\n FramingFlag: {FramingFlag}";
+    }
 }

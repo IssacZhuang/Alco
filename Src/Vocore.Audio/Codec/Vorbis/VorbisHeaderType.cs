@@ -1,6 +1,6 @@
 namespace Vocore.Audio;
 
-public enum VorbisPacketType: byte
+internal enum VorbisHeaderType : byte
 {
     Identification = 1,
     Comment = 3,

@@ -4,22 +4,8 @@ using System.Text;
 namespace Vocore.Audio;
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-public unsafe struct OggPage
+internal unsafe struct OggPage
 {
-    private static readonly byte[] Name = Encoding.ASCII.GetBytes("OggS");
-
-    public static bool IsOggHeader(byte* ptr)
-    {
-        for (int i = 0; i < 4; i++)
-        {
-            if (ptr[i] != Name[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     [FieldOffset(0)]
     public fixed byte CapturePattern[4];//"OggS" in ASCII
