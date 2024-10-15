@@ -62,16 +62,33 @@ public static unsafe class VorbisDecoder
             pVorbisData = vorbisData;
             indexPacketSizes = 0;
 
+            //The identification header
+            ValideateVorbisHeader(pVorbisData, VorbisHeaderType.Identification);
             VorbisIdentificationHeader identificationHeader = *(VorbisIdentificationHeader*)pVorbisData;
-            Console.WriteLine("type:" + identificationHeader.Type);
             pVorbisData += packetSizes[indexPacketSizes++];
 
-            VorbisHeaderType type = *(VorbisHeaderType*)pVorbisData;
-            Console.WriteLine("type:" + type);
+            //The comment header, skipped
+            //VorbisHeaderType type = *(VorbisHeaderType*)pVorbisData;
+            ValideateVorbisHeader(pVorbisData, VorbisHeaderType.Comment);
             pVorbisData += packetSizes[indexPacketSizes++];
 
-            type = *(VorbisHeaderType*)pVorbisData;
-            Console.WriteLine("type:" + type);
+            //The setup header
+            ValideateVorbisHeader(pVorbisData, VorbisHeaderType.Setup);
+            VorbisSetupHeader setupHeader = *(VorbisSetupHeader*)pVorbisData;
+
+            byte* pCodebook = pVorbisData + sizeof(VorbisSetupHeader);
+
+            for (int i = 0; i < setupHeader.CodebookCount; i++)
+            {
+                VorbisCodebookData codebookData = *(VorbisCodebookData*)pCodebook;
+                if (!UtilsVorbis.IsCodebook(pCodebook))
+                {
+                    throw new Exception("Invalid Vorbis codebook");
+                }
+
+                Console.WriteLine(codebookData.ToString());
+            }
+
             pVorbisData += packetSizes[indexPacketSizes++];
 
         }
@@ -81,9 +98,19 @@ public static unsafe class VorbisDecoder
 
     //vorbis operations
 
+    private static void ValideateVorbisHeader(byte* p, VorbisHeaderType type)
+    {
+        VorbisHeaderType headerType = *(VorbisHeaderType*)p;
+        if (headerType != type)
+        {
+            throw new Exception($"Invalid Vorbis header type, expected {type} but got {headerType}");
+        }
 
-
-
+        if (!UtilsVorbis.IsVorbisHeader(p + 1))
+        {
+            throw new Exception("Invalid Vorbis header");
+        }
+    }
 
     private static void ReadPage(ref byte* p, out OggPage page, out uint segmentSize, out uint packetCount)
     {

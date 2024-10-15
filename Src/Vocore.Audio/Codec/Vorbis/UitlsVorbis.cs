@@ -14,24 +14,6 @@ internal unsafe class UtilsVorbis
         return IsBytesEqual(ptr, MagicPage);
     }
 
-    public static bool IsIdentificationHeader(byte* ptr)
-    {
-        VorbisHeaderType type = (VorbisHeaderType)ptr[0];
-        return type == VorbisHeaderType.Identification;
-    }
-
-    public static bool IsCommentHeader(byte* ptr)
-    {
-        VorbisHeaderType type = (VorbisHeaderType)ptr[0];
-        return type == VorbisHeaderType.Comment;
-    }
-
-    public static bool IsSetupHeader(byte* ptr)
-    {
-        VorbisHeaderType type = (VorbisHeaderType)ptr[0];
-        return type == VorbisHeaderType.Setup;
-    }
-
     public static bool IsCodebook(byte* ptr)
     {
         return IsBytesEqual(ptr, MagicCodebook);

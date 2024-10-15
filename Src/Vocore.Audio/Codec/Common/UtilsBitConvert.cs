@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vocore.Audio;
 
 internal struct Int24
@@ -12,6 +14,42 @@ internal struct Int24
         Byte1 = byte1;
         Byte2 = byte2;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator int(Int24 value)
+    {
+        return UtilsBitConvert.Int24ToInt32(value);
+    }
+
+    public override string ToString()
+    {
+        return ((int)this).ToString();
+    }
+}
+
+internal struct UInt24
+{
+    public byte Byte0;
+    public byte Byte1;
+    public byte Byte2;
+
+    public UInt24(byte byte0, byte byte1, byte byte2)
+    {
+        Byte0 = byte0;
+        Byte1 = byte1;
+        Byte2 = byte2;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator uint(UInt24 value)
+    {
+        return UtilsBitConvert.UInt24ToUInt32(value);
+    }
+
+    public override string ToString()
+    {
+        return ((uint)this).ToString();
+    }
 }
 
 internal class UtilsBitConvert
@@ -24,5 +62,10 @@ internal class UtilsBitConvert
             temp |= unchecked((int)0xff000000);
         }
         return temp;
+    }
+
+    public unsafe static uint UInt24ToUInt32(UInt24 value)
+    {
+        return value.Byte0 | (uint)(value.Byte1 << 8) | (uint)(value.Byte2 << 16);
     }
 }
