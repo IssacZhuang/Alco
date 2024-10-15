@@ -23,6 +23,28 @@ internal unsafe class UtilsVorbis
         return IsBytesEqual(ptr, MagicVorbis);
     }
 
+    public static byte ReadBit(ref byte* ptr, ref byte bit)
+    {
+        byte result = (byte)((*ptr >> bit) & 1);
+        bit++;
+        if (bit == 8){
+            bit = 0;
+            ptr++;
+        }
+        return result;
+    }
+
+    public static uint IntLog(uint x)
+    {
+        uint result = 0;
+        while (x > 0)
+        {
+            result++;
+            x >>= 1;
+        }
+        return result;
+    }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsBytesEqual(byte* ptr, byte[] bytes)

@@ -11,7 +11,6 @@ public static unsafe class VorbisDecoder
         {
             byte* p = ptr;
 
-
             uint totlaSegmentSize = GetTotalSegmentSize(p, out uint packetCount);
 
             uint* packetSizes = stackalloc uint[(int)packetCount];
@@ -43,7 +42,7 @@ public static unsafe class VorbisDecoder
 
                     if (size < 255)
                     {
-                        Console.WriteLine($"packetSizes[{indexPacketSizes}] = {packetSizes[indexPacketSizes]}");
+                        //Console.WriteLine($"packetSizes[{indexPacketSizes}] = {packetSizes[indexPacketSizes]}");
                         indexPacketSizes++;
                     }
                 }
@@ -63,21 +62,26 @@ public static unsafe class VorbisDecoder
             indexPacketSizes = 0;
 
             //The identification header
+
             ValideateVorbisHeader(pVorbisData, VorbisHeaderType.Identification);
             VorbisIdentificationHeader identificationHeader = *(VorbisIdentificationHeader*)pVorbisData;
             pVorbisData += packetSizes[indexPacketSizes++];
 
             //The comment header, skipped
+
             //VorbisHeaderType type = *(VorbisHeaderType*)pVorbisData;
             ValideateVorbisHeader(pVorbisData, VorbisHeaderType.Comment);
             pVorbisData += packetSizes[indexPacketSizes++];
 
             //The setup header
+
             ValideateVorbisHeader(pVorbisData, VorbisHeaderType.Setup);
             VorbisSetupHeader setupHeader = *(VorbisSetupHeader*)pVorbisData;
 
             byte* pCodebook = pVorbisData + sizeof(VorbisSetupHeader);
 
+            //codebooks
+            
             for (int i = 0; i < setupHeader.CodebookCount; i++)
             {
                 VorbisCodebookData codebookData = *(VorbisCodebookData*)pCodebook;
@@ -85,8 +89,16 @@ public static unsafe class VorbisDecoder
                 {
                     throw new Exception("Invalid Vorbis codebook");
                 }
-
+                Console.WriteLine(UtilsVorbis.IntLog(codebookData.CodebookEntries));
                 Console.WriteLine(codebookData.ToString());
+                if (codebookData.OrderedFlag > 0)
+                {
+
+                }
+                else
+                {
+
+                }
             }
 
             pVorbisData += packetSizes[indexPacketSizes++];

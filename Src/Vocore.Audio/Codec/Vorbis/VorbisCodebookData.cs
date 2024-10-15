@@ -4,10 +4,10 @@ using System.Runtime.InteropServices;
 namespace Vocore.Audio;
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-internal unsafe struct VorbisCodebookData
+internal unsafe ref struct VorbisCodebookData
 {
     [FieldOffset(0)]
-    public fixed byte SyncPattern[3];//always "VCB"
+    public fixed byte SyncPattern[3];//always "BCV"
     [FieldOffset(3)]
     public ushort CodebookDimensions;
     [FieldOffset(5)]
