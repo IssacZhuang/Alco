@@ -34,6 +34,6 @@ internal unsafe class OpenALAudioClip : AudioClip
 
     protected override void Dispose(bool disposing)
     {
-
+        AL.DeleteBuffer(_buffer);
     }
 }

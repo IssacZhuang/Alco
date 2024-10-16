@@ -77,6 +77,15 @@ public class Game : GameEngine
                 _source.Play();
             });
         }
+
+        if (DebugGUI.Button("GC"))
+        {
+            _source.AudioClip = null;
+            GC.Collect(0);
+            GC.Collect(1);
+            GC.Collect(2);
+            GC.WaitForPendingFinalizers();
+        }
     }
 
     protected override void OnStop()
