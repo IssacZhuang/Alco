@@ -21,6 +21,9 @@ namespace Vocore.IO
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
+        //todo fix: the asset is still referenced by the ThreadWorkerQueue after LoadAsync operation
+        //which prevent the asset from being garbage collected
+        //this will cause memory leak
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
         private AtomicSpinLock _lockJobQueue = new AtomicSpinLock();
         private readonly object _lockEntry = new object();

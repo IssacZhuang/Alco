@@ -400,6 +400,21 @@ public class TestAssetSystem
 
         Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
 
+        //async load
+        assetSystem.LoadAsync<TestFastAsset>("test.fast", (asset, exception) =>{
+            fastAsset = asset;
+            asset = null;
+        });
+        assetSystem.DebugWaitForAllJobComplete();
+        Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
+
+        fastAsset = null;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
+
+        //strong cache
         fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.Persistent);
 
         fastAsset = null;
