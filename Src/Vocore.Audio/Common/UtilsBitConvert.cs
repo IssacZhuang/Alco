@@ -21,6 +21,12 @@ internal struct Int24
         return UtilsBitConvert.Int24ToInt32(value);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator uint(Int24 value)
+    {
+        return (uint)UtilsBitConvert.Int24ToInt32(value);
+    }
+
     public override string ToString()
     {
         return ((int)this).ToString();
@@ -44,6 +50,12 @@ internal struct UInt24
     public static implicit operator uint(UInt24 value)
     {
         return UtilsBitConvert.UInt24ToUInt32(value);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator int(UInt24 value)
+    {
+        return (int)UtilsBitConvert.UInt24ToUInt32(value);
     }
 
     public override string ToString()

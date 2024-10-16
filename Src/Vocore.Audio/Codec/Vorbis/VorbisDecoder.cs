@@ -84,21 +84,8 @@ public static unsafe class VorbisDecoder
             
             for (int i = 0; i < setupHeader.CodebookCount; i++)
             {
-                VorbisCodebookData codebookData = *(VorbisCodebookData*)pCodebook;
-                if (!UtilsVorbis.IsCodebook(pCodebook))
-                {
-                    throw new Exception("Invalid Vorbis codebook");
-                }
-                Console.WriteLine(UtilsVorbis.IntLog(codebookData.CodebookEntries));
-                Console.WriteLine(codebookData.ToString());
-                if (codebookData.OrderedFlag > 0)
-                {
+                VorbisCodebook codebook = new VorbisCodebook(pCodebook);
 
-                }
-                else
-                {
-
-                }
             }
 
             pVorbisData += packetSizes[indexPacketSizes++];

@@ -19,24 +19,37 @@ internal unsafe class UtilsVorbis
         return IsBytesEqual(ptr, MagicCodebook);
     }
 
+    public static bool IsCodebook(uint check)
+    {
+        return check == 0x564342u;
+    }
+
     public static bool IsVorbisHeader(byte* ptr){
         return IsBytesEqual(ptr, MagicVorbis);
     }
 
-    public static byte ReadBit(ref byte* ptr, ref byte bit)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static T Read<T>(ref byte* ptr) where T : unmanaged
     {
-        byte result = (byte)((*ptr >> bit) & 1);
-        bit++;
-        if (bit == 8){
-            bit = 0;
-            ptr++;
-        }
+        T result = *(T*)ptr;
+        ptr += sizeof(T);
         return result;
     }
 
     public static uint IntLog(uint x)
     {
         uint result = 0;
+        while (x > 0)
+        {
+            result++;
+            x >>= 1;
+        }
+        return result;
+    }
+
+    public static byte IntLog(byte x)
+    {
+        byte result = 0;
         while (x > 0)
         {
             result++;
