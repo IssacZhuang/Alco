@@ -2,7 +2,11 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
+using static OggVorbisSharp.VorbisFile;
+
 using NVorbis;
+using OggVorbisSharp;
+using static OggVorbisSharp.Vorbis;
 
 namespace Vocore.Audio;
 
@@ -24,12 +28,56 @@ public unsafe static class UtilsAudioDecode
         {
             //VorbisDecoder.DecodeVorbisAudioToFloat32(data, out channel, out sampleRate);
             UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            VorbisReader reader = new VorbisReader(stream, false);
-            channel = reader.Channels;
-            sampleRate = reader.SampleRate;
-            int length = (int)reader.TotalSamples * channel;
-            float[] buffer = new float[length];
-            reader.ReadSamples(buffer, 0, length);
+            // VorbisReader reader = new VorbisReader(stream, false);
+            // channel = reader.Channels;
+            // sampleRate = reader.SampleRate;
+            // int length = (int)reader.TotalSamples * channel;
+            // float[] buffer = new float[length];
+            // reader.ReadSamples(buffer, 0, length);
+            // return buffer;
+            OggVorbis_File vf = new OggVorbis_File();
+            int openResult = ov_open(stream, ref vf, null, 0);
+            
+            if (openResult < 0)
+            {
+                throw new Exception("Error in ov_open ogg");
+            }
+
+            vorbis_info info = ov_info(ref vf, -1);
+            channel = info.channels;
+
+            List<float> interleaved = new List<float>();
+
+            int bitStream = 0;
+            while (true)
+            {
+                float** pcm = null;
+                long samples = ov_read_float(ref vf, ref pcm, 1024, ref bitStream);
+                if (samples == 0)
+                {
+                    //EOF
+                    break;
+                }
+                else if (samples < 0)
+                {
+                    throw new Exception("Error in decoding ogg");
+                }
+                else
+                {
+                    for (int i = 0; i < samples; i++)
+                    {
+                        for (int j = 0; j < channel; j++)
+                        {
+                            interleaved.Add(pcm[j][i]);
+                        }
+                    }
+                }
+            }
+
+            ov_clear(ref vf);
+
+            float[] buffer = interleaved.ToArray();
+            sampleRate = info.rate;
             return buffer;
         }
     }

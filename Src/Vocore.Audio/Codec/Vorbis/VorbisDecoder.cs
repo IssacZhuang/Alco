@@ -42,7 +42,7 @@ public static unsafe class VorbisDecoder
 
                     if (size < 255)
                     {
-                        //Console.WriteLine($"packetSizes[{indexPacketSizes}] = {packetSizes[indexPacketSizes]}");
+                        Console.WriteLine($"packetSizes[{indexPacketSizes}] = {packetSizes[indexPacketSizes]}");
                         indexPacketSizes++;
                     }
                 }
