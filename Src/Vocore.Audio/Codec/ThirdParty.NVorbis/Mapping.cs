@@ -1,4 +1,6 @@
-﻿using NVorbis.Contracts;
+﻿#nullable disable
+
+using NVorbis.Contracts;
 using System;
 
 namespace NVorbis

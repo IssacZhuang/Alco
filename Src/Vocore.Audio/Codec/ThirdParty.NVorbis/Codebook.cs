@@ -1,4 +1,6 @@
-﻿using NVorbis.Contracts;
+﻿#nullable disable
+
+using NVorbis.Contracts;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -298,7 +300,7 @@ namespace NVorbis
 
             // try to get the value from the prefix list...
             var node = _prefixList[data];
-            if (node != null)
+            if (node.NotNull)
             {
                 packet.SkipBits(node.Length);
                 return node.Value;

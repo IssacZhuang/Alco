@@ -1,4 +1,6 @@
-﻿using NVorbis.Contracts;
+﻿#nullable disable
+
+using NVorbis.Contracts;
 using System;
 using System.IO;
 using System.Text;
@@ -319,7 +321,7 @@ namespace NVorbis
         /// <remarks>The data populated into <paramref name="buffer"/> is interleaved by channel in normal PCM fashion: Left, Right, Left, Right, Left, Right</remarks>
         public int Read(Span<float> buffer, int offset, int count)
         {
-            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (buffer.IsEmpty) throw new ArgumentNullException(nameof(buffer));
             if (offset < 0 || offset + count > buffer.Length) throw new ArgumentOutOfRangeException(nameof(offset));
             if (count % _channels != 0) throw new ArgumentOutOfRangeException(nameof(count), "Must be a multiple of Channels!");
             if (_packetProvider == null) throw new ObjectDisposedException(nameof(StreamDecoder));

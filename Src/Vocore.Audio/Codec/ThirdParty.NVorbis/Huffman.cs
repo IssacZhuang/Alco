@@ -1,4 +1,6 @@
-﻿using NVorbis.Contracts;
+﻿#nullable disable
+
+using NVorbis.Contracts;
 using System;
 using System.Collections.Generic;
 
@@ -58,7 +60,7 @@ namespace NVorbis
                         var idx = (j << itemBits) | item.Bits;
                         while (prefixList.Count <= idx)
                         {
-                            prefixList.Add(null);
+                            prefixList.Add(HuffmanListNode.Null);
                         }
                         prefixList[idx] = item;
                     }
@@ -67,7 +69,7 @@ namespace NVorbis
 
             while (prefixList.Count < 1 << tableBits)
             {
-                prefixList.Add(null);
+                prefixList.Add(HuffmanListNode.Null);
             }
 
             TableBits = tableBits;

@@ -1,4 +1,6 @@
-﻿using NVorbis.Contracts.Ogg;
+﻿#nullable disable
+
+using NVorbis.Contracts.Ogg;
 using System;
 using System.Collections.Generic;
 using System.IO;
