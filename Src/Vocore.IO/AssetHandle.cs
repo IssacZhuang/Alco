@@ -8,9 +8,10 @@ internal class AssetHandle
     private object? _strongReference;
     private bool _isLoading = false;
 
-    public Func<object>? FuncLoad;//might be async
-    //todo: add error handling in the load complete callback
+    
+
     public event AssetAsyncLoadDelegate? OnLoadComplete;//on main thread
+    public object? tmpAsset;//store the asset that is loaded by thread by not yet assigned to the cache
 
     public bool IsLoading
     {
@@ -59,6 +60,7 @@ internal class AssetHandle
 
     public void ResetLoadingState()
     {
+        tmpAsset = null;
         _isLoading = false;
         OnLoadComplete = null;
     }

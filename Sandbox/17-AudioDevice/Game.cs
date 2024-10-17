@@ -80,7 +80,6 @@ public class Game : GameEngine
 
         if (DebugGUI.Button("GC"))
         {
-            _source.AudioClip = null;
             GC.Collect(0);
             GC.Collect(1);
             GC.Collect(2);

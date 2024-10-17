@@ -37,13 +37,13 @@ namespace Vocore.IO
         {
             public string name;
             public AssetHandle handle;
-            public object? asset;
+            //public object? asset;
             public Func<object?> onCreate;
             
             public AssetCacheMode cacheMode;
             public void Execute()
             {
-                asset = onCreate();
+                handle.tmpAsset = onCreate();
             }
         }
 

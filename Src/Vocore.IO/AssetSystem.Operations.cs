@@ -296,7 +296,7 @@ public sealed partial class AssetSystem
             Log.Error($"Exception on creating asset '{job.name}': {exception}");
         }
 
-        object? asset = job.asset;
+        object? asset = handle.tmpAsset;
         if (asset == null)
         {
             Log.Error($"Failed to load asset: {job.name}");
@@ -314,9 +314,9 @@ public sealed partial class AssetSystem
                 Log.Error($"Exception on creating asset '{job.name}': {e}");
             }
 
-            if (job.asset != null)
+            if (asset != null)
             {
-                handle.SetCache(job.asset, job.cacheMode);
+                handle.SetCache(asset, job.cacheMode);
             }
             handle.ResetLoadingState();
         }
