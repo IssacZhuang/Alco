@@ -72,6 +72,31 @@ internal class OpenALSource : AudioSource
         }
     }
 
+    public override bool IsLooping
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            AL.GetSourceProperty(_source, SourceBoolean.Looping, out bool value);
+            return value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            AL.SetSourceProperty(_source, SourceBoolean.Looping, value);
+        }
+    }
+
+    public override bool IsPlaying
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            AL.GetSourceProperty(_source, GetSourceInteger.SourceState, out int state);
+            return state == (int)SourceState.Playing;
+        }
+    }
+
 
     public OpenALSource() : base()
     {
@@ -81,6 +106,7 @@ internal class OpenALSource : AudioSource
         Pitch = 1f;
         Position = Vector3.Zero;
         Velocity = Vector3.Zero;
+        IsLooping = false;        
     }
 
     protected override void Dispose(bool disposing)
@@ -99,7 +125,6 @@ internal class OpenALSource : AudioSource
             _isClipSet = false;
         }
     }
-
 
 
     protected override void PlayCore()

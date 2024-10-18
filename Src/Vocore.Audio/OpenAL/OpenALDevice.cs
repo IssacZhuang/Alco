@@ -37,11 +37,37 @@ internal unsafe class OpenALDevice : AudioDevice
         }
     }
 
+    public override Vector3 ListenerDirection
+    {
+        get
+        {
+            float* forwardAndUp = stackalloc float[6];
+            AL.GetListenerProperty(ListenerFloatArray.Orientation, forwardAndUp);
+            return new Vector3(forwardAndUp[0], forwardAndUp[1], forwardAndUp[2]);
+        }
+        set
+        {
+            float* forwardAndUp = stackalloc float[6];
+            forwardAndUp[0] = ListenerDirection.X;
+            forwardAndUp[1] = ListenerDirection.Y;
+            forwardAndUp[2] = ListenerDirection.Z;
+            forwardAndUp[3] = Vector3.UnitY.X;
+            forwardAndUp[4] = Vector3.UnitY.Y;
+            forwardAndUp[5] = Vector3.UnitY.Z;
+            AL.SetListenerProperty(ListenerFloatArray.Orientation, forwardAndUp);
+        }
+    }
+
     public OpenALDevice()
     {
         _device = ALC.OpenDevice(string.Empty);
         ALC.MakeContextCurrent(ALC.CreateContext(_device, null));
+        
+        AL.DistanceModel(DistanceModel.InverseDistance);
+        // AL.DopplerFactor(1);
+        // AL.SpeedOfSound(343.3f);
 
+        ListenerPosition = Vector3.Zero;
     }
 
     protected override void Dispose(bool disposing)

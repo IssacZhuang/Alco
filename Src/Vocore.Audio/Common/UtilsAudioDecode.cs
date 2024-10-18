@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
@@ -13,6 +14,17 @@ namespace Vocore.Audio;
 /// </summary>
 public unsafe static class UtilsAudioDecode
 {
+    public static void StereoToMono(ReadOnlySpan<float> stereoData, Span<float> monoData)
+    {
+        Debug.Assert(stereoData.Length % 2 == 0);
+        Debug.Assert(monoData.Length == stereoData.Length / 2);
+
+        for (int i = 0; i < monoData.Length; i++)
+        {
+            monoData[i] = (stereoData[i * 2] + stereoData[i * 2 + 1]) * 0.5f;
+        }
+    }
+
     /// <summary>
     /// Decode the ogg data into pcm data
     /// </summary>
@@ -33,50 +45,7 @@ public unsafe static class UtilsAudioDecode
             float[] buffer = new float[length];
             reader.ReadSamples(buffer, 0, length);
             return buffer;
-            // OggVorbis_File vf = new OggVorbis_File();
-            // int openResult = ov_open(stream, ref vf, null, 0);
             
-            // if (openResult < 0)
-            // {
-            //     throw new Exception("Error in ov_open ogg");
-            // }
-
-            // vorbis_info info = ov_info(ref vf, -1);
-            // channel = info.channels;
-
-            // List<float> interleaved = new List<float>();
-
-            // int bitStream = 0;
-            // while (true)
-            // {
-            //     float** pcm = null;
-            //     long samples = ov_read_float(ref vf, ref pcm, 1024, ref bitStream);
-            //     if (samples == 0)
-            //     {
-            //         //EOF
-            //         break;
-            //     }
-            //     else if (samples < 0)
-            //     {
-            //         throw new Exception("Error in decoding ogg");
-            //     }
-            //     else
-            //     {
-            //         for (int i = 0; i < samples; i++)
-            //         {
-            //             for (int j = 0; j < channel; j++)
-            //             {
-            //                 interleaved.Add(pcm[j][i]);
-            //             }
-            //         }
-            //     }
-            // }
-
-            // ov_clear(ref vf);
-
-            // float[] buffer = interleaved.ToArray();
-            // sampleRate = info.rate;
-            // return buffer;
         }
     }
 

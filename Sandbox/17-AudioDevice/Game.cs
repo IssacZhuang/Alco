@@ -51,6 +51,15 @@ public class Game : GameEngine
             });
         }
 
+        if (DebugGUI.Button("play Song.ogg"))
+        {
+            Assets.LoadAsync<AudioClip>("Song.ogg", (asset, e) =>
+            {
+                _source.AudioClip = asset;
+                _source.Play();
+            });
+        }
+
         if (DebugGUI.Button("play ShotPcm16.wav"))
         {
             Assets.LoadAsync<AudioClip>("ShotPcm16.wav", (asset, e) =>
@@ -76,6 +85,45 @@ public class Game : GameEngine
                 _source.AudioClip = asset;
                 _source.Play();
             });
+        }
+
+        if (DebugGUI.Button("play Song.wav"))
+        {
+            Assets.LoadAsync<AudioClip>("Song.wav", (asset, e) =>
+            {
+                _source.AudioClip = asset;
+                _source.Play();
+            });
+        }
+
+        bool isRelative = _source.IsRelative;
+        if(DebugGUI.CheckBoxWithText("Is Source Relative", ref isRelative))
+        {
+            _source.IsRelative = isRelative;
+        }
+
+        bool isLooping = _source.IsLooping;
+        if(DebugGUI.CheckBoxWithText("Is Looping", ref isLooping))
+        {
+            _source.IsLooping = isLooping;
+        }
+        
+        float posX = _source.Position.X;
+        if (DebugGUI.SliderWithText("Position X", ref posX, -100, 100))
+        {
+            _source.Position = new Vector3(posX, _source.Position.Y, _source.Position.Z);
+        }
+
+        float posY = _source.Position.Y;
+        if (DebugGUI.SliderWithText("Position Y", ref posY, -100, 100))
+        {
+            _source.Position = new Vector3(_source.Position.X, posY, _source.Position.Z);
+        }
+
+        float posZ = _source.Position.Z;
+        if (DebugGUI.SliderWithText("Position Z", ref posZ, -100, 100))
+        {
+            _source.Position = new Vector3(_source.Position.X, _source.Position.Y, posZ);
         }
 
         if (DebugGUI.Button("GC"))

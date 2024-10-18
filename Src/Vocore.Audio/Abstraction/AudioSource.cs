@@ -21,6 +21,8 @@ public abstract class AudioSource : BaseAudioObject
     public abstract float Pitch { get; set; }
     public abstract Vector3 Position { get; set; }
     public abstract Vector3 Velocity { get; set; }
+    public abstract bool IsLooping { get; set; }
+    public abstract bool IsPlaying { get; }
 
     public bool TryPlay()
     {

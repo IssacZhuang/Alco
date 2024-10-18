@@ -10,6 +10,7 @@ public abstract class AudioDevice : BaseAudioObject
 
     public abstract Vector3 ListenerPosition { get; set; }
     public abstract Vector3 ListenerVelocity { get; set; }
+    public abstract Vector3 ListenerDirection { get; set; }
 
     public AudioDevice()
     {
