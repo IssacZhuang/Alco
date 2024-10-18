@@ -103,7 +103,9 @@ namespace NVorbis
 
                 // apply "symbolic" names
                 u = buffer;
+#pragma warning disable CS9080
                 v = buf2;
+#pragma warning restore CS9080
 
                 // step 2
 
