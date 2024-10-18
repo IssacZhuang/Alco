@@ -49,9 +49,9 @@ internal unsafe class OpenALDevice : AudioDevice
         set
         {
             float* forwardAndUp = stackalloc float[6];
-            forwardAndUp[0] = ListenerDirection.X;
-            forwardAndUp[1] = ListenerDirection.Y;
-            forwardAndUp[2] = ListenerDirection.Z;
+            forwardAndUp[0] = value.X;
+            forwardAndUp[1] = value.Y;
+            forwardAndUp[2] = value.Z;
             forwardAndUp[3] = Vector3.UnitY.X;
             forwardAndUp[4] = Vector3.UnitY.Y;
             forwardAndUp[5] = Vector3.UnitY.Z;
