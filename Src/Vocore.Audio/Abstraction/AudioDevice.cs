@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Vocore.Audio;
 public abstract class AudioDevice : BaseAudioObject
@@ -18,7 +19,7 @@ public abstract class AudioDevice : BaseAudioObject
         ListenerVelocity = Vector3.Zero;
     }
 
-    public AudioClip CreateAudioClip(ReadOnlySpan<float> data, int channel, int sampleRate)
+    public unsafe AudioClip CreateAudioClip(ReadOnlySpan<float> data, int channel, int sampleRate)
     {
         return CreateAudioClipCore(data, channel, sampleRate);
     }

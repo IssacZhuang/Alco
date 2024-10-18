@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Silk.NET.OpenAL;
 
 namespace Vocore.Audio.OpenAL;
@@ -86,9 +87,25 @@ internal unsafe class OpenALDevice : AudioDevice
 
     protected override AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate)
     {
+        float* ptrMono = null;
+        if (channel == 2)
+        {
+            ptrMono = (float*)Marshal.AllocHGlobal(data.Length * sizeof(float) / 2);
+            Span<float> spanMono = new(ptrMono, data.Length / 2);
+            UtilsAudioDecode.StereoToMono(data, spanMono);
+            channel = 1;
+            data = spanMono;
+        }
+
+        AudioClip clip;
         lock (_lock)
         {
-            return new OpenALAudioClip(data, channel, sampleRate);
+            clip = new OpenALAudioClip(data, channel, sampleRate);
         }
+        if (ptrMono != null)
+        {
+            Marshal.FreeHGlobal((IntPtr)ptrMono);
+        }
+        return clip;
     }
 }

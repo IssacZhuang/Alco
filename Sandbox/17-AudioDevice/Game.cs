@@ -96,12 +96,6 @@ public class Game : GameEngine
             });
         }
 
-        bool isRelative = _source.IsRelative;
-        if(DebugGUI.CheckBoxWithText("Is Source Relative", ref isRelative))
-        {
-            _source.IsRelative = isRelative;
-        }
-
         bool isLooping = _source.IsLooping;
         if(DebugGUI.CheckBoxWithText("Is Looping", ref isLooping))
         {
