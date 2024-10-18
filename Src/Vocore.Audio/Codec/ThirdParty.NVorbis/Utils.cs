@@ -2,15 +2,11 @@
 {
     static class Utils
     {
-        static internal int ilog(int x)
+        static internal int ilog(int v)
         {
-            int cnt = 0;
-            while (x > 0)
-            {
-                ++cnt;
-                x >>= 1;    // this is safe because we'll never get here if the sign bit is set
-            }
-            return cnt;
+            int ret;
+            for (ret = 0; v > 0; ret++) v >>= 1;
+            return ret;
         }
 
         static internal uint BitReverse(uint n)

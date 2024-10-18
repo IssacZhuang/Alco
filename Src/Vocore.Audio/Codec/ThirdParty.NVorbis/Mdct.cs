@@ -27,6 +27,8 @@ namespace NVorbis
             readonly float[] _a, _b, _c;
             readonly ushort[] _bitrev;
 
+            readonly float[] _tmpBuffer;
+
             public MdctImpl(int n)
             {
                 _n = n;
@@ -60,13 +62,15 @@ namespace NVorbis
                 {
                     _bitrev[i] = (ushort)(Utils.BitReverse((uint)i, _ld - 3) << 2);
                 }
+
+                _tmpBuffer = new float[_n2];
             }
 
             internal void CalcReverse(float[] buffer)
             {
-                float[] u, v;
+                Span<float> u, v;
 
-                var buf2 = new float[_n2];
+                var buf2 = _tmpBuffer;
 
                 // copy and reflect spectral data
                 // step 0
@@ -312,7 +316,7 @@ namespace NVorbis
                 }
             }
 
-            void step3_iter0_loop(int n, float[] e, int i_off, int k_off)
+            void step3_iter0_loop(int n, Span<float> e, int i_off, int k_off)
             {
                 var ee0 = i_off;        // e
                 var ee2 = ee0 + k_off;  // e
@@ -358,7 +362,7 @@ namespace NVorbis
                 }
             }
 
-            void step3_inner_r_loop(int lim, float[] e, int d0, int k_off, int k1)
+            void step3_inner_r_loop(int lim, Span<float> e, int d0, int k_off, int k1)
             {
                 float k00_20, k01_21;
 
@@ -409,7 +413,7 @@ namespace NVorbis
                 }
             }
 
-            void step3_inner_s_loop(int n, float[] e, int i_off, int k_off, int a, int a_off, int k0)
+            void step3_inner_s_loop(int n, Span<float> e, int i_off, int k_off, int a, int a_off, int k0)
             {
                 var A0 = _a[a];
                 var A1 = _a[a + 1];
@@ -460,7 +464,7 @@ namespace NVorbis
                 }
             }
 
-            void step3_inner_s_loop_ld654(int n, float[] e, int i_off, int base_n)
+            void step3_inner_s_loop_ld654(int n, Span<float> e, int i_off, int base_n)
             {
                 var a_off = base_n >> 3;
                 var A2 = _a[a_off];
@@ -506,7 +510,7 @@ namespace NVorbis
                 }
             }
 
-            private void iter_54(float[] e, int z)
+            private void iter_54(Span<float> e, int z)
             {
                 float k00, k11, k22, k33;
                 float y0, y1, y2, y3;
