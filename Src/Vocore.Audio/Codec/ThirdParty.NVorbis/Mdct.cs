@@ -1,6 +1,7 @@
 ﻿using NVorbis.Contracts;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace NVorbis
 {
@@ -27,7 +28,7 @@ namespace NVorbis
             readonly float[] _a, _b, _c;
             readonly ushort[] _bitrev;
 
-            readonly float[] _tmpBuffer;
+            // readonly float[] _tmpBuffer;
 
             public MdctImpl(int n)
             {
@@ -63,14 +64,14 @@ namespace NVorbis
                     _bitrev[i] = (ushort)(Utils.BitReverse((uint)i, _ld - 3) << 2);
                 }
 
-                _tmpBuffer = new float[_n2];
+                // _tmpBuffer = new float[_n2];
             }
 
-            internal void CalcReverse(float[] buffer)
+            internal unsafe void CalcReverse(float[] buffer)
             {
                 Span<float> u, v;
 
-                var buf2 = _tmpBuffer;
+                Span<float> buf2 = stackalloc float[_n2];
 
                 // copy and reflect spectral data
                 // step 0
