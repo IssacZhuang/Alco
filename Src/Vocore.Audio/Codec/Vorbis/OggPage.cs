@@ -1,0 +1,31 @@
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace Vocore.Audio;
+
+[StructLayout(LayoutKind.Explicit, Pack = 1)]
+internal unsafe struct OggPage
+{
+
+    [FieldOffset(0)]
+    public fixed byte CapturePattern[4];//"OggS" in ASCII
+    [FieldOffset(4)]
+    public byte Version;
+    [FieldOffset(5)]
+    public OggPageFlag PageFlag;
+    [FieldOffset(6)]
+    public ulong GranulePosition;
+    [FieldOffset(14)]
+    public uint SerialNumber;
+    [FieldOffset(18)]
+    public uint PageSequenceNumber;
+    [FieldOffset(22)]
+    public uint Checksum;
+    [FieldOffset(26)]
+    public byte PageSegments;
+
+    public override string ToString()
+    {
+        return $"OggS\n Version: {Version}\n PageFlag: {PageFlag}\n GranulePosition: {GranulePosition}\n SerialNumber: {SerialNumber}\n PageSequenceNumber: {PageSequenceNumber}\n Checksum: {Checksum}\n PageSegments: {PageSegments}";
+    }
+}

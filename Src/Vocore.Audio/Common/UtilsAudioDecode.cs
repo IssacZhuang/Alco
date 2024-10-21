@@ -3,9 +3,11 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
+using static OggVorbisSharp.VorbisFile;
 
 using NVorbis;
-
+using OggVorbisSharp;
+using static OggVorbisSharp.Vorbis;
 
 namespace Vocore.Audio;
 
