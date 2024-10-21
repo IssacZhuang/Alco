@@ -445,89 +445,25 @@ namespace OggVorbisSharp
             if (book.used_entries > 0)
             {
                 int i, j, entry;
+                float* t = book.valuelist;
 
-                if (book.dim > 8)
+                for (i = 0; i < n;)
                 {
-                    for (i = 0; i < n; )
+                    entry = decode_packed_entry_number(ref book, ref b);
+
+                    if (entry == -1)
                     {
-                        entry = decode_packed_entry_number(ref book, ref b);
+                        return -1;
+                    }
 
-                        if (entry == -1)
-                        {
-                            return -1;
-                        }
+                    t = book.valuelist + entry * book.dim;
 
-                        for (j = 0; j < book.dim; )
-                        {
-                            a[i++] += book.valuelist[entry * book.dim + j++];
-                        }
+                    for (j = 0; i<n&& j < book.dim;)
+                    {
+                        a[i++] += t[j++];
                     }
                 }
-                else
-                {
-                    for (i = 0; i < n; )
-                    {
-                        entry = decode_packed_entry_number(ref book, ref b);
 
-                        if (entry == -1)
-                        {
-                            return -1;
-                        }
-
-                        j = 0;
-
-                        switch (book.dim)
-                        {
-                            case 8:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 7;
-
-                            case 7:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 6;
-
-                            case 6:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 5;
-
-                            case 5:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 4;
-
-                            case 4:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 3;
-
-                            case 3:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 2;
-
-                            case 2:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                goto case 1;
-
-                            case 1:
-                                {
-                                    a[i++] += book.valuelist[entry * book.dim + j++];
-                                }
-                                break;
-                        }
-                    }
-                }
             }
 
             return 0;

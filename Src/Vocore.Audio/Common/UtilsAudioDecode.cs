@@ -9,6 +9,8 @@ using NVorbis;
 using OggVorbisSharp;
 using static OggVorbisSharp.Vorbis;
 
+using static StbVorbisSharp.StbVorbis;
+
 namespace Vocore.Audio;
 
 /// <summary>
@@ -35,40 +37,29 @@ public unsafe static class UtilsAudioDecode
     /// <param name="sampleRate">The sample rate of audio</param>
     public static float[] DecodeOgg(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        //todo: performance optimization
         fixed (byte* ptr = data)
         {
-            //VorbisDecoder.DecodeVorbisAudioToFloat32(data, out channel, out sampleRate);
-            UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            // VorbisReader reader = new VorbisReader(stream, false);
-            // channel = reader.Channels;
-            // sampleRate = reader.SampleRate;
-            // int length = (int)reader.TotalSamples * channel;
-            // float[] buffer = new float[length];
-            // reader.ReadSamples(buffer, 0, length);
-            // return buffer;
-            OggVorbis_File vf = new OggVorbis_File();
-            int openResult = ov_open(stream, ref vf, null, 0);
-
-            if (openResult < 0)
+            //stb vorbis
+            int error = 0;
+            stb_vorbis vorbis = stb_vorbis_open_memory(ptr, data.Length, &error);
+            if (vorbis == null)
             {
-                throw new Exception("Error in ov_open ogg");
+                throw new Exception("Error in stb vorbis open");
             }
 
-            vorbis_info info = ov_info(ref vf, -1);
+            stb_vorbis_info info = stb_vorbis_get_info(vorbis);
             channel = info.channels;
-            sampleRate = info.rate;
+            sampleRate = (int)info.sample_rate;
 
             List<float> pcmData = new List<float>();
 
-            int bitStream = 0;
+            float* pcm = stackalloc float[4096];
+
             while (true)
             {
-                float** pcm = null;
-                long samples = ov_read_float(ref vf, &pcm, 4096, ref bitStream);
+                int samples = stb_vorbis_get_samples_float_interleaved(vorbis, channel, pcm, 4096);
                 if (samples == 0)
                 {
-                    //EOF
                     break;
                 }
                 else if (samples < 0)
@@ -77,50 +68,17 @@ public unsafe static class UtilsAudioDecode
                 }
                 else
                 {
-                    // for (int i = 0; i < channel; i++)
-                    // {
-                    //     for (int j = 0; j < samples; j++)
-                    //     {
-                    //         pcmData.Add(pcm[i][j]);
-                    //     }
-                    // }
-
-                    //interleave the channels   
-                    for (int i = 0; i < samples; i++)
+                    for (int i = 0; i < samples * channel; i++)
                     {
-                        for (int j = 0; j < channel; j++)
-                        {
-                            pcmData.Add(pcm[j][i]);
-                        }
+                        pcmData.Add(pcm[i]);
                     }
                 }
             }
-            // short* pcm = stackalloc short[4096];
-            // while (true){
-            //     int bytes = ov_read(ref vf, (byte*)pcm, 4096 * sizeof(short), 0, 2, 1, ref bitStream);
-            //     if (bytes == 0)
-            //     {
-            //         //EOF
-            //         break;
-            //     }
-            //     else if (bytes < 0)
-            //     {
-            //         throw new Exception("Error in decoding ogg");
-            //     }
-            //     else
-            //     {
-            //         for (int i = 0; i < bytes/2; i++)
-            //         {
-            //             pcmData.Add(pcm[i] / 32768.0f);
-            //         }
-            //     }
 
-            // }
-
-            ov_clear(ref vf);
+            stb_vorbis_close(vorbis);
 
             float[] buffer = pcmData.ToArray();
-            
+
             return buffer;
         }
     }

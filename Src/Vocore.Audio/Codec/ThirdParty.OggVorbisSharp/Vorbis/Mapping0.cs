@@ -47,8 +47,8 @@ namespace OggVorbisSharp
 
                 for (i = 0; i < info.coupling_steps; i++)
                 {
-                    Ogg.oggpack_write(ref opb, (uint)info.coupling_mag[i], ilog((uint)vi.channels));
-                    Ogg.oggpack_write(ref opb, (uint)info.coupling_ang[i], ilog((uint)vi.channels));
+                    Ogg.oggpack_write(ref opb, (uint)info.coupling_mag[i], ilog((uint)vi.channels-1));
+                    Ogg.oggpack_write(ref opb, (uint)info.coupling_ang[i], ilog((uint)vi.channels-1));
                 }
             }
             else
