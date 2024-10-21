@@ -21,7 +21,7 @@ namespace Hebron.Runtime
 		public static void* malloc(long size)
 		{
 			var ptr = Marshal.AllocHGlobal((int) size);
-			MemoryStats.Allocated();
+			//MemoryStats.Allocated();
 
 			return ptr.ToPointer();
 		}
@@ -95,7 +95,7 @@ namespace Hebron.Runtime
 
 			var ptr = new IntPtr(a);
 			Marshal.FreeHGlobal(ptr);
-			MemoryStats.Freed();
+			//MemoryStats.Freed();
 		}
 
 		public static void memset(void* ptr, int value, long size)
@@ -171,55 +171,55 @@ namespace Hebron.Runtime
 			return number;
 		}
 
-		public static double pow(double a, double b)
+		public static float pow(float a, float b)
 		{
-			return Math.Pow(a, b);
+			return MathF.Pow(a, b);
 		}
 
-		public static float fabs(double a)
+		public static float fabs(float a)
 		{
-			return (float) Math.Abs(a);
+			return MathF.Abs(a);
 		}
 
-		public static double ceil(double a)
+		public static float ceil(float a)
 		{
-			return Math.Ceiling(a);
+			return MathF.Ceiling(a);
 		}
 
 
-		public static double floor(double a)
+		public static float floor(float a)
 		{
-			return Math.Floor(a);
+			return MathF.Floor(a);
 		}
 
-		public static double log(double value)
+		public static float log(float value)
 		{
-			return Math.Log(value);
+			return MathF.Log(value);
 		}
 
-		public static double exp(double value)
+		public static float exp(float value)
 		{
-			return Math.Exp(value);
+			return MathF.Exp(value);
 		}
 
-		public static double cos(double value)
+		public static float cos(float value)
 		{
-			return Math.Cos(value);
+			return MathF.Cos(value);
 		}
 
-		public static double acos(double value)
+		public static float acos(float value)
 		{
-			return Math.Acos(value);
+			return MathF.Acos(value);
 		}
 
-		public static double sin(double value)
+		public static float sin(float value)
 		{
-			return Math.Sin(value);
+			return MathF.Sin(value);
 		}
 
-		public static double ldexp(double number, int exponent)
+		public static float ldexp(float number, int exponent)
 		{
-			return number * Math.Pow(2, exponent);
+			return number * MathF.Pow(2, exponent);
 		}
 
 		private static void qsortSwap(byte* data, long size, long pos1, long pos2)

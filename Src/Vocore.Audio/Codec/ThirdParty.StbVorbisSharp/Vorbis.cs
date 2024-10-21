@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable disable
+
+using System;
 using static StbVorbisSharp.StbVorbis;
 
 namespace StbVorbisSharp

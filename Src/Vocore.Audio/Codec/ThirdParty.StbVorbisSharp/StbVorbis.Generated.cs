@@ -641,8 +641,8 @@ namespace StbVorbisSharp
 			var n2 = n >> 1;
 			var i = 0;
 			for (i = 0; i < n2; ++i)
-				window[i] = (float) CRuntime.sin(0.5 * 3.14159265358979323846264f *
-				                                 square((float) CRuntime.sin((i - 0 + 0.5) / n2 * 0.5 *
+				window[i] = (float) CRuntime.sin(0.5f * 3.14159265358979323846264f *
+				                                 square((float) CRuntime.sin((i - 0 + 0.5f) / n2 * 0.5f *
 				                                                             3.14159265358979323846264f)));
 		}
 
@@ -1381,8 +1381,9 @@ namespace StbVorbisSharp
 			float* v = null;
 			var A = f.A[blocktype];
 
-			f.FloatBuffer.EnsureSize(n);
-			fixed (float* buf2 = f.FloatBuffer.Array)
+			// f.FloatBuffer.EnsureSize(n);
+			// fixed (float* buf2 = f.FloatBuffer.Array)
+			float* buf2 = stackalloc float[n];
 			{
 				{
 					float* d;

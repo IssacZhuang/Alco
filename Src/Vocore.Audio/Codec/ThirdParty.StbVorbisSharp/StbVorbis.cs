@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable disable
+
+using System;
 using System.Runtime.InteropServices;
 using Hebron.Runtime;
 
@@ -83,7 +85,7 @@ namespace StbVorbisSharp
 			public uint first_audio_page_offset;
 			public byte first_decode;
 
-			internal ArrayBuffer<float> FloatBuffer = new ArrayBuffer<float>(1024);
+			//internal ArrayBuffer<float> FloatBuffer = new ArrayBuffer<float>(1024);
 
 			public Floor* floor_config;
 			public int floor_count;
