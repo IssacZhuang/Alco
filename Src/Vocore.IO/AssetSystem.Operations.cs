@@ -35,37 +35,23 @@ public sealed partial class AssetSystem
 
                 handle.IsLoading = true;
 
-                
+
 
                 // check the asset loader
-                if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+                if (!TryGetLoader(filename, out IAssetLoader<TAsset>? loader))
                 {
                     asset = null;
                     failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
                     return false;
                 }
 
-                // profile
-                StartProfile<TAsset>(filename);
-
-                // IO
-                if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
+                // // profile
+                // EndProfile();
+                if (!TryLoadAssetCore(filename, handle, loader, out TAsset? newAsset, out failedReason))
                 {
-                    failedReason = $"Trying to get asset {filename} but the file does not exist";
                     asset = null;
                     return false;
                 }
-
-                // create the asset
-                if (!assetLoaderT.TryCreateAsset(filename, data, out TAsset? newAsset))
-                {
-                    failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
-                    asset = null;
-                    return false;
-                }
-
-                // profile
-                EndProfile();
 
                 // try add to cache
                 handle.SetCache(newAsset, cacheMode);
@@ -163,7 +149,7 @@ public sealed partial class AssetSystem
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
                 name = filename,
-                onCreate = GetOnCreateAction(filename, assetLoaderT), // on worker thread
+                onCreate = GetOnCreateAction(filename, handle, assetLoaderT), // on worker thread
                 handle = handle,
                 cacheMode = cacheMode
             };
@@ -199,27 +185,27 @@ public sealed partial class AssetSystem
 
 
     //on worker thread
-    private Func<object?> GetOnCreateAction<TAsset>(string filename, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+    private Func<object?> GetOnCreateAction<TAsset>(string filename, AssetHandle handle, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
     {
         return () =>
         {
-            StartProfile<TAsset>(filename);
-
-            if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
+            lock (handle)
             {
-                //Log.Error($"Trying to get asset {filename} but the file does not exist");
-                throw new AssetLoadException($"Trying to get asset {filename} but the file does not exist");
+                //it might already loaded by other thread
+                TAsset? newAsset = handle.CachedAsset as TAsset;
+                if (newAsset != null)
+                {
+                    return newAsset;
+                }
+
+
+                if (!TryLoadAssetCore(filename, handle, assetLoaderT, out newAsset, out string? failedReason))
+                {
+                    throw new AssetLoadException(failedReason);
+                }
+                return newAsset;
             }
 
-            if (!assetLoaderT.TryCreateAsset(filename, data, out TAsset? newAsset))
-            {
-                //Log.Error($"Trying to get asset {filename} but the asset loader failed to load the asset");
-                throw new AssetLoadException($"Trying to get asset {filename} but the asset loader failed to load the asset");
-            }
-
-            EndProfile();
-
-            return newAsset;
         };
     }
 
@@ -285,6 +271,36 @@ public sealed partial class AssetSystem
             }
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryLoadAssetCore<TAsset>(string filename, AssetHandle handle, IAssetLoader<TAsset> loader, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason) where TAsset : class
+    {
+        // assume the handle is locked
+        // profile
+        StartProfile<TAsset>(filename);
+
+        // IO
+        if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
+        {
+            failedReason = $"Trying to get asset {filename} but the file does not exist";
+            asset = null;
+            return false;
+        }
+
+        // create the asset
+        if (!loader.TryCreateAsset(filename, data, out asset))
+        {
+            failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
+            asset = null;
+            return false;
+        }
+
+        // profile
+        EndProfile();
+        failedReason = string.Empty;
+        return true;
+    }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void HanleFinishedJob(AsyncPreprocessJob job, Exception? exception)

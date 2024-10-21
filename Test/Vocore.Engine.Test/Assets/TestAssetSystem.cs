@@ -376,6 +376,78 @@ public class TestAssetSystem
     }
 
     [Test]
+    public void TestLoadSyncWithAsyncConcurrent()
+    {
+        int count = 50;
+        // half is Load, half is LoadAsync
+        // in parallel  
+        //use slow asset only
+        AssetSystem assetSystem = new AssetSystem(2);
+
+        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestExceptionAssetLoader());
+
+        assetSystem.AddFileSource(new TestFileSource());
+
+       
+
+        TestSlowAsset[] slowAssets = new TestSlowAsset[count];
+        Exception[] slowExceptions = new Exception[count];
+
+        Profiler profiler = new Profiler();
+
+        profiler.Start();
+
+        Parallel.For(0, count * 2, i =>
+        {
+            if (i % 2 == 0)
+            {
+                assetSystem.LoadAsync<TestSlowAsset>("test.slow", (asset, exception) =>
+                {
+                    slowAssets[i / 2] = asset;
+                    slowExceptions[i / 2] = exception;
+                });
+                
+            }
+            else
+            {
+                slowAssets[i / 2] = assetSystem.Load<TestSlowAsset>("test.slow");
+            }
+        });
+
+        TestContext.WriteLine($"TestLoadSyncWithAsyncConcurrent dispatch load job: {profiler.End().Miliseconds}");
+
+        profiler.Start();
+        int jobCount = assetSystem.DebugWaitForAllJobComplete();
+
+        TestContext.WriteLine($"TestLoadSyncWithAsyncConcurrent Wait for all job complete: {profiler.End().Miliseconds}");
+
+        //Assert.That(jobCount, Is.EqualTo(1));
+
+        TestSlowAsset checkSlowAsset = null;
+        for (int i = 0; i < count; i++)
+        {
+            if (checkSlowAsset == null)
+            {
+                checkSlowAsset = slowAssets[i];
+            }
+            else
+            {
+                Assert.That(checkSlowAsset, Is.SameAs(slowAssets[i]));
+            }
+
+            Assert.IsNull(slowExceptions[i]);
+        }
+
+        Assert.NotNull(checkSlowAsset);
+
+        assetSystem.Dispose();
+
+    }
+
+    [Test]
     public void TestGarbagCollect()
     {
         AssetSystem assetSystem = new AssetSystem(2);
