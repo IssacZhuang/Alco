@@ -40,14 +40,88 @@ public unsafe static class UtilsAudioDecode
         {
             //VorbisDecoder.DecodeVorbisAudioToFloat32(data, out channel, out sampleRate);
             UnsafeStream stream = new UnsafeStream(ptr, data.Length);
-            VorbisReader reader = new VorbisReader(stream, false);
-            channel = reader.Channels;
-            sampleRate = reader.SampleRate;
-            int length = (int)reader.TotalSamples * channel;
-            float[] buffer = new float[length];
-            reader.ReadSamples(buffer, 0, length);
-            return buffer;
+            // VorbisReader reader = new VorbisReader(stream, false);
+            // channel = reader.Channels;
+            // sampleRate = reader.SampleRate;
+            // int length = (int)reader.TotalSamples * channel;
+            // float[] buffer = new float[length];
+            // reader.ReadSamples(buffer, 0, length);
+            // return buffer;
+            OggVorbis_File vf = new OggVorbis_File();
+            int openResult = ov_open(stream, ref vf, null, 0);
+
+            if (openResult < 0)
+            {
+                throw new Exception("Error in ov_open ogg");
+            }
+
+            vorbis_info info = ov_info(ref vf, -1);
+            channel = info.channels;
+            sampleRate = info.rate;
+
+            List<float> pcmData = new List<float>();
+
+            int bitStream = 0;
+            while (true)
+            {
+                float** pcm = null;
+                long samples = ov_read_float(ref vf, &pcm, 4096, ref bitStream);
+                if (samples == 0)
+                {
+                    //EOF
+                    break;
+                }
+                else if (samples < 0)
+                {
+                    throw new Exception("Error in decoding ogg");
+                }
+                else
+                {
+                    // for (int i = 0; i < channel; i++)
+                    // {
+                    //     for (int j = 0; j < samples; j++)
+                    //     {
+                    //         pcmData.Add(pcm[i][j]);
+                    //     }
+                    // }
+
+                    //interleave the channels   
+                    for (int i = 0; i < samples; i++)
+                    {
+                        for (int j = 0; j < channel; j++)
+                        {
+                            pcmData.Add(pcm[j][i]);
+                        }
+                    }
+                }
+            }
+            // short* pcm = stackalloc short[4096];
+            // while (true){
+            //     int bytes = ov_read(ref vf, (byte*)pcm, 4096 * sizeof(short), 0, 2, 1, ref bitStream);
+            //     if (bytes == 0)
+            //     {
+            //         //EOF
+            //         break;
+            //     }
+            //     else if (bytes < 0)
+            //     {
+            //         throw new Exception("Error in decoding ogg");
+            //     }
+            //     else
+            //     {
+            //         for (int i = 0; i < bytes/2; i++)
+            //         {
+            //             pcmData.Add(pcm[i] / 32768.0f);
+            //         }
+            //     }
+
+            // }
+
+            ov_clear(ref vf);
+
+            float[] buffer = pcmData.ToArray();
             
+            return buffer;
         }
     }
 

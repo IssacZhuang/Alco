@@ -3090,8 +3090,9 @@ namespace OggVorbisSharp
 
                    *section) set to the logical bitstream number */
 
-        static public int ov_read_float(ref OggVorbis_File vf, ref float** pcm_channels, int length, ref int bitstream)
+        static public int ov_read_float(ref OggVorbis_File vf, float*** pcm_channels, int length, ref int bitstream)
         {
+            //[Modified] the float** is always 0 if use ref to pass pcm_channels, so use float*** instead
             if (vf.ready_state < OPENED)
             {
                 return Vorbis.OV_EINVAL;
@@ -3110,7 +3111,7 @@ namespace OggVorbisSharp
 
                         if (pcm_channels != null)
                         {
-                            pcm_channels = pcm;
+                            *pcm_channels = pcm;
                         }
 
                         if (samples > length)

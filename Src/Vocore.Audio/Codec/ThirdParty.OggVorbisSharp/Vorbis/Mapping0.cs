@@ -123,8 +123,15 @@ namespace OggVorbisSharp
 
                 for (i = 0; i < info.coupling_steps; i++)
                 {
-                    int testM = info.coupling_mag[i] = Ogg.oggpack_read(ref opb, ilog((uint)vi.channels));
-                    int testA = info.coupling_ang[i] = Ogg.oggpack_read(ref opb, ilog((uint)vi.channels));
+                    // int testM = info.coupling_mag[i] = Ogg.oggpack_read(ref opb, ilog((uint)vi.channels));
+                    // int testA = info.coupling_ang[i] = Ogg.oggpack_read(ref opb, ilog((uint)vi.channels));
+                    
+                    //[Updated]
+                    //https://github.com/xiph/vorbis/blob/84c023699cdf023a32fa4ded32019f194afcdad0/lib/mapping0.c
+                    //Line 113
+
+                    int testM = info.coupling_mag[i] = Ogg.oggpack_read(ref opb, ilog((uint)vi.channels-1));
+                    int testA = info.coupling_ang[i] = Ogg.oggpack_read(ref opb, ilog((uint)vi.channels-1));
 
                     if (testM < 0 || testA < 0 || testM == testA || testM >= vi.channels || testA >= vi.channels)
                     {

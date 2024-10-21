@@ -182,15 +182,34 @@ namespace OggVorbisSharp
                                 goto _eofout;
                             }
 
-                            if (length > 32 || num > s.entries - i || num > 0 && ((num - 1) >> (length - 1)) > 1)
-                            {
-                                for (j = 0; j < num; j++, i++)
-                                {
-                                    s.lengthlist[i] = length;
-                                }
+                            // if (length > 32 || num > s.entries - i || num > 0 && ((num - 1) >> (length - 1)) > 1)
+                            // {
+                            //     for (j = 0; j < num; j++, i++)
+                            //     {
+                            //         s.lengthlist[i] = length;
+                            //     }
 
-                                length++;
+                            //     length++;
+                            // }
+
+                            //[Updated] https://github.com/xiph/vorbis/blob/84c023699cdf023a32fa4ded32019f194afcdad0/lib/codebook.c 
+                            //Line 207
+                            if (length > 32 || num > s.entries - i || (num > 0 && (num - 1) >> (length - 1) > 1))
+                            {
+                                goto _errout;
                             }
+
+                            if (length > 32)
+                            {
+                                goto _errout;
+                            }
+
+                            for (j = 0; j < num; j++, i++)
+                            {
+                                s.lengthlist[i] = length;
+                            }
+
+                            length++;
                         }
                     }
                     break;
