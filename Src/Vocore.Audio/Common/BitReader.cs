@@ -18,10 +18,33 @@ internal unsafe ref struct BitReader
 
     public bool ReadBitBool()
     {
-        return ReadBit(1) == 1u;
+        return ReadBitToUint(1) == 1u;
     }
 
-    public uint ReadBit(byte bits)
+    public ulong ReadBitToUlong(byte bits)
+    {
+        if (bits == 0)
+        {
+            return 0;
+        }
+
+        if (bits > 64 || bits < 0)
+        {
+            throw new ArgumentException("Bits must be between 0 and 64.");
+        }
+
+        ulong data = *(ulong*)p;
+        data >>= _bitOffset;
+        data &= (1ul << bits) - 1ul;
+
+        _bitOffset += bits;
+        p += _bitOffset / 8;
+        _bitOffset %= 8;
+
+        return data;
+    }
+
+    public uint ReadBitToUint(byte bits)
     {
         if (bits == 0)
         {
