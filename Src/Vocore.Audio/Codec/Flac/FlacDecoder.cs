@@ -15,14 +15,46 @@ internal unsafe static class FlacDecoder
             CheckMagic(ref p);
 
             FlacMetadataBlockHeader header = ReadMetadataBlockHeader(ref p);
-            Console.WriteLine(header);
-            if(header.Type != FlacMetadataType.StreamInfo)
+
+            if (header.Type != FlacMetadataType.StreamInfo)
             {
                 throw new Exception("StreamInfo not found in Flac file.");
             }
 
             FlacMetadataStreamInfo streamInfo = ReadMetadataStreamInfo(ref p);
-            Console.WriteLine(streamInfo);
+
+            //skip other metadata blocks
+            while (!header.IsLastMetadata)
+            {
+                header = ReadMetadataBlockHeader(ref p);
+                //check pointer overflow
+                if (p - ptr >= data.Length)
+                {
+                    throw new Exception("Invalid Flac file.");
+                }
+
+                p += header.Size;
+            }
+
+            // MemoryReader reader = new MemoryReader(ptr, (uint)data.Length);
+            // FlacMetadataBlockHeader header = reader.Peek<FlacMetadataBlockHeader>();
+            // reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
+            // if (header.Type != FlacMetadataType.StreamInfo)
+            // {
+            //     throw new Exception("StreamInfo not found in Flac file.");
+            // }
+
+            // FlacMetadataStreamInfo streamInfo = reader.Peek<FlacMetadataStreamInfo>();
+            // reader.SkipBytes(FlacMetadataStreamInfo.ChunckSize);
+
+            // //skip other metadata blocks
+            // while (!header.IsLastMetadata)
+            // {
+            //     header = reader.Peek<FlacMetadataBlockHeader>();
+            //     reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
+            // }
+
+
         }
         throw new NotImplementedException();
     }
