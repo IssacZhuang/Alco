@@ -1,6 +1,6 @@
 namespace Vocore.Audio;
 
-public enum WaveFormat : ushort
+internal enum WaveFormat : ushort
 {
     /// <summary>
     /// PCM format

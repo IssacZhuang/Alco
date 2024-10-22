@@ -5,7 +5,7 @@ namespace Vocore.Audio;
 
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-public unsafe struct WaveChunckRiff
+internal unsafe struct WaveChunckRiff
 {
     public static readonly byte[] ChunckName = Encoding.ASCII.GetBytes("RIFF");
     public static bool IsRiffChunk(byte* ptr)

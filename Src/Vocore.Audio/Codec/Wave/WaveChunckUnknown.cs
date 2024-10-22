@@ -4,7 +4,7 @@ namespace Vocore.Audio;
 
 
 [StructLayout(LayoutKind.Explicit)]
-public unsafe struct WaveChunckUnknown{
+internal unsafe struct WaveChunckUnknown{
     [FieldOffset(0)]
     public fixed byte Name[4];
 

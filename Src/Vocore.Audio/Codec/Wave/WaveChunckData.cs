@@ -4,7 +4,7 @@ using System.Text;
 namespace Vocore.Audio;
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-public unsafe struct WaveChunckData
+internal unsafe struct WaveChunckData
 {
     public static readonly byte[] ChunckName = Encoding.ASCII.GetBytes("data");
     public static bool IsDataChunk(byte* ptr)

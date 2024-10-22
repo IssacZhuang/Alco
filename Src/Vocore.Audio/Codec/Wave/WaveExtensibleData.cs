@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace Vocore.Audio;
 
 [StructLayout(LayoutKind.Explicit)]
-public unsafe struct WaveExtensionData
+internal unsafe struct WaveExtensionData
 {
     [FieldOffset(0)]
     public ushort Size;

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Vocore.Audio;
 
-public static unsafe class WaveDecoder
+internal static unsafe class WaveDecoder
 {
     private const float Inv128 = 1f / 128f;
     private const float Inv32768 = 1f / 32768f;

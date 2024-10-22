@@ -5,7 +5,7 @@ namespace Vocore.Audio;
 
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-public unsafe struct WaveChunckFmt
+internal unsafe struct WaveChunckFmt
 {
     public static readonly byte[] ChunckName = Encoding.ASCII.GetBytes("fmt ");
     public static bool IsFmtChunk(byte* ptr)
