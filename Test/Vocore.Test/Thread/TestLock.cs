@@ -58,6 +58,18 @@ public class TestLock
             }
         });
 
+        //.net 9 lock
+        Lock @lock = new Lock();
+        UtilsTest.Benchmark(".net 9 Lock single thread", () =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                using(@lock.EnterScope()){
+                    list.Add(i);
+                }
+            }
+        });
+
         //cas lock single thread
         UtilsTest.Benchmark("CAS Lock single thread", () =>
         {
@@ -90,6 +102,17 @@ public class TestLock
             {
                 lock (lockObject)
                 {
+                    list.Add(i);
+                }
+            });
+        });
+
+        // .net 9 lock multi thread
+        UtilsTest.Benchmark(".net 9 Lock multi thread", () =>
+        {
+            Parallel.For(0, count, (i) =>
+            {
+                using(@lock.EnterScope()){
                     list.Add(i);
                 }
             });
@@ -128,6 +151,17 @@ public class TestLock
             {
                 lock (lockObject)
                 {
+                    list.Add(i);
+                }
+            });
+        });
+
+        // .net 9 lock multi thread
+        UtilsTest.Benchmark(".net 9 Lock multi thread 2", () =>
+        {
+            scheduler.For(count, (i) =>
+            {
+                using(@lock.EnterScope()){
                     list.Add(i);
                 }
             });
