@@ -2,7 +2,7 @@ namespace Vocore.Audio;
 
 internal unsafe struct FlacMetadataStreamInfo
 {
-    public const uint ChunckSize = 34;
+    public const int ChunckSize = 34;
 
     public uint MinBlockSize;//16 bits
     public uint MaxBlockSize;//16 bits
@@ -14,21 +14,21 @@ internal unsafe struct FlacMetadataStreamInfo
     public ulong TotalSamples;//36 bits
     public fixed byte Md5Checksum[16];//128 bits
 
-    public FlacMetadataStreamInfo(byte* ptr)
+    public FlacMetadataStreamInfo(byte* p)
     {
-        BitReader reader = new BitReader(ptr);
-        MinBlockSize = reader.ReadBitToUint(16);
-        MaxBlockSize = reader.ReadBitToUint(16);
-        MinFrameSize = reader.ReadBitToUint(24);
-        MaxFrameSize = reader.ReadBitToUint(24);
-        SampleRate = reader.ReadBitToUint(20);
-        Channels = reader.ReadBitToUint(3);
-        BitsPerSample = reader.ReadBitToUint(5);
-        TotalSamples = reader.ReadBitToUlong(36);
-        ptr += 18;
+        BitReader reader = new BitReader(p);
+        MinBlockSize = reader.ReadBitsToUint(16);
+        MaxBlockSize = reader.ReadBitsToUint(16);
+        MinFrameSize = reader.ReadBitsToUint(24);
+        MaxFrameSize = reader.ReadBitsToUint(24);
+        SampleRate = reader.ReadBitsToUint(20);
+        Channels = reader.ReadBitsToUint(3) + 1;
+        BitsPerSample = reader.ReadBitsToUint(5) + 1;
+        TotalSamples = reader.ReadBitsToUlong(36);
+        p += 18;
         for (int i = 0; i < 16; i++)
         {
-            Md5Checksum[i] = *ptr++;
+            Md5Checksum[i] = *p++;
         }
     }
 

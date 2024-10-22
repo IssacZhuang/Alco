@@ -151,8 +151,9 @@ public unsafe static class UtilsAudioDecode
 
     public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data)
     {
-        float[] buffer = DecodeFlac(data, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
+        float* buffer = FlacDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+        AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+        Marshal.FreeHGlobal((IntPtr)buffer);
         return clip;
     }
 

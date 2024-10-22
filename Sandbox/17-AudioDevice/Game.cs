@@ -96,6 +96,15 @@ public class Game : GameEngine
             });
         }
 
+        if (DebugGUI.Button("play Song.flac"))
+        {
+            Assets.LoadAsync<AudioClip>("Song.flac", (asset, e) =>
+            {
+                _source.AudioClip = asset;
+                _source.Play();
+            });
+        }
+
         bool isLooping = _source.IsLooping;
         if(DebugGUI.CheckBoxWithText("Is Looping", ref isLooping))
         {
