@@ -104,4 +104,127 @@ internal unsafe ref struct BitReader
 
         _position += tmp >> 3;
     }
+
+    public bool ReadUTF8_64(out ulong result)
+    {
+        uint x = ReadBitsToUint(8);
+        ulong v;
+        int i;
+
+        if ((x & 0x80) == 0)
+        {
+            v = x;
+            i = 0;
+        }
+        else if ((x & 0xC0) != 0 && (x & 0x20) == 0)
+        {
+            v = x & 0x1F;
+            i = 1;
+        }
+        else if ((x & 0xE0) != 0 && (x & 0x10) == 0) /* 1110xxxx */
+        {
+            v = x & 0x0F;
+            i = 2;
+        }
+        else if ((x & 0xF0) != 0 && (x & 0x08) == 0) /* 11110xxx */
+        {
+            v = x & 0x07;
+            i = 3;
+        }
+        else if ((x & 0xF8) != 0 && (x & 0x04) == 0) /* 111110xx */
+        {
+            v = x & 0x03;
+            i = 4;
+        }
+        else if ((x & 0xFC) != 0 && (x & 0x02) == 0) /* 1111110x */
+        {
+            v = x & 0x01;
+            i = 5;
+        }
+        else if ((x & 0xFE) != 0 && (x & 0x01) == 0)
+        {
+            v = 0;
+            i = 6;
+        }
+        else
+        {
+            result = ulong.MaxValue;
+            return false;
+        }
+
+        for (; i != 0; i--)
+        {
+            x = ReadBitsToUint(8);
+            if ((x & 0xC0) != 0x80)
+            {
+                result = ulong.MaxValue;
+                return false;
+            }
+
+            v <<= 6;
+            v |= (x & 0x3F);
+        }
+
+        result = v;
+        return true;
+    }
+
+    public bool ReadUTF8_32(out uint result)
+    {
+        uint v, x;
+        int i;
+
+        x = ReadBitsToUint(8);
+        if ((x & 0x80) == 0)
+        {
+            v = x;
+            i = 0;
+        }
+        else if ((x & 0xC0) != 0 && (x & 0x20) == 0)
+        {
+            v = x & 0x1F;
+            i = 1;
+        }
+        else if ((x & 0xE0) != 0 && (x & 0x10) == 0) /* 1110xxxx */
+        {
+            v = x & 0x0F;
+            i = 2;
+        }
+        else if ((x & 0xF0) != 0 && (x & 0x08) == 0) /* 11110xxx */
+        {
+            v = x & 0x07;
+            i = 3;
+        }
+        else if ((x & 0xF8) != 0 && (x & 0x04) == 0) /* 111110xx */
+        {
+            v = x & 0x03;
+            i = 4;
+        }
+        else if ((x & 0xFC) != 0 && (x & 0x02) == 0) /* 1111110x */
+        {
+            v = x & 0x01;
+            i = 5;
+        }
+        else
+        {
+            result = uint.MaxValue;
+            return false;
+        }
+
+        for (; i != 0; i--)
+        {
+            x = ReadBitsToUint(8);
+            if ((x & 0xC0) != 0x80)
+            {
+                result = uint.MaxValue;
+                return false;
+            }
+
+            v <<= 6;
+            v |= (x & 0x3F);
+        }
+
+        result = v;
+        return true;
+    }
 }

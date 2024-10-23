@@ -14,47 +14,27 @@ internal unsafe static class FlacDecoder
 
             CheckMagic(ref p);
 
-            FlacMetadataBlockHeader header = ReadMetadataBlockHeader(ref p);
-
+            MemoryReader reader = new MemoryReader(p, (uint)data.Length);
+            FlacMetadataBlockHeader header = new FlacMetadataBlockHeader(reader.CurrentPointer);
+            reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
             if (header.Type != FlacMetadataType.StreamInfo)
             {
                 throw new Exception("StreamInfo not found in Flac file.");
             }
 
-            FlacMetadataStreamInfo streamInfo = ReadMetadataStreamInfo(ref p);
+            FlacMetadataStreamInfo streamInfo = new FlacMetadataStreamInfo(reader.CurrentPointer);
+            reader.SkipBytes(FlacMetadataStreamInfo.ChunckSize);
 
             //skip other metadata blocks
             while (!header.IsLastMetadata)
             {
-                header = ReadMetadataBlockHeader(ref p);
-                //check pointer overflow
-                if (p - ptr >= data.Length)
-                {
-                    throw new Exception("Invalid Flac file.");
-                }
+                header = new FlacMetadataBlockHeader(reader.CurrentPointer);
 
-                p += header.Size;
+                reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
+                reader.SkipBytes(header.Size);
             }
 
-            // MemoryReader reader = new MemoryReader(ptr, (uint)data.Length);
-            // FlacMetadataBlockHeader header = reader.Peek<FlacMetadataBlockHeader>();
-            // reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
-            // if (header.Type != FlacMetadataType.StreamInfo)
-            // {
-            //     throw new Exception("StreamInfo not found in Flac file.");
-            // }
-
-            // FlacMetadataStreamInfo streamInfo = reader.Peek<FlacMetadataStreamInfo>();
-            // reader.SkipBytes(FlacMetadataStreamInfo.ChunckSize);
-
-            // //skip other metadata blocks
-            // while (!header.IsLastMetadata)
-            // {
-            //     header = reader.Peek<FlacMetadataBlockHeader>();
-            //     reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
-            // }
-
-
+            FlacFrameHeader frameHeader = new FlacFrameHeader(reader.CurrentPointer, streamInfo);
         }
         throw new NotImplementedException();
     }
@@ -70,21 +50,6 @@ internal unsafe static class FlacDecoder
             }
         }
         p += 4;
-
-        // Skip the metadata block until we reach the audio data
     }
 
-    private static FlacMetadataBlockHeader ReadMetadataBlockHeader(ref byte* p)
-    {
-        FlacMetadataBlockHeader header = new FlacMetadataBlockHeader(p);
-        p += FlacMetadataBlockHeader.ChunkSize;
-        return header;
-    }
-
-    private static FlacMetadataStreamInfo ReadMetadataStreamInfo(ref byte* p)
-    {
-        FlacMetadataStreamInfo streamInfo = new FlacMetadataStreamInfo(p);
-        p += FlacMetadataStreamInfo.ChunckSize;
-        return streamInfo;
-    }
 }

@@ -10,6 +10,13 @@ internal unsafe struct MemoryReader
 
     private byte* _p;
 
+
+    public readonly byte* CurrentPointer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _p;
+    }
+
     public MemoryReader(byte* buffer, uint size)
     {
         _buffer = buffer;
