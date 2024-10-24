@@ -9,6 +9,8 @@ internal unsafe ref struct BitReader
     private uint _cache;
     private int _position;
 
+    public readonly int Position => _position;
+
     public BitReader(byte* buffer)
     {
         _p = _storedBuffer = buffer;
@@ -105,7 +107,7 @@ internal unsafe ref struct BitReader
         _position += tmp >> 3;
     }
 
-    public bool ReadUTF8_64(out ulong result)
+    public bool ReadUTF8toULong(out ulong result)
     {
         uint x = ReadBitsToUint(8);
         ulong v;
@@ -169,7 +171,7 @@ internal unsafe ref struct BitReader
         return true;
     }
 
-    public bool ReadUTF8_32(out uint result)
+    public bool ReadUTF8ToUint(out uint result)
     {
         uint v, x;
         int i;

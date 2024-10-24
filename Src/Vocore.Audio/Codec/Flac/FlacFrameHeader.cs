@@ -24,17 +24,16 @@ internal unsafe struct FlacFrameHeader
             4096, 8192, 16384
         ];
 
-    public uint SyncCode;//14 bits
-    public uint Reserved;//1 bit
-    public uint BlockingStrategy;//1 bit
-    public int BlockSize;//4 bits
-    public uint SampleRate;//4 bits
-    public FlacChannelAssignment ChannelAssignment;//4 bits
-    public uint Channels;// calculated from ChannelAssignment
-    public uint BitsPerSample;//3 bits
-    public int Reserved2;//1 bit
-    public int FrameNumber;//8 bits
-    public uint CRC8;//8 bits
+    public uint SyncCode;
+    public uint Reserved;
+    public FlacBlockingStrategy BlockingStrategy;
+    public int BlockSize;
+    public uint SampleRate;
+    public FlacChannelAssignment ChannelAssignment;
+    public uint Channels;
+    public uint BitsPerSample;
+    public byte CRC8;
+    public ulong SampleNumber;
 
     public FlacFrameHeader(byte* p, FlacMetadataStreamInfo streamInfo)
     {
@@ -45,7 +44,7 @@ internal unsafe struct FlacFrameHeader
             throw new Exception($"Invalid frame sync code: {SyncCode.ToString("B")}");
         }
         Reserved = reader.ReadBitsToUint(1);
-        BlockingStrategy = reader.ReadBitsToUint(1);
+        BlockingStrategy = (FlacBlockingStrategy)reader.ReadBitsToUint(1);
 
         //Block size
         int val = p[2] >> 4;
@@ -130,9 +129,75 @@ internal unsafe struct FlacFrameHeader
             BitsPerSample = BitPerSampleTable[val];
         }
 
-        reader.ReadBitsToUint(32);//skip 
+        reader.ReadBitsToUint(16);//skip 
 
-        
 
+        //sample number
+        if (BlockingStrategy == FlacBlockingStrategy.VariableBlockSize ||
+         streamInfo.MinBlockSize != streamInfo.MaxBlockSize
+        )
+        {
+            if (reader.ReadUTF8toULong(out ulong result))
+            {
+                SampleNumber = result;
+            }
+            else
+            {
+                throw new Exception("Failed to read utf8 64-bits sample number.");
+            }
+        }
+        else
+        {
+            if (reader.ReadUTF8ToUint(out uint result))
+            {
+                SampleNumber = result;
+            }
+            else
+            {
+                throw new Exception("Failed to read utf8 32-bits sample number.");
+            }
+        }
+
+        //read uncommon block size
+        if (uncommonBlockSizeCode > 0)
+        {
+            val = (int)reader.ReadBitsToUint(8);
+            if (uncommonBlockSizeCode == 7)
+            {
+                val = (val << 8) | (int)reader.ReadBitsToUint(8);
+            }
+            BlockSize = val + 1;
+        }
+
+        //read uncommon sample rate
+        if (uncommonSampleRateCode > 0)
+        {
+            val = (int)reader.ReadBitsToUint(8);
+            if (uncommonSampleRateCode != 12)
+            {
+                val = (val << 8) | (int)reader.ReadBitsToUint(8);
+            }
+
+            if (uncommonSampleRateCode == 12)
+            {
+                SampleRate = (uint)val * 1000;
+            }
+            else if (uncommonSampleRateCode == 13)
+            {
+                SampleRate = (uint)val;
+            }
+            else
+            {
+                SampleRate = (uint)val * 10;
+            }
+        }
+
+        byte crcValue = UtilsCheck.CalcCheckSum(p, 0, reader.Position);
+        CRC8 = (byte)reader.ReadBitsToUint(8);
+
+        if (crcValue != CRC8)
+        {
+            throw new Exception("Invalid frame crc8");
+        }
     }
 }
