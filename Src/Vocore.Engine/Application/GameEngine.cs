@@ -397,6 +397,7 @@ public partial class GameEngine : IDisposable
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
         GraphicsDevice.Dispose();
+        AudioDevice.Dispose();
         MainWindow.Close();
         Assets.Dispose();
         _platform.Dispose();
