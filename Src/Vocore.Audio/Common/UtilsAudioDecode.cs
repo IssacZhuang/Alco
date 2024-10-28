@@ -3,12 +3,6 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
-using static OggVorbisSharp.VorbisFile;
-
-using NVorbis;
-using OggVorbisSharp;
-using static OggVorbisSharp.Vorbis;
-
 using static StbVorbisSharp.StbVorbis;
 using Vocore.Unsafe;
 
