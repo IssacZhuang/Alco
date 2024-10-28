@@ -24,15 +24,19 @@ internal unsafe struct FlacFrameHeader
             4096, 8192, 16384
         ];
 
-    public uint SyncCode;
-    public uint Reserved;
-    public FlacBlockingStrategy BlockingStrategy;
-    public int BlockSize;
-    public uint SampleRate;
-    public FlacChannelAssignment ChannelAssignment;
-    public uint Channels;
-    public uint BitsPerSample;
-    public byte CRC8;
+    public const int ChunkSize = 16;
+
+    public uint SyncCode;//14 bits
+    public uint Reserved;//1 bit
+    public FlacBlockingStrategy BlockingStrategy;//1 bit
+    public int BlockSize;//4 bits
+    public uint SampleRate;//4 bits
+    public FlacChannelAssignment ChannelAssignment;//4 bits
+    public uint Channels;// calculated from ChannelAssignment
+    public uint BitsPerSample;//3 bits
+    //public int Reserved2;//1 bit
+    public uint FrameNumber;//8 bits
+    public byte CRC8;//8 bits
     public ulong SampleNumber;
 
     public FlacFrameHeader(byte* p, FlacMetadataStreamInfo streamInfo)
@@ -150,7 +154,7 @@ internal unsafe struct FlacFrameHeader
         {
             if (reader.ReadUTF8ToUint(out uint result))
             {
-                SampleNumber = result;
+                FrameNumber = result;
             }
             else
             {

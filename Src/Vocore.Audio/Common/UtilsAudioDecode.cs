@@ -10,6 +10,7 @@ using OggVorbisSharp;
 using static OggVorbisSharp.Vorbis;
 
 using static StbVorbisSharp.StbVorbis;
+using Vocore.Unsafe;
 
 namespace Vocore.Audio;
 
@@ -137,9 +138,16 @@ public unsafe static class UtilsAudioDecode
     public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         float* buffer = WaveDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
-        Marshal.FreeHGlobal((IntPtr)buffer);
-        return clip;
+        try
+        {
+            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+            return clip;
+        }
+        finally
+        {
+            UtilsMemory.Free(buffer);
+        }
+
     }
 
     public static AudioClip CreateAudioClipFromAiff(this AudioDevice device, ReadOnlySpan<byte> data)

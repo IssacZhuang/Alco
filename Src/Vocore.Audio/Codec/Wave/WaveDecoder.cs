@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Vocore.Unsafe;
 
 namespace Vocore.Audio;
 
@@ -61,7 +62,7 @@ internal static unsafe class WaveDecoder
             ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData, out WaveFormat format);
 
             sampleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
-            float* result = (float*)Marshal.AllocHGlobal(sampleCount * sizeof(float));
+            float* result = (float*)UtilsMemory.Alloc(sampleCount * sizeof(float));
             Span<float> resultSpan = new(result, sampleCount);
 
             DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, format, chunckFmt.BitsPerSample);
