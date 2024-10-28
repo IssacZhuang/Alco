@@ -10,7 +10,6 @@ namespace Vocore
     public unsafe struct NativeArrayList<T> : IDisposable where T : unmanaged
     {
         private const int DefaultSize = 4;
-        private static readonly int _stride = UtilsMemory.SizeOf<T>();
         private void* _ptrBuffer;
         private int _length;
         private int _capacity;
@@ -41,7 +40,7 @@ namespace Vocore
             get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
         }
 
-        public int Stride => _stride;
+        public int Stride => sizeof(T);
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
 
@@ -85,7 +84,7 @@ namespace Vocore
         public NativeArrayList(int size)
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
-            _ptrBuffer = UtilsMemory.Alloc(_stride * size);
+            _ptrBuffer = UtilsMemory.Alloc(sizeof(T) * size);
             _length = 0;
             _capacity = size;
             _isDisposed = false;
@@ -95,7 +94,7 @@ namespace Vocore
         public NativeArrayList(int size, bool autoCompress)
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
-            _ptrBuffer = UtilsMemory.Alloc(_stride * size);
+            _ptrBuffer = UtilsMemory.Alloc(sizeof(T) * size);
             _length = 0;
             _capacity = size;
             _isDisposed = false;
@@ -113,7 +112,7 @@ namespace Vocore
         {
             if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
             EnsureSize(_length + 1);
-            UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, _stride * (_length - index));
+            UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, sizeof(T) * (_length - index));
             _length++;
             this[index] = value;
         }
@@ -134,7 +133,7 @@ namespace Vocore
         public void RemoveAt(int index)
         {
             if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
-            UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, _stride * (_length - index - 1));
+            UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, sizeof(T) * (_length - index - 1));
             EnsureSize(_length - 1);
             _length--;
         }
@@ -182,11 +181,11 @@ namespace Vocore
         {
             if (size < DefaultSize) size = DefaultSize;
 
-            void* tmpPtr = UtilsMemory.Alloc(_stride * size);
+            void* tmpPtr = UtilsMemory.Alloc(sizeof(T) * size);
 
             if (_ptrBuffer != null)
             {
-                UtilsMemory.MemCopy(_ptrBuffer, tmpPtr, _stride * _length);
+                UtilsMemory.MemCopy(_ptrBuffer, tmpPtr, sizeof(T) * _length);
                 UtilsMemory.Free(_ptrBuffer);
             }
 

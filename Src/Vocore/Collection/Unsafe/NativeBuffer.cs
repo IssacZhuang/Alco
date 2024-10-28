@@ -10,7 +10,6 @@ namespace Vocore
         private void* _ptrBuffer;
         private int _length;
         private bool _isDisposed;
-        private static readonly int _stride = UtilsMemory.SizeOf<T>();
 
         public int Length
         {
@@ -27,7 +26,7 @@ namespace Vocore
         public int Stride
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _stride;
+            get => sizeof(T);
         }
         public bool IsDisposed
         {
@@ -78,7 +77,7 @@ namespace Vocore
         public NativeBuffer(int size)
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
-            _ptrBuffer = UtilsMemory.Alloc(size * _stride);
+            _ptrBuffer = UtilsMemory.Alloc(size * sizeof(T));
             _length = size;
             _isDisposed = false;
         }
@@ -100,7 +99,7 @@ namespace Vocore
             if (size <= 0) throw new EmptySizeException(nameof(size));
             if (size <= _length) return;
             FreeMemory();
-            _ptrBuffer = UtilsMemory.Alloc(size * _stride);
+            _ptrBuffer = UtilsMemory.Alloc(size * sizeof(T));
             _length = size;
         }
 
@@ -115,9 +114,9 @@ namespace Vocore
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
             if (size == _length) return;
-            void* ptr = UtilsMemory.Alloc(size * _stride);
+            void* ptr = UtilsMemory.Alloc(size * sizeof(T));
             int min = Math.Min(size, _length);
-            UtilsMemory.MemCopy(_ptrBuffer, ptr, min * _stride);
+            UtilsMemory.MemCopy(_ptrBuffer, ptr, min * sizeof(T));
             FreeMemory();
             _ptrBuffer = ptr;
             _length = size;

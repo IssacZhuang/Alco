@@ -7,6 +7,10 @@ namespace Vocore.Unsafe
 {
     public static unsafe class UtilsMemory
     {
+        /// <summary>
+        /// Allocates memory with the specified size.
+        /// </summary>
+        /// <param name="size">The size of the memory to allocate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Alloc(int size)
         {
@@ -19,6 +23,13 @@ namespace Vocore.Unsafe
 #endif
         }
 
+        /// <summary>
+        /// Allocates memory with the sizeof(T) * count size.
+        /// </summary>
+        /// <param name="count">The count of the value to allocate.</param>
+        /// <typeparam name="T">The type of the value.</typeparam>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T* Alloc<T>(int count) where T : unmanaged
         {
 #if DEBUG
@@ -30,6 +41,46 @@ namespace Vocore.Unsafe
 #endif
         }
 
+        /// <summary>
+        /// Reallocates memory with the specified size.
+        /// </summary>
+        /// <param name="ptr">The pointer to the memory.</param>
+        /// <param name="size">The size of the memory to allocate.</param>
+        public static void* ReAlloc(void* ptr, int size)
+        {
+            if (ptr == null)
+            {
+                return Alloc(size);
+            }
+
+            Free(ptr);
+            return Alloc(size);
+        }
+
+        /// <summary>
+        /// Reallocates memory with the sizeof(T) * count size.
+        /// </summary>
+        /// <param name="ptr">The pointer to the memory.</param>
+        /// <param name="count">The count of the value to allocate.</param>
+        /// <typeparam name="T">The type of the value.</typeparam>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T* ReAlloc<T>(ref void* ptr, int count) where T : unmanaged
+        {
+            if(ptr == null)
+            {
+                return Alloc<T>(count);
+            }
+
+            Free(ptr);
+            return Alloc<T>(count);
+        }
+
+
+        /// <summary>
+        /// Frees the memory.
+        /// </summary>
+        /// <param name="ptr">The pointer to the memory.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Free(void* ptr)
         {
@@ -39,6 +90,10 @@ namespace Vocore.Unsafe
             Marshal.FreeHGlobal((IntPtr)ptr);
         }
 
+        /// <summary>
+        /// Frees the memory.
+        /// </summary>
+        /// <param name="ptr">The pointer to the memory.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Free(IntPtr ptr)
         {
@@ -80,40 +135,17 @@ namespace Vocore.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf(Type type)
-        {
-            return Marshal.SizeOf(type);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>() where T : unmanaged
-        {
-            return sizeof(T);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void MemCopy(void* src, void* dest, long size)
         {
-            Buffer.MemoryCopy(src, dest, size, size);
+            System.Runtime.CompilerServices.Unsafe.CopyBlock(dest, src, (uint)size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T ReadStruct<T>(IntPtr ptr) where T : unmanaged
+        public static void MemCopy(void* src, void* dest, uint size)
         {
-            return Marshal.PtrToStructure<T>(ptr);
+            System.Runtime.CompilerServices.Unsafe.CopyBlock(dest, src, size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static void WriteArrayElement<T>(void* destination, int index, T value) where T : unmanaged
-        {
-            *(T*)((byte*)destination + (long)index * (long)sizeof(T)) = value;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static T ReadArrayElement<T>(void* source, int index) where T : unmanaged
-        {
-            return *(T*)((byte*)source + (long)index * (long)sizeof(T));
-        }
     }
 }
 
