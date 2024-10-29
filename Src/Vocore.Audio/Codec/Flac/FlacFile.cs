@@ -56,9 +56,21 @@ internal unsafe struct FlacFile : IDisposable
 
     public int ReadSamples(Span<float> output)
     {
-        //FlacFrameHeader frameHeader = new FlacFrameHeader(reader.CurrentPointer, streamInfo);
-    
-        throw new NotImplementedException();
+        if (_currentFrameHeader == null || _currentFrameIndex >= _currentFrameHeader.Value.BlockSize)
+        {
+            ReadFrame();
+        }
+
+        int blockSize = _currentFrameHeader!.Value.BlockSize;
+
+        int samplesToRead = Math.Min(output.Length, blockSize - _currentFrameIndex);
+        for (int i = 0; i < samplesToRead; i++)
+        {
+            output[i] = _data[_dataIndex - blockSize + _currentFrameIndex + i];
+        }
+
+        _currentFrameIndex += samplesToRead;
+        return samplesToRead;
     }
 
     private void ReadFrame()
@@ -67,13 +79,15 @@ internal unsafe struct FlacFile : IDisposable
         _reader.SkipBytes(FlacFrameHeader.ChunkSize);
 
         _currentFrameHeader = frameHeader;
-        Span<float> output = new Span<float>(_data + _dataIndex, frameHeader.BlockSize);
-        _dataIndex += frameHeader.BlockSize;
-
         int bufferSize = (int)frameHeader.Channels * frameHeader.BlockSize;
+
+        Span<float> output = new Span<float>(_data + _dataIndex, bufferSize);
+        _dataIndex += bufferSize;
 
         _dataBuffer.EnsureSizeWithoutCopy(bufferSize);
         _residualBuffer.EnsureSizeWithoutCopy(bufferSize);
+
+        BitReader reader = new BitReader(_reader.CurrentPointer);
 
         for (int i = 0; i < frameHeader.Channels; i++)
         {
@@ -90,14 +104,26 @@ internal unsafe struct FlacFile : IDisposable
                 bitsPerSample += 1 - i;
             }
 
-            DecodeSubframe(frameHeader, buffer, residual, output, bitsPerSample);
-
+            DecodeSubframe(ref reader, frameHeader, buffer, residual, output, bitsPerSample);
         }
+
+
+        short crc16 = (short)reader.ReadBitsToUint(16);
+        //TODO: check crc16
+        _reader.SkipBytes((uint)reader.Position);
+
+        Span<nint> buffers = stackalloc nint[(int)frameHeader.Channels];
+        for (int i = 0; i < frameHeader.Channels; i++)
+        {
+            buffers[i] = (nint)_dataBuffer.UnsafePointer + i * frameHeader.BlockSize;
+        }
+        MapToChannels(buffers, frameHeader);
+        SetOutputInterleaved(output, buffers, (int)frameHeader.BitsPerSample, frameHeader.BlockSize, (int)frameHeader.Channels);
     }
 
-    private void DecodeSubframe(FlacFrameHeader frameHeader, Span<int> buffer, Span<int> residual, Span<float> output, int bitsPerSample)
+    private void DecodeSubframe(ref BitReader reader, FlacFrameHeader frameHeader, Span<int> buffer, Span<int> residual, Span<float> output, int bitsPerSample)
     {
-        BitReader reader = new BitReader(_reader.CurrentPointer);
+        //BitReader reader = new BitReader(_reader.CurrentPointer);
         uint firstByte = reader.ReadBitsToUint(8);
         if ((firstByte & 0x80) != 0)
         {
@@ -138,11 +164,93 @@ internal unsafe struct FlacFile : IDisposable
         {
             throw new Exception("Invalid subframe type.");
         }
+    }
 
-        short crc16 = (short)reader.ReadBitsToUint(16);
-        //TODO: check crc16
-        _reader.SkipBytes((uint)reader.Position);
+    private unsafe static void MapToChannels(Span<nint> buffers, FlacFrameHeader header)
+    {
+        int* pBuffer0 = (int*)buffers[0];
+        int* pBuffer1 = (int*)buffers[1];
+        if (header.ChannelAssignment == FlacChannelAssignment.LeftSide)
+        {
+            for (int i = 0; i < header.BlockSize; i++)
+            {
+                pBuffer1[i] = pBuffer0[i] - pBuffer1[i];
+            }
+        }
+        else if (header.ChannelAssignment == FlacChannelAssignment.RightSide)
+        {
+            for (int i = 0; i < header.BlockSize; i++)
+            {
+                pBuffer0[i] += pBuffer1[i];
+            }
+        }
+        else if (header.ChannelAssignment == FlacChannelAssignment.MidSide)
+        {
+            for (int i = 0; i < header.BlockSize; i++)
+            {
+                int mid = pBuffer0[i] << 1;
+                int side = pBuffer1[i];
 
+                mid |= (side & 1);
+
+                pBuffer0[i] = (mid + side) >> 1;
+                pBuffer1[i] = (mid - side) >> 1;
+            }
+        }
+    }
+
+    private unsafe static void SetOutputInterleaved(Span<float> output, Span<nint> buffer, int bitsPerSample, int blockSize, int channels)
+    {
+
+        fixed (float* pOutput = output)
+        {
+            float* ptr = pOutput;
+            switch (bitsPerSample)
+            {
+                case 8:
+                    float inv128 = 1.0f / 128.0f;
+                    for (int i = 0; i < blockSize; i++)
+                    {
+                        for (int j = 0; j < channels; j++)
+                        {
+                            *ptr++ = ((int*)buffer[j])[i] * inv128;
+                        }
+                    }
+                    break;
+                case 16:
+                    float inv32768 = 1.0f / 32768.0f;
+                    for (int i = 0; i < blockSize; i++)
+                    {
+                        for (int j = 0; j < channels; j++)
+                        {
+                            *ptr++ = ((int*)buffer[j])[i] * inv32768;
+                        }
+                    }
+                    break;
+                case 24:
+                    float inv8388608 = 1.0f / 8388608.0f;
+                    for (int i = 0; i < blockSize; i++)
+                    {
+                        for (int j = 0; j < channels; j++)
+                        {
+                            *ptr++ = ((int*)buffer[j])[i] * inv8388608;
+                        }
+                    }
+                    break;
+                case 32:
+                    float inv2147483648 = 1.0f / 2147483648.0f;
+                    for (int i = 0; i < blockSize; i++)
+                    {
+                        for (int j = 0; j < channels; j++)
+                        {
+                            *ptr++ = ((int*)buffer[j])[i] * inv2147483648;
+                        }
+                    }
+                    break;
+                default:
+                    throw new Exception("Invalid bits per sample: " + bitsPerSample);
+            }
+        }
     }
 
     public void Dispose()
