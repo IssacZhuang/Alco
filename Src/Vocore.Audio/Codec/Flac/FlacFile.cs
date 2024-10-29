@@ -52,6 +52,8 @@ internal unsafe struct FlacFile : IDisposable
             reader.SkipBytes(FlacMetadataBlockHeader.ChunkSize);
             reader.SkipBytes(header.Size);
         }
+
+        _reader = reader;
     }
 
     public int ReadSamples(Span<float> output)
