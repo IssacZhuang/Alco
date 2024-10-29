@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vocore.Audio;
 
 internal unsafe ref struct BitReader
@@ -20,6 +22,12 @@ internal unsafe ref struct BitReader
     private int _bitOffset;
     private uint _cache;
     private int _position;
+
+    public readonly uint Cache
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _cache;
+    }
 
     public readonly int Position => _position;
 
@@ -105,7 +113,7 @@ internal unsafe ref struct BitReader
         }
     }
 
-    private void SeekBits(int bits)
+    public void SeekBits(int bits)
     {
         if (bits <= 0)
             throw new ArgumentOutOfRangeException("bits");
@@ -257,5 +265,11 @@ internal unsafe ref struct BitReader
         result += UnaryTable[unaryindicator];
         SeekBits((int)(result & 7) + 1);
         return result;
+    }
+
+    public int ReadUnarySigned()
+    {
+        uint value = ReadUnary();
+        return (int)(value >> 1 ^ -(int)(value & 1));
     }
 }

@@ -125,11 +125,13 @@ internal unsafe struct FlacFile : IDisposable
         }
         else if ((subframeType & 0x08) != 0)
         {
-            //DecodeSubframeFixed(ref reader, buffer, frameHeader.BlockSize, bitsPerSample);
+            int order = (int)(subframeType & 0x07);
+            if (order > 4) throw new Exception("Invalid prediction order.");
+            UtilsFlac.DecodeSubFrameFixed(ref reader, frameHeader, buffer, residual, order);
         }
         else if ((subframeType & 0x20) != 0)
         {
-            //DecodeSubframeLPC(ref reader, buffer, frameHeader.BlockSize, bitsPerSample);
+            int order = (int)(subframeType & 0x1F) + 1;
         }
         else
         {
