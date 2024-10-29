@@ -24,7 +24,7 @@ internal unsafe struct FlacFrameHeader
             4096, 8192, 16384
         ];
 
-    public const int ChunkSize = 16;
+    
 
     public uint SyncCode;//14 bits
     public uint Reserved;//1 bit
@@ -38,6 +38,7 @@ internal unsafe struct FlacFrameHeader
     public uint FrameNumber;//8 bits
     public byte CRC8;//8 bits
     public ulong SampleNumber;
+    public uint ChunkSize;
 
     public FlacFrameHeader(byte* p, FlacMetadataStreamInfo streamInfo)
     {
@@ -203,5 +204,7 @@ internal unsafe struct FlacFrameHeader
         {
             throw new Exception("Invalid frame crc8");
         }
+
+        ChunkSize = (uint)reader.Position;
     }
 }

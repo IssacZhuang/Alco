@@ -72,13 +72,16 @@ internal unsafe struct FlacFile : IDisposable
         }
 
         _currentFrameIndex += samplesToRead;
+        //tofix: the samplesToRead is 0 on second frame
         return samplesToRead;
     }
 
     private void ReadFrame()
     {
+        BitReader reader = new BitReader(_reader.CurrentPointer);
+
         FlacFrameHeader frameHeader = new FlacFrameHeader(_reader.CurrentPointer, _streamInfo);
-        _reader.SkipBytes(FlacFrameHeader.ChunkSize);
+        _reader.SkipBytes(frameHeader.ChunkSize);
 
         _currentFrameHeader = frameHeader;
         int bufferSize = (int)frameHeader.Channels * frameHeader.BlockSize;
@@ -89,7 +92,7 @@ internal unsafe struct FlacFile : IDisposable
         _dataBuffer.EnsureSizeWithoutCopy(bufferSize);
         _residualBuffer.EnsureSizeWithoutCopy(bufferSize);
 
-        BitReader reader = new BitReader(_reader.CurrentPointer);
+        reader = new BitReader(_reader.CurrentPointer);
 
         for (int i = 0; i < frameHeader.Channels; i++)
         {
