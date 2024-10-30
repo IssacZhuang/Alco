@@ -13,7 +13,7 @@ internal unsafe static class FlacDecoder
         {
             using FlacFile file = new FlacFile(ptr, (uint)data.Length);
             channel = (int)file.Channels;
-            sampleCount = (int)file.TotalSamples;
+            sampleCount = (int)file.TotalSamples * channel;
             sampleRate = (int)file.SampleRate;
 
             float* buffer = UtilsMemory.Alloc<float>(sampleCount);

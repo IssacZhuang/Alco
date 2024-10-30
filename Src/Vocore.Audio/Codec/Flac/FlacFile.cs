@@ -10,6 +10,7 @@ internal unsafe struct FlacFile : IDisposable
     private MemoryReader _reader;
     private readonly FlacMetadataStreamInfo _streamInfo;
     private readonly float* _data;
+    private readonly int _dataLength;
     private int _dataIndex = 0;
     private int _dataReadIndex = 0;
 
@@ -41,7 +42,8 @@ internal unsafe struct FlacFile : IDisposable
 
         _streamInfo = new FlacMetadataStreamInfo(reader.CurrentPointer);
 
-        _data = UtilsMemory.Alloc<float>((int)_streamInfo.TotalSamples);
+        _dataLength = (int)(_streamInfo.TotalSamples * _streamInfo.Channels);
+        _data = UtilsMemory.Alloc<float>(_dataLength);
 
         reader.SkipBytes(FlacMetadataStreamInfo.ChunckSize);
 
@@ -59,7 +61,7 @@ internal unsafe struct FlacFile : IDisposable
 
     public int ReadSamples(Span<float> output)
     {
-        if ((ulong)_dataIndex >= _streamInfo.TotalSamples && _dataReadIndex >= _dataIndex)
+        if (_dataIndex >= _dataLength && _dataReadIndex >= _dataIndex)
         {
             return 0;
         }
@@ -83,7 +85,6 @@ internal unsafe struct FlacFile : IDisposable
 
     private void ReadFrame()
     {
-        Log.Info("ReadFrame");
         BitReader bitReader = new BitReader(_reader.CurrentPointer);
 
         FlacFrameHeader frameHeader = new FlacFrameHeader(_reader.CurrentPointer, _streamInfo);
