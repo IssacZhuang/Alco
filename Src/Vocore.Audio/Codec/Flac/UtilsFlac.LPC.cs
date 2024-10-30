@@ -20,7 +20,7 @@ internal static partial class UtilsFlac
                 warmup[i] = pResidual[i] = reader.ReadBitsToInt(bitsPerSample);
             }
 
-            int coefPrecision = reader.ReadBitsToInt(4);
+            int coefPrecision = (int)reader.ReadBitsToUint(4);
             if (coefPrecision == 0x0F)
             {
                 throw new Exception("Invalid coefficient precision: 0x0F");
@@ -38,6 +38,12 @@ internal static partial class UtilsFlac
             for (int i = 0; i < order; i++)
             {
                 qlpCoeff[i] = reader.ReadBitsToInt(coefPrecision);
+            }
+
+            ProcessResidual(ref reader, header, residual, order);
+            for (int i = 0; i < order; i++)
+            {
+                pBuffer[i] = pResidual[i];
             }
 
             int* pResidual0 = pResidual + order;

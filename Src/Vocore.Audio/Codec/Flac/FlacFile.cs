@@ -11,12 +11,13 @@ internal unsafe struct FlacFile : IDisposable
     private readonly FlacMetadataStreamInfo _streamInfo;
     private readonly float* _data;
     private int _dataIndex = 0;
+    private int _dataReadIndex = 0;
 
-    private FlacFrameHeader? _currentFrameHeader;
+    private FlacFrameHeader _currentFrameHeader;
     private NativeBuffer<int> _dataBuffer;
     private NativeBuffer<int> _residualBuffer;
 
-    private int _currentFrameIndex = 0;
+
 
     public readonly uint Channels => _streamInfo.Channels;
     public readonly uint SampleRate => _streamInfo.SampleRate;
@@ -58,27 +59,32 @@ internal unsafe struct FlacFile : IDisposable
 
     public int ReadSamples(Span<float> output)
     {
-        if (_currentFrameHeader == null || _currentFrameIndex >= _currentFrameHeader.Value.BlockSize)
+        if ((ulong)_dataIndex >= _streamInfo.TotalSamples && _dataReadIndex >= _dataIndex)
+        {
+            return 0;
+        }
+
+        if (_dataReadIndex >= _dataIndex)
         {
             ReadFrame();
         }
 
-        int blockSize = _currentFrameHeader!.Value.BlockSize;
+        int blockSize = _currentFrameHeader.BlockSize;
 
-        int samplesToRead = Math.Min(output.Length, blockSize - _currentFrameIndex);
+        int samplesToRead = Math.Min(output.Length, _dataIndex - _dataReadIndex);
         for (int i = 0; i < samplesToRead; i++)
         {
-            output[i] = _data[_dataIndex - blockSize + _currentFrameIndex + i];
+            output[i] = _data[_dataReadIndex++];
         }
 
-        _currentFrameIndex += samplesToRead;
         //tofix: the samplesToRead is 0 on second frame
         return samplesToRead;
     }
 
     private void ReadFrame()
     {
-        BitReader reader = new BitReader(_reader.CurrentPointer);
+        Log.Info("ReadFrame");
+        BitReader bitReader = new BitReader(_reader.CurrentPointer);
 
         FlacFrameHeader frameHeader = new FlacFrameHeader(_reader.CurrentPointer, _streamInfo);
         _reader.SkipBytes(frameHeader.ChunkSize);
@@ -92,7 +98,7 @@ internal unsafe struct FlacFile : IDisposable
         _dataBuffer.EnsureSizeWithoutCopy(bufferSize);
         _residualBuffer.EnsureSizeWithoutCopy(bufferSize);
 
-        reader = new BitReader(_reader.CurrentPointer);
+        bitReader = new BitReader(_reader.CurrentPointer);
 
         for (int i = 0; i < frameHeader.Channels; i++)
         {
@@ -109,13 +115,14 @@ internal unsafe struct FlacFile : IDisposable
                 bitsPerSample += 1 - i;
             }
 
-            DecodeSubframe(ref reader, frameHeader, buffer, residual, output, bitsPerSample);
+            DecodeSubframe(ref bitReader, frameHeader, buffer, residual, bitsPerSample);
         }
 
+        bitReader.Flush();
 
-        short crc16 = (short)reader.ReadBitsToUint(16);
+        short crc16 = (short)bitReader.ReadBitsToUint(16);
         //TODO: check crc16
-        _reader.SkipBytes((uint)reader.Position);
+        _reader.SkipBytes((uint)bitReader.Position);
 
         Span<nint> buffers = stackalloc nint[(int)frameHeader.Channels];
         for (int i = 0; i < frameHeader.Channels; i++)
@@ -126,7 +133,7 @@ internal unsafe struct FlacFile : IDisposable
         SetOutputInterleaved(output, buffers, (int)frameHeader.BitsPerSample, frameHeader.BlockSize, (int)frameHeader.Channels);
     }
 
-    private void DecodeSubframe(ref BitReader reader, FlacFrameHeader frameHeader, Span<int> buffer, Span<int> residual, Span<float> output, int bitsPerSample)
+    private void DecodeSubframe(ref BitReader reader, FlacFrameHeader frameHeader, Span<int> buffer, Span<int> residual, int bitsPerSample)
     {
         //BitReader reader = new BitReader(_reader.CurrentPointer);
         uint firstByte = reader.ReadBitsToUint(8);
@@ -168,6 +175,14 @@ internal unsafe struct FlacFile : IDisposable
         else
         {
             throw new Exception("Invalid subframe type.");
+        }
+
+        if (hasWastedBits)
+        {
+            for (int i = 0; i < frameHeader.BlockSize; i++)
+            {
+                buffer[i] <<= wastedBits;
+            }
         }
     }
 

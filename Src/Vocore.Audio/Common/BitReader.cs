@@ -272,4 +272,11 @@ internal unsafe ref struct BitReader
         uint value = ReadUnary();
         return (int)(value >> 1 ^ -(int)(value & 1));
     }
+
+    public void Flush()
+    {
+        if (_bitOffset > 0 && _bitOffset <= 8){
+            SeekBits(8 - _bitOffset);
+        }
+    }
 }
