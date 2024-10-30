@@ -303,7 +303,7 @@ internal unsafe struct FlacFile : IDisposable
     //subframe decoders
     private static void DecodeSubframeConstant(ref BitReader reader, Span<int> buffer, int blockSize, int bitsPerSample)
     {
-        int value = reader.ReadBitsToInt(bitsPerSample);
+        int value = (int)reader.ReadBitsToUint(bitsPerSample);
         for (int i = 0; i < blockSize; i++)
         {
             buffer[i] = value;
@@ -317,7 +317,7 @@ internal unsafe struct FlacFile : IDisposable
         {
             for (int i = 0; i < blockSize; i++)
             {
-                int value = reader.ReadBitsToInt(bitsPerSample);
+                int value = (int)reader.ReadBitsToUint(bitsPerSample);
                 pBuffer[i] = value;
             }
         }
