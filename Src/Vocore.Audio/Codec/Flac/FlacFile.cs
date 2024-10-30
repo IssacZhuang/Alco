@@ -222,9 +222,11 @@ internal unsafe struct FlacFile : IDisposable
 
     private unsafe static void SetOutputInterleaved(Span<float> output, Span<nint> buffer, int bitsPerSample, int blockSize, int channels)
     {
-
+        fixed (nint* intPtrBuffer = buffer)
         fixed (float* pOutput = output)
         {
+            int** pBuffer = (int**)intPtrBuffer;
+
             float* ptr = pOutput;
             switch (bitsPerSample)
             {
@@ -234,7 +236,7 @@ internal unsafe struct FlacFile : IDisposable
                     {
                         for (int j = 0; j < channels; j++)
                         {
-                            *ptr++ = ((int*)buffer[j])[i] * inv128;
+                            *ptr++ = pBuffer[j][i] * inv128;
                         }
                     }
                     break;
@@ -244,7 +246,7 @@ internal unsafe struct FlacFile : IDisposable
                     {
                         for (int j = 0; j < channels; j++)
                         {
-                            *ptr++ = ((int*)buffer[j])[i] * inv32768;
+                            *ptr++ = pBuffer[j][i] * inv32768;
                         }
                     }
                     break;
@@ -254,7 +256,7 @@ internal unsafe struct FlacFile : IDisposable
                     {
                         for (int j = 0; j < channels; j++)
                         {
-                            *ptr++ = ((int*)buffer[j])[i] * inv8388608;
+                            *ptr++ = pBuffer[j][i] * inv8388608;
                         }
                     }
                     break;
@@ -264,7 +266,7 @@ internal unsafe struct FlacFile : IDisposable
                     {
                         for (int j = 0; j < channels; j++)
                         {
-                            *ptr++ = ((int*)buffer[j])[i] * inv2147483648;
+                            *ptr++ = pBuffer[j][i] * inv2147483648;
                         }
                     }
                     break;
