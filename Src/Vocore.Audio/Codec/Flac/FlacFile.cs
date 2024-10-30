@@ -162,13 +162,13 @@ internal unsafe struct FlacFile : IDisposable
         {
             DecodeSubframeVerbatim(ref reader, buffer, frameHeader.BlockSize, bitsPerSample);
         }
-        else if ((subframeType & 0x08) != 0)
+        else if ((subframeType & 0x08) != 0)//001000 = 0x08
         {
             int order = (int)(subframeType & 0x07);
             if (order > 4) throw new Exception("Invalid prediction order.");
             UtilsFlac.DecodeSubFrameFixed(ref reader, frameHeader, buffer, residual, bitsPerSample, order);
         }
-        else if ((subframeType & 0x20) != 0)
+        else if ((subframeType & 0x20) != 0)//100000 = 0x20
         {
             int order = (int)(subframeType & 0x1F) + 1;
             UtilsFlac.DecodeSubFrameLPC(ref reader, frameHeader, buffer, residual, bitsPerSample, order);
@@ -225,53 +225,29 @@ internal unsafe struct FlacFile : IDisposable
         fixed (nint* intPtrBuffer = buffer)
         fixed (float* pOutput = output)
         {
-            int** pBuffer = (int**)intPtrBuffer;
+            int** pBuffer = stackalloc int*[channels];
+            for (int i = 0; i < channels; i++)
+            {
+                pBuffer[i] = (int*)buffer[i];
+            }
 
             float* ptr = pOutput;
-            switch (bitsPerSample)
+            float scale = bitsPerSample switch
             {
-                case 8:
-                    float inv128 = 1.0f / 128.0f;
-                    for (int i = 0; i < blockSize; i++)
-                    {
-                        for (int j = 0; j < channels; j++)
-                        {
-                            *ptr++ = pBuffer[j][i] * inv128;
-                        }
-                    }
-                    break;
-                case 16:
-                    float inv32768 = 1.0f / 32768.0f;
-                    for (int i = 0; i < blockSize; i++)
-                    {
-                        for (int j = 0; j < channels; j++)
-                        {
-                            *ptr++ = pBuffer[j][i] * inv32768;
-                        }
-                    }
-                    break;
-                case 24:
-                    float inv8388608 = 1.0f / 8388608.0f;
-                    for (int i = 0; i < blockSize; i++)
-                    {
-                        for (int j = 0; j < channels; j++)
-                        {
-                            *ptr++ = pBuffer[j][i] * inv8388608;
-                        }
-                    }
-                    break;
-                case 32:
-                    float inv2147483648 = 1.0f / 2147483648.0f;
-                    for (int i = 0; i < blockSize; i++)
-                    {
-                        for (int j = 0; j < channels; j++)
-                        {
-                            *ptr++ = pBuffer[j][i] * inv2147483648;
-                        }
-                    }
-                    break;
-                default:
-                    throw new Exception("Invalid bits per sample: " + bitsPerSample);
+                8 => 1.0f / 128.0f,
+                16 => 1.0f / 32768.0f,
+                24 => 1.0f / 8388608.0f,
+                32 => 1.0f / 2147483648.0f,
+                _ => throw new Exception("Invalid bits per sample: " + bitsPerSample),
+            };
+
+
+            for (int i = 0; i < blockSize; i++)
+            {
+                for (int j = 0; j < channels; j++)
+                {
+                    *ptr++ = pBuffer[j][i] * scale;
+                }
             }
         }
     }
