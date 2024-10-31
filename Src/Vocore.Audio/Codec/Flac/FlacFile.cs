@@ -125,13 +125,14 @@ internal unsafe struct FlacFile : IDisposable
         //TODO: check crc16
         _reader.SkipBytes((uint)bitReader.Position);
 
-        Span<nint> buffers = stackalloc nint[(int)frameHeader.Channels];
+        int** pBuffers = stackalloc int*[(int)frameHeader.Channels];
         for (int i = 0; i < frameHeader.Channels; i++)
         {
-            buffers[i] = (nint)_dataBuffer.UnsafePointer + i * frameHeader.BlockSize;
+            pBuffers[i] = _dataBuffer.UnsafePointer + i * frameHeader.BlockSize;
         }
-        MapToChannels(buffers, frameHeader);
-        SetOutputInterleaved(output, buffers, (int)frameHeader.BitsPerSample, frameHeader.BlockSize, (int)frameHeader.Channels);
+        
+        MapToChannels(pBuffers, frameHeader);
+        SetOutputInterleaved(output, pBuffers, (int)frameHeader.BitsPerSample, frameHeader.BlockSize, (int)frameHeader.Channels);
     }
 
     private void DecodeSubframe(ref BitReader reader, FlacFrameHeader frameHeader, Span<int> buffer, Span<int> residual, int bitsPerSample)
@@ -187,12 +188,13 @@ internal unsafe struct FlacFile : IDisposable
         }
     }
 
-    private unsafe static void MapToChannels(Span<nint> buffers, FlacFrameHeader header)
+    private unsafe static void MapToChannels(int** pBuffers, FlacFrameHeader header)
     {
-        int* pBuffer0 = (int*)buffers[0];
-        int* pBuffer1 = (int*)buffers[1];
+        
         if (header.ChannelAssignment == FlacChannelAssignment.LeftSide)
         {
+            int* pBuffer0 = pBuffers[0];
+            int* pBuffer1 = pBuffers[1];
             for (int i = 0; i < header.BlockSize; i++)
             {
                 pBuffer1[i] = pBuffer0[i] - pBuffer1[i];
@@ -200,6 +202,8 @@ internal unsafe struct FlacFile : IDisposable
         }
         else if (header.ChannelAssignment == FlacChannelAssignment.RightSide)
         {
+            int* pBuffer0 = pBuffers[0];
+            int* pBuffer1 = pBuffers[1];
             for (int i = 0; i < header.BlockSize; i++)
             {
                 pBuffer0[i] += pBuffer1[i];
@@ -207,6 +211,8 @@ internal unsafe struct FlacFile : IDisposable
         }
         else if (header.ChannelAssignment == FlacChannelAssignment.MidSide)
         {
+            int* pBuffer0 = pBuffers[0];
+            int* pBuffer1 = pBuffers[1];
             for (int i = 0; i < header.BlockSize; i++)
             {
                 int mid = pBuffer0[i] << 1;
@@ -220,15 +226,14 @@ internal unsafe struct FlacFile : IDisposable
         }
     }
 
-    private unsafe static void SetOutputInterleaved(Span<float> output, Span<nint> buffer, int bitsPerSample, int blockSize, int channels)
+    private unsafe static void SetOutputInterleaved(Span<float> output, int** pBuffers, int bitsPerSample, int blockSize, int channels)
     {
-        fixed (nint* intPtrBuffer = buffer)
         fixed (float* pOutput = output)
         {
             int** pBuffer = stackalloc int*[channels];
             for (int i = 0; i < channels; i++)
             {
-                pBuffer[i] = (int*)buffer[i];
+                pBuffer[i] = pBuffers[i];
             }
 
             float* ptr = pOutput;
