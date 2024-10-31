@@ -131,15 +131,19 @@ public unsafe static class UtilsAudioDecode
 
     public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
     {
-        float* buffer = WaveDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+        float* buffer = null;
         try
         {
+            buffer = WaveDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
             AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
             return clip;
         }
         finally
         {
-            UtilsMemory.Free(buffer);
+            if (buffer != null)
+            {
+                UtilsMemory.Free(buffer);
+            }
         }
 
     }
@@ -153,10 +157,22 @@ public unsafe static class UtilsAudioDecode
 
     public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data)
     {
-        float* buffer = FlacDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
-        Marshal.FreeHGlobal((IntPtr)buffer);
-        return clip;
+        float* buffer = null;
+        try
+        {
+            buffer = FlacDecoder.DecodeFlacAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+            return clip;
+        }
+        finally
+        {
+            if (buffer != null)
+            {
+                UtilsMemory.Free(buffer);
+            }
+        }
+
+
     }
 
 
