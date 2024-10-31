@@ -28,13 +28,14 @@ internal unsafe static class FlacDecoder
                 }
                 offset += read;
             }
-            return buffer;
+            return buffer;//need to be freed outside
         }
-        //throw new NotImplementedException();
+
     }
 
     public static float[] DecodeToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
+        //for less GC
         fixed (byte* ptr = data)
         {
             using FlacFile file = new FlacFile(ptr, (uint)data.Length);

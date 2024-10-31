@@ -18,7 +18,7 @@ internal static unsafe class WaveDecoder
     /// <param name="channel">The channels of audio</param>
     /// <param name="sampleRate">The sample rate of audio</param>
     /// <returns></returns>
-    public static float[] DecodeWaveAudioToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
+    public static float[] DecodeToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
         if (data.Length < sizeof(WaveChunckRiff) + sizeof(WaveChunckFmt) + sizeof(WaveChunckData))
         {
@@ -42,6 +42,7 @@ internal static unsafe class WaveDecoder
         }
     }
 
+
     /// <summary>
     /// Decode wave audio data to float32 memory. The memory is not managed by the GC, so you need to free it manually.
     /// </summary>
@@ -49,7 +50,9 @@ internal static unsafe class WaveDecoder
     /// <param name="channel">The channels of audio</param>
     /// <param name="sampleRate">The sample rate of audio</param>
     /// <returns></returns>
-    public static float* DecodeWaveAudioToFloat32Unsafe(ReadOnlySpan<byte> data, out int channel, out int sampleCount, out int sampleRate){
+    public static float* DecodeFloat32Unsafe(ReadOnlySpan<byte> data, out int channel, out int sampleCount, out int sampleRate)
+    {
+        //for less GC
         if (data.Length < sizeof(WaveChunckRiff) + sizeof(WaveChunckFmt) + sizeof(WaveChunckData))
         {
             throw new ArgumentException("Invalid data length for wave audio decoding.");
@@ -69,7 +72,7 @@ internal static unsafe class WaveDecoder
 
             channel = chunckFmt.Channels;
             sampleRate = (int)chunckFmt.SampleRate;
-            return result;
+            return result; //need to be freed outside
         }
     }
 

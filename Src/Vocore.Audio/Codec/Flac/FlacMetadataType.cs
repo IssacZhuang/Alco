@@ -1,6 +1,6 @@
 namespace Vocore.Audio;
 
-public enum FlacMetadataType 
+internal enum FlacMetadataType 
 {
     StreamInfo = 0,
     Padding = 1,

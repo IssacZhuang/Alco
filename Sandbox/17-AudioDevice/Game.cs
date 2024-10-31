@@ -32,15 +32,15 @@ public class Game : GameEngine
             _source.Pitch = _pitch;
         }
 
-        if (DebugGUI.Button("play Sword.mp3"))
-        {
-            Assets.LoadAsync<AudioClip>("Sword.mp3", (asset, e) =>
-            {
+        // if (DebugGUI.Button("play Sword.mp3"))
+        // {
+        //     Assets.LoadAsync<AudioClip>("Sword.mp3", (asset, e) =>
+        //     {
 
-                _source.AudioClip = asset;
-                _source.Play();
-            });
-        }
+        //         _source.AudioClip = asset;
+        //         _source.Play();
+        //     });
+        // }
         
         if (DebugGUI.Button("play Shot.ogg"))
         {

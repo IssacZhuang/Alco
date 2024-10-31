@@ -32,50 +32,7 @@ public unsafe static class UtilsAudioDecode
     /// <param name="sampleRate">The sample rate of audio</param>
     public static float[] DecodeOgg(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        fixed (byte* ptr = data)
-        {
-            //stb vorbis
-            int error = 0;
-            stb_vorbis vorbis = stb_vorbis_open_memory(ptr, data.Length, &error);
-            if (vorbis == null)
-            {
-                throw new Exception("Error in stb vorbis open");
-            }
-
-            stb_vorbis_info info = stb_vorbis_get_info(vorbis);
-            channel = info.channels;
-            sampleRate = (int)info.sample_rate;
-
-            List<float> pcmData = new List<float>();
-
-            float* pcm = stackalloc float[4096];
-
-            while (true)
-            {
-                int samples = stb_vorbis_get_samples_float_interleaved(vorbis, channel, pcm, 4096);
-                if (samples == 0)
-                {
-                    break;
-                }
-                else if (samples < 0)
-                {
-                    throw new Exception("Error in decoding ogg");
-                }
-                else
-                {
-                    for (int i = 0; i < samples * channel; i++)
-                    {
-                        pcmData.Add(pcm[i]);
-                    }
-                }
-            }
-
-            stb_vorbis_close(vorbis);
-
-            float[] buffer = pcmData.ToArray();
-
-            return buffer;
-        }
+        return VorbisDecoder.DecodeToFloat32(data, out channel, out sampleRate);
     }
 
     // /// <summary>
@@ -100,21 +57,45 @@ public unsafe static class UtilsAudioDecode
     {
         fixed (byte* ptr = data)
         {
-            float[] buffer = WaveDecoder.DecodeWaveAudioToFloat32(data, out channel, out sampleRate);
+            float[] buffer = WaveDecoder.DecodeToFloat32(data, out channel, out sampleRate);
             return buffer;
         }
     }
 
+    /// <summary>
+    /// Decode the flac data into pcm data
+    /// </summary>
+    /// <param name="data">The source data of flac</param>
+    /// <param name="channel">The channels of audio</param>
+    /// <param name="sampleRate">The sample rate of audio</param>
+    /// <returns></returns>
     public static float[] DecodeFlac(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
         return FlacDecoder.DecodeToFloat32(data, out channel, out sampleRate);
     }
 
+    /// <summary>
+    /// Create an audio clip from the ogg data
+    /// </summary>
+    /// <param name="device">The audio device</param>
+    /// <param name="data">The source data of ogg</param>
+    /// <returns></returns>
     public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
     {
-        float[] buffer = DecodeOgg(data, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
-        return clip;
+        float* buffer = null;
+        try
+        {
+            buffer = VorbisDecoder.DecodeToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+            return clip;
+        }
+        finally
+        {
+            if (buffer != null)
+            {
+                UtilsMemory.Free(buffer);
+            }
+        }
     }
 
     // public static AudioClip CreateAudioClipFromMpge(this AudioDevice device, ReadOnlySpan<byte> data)
@@ -124,12 +105,18 @@ public unsafe static class UtilsAudioDecode
     //     return clip;
     // }
 
+    /// <summary>
+    /// Create an audio clip from the wave data
+    /// </summary>
+    /// <param name="device">The audio device</param>
+    /// <param name="data">The source data of wave</param>
+    /// <returns></returns>
     public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         float* buffer = null;
         try
         {
-            buffer = WaveDecoder.DecodeWaveAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+            buffer = WaveDecoder.DecodeFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
             AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
             return clip;
         }
@@ -143,6 +130,12 @@ public unsafe static class UtilsAudioDecode
 
     }
 
+    /// <summary>
+    /// Create an audio clip from the flac data
+    /// </summary>
+    /// <param name="device">The audio device</param>
+    /// <param name="data">The source data of flac</param>
+    /// <returns></returns>
     public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         float* buffer = null;
