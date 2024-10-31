@@ -1,10 +1,19 @@
 apiRules:
 - exclude:
-      uidRegex: Vortice.Dxc
+      uidRegex: DirectXShaderCompiler.NET
       type: Namespace
 - exclude:
       uidRegex: StbImageSharp
       type: Namespace
 - exclude:
       uidRegex: StbTrueTypeSharp
+      type: Namespace
+- exclude:
+      uidRegex: StbVorbisSharp
+      type: Namespace
+- exclude:
+      uidRegex: SlangSharp
+      type: Namespace
+- exclude:
+      uidRegex: SDL3
       type: Namespace
