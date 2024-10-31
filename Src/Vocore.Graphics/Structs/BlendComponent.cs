@@ -31,6 +31,10 @@ public struct BlendComponent
 
     public override int GetHashCode()
     {
-        return SrcFactor.GetHashCode() ^ DstFactor.GetHashCode() ^ Operation.GetHashCode();
+        int hash = 17;
+        hash = hash * 31 + SrcFactor.GetHashCode();
+        hash = hash * 31 + DstFactor.GetHashCode();
+        hash = hash * 31 + Operation.GetHashCode();
+        return hash;
     }
 }

@@ -57,6 +57,6 @@ public struct DepthStencilState
 
     public override int GetHashCode()
     {
-        return DepthWriteEnabled.GetHashCode() ^ DepthBoundsTestEnabled.GetHashCode() ^ DepthCompare.GetHashCode() ^ FrontFace.GetHashCode() ^ BackFace.GetHashCode();
+        return HashCode.Combine(DepthWriteEnabled, DepthBoundsTestEnabled, DepthCompare, FrontFace, BackFace);
     }
 }

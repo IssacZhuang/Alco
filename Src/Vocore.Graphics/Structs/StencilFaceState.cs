@@ -48,6 +48,11 @@ public struct StencilFaceState
 
     public override int GetHashCode()
     {
-        return Compare.GetHashCode() ^ StencilFailOperation.GetHashCode() ^ DepthFailOperation.GetHashCode() ^ PassOperation.GetHashCode();
+        int hash = 17;
+        hash = hash * 23 + Compare.GetHashCode();
+        hash = hash * 23 + StencilFailOperation.GetHashCode();
+        hash = hash * 23 + DepthFailOperation.GetHashCode();
+        hash = hash * 23 + PassOperation.GetHashCode();
+        return hash;
     }
 }

@@ -36,6 +36,10 @@ public struct RasterizerState
 
     public override int GetHashCode()
     {
-        return FillMode.GetHashCode() ^ CullMode.GetHashCode() ^ FrontFace.GetHashCode();
+        int hash = 17;
+        hash = hash * 37 + FillMode.GetHashCode();
+        hash = hash * 37 + CullMode.GetHashCode();
+        hash = hash * 37 + FrontFace.GetHashCode();
+        return hash;
     }
 }

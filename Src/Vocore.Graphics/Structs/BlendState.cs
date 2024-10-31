@@ -61,7 +61,7 @@ namespace Vocore.Graphics
 
         public override int GetHashCode()
         {
-            return Color.GetHashCode() ^ Alpha.GetHashCode();
+            return HashCode.Combine(Color, Alpha);
         }
     }
 }
