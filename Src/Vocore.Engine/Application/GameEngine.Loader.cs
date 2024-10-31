@@ -24,9 +24,9 @@ public partial class GameEngine
 
         //aduio
         Assets.RegisterAssetLoader(new AssetLoaderAudioVorbis(AudioDevice));
-        Assets.RegisterAssetLoader(new AssetLoaderAudioMpge(AudioDevice));
+        //Assets.RegisterAssetLoader(new AssetLoaderAudioMpge(AudioDevice));
         Assets.RegisterAssetLoader(new AssetLoaderAudioWave(AudioDevice));
         Assets.RegisterAssetLoader(new AssetLoaderAudioFlac(AudioDevice));
-        Assets.RegisterAssetLoader(new AssetLoaderAudioAiff(AudioDevice));
+        //Assets.RegisterAssetLoader(new AssetLoaderAudioAiff(AudioDevice));
     }
 }

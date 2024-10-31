@@ -78,16 +78,16 @@ public unsafe static class UtilsAudioDecode
         }
     }
 
-    /// <summary>
-    /// Decode the mp3 data into pcm data
-    /// </summary>
-    /// <param name="data">The source data of mp3</param>
-    /// <param name="channel">The channels of audio</param>
-    /// <param name="sampleRate">The sample rate of audio</param>
-    public static float[] DecodeMpge(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
-    {
-        throw new NotImplementedException();
-    }
+    // /// <summary>
+    // /// Decode the mp3 data into pcm data
+    // /// </summary>
+    // /// <param name="data">The source data of mp3</param>
+    // /// <param name="channel">The channels of audio</param>
+    // /// <param name="sampleRate">The sample rate of audio</param>
+    // public static float[] DecodeMpge(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
+    // {
+    //     throw new NotImplementedException();
+    // }
 
     /// <summary>
     /// Decode the wave data into pcm data
@@ -105,14 +105,9 @@ public unsafe static class UtilsAudioDecode
         }
     }
 
-    public static float[] DecodeAiff(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
-    {
-        throw new NotImplementedException();
-    }
-
     public static float[] DecodeFlac(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
     {
-        throw new NotImplementedException();
+        return FlacDecoder.DecodeToFloat32(data, out channel, out sampleRate);
     }
 
     public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
@@ -122,12 +117,12 @@ public unsafe static class UtilsAudioDecode
         return clip;
     }
 
-    public static AudioClip CreateAudioClipFromMpge(this AudioDevice device, ReadOnlySpan<byte> data)
-    {
-        float[] buffer = DecodeMpge(data, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
-        return clip;
-    }
+    // public static AudioClip CreateAudioClipFromMpge(this AudioDevice device, ReadOnlySpan<byte> data)
+    // {
+    //     float[] buffer = DecodeMpge(data, out int channel, out int sampleRate);
+    //     AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
+    //     return clip;
+    // }
 
     public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
     {
@@ -148,19 +143,12 @@ public unsafe static class UtilsAudioDecode
 
     }
 
-    public static AudioClip CreateAudioClipFromAiff(this AudioDevice device, ReadOnlySpan<byte> data)
-    {
-        float[] buffer = DecodeAiff(data, out int channel, out int sampleRate);
-        AudioClip clip = device.CreateAudioClip(buffer, channel, sampleRate);
-        return clip;
-    }
-
     public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data)
     {
         float* buffer = null;
         try
         {
-            buffer = FlacDecoder.DecodeFlacAudioToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+            buffer = FlacDecoder.DecodeToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
             AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
             return clip;
         }

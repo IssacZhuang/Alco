@@ -7,7 +7,7 @@ internal unsafe static class FlacDecoder
 {
 
 
-    public static float* DecodeFlacAudioToFloat32Unsafe(ReadOnlySpan<byte> data, out int channel, out int sampleCount, out int sampleRate)
+    public static float* DecodeToFloat32Unsafe(ReadOnlySpan<byte> data, out int channel, out int sampleCount, out int sampleRate)
     {
         fixed (byte* ptr = data)
         {
@@ -33,8 +33,32 @@ internal unsafe static class FlacDecoder
         //throw new NotImplementedException();
     }
 
+    public static float[] DecodeToFloat32(ReadOnlySpan<byte> data, out int channel, out int sampleRate)
+    {
+        fixed (byte* ptr = data)
+        {
+            using FlacFile file = new FlacFile(ptr, (uint)data.Length);
+            channel = (int)file.Channels;
+            sampleRate = (int)file.SampleRate;
 
-    
+            float[] buffer = new float[(int)file.TotalSamples * channel];
+            Span<float> tmp = stackalloc float[4096];
+            int offset = 0;
+            int read = 0;
+            while ((read = file.ReadSamples(tmp)) > 0)
+            {
+                for (int i = 0; i < read; i++)
+                {
+                    buffer[offset + i] = tmp[i];
+                }
+                offset += read;
+            }
+            return buffer;
+        }
+    }
+
+
+
 
 
 }
