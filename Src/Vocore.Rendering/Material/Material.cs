@@ -1,9 +1,17 @@
 using Vocore.Graphics;
+using System.Runtime.CompilerServices;
 
 namespace Vocore.Rendering;
 
 public abstract class Material
 {
     public abstract GPUPipeline GetPipeline(GPURenderPass renderPass);
-    public abstract void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    {
+        SetPipelineResources(new MaterialCommandContext(commandBuffer));
+    }
+
+    protected abstract void SetPipelineResources(MaterialCommandContext context);
 }

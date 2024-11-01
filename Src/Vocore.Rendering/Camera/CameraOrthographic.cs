@@ -6,6 +6,7 @@ public class CameraOrthographic : BaseCamera<CameraDataOrthographic>
 {
     internal CameraOrthographic(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
+        _data.tranform = Transform3D.Identity;
     }
 
     public Vector2 Size

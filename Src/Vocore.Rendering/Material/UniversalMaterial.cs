@@ -318,36 +318,36 @@ public class UniversalMaterial : Material
 
     #endregion
 
-    public override void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    protected override void SetPipelineResources(MaterialCommandContext context)
     {
         if (_shader.IsGraphicsShader)
         {
-            PushGraphicsResourceToCommandBuffer(commandBuffer);
+            PushGraphicsResourceToCommandBuffer(context);
         }
         else
         {
-            PushComputeResourceToCommandBuffer(commandBuffer);
+            PushComputeResourceToCommandBuffer(context);
         }
     }
 
-    private void PushGraphicsResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    private void PushGraphicsResourceToCommandBuffer(MaterialCommandContext context)
     {
         for (uint i = 0; i < _slots.Length; i++)
         {
             if (_slots[i].hasValue)
             {
-                commandBuffer.SetGraphicsResources(i, _slots[i].group!);
+                context.SetGraphicsResources(i, _slots[i].group!);
             }
         }
     }
 
-    private void PushComputeResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    private void PushComputeResourceToCommandBuffer(MaterialCommandContext context)
     {
         for (uint i = 0; i < _slots.Length; i++)
         {
             if (_slots[i].hasValue)
             {
-                commandBuffer.SetComputeResources(i, _slots[i].group!);
+                context.SetComputeResources(i, _slots[i].group!);
             }
         }
     }

@@ -4,6 +4,7 @@ namespace Vocore.Rendering
     {
         internal CameraPerspective(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
         {
+            _data.tranform = Transform3D.Identity;
         }
 
         public ref Transform3D Tranform
