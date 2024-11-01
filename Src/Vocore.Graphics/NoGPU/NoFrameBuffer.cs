@@ -9,7 +9,7 @@ internal class NoFrameBuffer : GPUFrameBuffer
     protected override GPUDevice Device => NoDevice.noDevice;
     public override GPURenderPass RenderPass => NoDevice.noRenderPass;
 
-    public override IReadOnlyList<GPUTexture> Colors => NoColors; // at least one element to prevent out of range exception
+    public override ReadOnlySpan<GPUTexture> Colors => NoColors; // at least one element to prevent out of range exception
 
     public override GPUTexture? Depth => null;
 
@@ -17,7 +17,7 @@ internal class NoFrameBuffer : GPUFrameBuffer
 
     public override uint Height => 0;
 
-    public override IReadOnlyList<GPUTextureView> ColorViews => NoColorViews; // at least one element to prevent out of range exception
+    public override ReadOnlySpan<GPUTextureView> ColorViews => NoColorViews; // at least one element to prevent out of range exception
 
     public override GPUTextureView? DepthView => null;
 

@@ -15,12 +15,12 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// The list of color textures of the frame buffer
     /// </summary>
     /// <value>The list of color textures of the frame buffer</value>
-    public abstract IReadOnlyList<GPUTexture> Colors { get; }
+    public abstract ReadOnlySpan<GPUTexture> Colors { get; }
     /// <summary>
     /// The list of color texture views of the frame buffer
     /// </summary>
     /// <value>The list of color texture views of the frame buffer</value>
-    public abstract IReadOnlyList<GPUTextureView> ColorViews { get; }
+    public abstract ReadOnlySpan<GPUTextureView> ColorViews { get; }
     /// <summary>
     /// The depth texture of the frame buffer
     /// </summary>

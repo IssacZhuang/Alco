@@ -35,7 +35,11 @@ public partial class RenderingSystem
 
             string filename = result.Filename;
 
-            PixelFormat[] colors = renderPass.Colors.Select(x => x.Format).ToArray();
+            PixelFormat[] colors = new PixelFormat[renderPass.Colors.Length];
+            for (int i = 0; i < renderPass.Colors.Length; i++)
+            {
+                colors[i] = renderPass.Colors[i].Format;
+            }
             PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
 
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(

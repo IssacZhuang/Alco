@@ -39,7 +39,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     protected override WebGPUDevice Device { get; }
 
-    public override IReadOnlyList<GPUTexture> Colors
+    public override ReadOnlySpan<GPUTexture> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorTextures;
@@ -63,7 +63,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _height;
     }
 
-    public override IReadOnlyList<GPUTextureView> ColorViews
+    public override ReadOnlySpan<GPUTextureView> ColorViews
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorViewsWrapper;
@@ -119,7 +119,7 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _descriptor;
     }
 
-    public override IReadOnlyList<WGPUTextureFormat> NativeColorFormats
+    public override ReadOnlySpan<WGPUTextureFormat> NativeColorFormats
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colors;
@@ -144,16 +144,16 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _width = width;
         _height = height;
 
-        _colorTextures = new WebGPUTexture[renderPass.Colors.Count];
-        _colorViews = new WGPUTextureView[renderPass.Colors.Count];
-        _colorViewsWrapper = new WebGPUTextureViewWrapper[renderPass.Colors.Count];
+        _colorTextures = new WebGPUTexture[renderPass.Colors.Length];
+        _colorViews = new WGPUTextureView[renderPass.Colors.Length];
+        _colorViewsWrapper = new WebGPUTextureViewWrapper[renderPass.Colors.Length];
         _descriptor = new WGPURenderPassDescriptor
         {
-            colorAttachmentCount = (uint)renderPass.Colors.Count,
+            colorAttachmentCount = (uint)renderPass.Colors.Length,
         };
 
-        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(renderPass.Colors.Count);
-        for (int i = 0; i < renderPass.WebGPUColorInfos.Count; i++)
+        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(renderPass.Colors.Length);
+        for (int i = 0; i < renderPass.WebGPUColorInfos.Length; i++)
         {
             WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
             _colorTextures[i] = new WebGPUTexture(
@@ -203,8 +203,8 @@ internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _descriptor.colorAttachments = _colorAttachments;
         _descriptor.depthStencilAttachment = _depthAttachment;
 
-        _colors = new WGPUTextureFormat[renderPass.WebGPUColorInfos.Count];
-        for (int i = 0; i < renderPass.WebGPUColorInfos.Count; i++)
+        _colors = new WGPUTextureFormat[renderPass.WebGPUColorInfos.Length];
+        for (int i = 0; i < renderPass.WebGPUColorInfos.Length; i++)
         {
             _colors[i] = renderPass.WebGPUColorInfos[i].format;
         }

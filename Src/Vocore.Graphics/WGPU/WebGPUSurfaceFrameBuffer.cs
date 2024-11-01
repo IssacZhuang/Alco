@@ -43,7 +43,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderPass;
     }
-    public override IReadOnlyList<GPUTexture> Colors
+    public override ReadOnlySpan<GPUTexture> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorTextures;
@@ -67,7 +67,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _height;
     }
 
-    public override IReadOnlyList<GPUTextureView> ColorViews
+    public override ReadOnlySpan<GPUTextureView> ColorViews
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorViewsWrapper;
@@ -112,7 +112,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _descriptor;
     }
 
-    public override IReadOnlyList<WGPUTextureFormat> NativeColorFormats
+    public override ReadOnlySpan<WGPUTextureFormat> NativeColorFormats
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colors;

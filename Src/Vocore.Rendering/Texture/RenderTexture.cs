@@ -53,7 +53,7 @@ public class RenderTexture : ShaderResource
     public int ColorCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _frameBuffer.Colors.Count;
+        get => _frameBuffer.Colors.Length;
     }
 
     /// <summary>
@@ -70,7 +70,7 @@ public class RenderTexture : ShaderResource
     /// The entries of color view for reading. Usually for read in compute shader.
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<GPUResourceGroup> EntriesColorRead
+    public ReadOnlySpan<GPUResourceGroup> EntriesColorRead
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -87,7 +87,7 @@ public class RenderTexture : ShaderResource
     /// The entries of color view for writing. Usually for write in compute shader.
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<GPUResourceGroup> EntriesColorWrite
+    public ReadOnlySpan<GPUResourceGroup> EntriesColorWrite
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -104,7 +104,7 @@ public class RenderTexture : ShaderResource
     /// The entries of color view for sampling.
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<GPUResourceGroup> EntriesColorSample
+    public ReadOnlySpan<GPUResourceGroup> EntriesColorSample
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -152,7 +152,7 @@ public class RenderTexture : ShaderResource
 
     private GPUResourceGroup[] CreateGroupsColorSample()
     {
-        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Count];
+        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Length];
         for (int i = 0; i < groups.Length; i++)
         {
             groups[i] = CreateGroupSample(_frameBuffer.ColorViews[i]);
@@ -162,7 +162,7 @@ public class RenderTexture : ShaderResource
 
     private GPUResourceGroup[] CreateGroupsColorRead()
     {
-        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Count];
+        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Length];
         for (int i = 0; i < groups.Length; i++)
         {
             groups[i] = CreateGroupRead(_frameBuffer.ColorViews[i]);
@@ -172,7 +172,7 @@ public class RenderTexture : ShaderResource
 
     private GPUResourceGroup[] CreateGroupsColorWrite()
     {
-        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Count];
+        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Length];
         for (int i = 0; i < groups.Length; i++)
         {
             groups[i] = CreateGroupWrite(_frameBuffer.ColorViews[i]);

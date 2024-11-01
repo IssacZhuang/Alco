@@ -3,7 +3,7 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoRenderPass : GPURenderPass
 {
-    public override IReadOnlyList<ColorAttachment> Colors => Array.Empty<ColorAttachment>();
+    public override ReadOnlySpan<ColorAttachment> Colors => Array.Empty<ColorAttachment>();
 
     public override DepthAttachment? Depth => null;
 

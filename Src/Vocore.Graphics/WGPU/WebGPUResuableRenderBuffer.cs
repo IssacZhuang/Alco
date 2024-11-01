@@ -54,7 +54,7 @@ internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
         ReleaseRenderBunleEncoder();
         _frameBuffer = (WebGPUFrameBufferBase)frameBuffer;
 
-        int colorCount = _frameBuffer.NativeColorFormats.Count;
+        int colorCount = _frameBuffer.NativeColorFormats.Length;
         WGPUTextureFormat* colors = stackalloc WGPUTextureFormat[colorCount];
         for (int i = 0; i < colorCount; i++)
         {

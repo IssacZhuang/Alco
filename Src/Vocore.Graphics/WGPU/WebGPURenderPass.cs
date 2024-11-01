@@ -29,7 +29,7 @@ internal class WebGPURenderPass : GPURenderPass
 
     protected override GPUDevice Device { get; }
 
-    public override IReadOnlyList<ColorAttachment> Colors
+    public override ReadOnlySpan<ColorAttachment> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor.Colors;
@@ -50,7 +50,7 @@ internal class WebGPURenderPass : GPURenderPass
 
     #region WebGPU Implementation
 
-    internal IReadOnlyList<WGPUColorAttachmentInfo> WebGPUColorInfos
+    internal ReadOnlySpan<WGPUColorAttachmentInfo> WebGPUColorInfos
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorInfos;
