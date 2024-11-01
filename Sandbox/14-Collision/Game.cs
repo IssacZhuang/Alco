@@ -44,6 +44,7 @@ public class Game : GameEngine
 
         _entity = CreateCube(Color);
         _entity.transform.position = new Vector3(2, 0, 0);
+        _entity.transform.rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
 
         MainWindow.OnResize += OnMainWindowResize;
     }
@@ -65,12 +66,14 @@ public class Game : GameEngine
 
         Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
 
-        bool hit = UtilsCollision3D.RayBox(cameraRay * 1000, _entity.Shape, out RaycastHit3D rayCastHit);
+        bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _entity.Shape, out RaycastHit3D rayCastHit);
 
         _entity.Color = hit ? ColorHit : Color;
 
         _plane.IntersectRay(cameraRay, out Vector3 mouseWoldPosition);
 
+        DebugGUI.Text(localMousePosition.ToString());
+        DebugGUI.Text(mouseWoldPosition.ToString());
         if (Input.IsMouseDown(Mouse.Left) && hit)
         {
             offset = _entity.transform.position - mouseWoldPosition;
@@ -90,13 +93,14 @@ public class Game : GameEngine
         //debug ui
         DebugGUI.Text("Camera Data");
         int fov = (int)(_camera.FieldOfView * 100);
-        DebugGUI.Slider(ref fov, 30, 110);
-        _camera.FieldOfView = fov / 100f;
+        if (DebugGUI.Slider(ref fov, 30, 110))
+        {
+            _camera.FieldOfView = fov / 100f;
+            _camera.UpdateData();
+        }
+
         DebugGUI.SameLine();
         DebugGUI.Text("Fov");
-
-
-        _camera.UpdateData();
     }
 
 
