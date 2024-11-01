@@ -21,12 +21,14 @@ public static class UtilsShaderHLSL
     public const string FormatLine = "#line {0} \"{1}\""; // #line line filename
     public const int MaxRecursionDepth = 32;
 
+    //deprecated
     public static ShaderCompileResultDeprecated Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         ShaderPreproccessResultHLSL preproccessed = PreprocessText(shaderText, filename, includeResolver);
         return Compile(preproccessed);
     }
 
+    //deprecated
     public static ShaderCompileResultDeprecated Compile(ShaderPreproccessResultHLSL preproccessed)
     {
         ValidatePreprocessResult(preproccessed);
@@ -49,12 +51,68 @@ public static class UtilsShaderHLSL
         }
     }
 
+
+    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string[]> multiCompileDefines, Func<string, string>? includeResolver = null)
+    {
+        string shaderToCompile = shaderText;
+        if (includeResolver != null)
+        {
+            shaderToCompile = ProcessInclude(shaderText, filename, includeResolver);
+        }
+
+        List<ShaderVariant> modules = new List<ShaderVariant>();
+        List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
+
+        foreach (string[] defines in multiCompileDefines)
+        {
+            macros.Clear();
+            foreach (string define in defines)
+            {
+                macros.Add(new ShaderMacroDefine(define, "1"));
+            }
+
+            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderToCompile, ShaderStage.Vertex, ShaderEntry.Vertext, filename, macros.ToArray());
+            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderToCompile, ShaderStage.Fragment, ShaderEntry.Fragment, filename, macros.ToArray());
+        }
+
+        throw new NotImplementedException();
+    }
+
+    public static string ProcessInclude(string shaderText, string filename, Func<string, string> includeResolver)
+    {
+        StringBuilder builder = new StringBuilder();
+        using StringReader reader = new StringReader(shaderText);
+        string? line;
+        int lineCount = 0;
+
+        while ((line = reader.ReadLine()) != null)
+        {
+            lineCount++;
+            line = line.TrimStart();
+
+            if (TryGetInclude(line, includeResolver, out string? includedText, out string? includeFilename))
+            {
+                builder.AppendLine(string.Format(FormatLine, 1, includeFilename));
+                builder.AppendLine(includedText);
+                builder.AppendLine(string.Format(FormatLine, lineCount + 1, filename));
+            }
+            else
+            {
+                builder.AppendLine(line);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    //deprecated
     public static ShaderPreproccessResultHLSL PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         return PreprocessText(shaderText, filename, includeResolver, 0);
     }
 
 
+    //deprecated
     private static ShaderPreproccessResultHLSL PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver, int depth)
     {
         if (includeResolver == null)
