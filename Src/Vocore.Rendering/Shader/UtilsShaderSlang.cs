@@ -8,13 +8,13 @@ namespace Vocore.Rendering;
 
 public static class UtilsShaderSlang
 {
-    public static ShaderCompileResult Compile(string code, string filename, BaseSlangFileSystem? fileSystem = null)
+    public static ShaderCompileResultDeprecated Compile(string code, string filename, BaseSlangFileSystem? fileSystem = null)
     {
         ShaderPreproccessResultSlang preproccessed = PreprocessSlang(code, filename);
         return Compile(preproccessed, fileSystem);
     }
 
-    public static ShaderCompileResult Compile(ShaderPreproccessResultSlang preproccessed, BaseSlangFileSystem? fileSystem = null)
+    public static ShaderCompileResultDeprecated Compile(ShaderPreproccessResultSlang preproccessed, BaseSlangFileSystem? fileSystem = null)
     {
         ShaderModule? vertexShader = null;
         ShaderModule? fragmentShader = null;
@@ -46,12 +46,12 @@ public static class UtilsShaderSlang
         if (stages.IsGraphicsShader())
         {
             ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source, true);
-            return new ShaderCompileResult(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
+            return new ShaderCompileResultDeprecated(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
         }
         else if (stages.IsComputeShader())
         {
             ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(computeShader!.Value.Source);
-            return new ShaderCompileResult(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
+            return new ShaderCompileResultDeprecated(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
         }
 
         throw new Exception("Missing entry point for shader.");

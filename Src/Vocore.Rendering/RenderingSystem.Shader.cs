@@ -9,12 +9,12 @@ public partial class RenderingSystem
     /// </summary>
     /// <param name="result">The shader compile result.</param>
     /// <returns>The created shader.</returns>
-    public Shader CreateShader(ShaderCompileResult result)
+    public Shader CreateShader(ShaderCompileResultDeprecated result)
     {
         return new Shader(this, result);
     }
 
-    public GPUPipeline CreatePipeline(ShaderCompileResult result, GPURenderPass renderPass)
+    public GPUPipeline CreatePipeline(ShaderCompileResultDeprecated result, GPURenderPass renderPass)
     {
         GPUDevice device = _device;
         if (result.IsGraphicsShader)

@@ -22,7 +22,7 @@ public class AssertImporterShaderHLSL : IAssetImporter
     public bool TryImport(string filename, byte[] file, [NotNullWhen(true)] out byte[] importedFile, [NotNullWhen(true)] out string? importedFilename)
     {
         importedFilename = Path.ChangeExtension(filename, FileExt.ShaderBinary);
-        ShaderCompileResult compileResult = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+        ShaderCompileResultDeprecated compileResult = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         importedFile = UtilsShaderSerialization.EncodeCompileResult(compileResult);
         return true;
     }

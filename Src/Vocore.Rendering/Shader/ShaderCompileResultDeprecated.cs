@@ -2,7 +2,9 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class ShaderCompileResult
+
+//deprecated
+public class ShaderCompileResultDeprecated
 {
     public bool IsGraphicsShader
     {
@@ -34,7 +36,7 @@ public class ShaderCompileResult
 
     public ShaderReflectionInfo ReflectionInfo { get; }
 
-    internal ShaderCompileResult(
+    internal ShaderCompileResultDeprecated(
         string filename,
         ShaderModule? vertex,
         ShaderModule? fragment,
@@ -65,14 +67,14 @@ public class ShaderCompileResult
 
     }
 
-    public static ShaderCompileResult CreateGraphics(
+    public static ShaderCompileResultDeprecated CreateGraphics(
         ShaderModule vertex,
         ShaderModule fragment,
         ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         //return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
-        return new ShaderCompileResult(
+        return new ShaderCompileResultDeprecated(
             preproccessResult.Filename, 
             vertex, 
             fragment, 
@@ -86,7 +88,7 @@ public class ShaderCompileResult
             );
     }
 
-    public static ShaderCompileResult CreateGraphics(
+    public static ShaderCompileResultDeprecated CreateGraphics(
         ShaderModule vertex,
         ShaderModule fragment,
         ShaderStage stages,
@@ -94,7 +96,7 @@ public class ShaderCompileResult
         ShaderReflectionInfo reflectionInfo)
     {
         //return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
-        return new ShaderCompileResult(
+        return new ShaderCompileResultDeprecated(
             preproccessResult.Filename, 
             vertex, 
             fragment, 
@@ -108,13 +110,13 @@ public class ShaderCompileResult
             );
     }
 
-    public static ShaderCompileResult CreateCompute(
+    public static ShaderCompileResultDeprecated CreateCompute(
         ShaderModule compute,
         ShaderPreproccessResultHLSL preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         //return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);
-        return new ShaderCompileResult(
+        return new ShaderCompileResultDeprecated(
             preproccessResult.Filename, 
             null, 
             null, 
@@ -128,14 +130,14 @@ public class ShaderCompileResult
             );
     }
 
-    public static ShaderCompileResult CreateCompute(
+    public static ShaderCompileResultDeprecated CreateCompute(
         ShaderModule compute,
         ShaderStage stages,
         ShaderPreproccessResultSlang preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         //return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);
-        return new ShaderCompileResult(
+        return new ShaderCompileResultDeprecated(
             preproccessResult.Filename, 
             null, 
             null, 

@@ -28,7 +28,7 @@ public class AssetLoaderShaderHLSL : IAssetLoader<Shader>
     /// <inheritdoc/>
     public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
     {
-        ShaderCompileResult preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+        ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         asset = _renderingSystem.CreateShader(preprocessed); // create GPU object
         return true;
     }

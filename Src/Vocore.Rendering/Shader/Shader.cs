@@ -13,7 +13,7 @@ public class Shader : AutoDisposable
 
     private readonly RenderingSystem _renderingSystem;
     private readonly ConcurrentDictionary<GPURenderPass, GPUPipeline> _pipelines = new ConcurrentDictionary<GPURenderPass, GPUPipeline>();
-    private ShaderCompileResult _meta;
+    private ShaderCompileResultDeprecated _meta;
 
     private ShaderReflectionInfo _reflectionInfo;
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
@@ -61,7 +61,7 @@ public class Shader : AutoDisposable
         get => _reflectionInfo;
     }
 
-    internal Shader(RenderingSystem renderingSystem, ShaderCompileResult result)
+    internal Shader(RenderingSystem renderingSystem, ShaderCompileResultDeprecated result)
     {
         _meta = result;
         _renderingSystem = renderingSystem;
@@ -139,7 +139,7 @@ public class Shader : AutoDisposable
         _resourceIds = resourceIds.ToFrozenDictionary();
     }
 
-    internal void HotReload(ShaderCompileResult result)
+    internal void HotReload(ShaderCompileResultDeprecated result)
     {
         _meta = result;
         _reflectionInfo = result.ReflectionInfo;

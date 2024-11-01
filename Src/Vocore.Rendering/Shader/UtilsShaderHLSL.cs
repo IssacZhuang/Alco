@@ -21,13 +21,13 @@ public static class UtilsShaderHLSL
     public const string FormatLine = "#line {0} \"{1}\""; // #line line filename
     public const int MaxRecursionDepth = 32;
 
-    public static ShaderCompileResult Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
+    public static ShaderCompileResultDeprecated Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         ShaderPreproccessResultHLSL preproccessed = PreprocessText(shaderText, filename, includeResolver);
         return Compile(preproccessed);
     }
 
-    public static ShaderCompileResult Compile(ShaderPreproccessResultHLSL preproccessed)
+    public static ShaderCompileResultDeprecated Compile(ShaderPreproccessResultHLSL preproccessed)
     {
         ValidatePreprocessResult(preproccessed);
         if (preproccessed.Stages.IsGraphicsShader())
@@ -35,13 +35,13 @@ public static class UtilsShaderHLSL
             ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename);
             ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, fragment.Source, true);
-            return ShaderCompileResult.CreateGraphics(vertex, fragment, preproccessed, reflectionInfo);
+            return ShaderCompileResultDeprecated.CreateGraphics(vertex, fragment, preproccessed, reflectionInfo);
         }
         else if (preproccessed.Stages.IsComputeShader())
         {
             ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
-            return ShaderCompileResult.CreateCompute(compute, preproccessed, reflectionInfo);
+            return ShaderCompileResultDeprecated.CreateCompute(compute, preproccessed, reflectionInfo);
         }
         else
         {

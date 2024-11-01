@@ -186,9 +186,9 @@ float4 fs_main(VertexOutput input) : SV_Target0 {
 }
 
         ";
-        ShaderCompileResult result = UtilsShaderHLSL.Compile(shaderText, "test.hlsl");
+        ShaderCompileResultDeprecated result = UtilsShaderHLSL.Compile(shaderText, "test.hlsl");
         byte[] data = UtilsShaderSerialization.EncodeCompileResult(result);
-        ShaderCompileResult result2 = UtilsShaderSerialization.DecodeCompileResult(data);
+        ShaderCompileResultDeprecated result2 = UtilsShaderSerialization.DecodeCompileResult(data);
         Assert.IsTrue(result2.IsGraphicsShader == result.IsGraphicsShader);
         Assert.IsTrue(result2.IsComputeShader == result.IsComputeShader);
         Assert.IsTrue(result2.ReflectionInfo.BindGroups.Length == result.ReflectionInfo.BindGroups.Length);

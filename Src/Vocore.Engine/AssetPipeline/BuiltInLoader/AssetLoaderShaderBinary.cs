@@ -26,7 +26,7 @@ public class AssetLoaderShaderBinary : IAssetLoader<Shader>
     /// <inheritdoc/>
     public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
     {
-        ShaderCompileResult preprocessed = UtilsShaderSerialization.DecodeCompileResult(file.ToArray());
+        ShaderCompileResultDeprecated preprocessed = UtilsShaderSerialization.DecodeCompileResult(file.ToArray());
         asset = _renderingSystem.CreateShader(preprocessed); // create GPU object
         return true;
     }

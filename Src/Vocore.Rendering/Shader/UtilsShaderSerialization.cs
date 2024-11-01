@@ -4,7 +4,7 @@ namespace Vocore.Rendering;
 
 public static class UtilsShaderSerialization
 {
-    public static byte[] EncodeCompileResult(ShaderCompileResult result)
+    public static byte[] EncodeCompileResult(ShaderCompileResultDeprecated result)
     {
         BinaryTable table = new BinaryTable
         {
@@ -27,7 +27,7 @@ public static class UtilsShaderSerialization
         return BinaryParser.EncodeTable(table);
     }
 
-    public static ShaderCompileResult DecodeCompileResult(byte[] bytes)
+    public static ShaderCompileResultDeprecated DecodeCompileResult(byte[] bytes)
     {
         BinaryTable table = BinaryParser.DecodeTable(bytes);
         if (table.TryGetString("Filename", out string? filename) &&
@@ -49,7 +49,7 @@ public static class UtilsShaderSerialization
 
             ShaderReflectionInfo reflectionInfo = DecodeReflectionInfo(reflectionInfoTable);
 
-            return new ShaderCompileResult(
+            return new ShaderCompileResultDeprecated(
                 filename,
                 vertexShader,
                 fragmentShader,
