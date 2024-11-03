@@ -12,6 +12,10 @@ public static class UtilsShaderHLSL
     /// </summary>
     public const string KeyPragma = "#pragma";
     /// <summary>
+    /// Represents the key for the "#define" directive.
+    /// </summary>
+    public const string DefineTrue = "1";
+    /// <summary>
     /// Represents the key used for including shader code.
     /// </summary>
     public const string KeyInclude = "#include"; // #include "Base.hlsli"
@@ -76,7 +80,7 @@ public static class UtilsShaderHLSL
             macros.Clear();
             foreach (string define in permutation)
             {
-                macros.Add(new ShaderMacroDefine(define, "1"));
+                macros.Add(new ShaderMacroDefine(define, DefineTrue));
             }
 
             ShaderModule vertext = ShaderCompilerDxc.CrearteSpirvShaderModule(
