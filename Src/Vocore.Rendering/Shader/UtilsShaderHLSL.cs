@@ -51,8 +51,15 @@ public static class UtilsShaderHLSL
         }
     }
 
-
-    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string[]> multiCompileDefines, Func<string, string>? includeResolver = null)
+    /// <summary>
+    /// Compiles the shader text with the specified filename and multi-compile defines.
+    /// </summary>
+    /// <param name="shaderText">The shader text to compile.</param>
+    /// <param name="filename">The filename of the shader text.</param>
+    /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
+    /// <param name="includeResolver">The function to resolve the include statements.</param>
+    /// <returns>The compiled shader result.</returns>
+    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> multiCompileDefines, Func<string, string>? includeResolver = null)
     {
         string shaderToCompile = shaderText;
         if (includeResolver != null)
@@ -63,21 +70,47 @@ public static class UtilsShaderHLSL
         List<ShaderVariant> modules = new List<ShaderVariant>();
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
-        foreach (string[] defines in multiCompileDefines)
+        string[][] permutations = UtilsCollection.GetPermutations(multiCompileDefines);
+        foreach (string[] permutation in permutations)
         {
             macros.Clear();
-            foreach (string define in defines)
+            foreach (string define in permutation)
             {
                 macros.Add(new ShaderMacroDefine(define, "1"));
             }
 
-            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderToCompile, ShaderStage.Vertex, ShaderEntry.Vertext, filename, macros.ToArray());
-            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderToCompile, ShaderStage.Fragment, ShaderEntry.Fragment, filename, macros.ToArray());
+            ShaderModule vertext = ShaderCompilerDxc.CrearteSpirvShaderModule(
+                shaderToCompile,
+                ShaderStage.Vertex,
+                ShaderEntry.Vertex,
+                filename,
+                macros.ToArray()
+                );
+
+            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(
+                shaderToCompile,
+                ShaderStage.Fragment,
+                ShaderEntry.Fragment,
+                filename,
+                macros.ToArray()
+                );
+
+            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertext.Source, fragment.Source, true);
+            ShaderVariant variant = ShaderVariant.CreateGraphics(permutation, vertext, fragment, reflectionInfo);
+            modules.Add(variant);
         }
 
-        throw new NotImplementedException();
+
+        return new ShaderCompileResult(modules.ToArray());
     }
 
+    /// <summary>
+    /// Processes the include statements in the shader text.
+    /// </summary>
+    /// <param name="shaderText">The shader text to process.</param>
+    /// <param name="filename">The filename of the shader text.</param>
+    /// <param name="includeResolver">The function to resolve the include statements.</param>
+    /// <returns>The shader text with the include statements resolved.</returns>
     public static string ProcessInclude(string shaderText, string filename, Func<string, string> includeResolver)
     {
         StringBuilder builder = new StringBuilder();
