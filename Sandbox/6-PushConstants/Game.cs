@@ -173,8 +173,8 @@ public class Game : GameEngine
         DebugSaveFile("vertex.spv", vertSource.Source);
         DebugSaveFile("fragment.spv", fragSource.Source);
 
-        GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
-        for (int i = 0; i < info.BindGroups.Length; i++)
+        GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Count];
+        for (int i = 0; i < info.BindGroups.Count; i++)
         {
             bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor());
         }
@@ -186,13 +186,13 @@ public class Game : GameEngine
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,
             new ShaderModule[] { vertSource, fragSource },
-            info.VertexLayouts,
+            info.VertexLayouts.ToArray(),
             rasterizer,
             blend,
             depthStencil,
             new PixelFormat[] { GraphicsDevice.PrefferedSDRFormat },
             GraphicsDevice.PrefferedDepthStencilFormat,
-            info.PushConstantsRanges,
+            info.PushConstantsRanges.ToArray(),
             "quad_pipline"
         );
 
