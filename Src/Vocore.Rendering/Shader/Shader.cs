@@ -52,7 +52,7 @@ public class Shader : AutoDisposable
     public int BindGroupCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _reflectionInfo.BindGroups.Length;
+        get => _reflectionInfo.BindGroups.Count;
     }
 
     internal ShaderReflectionInfo Reflections
@@ -126,11 +126,11 @@ public class Shader : AutoDisposable
     {
         Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
         resourceIds.Clear();
-        for (uint i = 0; i < _reflectionInfo.BindGroups.Length; i++)
+        for (uint i = 0; i < _reflectionInfo.BindGroups.Count; i++)
         {
-            BindGroupLayout bindGroup = _reflectionInfo.BindGroups[i];
+            BindGroupLayout bindGroup = _reflectionInfo.BindGroups[(int)i];
             if (bindGroup.Bindings != null
-            && bindGroup.Bindings.Length > 0)
+            && bindGroup.Bindings.Count > 0)
             {
                 resourceIds[bindGroup.Bindings[0].Entry.Name] = i;
             }

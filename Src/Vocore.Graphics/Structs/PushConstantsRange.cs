@@ -14,6 +14,6 @@ public struct PushConstantsRange
 
     public override string ToString()
     {
-        return $"Start: {Start}, End: {End}";
+        return $"Stage: {Stage}, Start: {Start}, End: {End}";
     }
 }

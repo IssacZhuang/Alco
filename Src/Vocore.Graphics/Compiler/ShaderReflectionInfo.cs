@@ -2,11 +2,23 @@ using System.Text;
 
 namespace Vocore.Graphics;
 
+/// <summary>
+/// The reflection information for a shader
+/// </summary>
 public struct ShaderReflectionInfo
 {
-    public VertexInputLayout[] VertexLayouts;
-    public BindGroupLayout[] BindGroups;
-    public PushConstantsRange[] PushConstantsRanges;
+    /// <summary>
+    /// The vertex input layouts for the shader
+    /// </summary>
+    public IReadOnlyList<VertexInputLayout> VertexLayouts;
+    /// <summary>
+    /// The bind groups for the shader
+    /// </summary>
+    public IReadOnlyList<BindGroupLayout> BindGroups;
+    /// <summary>
+    /// Push constants ranges
+    /// </summary>
+    public IReadOnlyList<PushConstantsRange> PushConstantsRanges;
     /// <summary>
     /// Thread group size for compute shader
     /// </summary>
@@ -18,7 +30,7 @@ public struct ShaderReflectionInfo
         builder.AppendLine("[Shader Reflection Info]\n");
         builder.AppendLine("[Vertex]");
 
-        if (VertexLayouts.Length == 0)
+        if (VertexLayouts.Count == 0)
         {
             builder.AppendLine("No vertex layouts");
         }
@@ -32,7 +44,7 @@ public struct ShaderReflectionInfo
 
 
         builder.AppendLine("[Bind Groups]");
-        if (BindGroups.Length == 0)
+        if (BindGroups.Count == 0)
         {
             builder.AppendLine("No bind groups");
         }
@@ -55,7 +67,7 @@ public struct ShaderReflectionInfo
 
         builder.AppendLine("[Push Constants]");
 
-        if (PushConstantsRanges.Length == 0)
+        if (PushConstantsRanges.Count == 0)
         {
             builder.AppendLine("No push constants");
         }

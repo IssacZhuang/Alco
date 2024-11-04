@@ -1,14 +1,29 @@
 namespace Vocore.Graphics;
 
+/// <summary>
+/// The binding type for the shader
+/// </summary>
 public enum BindingType
 {
     Undefined = 0,
-    // use GPUBuffer
+    /// <summary>
+    /// The uniform buffer
+    /// </summary>
     UniformBuffer = 1,
+    /// <summary>
+    /// The storage buffer
+    /// </summary>
     StorageBuffer = 2,
-    // use GPUSampler
+    /// <summary>
+    /// The sampler for sampling textures
+    /// </summary>
     Sampler = 3,
-    // use GPUTextureView
+    /// <summary>
+    /// The texture for sampling
+    /// </summary>
     Texture = 4,
-    StorageTexture = 5,  // also known as RWTexture in HLSL or RenderTexture in Unity
+    /// <summary>
+    /// The texture for random access
+    /// </summary>
+    StorageTexture = 5,  
 }

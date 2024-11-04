@@ -28,11 +28,10 @@ public static class UtilsShaderRelfection
             }
         }
 
-        
 
         ShaderReflectionInfo info = new ShaderReflectionInfo
         {
-            BindGroups = GetBindgGroupLayouts(module),
+            BindGroups = GetBindgGroupLayouts(module,useStandardStage),
             VertexLayouts = new VertexInputLayout[] { GetVertexInputLayout(module) },
             PushConstantsRanges = GetPushConstants(module),
             Size = GetThreadGroupSize(module)
@@ -40,29 +39,29 @@ public static class UtilsShaderRelfection
 
         API.DestroyShaderModule(&module);
 
-        if (useStandardStage)
-        {
-            SetToStandardVisibility(info);
-        }
+        // if (useStandardStage)
+        // {
+        //     SetToStandardVisibility(info);
+        // }
 
         return info;
     }
 
-    public static void SetToStandardVisibility(ShaderReflectionInfo info)
-    {
-        for (int i = 0; i < info.BindGroups.Length; i++)
-        {
-            for (int j = 0; j < info.BindGroups[i].Bindings.Length; j++)
-            {
-                if ((info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Vertex) != 0 ||
-                (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Fragment) != 0 ||
-                (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Compute) != 0)
-                {
-                    info.BindGroups[i].Bindings[j].Entry.Stage = ShaderStage.Standard;
-                }
-            }
-        }
-    }
+    // public static void SetToStandardVisibility(ShaderReflectionInfo info)
+    // {
+    //     for (int i = 0; i < info.BindGroups.Count; i++)
+    //     {
+    //         for (int j = 0; j < info.BindGroups[i].Bindings.Count; j++)
+    //         {
+    //             if ((info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Vertex) != 0 ||
+    //             (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Fragment) != 0 ||
+    //             (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Compute) != 0)
+    //             {
+    //                 info.BindGroups[i].Bindings[j].Entry.Stage = ShaderStage.Standard;
+    //             }
+    //         }
+    //     }
+    // }
 
     public unsafe static PushConstantsRange[] GetPushConstants(ReflectShaderModule shaderModule)
     {
@@ -113,9 +112,9 @@ public static class UtilsShaderRelfection
         }
 
         
-        PushConstantsRange[] maxRangesList;
-        PushConstantsRange[] minRangesList;
-        if (vertex.PushConstantsRanges.Length >= fragment.PushConstantsRanges.Length)
+        IReadOnlyList<PushConstantsRange> maxRangesList;
+        IReadOnlyList<PushConstantsRange> minRangesList;
+        if (vertex.PushConstantsRanges.Count >= fragment.PushConstantsRanges.Count)
         {
             maxRangesList = vertex.PushConstantsRanges;
             minRangesList = fragment.PushConstantsRanges;
@@ -126,13 +125,13 @@ public static class UtilsShaderRelfection
             minRangesList = vertex.PushConstantsRanges;
         }
 
-        PushConstantsRange[] ranges = new PushConstantsRange[maxRangesList.Length];
-        for (int i = 0; i < maxRangesList.Length; i++)
+        PushConstantsRange[] ranges = new PushConstantsRange[maxRangesList.Count];
+        for (int i = 0; i < maxRangesList.Count; i++)
         {
             ranges[i] = maxRangesList[i];
         }
 
-        for (int i = 0; i < minRangesList.Length; i++)
+        for (int i = 0; i < minRangesList.Count; i++)
         {
             ranges[i].Stage |= minRangesList[i].Stage;
         }
@@ -252,7 +251,7 @@ public static class UtilsShaderRelfection
         };
     }
 
-    private unsafe static BindGroupLayout[] GetBindgGroupLayouts(ReflectShaderModule shaderModule)
+    private unsafe static BindGroupLayout[] GetBindgGroupLayouts(ReflectShaderModule shaderModule, bool useStandardStage = false)
     {
         if (shaderModule.DescriptorSetCount == 0) return Array.Empty<BindGroupLayout>();
 
@@ -260,13 +259,21 @@ public static class UtilsShaderRelfection
         for (int i = 0; i < shaderModule.DescriptorSetCount; i++)
         {
             ReflectDescriptorSet set = shaderModule.DescriptorSets[i];
-            layouts[i] = GetBindgGroupLayout(set, UtilsRelfectType.ConvertShaderStage(shaderModule.ShaderStage));
+            ShaderStage stage = UtilsRelfectType.ConvertShaderStage(shaderModule.ShaderStage);
+            if (useStandardStage||
+                (stage & ShaderStage.Vertex) != 0 ||
+                (stage & ShaderStage.Fragment) != 0 ||
+                (stage & ShaderStage.Compute) != 0)
+            {
+                stage = ShaderStage.Standard;
+            }
+            layouts[i] = GetBindgGroupLayout(set, stage);
         }
 
         return layouts;
     }
 
-    private static BindingGroupEntryInfo[] MergeBindGroupEntries(params BindingGroupEntryInfo[][] bindingsList)
+    private static BindingGroupEntryInfo[] MergeBindGroupEntries(params Span<IReadOnlyList<BindingGroupEntryInfo>> bindingsList)
     {
         Dictionary<uint, BindingGroupEntryInfo> bindings = new Dictionary<uint, BindingGroupEntryInfo>();
         foreach (BindingGroupEntryInfo[] list in bindingsList)

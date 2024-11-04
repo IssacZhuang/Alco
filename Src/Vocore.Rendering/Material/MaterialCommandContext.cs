@@ -13,27 +13,45 @@ public struct MaterialCommandContext
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetGraphicsPipeline(GPUPipeline pipeline)
+    public readonly void SetGraphicsPipeline(GPUPipeline pipeline)
     {
         _commandBuffer.SetGraphicsPipeline(pipeline);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetComputePipeline(GPUPipeline pipeline)
+    public readonly void SetComputePipeline(GPUPipeline pipeline)
     {
         _commandBuffer.SetComputePipeline(pipeline);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
+    public readonly void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
         _commandBuffer.SetGraphicsResources(slot, resourceGroup);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
+    public readonly void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
     {
         _commandBuffer.SetComputeResources(slot, resourceGroup);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
+    {
+        _commandBuffer.PushConstants(stage, 0, data);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+    {
+        _commandBuffer.PushConstants(stage, bufferOffset, data);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    {
+        _commandBuffer.PushConstants(stage, bufferOffset, data, size);
     }
 
 }

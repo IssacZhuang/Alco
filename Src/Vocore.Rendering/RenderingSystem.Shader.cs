@@ -20,8 +20,8 @@ public partial class RenderingSystem
         if (result.IsGraphicsShader)
         {
             ShaderReflectionInfo info = result.ReflectionInfo;
-            GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
-            for (int i = 0; i < info.BindGroups.Length; i++)
+            GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Count];
+            for (int i = 0; i < info.BindGroups.Count; i++)
             {
                 bindGroups[i] = device.CreateBindGroup(info.BindGroups[i].ToDescriptor());
             }
@@ -45,14 +45,14 @@ public partial class RenderingSystem
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,
                 new ShaderModule[] { vertex, fragment },
-                info.VertexLayouts,
+                info.VertexLayouts.ToArray(),
                 rasterizer,
                 blend,
                 depthStencil,
                 primitiveTopology,
                 colors,
                 depthStencilFormat,
-                info.PushConstantsRanges,
+                info.PushConstantsRanges.ToArray(),
                 filename);
 
             //Log.Info(result.ReflectionInfo);
@@ -67,8 +67,8 @@ public partial class RenderingSystem
         else if (result.IsComputeShader)
         {
             ShaderReflectionInfo info = result.ReflectionInfo;
-            GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Length];
-            for (int i = 0; i < info.BindGroups.Length; i++)
+            GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Count];
+            for (int i = 0; i < info.BindGroups.Count; i++)
             {
                 bindGroups[i] = device.CreateBindGroup(info.BindGroups[i].ToDescriptor());
             }

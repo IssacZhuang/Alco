@@ -16,12 +16,26 @@ collocter large amount of GPU will block the GPUQueue
 public class Game : GameEngine
 {
 
+    private class TestThreakWorkerItem : IThreadPoolWorkItem
+    {
+        public void Execute()
+        {
+            //do nothing
+        }
+    }
+
+    private TestThreakWorkerItem _item = new TestThreakWorkerItem();
+
     public Game(GameEngineSetting setting) : base(setting)
     {
 
     }
 
-
+    protected override void OnTick(float delta)
+    {
+        ThreadPool.UnsafeQueueUserWorkItem(_item, false);
+        // Parallel.For(0, 100, ParallelCallback);
+    }
 
     override protected void OnUpdate(float delta)
     {
@@ -91,5 +105,10 @@ public class Game : GameEngine
         //Assets.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
         Rendering.CreateGraphicsArrayBuffer<Vector3>(1000);
         Rendering.CreateRenderTexture(Rendering.PrefferedSDRPass, 1280, 720);
+    }
+
+    private void ParallelCallback(int index)
+    {
+        //to check if the Parallel.For uses Task or ThreadPool
     }
 }

@@ -87,8 +87,8 @@ public class UniversalMaterial : Material
         }
 
         ShaderReflectionInfo info = _shader.Reflections;
-        BindGroupLayout layout = info.BindGroups[id];
-        if (layout.Bindings.Length == 0)
+        BindGroupLayout layout = info.BindGroups[(int)id];
+        if (layout.Bindings.Count == 0)
         {
             return false;
         }
@@ -127,8 +127,8 @@ public class UniversalMaterial : Material
         }
 
         ShaderReflectionInfo info = _shader.Reflections;
-        BindGroupLayout layout = info.BindGroups[id];
-        if (layout.Bindings.Length == 0)
+        BindGroupLayout layout = info.BindGroups[(int)id];
+        if (layout.Bindings.Count == 0)
         {
             throw new KeyNotFoundException($"The resource at index {id} is not found in the shader.");
         }
@@ -156,8 +156,8 @@ public class UniversalMaterial : Material
         }
 
         ShaderReflectionInfo info = _shader.Reflections;
-        BindGroupLayout layout = info.BindGroups[id];
-        if (layout.Bindings.Length == 0)
+        BindGroupLayout layout = info.BindGroups[(int)id];
+        if (layout.Bindings.Count == 0)
         {
             throw new KeyNotFoundException($"The resource '{name}' is not found in the shader.");
         }
@@ -189,8 +189,8 @@ public class UniversalMaterial : Material
         }
 
         ShaderReflectionInfo info = _shader.Reflections;
-        BindGroupLayout layout = info.BindGroups[id];
-        if (layout.Bindings.Length == 0)
+        BindGroupLayout layout = info.BindGroups[(int)id];
+        if (layout.Bindings.Count == 0)
         {
             return false;
         }
@@ -198,7 +198,7 @@ public class UniversalMaterial : Material
         BindGroupEntry entryTexture = layout.Bindings[0];
         if (entryTexture.Type == BindingType.Texture)
         {
-            if (layout.Bindings.Length >= 2)
+            if (layout.Bindings.Count >= 2)
             {
                 BindGroupEntry entrySampler = layout.Bindings[1];
                 if (entrySampler.Type == BindingType.Sampler)
@@ -240,8 +240,8 @@ public class UniversalMaterial : Material
         }
 
         ShaderReflectionInfo info = _shader.Reflections;
-        BindGroupLayout layout = info.BindGroups[id];
-        if (layout.Bindings.Length == 0)
+        BindGroupLayout layout = info.BindGroups[(int)id];
+        if (layout.Bindings.Count == 0)
         {
             throw new KeyNotFoundException($"The resource at index {id} is not found in the shader.");
         }
@@ -249,7 +249,7 @@ public class UniversalMaterial : Material
         BindGroupEntry entryTexture = layout.Bindings[0];
         if (entryTexture.Type == BindingType.Texture)
         {
-            if (layout.Bindings.Length >= 2)
+            if (layout.Bindings.Count >= 2)
             {
                 BindGroupEntry entrySampler = layout.Bindings[1];
                 if (entrySampler.Type == BindingType.Sampler)
@@ -282,8 +282,8 @@ public class UniversalMaterial : Material
         }
 
         ShaderReflectionInfo info = _shader.Reflections;
-        BindGroupLayout layout = info.BindGroups[id];
-        if (layout.Bindings.Length == 0)
+        BindGroupLayout layout = info.BindGroups[(int)id];
+        if (layout.Bindings.Count == 0)
         {
             throw new KeyNotFoundException($"The resource '{name}' is not found in the shader.");
         }
@@ -291,7 +291,7 @@ public class UniversalMaterial : Material
         BindGroupEntry entryTexture = layout.Bindings[0];
         if (entryTexture.Type == BindingType.Texture)
         {
-            if (layout.Bindings.Length >= 2)
+            if (layout.Bindings.Count >= 2)
             {
                 BindGroupEntry entrySampler = layout.Bindings[1];
                 if (entrySampler.Type == BindingType.Sampler)
