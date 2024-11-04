@@ -9,7 +9,7 @@ namespace Vocore.Graphics;
 public struct BindGroupLayout
 {
     public uint Group { get; init; }
-    public BindGroupEntry[] Bindings { get; init; }
+    public BindingGroupEntryInfo[] Bindings { get; init; }
 
     public override string ToString()
     {
@@ -25,6 +25,11 @@ public struct BindGroupLayout
 
     public BindGroupDescriptor ToDescriptor(string name = "unnamed_bind_group")
     {
-        return new BindGroupDescriptor(Bindings, name);
+        BindGroupEntry[] entries = new BindGroupEntry[Bindings.Length];
+        for (int i = 0; i < Bindings.Length; i++)
+        {
+            entries[i] = Bindings[i];
+        }
+        return new BindGroupDescriptor(entries, name);
     }
 }

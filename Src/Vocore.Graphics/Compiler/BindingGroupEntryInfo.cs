@@ -1,0 +1,24 @@
+using System.Text;
+
+namespace Vocore.Graphics;
+
+public struct BindingGroupEntryInfo
+{
+    public BindGroupEntry Entry;
+    public uint Size;
+
+    public override string ToString()
+    {
+        StringBuilder builder = new StringBuilder();
+        builder.AppendLine($"[Binding Group Entry Info]");
+        builder.AppendLine(Entry.ToString());
+        builder.AppendLine($"Size: {Size}");
+
+        return builder.ToString();
+    }
+
+    public static implicit operator BindGroupEntry(BindingGroupEntryInfo info)
+    {
+        return info.Entry;
+    }
+}

@@ -54,9 +54,11 @@ public static class UtilsShaderRelfection
         {
             for (int j = 0; j < info.BindGroups[i].Bindings.Length; j++)
             {
-                if ((info.BindGroups[i].Bindings[j].Stage & ShaderStage.Vertex) != 0 || (info.BindGroups[i].Bindings[j].Stage & ShaderStage.Fragment) != 0 || (info.BindGroups[i].Bindings[j].Stage & ShaderStage.Compute) != 0)
+                if ((info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Vertex) != 0 ||
+                (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Fragment) != 0 ||
+                (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Compute) != 0)
                 {
-                    info.BindGroups[i].Bindings[j].Stage = ShaderStage.Standard;
+                    info.BindGroups[i].Bindings[j].Entry.Stage = ShaderStage.Standard;
                 }
             }
         }
@@ -190,7 +192,7 @@ public static class UtilsShaderRelfection
 
     // resource binding reflection
 
-    private unsafe static BindGroupEntry ConvertResourceBinding(DescriptorBinding input, ShaderStage stage)
+    private unsafe static BindingGroupEntryInfo ConvertResourceBinding(DescriptorBinding input, ShaderStage stage)
     {
         BindingType type = UtilsRelfectType.ConvertBindingType(input.DescriptorType);
 
@@ -211,21 +213,26 @@ public static class UtilsShaderRelfection
                 break;
         }
 
-        return new BindGroupEntry(
+        return new BindingGroupEntryInfo
+        {
+            Entry = new BindGroupEntry(
             input.Binding,
             stage,
             type,
             textureBindingInfo,
             storageTextureBindingInfo,
             UtilsInterop.ReadString(input.Name)
-        );
+        ),
+            Size = input.Block.PaddedSize
+        };
+
     }
 
-    private unsafe static BindGroupEntry[] GetBindGroups(ReflectDescriptorSet set, ShaderStage stage)
+    private unsafe static BindingGroupEntryInfo[] GetBindGroups(ReflectDescriptorSet set, ShaderStage stage)
     {
-        if (set.BindingCount == 0) return Array.Empty<BindGroupEntry>();
+        if (set.BindingCount == 0) return Array.Empty<BindingGroupEntryInfo>();
 
-        BindGroupEntry[] bindings = new BindGroupEntry[set.BindingCount];
+        BindingGroupEntryInfo[] bindings = new BindingGroupEntryInfo[set.BindingCount];
         for (int i = 0; i < set.BindingCount; i++)
         {
             DescriptorBinding* input = set.Bindings[i];
@@ -237,7 +244,7 @@ public static class UtilsShaderRelfection
 
     private unsafe static BindGroupLayout GetBindgGroupLayout(ReflectDescriptorSet set, ShaderStage stage)
     {
-        BindGroupEntry[] bindings = GetBindGroups(set, stage);
+        BindingGroupEntryInfo[] bindings = GetBindGroups(set, stage);
         return new BindGroupLayout
         {
             Group = set.Set,
@@ -259,21 +266,21 @@ public static class UtilsShaderRelfection
         return layouts;
     }
 
-    private static BindGroupEntry[] MergeBindGroupEntries(params BindGroupEntry[][] bindingsList)
+    private static BindingGroupEntryInfo[] MergeBindGroupEntries(params BindingGroupEntryInfo[][] bindingsList)
     {
-        Dictionary<uint, BindGroupEntry> bindings = new Dictionary<uint, BindGroupEntry>();
-        foreach (BindGroupEntry[] list in bindingsList)
+        Dictionary<uint, BindingGroupEntryInfo> bindings = new Dictionary<uint, BindingGroupEntryInfo>();
+        foreach (BindingGroupEntryInfo[] list in bindingsList)
         {
-            foreach (BindGroupEntry binding in list)
+            foreach (BindingGroupEntryInfo binding in list)
             {
-                if (bindings.TryGetValue(binding.Binding, out BindGroupEntry existing))
+                if (bindings.TryGetValue(binding.Entry.Binding, out BindingGroupEntryInfo existing))
                 {
-                    existing.Stage |= binding.Stage;
-                    bindings[binding.Binding] = existing;
+                    existing.Entry.Stage |= binding.Entry.Stage;
+                    bindings[binding.Entry.Binding] = existing;
                 }
                 else
                 {
-                    bindings.Add(binding.Binding, binding);
+                    bindings.Add(binding.Entry.Binding, binding);
                 }
             }
         }

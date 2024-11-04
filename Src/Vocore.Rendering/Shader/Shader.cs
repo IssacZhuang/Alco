@@ -132,7 +132,7 @@ public class Shader : AutoDisposable
             if (bindGroup.Bindings != null
             && bindGroup.Bindings.Length > 0)
             {
-                resourceIds[bindGroup.Bindings[0].Name] = i;
+                resourceIds[bindGroup.Bindings[0].Entry.Name] = i;
             }
         }
 
