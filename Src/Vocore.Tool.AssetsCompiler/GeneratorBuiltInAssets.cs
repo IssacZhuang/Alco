@@ -69,7 +69,7 @@ public partial class BuiltInAssets
                 }
 
                 string filePath = additionalText.Path;
-                string localPath = Path.GetRelativePath(assetsPath, filePath);
+                string localPath = PathExtensions.GetRelativePath(assetsPath, filePath);
                 localPath = FixWindowsPath(localPath);
                 if (ShouldGenerate(filePath, out string namePrefix, out string statement))
                 {
