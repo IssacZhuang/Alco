@@ -9,7 +9,7 @@ namespace Vocore.Graphics;
 public struct BindGroupLayout
 {
     public uint Group { get; init; }
-    public IReadOnlyList<BindingGroupEntryInfo> Bindings { get; init; }
+    public IReadOnlyList<BindGroupEntryInfo> Bindings { get; init; }
 
     public override string ToString()
     {

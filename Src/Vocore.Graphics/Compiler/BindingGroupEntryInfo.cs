@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Vocore.Graphics;
 
-public struct BindingGroupEntryInfo
+public struct BindGroupEntryInfo
 {
     public BindGroupEntry Entry;
     public uint Size;
@@ -17,7 +17,7 @@ public struct BindingGroupEntryInfo
         return builder.ToString();
     }
 
-    public static implicit operator BindGroupEntry(BindingGroupEntryInfo info)
+    public static implicit operator BindGroupEntry(BindGroupEntryInfo info)
     {
         return info.Entry;
     }

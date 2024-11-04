@@ -191,7 +191,7 @@ public static class UtilsShaderRelfection
 
     // resource binding reflection
 
-    private unsafe static BindingGroupEntryInfo ConvertResourceBinding(DescriptorBinding input, ShaderStage stage)
+    private unsafe static BindGroupEntryInfo ConvertResourceBinding(DescriptorBinding input, ShaderStage stage)
     {
         BindingType type = UtilsRelfectType.ConvertBindingType(input.DescriptorType);
 
@@ -212,7 +212,7 @@ public static class UtilsShaderRelfection
                 break;
         }
 
-        return new BindingGroupEntryInfo
+        return new BindGroupEntryInfo
         {
             Entry = new BindGroupEntry(
             input.Binding,
@@ -227,11 +227,11 @@ public static class UtilsShaderRelfection
 
     }
 
-    private unsafe static BindingGroupEntryInfo[] GetBindGroups(ReflectDescriptorSet set, ShaderStage stage)
+    private unsafe static BindGroupEntryInfo[] GetBindGroups(ReflectDescriptorSet set, ShaderStage stage)
     {
-        if (set.BindingCount == 0) return Array.Empty<BindingGroupEntryInfo>();
+        if (set.BindingCount == 0) return Array.Empty<BindGroupEntryInfo>();
 
-        BindingGroupEntryInfo[] bindings = new BindingGroupEntryInfo[set.BindingCount];
+        BindGroupEntryInfo[] bindings = new BindGroupEntryInfo[set.BindingCount];
         for (int i = 0; i < set.BindingCount; i++)
         {
             DescriptorBinding* input = set.Bindings[i];
@@ -243,7 +243,7 @@ public static class UtilsShaderRelfection
 
     private unsafe static BindGroupLayout GetBindgGroupLayout(ReflectDescriptorSet set, ShaderStage stage)
     {
-        BindingGroupEntryInfo[] bindings = GetBindGroups(set, stage);
+        BindGroupEntryInfo[] bindings = GetBindGroups(set, stage);
         return new BindGroupLayout
         {
             Group = set.Set,
@@ -273,14 +273,14 @@ public static class UtilsShaderRelfection
         return layouts;
     }
 
-    private static BindingGroupEntryInfo[] MergeBindGroupEntries(params Span<IReadOnlyList<BindingGroupEntryInfo>> bindingsList)
+    private static BindGroupEntryInfo[] MergeBindGroupEntries(params Span<IReadOnlyList<BindGroupEntryInfo>> bindingsList)
     {
-        Dictionary<uint, BindingGroupEntryInfo> bindings = new Dictionary<uint, BindingGroupEntryInfo>();
-        foreach (BindingGroupEntryInfo[] list in bindingsList)
+        Dictionary<uint, BindGroupEntryInfo> bindings = new Dictionary<uint, BindGroupEntryInfo>();
+        foreach (BindGroupEntryInfo[] list in bindingsList)
         {
-            foreach (BindingGroupEntryInfo binding in list)
+            foreach (BindGroupEntryInfo binding in list)
             {
-                if (bindings.TryGetValue(binding.Entry.Binding, out BindingGroupEntryInfo existing))
+                if (bindings.TryGetValue(binding.Entry.Binding, out BindGroupEntryInfo existing))
                 {
                     existing.Entry.Stage |= binding.Entry.Stage;
                     bindings[binding.Entry.Binding] = existing;
