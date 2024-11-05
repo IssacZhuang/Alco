@@ -1,12 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.RegularExpressions;
 using DirectXShaderCompiler.NET;
 using Vocore.Graphics;
 using Vocore.ShaderCompiler;
 
 namespace Vocore.Rendering;
 
-public static class UtilsShaderHLSL
+ public static partial class UtilsShaderHLSL
 {
     /// <summary>
     /// Represents the key for the "#pragma" directive.
@@ -25,6 +26,7 @@ public static class UtilsShaderHLSL
     /// </summary>
     public const string FormatLine = "#line {0} \"{1}\""; // #line line filename
     public const int MaxRecursionDepth = 32;
+
 
     //deprecated
     public static ShaderCompileResultDeprecated Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
@@ -71,38 +73,110 @@ public static class UtilsShaderHLSL
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
         string[][] permutations = UtilsCollection.GetPermutations(multiCompileDefines);
-        foreach (string[] permutation in permutations)
+
+        string entryVertex, entryPixel, entryCompute;
+        if(!TryFindEntryVertex(shaderText, out entryVertex) &&(
+            !TryFindEntryFragment(shaderText, out entryPixel) ||
+            !TryFindEntryPixel(shaderText, out entryPixel))
+        )
         {
-            macros.Clear();
-            foreach (string define in permutation)
+            foreach (string[] permutation in permutations)
             {
-                macros.Add(new ShaderMacroDefine(define, DefineTrue));
+                macros.Clear();
+                foreach (string define in permutation)
+                {
+                    macros.Add(new ShaderMacroDefine(define, DefineTrue));
+                }
+
+                ShaderModule vertext = ShaderCompilerDxc.CrearteSpirvShaderModule(
+                    shaderText,
+                    ShaderStage.Vertex,
+                    ShaderEntry.Vertex,
+                    filename,
+                    macros.ToArray(),
+                    includeResolver
+                    );
+
+                ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(
+                    shaderText,
+                    ShaderStage.Fragment,
+                    ShaderEntry.Fragment,
+                    filename,
+                    macros.ToArray(),
+                    includeResolver
+                    );
+
+                ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertext.Source, fragment.Source, true);
+                ShaderVariant variant = ShaderVariant.CreateGraphics(permutation, vertext, fragment, reflectionInfo);
+                modules.Add(variant);
             }
 
-            ShaderModule vertext = ShaderCompilerDxc.CrearteSpirvShaderModule(
+            //add shader modules with zero defines
+            ShaderModule vertextOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Vertex,
                 ShaderEntry.Vertex,
                 filename,
-                macros.ToArray()
+                Array.Empty<ShaderMacroDefine>(),
+                includeResolver
                 );
 
-            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(
+            ShaderModule fragmentOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Fragment,
                 ShaderEntry.Fragment,
                 filename,
-                macros.ToArray(),
+                Array.Empty<ShaderMacroDefine>(),
                 includeResolver
                 );
 
-            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertext.Source, fragment.Source, true);
-            ShaderVariant variant = ShaderVariant.CreateGraphics(permutation, vertext, fragment, reflectionInfo);
-            modules.Add(variant);
+            ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(vertextOrigin.Source, fragmentOrigin.Source, true);
+            ShaderVariant variantZero = ShaderVariant.CreateGraphics(Array.Empty<string>(), vertextOrigin, fragmentOrigin, reflectionInfoZero);
+            modules.Add(variantZero);
+
+            return new ShaderCompileResult(modules.ToArray());
+        }else if(TryFindEntryCompute(shaderText, out entryCompute))
+        {
+            foreach (string[] permutation in permutations)
+            {
+                macros.Clear();
+                foreach (string define in permutation)
+                {
+                    macros.Add(new ShaderMacroDefine(define, DefineTrue));
+                }
+
+                ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(
+                    shaderText,
+                    ShaderStage.Compute,
+                    ShaderEntry.Compute,
+                    filename,
+                    macros.ToArray()
+                    );
+
+                ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
+                ShaderVariant variant = ShaderVariant.CreateCompute(permutation, compute, reflectionInfo);
+                modules.Add(variant);
+            }
+
+            //add shader modules with zero defines
+            ShaderModule computeOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
+                shaderText,
+                ShaderStage.Compute,
+                ShaderEntry.Compute,
+                filename,
+                Array.Empty<ShaderMacroDefine>()
+                );
+
+            ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(computeOrigin.Source, true);
+            ShaderVariant variantZero = ShaderVariant.CreateCompute(Array.Empty<string>(), computeOrigin, reflectionInfoZero);
+            modules.Add(variantZero);
+            
+            return new ShaderCompileResult(modules.ToArray());
         }
-
-
-        return new ShaderCompileResult(modules.ToArray());
+        else
+        {
+            throw new ShaderValidationException("No entry point defined in the shader.");
+        }
     }
 
     /// <summary>
@@ -367,6 +441,73 @@ public static class UtilsShaderHLSL
         }
     }
 
+    public static bool TryFindEntryVertex(string shaderText, out string entryPoint)
+    {
+        Regex regex = RegexFindEntryVertex();
+        Match match = regex.Match(shaderText);
+        if (match.Success)
+        {
+            entryPoint = match.Groups[1].Value;
+            return true;
+        }
+
+        entryPoint = string.Empty;
+        return false;
+    }
+
+    public static bool TryFindEntryPixel(string shaderText, out string entryPoint)
+    {
+        Regex regex = RegexFindEntryPixel();
+        Match match = regex.Match(shaderText);
+        if (match.Success)
+        {
+            entryPoint = match.Groups[1].Value;
+            return true;
+        }
+
+        entryPoint = string.Empty;
+        return false;
+    }
+
+    public static bool TryFindEntryFragment(string shaderText, out string entryPoint)
+    {
+        Regex regex = RegexFindEntryFragment();
+        Match match = regex.Match(shaderText);
+        if (match.Success)
+        {
+            entryPoint = match.Groups[1].Value;
+            return true;
+        }
+
+        entryPoint = string.Empty;
+        return false;
+    }
+
+    public static bool TryFindEntryCompute(string shaderText, out string entryPoint)
+    {
+        Regex regex = RegexFindEntryCompute();
+        Match match = regex.Match(shaderText);
+        if (match.Success)
+        {
+            entryPoint = match.Groups[1].Value;
+            return true;
+        }
+
+        entryPoint = string.Empty;
+        return false;
+    }
+
+    [GeneratedRegex(@"\[shader\(""vertex""\)\]\s*(\w+)\s*\(")]
+    private static partial Regex RegexFindEntryVertex();
+
+    [GeneratedRegex(@"\[shader\(""pixel""\)\]\s*(\w+)\s*\(")]
+    private static partial Regex RegexFindEntryPixel();
+
+    [GeneratedRegex(@"\[shader\(""fragment""\)\]\s*(\w+)\s*\(")]
+    private static partial Regex RegexFindEntryFragment();
+
+    [GeneratedRegex(@"\[shader\(""compute""\)\]\s*(\w+)\s*\(")]
+    private static partial Regex RegexFindEntryCompute();
 
     private static bool TryGetInclude(string shaderTextLine, Func<string, string> includeResolver, [NotNullWhen(true)] out string? includedText, [NotNullWhen(true)] out string? includedFilename)
     {
