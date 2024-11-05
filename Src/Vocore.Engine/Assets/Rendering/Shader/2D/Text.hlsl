@@ -1,4 +1,4 @@
-#include "Rendering/ShaderLib/Core.hlslinc"
+#include "Rendering/ShaderLib/Core.hlsli"
 
 #pragma EntryVertex vs_main
 #pragma EntryFragment fs_main
