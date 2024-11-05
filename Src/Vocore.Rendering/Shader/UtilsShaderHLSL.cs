@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using DirectXShaderCompiler.NET;
 using Vocore.Graphics;
 using Vocore.ShaderCompiler;
 
@@ -28,12 +29,12 @@ public static class UtilsShaderHLSL
     //deprecated
     public static ShaderCompileResultDeprecated Compile(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
-        ShaderPreproccessResultHLSL preproccessed = PreprocessText(shaderText, filename, includeResolver);
+        ShaderPreproccessResultHLSLDeprecated preproccessed = PreprocessText(shaderText, filename, includeResolver);
         return Compile(preproccessed);
     }
 
     //deprecated
-    public static ShaderCompileResultDeprecated Compile(ShaderPreproccessResultHLSL preproccessed)
+    public static ShaderCompileResultDeprecated Compile(ShaderPreproccessResultHLSLDeprecated preproccessed)
     {
         ValidatePreprocessResult(preproccessed);
         if (preproccessed.Stages.IsGraphicsShader())
@@ -63,13 +64,8 @@ public static class UtilsShaderHLSL
     /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The compiled shader result.</returns>
-    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> multiCompileDefines, Func<string, string>? includeResolver = null)
+    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> multiCompileDefines, FileIncludeHandler? includeResolver = null)
     {
-        string shaderToCompile = shaderText;
-        if (includeResolver != null)
-        {
-            shaderToCompile = ProcessInclude(shaderText, filename, includeResolver);
-        }
 
         List<ShaderVariant> modules = new List<ShaderVariant>();
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
@@ -84,7 +80,7 @@ public static class UtilsShaderHLSL
             }
 
             ShaderModule vertext = ShaderCompilerDxc.CrearteSpirvShaderModule(
-                shaderToCompile,
+                shaderText,
                 ShaderStage.Vertex,
                 ShaderEntry.Vertex,
                 filename,
@@ -92,11 +88,12 @@ public static class UtilsShaderHLSL
                 );
 
             ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(
-                shaderToCompile,
+                shaderText,
                 ShaderStage.Fragment,
                 ShaderEntry.Fragment,
                 filename,
-                macros.ToArray()
+                macros.ToArray(),
+                includeResolver
                 );
 
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertext.Source, fragment.Source, true);
@@ -143,21 +140,21 @@ public static class UtilsShaderHLSL
     }
 
     //deprecated
-    public static ShaderPreproccessResultHLSL PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver = null)
+    public static ShaderPreproccessResultHLSLDeprecated PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver = null)
     {
         return PreprocessText(shaderText, filename, includeResolver, 0);
     }
 
 
     //deprecated
-    private static ShaderPreproccessResultHLSL PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver, int depth)
+    private static ShaderPreproccessResultHLSLDeprecated PreprocessText(string shaderText, string filename, Func<string, string>? includeResolver, int depth)
     {
         if (includeResolver == null)
         {
             includeResolver = NoIncludeResolver;
         }
 
-        ShaderPreproccessResultHLSL result = new ShaderPreproccessResultHLSL();
+        ShaderPreproccessResultHLSLDeprecated result = new ShaderPreproccessResultHLSLDeprecated();
         result.Filename = filename;
         List<ShaderPragma> shaderPragmas = new List<ShaderPragma>();
         using StringReader reader = new StringReader(shaderText);
@@ -245,7 +242,7 @@ public static class UtilsShaderHLSL
                         throw new InvalidOperationException($"Include recursion depth exceeds the maximum depth of {MaxRecursionDepth}. It might be looping include in the file.");
                     }
 
-                    ShaderPreproccessResultHLSL includedResult = PreprocessText(includedText, filename, includeResolver, depth + 1);
+                    ShaderPreproccessResultHLSLDeprecated includedResult = PreprocessText(includedText, filename, includeResolver, depth + 1);
                     shaderPragmas.AddRange(includedResult.Pragmas);
                     builder.AppendLine(string.Format(FormatLine, 1, includeFilename));
                     builder.AppendLine(includedResult.ShaderText);
@@ -347,7 +344,7 @@ public static class UtilsShaderHLSL
     /// </summary>
     /// <param name="result">The shader preprocess result to validate.</param>
     /// <exception cref="InvalidOperationException">Thrown when the shader preprocess result is invalid.</exception>
-    public static void ValidatePreprocessResult(ShaderPreproccessResultHLSL result)
+    public static void ValidatePreprocessResult(ShaderPreproccessResultHLSLDeprecated result)
     {
         if (string.IsNullOrEmpty(result.EntryVertex) && string.IsNullOrEmpty(result.EntryFragment) && string.IsNullOrEmpty(result.EntryCompute))
         {

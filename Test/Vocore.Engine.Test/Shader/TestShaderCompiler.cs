@@ -62,7 +62,7 @@ public class TestShaderCompiler
     public void TestValidationEntries()
     {
         string shaderText = @"";
-        ShaderPreproccessResultHLSL result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
+        ShaderPreproccessResultHLSLDeprecated result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
         Assert.Catch<ShaderValidationException>(() => UtilsShaderHLSL.ValidatePreprocessResult(result));
 
         shaderText = @"

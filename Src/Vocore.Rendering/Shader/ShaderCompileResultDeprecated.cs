@@ -70,7 +70,7 @@ public class ShaderCompileResultDeprecated
     public static ShaderCompileResultDeprecated CreateGraphics(
         ShaderModule vertex,
         ShaderModule fragment,
-        ShaderPreproccessResultHLSL preproccessResult,
+        ShaderPreproccessResultHLSLDeprecated preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         //return new ShaderCompileResult(vertex, fragment, null, preproccessResult, reflectionInfo);
@@ -112,7 +112,7 @@ public class ShaderCompileResultDeprecated
 
     public static ShaderCompileResultDeprecated CreateCompute(
         ShaderModule compute,
-        ShaderPreproccessResultHLSL preproccessResult,
+        ShaderPreproccessResultHLSLDeprecated preproccessResult,
         ShaderReflectionInfo reflectionInfo)
     {
         //return new ShaderCompileResult(null, null, compute, preproccessResult, reflectionInfo);
