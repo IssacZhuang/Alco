@@ -18,5 +18,5 @@ public enum MaterialResourceType
     /// <summary>
     /// Buffer at binding 0.
     /// </summary>
-    Value
+    Buffer
 }

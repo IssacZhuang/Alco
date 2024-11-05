@@ -19,7 +19,7 @@ public class GraphicsBuffer : ShaderResource
     /// <value>The name of the buffer.</value>
     public string Name { get; }
 
-    public uint SizeInBytes
+    public uint Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer.Size;
@@ -98,6 +98,16 @@ public class GraphicsBuffer : ShaderResource
     public unsafe void UpdateBuffer(byte* data, uint size, uint offset = 0)
     {
         _device.WriteBuffer(_buffer, offset, data, size);
+    }
+
+    /// <summary>
+    /// Update the data to GPU immediately.
+    /// </summary>
+    /// <param name="data">The data to update. </param>
+    /// <typeparam name="T">The type of the data.</typeparam>
+    public unsafe void UpdateBuffer<T>(T data) where T : unmanaged
+    {
+        _device.WriteBuffer(_buffer, 0, (byte*)&data, (uint)sizeof(T));
     }
 
 
