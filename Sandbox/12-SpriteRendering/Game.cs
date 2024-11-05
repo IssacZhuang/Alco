@@ -24,9 +24,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _textShader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
-        _spriteShader = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
-        _font = Assets.Load<Font>("Font/Default.ttf");
+        _textShader = BuiltInAssets.Shader_Text;
+        _spriteShader = BuiltInAssets.Shader_Sprite;
+        _font = BuiltInAssets.Font_Default;
         _star = Assets.Load<Texture2D>("Star.png");
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);

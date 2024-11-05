@@ -18,8 +18,8 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shader = Assets.Load<Shader>("Rendering/Shader/2D/Text.hlsl");
-        _font = Assets.Load<Font>("Font/Default.ttf");
+        _shader = BuiltInAssets.Shader_Text;
+        _font = BuiltInAssets.Font_Default;
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
 

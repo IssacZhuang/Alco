@@ -27,7 +27,7 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _shader = Assets.Load<Shader>("Rendering/Shader/3D/Unlit.hlsl");
+        _shader = Assets.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 

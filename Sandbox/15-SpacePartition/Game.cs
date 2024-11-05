@@ -25,7 +25,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shaderSprite = Assets.Load<Shader>("Rendering/Shader/2D/Sprite.hlsl");
+        _shaderSprite = BuiltInAssets.Shader_Sprite;
         _texDroplet = Assets.Load<Texture2D>("Droplet.png");
 
         _camera = Rendering.CreateCamera2D(960, 540, 100f);

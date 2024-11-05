@@ -12,7 +12,7 @@ public class PluginHDR : BaseEnginePlugin
     public override void OnPostInitialize(GameEngine engine)
     {
         RenderingSystem rendering = engine.Rendering;
-        _shader = engine.Assets.Load<Shader>("Rendering/Shader/ToneMap/ReinhardLuminanceTonemap.hlsl");
+        _shader = engine.Assets.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
         _toneMap = rendering.CreateReinhardLuminanceToneMap(_shader);
 
         

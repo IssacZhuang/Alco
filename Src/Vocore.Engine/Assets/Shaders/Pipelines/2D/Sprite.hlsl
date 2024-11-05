@@ -1,4 +1,4 @@
-#include "Rendering/ShaderLib/Core.hlsli"
+#include "Shaders/Libs/Core.hlsli"
 
 #pragma EntryVertex MainVS
 #pragma EntryFragment MainPS
