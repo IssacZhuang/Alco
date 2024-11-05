@@ -1,7 +1,7 @@
 #include "Rendering/ShaderLib/Core.hlsli"
 
-#pragma EntryVertex vs_main
-#pragma EntryFragment fs_main
+#pragma EntryVertex MainVS
+#pragma EntryFragment MainPS
 
 #pragma DepthStencilState Write
 
@@ -26,7 +26,7 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 
 PUSH_CONSTANT Constants constants;
 
-V2F vs_main(Vertex2D input) {
+V2F MainVS(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = mul(constants.model, float4(input.position, 1.0f));
   output.position = mul(viewProjection, output.position);
@@ -34,6 +34,6 @@ V2F vs_main(Vertex2D input) {
   return output;
 }
 
-float4 fs_main(V2F input) : SV_TARGET {
+float4 MainPS(V2F input) : SV_TARGET {
   return _texture.Sample(_textureSampler, input.uv) * constants.color;
 }

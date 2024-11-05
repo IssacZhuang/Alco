@@ -67,43 +67,43 @@ public class TestShaderCompiler
 
         shaderText = @"
         // no fragment entry
-        #pragma EntryVertex vs_main
+        #pragma EntryVertex MainVS
         ";
         result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
         Assert.Catch<ShaderValidationException>(() => UtilsShaderHLSL.ValidatePreprocessResult(result));
 
         shaderText = @"
         // no vertex entry
-        #pragma EntryFragment fs_main
+        #pragma EntryFragment MainPS
         ";
         result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
         Assert.Catch<ShaderValidationException>(() => UtilsShaderHLSL.ValidatePreprocessResult(result));
 
         shaderText = @"
         // correct
-        #pragma EntryVertex vs_main
-        #pragma EntryFragment fs_main";
+        #pragma EntryVertex MainVS
+        #pragma EntryFragment MainPS";
         result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
         Assert.DoesNotThrow(() => UtilsShaderHLSL.ValidatePreprocessResult(result));
         Assert.That(result.Stages.IsGraphicsShader(), Is.True);
         Assert.That(result.Stages.IsComputeShader(), Is.False);
-        Assert.That(result.EntryVertex, Is.EqualTo("vs_main"));
-        Assert.That(result.EntryFragment, Is.EqualTo("fs_main"));
+        Assert.That(result.EntryVertex, Is.EqualTo("MainVS"));
+        Assert.That(result.EntryFragment, Is.EqualTo("MainPS"));
 
         shaderText = @"
         // correct
-        #pragma EntryCompute cs_main";
+        #pragma EntryCompute MainCS";
         result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
         Assert.DoesNotThrow(() => UtilsShaderHLSL.ValidatePreprocessResult(result));
         Assert.That(result.Stages.IsGraphicsShader(), Is.False);
         Assert.That(result.Stages.IsComputeShader(), Is.True);
-        Assert.That(result.EntryCompute, Is.EqualTo("cs_main"));
+        Assert.That(result.EntryCompute, Is.EqualTo("MainCS"));
 
         shaderText = @"
         // conflict
-        #pragma EntryVertex vs_main
-        #pragma EntryCompute cs_main
-        #pragma EntryFragment fs_main
+        #pragma EntryVertex MainVS
+        #pragma EntryCompute MainCS
+        #pragma EntryFragment MainPS
         ";
         result = UtilsShaderHLSL.PreprocessText(shaderText, "test.hlsl");
         Assert.Catch<ShaderValidationException>(() => UtilsShaderHLSL.ValidatePreprocessResult(result));
@@ -113,8 +113,8 @@ public class TestShaderCompiler
     public void TestShaderCompilation()
     {
         string shaderText = @"
-        #pragma EntryVertex vs_main
-        #pragma EntryFragment fs_main
+        #pragma EntryVertex MainVS
+        #pragma EntryFragment MainPS
 
         struct Vertex{
             float3 position : POSITION;
@@ -127,14 +127,14 @@ public class TestShaderCompiler
             float4 color : COLOR;
         };
 
-        PixelInput vs_main(Vertex input){
+        PixelInput MainVS(Vertex input){
             PixelInput output;
             output.position = float4(input.position, 1.0f);
             output.color = input.color;
             return output;
         }
 
-        float4 fs_main(PixelInput input) : SV_TARGET{
+        float4 MainPS(PixelInput input) : SV_TARGET{
             return input.color;
         }
 

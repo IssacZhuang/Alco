@@ -2,7 +2,7 @@
 @group(1) @binding(0) var outputTexture: texture_storage_2d<rgba8unorm,write>;
 
 @compute @workgroup_size(8, 8)
-fn cs_main(@builtin(global_invocation_id) id: vec3<u32>) {
+fn MainCS(@builtin(global_invocation_id) id: vec3<u32>) {
     //box blur
     var color: vec3<f32> = textureLoad(inputTexture, id.xy, 0).rgb;
     for (var i: i32 = -1; i < 2; i = i + 1) {

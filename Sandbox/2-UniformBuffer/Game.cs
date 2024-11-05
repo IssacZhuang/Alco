@@ -117,14 +117,14 @@ public class Game : GameEngine
         string appPath = Environment.CurrentDirectory;
 
         //dxc
-        // ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        // ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        // ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
+        // ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
         // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.dxc.vert.spv");
         // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.dxc.frag.spv");
 
         //shaderc
-        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "vs_main", "Shader.hlsl");
-        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "fs_main", "Shader.hlsl");
+        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
+        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
 
         //slang
         ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.hlsl");

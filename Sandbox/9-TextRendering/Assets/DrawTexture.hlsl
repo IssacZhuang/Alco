@@ -24,7 +24,7 @@ SLOT(1,1) SamplerState imageSampler;
 
 [[vk::push_constant]] Constants constants;
 
-V2F vs_main(Vertex2D input){
+V2F MainVS(Vertex2D input) {
     
     float4 position = float4(input.position, 0.0f, 1.0f);
     position = mul(constants.model, position);
@@ -36,7 +36,7 @@ V2F vs_main(Vertex2D input){
     return output;
 }
 
-float4 fs_main(V2F input) : SV_TARGET{
+float4 MainPS(V2F input) : SV_TARGET {
     float value = image.Sample(imageSampler, input.uv).r;
 
     return float4(value, value, value, 1.0f);

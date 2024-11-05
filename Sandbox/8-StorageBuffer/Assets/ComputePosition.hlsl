@@ -9,6 +9,6 @@ SLOT(1,0) cbuffer Time{
 };
 
 [numthreads(8, 1, 1)]
-void cs_main(uint3 id: SV_DispatchThreadID) {
+void MainCS(uint3 id: SV_DispatchThreadID) {
     positions[id.x] = float4(id.x, cos(time + float(id.x)*0.1)*5, 0.0f, 1.0f);
 }

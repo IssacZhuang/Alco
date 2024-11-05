@@ -1,7 +1,7 @@
 #include "Rendering/ShaderLib/Core.hlsli"
 
-#pragma EntryVertex vs_main
-#pragma EntryFragment fs_main
+#pragma EntryVertex MainVS
+#pragma EntryFragment MainPS
 
 #pragma BlendState AlphaBlend
 #pragma DepthStencilState Read
@@ -43,7 +43,7 @@ DEFINE_TEX2D_SAMPLE(2, _font);
 
 PUSH_CONSTANT Constants constants;
 
-V2F vs_main(Vertex2D input) {
+V2F MainVS(Vertex2D input) {
   TextData data = _textBuffer[input.instanceId];
   float2 vertexPos = input.position * data.size;
   float4 position =
@@ -67,7 +67,7 @@ V2F vs_main(Vertex2D input) {
   return output;
 }
 
-float4 fs_main(V2F input) : SV_TARGET {
+float4 MainPS(V2F input) : SV_TARGET {
     //discard if outside mask
   if (input.clipPos.x < input.maskMin.x || input.clipPos.x > input.maskMax.x ||
       input.clipPos.y < input.maskMin.y || input.clipPos.y > input.maskMax.y) {

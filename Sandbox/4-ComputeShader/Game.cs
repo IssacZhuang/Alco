@@ -150,8 +150,8 @@ public class Game : GameEngine
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroupBuffer, GPUBindGroup bindGroupTexture)
     {
         byte[] ShaderCode = LoadFile("DrawTexture.wgsl");
-        ShaderModule vertexShader = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "vs_main");
-        ShaderModule fragmentShader = new ShaderModule(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "fs_main");
+        ShaderModule vertexShader = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "MainVS");
+        ShaderModule fragmentShader = new ShaderModule(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "MainPS");
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
@@ -190,10 +190,10 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
 
         //dxc
-        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "MainCS", "BoxBlur.hlsl");
 
         //shaderc hlsl
-        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "cs_main", "BoxBlur.hlsl");
+        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "MainCS", "BoxBlur.hlsl");
 
         //shaderc glsl
         // string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
@@ -201,7 +201,7 @@ public class Game : GameEngine
 
 
         // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
-        // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "cs_main");
+        // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "MainCS");
 
         DebugSaveFile("BoxBlur.spv", computeShader.Source);
         ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Source);

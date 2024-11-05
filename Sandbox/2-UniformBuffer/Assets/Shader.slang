@@ -13,13 +13,13 @@ struct PixelInput{
 }
 
 [shader("vertex")]
-PixelInput vs_main(Vertex input){
+PixelInput MainVS(Vertex input) {
     PixelInput output;
     output.position = float4(input.position, 1.0f);
     return output;
 }
 
 [shader("pixel")]
-float4 fs_main(PixelInput input) : SV_TARGET{
+float4 MainPS(PixelInput input) : SV_TARGET {
     return color;
 }

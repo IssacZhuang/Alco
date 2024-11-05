@@ -1,7 +1,7 @@
 #include "Rendering/ShaderLib/Core.hlsli"
 
-#pragma EntryVertex vs_main
-#pragma EntryFragment fs_main
+#pragma EntryVertex MainVS
+#pragma EntryFragment MainPS
 
 #pragma BlendState Additive
 #pragma DepthStencilState Read
@@ -19,7 +19,7 @@ struct V2F {
   float2 uv : TEXCOORD0;
 };
 
-V2F vs_main(Vertex2D input) {
+V2F MainVS(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = float4(input.position, 0.0f, 1.0f);
   output.uv = input.uv;
@@ -30,7 +30,7 @@ float grayScale(float3 color) {
   return dot(color, float3(0.299, 0.587, 0.114));
 }
 
-float4 fs_main(V2F input) : SV_TARGET {
+float4 MainPS(V2F input) : SV_TARGET {
   // use gray scale as alpha
   float4 source = SAMPLE_TEX2D(texture, input.uv);
   float intensityBase = 2;

@@ -1,8 +1,7 @@
 #include "Rendering/ShaderLib/Core.hlsli"
 
-
-#pragma EntryVertex vs_main
-#pragma EntryFragment fs_main
+#pragma EntryVertex MainVS
+#pragma EntryFragment MainPS
 
 #pragma RenderPass Surface
 
@@ -34,14 +33,14 @@ struct V2F {
     float2 uv : TEXCOORD0;
 };
 
-V2F vs_main(Vertex2D input) {
+V2F MainVS(Vertex2D input) {
     V2F output = (V2F)0;
     output.position = float4(input.position, 0.0f, 1.0f);
     output.uv = input.uv;
     return output;
 }
 
-float4 fs_main(V2F input) : SV_TARGET {
+float4 MainPS(V2F input) : SV_TARGET {
     float3 hdrColor = max(0, SAMPLE_TEX2D(_texture, input.uv).rgb - 0.004);
     float3 ldrColor = Uncharted2Tonemap(hdrColor * Exposure);
 

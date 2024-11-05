@@ -1,7 +1,7 @@
 #include "Rendering/ShaderLib/Core.hlsli"
 
-#pragma EntryVertex vs_main
-#pragma EntryFragment fs_main
+#pragma EntryVertex MainVS
+#pragma EntryFragment MainPS
 
 #pragma BlendState Additive
 #pragma DepthStencilState None
@@ -20,14 +20,13 @@ struct V2F {
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-
-V2F vs_main(Vertex2D input) {
+V2F MainVS(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = mul(viewProjection, float4(input.position, 1.0f));
   output.color = input.color;
   return output;
 }
 
-float4 fs_main(V2F input) : SV_TARGET {
+float4 MainPS(V2F input) : SV_TARGET {
   return input.color;
 }

@@ -21,7 +21,7 @@ struct VertexOutput {
 };
 
 @vertex
-fn vs_main(
+fn MainVS(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
@@ -34,7 +34,7 @@ fn vs_main(
 // Fragment shader
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn MainPS(in: VertexOutput) -> @location(0) vec4<f32> {
     var color:vec4<f32> = vec4<f32>(color, 1.0) * textureSample(image, imageSampler, in.texCoord);
     //inverse gamma correction, why??
     color = vec4<f32>(pow(color, vec4<f32>(2.2)));
