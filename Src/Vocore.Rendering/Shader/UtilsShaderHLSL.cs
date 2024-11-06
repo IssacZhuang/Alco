@@ -443,49 +443,26 @@ namespace Vocore.Rendering;
 
     public static bool TryFindEntryVertex(string shaderText, out string entryPoint)
     {
-        Regex regex = RegexFindEntryVertex();
-        Match match = regex.Match(shaderText);
-        if (match.Success)
-        {
-            entryPoint = match.Groups[1].Value;
-            return true;
-        }
-
-        entryPoint = string.Empty;
-        return false;
+        return TryFindEntry(RegexFindEntryVertex(), shaderText, out entryPoint);
     }
 
     public static bool TryFindEntryPixel(string shaderText, out string entryPoint)
     {
-        Regex regex = RegexFindEntryPixel();
-        Match match = regex.Match(shaderText);
-        if (match.Success)
-        {
-            entryPoint = match.Groups[1].Value;
-            return true;
-        }
-
-        entryPoint = string.Empty;
-        return false;
+        return TryFindEntry(RegexFindEntryPixel(), shaderText, out entryPoint);
     }
 
     public static bool TryFindEntryFragment(string shaderText, out string entryPoint)
     {
-        Regex regex = RegexFindEntryFragment();
-        Match match = regex.Match(shaderText);
-        if (match.Success)
-        {
-            entryPoint = match.Groups[1].Value;
-            return true;
-        }
-
-        entryPoint = string.Empty;
-        return false;
+        return TryFindEntry(RegexFindEntryFragment(), shaderText, out entryPoint);
     }
 
     public static bool TryFindEntryCompute(string shaderText, out string entryPoint)
     {
-        Regex regex = RegexFindEntryCompute();
+        return TryFindEntry(RegexFindEntryCompute(), shaderText, out entryPoint);
+    }
+
+    private static bool TryFindEntry(Regex regex, string shaderText, out string entryPoint)
+    {
         Match match = regex.Match(shaderText);
         if (match.Success)
         {
@@ -497,7 +474,7 @@ namespace Vocore.Rendering;
         return false;
     }
 
-    [GeneratedRegex(@"\[shader\(""vertex""\)\]\s*(\w+)\s*\(")]
+    [GeneratedRegex(@"\[shader\(""vertex""\)\]\s*(\w+)\s+(\w+)\s*\(")]
     private static partial Regex RegexFindEntryVertex();
 
     [GeneratedRegex(@"\[shader\(""pixel""\)\]\s*(\w+)\s*\(")]
@@ -530,6 +507,35 @@ namespace Vocore.Rendering;
         includedText = null;
         includedFilename = null;
         return false;
+    }
+
+    public static readonly Regex RegexFunction = new Regex(@"(\[.*?\])*\s*(\w+)\s+(\w+)\s*\(([^)]*)\)", RegexOptions.Compiled);
+
+    public static List<HlslFunctionInfo> GetFunctionInfo(string code)
+    {
+        var functions = new List<HlslFunctionInfo>();
+        //var functionPattern = new Regex(@"(\[\s*shader\s*\(\s*""\w+""\s*\)\s*\])*\s*(\w+)\s+(\w+)\s*\(([^)]*)\)\s*{", RegexOptions.Compiled);
+        
+        var matches = RegexFunction.Matches(code);
+        foreach (Match match in matches)
+        {
+
+            var functionInfo = new HlslFunctionInfo(
+                match.Groups[2].Value,
+                match.Groups[3].Value,
+                match.Groups[4].Value
+                );
+
+            var attributes = match.Groups[1].Captures;
+            foreach (Capture attribute in attributes)
+            {
+                functionInfo.Attributes.Add(attribute.Value.Trim());
+            }
+
+            functions.Add(functionInfo);
+        }
+
+        return functions;
     }
 
     private static string NoIncludeResolver(string includeName)
