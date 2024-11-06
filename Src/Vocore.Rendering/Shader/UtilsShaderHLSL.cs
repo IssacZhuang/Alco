@@ -74,11 +74,35 @@ namespace Vocore.Rendering;
 
         string[][] permutations = UtilsCollection.GetPermutations(multiCompileDefines);
 
-        string entryVertex, entryPixel, entryCompute;
-        if(!TryFindEntryVertex(shaderText, out entryVertex) &&(
-            !TryFindEntryFragment(shaderText, out entryPixel) ||
-            !TryFindEntryPixel(shaderText, out entryPixel))
-        )
+        List<HlslFunctionInfo> functions = GetFunctionInfo(shaderText);
+        ShaderStage stage = ShaderStage.None;
+        foreach (HlslFunctionInfo function in functions)
+        {
+            stage |= function.Stage;
+        }
+
+        if (stage == ShaderStage.None)
+        {
+            throw new ShaderValidationException("No entry point defined in the shader.");
+        }
+
+        if(stage.HasFlag(ShaderStage.Vertex) && !stage.HasFlag(ShaderStage.Fragment))
+        {
+            throw new ShaderValidationException("Missing pixel entry point in the shader.");
+        }
+
+        if (!stage.HasFlag(ShaderStage.Vertex) && stage.HasFlag(ShaderStage.Fragment))
+        {
+            throw new ShaderValidationException("Missing vertex entry point in the shader.");
+        }
+
+        //check if compute shader is in the same file with vertex or fragment shader
+        if (stage.HasFlag(ShaderStage.Compute) && (stage.HasFlag(ShaderStage.Vertex) || stage.HasFlag(ShaderStage.Fragment)))
+        {
+            throw new ShaderValidationException("No vertex or fragment entry point is allowed in the compute shader.");
+        }
+
+        if (stage.HasFlag(ShaderStage.Vertex) && stage.HasFlag(ShaderStage.Fragment))
         {
             foreach (string[] permutation in permutations)
             {
@@ -135,7 +159,7 @@ namespace Vocore.Rendering;
             modules.Add(variantZero);
 
             return new ShaderCompileResult(modules.ToArray());
-        }else if(TryFindEntryCompute(shaderText, out entryCompute))
+        }else if(stage.HasFlag(ShaderStage.Compute))
         {
             foreach (string[] permutation in permutations)
             {
@@ -441,50 +465,7 @@ namespace Vocore.Rendering;
         }
     }
 
-    public static bool TryFindEntryVertex(string shaderText, out string entryPoint)
-    {
-        return TryFindEntry(RegexFindEntryVertex(), shaderText, out entryPoint);
-    }
 
-    public static bool TryFindEntryPixel(string shaderText, out string entryPoint)
-    {
-        return TryFindEntry(RegexFindEntryPixel(), shaderText, out entryPoint);
-    }
-
-    public static bool TryFindEntryFragment(string shaderText, out string entryPoint)
-    {
-        return TryFindEntry(RegexFindEntryFragment(), shaderText, out entryPoint);
-    }
-
-    public static bool TryFindEntryCompute(string shaderText, out string entryPoint)
-    {
-        return TryFindEntry(RegexFindEntryCompute(), shaderText, out entryPoint);
-    }
-
-    private static bool TryFindEntry(Regex regex, string shaderText, out string entryPoint)
-    {
-        Match match = regex.Match(shaderText);
-        if (match.Success)
-        {
-            entryPoint = match.Groups[1].Value;
-            return true;
-        }
-
-        entryPoint = string.Empty;
-        return false;
-    }
-
-    [GeneratedRegex(@"\[shader\(""vertex""\)\]\s*(\w+)\s+(\w+)\s*\(")]
-    private static partial Regex RegexFindEntryVertex();
-
-    [GeneratedRegex(@"\[shader\(""pixel""\)\]\s*(\w+)\s*\(")]
-    private static partial Regex RegexFindEntryPixel();
-
-    [GeneratedRegex(@"\[shader\(""fragment""\)\]\s*(\w+)\s*\(")]
-    private static partial Regex RegexFindEntryFragment();
-
-    [GeneratedRegex(@"\[shader\(""compute""\)\]\s*(\w+)\s*\(")]
-    private static partial Regex RegexFindEntryCompute();
 
     private static bool TryGetInclude(string shaderTextLine, Func<string, string> includeResolver, [NotNullWhen(true)] out string? includedText, [NotNullWhen(true)] out string? includedFilename)
     {
@@ -509,7 +490,7 @@ namespace Vocore.Rendering;
         return false;
     }
 
-    public static readonly Regex RegexFunction = new Regex(@"(\[.*?\])*\s*(\w+)\s+(\w+)\s*\(([^)]*)\)", RegexOptions.Compiled);
+    public static readonly Regex RegexFunction = new Regex(@"(\[[^]]*\]\s*)*\s*(\w+)\s+(\w+)\s*\(([^)]*)\)", RegexOptions.Compiled);
 
     public static List<HlslFunctionInfo> GetFunctionInfo(string code)
     {
@@ -519,18 +500,20 @@ namespace Vocore.Rendering;
         var matches = RegexFunction.Matches(code);
         foreach (Match match in matches)
         {
-
-            var functionInfo = new HlslFunctionInfo(
-                match.Groups[2].Value,
-                match.Groups[3].Value,
-                match.Groups[4].Value
-                );
+            List<string> attrs = new List<string>();
 
             var attributes = match.Groups[1].Captures;
             foreach (Capture attribute in attributes)
             {
-                functionInfo.Attributes.Add(attribute.Value.Trim());
+                attrs.Add(attribute.Value.Trim());
             }
+
+            var functionInfo = new HlslFunctionInfo(
+                match.Groups[2].Value,
+                match.Groups[3].Value,
+                match.Groups[4].Value,
+                attrs.ToArray()
+                );
 
             functions.Add(functionInfo);
         }
