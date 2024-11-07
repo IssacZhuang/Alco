@@ -11,63 +11,124 @@ namespace Vocore.Rendering;
 public class ShaderNew : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
-    private ShaderReflectionInfo _reflectionInfo;
-    private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
+
+    private readonly ConcurrentDictionary<string, ShaderModulesInfo> _variantCache = new ConcurrentDictionary<string, ShaderModulesInfo>();
+    private readonly ConcurrentDictionary<long, GPUPipeline> _pipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
+
+    private readonly Lock _lockCreatePipeline = new Lock();
 
     public string Name { get; }
 
-    internal ShaderNew(RenderingSystem renderingSystem, string name, ShaderReflectionInfo reflectionInfo)
+    internal ShaderNew(RenderingSystem renderingSystem, string name)
     {
         _renderingSystem = renderingSystem;
         Name = name;
-        _reflectionInfo = reflectionInfo;
-        BuildResourceIndex();
     }
 
-    /// <summary>
-    /// Tries to get the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
-    /// <returns>True if the resource sID was found, false otherwise.</returns>
-    public bool TryGetResourceId(string name, out uint resourceId)
+    private GPUPipeline GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        ShaderModulesInfo modulesInfo,
+        DepthStencilState depthStencil,
+        BlendState blend,
+        RasterizerState rasterizer,
+        PrimitiveTopology primitiveTopology
+        )
     {
-        return _resourceIds.TryGetValue(name, out resourceId);
-    }
+        long hash = default;
+        //fist 32 bits are the render pass hash
+        hash |= (long)renderPass.GetHashCode();
 
-    /// <summary>
-    /// Gets the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    /// <throws>KeyNotFoundException if the resource is not found.</throws>
-    /// <returns>The resource ID.</returns>
-    public uint GetResourceId(string name)
-    {
-        if (_resourceIds.TryGetValue(name, out uint resourceId))
+        //next 32 bits are combination of the variant hash and the pipeline state hash
+        int subHash = HashCode.Combine(
+            modulesInfo.GetHashCode(),
+            depthStencil.GetHashCode(),
+            blend.GetHashCode(),
+            rasterizer.GetHashCode(),
+            primitiveTopology.GetHashCode()
+            );
+
+        hash |= (long)subHash << 32;
+
+        if (_pipelineCache.TryGetValue(hash, out GPUPipeline? pipeline))
         {
-            return resourceId;
+            return pipeline;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {Name}");
-    }
 
-    private void BuildResourceIndex()
-    {
-        Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
-        resourceIds.Clear();
-        for (uint i = 0; i < _reflectionInfo.BindGroups.Count; i++)
+        //create a new pipeline
+        using (_lockCreatePipeline.EnterScope())
         {
-            BindGroupLayout bindGroup = _reflectionInfo.BindGroups[(int)i];
-            if (bindGroup.Bindings != null
-            && bindGroup.Bindings.Count > 0)
+            if (_pipelineCache.TryGetValue(hash, out GPUPipeline? pipeline2))
             {
-                resourceIds[bindGroup.Bindings[0].Entry.Name] = i;
+                return pipeline2;
             }
-        }
 
-        _resourceIds = resourceIds.ToFrozenDictionary();
+            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            GPUDevice device = _renderingSystem.GraphicsDevice;
+
+            GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];
+            for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
+            {
+                bindGroups[i] = device.CreateBindGroup(reflectionInfo.BindGroups[i].ToDescriptor());
+            }
+
+            GPUPipeline pipelineNew;
+
+            if (modulesInfo.IsGraphicsShader)
+            {
+                PixelFormat[] colors = new PixelFormat[renderPass.Colors.Length];
+                for (int i = 0; i < renderPass.Colors.Length; i++)
+                {
+                    colors[i] = renderPass.Colors[i].Format;
+                }
+                PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
+
+                GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
+                    bindGroups,
+                    new ShaderModule[] {
+                    modulesInfo.VertexShader!.Value,
+                    modulesInfo.FragmentShader!.Value
+                        },
+                    reflectionInfo.VertexLayouts.ToArray(),
+                    rasterizer,
+                    blend,
+                    depthStencil,
+                    primitiveTopology,
+                    colors,
+                    depthStencilFormat,
+                    reflectionInfo.PushConstantsRanges.ToArray(),
+                    Name);
+
+
+                pipelineNew = device.CreateGraphicsPipeline(descriptor);
+            }
+            else if (modulesInfo.IsComputeShader)
+            {
+                ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
+                    modulesInfo.ComputeShader!.Value,
+                    bindGroups,
+                    Name);
+
+                pipelineNew = device.CreateComputePipeline(descriptor);
+
+
+            }
+            else
+            {
+                throw new InvalidOperationException("The shader is neither graphics nor compute shader.");
+            }
+
+            foreach (var bindGroup in bindGroups)
+            {
+                bindGroup.Dispose();
+            }
+
+            _pipelineCache[hash] = pipelineNew;
+
+            return pipelineNew;
+        }
     }
+
+
 
     protected override void Dispose(bool disposing)
     {

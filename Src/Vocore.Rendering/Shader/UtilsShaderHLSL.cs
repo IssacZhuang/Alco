@@ -68,13 +68,15 @@ namespace Vocore.Rendering;
     /// <returns>The compiled shader result.</returns>
     public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> defines, FileIncludeHandler? includeResolver = null)
     {
-        List<ShaderVariant> modules = new List<ShaderVariant>();
+        List<ShaderModulesInfo> modules = new List<ShaderModulesInfo>();
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
         for (int i = 0; i < defines.Length; i++)
         {
             macros.Add(new ShaderMacroDefine(defines[i], DefineTrue));
         }
+
+        string[] defineArray = defines.ToArray();
 
         List<HlslFunctionInfo> functions = GetFunctionInfo(shaderText);
         ShaderStage stage = ShaderStage.None;
@@ -127,7 +129,13 @@ namespace Vocore.Rendering;
                 );
 
             ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(vertextOrigin.Source, fragmentOrigin.Source, true);
-            ShaderVariant variantZero = ShaderVariant.CreateGraphics(Array.Empty<string>(), vertextOrigin, fragmentOrigin, reflectionInfoZero);
+            ShaderModulesInfo variantZero = ShaderModulesInfo.CreateGraphics(
+                filename,
+                defineArray,
+                vertextOrigin,
+                fragmentOrigin,
+                reflectionInfoZero
+                );
             modules.Add(variantZero);
 
             return new ShaderCompileResult(modules.ToArray());
@@ -145,7 +153,12 @@ namespace Vocore.Rendering;
                 );
 
             ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(computeOrigin.Source, true);
-            ShaderVariant variantZero = ShaderVariant.CreateCompute(Array.Empty<string>(), computeOrigin, reflectionInfoZero);
+            ShaderModulesInfo variantZero = ShaderModulesInfo.CreateCompute(
+                filename,
+                defineArray,
+                computeOrigin,
+                reflectionInfoZero
+                );
             modules.Add(variantZero);
             
             return new ShaderCompileResult(modules.ToArray());

@@ -4,8 +4,8 @@ namespace Vocore.Rendering;
 
 public class ShaderCompileResult
 {
-    public ShaderVariant[] Variants { get; }
-    public ShaderCompileResult(ShaderVariant[] variants)
+    public ShaderModulesInfo[] Variants { get; }
+    public ShaderCompileResult(ShaderModulesInfo[] variants)
     {
         Variants = variants;
     }
