@@ -41,6 +41,7 @@ DEFINE_TEX2D_SAMPLE(2, _font);
 
 PUSH_CONSTANT Constants constants;
 
+[shader("vertex")]
 V2F MainVS(Vertex2D input) {
   TextData data = _textBuffer[input.instanceId];
   float2 vertexPos = input.position * data.size;
@@ -56,6 +57,7 @@ V2F MainVS(Vertex2D input) {
   return output;
 }
 
+[shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
   TextData data = _textBuffer[input.instanceId];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;

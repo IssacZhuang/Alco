@@ -33,6 +33,7 @@ struct V2F {
     float2 uv : TEXCOORD0;
 };
 
+[shader("vertex")]
 V2F MainVS(Vertex2D input) {
     V2F output = (V2F)0;
     output.position = float4(input.position, 0.0f, 1.0f);
@@ -40,6 +41,7 @@ V2F MainVS(Vertex2D input) {
     return output;
 }
 
+[shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
     float3 hdrColor = max(0, SAMPLE_TEX2D(_texture, input.uv).rgb - 0.004);
     float3 ldrColor = Uncharted2Tonemap(hdrColor * Exposure);

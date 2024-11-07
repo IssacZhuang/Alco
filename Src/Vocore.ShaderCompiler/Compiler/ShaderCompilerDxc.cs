@@ -36,6 +36,14 @@ public static class ShaderCompilerDxc
             preserveBindings = true,
         };
 
+        if(defines != null)
+        {
+            for(int i = 0; i < defines.Length; i++)
+            {
+                options.SetMacro(defines[i].Name, defines[i].Value);
+            }
+        }
+
         CompilationResult result = DirectXShaderCompiler.NET.ShaderCompiler.Compile(hlslCode, options, includeHandler);
 
         if (result.compilationErrors != null)

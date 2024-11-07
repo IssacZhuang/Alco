@@ -21,6 +21,7 @@ struct V2F {
   float2 uv : TEXCOORD0;
 };
 
+[shader("vertex")]
 V2F MainVS(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = float4(input.position, 0.0f, 1.0f);
@@ -36,6 +37,7 @@ float3 change_luminance(float3 color, float new_luminance) {
   return color * (new_luminance / luminance(color));
 }
 
+[shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
   float4 source = SAMPLE_TEX2D(_texture, input.uv);
 

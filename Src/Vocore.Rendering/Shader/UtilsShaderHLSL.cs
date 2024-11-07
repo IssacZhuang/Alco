@@ -210,10 +210,16 @@ namespace Vocore.Rendering;
     /// <param name="filename">The filename of the shader text.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The shader text with the include statements resolved.</returns>
-    public static string ProcessInclude(string shaderText, string filename, Func<string, string> includeResolver)
+    public static string ProcessInclude(string shaderText, string filename, Func<string, string> includeResolver, int depth = 0)
     {
+        if (depth > MaxRecursionDepth)
+        {
+            throw new InvalidOperationException($"Include recursion depth exceeds the maximum depth of {MaxRecursionDepth}. It might be looping include in the file.");
+        }
+
         StringBuilder builder = new StringBuilder();
         using StringReader reader = new StringReader(shaderText);
+        HashSet<string> includedFiles = new HashSet<string>();
         string? line;
         int lineCount = 0;
 
@@ -222,8 +228,13 @@ namespace Vocore.Rendering;
             lineCount++;
             line = line.TrimStart();
 
-            if (TryGetInclude(line, includeResolver, out string? includedText, out string? includeFilename))
+            if (TryGetInclude(line, includeResolver, out string? includedText, out string? includeFilename) &&
+                !includedFiles.Contains(includeFilename))
             {
+                includedFiles.Add(includeFilename);
+
+                includedText = ProcessInclude(includedText, includeFilename, includeResolver, depth + 1);
+
                 builder.AppendLine(string.Format(FormatLine, 1, includeFilename));
                 builder.AppendLine(includedText);
                 builder.AppendLine(string.Format(FormatLine, lineCount + 1, filename));
@@ -475,9 +486,16 @@ namespace Vocore.Rendering;
             if (tokens.Length > 1)
             {
                 string includeName = tokens[1].Trim('\"');
-                includedText = includeResolver(includeName);
-                includedFilename = includeName;
-                return true;
+                try
+                {
+                    includedText = includeResolver(includeName);
+                    includedFilename = includeName;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Error resolving include statement: {shaderTextLine}", ex);
+                }
             }
             else
             {

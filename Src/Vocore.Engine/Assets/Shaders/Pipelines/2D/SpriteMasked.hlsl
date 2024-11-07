@@ -32,6 +32,7 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 
 PUSH_CONSTANT Constants constants;
 
+[shader("vertex")]
 V2F MainVS(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = mul(constants.model, float4(input.position, 0.0f, 1.0f));
@@ -46,6 +47,7 @@ V2F MainVS(Vertex2D input) {
   return output;
 }
 
+[shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
     //discard if outside mask
     if (input.clipPos.x < input.maskMin.x || 

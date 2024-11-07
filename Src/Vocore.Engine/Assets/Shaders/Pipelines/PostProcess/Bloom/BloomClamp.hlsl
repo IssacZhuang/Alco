@@ -21,6 +21,7 @@ struct V2F {
   float2 uv : TEXCOORD0;
 };
 
+[shader("vertex")]
 V2F MainVS(Vertex2D input) {
   V2F output = (V2F)0;
   output.position = float4(input.position, 0.0f, 1.0f);
@@ -28,6 +29,7 @@ V2F MainVS(Vertex2D input) {
   return output;
 }
 
+[shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
   float2 invTextureSize = InvTextureSize;
   float4 sum = float4(0, 0, 0, 0);
