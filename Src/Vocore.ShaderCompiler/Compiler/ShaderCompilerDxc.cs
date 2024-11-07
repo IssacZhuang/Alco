@@ -10,8 +10,20 @@ public static class ShaderCompilerDxc
         string hlslCode,
         ShaderStage stage,
         string entry,
-        string filename = "unnamed_shader.hlsl",
-        ShaderMacroDefine[]? defines = null,
+        string filename,
+        FileIncludeHandler? includeHandler = null)
+
+    {
+        byte[] spirv = ConvetHlslToSpirv(hlslCode, filename, entry, stage, Span<ShaderMacroDefine>.Empty);
+        return new ShaderModule(stage, ShaderLanguage.SPIRV, spirv, entry);
+    }
+
+    public static ShaderModule CrearteSpirvShaderModule(
+        string hlslCode,
+        ShaderStage stage,
+        string entry,
+        string filename,
+        Span<ShaderMacroDefine> defines,
         FileIncludeHandler? includeHandler = null)
 
     {
@@ -23,8 +35,8 @@ public static class ShaderCompilerDxc
         string hlslCode, 
         string filename, 
         string entry, 
-        ShaderStage stage, 
-        ShaderMacroDefine[]? defines = null,
+        ShaderStage stage,
+        Span<ShaderMacroDefine> defines,
         FileIncludeHandler? includeHandler = null)
     {
         CompilerOptions options = new CompilerOptions(ConvertShaderStage(stage).ToProfile(6, 0))
@@ -36,13 +48,11 @@ public static class ShaderCompilerDxc
             preserveBindings = true,
         };
 
-        if(defines != null)
+        for(int i = 0; i < defines.Length; i++)
         {
-            for(int i = 0; i < defines.Length; i++)
-            {
-                options.SetMacro(defines[i].Name, defines[i].Value);
-            }
+            options.SetMacro(defines[i].Name, defines[i].Value);
         }
+    
 
         CompilationResult result = DirectXShaderCompiler.NET.ShaderCompiler.Compile(hlslCode, options, includeHandler);
 

@@ -41,14 +41,14 @@ namespace Vocore.Rendering;
         ValidatePreprocessResult(preproccessed);
         if (preproccessed.Stages.IsGraphicsShader())
         {
-            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename);
-            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename);
+            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Vertex, preproccessed.EntryVertex!, preproccessed.Filename, Span<ShaderMacroDefine>.Empty);
+            ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Fragment, preproccessed.EntryFragment!, preproccessed.Filename, Span<ShaderMacroDefine>.Empty);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, fragment.Source, true);
             return ShaderCompileResultDeprecated.CreateGraphics(vertex, fragment, preproccessed, reflectionInfo);
         }
         else if (preproccessed.Stages.IsComputeShader())
         {
-            ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename);
+            ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(preproccessed.ShaderText, ShaderStage.Compute, preproccessed.EntryCompute!, preproccessed.Filename, Span<ShaderMacroDefine>.Empty);
             ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
             return ShaderCompileResultDeprecated.CreateCompute(compute, preproccessed, reflectionInfo);
         }
@@ -66,13 +66,15 @@ namespace Vocore.Rendering;
     /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The compiled shader result.</returns>
-    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> multiCompileDefines, FileIncludeHandler? includeResolver = null)
+    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> defines, FileIncludeHandler? includeResolver = null)
     {
-
         List<ShaderVariant> modules = new List<ShaderVariant>();
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
-        string[][] permutations = UtilsCollection.GetPermutations(multiCompileDefines);
+        for (int i = 0; i < defines.Length; i++)
+        {
+            macros.Add(new ShaderMacroDefine(defines[i], DefineTrue));
+        }
 
         List<HlslFunctionInfo> functions = GetFunctionInfo(shaderText);
         ShaderStage stage = ShaderStage.None;
@@ -104,44 +106,14 @@ namespace Vocore.Rendering;
 
         if (stage.HasFlag(ShaderStage.Vertex) && stage.HasFlag(ShaderStage.Fragment))
         {
-            foreach (string[] permutation in permutations)
-            {
-                macros.Clear();
-                foreach (string define in permutation)
-                {
-                    macros.Add(new ShaderMacroDefine(define, DefineTrue));
-                }
+            
 
-                ShaderModule vertext = ShaderCompilerDxc.CrearteSpirvShaderModule(
-                    shaderText,
-                    ShaderStage.Vertex,
-                    ShaderEntry.Vertex,
-                    filename,
-                    macros.ToArray(),
-                    includeResolver
-                    );
-
-                ShaderModule fragment = ShaderCompilerDxc.CrearteSpirvShaderModule(
-                    shaderText,
-                    ShaderStage.Fragment,
-                    ShaderEntry.Fragment,
-                    filename,
-                    macros.ToArray(),
-                    includeResolver
-                    );
-
-                ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertext.Source, fragment.Source, true);
-                ShaderVariant variant = ShaderVariant.CreateGraphics(permutation, vertext, fragment, reflectionInfo);
-                modules.Add(variant);
-            }
-
-            //add shader modules with zero defines
             ShaderModule vertextOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Vertex,
                 ShaderEntry.Vertex,
                 filename,
-                Array.Empty<ShaderMacroDefine>(),
+                macros.ToArray(),
                 includeResolver
                 );
 
@@ -150,7 +122,7 @@ namespace Vocore.Rendering;
                 ShaderStage.Fragment,
                 ShaderEntry.Fragment,
                 filename,
-                Array.Empty<ShaderMacroDefine>(),
+                macros.ToArray(),
                 includeResolver
                 );
 
@@ -161,26 +133,7 @@ namespace Vocore.Rendering;
             return new ShaderCompileResult(modules.ToArray());
         }else if(stage.HasFlag(ShaderStage.Compute))
         {
-            foreach (string[] permutation in permutations)
-            {
-                macros.Clear();
-                foreach (string define in permutation)
-                {
-                    macros.Add(new ShaderMacroDefine(define, DefineTrue));
-                }
-
-                ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(
-                    shaderText,
-                    ShaderStage.Compute,
-                    ShaderEntry.Compute,
-                    filename,
-                    macros.ToArray()
-                    );
-
-                ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
-                ShaderVariant variant = ShaderVariant.CreateCompute(permutation, compute, reflectionInfo);
-                modules.Add(variant);
-            }
+            
 
             //add shader modules with zero defines
             ShaderModule computeOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
@@ -188,7 +141,7 @@ namespace Vocore.Rendering;
                 ShaderStage.Compute,
                 ShaderEntry.Compute,
                 filename,
-                Array.Empty<ShaderMacroDefine>()
+                macros.ToArray()
                 );
 
             ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(computeOrigin.Source, true);
