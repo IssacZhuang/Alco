@@ -11,8 +11,7 @@ namespace Vocore.Rendering;
 public class ShaderNew : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
-
-    private readonly ConcurrentDictionary<string, ShaderModulesInfo> _variantCache = new ConcurrentDictionary<string, ShaderModulesInfo>();
+    private readonly ConcurrentDictionary<int, ShaderModulesInfo> _modulesCache = new ConcurrentDictionary<int, ShaderModulesInfo>();
     private readonly ConcurrentDictionary<long, GPUPipeline> _pipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
 
     private readonly Lock _lockCreatePipeline = new Lock();
@@ -23,6 +22,62 @@ public class ShaderNew : AutoDisposable
     {
         _renderingSystem = renderingSystem;
         Name = name;
+    }
+
+    public GPUPipeline GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        DepthStencilState depthStencil,
+        BlendState blend,
+        RasterizerState rasterizer,
+        PrimitiveTopology primitiveTopology,
+        params ReadOnlySpan<string?> defines
+        )
+    {
+        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        return GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
+    }
+
+    private ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string?> defines)
+    {
+        int length = defines.Length + 4;//reserve space for |
+        for (int i = 0; i < defines.Length; i++)
+        {
+            string? define = defines[i];
+            if (define != null)
+            {
+                length += define.Length;
+            }
+        }
+
+        Span<char> buffer = stackalloc char[length];
+        int index = 0;
+        for (int i = 0; i < defines.Length; i++)
+        {
+            if (index >= length)
+            {
+                //it might cause some problems if the length is too long
+                index = 0;
+            }
+
+            buffer[index++] = '|';
+            string? define = defines[i];
+            if (define != null)
+            {
+                define.CopyTo(buffer.Slice(index));
+                index += define.Length;
+            }
+        }
+
+        int hash = string.GetHashCode(buffer.Slice(0, index));
+
+        if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo))
+        {
+            return modulesInfo;
+        }
+        else
+        {
+            throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
+        }
     }
 
     private GPUPipeline GetGraphicsPipeline(
@@ -62,6 +117,11 @@ public class ShaderNew : AutoDisposable
                 return pipeline2;
             }
 
+            if (!modulesInfo.IsGraphicsShader)
+            {
+                throw new InvalidOperationException("Trying to create a graphics pipeline from a non-graphics shader modules.");
+            }
+
             ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
@@ -73,49 +133,33 @@ public class ShaderNew : AutoDisposable
 
             GPUPipeline pipelineNew;
 
-            if (modulesInfo.IsGraphicsShader)
-            {
-                PixelFormat[] colors = new PixelFormat[renderPass.Colors.Length];
-                for (int i = 0; i < renderPass.Colors.Length; i++)
-                {
-                    colors[i] = renderPass.Colors[i].Format;
-                }
-                PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
 
-                GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
-                    bindGroups,
-                    new ShaderModule[] {
+            PixelFormat[] colors = new PixelFormat[renderPass.Colors.Length];
+            for (int i = 0; i < renderPass.Colors.Length; i++)
+            {
+                colors[i] = renderPass.Colors[i].Format;
+            }
+            PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
+
+            GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
+                bindGroups,
+                new ShaderModule[] {
                     modulesInfo.VertexShader!.Value,
                     modulesInfo.FragmentShader!.Value
-                        },
-                    reflectionInfo.VertexLayouts.ToArray(),
-                    rasterizer,
-                    blend,
-                    depthStencil,
-                    primitiveTopology,
-                    colors,
-                    depthStencilFormat,
-                    reflectionInfo.PushConstantsRanges.ToArray(),
-                    Name);
+                    },
+                reflectionInfo.VertexLayouts.ToArray(),
+                rasterizer,
+                blend,
+                depthStencil,
+                primitiveTopology,
+                colors,
+                depthStencilFormat,
+                reflectionInfo.PushConstantsRanges.ToArray(),
+                Name);
 
 
-                pipelineNew = device.CreateGraphicsPipeline(descriptor);
-            }
-            else if (modulesInfo.IsComputeShader)
-            {
-                ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
-                    modulesInfo.ComputeShader!.Value,
-                    bindGroups,
-                    Name);
+            pipelineNew = device.CreateGraphicsPipeline(descriptor);
 
-                pipelineNew = device.CreateComputePipeline(descriptor);
-
-
-            }
-            else
-            {
-                throw new InvalidOperationException("The shader is neither graphics nor compute shader.");
-            }
 
             foreach (var bindGroup in bindGroups)
             {
@@ -132,6 +176,14 @@ public class ShaderNew : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-
+        if (disposing)
+        {
+            foreach (var pipeline in _pipelineCache.Values)
+            {
+                pipeline.Dispose();
+            }
+            _pipelineCache.Clear();
+            _modulesCache.Clear();
+        }
     }
 }
