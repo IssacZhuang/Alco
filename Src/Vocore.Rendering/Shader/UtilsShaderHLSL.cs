@@ -63,7 +63,7 @@ namespace Vocore.Rendering;
     /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The compiled shader result.</returns>
-    public static ShaderModulesInfo Compile(string shaderText, string filename, Span<string> defines, FileIncludeHandler? includeResolver = null)
+    public static ShaderModulesInfo Compile(string shaderText, string filename, ReadOnlySpan<string> defines, FileIncludeHandler? includeResolver = null)
     {
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 

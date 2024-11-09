@@ -15,29 +15,109 @@ public class ShaderNew : AutoDisposable
     private readonly ConcurrentDictionary<long, GPUPipeline> _pipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
 
     private readonly Lock _lockCreatePipeline = new Lock();
+    private readonly Lock _lockCreateModules = new Lock();
+    private readonly string _shaderText;
 
     public string Name { get; }
 
-    internal ShaderNew(RenderingSystem renderingSystem, string name)
+    internal ShaderNew(RenderingSystem renderingSystem, string shaderText, string name)
     {
         _renderingSystem = renderingSystem;
+        _shaderText = shaderText;
         Name = name;
+
+        //default permutation
+        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
+        _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
     }
 
-    public GPUPipeline GetGraphicsPipeline(
+    public ShaderPipelineInfo GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
         RasterizerState rasterizer,
         PrimitiveTopology primitiveTopology,
-        params ReadOnlySpan<string?> defines
+        params ReadOnlySpan<string> defines
         )
     {
         ShaderModulesInfo modulesInfo = GetShaderModules(defines);
-        return GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
+        GPUPipeline pipeline = GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
+        return new ShaderPipelineInfo
+        {
+            Pipeline = pipeline,
+            RenderPass = renderPass,
+            ModulesInfo = modulesInfo,
+            ReflectionInfo = modulesInfo.ReflectionInfo,
+            DepthStencil = depthStencil,
+            BlendState = blend,
+            Rasterizer = rasterizer,
+            PrimitiveTopology = primitiveTopology
+        };
     }
 
-    private ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string?> defines)
+    public ShaderPipelineInfo GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        params ReadOnlySpan<string> defines
+        )
+    {
+        return GetGraphicsPipeline(
+            renderPass,
+            DepthStencilState.None,
+            BlendState.Opaque,
+            RasterizerState.CullNone,
+            PrimitiveTopology.TriangleList,
+            defines
+            );
+    }
+
+    public bool TryUpdatePipelineInfo(ref ShaderPipelineInfo pipelineInfo, GPURenderPass renderPass)
+    {
+        if (pipelineInfo.RenderPass == renderPass)
+        {
+            return false;
+        }
+
+        GPUPipeline pipeline = GetGraphicsPipeline(
+            renderPass,
+            pipelineInfo.ModulesInfo,
+            pipelineInfo.DepthStencil,
+            pipelineInfo.BlendState,
+            pipelineInfo.Rasterizer,
+            pipelineInfo.PrimitiveTopology
+            );
+
+        pipelineInfo.Pipeline = pipeline;
+        pipelineInfo.RenderPass = renderPass;
+
+        return true;
+    }
+
+
+    private ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
+    {
+        int hash = GetDefinesHash(defines);
+
+        if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo))
+        {
+            return modulesInfo;
+        }
+
+        //throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
+        using (_lockCreateModules.EnterScope())
+        {
+            if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
+            {
+                return modulesInfo2;
+            }
+
+            modulesInfo = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
+            _modulesCache[hash] = modulesInfo;
+
+            return modulesInfo;
+        }
+    }
+
+    private int GetDefinesHash(ReadOnlySpan<string> defines)
     {
         int length = defines.Length + 4;//reserve space for |
         for (int i = 0; i < defines.Length; i++)
@@ -53,12 +133,6 @@ public class ShaderNew : AutoDisposable
         int index = 0;
         for (int i = 0; i < defines.Length; i++)
         {
-            if (index >= length)
-            {
-                //it might cause some problems if the length is too long
-                index = 0;
-            }
-
             buffer[index++] = '|';
             string? define = defines[i];
             if (define != null)
@@ -68,16 +142,7 @@ public class ShaderNew : AutoDisposable
             }
         }
 
-        int hash = string.GetHashCode(buffer.Slice(0, index));
-
-        if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo))
-        {
-            return modulesInfo;
-        }
-        else
-        {
-            throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
-        }
+        return string.GetHashCode(buffer.Slice(0, index));
     }
 
     private GPUPipeline GetGraphicsPipeline(
