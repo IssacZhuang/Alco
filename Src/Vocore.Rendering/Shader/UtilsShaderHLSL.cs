@@ -9,10 +9,7 @@ namespace Vocore.Rendering;
 
  public static partial class UtilsShaderHLSL
 {
-    /// <summary>
-    /// Represents the key for the "#pragma" directive.
-    /// </summary>
-    public const string KeyPragma = "#pragma";
+
     /// <summary>
     /// Represents the key for the "#define" directive.
     /// </summary>
@@ -66,9 +63,8 @@ namespace Vocore.Rendering;
     /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The compiled shader result.</returns>
-    public static ShaderCompileResult Compile(string shaderText, string filename, Span<string> defines, FileIncludeHandler? includeResolver = null)
+    public static ShaderModulesInfo Compile(string shaderText, string filename, Span<string> defines, FileIncludeHandler? includeResolver = null)
     {
-        List<ShaderModulesInfo> modules = new List<ShaderModulesInfo>();
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
         for (int i = 0; i < defines.Length; i++)
@@ -110,7 +106,7 @@ namespace Vocore.Rendering;
         {
             
 
-            ShaderModule vertextOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
+            ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Vertex,
                 ShaderEntry.Vertex,
@@ -119,7 +115,7 @@ namespace Vocore.Rendering;
                 includeResolver
                 );
 
-            ShaderModule fragmentOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
+            ShaderModule pixel = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Fragment,
                 ShaderEntry.Fragment,
@@ -128,23 +124,22 @@ namespace Vocore.Rendering;
                 includeResolver
                 );
 
-            ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(vertextOrigin.Source, fragmentOrigin.Source, true);
-            ShaderModulesInfo variantZero = ShaderModulesInfo.CreateGraphics(
+            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, pixel.Source, true);
+            ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateGraphics(
                 filename,
                 defineArray,
-                vertextOrigin,
-                fragmentOrigin,
-                reflectionInfoZero
+                vertex,
+                pixel,
+                reflectionInfo
                 );
-            modules.Add(variantZero);
 
-            return new ShaderCompileResult(modules.ToArray());
+            return modulesInfo;
         }else if(stage.HasFlag(ShaderStage.Compute))
         {
             
 
             //add shader modules with zero defines
-            ShaderModule computeOrigin = ShaderCompilerDxc.CrearteSpirvShaderModule(
+            ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Compute,
                 ShaderEntry.Compute,
@@ -152,66 +147,20 @@ namespace Vocore.Rendering;
                 macros.ToArray()
                 );
 
-            ShaderReflectionInfo reflectionInfoZero = UtilsShaderRelfection.GetSpirvReflection(computeOrigin.Source, true);
-            ShaderModulesInfo variantZero = ShaderModulesInfo.CreateCompute(
+            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
+            ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateCompute(
                 filename,
                 defineArray,
-                computeOrigin,
-                reflectionInfoZero
+                compute,
+                reflectionInfo
                 );
-            modules.Add(variantZero);
             
-            return new ShaderCompileResult(modules.ToArray());
+            return modulesInfo;
         }
         else
         {
             throw new ShaderValidationException("No entry point defined in the shader.");
         }
-    }
-
-    /// <summary>
-    /// Processes the include statements in the shader text.
-    /// </summary>
-    /// <param name="shaderText">The shader text to process.</param>
-    /// <param name="filename">The filename of the shader text.</param>
-    /// <param name="includeResolver">The function to resolve the include statements.</param>
-    /// <returns>The shader text with the include statements resolved.</returns>
-    public static string ProcessInclude(string shaderText, string filename, Func<string, string> includeResolver, int depth = 0)
-    {
-        if (depth > MaxRecursionDepth)
-        {
-            throw new InvalidOperationException($"Include recursion depth exceeds the maximum depth of {MaxRecursionDepth}. It might be looping include in the file.");
-        }
-
-        StringBuilder builder = new StringBuilder();
-        using StringReader reader = new StringReader(shaderText);
-        HashSet<string> includedFiles = new HashSet<string>();
-        string? line;
-        int lineCount = 0;
-
-        while ((line = reader.ReadLine()) != null)
-        {
-            lineCount++;
-            line = line.TrimStart();
-
-            if (TryGetInclude(line, includeResolver, out string? includedText, out string? includeFilename) &&
-                !includedFiles.Contains(includeFilename))
-            {
-                includedFiles.Add(includeFilename);
-
-                includedText = ProcessInclude(includedText, includeFilename, includeResolver, depth + 1);
-
-                builder.AppendLine(string.Format(FormatLine, 1, includeFilename));
-                builder.AppendLine(includedText);
-                builder.AppendLine(string.Format(FormatLine, lineCount + 1, filename));
-            }
-            else
-            {
-                builder.AppendLine(line);
-            }
-        }
-
-        return builder.ToString();
     }
 
     //deprecated
