@@ -91,6 +91,8 @@ public class Game : GameEngine
         {
             GC.Collect();
         }
+
+        TestSpanParam("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
     }
 
     protected override void OnStop()
@@ -110,5 +112,10 @@ public class Game : GameEngine
     private void ParallelCallback(int index)
     {
         //to check if the Parallel.For uses Task or ThreadPool
+    }
+
+    private void TestSpanParam(params Span<string> spans)
+    {
+        DebugGUI.Text(spans.Length);
     }
 }
