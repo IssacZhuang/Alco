@@ -192,24 +192,34 @@ public sealed class GraphicsMaterial : Material
         //todo opt: avoid reallocation
         for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
         {
+            ref Slot slot = ref _slots[i];
+
             BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[i];
             if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
             {
+                if (slot.buffer != null)
+                {
+                    continue;
+                }
                 BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                _slots[i].type = MaterialResourceType.Buffer;
-                _slots[i].buffer = _system.CreateGraphicsBuffer(
+                slot.type = MaterialResourceType.Buffer;
+                slot.buffer = _system.CreateGraphicsBuffer(
                     info.Size,
                     $"Material_{_pipelineInfo.ModulesInfo.Name}_Buffer_{info.Entry.Name}"
                     );
             }
             else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
-                _slots[i].type = MaterialResourceType.TextureWithSampler;
-                _slots[i].texture = _system.TextureWhite;
+                if (slot.texture != null)
+                {
+                    continue;
+                }
+                slot.type = MaterialResourceType.TextureWithSampler;
+                slot.texture = _system.TextureWhite;
             }
             else
             {
-                _slots[i].type = MaterialResourceType.Unavailable;
+                slot.type = MaterialResourceType.Unavailable;
             }
         }
     }
