@@ -60,15 +60,15 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _shaderText = shaderText;
 
-        _pipelineInfoSprite = _shaderText.GetGraphicsPipeline(
+        _pipelineInfoText = _shaderText.GetGraphicsPipeline(
             system.PrefferedSDRPass,
             DepthStencilState.Read,
             BlendState.AlphaBlend
         );
 
-        _textShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
-        _textShaderId_textBuffer = _pipelineInfoSprite.GetResourceId(ShaderId_textBuffer);
-        _textShaderId_font = _pipelineInfoSprite.GetResourceId(ShaderId_font);
+        _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderId_camera);
+        _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderId_textBuffer);
+        _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderId_font);
 
         //init sprite rendering
         _meshSprite = system.MeshSprite;
