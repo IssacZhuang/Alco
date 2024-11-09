@@ -67,7 +67,11 @@ public class Bloom : PostProcess
         _backBufferPass = _device.CreateRenderPass(descriptor);
 
         _blitShader = blitShader;
-        _blitPipelineInfo = blitShader.GetGraphicsPipeline(renderingSystem.PrefferedSDRPass);
+        _blitPipelineInfo = blitShader.GetGraphicsPipeline(
+            renderingSystem.PrefferedSDRPass,
+            DepthStencilState.Default,
+            BlendState.Additive
+            );
         _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
 
         _clampShader = clampShader;

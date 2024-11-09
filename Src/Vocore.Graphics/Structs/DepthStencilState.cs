@@ -7,7 +7,7 @@ public struct DepthStencilState
     public static readonly DepthStencilState Write = new(true, CompareFunction.LessEqual);
 
     public static readonly DepthStencilState Read = new(false, CompareFunction.LessEqual);
-    public static readonly DepthStencilState Default = new(true, CompareFunction.LessEqual);
+    public static readonly DepthStencilState Default = new(false, CompareFunction.Always);
     public DepthStencilState(bool depthWriteEnabled, CompareFunction depthCompare)
     {
         DepthWriteEnabled = depthWriteEnabled;

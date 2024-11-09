@@ -62,7 +62,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
 
         _pipelineInfoText = _shaderText.GetGraphicsPipeline(
             system.PrefferedSDRPass,
-            DepthStencilState.Read,
+            DepthStencilState.Default,
             BlendState.AlphaBlend
         );
 
@@ -76,7 +76,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
 
         _pipelineInfoSprite = _shaderSprite.GetGraphicsPipeline(
             system.PrefferedSDRPass,
-            DepthStencilState.Read,
+            DepthStencilState.Default,
             BlendState.AlphaBlend
         );
 

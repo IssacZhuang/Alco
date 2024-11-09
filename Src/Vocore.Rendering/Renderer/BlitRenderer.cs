@@ -22,7 +22,7 @@ public class BlitRenderer : AutoDisposable
         _shaderBlit = shaderBlit;
         _pipelineInfo = _shaderBlit.GetGraphicsPipeline(
             renderingSystem.PrefferedSDRPass,
-            DepthStencilState.Read,
+            DepthStencilState.Default,
             BlendState.AlphaBlend
             );
         _shaderId_Texture = _pipelineInfo.GetResourceId("_texture");

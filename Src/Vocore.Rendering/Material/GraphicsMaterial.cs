@@ -23,7 +23,11 @@ public sealed class GraphicsMaterial : Material
         _system = system;
         _shader = shader;
         _slots = new ArrayBuffer<Slot>();
-        _pipelineInfo = shader.GetGraphicsPipeline(system.PrefferedSDRPass);
+        _pipelineInfo = shader.GetGraphicsPipeline(
+            system.PrefferedSDRPass,
+            DepthStencilState.Default,
+            BlendState.Opaque
+            );
         _slots.EnsureSize(_pipelineInfo.BindGroupCount);
 
         UpdateSlotResources();
