@@ -18,17 +18,12 @@ public partial class CanvasRenderer
 
     private static readonly Rect DefaultUvRect = new Rect(0, 0, 1, 1);
 
-    private readonly Shader _shaderSprite;
-    private GPUPipeline? _pipelineSprite;
-    private readonly Mesh _meshSprite;
-
-    private readonly uint _spriteShaderId_camera;
-    private readonly uint _spriteShaderId_texture;
+    
 
 
     public void SetSpritePipeline()
     {
-        _command.SetGraphicsPipeline(_pipelineSprite!);
+        _command.SetGraphicsPipeline(_pipelineInfoSprite);
         _command.SetGraphicsResources(_spriteShaderId_camera, Camera.EntryReadonly);
         _command.SetVertexBuffer(0, _meshSprite.VertexBuffer);
         _command.SetIndexBuffer(_meshSprite.IndexBuffer, _meshSprite.IndexFormat);

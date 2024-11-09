@@ -11,6 +11,9 @@ namespace Vocore.Rendering;
 /// </summary>
 public class SpriteRenderer : AutoDisposable, IRenderer
 {
+    public const string ShaderId_camera = "_camera";
+    public const string ShaderId_texture = "_texture";
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
@@ -26,38 +29,43 @@ public class SpriteRenderer : AutoDisposable, IRenderer
     private readonly Shader _shader;
     private readonly Mesh _mesh;
 
-    private GPURenderPass? _renderPass;
-    private GPUPipeline? _pipeline;
+    private ShaderPipelineInfo _pipelineInfo;
 
-    private readonly uint _shaderId_camera;
-    private readonly uint _shaderId_texture;
+    private uint _shaderId_camera;
+    private uint _shaderId_texture;
 
     public GraphicsBuffer Camera { get; set; }
 
-    internal SpriteRenderer(GPUDevice device, Mesh mesh, GraphicsBuffer camera, Shader shader)
+    internal SpriteRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
     {
-        _device = device;
+        _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();
         _shader = shader;
         _mesh = mesh;
 
-        _shaderId_camera = _shader.GetResourceId("_camera");
-        _shaderId_texture = _shader.GetResourceId("_texture");
+        _pipelineInfo = shader.GetGraphicsPipeline(
+            renderingSystem.PrefferedSDRPass,
+            DepthStencilState.Read,
+            BlendState.AlphaBlend
+        );
+
+        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+        _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
 
         Camera = camera;
     }
 
     public void Begin(GPUFrameBuffer target)
     {
-        if (_renderPass != target.RenderPass)
+        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, target.RenderPass))
         {
-            _renderPass = target.RenderPass;
-            _pipeline = _shader.GetPipelineVariant(_renderPass);
+            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+            _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
         }
 
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_pipeline!);
+        _command.SetGraphicsPipeline(_pipelineInfo);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
@@ -166,7 +174,5 @@ public class SpriteRenderer : AutoDisposable, IRenderer
     {
         //dispose private managed resources
         _command.Dispose();
-        _renderPass = null;
-        _pipeline = null;
     }
 }

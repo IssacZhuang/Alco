@@ -15,11 +15,6 @@ public abstract class PostProcess : AutoDisposable
 
     internal PostProcess(RenderingSystem renderingSystem, Shader postProcessShader)
     {
-        if (!postProcessShader.IsGraphicsShader)
-        {
-            throw new InvalidOperationException("ToneMap shader must be a graphics shader.");
-        }
-
         _device = renderingSystem.GraphicsDevice;
         _mesh = renderingSystem.MeshFullScreen;
     }

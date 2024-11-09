@@ -16,24 +16,16 @@ public partial class CanvasRenderer
     }
 
     public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0);
-
     private const int MaxTextInstancingCount = 1024;
-    private readonly Shader _shaderText;
-    private GPUPipeline? _pipelineText;
-    private readonly Mesh _meshText;
+
     private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
-
     private readonly NativeBuffer<TextData> _textBufferCPU;
-
-    private readonly uint _textShaderId_camera;
-    private readonly uint _textShaderId_textBuffer;
-    private readonly uint _textShaderId_font;
 
     private int _textInstanceIndex;
 
     private void SetTextPipeline()
     {
-        _command.SetGraphicsPipeline(_pipelineText!);
+        _command.SetGraphicsPipeline(_pipelineInfoText);
         _command.SetVertexBuffer(0, _meshText.VertexBuffer);
         _command.SetIndexBuffer(_meshText.IndexBuffer, _meshText.IndexFormat);
         _command.SetGraphicsResources(_textShaderId_camera, Camera.EntryReadonly);

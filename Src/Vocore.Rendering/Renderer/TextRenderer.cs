@@ -12,6 +12,10 @@ namespace Vocore.Rendering;
 /// </summary> 
 public class TextRenderer : AutoDisposable, IRenderer
 {
+    public const string ShaderId_camera = "_camera";
+    public const string ShaderId_textBuffer = "_textBuffer";
+    public const string ShaderId_font = "_font";
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
@@ -29,17 +33,15 @@ public class TextRenderer : AutoDisposable, IRenderer
     private readonly Mesh _mesh;
     private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
 
-
     private readonly GPUCommandBuffer _command;
 
     private readonly NativeBuffer<TextData> _textBufferCPU;
 
-    private readonly uint _shaderId_camera;
-    private readonly uint _shaderId_textBuffer;
-    private readonly uint _shaderId_font;
+    private ShaderPipelineInfo _pipelineInfo;
 
-    private GPURenderPass? _renderPass;
-    private GPUPipeline? _pipeline;
+    private uint _shaderId_camera;
+    private uint _shaderId_textBuffer;
+    private uint _shaderId_font;
 
     private int _instanceIndex;
     private bool _isDrawing;
@@ -58,10 +60,16 @@ public class TextRenderer : AutoDisposable, IRenderer
 
         _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
+        _pipelineInfo = _shader.GetGraphicsPipeline(
+            renderingSystem.PrefferedSDRPass,
+            DepthStencilState.Read,
+            BlendState.AlphaBlend
+            );
+
         //get resource ids
-        _shaderId_camera = _shader.GetResourceId("_camera");
-        _shaderId_textBuffer = _shader.GetResourceId("_textBuffer");
-        _shaderId_font = _shader.GetResourceId("_font");
+        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+        _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderId_textBuffer);
+        _shaderId_font = _pipelineInfo.GetResourceId(ShaderId_font);
 
         Camera = camera;
     }
@@ -74,21 +82,16 @@ public class TextRenderer : AutoDisposable, IRenderer
     /// <exception cref="ArgumentNullException">The render target is null</exception>
     public void Begin(GPUFrameBuffer target)
     {
-
         if (_isDrawing)
         {
             throw new InvalidOperationException("TextRenderer.Begin() called twice without calling End()");
         }
 
-        if (target == null)
+        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, target.RenderPass))
         {
-            throw new ArgumentNullException(nameof(target));
-        }
-
-        if (target.RenderPass != _renderPass)
-        {
-            _renderPass = target.RenderPass;
-            _pipeline = _shader.GetPipelineVariant(_renderPass);
+            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+            _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderId_textBuffer);
+            _shaderId_font = _pipelineInfo.GetResourceId(ShaderId_font);
         }
 
         _renderTarget = target;
@@ -117,7 +120,7 @@ public class TextRenderer : AutoDisposable, IRenderer
     {
         _command.Begin();
         _command.SetFrameBuffer(_renderTarget!);
-        _command.SetGraphicsPipeline(_pipeline!);
+        _command.SetGraphicsPipeline(_pipelineInfo!);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
@@ -338,9 +341,5 @@ public class TextRenderer : AutoDisposable, IRenderer
         //dispose private managed resources
         _textBufferGPU.Dispose();
         _command.Dispose();
-        
-
-        _renderPass = null;
-        _pipeline = null;
     }
 }

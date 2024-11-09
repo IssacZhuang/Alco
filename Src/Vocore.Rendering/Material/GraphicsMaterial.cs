@@ -11,48 +11,29 @@ public sealed class GraphicsMaterial : Material
         public Texture2D? texture;
     }
 
+    private readonly RenderingSystem _system;
+    private readonly ArrayBuffer<Slot> _slots;
     private readonly Shader _shader;
-    private readonly Slot[] _slots;
-    private GPURenderPass? _renderPass;
-    private GPUPipeline? _pipeline;
+    private ShaderPipelineInfo _pipelineInfo;
+    
+
 
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
     {
+        _system = system;
         _shader = shader;
-        _slots = new Slot[shader.BindGroupCount];
+        _slots = new ArrayBuffer<Slot>();
+        _pipelineInfo = shader.GetGraphicsPipeline(system.PrefferedSDRPass);
+        _slots.EnsureSize(_pipelineInfo.BindGroupCount);
 
-        ShaderReflectionInfo reflectionInfo = shader.Reflections;
-
-        for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
-        {
-            BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[i];
-            if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
-            {
-                BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                _slots[i].type = MaterialResourceType.Buffer;
-                _slots[i].buffer = system.CreateGraphicsBuffer(
-                    info.Size,
-                    $"Material_{name}_Buffer_{info.Entry.Name}"
-                    );
-            }
-            else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
-            {
-                _slots[i].type = MaterialResourceType.TextureWithSampler;
-                _slots[i].texture = system.TextureWhite;
-            }
-            else
-            {
-                _slots[i].type = MaterialResourceType.Unavailable;
-            }
-
-        }
+        UpdateSlotResources();
     }
 
     #region  Set value
 
     public bool TrySet<T>(string name, T value) where T : unmanaged
     {
-        if (!_shader.TryGetResourceId(name, out uint id))
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             return false;
         }
@@ -67,7 +48,7 @@ public sealed class GraphicsMaterial : Material
             return false;
         }
 
-        Slot slot = _slots[id];
+        Slot slot = _slots.Get(id);
         if (slot.type != MaterialResourceType.Buffer)
         {
             return false;
@@ -84,7 +65,7 @@ public sealed class GraphicsMaterial : Material
 
     public void Set<T>(string name, T value) where T : unmanaged
     {
-        if (!_shader.TryGetResourceId(name, out uint id))
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
@@ -99,7 +80,7 @@ public sealed class GraphicsMaterial : Material
             throw new ArgumentOutOfRangeException(nameof(id));
         }
 
-        Slot slot = _slots[id];
+        Slot slot = _slots.Get(id);
         if (slot.type != MaterialResourceType.Buffer)
         {
             throw new InvalidOperationException($"The resource {id} is not a buffer.");
@@ -119,7 +100,7 @@ public sealed class GraphicsMaterial : Material
 
     public bool TrySet(string name, Texture2D texture)
     {
-        if (!_shader.TryGetResourceId(name, out uint id))
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             return false;
         }
@@ -134,7 +115,7 @@ public sealed class GraphicsMaterial : Material
             return false;
         }
 
-        Slot slot = _slots[id];
+        Slot slot = _slots.Get(id);
         if (slot.type != MaterialResourceType.TextureWithSampler)
         {
             return false;
@@ -146,7 +127,7 @@ public sealed class GraphicsMaterial : Material
 
     public void Set(string name, Texture2D texture)
     {
-        if (!_shader.TryGetResourceId(name, out uint id))
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
@@ -161,7 +142,7 @@ public sealed class GraphicsMaterial : Material
             throw new ArgumentOutOfRangeException(nameof(id));
         }
 
-        Slot slot = _slots[id];
+        Slot slot = _slots.Get(id);
         if (slot.type != MaterialResourceType.TextureWithSampler)
         {
             throw new InvalidOperationException($"The resource {id} is not a texture.");
@@ -175,27 +156,56 @@ public sealed class GraphicsMaterial : Material
 
     public override GPUPipeline GetPipeline(GPURenderPass renderPass)
     {
-        if (_renderPass != renderPass)
+        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, renderPass))
         {
-            _renderPass = renderPass;
-            _pipeline = _shader.GetPipelineVariant(renderPass);
+            UpdateSlotResources();
         }
 
-        return _pipeline!;
+        return _pipelineInfo.Pipeline;
     }
 
     protected override void SetPipelineResources(MaterialCommandContext context)
     {
         for (uint i = 0; i < _slots.Length; i++)
         {
-            Slot slot = _slots[i];
+            int index = (int)i;
+            Slot slot = _slots[index];
             if (slot.type == MaterialResourceType.Buffer)
             {
-                context.SetGraphicsResources(i, _slots[i].buffer!.EntryReadonly);
+                context.SetGraphicsResources(i, _slots[index].buffer!.EntryReadonly);
             }
             else if (slot.type == MaterialResourceType.TextureWithSampler)
             {
-                context.SetGraphicsResources(i, _slots[i].texture!.EntrySample);
+                context.SetGraphicsResources(i, _slots[index].texture!.EntrySample);
+            }
+        }
+    }
+
+    private void UpdateSlotResources()
+    {
+        ShaderReflectionInfo reflectionInfo = _pipelineInfo.ReflectionInfo;
+
+        //todo opt: avoid reallocation
+        for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
+        {
+            BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[i];
+            if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
+            {
+                BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
+                _slots[i].type = MaterialResourceType.Buffer;
+                _slots[i].buffer = _system.CreateGraphicsBuffer(
+                    info.Size,
+                    $"Material_{_pipelineInfo.ModulesInfo.Name}_Buffer_{info.Entry.Name}"
+                    );
+            }
+            else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
+            {
+                _slots[i].type = MaterialResourceType.TextureWithSampler;
+                _slots[i].texture = _system.TextureWhite;
+            }
+            else
+            {
+                _slots[i].type = MaterialResourceType.Unavailable;
             }
         }
     }

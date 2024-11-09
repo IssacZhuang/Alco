@@ -10,154 +10,262 @@ namespace Vocore.Rendering;
 /// </summary>
 public class Shader : AutoDisposable
 {
-
     private readonly RenderingSystem _renderingSystem;
-    private readonly ConcurrentDictionary<GPURenderPass, GPUPipeline> _pipelines = new ConcurrentDictionary<GPURenderPass, GPUPipeline>();
-    private ShaderCompileResultDeprecated _meta;
+    private readonly ConcurrentDictionary<int, ShaderModulesInfo> _modulesCache = new ConcurrentDictionary<int, ShaderModulesInfo>();
+    private readonly ConcurrentDictionary<long, GPUPipeline> _pipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
 
-    private ShaderReflectionInfo _reflectionInfo;
-    private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
+    private readonly Lock _lockCreatePipeline = new Lock();
+    private readonly Lock _lockCreateModules = new Lock();
+    private readonly string _shaderText;
 
-    /// <summary>
-    /// Gets the shader stages.
-    /// </summary>
-    public ShaderStage Stages
+    public string Name { get; }
+
+    internal Shader(RenderingSystem renderingSystem, string shaderText, string name)
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _meta.Stages;
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether this shader is a graphics shader.
-    /// </summary>
-    public bool IsGraphicsShader
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Stages & ShaderStage.Vertex) != 0 && (Stages & ShaderStage.Fragment) != 0;
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether this shader is a compute shader.
-    /// </summary>
-    public bool IsComputeShader
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Stages & ShaderStage.Compute) != 0;
-    }
-
-    /// <summary>
-    /// The amount of bind groups in the shader.
-    /// </summary>
-    /// <value>The bind group count.</value>
-    public int BindGroupCount
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _reflectionInfo.BindGroups.Count;
-    }
-
-    internal ShaderReflectionInfo Reflections
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _reflectionInfo;
-    }
-
-    internal Shader(RenderingSystem renderingSystem, ShaderCompileResultDeprecated result)
-    {
-        _meta = result;
         _renderingSystem = renderingSystem;
-        _reflectionInfo = result.ReflectionInfo;
+        _shaderText = shaderText;
+        Name = name;
 
-        BuildResourceIndex();
+        //default permutation
+        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
+        _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
     }
 
-    /// <summary>
-    /// Tries to get the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
-    /// <returns>True if the resource sID was found, false otherwise.</returns>
-    public bool TryGetResourceId(string name, out uint resourceId)
+    public ShaderPipelineInfo GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        DepthStencilState depthStencil,
+        BlendState blend,
+        RasterizerState rasterizer,
+        PrimitiveTopology primitiveTopology,
+        params ReadOnlySpan<string> defines
+        )
     {
-        return _resourceIds.TryGetValue(name, out resourceId);
-    }
-
-    /// <summary>
-    /// Gets the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    /// <throws>KeyNotFoundException if the resource is not found.</throws>
-    /// <returns>The resource ID.</returns>
-    public uint GetResourceId(string name)
-    {
-        if (_resourceIds.TryGetValue(name, out uint resourceId))
+        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        GPUPipeline pipeline = GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
+        return new ShaderPipelineInfo
         {
-            return resourceId;
-        }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {_meta.Filename}");
+            Pipeline = pipeline,
+            RenderPass = renderPass,
+            ModulesInfo = modulesInfo,
+            ReflectionInfo = modulesInfo.ReflectionInfo,
+            DepthStencil = depthStencil,
+            BlendState = blend,
+            Rasterizer = rasterizer,
+            PrimitiveTopology = primitiveTopology
+        };
     }
 
-    /// <summary>
-    /// Get the GPU pipeline for the given render pass.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="renderPass">The render pass.</param>
-    /// <returns>The GPU pipeline.</returns>
-    public GPUPipeline GetPipelineVariant(GPURenderPass renderPass)
+    public ShaderPipelineInfo GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        DepthStencilState depthStencil,
+        BlendState blend,
+        params ReadOnlySpan<string> defines
+        )
     {
-        if (_pipelines.TryGetValue(renderPass, out GPUPipeline? pipeline))
+        return GetGraphicsPipeline(
+            renderPass,
+            depthStencil,
+            blend,
+            RasterizerState.CullNone,
+            PrimitiveTopology.TriangleList,
+            defines
+            );
+    }
+
+    public ShaderPipelineInfo GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        params ReadOnlySpan<string> defines
+        )
+    {
+        return GetGraphicsPipeline(
+            renderPass,
+            DepthStencilState.None,
+            BlendState.Opaque,
+            RasterizerState.CullNone,
+            PrimitiveTopology.TriangleList,
+            defines
+            );
+    }
+
+    public bool TryUpdatePipelineInfo(ref ShaderPipelineInfo pipelineInfo, GPURenderPass renderPass)
+    {
+        if (pipelineInfo.RenderPass == renderPass)
+        {
+            return false;
+        }
+
+        GPUPipeline pipeline = GetGraphicsPipeline(
+            renderPass,
+            pipelineInfo.ModulesInfo,
+            pipelineInfo.DepthStencil,
+            pipelineInfo.BlendState,
+            pipelineInfo.Rasterizer,
+            pipelineInfo.PrimitiveTopology
+            );
+
+        pipelineInfo.Pipeline = pipeline;
+        pipelineInfo.RenderPass = renderPass;
+
+        return true;
+    }
+
+
+    private ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
+    {
+        int hash = GetDefinesHash(defines);
+
+        if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo))
+        {
+            return modulesInfo;
+        }
+
+        //throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
+        using (_lockCreateModules.EnterScope())
+        {
+            if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
+            {
+                return modulesInfo2;
+            }
+
+            modulesInfo = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
+            _modulesCache[hash] = modulesInfo;
+
+            return modulesInfo;
+        }
+    }
+
+    private int GetDefinesHash(ReadOnlySpan<string> defines)
+    {
+        int length = defines.Length + 4;//reserve space for |
+        for (int i = 0; i < defines.Length; i++)
+        {
+            string? define = defines[i];
+            if (define != null)
+            {
+                length += define.Length;
+            }
+        }
+
+        Span<char> buffer = stackalloc char[length];
+        int index = 0;
+        for (int i = 0; i < defines.Length; i++)
+        {
+            buffer[index++] = '|';
+            string? define = defines[i];
+            if (define != null)
+            {
+                define.CopyTo(buffer.Slice(index));
+                index += define.Length;
+            }
+        }
+
+        return string.GetHashCode(buffer.Slice(0, index));
+    }
+
+    private GPUPipeline GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        ShaderModulesInfo modulesInfo,
+        DepthStencilState depthStencil,
+        BlendState blend,
+        RasterizerState rasterizer,
+        PrimitiveTopology primitiveTopology
+        )
+    {
+        long hash = default;
+        //fist 32 bits are the render pass hash
+        hash |= (long)renderPass.GetHashCode();
+
+        //next 32 bits are combination of the variant hash and the pipeline state hash
+        int subHash = HashCode.Combine(
+            modulesInfo.GetHashCode(),
+            depthStencil.GetHashCode(),
+            blend.GetHashCode(),
+            rasterizer.GetHashCode(),
+            primitiveTopology.GetHashCode()
+            );
+
+        hash |= (long)subHash << 32;
+
+        if (_pipelineCache.TryGetValue(hash, out GPUPipeline? pipeline))
         {
             return pipeline;
         }
 
-        GPUPipeline newPipeline = _renderingSystem.CreatePipeline(_meta, renderPass);
-        _pipelines[renderPass] = newPipeline;
-        return newPipeline;
-    }
-
-
-    internal void ClearPipelineCache()
-    {
-        _pipelines.Clear();
-    }
-
-    private void BuildResourceIndex()
-    {
-        Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
-        resourceIds.Clear();
-        for (uint i = 0; i < _reflectionInfo.BindGroups.Count; i++)
+        //create a new pipeline
+        using (_lockCreatePipeline.EnterScope())
         {
-            BindGroupLayout bindGroup = _reflectionInfo.BindGroups[(int)i];
-            if (bindGroup.Bindings != null
-            && bindGroup.Bindings.Count > 0)
+            if (_pipelineCache.TryGetValue(hash, out GPUPipeline? pipeline2))
             {
-                resourceIds[bindGroup.Bindings[0].Entry.Name] = i;
+                return pipeline2;
             }
+
+            if (!modulesInfo.IsGraphicsShader)
+            {
+                throw new InvalidOperationException("Trying to create a graphics pipeline from a non-graphics shader modules.");
+            }
+
+            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            GPUDevice device = _renderingSystem.GraphicsDevice;
+
+            GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];
+            for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
+            {
+                bindGroups[i] = device.CreateBindGroup(reflectionInfo.BindGroups[i].ToDescriptor());
+            }
+
+            GPUPipeline pipelineNew;
+
+
+            PixelFormat[] colors = new PixelFormat[renderPass.Colors.Length];
+            for (int i = 0; i < renderPass.Colors.Length; i++)
+            {
+                colors[i] = renderPass.Colors[i].Format;
+            }
+            PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
+
+            GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
+                bindGroups,
+                new ShaderModule[] {
+                    modulesInfo.VertexShader!.Value,
+                    modulesInfo.FragmentShader!.Value
+                    },
+                reflectionInfo.VertexLayouts.ToArray(),
+                rasterizer,
+                blend,
+                depthStencil,
+                primitiveTopology,
+                colors,
+                depthStencilFormat,
+                reflectionInfo.PushConstantsRanges.ToArray(),
+                Name);
+
+
+            pipelineNew = device.CreateGraphicsPipeline(descriptor);
+
+
+            foreach (var bindGroup in bindGroups)
+            {
+                bindGroup.Dispose();
+            }
+
+            _pipelineCache[hash] = pipelineNew;
+
+            return pipelineNew;
         }
-
-        _resourceIds = resourceIds.ToFrozenDictionary();
     }
 
-    internal void HotReload(ShaderCompileResultDeprecated result)
-    {
-        _meta = result;
-        _reflectionInfo = result.ReflectionInfo;
 
-        ClearPipelineCache();
-
-        BuildResourceIndex();
-    }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            foreach (var pipeline in _pipelines.Values)
+            foreach (var pipeline in _pipelineCache.Values)
             {
                 pipeline.Dispose();
             }
-            _pipelines.Clear();
+            _pipelineCache.Clear();
+            _modulesCache.Clear();
         }
     }
 }

@@ -5,34 +5,33 @@ namespace Vocore.Rendering;
 //todo: use render texture
 public class ColorSpaceConverter : AutoDisposable
 {
+    public const string ShaderId_texture = "_texture";
+
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private readonly Shader _shader;
 
     private readonly Mesh _mesh;
-    private readonly uint _shaderId_input;
+    private uint _shaderId_input;
 
     private GPUFrameBuffer? _input;
-    
     private GPUResourceGroup? _inputGroup;
-    private GPURenderPass? _renderPass;
-    private GPUPipeline? _pipeline;
-
+    private ShaderPipelineInfo _pipelineInfo;
 
     internal ColorSpaceConverter(RenderingSystem renderingSystem, Shader toneMapShader)
     {
-        if (!toneMapShader.IsGraphicsShader)
-        {
-            throw new InvalidOperationException("ToneMap shader must be a graphics shader.");
-        }
-
         _device = renderingSystem.GraphicsDevice;
         _shader = toneMapShader;
 
         _mesh = renderingSystem.MeshFullScreen;
-        _shaderId_input = _shader.GetResourceId("_texture");
 
+        _pipelineInfo = toneMapShader.GetGraphicsPipeline(
+            renderingSystem.PrefferedSDRPass
+        );
+
+        _shaderId_input = _pipelineInfo.GetResourceId(ShaderId_texture);
         _command = _device.CreateCommandBuffer();
+        OnUpdatePipeline(_pipelineInfo);
     }
 
     public virtual void SetInput(GPUFrameBuffer input)
@@ -60,18 +59,16 @@ public class ColorSpaceConverter : AutoDisposable
             throw new InvalidOperationException("Input is not set.");
         }
 
-        if (_renderPass != target.RenderPass)
+        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, target.RenderPass))
         {
-            _renderPass = target.RenderPass;
-            _pipeline = _shader.GetPipelineVariant(_renderPass);
+            _shaderId_input = _pipelineInfo.GetResourceId(ShaderId_texture);
         }
 
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_pipeline!);
+        _command.SetGraphicsPipeline(_pipelineInfo);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-        _command.SetGraphicsPipeline(_pipeline!);
         _command.SetGraphicsResources(_shaderId_input, _inputGroup!);
         OnSetGraphicsResources(_command);
         _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
@@ -80,6 +77,11 @@ public class ColorSpaceConverter : AutoDisposable
     }
 
     protected virtual void OnSetGraphicsResources(GPUCommandBuffer command)
+    {
+
+    }
+
+    protected virtual void OnUpdatePipeline(ShaderPipelineInfo pipelineInfo)
     {
 
     }

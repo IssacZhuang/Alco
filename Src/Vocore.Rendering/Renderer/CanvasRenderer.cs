@@ -15,17 +15,36 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         Sprite
     }
 
+    public const string ShaderId_camera = "_camera";
+    public const string ShaderId_texture = "_texture";
+    public const string ShaderId_textBuffer = "_textBuffer";
+    public const string ShaderId_font = "_font";
+
     public const float Depth = 100;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private readonly Texture2D _textWhite;
     private GPUFrameBuffer? _renderTarget;
-    private GPURenderPass? _currentPass;
     private GraphicsBuffer _camera;
     private RenderingState _state;
     private bool _isDrawing;
 
+    //sprite properties
+    private readonly Shader _shaderSprite;
+    private ShaderPipelineInfo _pipelineInfoSprite;
+    private readonly Mesh _meshSprite;
 
+    private uint _spriteShaderId_camera;
+    private uint _spriteShaderId_texture;
+
+    //text properties
+    private readonly Shader _shaderText;
+    private ShaderPipelineInfo _pipelineInfoText;
+    private readonly Mesh _meshText;
+
+    private uint _textShaderId_camera;
+    private uint _textShaderId_textBuffer;
+    private uint _textShaderId_font;
 
     public CanvasRenderer(RenderingSystem system, GraphicsBuffer camera, Shader shaderSpirte, Shader shaderText)
     {
@@ -40,15 +59,29 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         _textBufferGPU = system.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount);
         _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _shaderText = shaderText;
-        _textShaderId_camera = shaderText.GetResourceId("_camera");
-        _textShaderId_textBuffer = shaderText.GetResourceId("_textBuffer");
-        _textShaderId_font = shaderText.GetResourceId("_font");
+
+        _pipelineInfoSprite = _shaderText.GetGraphicsPipeline(
+            system.PrefferedSDRPass,
+            DepthStencilState.Read,
+            BlendState.AlphaBlend
+        );
+
+        _textShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
+        _textShaderId_textBuffer = _pipelineInfoSprite.GetResourceId(ShaderId_textBuffer);
+        _textShaderId_font = _pipelineInfoSprite.GetResourceId(ShaderId_font);
 
         //init sprite rendering
         _meshSprite = system.MeshSprite;
         _shaderSprite = shaderSpirte;
-        _spriteShaderId_camera = shaderSpirte.GetResourceId("_camera");
-        _spriteShaderId_texture = shaderSpirte.GetResourceId("_texture");
+
+        _pipelineInfoSprite = _shaderSprite.GetGraphicsPipeline(
+            system.PrefferedSDRPass,
+            DepthStencilState.Read,
+            BlendState.AlphaBlend
+        );
+
+        _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
+        _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderId_texture);
     }
 
 
@@ -75,12 +108,17 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
             throw new ArgumentNullException(nameof(target));
         }
 
-        if (target.RenderPass != _currentPass)
+        if(_shaderSprite.TryUpdatePipelineInfo(ref _pipelineInfoSprite, target.RenderPass))
         {
-            //compile shader variant
-            _currentPass = target.RenderPass;
-            _pipelineText = _shaderText.GetPipelineVariant(target.RenderPass);
-            _pipelineSprite = _shaderSprite.GetPipelineVariant(target.RenderPass);
+            _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
+            _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderId_texture);
+        }
+
+        if(_shaderText.TryUpdatePipelineInfo(ref _pipelineInfoText, target.RenderPass))
+        {
+            _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderId_camera);
+            _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderId_textBuffer);
+            _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderId_font);
         }
 
         _renderTarget = target;
@@ -156,9 +194,5 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         //dispose private resources
         _textBufferGPU.Dispose();
         _command.Dispose();
-
-        _currentPass = null;
-        _pipelineSprite = null;
-        _pipelineText = null;
     }
 }

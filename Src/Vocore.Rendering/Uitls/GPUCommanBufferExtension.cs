@@ -16,4 +16,10 @@ public static class GPUCommanBufferExtension
     {
         command.SetFrameBuffer(renderTexture.FrameBuffer);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void SetGraphicsPipeline(this GPUCommandBuffer command, ShaderPipelineInfo pipelineInfo)
+    {
+        command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+    }
 }

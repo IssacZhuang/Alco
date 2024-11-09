@@ -5,7 +5,7 @@ namespace Vocore.Rendering;
 public class ReinhardLuminanceToneMap : ColorSpaceConverter
 {
     private readonly GraphicsValueBuffer<ReinhardToneMapData> _data;
-    private readonly uint _shaderId_data;
+    private uint _shaderId_data;
 
 
     public ref ReinhardToneMapData Data
@@ -15,7 +15,7 @@ public class ReinhardLuminanceToneMap : ColorSpaceConverter
     public ReinhardLuminanceToneMap(RenderingSystem renderingSystem, Shader toneMapShader) : base(renderingSystem, toneMapShader)
     {
         _data = renderingSystem.CreateGraphicsValueBuffer<ReinhardToneMapData>("reinhard_luminance_tone_map_data");
-        _shaderId_data = toneMapShader.GetResourceId("_data");
+        
         _data.Value = ReinhardToneMapData.Default;
     }
 
@@ -24,6 +24,11 @@ public class ReinhardLuminanceToneMap : ColorSpaceConverter
         _data.UpdateBuffer();
 
         command.SetGraphicsResources(_shaderId_data, _data.EntryReadonly);
+    }
+
+    protected override void OnUpdatePipeline(ShaderPipelineInfo pipelineInfo)
+    {
+        _shaderId_data = pipelineInfo.GetResourceId("_data");
     }
 
     protected override void Dispose(bool disposing)

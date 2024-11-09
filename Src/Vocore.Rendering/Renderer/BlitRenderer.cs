@@ -7,13 +7,12 @@ public class BlitRenderer : AutoDisposable
 
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
-    private readonly uint _shaderId_Texture;
+
     //external resources 
     private readonly Mesh _fullScreenQuad;
-    private GPUPipeline? _pipelineBlit;
-    private GPURenderPass? _targetRenderPass;
-
     private readonly Shader _shaderBlit;
+    private ShaderPipelineInfo _pipelineInfo;
+    private uint _shaderId_Texture;
 
     internal BlitRenderer(RenderingSystem renderingSystem, Shader shaderBlit)
     {
@@ -21,20 +20,24 @@ public class BlitRenderer : AutoDisposable
         _fullScreenQuad = renderingSystem.MeshFullScreen;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("blit"));
         _shaderBlit = shaderBlit;
-        _shaderId_Texture = shaderBlit.GetResourceId("_texture");
+        _pipelineInfo = _shaderBlit.GetGraphicsPipeline(
+            renderingSystem.PrefferedSDRPass,
+            DepthStencilState.Read,
+            BlendState.AlphaBlend
+            );
+        _shaderId_Texture = _pipelineInfo.GetResourceId("_texture");
     }
 
     public void Blit(Texture2D from, GPUFrameBuffer to)
     {
-        if (_targetRenderPass != to.RenderPass)
+        if (_shaderBlit.TryUpdatePipelineInfo(ref _pipelineInfo, to.RenderPass))
         {
-            _targetRenderPass = to.RenderPass;
-            _pipelineBlit = _shaderBlit.GetPipelineVariant(_targetRenderPass);
+            _shaderId_Texture = _pipelineInfo.GetResourceId("_texture");
         }
 
         _command.Begin();
         _command.SetFrameBuffer(to);
-        _command.SetGraphicsPipeline(_pipelineBlit!);
+        _command.SetGraphicsPipeline(_pipelineInfo);
         _command.SetVertexBuffer(0, _fullScreenQuad.VertexBuffer);
         _command.SetIndexBuffer(_fullScreenQuad.IndexBuffer, _fullScreenQuad.IndexFormat);
         _command.SetGraphicsResources(_shaderId_Texture, from.EntrySample);
@@ -44,15 +47,14 @@ public class BlitRenderer : AutoDisposable
     }
     public void Blit(RenderTexture from, GPUFrameBuffer to)
     {
-        if (_targetRenderPass != to.RenderPass)
+        if (_shaderBlit.TryUpdatePipelineInfo(ref _pipelineInfo, to.RenderPass))
         {
-            _targetRenderPass = to.RenderPass;
-            _pipelineBlit = _shaderBlit.GetPipelineVariant(_targetRenderPass);
+            _shaderId_Texture = _pipelineInfo.GetResourceId("_texture");
         }
 
         _command.Begin();
         _command.SetFrameBuffer(to);
-        _command.SetGraphicsPipeline(_pipelineBlit!);
+        _command.SetGraphicsPipeline(_pipelineInfo);
         _command.SetVertexBuffer(0, _fullScreenQuad.VertexBuffer);
         _command.SetIndexBuffer(_fullScreenQuad.IndexBuffer, _fullScreenQuad.IndexFormat);
         _command.SetGraphicsResources(_shaderId_Texture, from.EntriesColorSample[0]);

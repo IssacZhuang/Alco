@@ -25,12 +25,22 @@ public class ArrayBuffer<T>
     }
 
 
-    public T this[int index]
+    public ref T this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer[index];
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _buffer[index] = value;
+        get => ref _buffer[index];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T Get(int index)
+    {
+        return _buffer[index];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T Get(uint index)
+    {
+        return _buffer[index];
     }
 
     public T[] Data

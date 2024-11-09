@@ -13,7 +13,7 @@ public partial class RenderingSystem
 
     public SpriteRenderer CreateSpriteRenderer(GraphicsBuffer camera, Shader shader)
     {
-        return new SpriteRenderer(_device, MeshSprite, camera, shader);
+        return new SpriteRenderer(this, MeshSprite, camera, shader);
     }
 
     public MaterialRenderer CreateMaterialRenderer()
@@ -29,11 +29,6 @@ public partial class RenderingSystem
     public BlitRenderer CreateBlitRenderer(Shader shaderBlit)
     {
         return new BlitRenderer(this, shaderBlit);
-    }
-
-    public WireframeRenderer CreateWireframeRenderer(GraphicsBuffer camera, Shader shader)
-    {
-        return new WireframeRenderer(this, camera, shader);
     }
 
     public ColorSpaceConverter CreateColorSpaceConverter(Shader shader)

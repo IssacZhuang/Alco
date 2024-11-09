@@ -9,9 +9,14 @@ public partial class RenderingSystem
     /// </summary>
     /// <param name="result">The shader compile result.</param>
     /// <returns>The created shader.</returns>
-    public Shader CreateShader(ShaderCompileResultDeprecated result)
+    public ShaderDeprecated CreateShader(ShaderCompileResultDeprecated result)
     {
-        return new Shader(this, result);
+        return new ShaderDeprecated(this, result);
+    }
+
+    public Shader CreateShader(string shaderText, string name)
+    {
+        return new Shader(this, shaderText, name);
     }
 
     public GPUPipeline CreatePipeline(ShaderCompileResultDeprecated result, GPURenderPass renderPass)
