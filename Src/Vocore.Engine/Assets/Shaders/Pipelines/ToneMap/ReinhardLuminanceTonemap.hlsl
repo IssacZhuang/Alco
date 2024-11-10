@@ -1,10 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma RenderPass Surface
-
 DEFINE_TEX2D_SAMPLE(0, _texture); // should be HDR image
 DEFINE_UNIFORM(1, _data){
     float MaxLuminance;

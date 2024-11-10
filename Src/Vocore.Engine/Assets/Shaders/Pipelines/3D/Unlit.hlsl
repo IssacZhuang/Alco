@@ -1,10 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma DepthStencilState Write
-
 struct Vertex2D {
   float3 position : POSITION;
   float2 uv : TEXCOORD0;

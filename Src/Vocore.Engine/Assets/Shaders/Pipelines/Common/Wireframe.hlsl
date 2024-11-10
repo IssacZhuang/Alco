@@ -1,12 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma BlendState Additive
-#pragma DepthStencilState None
-#pragma PrimitiveTopology LineList
-
 struct Vertex2D {
   float3 position : POSITION; // already in world space
   float4 color : COLOR;

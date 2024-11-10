@@ -1,10 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma DepthStencilState None
-
 struct Constants {
   float2 invTextureSize;
 };

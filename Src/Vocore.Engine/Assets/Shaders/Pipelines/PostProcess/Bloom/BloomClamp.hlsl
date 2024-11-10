@@ -1,10 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma DepthStencilState None
-
 DEFINE_TEX2D_SAMPLE(0, texture);
 DEFINE_UNIFORM(1, data) { 
     float2 InvTextureSize;

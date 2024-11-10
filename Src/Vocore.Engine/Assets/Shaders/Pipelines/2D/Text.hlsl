@@ -1,11 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma BlendState AlphaBlend
-#pragma DepthStencilState Read
-
 #define MAX_INSTANCE_COUNT 300
 
 

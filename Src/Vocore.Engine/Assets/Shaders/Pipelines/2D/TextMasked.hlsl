@@ -1,12 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma BlendState AlphaBlend
-#pragma DepthStencilState Read
-
-
 struct Vertex2D {
   float2 position : POSITION;
   float2 uv : TEXCOORD0;

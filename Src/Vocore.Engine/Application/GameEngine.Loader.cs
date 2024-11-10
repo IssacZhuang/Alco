@@ -20,7 +20,7 @@ public partial class GameEngine
             }
             throw new Exception($"Can not find the include file: {includeName}");
         }));
-        Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
+        //Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
 
         //aduio
         Assets.RegisterAssetLoader(new AssetLoaderAudioVorbis(AudioDevice));

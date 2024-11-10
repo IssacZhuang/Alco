@@ -1,12 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
 
-#pragma EntryVertex MainVS
-#pragma EntryFragment MainPS
-
-#pragma BlendState Additive
-#pragma DepthStencilState Read
-
-
 DEFINE_TEX2D_SAMPLE(0, texture); 
 
 struct Vertex2D {
