@@ -80,7 +80,7 @@ public class Shader : AutoDisposable
     {
         return GetGraphicsPipeline(
             renderPass,
-            DepthStencilState.None,
+            DepthStencilState.Default,
             BlendState.Opaque,
             RasterizerState.CullNone,
             PrimitiveTopology.TriangleList,

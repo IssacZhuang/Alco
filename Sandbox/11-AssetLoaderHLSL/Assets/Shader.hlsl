@@ -22,6 +22,7 @@ struct VertexOutput {
     float2 texCoord : TEXCOORD0;
 };
 
+[shader("vertex")]
 VertexOutput MainVS(VertexInput model) {
     VertexOutput v2f;
     v2f.clip_position = float4(model.position, 1);
@@ -29,6 +30,8 @@ VertexOutput MainVS(VertexInput model) {
     return v2f;
 }
 
+
+[shader("pixel")]
 float4 MainPS(VertexOutput input) : SV_Target0 {
     float4 result =  image.Sample(imageSampler, input.texCoord);
     // inverse gamma correction

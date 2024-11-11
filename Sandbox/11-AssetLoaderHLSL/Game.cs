@@ -57,15 +57,13 @@ public class Game : GameEngine
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        if (Assets.TryLoad("Shader.hlsl", out Shader? shader))
-        {
-            _shader = shader;
-            _pipelineInfo = _shader.GetGraphicsPipeline(Rendering.PrefferedSDRPass);
-        }
-        else
-        {
-            throw new Exception("Shader not found");
-        }
+        _shader = Assets.Load<Shader>("Shader.hlsl");
+        _pipelineInfo = _shader.GetGraphicsPipeline(
+            Rendering.PrefferedSDRPass,
+            DepthStencilState.Default,
+            BlendState.Additive
+            );
+
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
         _textureEmpty = Rendering.CreateTexture2D(16, 16, 0xffffffff);
