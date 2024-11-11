@@ -1,9 +1,10 @@
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
-
+//todo: opt exception message
 public class GraphicsMaterial : Material
 {
+    private const int RenderTextureIndexDepth = -1;
     protected enum ResourceType
     {
         Unavailable,
@@ -17,6 +18,8 @@ public class GraphicsMaterial : Material
         public ResourceType type;
         public GraphicsBuffer? buffer;
         public Texture2D? texture;
+        public RenderTexture? renderTexture;
+        public int renderTextureIndex;
     }
 
     private readonly RenderingSystem _system;
@@ -43,17 +46,17 @@ public class GraphicsMaterial : Material
 
     #region  Set value
 
-    public bool TrySet<T>(string name, T value) where T : unmanaged
+    public bool TrySetValue<T>(string name, T value) where T : unmanaged
     {
         if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             return false;
         }
 
-        return TrySet(id, value);
+        return TrySetValue(id, value);
     }
 
-    public unsafe bool TrySet<T>(uint id, T value) where T : unmanaged
+    public unsafe bool TrySetValue<T>(uint id, T value) where T : unmanaged
     {
         if (id < 0 || id >= _slots.Length)
         {
@@ -75,17 +78,17 @@ public class GraphicsMaterial : Material
         return true;
     }
 
-    public void Set<T>(string name, T value) where T : unmanaged
+    public void SetValue<T>(string name, T value) where T : unmanaged
     {
         if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
 
-        Set(id, value);
+        SetValue(id, value);
     }
 
-    public unsafe void Set<T>(uint id, T value) where T : unmanaged
+    public unsafe void SetValue<T>(uint id, T value) where T : unmanaged
     {
         if (id < 0 || id >= _slots.Length)
         {
@@ -110,61 +113,197 @@ public class GraphicsMaterial : Material
 
     #region Set texture
 
-    public bool TrySet(string name, Texture2D texture)
+    public bool TrySetTexture(string name, Texture2D texture)
     {
         if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             return false;
         }
 
-        return TrySet(id, texture);
+        return TrySetTexture(id, texture);
     }
 
-    public bool TrySet(uint id, Texture2D texture)
+    public bool TrySetTexture(uint id, Texture2D texture)
     {
         if (id < 0 || id >= _slots.Length)
         {
             return false;
         }
 
-        ref Slot slot = ref _slots[(int)id];
+        ref Slot slot = ref _slots.GetRef(id);
         if (slot.type != ResourceType.TextureWithSampler)
         {
             return false;
         }
 
+        slot.renderTexture = null;
         slot.texture = texture;
         return true;
     }
 
-    public void Set(string name, Texture2D texture)
+    public void SetTexture(string name, Texture2D texture)
     {
         if (!_pipelineInfo.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
 
-        Set(id, texture);
+        SetTexture(id, texture);
     }
 
-    public void Set(uint id, Texture2D texture)
+    public void SetTexture(uint id, Texture2D texture)
     {
         if (id < 0 || id >= _slots.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(id));
         }
 
-        ref Slot slot = ref _slots[(int)id];
+        ref Slot slot = ref _slots.GetRef(id);
         if (slot.type != ResourceType.TextureWithSampler)
         {
             throw new InvalidOperationException($"The resource {id} is not a texture.");
         }
 
+        slot.renderTexture = null;
         slot.texture = texture;
     }
 
 
     #endregion
+
+    #region Set render texture
+
+    public bool TrySetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
+    {
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        {
+            return false;
+        }
+
+        return TrySetRenderTexture(id, renderTexture, renderTextureIndex);
+    }
+
+    public bool TrySetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
+    {
+        if (id < 0 || id >= _slots.Length)
+        {
+            return false;
+        }
+
+        if (renderTextureIndex < 0 || renderTextureIndex >= renderTexture.EntriesColorSample.Length)
+        {
+            return false;
+        }
+
+        ref Slot slot = ref _slots.GetRef(id);
+        if (slot.type != ResourceType.TextureWithSampler)
+        {
+            return false;
+        }
+
+        slot.texture = null;
+        slot.renderTexture = renderTexture;
+        slot.renderTextureIndex = renderTextureIndex;
+        return true;
+    }
+
+    public void SetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
+    {
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        {
+            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        }
+
+        SetRenderTexture(id, renderTexture, renderTextureIndex);
+    }
+
+    public void SetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
+    {
+        if (id < 0 || id >= _slots.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(id));
+        }
+
+        if (renderTextureIndex < 0 || renderTextureIndex >= renderTexture.EntriesColorSample.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(renderTextureIndex));
+        }
+
+        ref Slot slot = ref _slots.GetRef(id);
+        if (slot.type != ResourceType.TextureWithSampler)
+        {
+            throw new InvalidOperationException($"The resource {id} is not a texture.");
+        }
+
+        slot.texture = null;
+        slot.renderTexture = renderTexture;
+        slot.renderTextureIndex = renderTextureIndex;
+    }
+
+    public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
+    {
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        {
+            return false;
+        }
+
+        return TrySetRenderTextureDepth(id, renderTexture);
+    }
+
+    public bool TrySetRenderTextureDepth(uint id, RenderTexture renderTexture)
+    {
+        if (id < 0 || id >= _slots.Length)
+        {
+            return false;
+        }
+
+        ref Slot slot = ref _slots.GetRef(id);
+        if (slot.type != ResourceType.TextureWithSampler)
+        {
+            return false;
+        }
+
+        slot.texture = null;
+        slot.renderTexture = renderTexture;
+        slot.renderTextureIndex = RenderTextureIndexDepth;
+        return true;
+    }
+
+    public void SetRenderTextureDepth(string name, RenderTexture renderTexture)
+    {
+        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        {
+            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        }
+
+        SetRenderTextureDepth(id, renderTexture);
+    }
+
+    public void SetRenderTextureDepth(uint id, RenderTexture renderTexture)
+    {
+        if (id < 0 || id >= _slots.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(id));
+        }
+
+        if (!renderTexture.HasDepth)
+        {
+            throw new InvalidOperationException($"The render texture does not have a depth attachment.");
+        }
+
+        ref Slot slot = ref _slots.GetRef(id);
+        if (slot.type != ResourceType.TextureWithSampler)
+        {
+            throw new InvalidOperationException($"The resource {id} is not a texture.");
+        }
+
+        slot.texture = null;
+        slot.renderTexture = renderTexture;
+        slot.renderTextureIndex = RenderTextureIndexDepth;
+    }
+
+    #endregion
+
 
     public override GPUPipeline GetPipeline(GPURenderPass renderPass)
     {
@@ -184,11 +323,21 @@ public class GraphicsMaterial : Material
             Slot slot = _slots[index];
             if (slot.type == ResourceType.Buffer)
             {
-                context.SetGraphicsResources(i, _slots[index].buffer!.EntryReadonly);
+                context.SetGraphicsResources(i, slot.buffer!.EntryReadonly);
             }
             else if (slot.type == ResourceType.TextureWithSampler)
             {
-                context.SetGraphicsResources(i, _slots[index].texture!.EntrySample);
+                if (slot.texture != null)
+                {
+                    context.SetGraphicsResources(i, slot.texture!.EntrySample);
+                }
+                else if (slot.renderTexture != null)
+                {
+                    GPUResourceGroup entry = slot.renderTextureIndex == RenderTextureIndexDepth
+                        ? slot.renderTexture.EntryDepthSample!
+                        : slot.renderTexture.EntriesColorSample[slot.renderTextureIndex];
+                    context.SetGraphicsResources(i, entry);
+                }
             }
         }
     }
@@ -218,7 +367,8 @@ public class GraphicsMaterial : Material
             }
             else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
-                if (slot.texture != null)
+                if (slot.texture != null||
+                    slot.renderTexture != null)
                 {
                     continue;
                 }

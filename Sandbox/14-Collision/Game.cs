@@ -37,7 +37,7 @@ public class Game : GameEngine
         _renderer = Rendering.CreateMaterialRenderer();
         _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
 
-        _material.Set("_camera", _camera.Data.ViewProjectionMatrix);
+        _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
         //_material["_texture"] = Rendering.TextureWhite;
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
@@ -96,7 +96,7 @@ public class Game : GameEngine
         if (DebugGUI.Slider(ref fov, 30, 110))
         {
             _camera.FieldOfView = fov / 100f;
-            _material.Set("_camera", _camera.Data.ViewProjectionMatrix);
+            _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
         }
 
         DebugGUI.SameLine();
