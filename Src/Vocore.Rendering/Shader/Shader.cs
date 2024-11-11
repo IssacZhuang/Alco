@@ -12,9 +12,11 @@ public class Shader : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
     private readonly ConcurrentDictionary<int, ShaderModulesInfo> _modulesCache = new ConcurrentDictionary<int, ShaderModulesInfo>();
-    private readonly ConcurrentDictionary<long, GPUPipeline> _pipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
+    private readonly ConcurrentDictionary<long, GPUPipeline> _graphicsPipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
+    private readonly ConcurrentDictionary<ShaderModulesInfo, GPUPipeline> _computePipelineCache = new ConcurrentDictionary<ShaderModulesInfo, GPUPipeline>();
 
-    private readonly Lock _lockCreatePipeline = new Lock();
+    private readonly Lock _lockCreateGraphicsPipeline = new Lock();
+    private readonly Lock _lockCreateComputePipeline = new Lock();
     private readonly Lock _lockCreateModules = new Lock();
     private readonly string _shaderText;
 
@@ -31,7 +33,7 @@ public class Shader : AutoDisposable
         _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
     }
 
-    public ShaderPipelineInfo GetGraphicsPipeline(
+    public GraphicsPipelineInfo GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
@@ -42,12 +44,11 @@ public class Shader : AutoDisposable
     {
         ShaderModulesInfo modulesInfo = GetShaderModules(defines);
         GPUPipeline pipeline = GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
-        return new ShaderPipelineInfo
+        return new GraphicsPipelineInfo
         {
             Pipeline = pipeline,
             RenderPass = renderPass,
             ModulesInfo = modulesInfo,
-            ReflectionInfo = modulesInfo.ReflectionInfo,
             DepthStencil = depthStencil,
             BlendState = blend,
             Rasterizer = rasterizer,
@@ -55,7 +56,7 @@ public class Shader : AutoDisposable
         };
     }
 
-    public ShaderPipelineInfo GetGraphicsPipeline(
+    public GraphicsPipelineInfo GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
@@ -72,7 +73,7 @@ public class Shader : AutoDisposable
             );
     }
 
-    public ShaderPipelineInfo GetGraphicsPipeline(
+    public GraphicsPipelineInfo GetGraphicsPipeline(
         GPURenderPass renderPass,
         params ReadOnlySpan<string> defines
         )
@@ -87,7 +88,7 @@ public class Shader : AutoDisposable
             );
     }
 
-    public bool TryUpdatePipelineInfo(ref ShaderPipelineInfo pipelineInfo, GPURenderPass renderPass)
+    public bool TryUpdatePipelineInfo(ref GraphicsPipelineInfo pipelineInfo, GPURenderPass renderPass)
     {
         if (pipelineInfo.RenderPass == renderPass)
         {
@@ -109,6 +110,17 @@ public class Shader : AutoDisposable
         return true;
     }
 
+    public ComputePipelineInfo GetComputePipelineInfo(params ReadOnlySpan<string> defines)
+    {
+        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        GPUPipeline pipeline = GetComputePipeline(modulesInfo);
+        return new ComputePipelineInfo
+        {
+            Pipeline = pipeline,
+            ModulesInfo = modulesInfo,
+            ReflectionInfo = modulesInfo.ReflectionInfo
+        };
+    }
 
     private ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
     {
@@ -186,15 +198,15 @@ public class Shader : AutoDisposable
 
         hash |= (long)subHash << 32;
 
-        if (_pipelineCache.TryGetValue(hash, out GPUPipeline? pipeline))
+        if (_graphicsPipelineCache.TryGetValue(hash, out GPUPipeline? pipeline))
         {
             return pipeline;
         }
 
         //create a new pipeline
-        using (_lockCreatePipeline.EnterScope())
+        using (_lockCreateGraphicsPipeline.EnterScope())
         {
-            if (_pipelineCache.TryGetValue(hash, out GPUPipeline? pipeline2))
+            if (_graphicsPipelineCache.TryGetValue(hash, out GPUPipeline? pipeline2))
             {
                 return pipeline2;
             }
@@ -248,23 +260,68 @@ public class Shader : AutoDisposable
                 bindGroup.Dispose();
             }
 
-            _pipelineCache[hash] = pipelineNew;
+            _graphicsPipelineCache[hash] = pipelineNew;
 
             return pipelineNew;
         }
     }
 
 
+    private GPUPipeline GetComputePipeline(ShaderModulesInfo modulesInfo)
+    {
+        if (_computePipelineCache.TryGetValue(modulesInfo, out GPUPipeline? pipeline))
+        {
+            return pipeline;
+        }
+
+        using (_lockCreateComputePipeline.EnterScope())
+        {
+            if (_computePipelineCache.TryGetValue(modulesInfo, out GPUPipeline? pipeline2))
+            {
+                return pipeline2;
+            }
+
+            if (!modulesInfo.IsComputeShader)
+            {
+                throw new InvalidOperationException("Trying to create a compute pipeline from a non-compute shader modules.");
+            }
+
+            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            GPUDevice device = _renderingSystem.GraphicsDevice;
+
+            GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];
+            for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
+            {
+                bindGroups[i] = device.CreateBindGroup(reflectionInfo.BindGroups[i].ToDescriptor());
+            }
+
+            ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
+                modulesInfo.ComputeShader!.Value,
+                bindGroups,
+                Name);
+
+            GPUPipeline pipelineNew = device.CreateComputePipeline(descriptor);
+
+            foreach (var bindGroup in bindGroups)
+            {
+                bindGroup.Dispose();
+            }
+
+            _computePipelineCache[modulesInfo] = pipelineNew;
+            return pipelineNew;
+        }
+    }
+
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            foreach (var pipeline in _pipelineCache.Values)
+            foreach (var pipeline in _graphicsPipelineCache.Values)
             {
                 pipeline.Dispose();
             }
-            _pipelineCache.Clear();
+            _graphicsPipelineCache.Clear();
             _modulesCache.Clear();
         }
     }

@@ -3,17 +3,11 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public struct ShaderPipelineInfo
+public struct ComputePipelineInfo
 {
     public GPUPipeline Pipeline;
-    public GPURenderPass RenderPass;
     public ShaderModulesInfo ModulesInfo;
     public ShaderReflectionInfo ReflectionInfo;
-    public DepthStencilState DepthStencil;
-    public BlendState BlendState;
-    public RasterizerState Rasterizer;
-    public PrimitiveTopology PrimitiveTopology;
-
 
     /// <summary>
     /// Tries to get the resource ID associated with the given name.
@@ -43,8 +37,9 @@ public struct ShaderPipelineInfo
         throw new KeyNotFoundException($"Resource '{name}' not found in shader {ModulesInfo.Name}");
     }
 
-    public int BindGroupCount{
+    public int BindGroupCount
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ReflectionInfo.BindGroups.Count;
+        get => ModulesInfo.ReflectionInfo.BindGroups.Count;
     }
 }

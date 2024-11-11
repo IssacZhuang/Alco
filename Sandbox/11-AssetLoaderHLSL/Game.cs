@@ -36,7 +36,7 @@ public class Game : GameEngine
     private GPUBuffer _indexBuffer;
     private GPUBuffer _colorBuffer;
     private Shader _shader;//high level encapsulation of GPU pipeline
-    private ShaderPipelineInfo _pipelineInfo;
+    private GraphicsPipelineInfo _pipelineInfo;
     private GPUResourceGroup _resourceGroupBuffer;
     private Texture2D _textureEmpty;
     private Texture2D _selected;

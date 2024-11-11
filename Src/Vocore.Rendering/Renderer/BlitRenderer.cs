@@ -11,7 +11,7 @@ public class BlitRenderer : AutoDisposable
     //external resources 
     private readonly Mesh _fullScreenQuad;
     private readonly Shader _shaderBlit;
-    private ShaderPipelineInfo _pipelineInfo;
+    private GraphicsPipelineInfo _pipelineInfo;
     private uint _shaderId_Texture;
 
     internal BlitRenderer(RenderingSystem renderingSystem, Shader shaderBlit)

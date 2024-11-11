@@ -18,7 +18,7 @@ public static class GPUCommanBufferExtension
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetGraphicsPipeline(this GPUCommandBuffer command, ShaderPipelineInfo pipelineInfo)
+    public static void SetGraphicsPipeline(this GPUCommandBuffer command, GraphicsPipelineInfo pipelineInfo)
     {
         command.SetGraphicsPipeline(pipelineInfo.Pipeline);
     }

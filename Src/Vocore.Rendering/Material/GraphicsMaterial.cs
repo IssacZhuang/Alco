@@ -14,8 +14,8 @@ public sealed class GraphicsMaterial : Material
     private readonly RenderingSystem _system;
     private readonly ArrayBuffer<Slot> _slots;
     private readonly Shader _shader;
-    private ShaderPipelineInfo _pipelineInfo;
-    
+    private GraphicsPipelineInfo _pipelineInfo;
+
 
 
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
