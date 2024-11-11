@@ -4,8 +4,8 @@ struct Constants {
   float2 invTextureSize;
 };
 
-DEFINE_TEX2D_SAMPLE(0, previousTexture);
-DEFINE_TEX2D_SAMPLE(1, currentTexture);
+DEFINE_TEX2D_SAMPLE(0, _previousTexture);
+DEFINE_TEX2D_SAMPLE(1, _currentTexture);
 PUSH_CONSTANT Constants constants;
 
 struct Vertex2D {
@@ -36,7 +36,7 @@ float4 MainPS(V2F input) : SV_TARGET {
   // for (int i = -1; i <= 1; ++i) {
   //   for (int j = -1; j <= 1; ++j) {
   //     float weight = weights[i + 1] * weights[j + 1];
-  //     sum += weight * SAMPLE_TEX2D(previousTexture, input.uv + float2(i, j) * invTextureSize);
+  //     sum += weight * SAMPLE_TEX2D(_previousTexture, input.uv + float2(i, j) * invTextureSize);
   //   }
   // }
 
@@ -46,13 +46,13 @@ float4 MainPS(V2F input) : SV_TARGET {
   // for (int i = -2; i <= 2; ++i) {
   //   for (int j = -2; j <= 2; ++j) {
   //     float weight = weights[i + 2] * weights[j + 2];
-  //     sum += weight * SAMPLE_TEX2D(previousTexture, input.uv + float2(i, j) * invTextureSize);
+  //     sum += weight * SAMPLE_TEX2D(_previousTexture, input.uv + float2(i, j) * invTextureSize);
   //   }
   // }
 
-  sum +=  SAMPLE_TEX2D(previousTexture, input.uv);
+  sum +=  SAMPLE_TEX2D(_previousTexture, input.uv);
 
-  float4 final = SAMPLE_TEX2D(currentTexture, input.uv)*0.2 + sum;
+  float4 final = SAMPLE_TEX2D(_currentTexture, input.uv)*0.2 + sum;
 
   return  float4(final.rgb, 1); // 1.6854393 is the sum of the [5x5 guassion weights]/[3x3 guassion weights]
 }

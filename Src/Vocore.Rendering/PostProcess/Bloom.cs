@@ -11,10 +11,10 @@ public class Bloom : PostProcess
         public float Threshold;
     }
 
-    public const string ShaderId_texture = "texture";
-    public const string ShaderId_data = "data";
-    public const string ShaderId_previousTexture = "previousTexture";
-    public const string ShaderId_currentTexture = "currentTexture";
+    public const string ShaderId_texture = "_texture";
+    public const string ShaderId_data = "_data";
+    public const string ShaderId_previousTexture = "_previousTexture";
+    public const string ShaderId_currentTexture = "_currentTexture";
 
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandDownSample;

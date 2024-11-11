@@ -4,7 +4,7 @@ struct Constants {
   float2 invTextureSize;
 };
 
-DEFINE_TEX2D_SAMPLE(0, texture);
+DEFINE_TEX2D_SAMPLE(0, _texture);
 PUSH_CONSTANT Constants constants;
 
 struct Vertex2D {
@@ -43,8 +43,8 @@ float4 MainPS(V2F input) : SV_TARGET {
   // Apply the weights from the Gaussian kernel
   for (int i = -2; i <= 2; ++i) {
     for (int j = -2; j <= 2; ++j) {
-      float weight = weights[i + 2] * weights[j + 2];
-      sum += weight * SAMPLE_TEX2D(texture, input.uv + float2(i, j) * invTextureSize);
+        float weight = weights[i + 2] * weights[j + 2];
+        sum += weight * SAMPLE_TEX2D(_texture, input.uv + float2(i, j) * invTextureSize);
     }
   }
 

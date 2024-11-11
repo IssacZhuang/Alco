@@ -1,7 +1,7 @@
 #include "Shaders/Libs/Core.hlsli"
 
-DEFINE_TEX2D_SAMPLE(0, texture);
-DEFINE_UNIFORM(1, data) { 
+DEFINE_TEX2D_SAMPLE(0, _texture);
+DEFINE_UNIFORM(1, _data) { 
     float2 InvTextureSize;
     float Threshold; 
 };
@@ -36,7 +36,7 @@ float4 MainPS(V2F input) : SV_TARGET {
     for (int j = -2; j <= 2; ++j) {
       float weight = weights[i + 2] * weights[j + 2];
       sum += weight *
-             SAMPLE_TEX2D(texture, input.uv + float2(i, j) * invTextureSize);
+             SAMPLE_TEX2D(_texture, input.uv + float2(i, j) * invTextureSize);
     }
   }
 
