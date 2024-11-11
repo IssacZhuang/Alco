@@ -16,6 +16,9 @@ public partial class RenderingSystem
     //preffered
     private readonly GPURenderPass _prefferedSDRPass;
     private readonly GPURenderPass _prefferedHDRPass;
+    private readonly GPURenderPass _prefferedSDRPassWithoutDepth;
+    private readonly GPURenderPass _prefferedHDRPassWithoutDepth;
+
     private readonly PixelFormat _prefferedSDRFormat;
     private readonly PixelFormat _prefferedHDRFormat;
     
@@ -36,12 +39,30 @@ public partial class RenderingSystem
         }
     }
 
+    public GPURenderPass PrefferedSDRPassWithoutDepth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            return _prefferedSDRPassWithoutDepth;
+        }
+    }
+
     public GPURenderPass PrefferedHDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             return _prefferedHDRPass;
+        }
+    }
+
+    public GPURenderPass PrefferedHDRPassWithoutDepth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            return _prefferedHDRPassWithoutDepth;
         }
     }
 
@@ -64,6 +85,20 @@ public partial class RenderingSystem
             [new(_prefferedHDRFormat)],
             new(PixelFormat.Depth24PlusStencil8),
             "hdr_pass"
+        ));
+
+        _prefferedSDRPassWithoutDepth = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(_prefferedSDRFormat)],
+            null,
+            "sdr_pass_no_depth"
+        ));
+
+        _prefferedHDRPassWithoutDepth = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(_prefferedHDRFormat)],
+            null,
+            "hdr_pass_no_depth"
         ));
     }
 }

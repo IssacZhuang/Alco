@@ -53,10 +53,10 @@ public class Bloom : PostProcess
 
     private GPUFrameBuffer[]? _upSampleFrames;
     private GPUResourceGroup[]? _upSampleGroups;
-    internal Bloom(RenderingSystem renderingSystem, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(renderingSystem, blitShader)
+    internal Bloom(RenderingSystem _system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(_system, blitShader)
     {
-        _device = renderingSystem.GraphicsDevice;
-        _renderingSystem = renderingSystem;
+        _device = _system.GraphicsDevice;
+        _renderingSystem = _system;
         _targetDownSampleHeight = targetDownSampleHeight;
 
         RenderPassDescriptor descriptor = new RenderPassDescriptor(
@@ -64,11 +64,11 @@ public class Bloom : PostProcess
             null
         );
 
-        _backBufferPass = _device.CreateRenderPass(descriptor);
+        _backBufferPass = _system.PrefferedHDRPassWithoutDepth;
 
         _blitShader = blitShader;
         _blitPipelineInfo = blitShader.GetGraphicsPipeline(
-            renderingSystem.PrefferedSDRPass,
+            _system.PrefferedSDRPass,
             DepthStencilState.Default,
             BlendState.Additive
             );
@@ -76,7 +76,7 @@ public class Bloom : PostProcess
 
         _clampShader = clampShader;
         _clampPipelineInfo = clampShader.GetGraphicsPipeline(_backBufferPass);
-        _clampShaderData = renderingSystem.CreateGraphicsValueBuffer<ClampShaderData>("bloom_threshold");
+        _clampShaderData = _system.CreateGraphicsValueBuffer<ClampShaderData>("bloom_threshold");
         _clampShaderId_texture = _clampPipelineInfo.GetResourceId(ShaderId_texture);
         _clampShaderId_data = _clampPipelineInfo.GetResourceId(ShaderId_data);
 
