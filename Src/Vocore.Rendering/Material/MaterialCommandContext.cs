@@ -19,21 +19,9 @@ public struct MaterialCommandContext
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void SetComputePipeline(GPUPipeline pipeline)
-    {
-        _commandBuffer.SetComputePipeline(pipeline);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
         _commandBuffer.SetGraphicsResources(slot, resourceGroup);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
-    {
-        _commandBuffer.SetComputeResources(slot, resourceGroup);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

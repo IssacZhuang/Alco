@@ -43,6 +43,18 @@ public class ArrayBuffer<T>
         return _buffer[index];
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ref T GetRef(int index)
+    {
+        return ref _buffer[index];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ref T GetRef(uint index)
+    {
+        return ref _buffer[index];
+    }
+
     public T[] Data
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

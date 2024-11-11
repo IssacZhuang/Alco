@@ -35,10 +35,25 @@ namespace Vocore.Rendering;
         string[] defineArray = defines.ToArray();
 
         List<HlslFunctionInfo> functions = GetFunctionInfo(shaderText);
+        HlslFunctionInfo? functionVertex = null;
+        HlslFunctionInfo? functionPixel = null;
+        HlslFunctionInfo? functionCompute = null;
         ShaderStage stage = ShaderStage.None;
         foreach (HlslFunctionInfo function in functions)
         {
             stage |= function.Stage;
+            if (function.Stage.HasFlag(ShaderStage.Vertex))
+            {
+                functionVertex = function;
+            }
+            if (function.Stage.HasFlag(ShaderStage.Fragment))
+            {
+                functionPixel = function;
+            }
+            if (function.Stage.HasFlag(ShaderStage.Compute))
+            {
+                functionCompute = function;
+            }
         }
 
         if (stage == ShaderStage.None)
@@ -69,7 +84,7 @@ namespace Vocore.Rendering;
             ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Vertex,
-                ShaderEntry.Vertex,
+                functionVertex!.Name,
                 filename,
                 macros.ToArray(),
                 includeResolver
@@ -78,7 +93,7 @@ namespace Vocore.Rendering;
             ShaderModule pixel = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Fragment,
-                ShaderEntry.Fragment,
+                functionPixel!.Name,
                 filename,
                 macros.ToArray(),
                 includeResolver
@@ -102,7 +117,7 @@ namespace Vocore.Rendering;
             ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
                 ShaderStage.Compute,
-                ShaderEntry.Compute,
+                functionCompute!.Name,
                 filename,
                 macros.ToArray()
                 );

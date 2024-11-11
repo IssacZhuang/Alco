@@ -2,11 +2,19 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public sealed class GraphicsMaterial : Material
+public class GraphicsMaterial : Material
 {
-    private struct Slot
+    protected enum ResourceType
     {
-        public MaterialResourceType type;
+        Unavailable,
+        TextureWithSampler,
+        Buffer
+    }
+
+
+    protected struct Slot
+    {
+        public ResourceType type;
         public GraphicsBuffer? buffer;
         public Texture2D? texture;
     }
@@ -28,7 +36,7 @@ public sealed class GraphicsMaterial : Material
             DepthStencilState.Default,
             BlendState.Opaque
             );
-        _slots.EnsureSize(_pipelineInfo.BindGroupCount);
+
 
         UpdateSlotResources();
     }
@@ -53,7 +61,7 @@ public sealed class GraphicsMaterial : Material
         }
 
         Slot slot = _slots.Get(id);
-        if (slot.type != MaterialResourceType.Buffer)
+        if (slot.type != ResourceType.Buffer)
         {
             return false;
         }
@@ -85,7 +93,7 @@ public sealed class GraphicsMaterial : Material
         }
 
         Slot slot = _slots.Get(id);
-        if (slot.type != MaterialResourceType.Buffer)
+        if (slot.type != ResourceType.Buffer)
         {
             throw new InvalidOperationException($"The resource {id} is not a buffer.");
         }
@@ -119,8 +127,8 @@ public sealed class GraphicsMaterial : Material
             return false;
         }
 
-        Slot slot = _slots.Get(id);
-        if (slot.type != MaterialResourceType.TextureWithSampler)
+        ref Slot slot = ref _slots[(int)id];
+        if (slot.type != ResourceType.TextureWithSampler)
         {
             return false;
         }
@@ -146,8 +154,8 @@ public sealed class GraphicsMaterial : Material
             throw new ArgumentOutOfRangeException(nameof(id));
         }
 
-        Slot slot = _slots.Get(id);
-        if (slot.type != MaterialResourceType.TextureWithSampler)
+        ref Slot slot = ref _slots[(int)id];
+        if (slot.type != ResourceType.TextureWithSampler)
         {
             throw new InvalidOperationException($"The resource {id} is not a texture.");
         }
@@ -174,11 +182,11 @@ public sealed class GraphicsMaterial : Material
         {
             int index = (int)i;
             Slot slot = _slots[index];
-            if (slot.type == MaterialResourceType.Buffer)
+            if (slot.type == ResourceType.Buffer)
             {
                 context.SetGraphicsResources(i, _slots[index].buffer!.EntryReadonly);
             }
-            else if (slot.type == MaterialResourceType.TextureWithSampler)
+            else if (slot.type == ResourceType.TextureWithSampler)
             {
                 context.SetGraphicsResources(i, _slots[index].texture!.EntrySample);
             }
@@ -188,8 +196,8 @@ public sealed class GraphicsMaterial : Material
     private void UpdateSlotResources()
     {
         ShaderReflectionInfo reflectionInfo = _pipelineInfo.ReflectionInfo;
+        _slots.EnsureSize(_pipelineInfo.BindGroupCount);
 
-        //todo opt: avoid reallocation
         for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
         {
             ref Slot slot = ref _slots[i];
@@ -202,7 +210,7 @@ public sealed class GraphicsMaterial : Material
                     continue;
                 }
                 BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                slot.type = MaterialResourceType.Buffer;
+                slot.type = ResourceType.Buffer;
                 slot.buffer = _system.CreateGraphicsBuffer(
                     info.Size,
                     $"Material_{_pipelineInfo.ModulesInfo.Name}_Buffer_{info.Entry.Name}"
@@ -214,12 +222,12 @@ public sealed class GraphicsMaterial : Material
                 {
                     continue;
                 }
-                slot.type = MaterialResourceType.TextureWithSampler;
+                slot.type = ResourceType.TextureWithSampler;
                 slot.texture = _system.TextureWhite;
             }
             else
             {
-                slot.type = MaterialResourceType.Unavailable;
+                slot.type = ResourceType.Unavailable;
             }
         }
     }
