@@ -79,6 +79,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "20-GPUReadBack", "Sandbox\2
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.ShaderCompiler", "Src\Vocore.ShaderCompiler\Vocore.ShaderCompiler.csproj", "{3FB2D776-EAA2-4CFB-97F6-31E4094FB875}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "21-StencilTest", "Sandbox\21-StencilTest\21-StencilTest.csproj", "{2CC5671E-20CF-490F-BDBD-5F52ACEAD500}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -221,6 +223,10 @@ Global
 		{3FB2D776-EAA2-4CFB-97F6-31E4094FB875}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3FB2D776-EAA2-4CFB-97F6-31E4094FB875}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3FB2D776-EAA2-4CFB-97F6-31E4094FB875}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2CC5671E-20CF-490F-BDBD-5F52ACEAD500}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2CC5671E-20CF-490F-BDBD-5F52ACEAD500}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2CC5671E-20CF-490F-BDBD-5F52ACEAD500}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2CC5671E-20CF-490F-BDBD-5F52ACEAD500}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -260,5 +266,6 @@ Global
 		{53D3C571-CAEC-4FFA-AC3C-070C39817969} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{DB8A6924-52C4-4F1E-8AC5-509B0C122ADD} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{3FB2D776-EAA2-4CFB-97F6-31E4094FB875} = {BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}
+		{2CC5671E-20CF-490F-BDBD-5F52ACEAD500} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal
