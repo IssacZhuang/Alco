@@ -75,6 +75,8 @@ public class GraphicsMaterial : Material
         }
     }
 
+    public uint? StencilReference;
+
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
     {
         _system = system;
@@ -378,6 +380,11 @@ public class GraphicsMaterial : Material
 
     protected override void SetPipelineResources(MaterialCommandContext context)
     {
+        if (StencilReference.HasValue)
+        {
+            context.SetStencilReference(StencilReference.Value);
+        }
+
         for (uint i = 0; i < _slots.Length; i++)
         {
             int index = (int)i;

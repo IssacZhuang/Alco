@@ -41,5 +41,10 @@ public struct MaterialCommandContext
     {
         _commandBuffer.PushConstants(stage, bufferOffset, data, size);
     }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly void SetStencilReference(uint value)
+    {
+        _commandBuffer.SetStencilReference(value);
+    }
 
 }
