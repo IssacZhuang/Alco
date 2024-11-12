@@ -25,19 +25,68 @@ public class GraphicsMaterial : Material
     private readonly RenderingSystem _system;
     private readonly ArrayBuffer<Slot> _slots;
     private readonly Shader _shader;
+
+    private bool _isPipelineDirty = true;
+
     private GraphicsPipelineInfo _pipelineInfo;
 
+    private DepthStencilState _depthStencilState = DepthStencilState.Default;
+    private BlendState _blendState = BlendState.Opaque;
+    private RasterizerState _rasterizerState = RasterizerState.CullNone;
+    private PrimitiveTopology _primitiveTopology = PrimitiveTopology.TriangleList;
 
+    public DepthStencilState DepthStencilState
+    {
+        get => _depthStencilState;
+        set
+        {
+            _depthStencilState = value;
+            _isPipelineDirty = true;
+        }
+    }
+
+    public BlendState BlendState
+    {
+        get => _blendState;
+        set
+        {
+            _blendState = value;
+            _isPipelineDirty = true;
+        }
+    }
+
+    public RasterizerState RasterizerState
+    {
+        get => _rasterizerState;
+        set
+        {
+            _rasterizerState = value;
+            _isPipelineDirty = true;
+        }
+    }
+
+    public PrimitiveTopology PrimitiveTopology
+    {
+        get => _primitiveTopology;
+        set
+        {
+            _primitiveTopology = value;
+            _isPipelineDirty = true;
+        }
+    }
 
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
     {
         _system = system;
         _shader = shader;
         _slots = new ArrayBuffer<Slot>();
+
         _pipelineInfo = shader.GetGraphicsPipeline(
             system.PrefferedSDRPass,
-            DepthStencilState.Default,
-            BlendState.Opaque
+            _depthStencilState,
+            _blendState,
+            _rasterizerState,
+            _primitiveTopology
             );
 
 
@@ -307,6 +356,18 @@ public class GraphicsMaterial : Material
 
     public override GPUPipeline GetPipeline(GPURenderPass renderPass)
     {
+        if (_isPipelineDirty)
+        {
+            _pipelineInfo = _shader.GetGraphicsPipeline(
+                renderPass,
+                _depthStencilState,
+                _blendState,
+                _rasterizerState,
+                _primitiveTopology
+                );
+            _isPipelineDirty = false;
+        }
+
         if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, renderPass))
         {
             UpdateSlotResources();
