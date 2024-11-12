@@ -92,6 +92,11 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
+    protected override void SetStencilReferenceCore(uint value)
+    {
+        
+    }
+
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         

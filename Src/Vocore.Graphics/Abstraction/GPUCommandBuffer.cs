@@ -64,6 +64,12 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         SetGraphicsPipelineCore(pipeline);
     }
 
+    public void SetStencilReference(uint value)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetStencilReference, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        SetStencilReferenceCore(value);
+    }
+
     public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
@@ -172,6 +178,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void ClearDepthCore(float depth);
     protected abstract void ClearStencilCore(uint stencil);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
+    protected abstract void SetStencilReferenceCore(uint value);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);
     protected abstract void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);

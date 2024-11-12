@@ -220,6 +220,13 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         wgpuRenderPassEncoderSetPipeline(_renderPass, _graphicsPipeline);
     }
 
+    protected override void SetStencilReferenceCore(uint value)
+    {
+        ValidateGraphicsPipeline();
+
+        wgpuRenderPassEncoderSetStencilReference(_renderPass, value);
+    }
+
     protected unsafe override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateGraphicsPipeline();
