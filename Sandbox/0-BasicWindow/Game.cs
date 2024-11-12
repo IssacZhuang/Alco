@@ -23,7 +23,8 @@ public class Game : GameEngine
         //duplicate clear test
         _commandBuffer.ClearColor(new Vector4(0.5f, 0.2f, 0.2f, 1.0f));
         _commandBuffer.ClearColor(new Vector4(0.2f, 0.2f, 0.4f, 1.0f)); // the last color will be used, and only one clear will be recorded
-        _commandBuffer.ClearDepthStencil(1.0f, 0);
+        _commandBuffer.ClearDepth(1.0f);
+        _commandBuffer.ClearStencil(0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }

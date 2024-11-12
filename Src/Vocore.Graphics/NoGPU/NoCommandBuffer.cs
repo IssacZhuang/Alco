@@ -17,7 +17,12 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
-    protected override void ClearDepthStencilCore(float depth, uint stencil)
+    protected override void ClearDepthCore(float depth)
+    {
+        
+    }
+
+    protected override void ClearStencilCore(uint stencil)
     {
         
     }

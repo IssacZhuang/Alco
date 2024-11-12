@@ -162,7 +162,7 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         _colorAttachmentsCache[index] = attachment;
     }
 
-    protected override void ClearDepthStencilCore(float depth, uint stencil)
+    protected override void ClearDepthCore(float depth)
     {
         if (_frameBuffer == null)
         {
@@ -184,6 +184,28 @@ internal unsafe class WebGPUCommandBuffer : GPUCommandBuffer
         attachment.depthLoadOp = WGPULoadOp.Clear;
         attachment.depthStoreOp = WGPUStoreOp.Store;
         attachment.depthClearValue = depth;
+        _depthStencilAttachmentCache = attachment;
+    }
+
+    protected override void ClearStencilCore(uint stencil)
+    {
+        if (_frameBuffer == null)
+        {
+            throw new GraphicsException("Framebuffer must be setted before ClearDepthStencil");
+        }
+
+        if (_renderPass != WGPURenderPassEncoder.Null)
+        {
+            throw new GraphicsException("The pipeline is already set, can not clear depth stencil");
+        }
+
+        if (!_depthStencilAttachmentCache.HasValue)
+        {
+            //no depth stencil attachment
+            return;
+        }
+
+        WGPURenderPassDepthStencilAttachment attachment = _depthStencilAttachmentCache.Value;
         attachment.stencilLoadOp = WGPULoadOp.Clear;
         attachment.stencilStoreOp = WGPUStoreOp.Store;
         attachment.stencilClearValue = stencil;

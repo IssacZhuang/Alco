@@ -45,10 +45,17 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         ClearColorCore(color, index);
     }
 
-    public void ClearDepthStencil(float depth, uint stencil)
+
+    public void ClearDepth(float depth)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearDepth, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        ClearDepthCore(depth);
+    }
+
+    public void ClearStencil(uint stencil)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearDepthStencil, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        ClearDepthStencilCore(depth, stencil);
+        ClearStencilCore(stencil);
     }
 
     public void SetGraphicsPipeline(GPUPipeline pipeline)
@@ -162,7 +169,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
     protected abstract void ClearColorCore(ColorFloat color, uint index);
-    protected abstract void ClearDepthStencilCore(float depth, uint stencil);
+    protected abstract void ClearDepthCore(float depth);
+    protected abstract void ClearStencilCore(uint stencil);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
     protected abstract void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size);

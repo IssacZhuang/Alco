@@ -89,7 +89,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _command.Begin();
         _command.SetFrameBuffer(_renderTexture.FrameBuffer);
         _command.ClearColor(new ColorFloat(0, 0, 0, 1));
-        _command.ClearDepthStencil(1, 0);
+        _command.ClearDepth(1f);
+        _command.ClearStencil(0);
         _command.End();
         _rendering.GraphicsDevice.Submit(_command);
     }
