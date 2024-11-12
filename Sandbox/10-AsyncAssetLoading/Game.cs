@@ -161,6 +161,8 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
+        GPURenderPass renderPass = MainRenderTarget.FrameBuffer.RenderPass;
+
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
             new ShaderModule[] { vertexShader, fragmentShader },
@@ -168,8 +170,8 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { GraphicsDevice.PrefferedSDRFormat },
-            GraphicsDevice.PrefferedDepthStencilFormat,
+            new PixelFormat[] { renderPass.Colors[0].Format },
+            renderPass.Depth.HasValue ? renderPass.Depth.Value.Format : null,
             null,
             "quad_pipeline"
         );

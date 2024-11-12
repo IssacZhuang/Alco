@@ -187,7 +187,12 @@ public partial class GameEngine : IDisposable
 
         _platform = _setting.Platform ?? new Sdl3Platform();
 
-        _rendering = new RenderingSystem(_graphicsDevice);
+        _rendering = new RenderingSystem(
+            _graphicsDevice,
+            _setting.Graphics.PreferredSDRFormat,
+            _setting.Graphics.PreferredHDRFormat,
+            _setting.Graphics.PreferredDepthStencilFormat
+            );
         _assets = new AssetSystem(_setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
         _builtInAssets = new BuiltInAssets(_assets);
 

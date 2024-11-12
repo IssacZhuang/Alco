@@ -7,8 +7,7 @@ GameEngineSetting setting = new GameEngineSetting
     StopWhenError = true,
     Window = new WindowSetting(960, 540, "Space Partition"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.Vulkan,
-        DepthFormat = null
+        Backend = GraphicsBackend.Vulkan
     },
 }.
 With<PluginDefaultAssets>().

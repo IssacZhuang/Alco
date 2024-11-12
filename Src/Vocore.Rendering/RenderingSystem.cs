@@ -21,6 +21,7 @@ public partial class RenderingSystem
 
     private readonly PixelFormat _prefferedSDRFormat;
     private readonly PixelFormat _prefferedHDRFormat;
+    private readonly PixelFormat _prefferedDepthStencilFormat;
     
 
     public GPUDevice GraphicsDevice
@@ -29,6 +30,23 @@ public partial class RenderingSystem
         get => _device;
     }
 
+    public PixelFormat PrefferedSDRFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedSDRFormat;
+    }
+
+    public PixelFormat PrefferedHDRFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedHDRFormat;
+    }
+
+    public PixelFormat PrefferedDepthStencilFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedDepthStencilFormat;
+    }
 
     public GPURenderPass PrefferedSDRPass
     {
@@ -66,24 +84,29 @@ public partial class RenderingSystem
         }
     }
 
-    public RenderingSystem(GPUDevice device)
+    public RenderingSystem(GPUDevice device, 
+    PixelFormat prefferedSDRFormat, 
+    PixelFormat prefferedHDRFormat,
+    PixelFormat prefferedDepthStencilFormat
+    )
     {
         _device = device;
 
-        _prefferedSDRFormat = device.PrefferedSDRFormat;
-        _prefferedHDRFormat = device.PrefferedHDRFormat;
+        _prefferedSDRFormat = prefferedSDRFormat;
+        _prefferedHDRFormat = prefferedHDRFormat;
+        _prefferedDepthStencilFormat = prefferedDepthStencilFormat;
 
         _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
             [new(_prefferedSDRFormat)],
-            new(PixelFormat.Depth24PlusStencil8),
+            new(_prefferedDepthStencilFormat),
             "sdr_pass"
         ));
 
         _prefferedHDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
             [new(_prefferedHDRFormat)],
-            new(PixelFormat.Depth24PlusStencil8),
+            new(_prefferedDepthStencilFormat),
             "hdr_pass"
         ));
 

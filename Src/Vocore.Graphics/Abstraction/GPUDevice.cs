@@ -10,37 +10,8 @@ namespace Vocore.Graphics;
 public abstract class GPUDevice : IDisposable
 {
     private readonly ConcurrentQueue<BaseGPUObject> _deferredDisposal = new();
-    // // Abstract properties
-    // /// <summary>
-    // /// The <see cref="GPURenderPass"/> of the surface swap chain.
-    // /// </summary>
-    // public abstract GPURenderPass SwapChainRenderPass { get; }
-    // /// <summary>
-    // /// The <see cref="GPUFrameBuffer"/> of the surface swap chain.
-    // /// </summary>
-    // public abstract GPUFrameBuffer SwapChainFrameBuffer { get; }
-    // /// <summary>
-    // /// The <see cref="PixelFormat"/> of the surface swap chain.
-    // /// </summary>
-    // public abstract PixelFormat PrefferedSurfaceFomat { get; }
-    // /// <summary>
-    // /// The <see cref="PixelFormat"/> of the depth and stencil buffer. It might be null if the depth test not required.
-    // /// </summary>
-    // public abstract PixelFormat? PrefferedDepthStencilFormat { get; }
-    // /// <summary>
-    // /// Enable or disable the vertical synchronization. The frame rate will be limited to the refresh rate of the monitor if enabled.
-    // /// </summary>
-    // public abstract PixelFormat PrefferedHDRFormat { get; }
-    // public abstract bool VSync { get; set; }
 
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
-
-    public abstract PixelFormat PrefferedSDRFormat { get; }
-
-    public abstract PixelFormat PrefferedHDRFormat { get; }
-
-    public abstract PixelFormat? PrefferedDepthStencilFormat { get; }
-
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
     // user can also create their own samplers by using the CreateSampler method.
@@ -91,16 +62,6 @@ public abstract class GPUDevice : IDisposable
     /// </summary>
     public abstract GPUBindGroup BindGroupTexture2DStorage { get; }
 
-    // /// <summary>
-    // /// Whether the depth and stencil test enabled.
-    // /// </summary> 
-    // public bool HasDepth
-    // {
-    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //     get => PrefferedDepthStencilFormat.HasValue;
-    // }
-
-
     /// <summary>
     /// Creates a GPU buffer with the descriptor.
     /// </summary>
@@ -139,7 +100,6 @@ public abstract class GPUDevice : IDisposable
         WriteBuffer(buffer, data);
         return buffer;
     }
-
 
 
     /// <summary>

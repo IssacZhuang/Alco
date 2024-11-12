@@ -26,7 +26,7 @@ public struct GraphicsSetting
     /// The format of the swap chain depth stencil buffer. 
     /// <br/>Set to null to disable depth stencil test.
     /// </summary>
-    public PixelFormat? DepthFormat { get; set; }
+    public PixelFormat PreferredDepthStencilFormat { get; set; }
 
 
     /// <summary>
@@ -38,7 +38,7 @@ public struct GraphicsSetting
         PreferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
-        DepthFormat = PixelFormat.Depth24PlusStencil8,
+        PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
     };
 
@@ -51,7 +51,7 @@ public struct GraphicsSetting
         PreferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
-        DepthFormat = PixelFormat.Depth24PlusStencil8,
+        PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = true,
     };
 

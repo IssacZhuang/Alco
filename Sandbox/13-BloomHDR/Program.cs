@@ -7,8 +7,7 @@ GameEngineSetting setting = new GameEngineSetting
     StopWhenError = true,
     Window = new WindowSetting(1280, 720, "Bloom HDR"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.Vulkan,
-        DepthFormat = null
+        Backend = GraphicsBackend.Vulkan
     },
 }.
 With<PluginHDR>().

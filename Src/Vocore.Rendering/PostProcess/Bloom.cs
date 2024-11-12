@@ -60,7 +60,7 @@ public class Bloom : PostProcess
         _targetDownSampleHeight = targetDownSampleHeight;
 
         RenderPassDescriptor descriptor = new RenderPassDescriptor(
-            [new(_device.PrefferedHDRFormat)],
+            [new(_system.PrefferedHDRFormat)],
             null
         );
 

@@ -56,11 +56,7 @@ internal partial class WebGPUDevice : GPUDevice
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
-    private readonly PixelFormat _preferredSDRFormat;
-    private readonly PixelFormat _preferredHDRFormat;
-    private readonly PixelFormat? _preferredDepthStencilFormat;
-     
-
+    
 
     #endregion
 
@@ -71,28 +67,6 @@ internal partial class WebGPUDevice : GPUDevice
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredSurfaceFormat;
-    }
-
-    public override PixelFormat PrefferedSDRFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRFormat;
-    }
-
-    public override PixelFormat PrefferedHDRFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredHDRFormat;
-    }
-
-
-    public override PixelFormat? PrefferedDepthStencilFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _preferredDepthStencilFormat;
-        }
     }
 
     //default samplers
@@ -399,9 +373,6 @@ internal partial class WebGPUDevice : GPUDevice
         wgpuSetLogCallback(LogCallback);
 
         _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
-        _preferredSDRFormat = descriptor.PreferredSDRFormat;
-        _preferredHDRFormat = descriptor.PreferredHDRFormat;
-        _preferredDepthStencilFormat = descriptor.DepthFormat;
 
         // create instance
         WGPUInstanceExtras extras = new WGPUInstanceExtras()

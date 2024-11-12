@@ -51,12 +51,6 @@ internal class NoDevice : GPUDevice
 
     public override PixelFormat PrefferedSurfaceFomat => PixelFormat.RGBA8UnormSrgb;
 
-    public override PixelFormat PrefferedSDRFormat => PixelFormat.RGBA8Unorm;
-
-    public override PixelFormat PrefferedHDRFormat => PixelFormat.RGBA16Float;
-
-    public override PixelFormat? PrefferedDepthStencilFormat => PixelFormat.Depth24PlusStencil8;
-
     protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
     {
         return noBindGroup;
