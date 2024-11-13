@@ -23,19 +23,21 @@ public unsafe class Sdl3InputSystem : InputSystem
 
 
     private State _state;
+    private Vector2 _lastMousePosition;
+    private Vector2 _mousePosition;
+    private Vector2 _mouseDelta;
     
 
     public override Vector2 MousePosition
     {
         get
         {
-            Vector2 result = default;
-            SDL_GetGlobalMouseState(&result.X, &result.Y);
-            return result;
+            return _mousePosition;
         }
         set
         {
             _ = SDL_WarpMouseGlobal((int)value.X, (int)value.Y);
+            _mousePosition = value;
         }
     }
 
@@ -43,12 +45,25 @@ public unsafe class Sdl3InputSystem : InputSystem
     {
         get
         {
-            return new Vector2(0, 0);
+            return _mouseDelta;
         }
     }
 
     public Sdl3InputSystem()
     {
+        _lastMousePosition = MousePosition;
+        _mousePosition = MousePosition;
+        _mouseDelta = new Vector2(0, 0);
+    }
+
+    internal void Update()
+    {
+        Vector2 tmp = default;
+        SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
+        _mousePosition = tmp;
+        _mouseDelta = _mousePosition - _lastMousePosition;
+        _lastMousePosition = _mousePosition;
+        Reset();
     }
 
     public override bool IsKeyDown(KeyCode key)
@@ -116,7 +131,7 @@ public unsafe class Sdl3InputSystem : InputSystem
         _state.isMousePressing[(int)b] = false;
     }
 
-    internal void Reset()
+    private void Reset()
     {
         for (int i = 0; i < MaxKeyCount; i++)
         {

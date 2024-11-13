@@ -13,7 +13,9 @@ public class Game : GameEngine
     private static ColorFloat Color2 = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
     private static ColorFloat Color3 = new ColorFloat(1.25f, 2.5f, 1.25f, 1f);
     //scence
-    private readonly CameraPerspective _camera;
+    private Transform3D _camaraParent = Transform3D.Identity;
+    private Transform3D _camaraChild = Transform3D.Identity;
+    private CameraDataPerspective _camera;
 
     private readonly Shader _shader;
     private readonly MaterialRenderer _renderer;
@@ -25,22 +27,18 @@ public class Game : GameEngine
     private readonly Cube _cubeStencilTest2;
 
     private Plane3D _plane;
-    private Vector3 offset;
-    private bool _isDragging = false;
-
     public Game(GameEngineSetting setting) : base(setting)
     {
 
         _shader = Assets.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
-        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
-
-        _camera.Tranform.position.Z = -10;
-        _camera.UpdateData();
+        _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
+        _camaraChild.position.Z = -10;
+        _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = Rendering.CreateMaterialRenderer();
         _materialStencilWrite = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
-        _materialStencilWrite.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
+        _materialStencilWrite.SetValue("_camera", _camera.ViewProjectionMatrix);
         _materialStencilWrite.DepthStencilState = new DepthStencilState
         {
             DepthWriteEnabled = false,
@@ -54,7 +52,7 @@ public class Game : GameEngine
         _materialStencilWrite.StencilReference = 250;
 
         _materialStencilTest = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
-        _materialStencilTest.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
+        _materialStencilTest.SetValue("_camera", _camera.ViewProjectionMatrix);
         _materialStencilTest.DepthStencilState = new DepthStencilState
         {
             DepthWriteEnabled = false,
@@ -101,7 +99,7 @@ public class Game : GameEngine
 
         Vector2 localMousePosition = MainWindow.MousePosition;
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.ViewProjectionMatrix, _camera.tranform.position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _cubeStencilWrite.Shape, out RaycastHit3D rayCastHit);
 
@@ -109,43 +107,20 @@ public class Game : GameEngine
 
         _plane.IntersectRay(cameraRay, out Vector3 mouseWoldPosition);
 
-        DebugGUI.Text(localMousePosition.ToString());
-        DebugGUI.Text(mouseWoldPosition.ToString());
-        if (Input.IsMouseDown(Mouse.Left) && hit)
-        {
-            offset = _cubeStencilWrite.transform.position - mouseWoldPosition;
-            _isDragging = true;
-        }
+        _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.X * 0.01f);
+        _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
 
-        if (_isDragging)
-        {
-            _cubeStencilWrite.transform.position = mouseWoldPosition + offset;
-        }
+        _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
-        if (Input.IsMouseUp(Mouse.Left))
-        {
-            _isDragging = false;
-        }
-
-        //debug ui
-        DebugGUI.Text("Camera Data");
-        int fov = (int)(_camera.FieldOfView * 100);
-        if (DebugGUI.Slider(ref fov, 30, 110))
-        {
-            _camera.FieldOfView = fov / 100f;
-            _materialStencilWrite.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
-        }
-
-        DebugGUI.SameLine();
-        DebugGUI.Text("Fov");
+        _materialStencilTest.SetValue("_camera",  _camera.ViewProjectionMatrix);
+        _materialStencilWrite.SetValue("_camera",  _camera.ViewProjectionMatrix);
     }
 
 
 
     protected void OnMainWindowResize(uint2 size)
     {
-        _camera.AspectRatio = (float)size.x / size.y;
-        _camera.UpdateData();
+        _camera.aspectRatio = (float)size.x / size.y;
     }
 
     protected override void OnStop()

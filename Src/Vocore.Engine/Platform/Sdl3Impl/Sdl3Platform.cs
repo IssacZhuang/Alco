@@ -81,7 +81,7 @@ public unsafe class Sdl3Platform : Platform
             //Log.Info(updateDeltaTime, physicsDeltaTime);
             DoUpdate(updateDeltaTime);
 
-            _input.Reset();
+            _input.Update();
         }
     }
 
