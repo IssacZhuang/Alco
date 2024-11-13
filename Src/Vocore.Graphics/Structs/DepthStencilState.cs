@@ -31,6 +31,8 @@ public struct DepthStencilState
     public CompareFunction DepthCompare { get; init; }
     public StencilFaceState FrontFace { get; init; } = StencilFaceState.Default;
     public StencilFaceState BackFace { get; init; } = StencilFaceState.Default;
+    public uint StencilWriteMask { get; init; }
+    public uint StencilReadMask { get; init; }
 
     public static bool operator ==(DepthStencilState left, DepthStencilState right)
     {

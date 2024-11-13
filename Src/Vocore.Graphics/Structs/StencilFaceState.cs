@@ -5,14 +5,16 @@ public struct StencilFaceState
 
     public StencilFaceState(
         CompareFunction compare,
-        StencilOperation stencilFailOperation,
+        StencilOperation passOperation,
         StencilOperation depthFailOperation,
-        StencilOperation passOperation)
+        StencilOperation stencilFailOperation
+        
+        )
     {
         Compare = compare;
+        PassOperation = passOperation;
         StencilFailOperation = stencilFailOperation;
         DepthFailOperation = depthFailOperation;
-        PassOperation = passOperation;
     }
     public CompareFunction Compare { get; init; }
     public StencilOperation StencilFailOperation { get; init; }
@@ -21,6 +23,18 @@ public struct StencilFaceState
 
     public static readonly StencilFaceState Default = new(
         CompareFunction.Always,
+        StencilOperation.Keep,
+        StencilOperation.Keep,
+        StencilOperation.Keep);
+
+    public static readonly StencilFaceState Write = new(
+        CompareFunction.Always,
+        StencilOperation.Replace,
+        StencilOperation.Keep,
+        StencilOperation.Keep);
+
+    public static readonly StencilFaceState CompareEqual = new(
+        CompareFunction.Equal,
         StencilOperation.Keep,
         StencilOperation.Keep,
         StencilOperation.Keep);

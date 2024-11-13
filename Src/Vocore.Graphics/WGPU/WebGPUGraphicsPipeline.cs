@@ -260,6 +260,8 @@ internal class WebGPUGraphicsPipeline : GPUPipeline
                     depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
                     stencilFront = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
                     stencilBack = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
+                    stencilReadMask = descriptor.DepthStencilState.StencilReadMask,
+                    stencilWriteMask = descriptor.DepthStencilState.StencilReadMask,
                 };
 
                 pipelineDescriptor.depthStencil = &depthStencilState;
