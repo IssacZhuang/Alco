@@ -9,7 +9,7 @@ using Vocore.GUI;
 
 public class Game : GameEngine
 {
-    private static ColorFloat Color1 = new ColorFloat(0.2f, 0.2f, 0.2f, 1f);
+    private static ColorFloat Color1 = new ColorFloat(0, 0, 0, 1f);
     private static ColorFloat Color2 = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
     private static ColorFloat Color3 = new ColorFloat(1.25f, 2.5f, 1.25f, 1f);
     //scence
@@ -25,6 +25,8 @@ public class Game : GameEngine
     private readonly Cube _cubeStencilWrite;
     private readonly Cube _cubeStencilTest1;
     private readonly Cube _cubeStencilTest2;
+
+    private readonly GPUCommandBuffer _commandClearScreen;
 
     private Plane3D _plane;
     public Game(GameEngineSetting setting) : base(setting)
@@ -70,15 +72,17 @@ public class Game : GameEngine
         _cubeStencilWrite = new Cube(Rendering.MeshCube, _materialStencilWrite);
         _cubeStencilWrite.Color = Color1;
         _cubeStencilWrite.transform.position = new Vector3(0, 0, 0);
-        _cubeStencilWrite.transform.scale = new Vector3(3f, 3f, 0.1f);
+        _cubeStencilWrite.transform.scale = new Vector3(5f, 5f, 0.1f);
 
         _cubeStencilTest1 = new Cube(Rendering.MeshCube, _materialStencilTest);
         _cubeStencilTest1.Color = Color2;
-        _cubeStencilTest1.transform.position = new Vector3(2, 0, 1.5f);
+        _cubeStencilTest1.transform.position = new Vector3(2, 0, 3f);
 
         _cubeStencilTest2 = new Cube(Rendering.MeshCube, _materialStencilTest);
         _cubeStencilTest2.Color = Color3;
         _cubeStencilTest2.transform.position = new Vector3(-1, -1, 3f);
+
+        _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
 
         MainWindow.OnResize += OnMainWindowResize;
     }
@@ -89,6 +93,12 @@ public class Game : GameEngine
         {
             Stop();
         }
+
+        _commandClearScreen.Begin();
+        _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
+        _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
+        _commandClearScreen.End();
+        GraphicsDevice.Submit(_commandClearScreen);
 
 
         _renderer.Begin(MainFrameBuffer);
