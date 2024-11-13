@@ -58,6 +58,8 @@ public unsafe class Sdl3Platform : Platform
         }
 
         _timer.Start();
+
+        _input.Init();
         while (!_isStopped)
         {
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);

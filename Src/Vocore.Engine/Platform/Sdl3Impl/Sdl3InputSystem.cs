@@ -51,10 +51,17 @@ public unsafe class Sdl3InputSystem : InputSystem
 
     public Sdl3InputSystem()
     {
-        _lastMousePosition = MousePosition;
-        _mousePosition = MousePosition;
+        
+    }
+
+    internal void Init(){
+        Vector2 tmp = default;
+        SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
+        _mousePosition = tmp;
+        _lastMousePosition = _mousePosition;
         _mouseDelta = new Vector2(0, 0);
     }
+    
 
     internal void Update()
     {
