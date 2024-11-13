@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Amer Koleci and Contributors.
 // Licensed under the MIT License (MIT). See LICENSE in the repository root for more information.
 
+using System.Drawing;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -10,7 +11,7 @@ using static SDL3.SDL3;
 namespace SDL3;
 
 #region Enums
-public enum SDL_bool : int
+public enum SDL_bool : byte
 {
     SDL_FALSE = SDL3.SDL_FALSE,
     SDL_TRUE = SDL3.SDL_TRUE
@@ -152,12 +153,11 @@ public static unsafe partial class SDL3
         return 0;
     }
 
+    public const SDL_bool SDL_FALSE = (SDL_bool)(0);
+    public const SDL_bool SDL_TRUE = (SDL_bool)(1);
+
     //[NativeTypeName("#define SDL_SIZE_MAX SIZE_MAX")]
     public const ulong SDL_SIZE_MAX = 0xffffffffffffffffUL;
-
-    public const SDL_AudioFormat SDL_AUDIO_S16 = SDL_AudioFormat.S16le;
-    public const SDL_AudioFormat SDL_AUDIO_S32 = SDL_AudioFormat.S32le;
-    public const SDL_AudioFormat SDL_AUDIO_F32 = SDL_AudioFormat.F32le;
 
     public static uint SDL_FOURCC(byte A, byte B, byte C, byte D)
     {
@@ -171,17 +171,14 @@ public static unsafe partial class SDL3
     public static partial nint SDL_free(void* mem);
 
     #region SDL_hints.h
-    public static bool SDL_SetHint(ReadOnlySpan<byte> name, bool value)
+    public static SDLBool SDL_SetHint(ReadOnlySpan<byte> name, bool value)
     {
         fixed (byte* pName = name)
         fixed (byte* pValue = (value ? "1"u8 : "0"u8))
             return SDL_SetHint(pName, pValue);
     }
 
-    public static bool SDL_SetHint(string name, bool value)
-    {
-        return SDL_SetHint(name, value ? "1" : "0");
-    }
+    public static SDLBool SDL_SetHint(string name, bool value) => SDL_SetHint(name, value ? "1" : "0");
     #endregion
 
     #region SDL_log.h
@@ -193,6 +190,7 @@ public static unsafe partial class SDL3
         SDL_SetLogPriority((int)category, priority);
     }
 
+    /// <inheritdoc cref="SDL_SetLogOutputFunction(delegate* unmanaged{nint, int, SDL_LogPriority, byte*, void}, nint)" />
     public static void SDL_SetLogOutputFunction(SDL_LogOutputFunction? callback)
     {
         s_logCallback = callback;
@@ -200,7 +198,7 @@ public static unsafe partial class SDL3
         SDL_SetLogOutputFunction(callback != null ? &OnNativeMessageCallback : null, IntPtr.Zero);
     }
 
-    [UnmanagedCallersOnly]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void OnNativeMessageCallback(nint userdata, int category, SDL_LogPriority priority, byte* messagePtr)
     {
         string? message = ConvertToManaged(messagePtr);
@@ -256,25 +254,18 @@ public static unsafe partial class SDL3
     //}
 
     [LibraryImport(LibName)]
-    public static partial SDL_DisplayID SDL_GetDisplayForPoint(in SDL_Point point);
+    public static partial SDL_DisplayID SDL_GetDisplayForPoint(in Point point);
 
     [LibraryImport(LibName)]
-    public static partial SDL_DisplayID SDL_GetDisplayForRect(in SDL_Rect rect);
+    public static partial SDL_DisplayID SDL_GetDisplayForRect(in Rectangle rect);
 
-    public static int SDL_GL_SetAttribute(SDL_GLattr attr, bool value)
-    {
-        return SDL_GL_SetAttribute(attr, value ? 1 : 0);
-    }
+    public static SDLBool SDL_GL_SetAttribute(SDL_GLattr attr, bool value) => SDL_GL_SetAttribute(attr, value ? 1 : 0);
 
-    public static int SDL_GL_SetAttribute(SDL_GLattr attr, SDL_GLprofile profile)
-    {
-        return SDL_GL_SetAttribute(attr, (int)profile);
-    }
+    public static SDLBool SDL_GL_SetAttribute(SDL_GLattr attr, SDL_GLprofile profile) => SDL_GL_SetAttribute(attr, (int)profile);
     #endregion
 
     [LibraryImport(LibName, EntryPoint = "SDL_PollEvent")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool SDL_PollEvent(out SDL_Event @event);
+    public static partial SDLBool SDL_PollEvent(out SDL_Event @event);
 
     public static int SDL_PeepEvents(SDL_Event[] events, SDL_EventAction action, SDL_EventType minType, SDL_EventType maxType)
     {
@@ -289,10 +280,7 @@ public static unsafe partial class SDL3
     }
 
     #region SDL_vulkan.h
-    public static int SDL_Vulkan_LoadLibrary()
-    {
-        return SDL_Vulkan_LoadLibrary((byte*)null);
-    }
+    public static SDLBool SDL_Vulkan_LoadLibrary() => SDL_Vulkan_LoadLibrary((byte*)null);
 
     public static string[] SDL_Vulkan_GetInstanceExtensions()
     {

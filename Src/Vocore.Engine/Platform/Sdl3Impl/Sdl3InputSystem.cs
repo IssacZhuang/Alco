@@ -281,11 +281,11 @@ public unsafe class Sdl3InputSystem : InputSystem
         keyMap[SDL_Keycode.KpEnter] = (int)KeyCode.KeypadEnter;
         keyMap[SDL_Keycode.KpEquals] = (int)KeyCode.KeypadEqual;
         //left right shift, control, alt, super
-        keyMap[SDL_Keycode.LeftShirt] = (int)KeyCode.ShiftLeft;
+        keyMap[SDL_Keycode.LeftShift] = (int)KeyCode.ShiftLeft;
         keyMap[SDL_Keycode.LeftControl] = (int)KeyCode.ControlLeft;
         keyMap[SDL_Keycode.LeftAlt] = (int)KeyCode.AltLeft;
         keyMap[SDL_Keycode.LeftGui] = (int)KeyCode.SuperLeft;//windows key/ mac command key
-        keyMap[SDL_Keycode.RightShirt] = (int)KeyCode.ShiftRight;
+        keyMap[SDL_Keycode.RightShift] = (int)KeyCode.ShiftRight;
         keyMap[SDL_Keycode.RightControl] = (int)KeyCode.ControlRight;
         keyMap[SDL_Keycode.RightAlt] = (int)KeyCode.AltRight;
         keyMap[SDL_Keycode.RightGui] = (int)KeyCode.SuperRight;//windows key/ mac command key

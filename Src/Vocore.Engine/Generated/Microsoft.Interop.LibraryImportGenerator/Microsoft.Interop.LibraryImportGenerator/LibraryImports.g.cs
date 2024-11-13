@@ -3,23 +3,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_TryLockSpinlock(global::SDL3.SDL_SpinLock* @lock)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(@lock);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TryLockSpinlock", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_SpinLock* __lock_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TryLockSpinlock", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_TryLockSpinlock(global::SDL3.SDL_SpinLock* @lock);
     }
 }
 namespace SDL3
@@ -58,86 +43,80 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_AtomicCompareAndSwap(global::SDL3.SDL_AtomicInt* a, int oldval, int newval)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(a, oldval, newval);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicCompareAndSwap", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_AtomicInt* __a_native, int __oldval_native, int __newval_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CompareAndSwapAtomicInt", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_CompareAndSwapAtomicInt(global::SDL3.SDL_AtomicInt* a, int oldval, int newval);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicSet", ExactSpelling = true)]
-        public static extern partial int SDL_AtomicSet(global::SDL3.SDL_AtomicInt* a, int v);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAtomicInt", ExactSpelling = true)]
+        public static extern partial int SDL_SetAtomicInt(global::SDL3.SDL_AtomicInt* a, int v);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicGet", ExactSpelling = true)]
-        public static extern partial int SDL_AtomicGet(global::SDL3.SDL_AtomicInt* a);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetAtomicInt", ExactSpelling = true)]
+        public static extern partial int SDL_GetAtomicInt(global::SDL3.SDL_AtomicInt* a);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicAdd", ExactSpelling = true)]
-        public static extern partial int SDL_AtomicAdd(global::SDL3.SDL_AtomicInt* a, int v);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddAtomicInt", ExactSpelling = true)]
+        public static extern partial int SDL_AddAtomicInt(global::SDL3.SDL_AtomicInt* a, int v);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_AtomicCompareAndSwapPointer(nint a, nint oldval, nint newval)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(a, oldval, newval);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicCompareAndSwapPointer", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(nint __a_native, nint __oldval_native, nint __newval_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CompareAndSwapAtomicU32", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_CompareAndSwapAtomicU32(global::SDL3.SDL_AtomicU32* a, uint oldval, uint newval);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicSetPtr", ExactSpelling = true)]
-        public static extern partial nint SDL_AtomicSetPtr(nint a, nint v);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAtomicU32", ExactSpelling = true)]
+        public static extern partial uint SDL_SetAtomicU32(global::SDL3.SDL_AtomicU32* a, uint v);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AtomicGetPtr", ExactSpelling = true)]
-        public static extern partial nint SDL_AtomicGetPtr(nint a);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetAtomicU32", ExactSpelling = true)]
+        public static extern partial uint SDL_GetAtomicU32(global::SDL3.SDL_AtomicU32* a);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CompareAndSwapAtomicPointer", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_CompareAndSwapAtomicPointer(nint a, nint oldval, nint newval);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAtomicPointer", ExactSpelling = true)]
+        public static extern partial nint SDL_SetAtomicPointer(nint a, nint v);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetAtomicPointer", ExactSpelling = true)]
+        public static extern partial nint SDL_GetAtomicPointer(nint a);
     }
 }
 namespace SDL3
@@ -223,7 +202,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetAudioDeviceFormat", ExactSpelling = true)]
-        public static extern partial int SDL_GetAudioDeviceFormat(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioSpec* spec, int* sample_frames);
+        public static extern partial global::SDL3.SDLBool SDL_GetAudioDeviceFormat(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioSpec* spec, int* sample_frames);
     }
 }
 namespace SDL3
@@ -262,7 +241,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PauseAudioDevice", ExactSpelling = true)]
-        public static extern partial int SDL_PauseAudioDevice(global::SDL3.SDL_AudioDeviceID dev);
+        public static extern partial global::SDL3.SDLBool SDL_PauseAudioDevice(global::SDL3.SDL_AudioDeviceID dev);
     }
 }
 namespace SDL3
@@ -270,30 +249,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResumeAudioDevice", ExactSpelling = true)]
-        public static extern partial int SDL_ResumeAudioDevice(global::SDL3.SDL_AudioDeviceID dev);
+        public static extern partial global::SDL3.SDLBool SDL_ResumeAudioDevice(global::SDL3.SDL_AudioDeviceID dev);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_AudioDevicePaused(global::SDL3.SDL_AudioDeviceID dev)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dev);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AudioDevicePaused", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_AudioDeviceID __dev_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AudioDevicePaused", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_AudioDevicePaused(global::SDL3.SDL_AudioDeviceID dev);
     }
 }
 namespace SDL3
@@ -309,7 +273,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioDeviceGain", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioDeviceGain(global::SDL3.SDL_AudioDeviceID devid, float gain);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioDeviceGain(global::SDL3.SDL_AudioDeviceID devid, float gain);
     }
 }
 namespace SDL3
@@ -325,7 +289,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindAudioStreams", ExactSpelling = true)]
-        public static extern partial int SDL_BindAudioStreams(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioStream streams, int num_streams);
+        public static extern partial global::SDL3.SDLBool SDL_BindAudioStreams(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioStream streams, int num_streams);
     }
 }
 namespace SDL3
@@ -333,7 +297,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindAudioStream", ExactSpelling = true)]
-        public static extern partial int SDL_BindAudioStream(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_BindAudioStream(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -381,7 +345,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetAudioStreamFormat", ExactSpelling = true)]
-        public static extern partial int SDL_GetAudioStreamFormat(global::SDL3.SDL_AudioStream stream, global::SDL3.SDL_AudioSpec* src_spec, global::SDL3.SDL_AudioSpec* dst_spec);
+        public static extern partial global::SDL3.SDLBool SDL_GetAudioStreamFormat(global::SDL3.SDL_AudioStream stream, global::SDL3.SDL_AudioSpec* src_spec, global::SDL3.SDL_AudioSpec* dst_spec);
     }
 }
 namespace SDL3
@@ -389,7 +353,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamFormat", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamFormat(global::SDL3.SDL_AudioStream stream, global::SDL3.SDL_AudioSpec* src_spec, global::SDL3.SDL_AudioSpec* dst_spec);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamFormat(global::SDL3.SDL_AudioStream stream, global::SDL3.SDL_AudioSpec* src_spec, global::SDL3.SDL_AudioSpec* dst_spec);
     }
 }
 namespace SDL3
@@ -405,7 +369,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamFrequencyRatio", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamFrequencyRatio(global::SDL3.SDL_AudioStream stream, float ratio);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamFrequencyRatio(global::SDL3.SDL_AudioStream stream, float ratio);
     }
 }
 namespace SDL3
@@ -421,7 +385,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamGain", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamGain(global::SDL3.SDL_AudioStream stream, float gain);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamGain(global::SDL3.SDL_AudioStream stream, float gain);
     }
 }
 namespace SDL3
@@ -475,7 +439,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamInputChannelMap", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamInputChannelMap(global::SDL3.SDL_AudioStream stream, int* chmap, int count);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamInputChannelMap(global::SDL3.SDL_AudioStream stream, int* chmap, int count);
     }
 }
 namespace SDL3
@@ -483,7 +447,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamOutputChannelMap", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamOutputChannelMap(global::SDL3.SDL_AudioStream stream, int* chmap, int count);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamOutputChannelMap(global::SDL3.SDL_AudioStream stream, int* chmap, int count);
     }
 }
 namespace SDL3
@@ -491,7 +455,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PutAudioStreamData", ExactSpelling = true)]
-        public static extern partial int SDL_PutAudioStreamData(global::SDL3.SDL_AudioStream stream, nint buf, int len);
+        public static extern partial global::SDL3.SDLBool SDL_PutAudioStreamData(global::SDL3.SDL_AudioStream stream, nint buf, int len);
     }
 }
 namespace SDL3
@@ -523,7 +487,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FlushAudioStream", ExactSpelling = true)]
-        public static extern partial int SDL_FlushAudioStream(global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_FlushAudioStream(global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -531,7 +495,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearAudioStream", ExactSpelling = true)]
-        public static extern partial int SDL_ClearAudioStream(global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_ClearAudioStream(global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -539,7 +503,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PauseAudioStreamDevice", ExactSpelling = true)]
-        public static extern partial int SDL_PauseAudioStreamDevice(global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_PauseAudioStreamDevice(global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -547,7 +511,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResumeAudioStreamDevice", ExactSpelling = true)]
-        public static extern partial int SDL_ResumeAudioStreamDevice(global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_ResumeAudioStreamDevice(global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -555,7 +519,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LockAudioStream", ExactSpelling = true)]
-        public static extern partial int SDL_LockAudioStream(global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_LockAudioStream(global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -563,7 +527,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnlockAudioStream", ExactSpelling = true)]
-        public static extern partial int SDL_UnlockAudioStream(global::SDL3.SDL_AudioStream stream);
+        public static extern partial global::SDL3.SDLBool SDL_UnlockAudioStream(global::SDL3.SDL_AudioStream stream);
     }
 }
 namespace SDL3
@@ -571,7 +535,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamGetCallback", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamGetCallback(global::SDL3.SDL_AudioStream stream, delegate* unmanaged<nint, global::SDL3.SDL_AudioStream, int, int, void> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamGetCallback(global::SDL3.SDL_AudioStream stream, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_AudioStream, int, int, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -579,7 +543,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioStreamPutCallback", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioStreamPutCallback(global::SDL3.SDL_AudioStream stream, delegate* unmanaged<nint, global::SDL3.SDL_AudioStream, int, int, void> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioStreamPutCallback(global::SDL3.SDL_AudioStream stream, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_AudioStream, int, int, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -595,7 +559,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_OpenAudioDeviceStream", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_AudioStream SDL_OpenAudioDeviceStream(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioSpec* spec, delegate* unmanaged<nint, global::SDL3.SDL_AudioStream, int, int, void> callback, nint userdata);
+        public static extern partial global::SDL3.SDL_AudioStream SDL_OpenAudioDeviceStream(global::SDL3.SDL_AudioDeviceID devid, global::SDL3.SDL_AudioSpec* spec, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_AudioStream, int, int, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -603,30 +567,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAudioPostmixCallback", ExactSpelling = true)]
-        public static extern partial int SDL_SetAudioPostmixCallback(global::SDL3.SDL_AudioDeviceID devid, delegate* unmanaged<nint, global::SDL3.SDL_AudioSpec*, float*, int, void> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_SetAudioPostmixCallback(global::SDL3.SDL_AudioDeviceID devid, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_AudioSpec*, float*, int, void> callback, nint userdata);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_LoadWAV_IO(global::SDL3.SDL_IOStream src, bool closeio, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
-        {
-            int __closeio_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __closeio_native = (int)(closeio ? 1 : 0);
-            {
-                __retVal = __PInvoke(src, __closeio_native, spec, audio_buf, audio_len);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadWAV_IO", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, int __closeio_native, global::SDL3.SDL_AudioSpec* __spec_native, byte** __audio_buf_native, uint* __audio_len_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadWAV_IO", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_LoadWAV_IO(global::SDL3.SDL_IOStream src, global::SDL3.SDLBool closeio, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len);
     }
 }
 namespace SDL3
@@ -634,7 +583,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadWAV", ExactSpelling = true)]
-        public static extern partial int SDL_LoadWAV(byte* path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len);
+        public static extern partial global::SDL3.SDLBool SDL_LoadWAV(byte* path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len);
     }
 }
 namespace SDL3
@@ -643,9 +592,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_LoadWAV(global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
+        public static partial global::SDL3.SDLBool SDL_LoadWAV(global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -655,7 +604,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadWAV", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native, global::SDL3.SDL_AudioSpec* __spec_native, byte** __audio_buf_native, uint* __audio_len_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native, global::SDL3.SDL_AudioSpec* __spec_native, byte** __audio_buf_native, uint* __audio_len_native);
         }
     }
 }
@@ -665,10 +614,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_LoadWAV(global::System.ReadOnlySpan<char> path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
+        public static partial global::SDL3.SDLBool SDL_LoadWAV(global::System.ReadOnlySpan<char> path, global::SDL3.SDL_AudioSpec* spec, byte** audio_buf, uint* audio_len)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -690,7 +639,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadWAV", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native, global::SDL3.SDL_AudioSpec* __spec_native, byte** __audio_buf_native, uint* __audio_len_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native, global::SDL3.SDL_AudioSpec* __spec_native, byte** __audio_buf_native, uint* __audio_len_native);
         }
     }
 }
@@ -699,7 +648,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_MixAudio", ExactSpelling = true)]
-        public static extern partial int SDL_MixAudio(byte* dst, byte* src, global::SDL3.SDL_AudioFormat format, uint len, float volume);
+        public static extern partial global::SDL3.SDLBool SDL_MixAudio(byte* dst, byte* src, global::SDL3.SDL_AudioFormat format, uint len, float volume);
     }
 }
 namespace SDL3
@@ -707,7 +656,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ConvertAudioSamples", ExactSpelling = true)]
-        public static extern partial int SDL_ConvertAudioSamples(global::SDL3.SDL_AudioSpec* src_spec, byte* src_data, int src_len, global::SDL3.SDL_AudioSpec* dst_spec, byte** dst_data, int* dst_len);
+        public static extern partial global::SDL3.SDLBool SDL_ConvertAudioSamples(global::SDL3.SDL_AudioSpec* src_spec, byte* src_data, int src_len, global::SDL3.SDL_AudioSpec* dst_spec, byte** dst_data, int* dst_len);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetAudioFormatName", ExactSpelling = true)]
+        public static extern partial byte* SDL_GetAudioFormatNamePtr(global::SDL3.SDL_AudioFormat format);
     }
 }
 namespace SDL3
@@ -849,7 +806,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetCameraFormat", ExactSpelling = true)]
-        public static extern partial int SDL_GetCameraFormat(global::SDL3.SDL_Camera camera, global::SDL3.SDL_CameraSpec* spec);
+        public static extern partial global::SDL3.SDLBool SDL_GetCameraFormat(global::SDL3.SDL_Camera camera, global::SDL3.SDL_CameraSpec* spec);
     }
 }
 namespace SDL3
@@ -865,7 +822,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseCameraFrame", ExactSpelling = true)]
-        public static extern partial int SDL_ReleaseCameraFrame(global::SDL3.SDL_Camera camera, global::SDL3.SDL_Surface* frame);
+        public static extern partial void SDL_ReleaseCameraFrame(global::SDL3.SDL_Camera camera, global::SDL3.SDL_Surface* frame);
     }
 }
 namespace SDL3
@@ -881,7 +838,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetClipboardText", ExactSpelling = true)]
-        public static extern partial int SDL_SetClipboardText(byte* text);
+        public static extern partial global::SDL3.SDLBool SDL_SetClipboardText(byte* text);
     }
 }
 namespace SDL3
@@ -890,9 +847,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetClipboardText(global::System.ReadOnlySpan<byte> text)
+        public static partial global::SDL3.SDLBool SDL_SetClipboardText(global::System.ReadOnlySpan<byte> text)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __text_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(text))
             {
@@ -902,7 +859,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetClipboardText", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __text_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __text_native);
         }
     }
 }
@@ -912,10 +869,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetClipboardText(global::System.ReadOnlySpan<char> text)
+        public static partial global::SDL3.SDLBool SDL_SetClipboardText(global::System.ReadOnlySpan<char> text)
         {
             byte* __text_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __text_native__marshaller = new();
             try
@@ -937,7 +894,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetClipboardText", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __text_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __text_native);
         }
     }
 }
@@ -953,23 +910,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasClipboardText()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasClipboardText", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasClipboardText", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasClipboardText();
     }
 }
 namespace SDL3
@@ -977,7 +919,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPrimarySelectionText", ExactSpelling = true)]
-        public static extern partial int SDL_SetPrimarySelectionText(byte* text);
+        public static extern partial global::SDL3.SDLBool SDL_SetPrimarySelectionText(byte* text);
     }
 }
 namespace SDL3
@@ -986,9 +928,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetPrimarySelectionText(global::System.ReadOnlySpan<byte> text)
+        public static partial global::SDL3.SDLBool SDL_SetPrimarySelectionText(global::System.ReadOnlySpan<byte> text)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __text_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(text))
             {
@@ -998,7 +940,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPrimarySelectionText", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __text_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __text_native);
         }
     }
 }
@@ -1008,10 +950,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetPrimarySelectionText(global::System.ReadOnlySpan<char> text)
+        public static partial global::SDL3.SDLBool SDL_SetPrimarySelectionText(global::System.ReadOnlySpan<char> text)
         {
             byte* __text_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __text_native__marshaller = new();
             try
@@ -1033,7 +975,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPrimarySelectionText", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __text_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __text_native);
         }
     }
 }
@@ -1049,23 +991,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasPrimarySelectionText()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasPrimarySelectionText", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasPrimarySelectionText", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasPrimarySelectionText();
     }
 }
 namespace SDL3
@@ -1073,7 +1000,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetClipboardData", ExactSpelling = true)]
-        public static extern partial int SDL_SetClipboardData(delegate* unmanaged<nint, byte*, nuint*, nint> callback, delegate* unmanaged<nint, void> cleanup, nint userdata, byte** mime_types, nuint num_mime_types);
+        public static extern partial global::SDL3.SDLBool SDL_SetClipboardData(delegate* unmanaged[Cdecl]<nint, byte*, nuint*, nint> callback, delegate* unmanaged[Cdecl]<nint, void> cleanup, nint userdata, byte** mime_types, nuint num_mime_types);
     }
 }
 namespace SDL3
@@ -1081,7 +1008,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearClipboardData", ExactSpelling = true)]
-        public static extern partial int SDL_ClearClipboardData();
+        public static extern partial global::SDL3.SDLBool SDL_ClearClipboardData();
     }
 }
 namespace SDL3
@@ -1153,23 +1080,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasClipboardData(byte* mime_type)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(mime_type);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasClipboardData", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __mime_type_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasClipboardData", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasClipboardData(byte* mime_type);
     }
 }
 namespace SDL3
@@ -1178,22 +1090,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasClipboardData(global::System.ReadOnlySpan<byte> mime_type)
+        public static partial global::SDL3.SDLBool SDL_HasClipboardData(global::System.ReadOnlySpan<byte> mime_type)
         {
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __mime_type_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(mime_type))
             {
-                __retVal_native = __PInvoke((byte*)__mime_type_native);
+                __retVal = __PInvoke((byte*)__mime_type_native);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasClipboardData", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __mime_type_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __mime_type_native);
         }
     }
 }
@@ -1203,11 +1112,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasClipboardData(global::System.ReadOnlySpan<char> mime_type)
+        public static partial global::SDL3.SDLBool SDL_HasClipboardData(global::System.ReadOnlySpan<char> mime_type)
         {
             byte* __mime_type_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __mime_type_native__marshaller = new();
             try
@@ -1217,11 +1125,8 @@ namespace SDL3
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __mime_type_native = __mime_type_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(__mime_type_native);
+                    __retVal = __PInvoke(__mime_type_native);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -1232,7 +1137,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasClipboardData", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __mime_type_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __mime_type_native);
         }
     }
 }
@@ -1240,8 +1145,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetCPUCount", ExactSpelling = true)]
-        public static extern partial int SDL_GetCPUCount();
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetClipboardMimeTypes", ExactSpelling = true)]
+        public static extern partial byte** SDL_GetClipboardMimeTypes(nuint* num_mime_types);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetNumLogicalCPUCores", ExactSpelling = true)]
+        public static extern partial int SDL_GetNumLogicalCPUCores();
     }
 }
 namespace SDL3
@@ -1256,322 +1169,112 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasAltiVec()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAltiVec", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAltiVec", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasAltiVec();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasMMX()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasMMX", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasMMX", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasMMX();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasSSE()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasSSE();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasSSE2()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE2", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE2", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasSSE2();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasSSE3()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE3", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE3", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasSSE3();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasSSE41()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE41", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE41", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasSSE41();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasSSE42()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE42", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasSSE42", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasSSE42();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasAVX()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAVX", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAVX", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasAVX();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasAVX2()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAVX2", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAVX2", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasAVX2();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasAVX512F()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAVX512F", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasAVX512F", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasAVX512F();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasARMSIMD()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasARMSIMD", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasARMSIMD", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasARMSIMD();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasNEON()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasNEON", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasNEON", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasNEON();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasLSX()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasLSX", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasLSX", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasLSX();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasLASX()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasLASX", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasLASX", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasLASX();
     }
 }
 namespace SDL3
@@ -1594,21 +1297,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, byte* default_location, bool allow_many)
-        {
-            int __allow_many_native;
-            // Marshal - Convert managed data to native data.
-            __allow_many_native = (int)(allow_many ? 1 : 0);
-            {
-                __PInvoke(callback, userdata, window, filters, nfilters, default_location, __allow_many_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFileDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native, int __allow_many_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFileDialog", ExactSpelling = true)]
+        public static extern partial void SDL_ShowOpenFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, byte* default_location, global::SDL3.SDLBool allow_many);
     }
 }
 namespace SDL3
@@ -1617,20 +1307,17 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<byte> default_location, bool allow_many)
+        public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<byte> default_location, global::SDL3.SDLBool allow_many)
         {
-            int __allow_many_native;
-            // Marshal - Convert managed data to native data.
-            __allow_many_native = (int)(allow_many ? 1 : 0);
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __default_location_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(default_location))
             {
-                __PInvoke(callback, userdata, window, filters, nfilters, (byte*)__default_location_native, __allow_many_native);
+                __PInvoke(callback, userdata, window, filters, nfilters, (byte*)__default_location_native, allow_many);
             }
 
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFileDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native, int __allow_many_native);
+            static extern unsafe void __PInvoke(delegate* unmanaged[Cdecl]<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native, global::SDL3.SDLBool __allow_many_native);
         }
     }
 }
@@ -1640,21 +1327,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<char> default_location, bool allow_many)
+        public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<char> default_location, global::SDL3.SDLBool allow_many)
         {
             byte* __default_location_native = default;
-            int __allow_many_native = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __default_location_native__marshaller = new();
             try
             {
                 // Marshal - Convert managed data to native data.
-                __allow_many_native = (int)(allow_many ? 1 : 0);
                 __default_location_native__marshaller.FromManaged(default_location, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __default_location_native = __default_location_native__marshaller.ToUnmanaged();
-                    __PInvoke(callback, userdata, window, filters, nfilters, __default_location_native, __allow_many_native);
+                    __PInvoke(callback, userdata, window, filters, nfilters, __default_location_native, allow_many);
                 }
             }
             finally
@@ -1665,7 +1350,7 @@ namespace SDL3
 
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFileDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native, int __allow_many_native);
+            static extern unsafe void __PInvoke(delegate* unmanaged[Cdecl]<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native, global::SDL3.SDLBool __allow_many_native);
         }
     }
 }
@@ -1674,7 +1359,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowSaveFileDialog", ExactSpelling = true)]
-        public static extern partial void SDL_ShowSaveFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, byte* default_location);
+        public static extern partial void SDL_ShowSaveFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, byte* default_location);
     }
 }
 namespace SDL3
@@ -1683,7 +1368,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<byte> default_location)
+        public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<byte> default_location)
         {
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __default_location_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(default_location))
@@ -1693,7 +1378,7 @@ namespace SDL3
 
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowSaveFileDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native);
+            static extern unsafe void __PInvoke(delegate* unmanaged[Cdecl]<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native);
         }
     }
 }
@@ -1703,7 +1388,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<char> default_location)
+        public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::SDL3.SDL_DialogFileFilter* filters, int nfilters, global::System.ReadOnlySpan<char> default_location)
         {
             byte* __default_location_native = default;
             // Setup - Perform required setup.
@@ -1726,8 +1411,16 @@ namespace SDL3
 
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowSaveFileDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native);
+            static extern unsafe void __PInvoke(delegate* unmanaged[Cdecl]<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_DialogFileFilter* __filters_native, int __nfilters_native, byte* __default_location_native);
         }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFolderDialog", ExactSpelling = true)]
+        public static extern partial void SDL_ShowOpenFolderDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, byte* default_location, global::SDL3.SDLBool allow_many);
     }
 }
 namespace SDL3
@@ -1736,41 +1429,17 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, byte* default_location, bool allow_many)
+        public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> default_location, global::SDL3.SDLBool allow_many)
         {
-            int __allow_many_native;
-            // Marshal - Convert managed data to native data.
-            __allow_many_native = (int)(allow_many ? 1 : 0);
-            {
-                __PInvoke(callback, userdata, window, default_location, __allow_many_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFolderDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, byte* __default_location_native, int __allow_many_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> default_location, bool allow_many)
-        {
-            int __allow_many_native;
-            // Marshal - Convert managed data to native data.
-            __allow_many_native = (int)(allow_many ? 1 : 0);
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __default_location_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(default_location))
             {
-                __PInvoke(callback, userdata, window, (byte*)__default_location_native, __allow_many_native);
+                __PInvoke(callback, userdata, window, (byte*)__default_location_native, allow_many);
             }
 
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFolderDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, byte* __default_location_native, int __allow_many_native);
+            static extern unsafe void __PInvoke(delegate* unmanaged[Cdecl]<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, byte* __default_location_native, global::SDL3.SDLBool __allow_many_native);
         }
     }
 }
@@ -1780,21 +1449,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> default_location, bool allow_many)
+        public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> default_location, global::SDL3.SDLBool allow_many)
         {
             byte* __default_location_native = default;
-            int __allow_many_native = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __default_location_native__marshaller = new();
             try
             {
                 // Marshal - Convert managed data to native data.
-                __allow_many_native = (int)(allow_many ? 1 : 0);
                 __default_location_native__marshaller.FromManaged(default_location, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __default_location_native = __default_location_native__marshaller.ToUnmanaged();
-                    __PInvoke(callback, userdata, window, __default_location_native, __allow_many_native);
+                    __PInvoke(callback, userdata, window, __default_location_native, allow_many);
                 }
             }
             finally
@@ -1805,7 +1472,7 @@ namespace SDL3
 
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowOpenFolderDialog", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(delegate* unmanaged<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, byte* __default_location_native, int __allow_many_native);
+            static extern unsafe void __PInvoke(delegate* unmanaged[Cdecl]<nint, byte**, int, void> __callback_native, nint __userdata_native, global::SDL3.SDL_Window __window_native, byte* __default_location_native, global::SDL3.SDLBool __allow_many_native);
         }
     }
 }
@@ -1814,7 +1481,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetError", ExactSpelling = true)]
-        public static extern partial int SDL_SetError(byte* fmt);
+        public static extern partial global::SDL3.SDLBool SDL_SetError(byte* fmt);
     }
 }
 namespace SDL3
@@ -1823,9 +1490,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetError(global::System.ReadOnlySpan<byte> fmt)
+        public static partial global::SDL3.SDLBool SDL_SetError(global::System.ReadOnlySpan<byte> fmt)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __fmt_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(fmt))
             {
@@ -1835,7 +1502,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetError", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __fmt_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __fmt_native);
         }
     }
 }
@@ -1845,10 +1512,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetError(global::System.ReadOnlySpan<char> fmt)
+        public static partial global::SDL3.SDLBool SDL_SetError(global::System.ReadOnlySpan<char> fmt)
         {
             byte* __fmt_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __fmt_native__marshaller = new();
             try
@@ -1870,7 +1537,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetError", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __fmt_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __fmt_native);
         }
     }
 }
@@ -1879,7 +1546,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_OutOfMemory", ExactSpelling = true)]
-        public static extern partial int SDL_OutOfMemory();
+        public static extern partial global::SDL3.SDLBool SDL_OutOfMemory();
     }
 }
 namespace SDL3
@@ -1895,7 +1562,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearError", ExactSpelling = true)]
-        public static extern partial int SDL_ClearError();
+        public static extern partial global::SDL3.SDLBool SDL_ClearError();
     }
 }
 namespace SDL3
@@ -1918,46 +1585,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasEvent(global::SDL3.SDL_EventType type)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(type);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasEvent", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_EventType __type_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasEvent", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasEvent(global::SDL3.SDL_EventType type);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasEvents(global::SDL3.SDL_EventType minType, global::SDL3.SDL_EventType maxType)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(minType, maxType);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasEvents", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_EventType __minType_native, global::SDL3.SDL_EventType __maxType_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasEvents", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasEvents(global::SDL3.SDL_EventType minType, global::SDL3.SDL_EventType maxType);
     }
 }
 namespace SDL3
@@ -1980,69 +1617,24 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_PollEvent(global::SDL3.SDL_Event* @event)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(@event);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PollEvent", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Event* __event_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PollEvent", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_PollEvent(global::SDL3.SDL_Event* @event);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WaitEvent(global::SDL3.SDL_Event* @event)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(@event);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitEvent", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Event* __event_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitEvent", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WaitEvent(global::SDL3.SDL_Event* @event);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WaitEventTimeout(global::SDL3.SDL_Event* @event, int timeoutMS)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(@event, timeoutMS);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitEventTimeout", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Event* __event_native, int __timeoutMS_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitEventTimeout", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WaitEventTimeout(global::SDL3.SDL_Event* @event, int timeoutMS);
     }
 }
 namespace SDL3
@@ -2050,7 +1642,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushEvent", ExactSpelling = true)]
-        public static extern partial int SDL_PushEvent(global::SDL3.SDL_Event* @event);
+        public static extern partial global::SDL3.SDLBool SDL_PushEvent(global::SDL3.SDL_Event* @event);
     }
 }
 namespace SDL3
@@ -2058,30 +1650,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetEventFilter", ExactSpelling = true)]
-        public static extern partial void SDL_SetEventFilter(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> filter, nint userdata);
+        public static extern partial void SDL_SetEventFilter(delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_Event*, global::SDL3.SDLBool> filter, nint userdata);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetEventFilter(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> filter, nint userdata)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(filter, userdata);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEventFilter", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> __filter_native, nint __userdata_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEventFilter", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetEventFilter(delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_Event*, global::SDL3.SDLBool> filter, nint userdata);
     }
 }
 namespace SDL3
@@ -2089,15 +1666,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddEventWatch", ExactSpelling = true)]
-        public static extern partial int SDL_AddEventWatch(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> filter, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_AddEventWatch(delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_Event*, global::SDL3.SDLBool> filter, nint userdata);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DelEventWatch", ExactSpelling = true)]
-        public static extern partial void SDL_DelEventWatch(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> filter, nint userdata);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveEventWatch", ExactSpelling = true)]
+        public static extern partial void SDL_RemoveEventWatch(delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_Event*, global::SDL3.SDLBool> filter, nint userdata);
     }
 }
 namespace SDL3
@@ -2105,51 +1682,23 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FilterEvents", ExactSpelling = true)]
-        public static extern partial void SDL_FilterEvents(delegate* unmanaged<nint, global::SDL3.SDL_Event*, int> filter, nint userdata);
+        public static extern partial void SDL_FilterEvents(delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_Event*, global::SDL3.SDLBool> filter, nint userdata);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_SetEventEnabled(global::SDL3.SDL_EventType type, bool enabled)
-        {
-            int __enabled_native;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __PInvoke(type, __enabled_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetEventEnabled", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(global::SDL3.SDL_EventType __type_native, int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetEventEnabled", ExactSpelling = true)]
+        public static extern partial void SDL_SetEventEnabled(global::SDL3.SDL_EventType type, global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_EventEnabled(global::SDL3.SDL_EventType type)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(type);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EventEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_EventType __type_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EventEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_EventEnabled(global::SDL3.SDL_EventType type);
     }
 }
 namespace SDL3
@@ -2260,7 +1809,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateDirectory", ExactSpelling = true)]
-        public static extern partial int SDL_CreateDirectory(byte* path);
+        public static extern partial global::SDL3.SDLBool SDL_CreateDirectory(byte* path);
     }
 }
 namespace SDL3
@@ -2269,9 +1818,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CreateDirectory(global::System.ReadOnlySpan<byte> path)
+        public static partial global::SDL3.SDLBool SDL_CreateDirectory(global::System.ReadOnlySpan<byte> path)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -2281,7 +1830,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -2291,10 +1840,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CreateDirectory(global::System.ReadOnlySpan<char> path)
+        public static partial global::SDL3.SDLBool SDL_CreateDirectory(global::System.ReadOnlySpan<char> path)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -2316,7 +1865,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -2325,7 +1874,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateDirectory", ExactSpelling = true)]
-        public static extern partial int SDL_EnumerateDirectory(byte* path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_EnumerateDirectory(byte* path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -2334,9 +1883,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_EnumerateDirectory(global::System.ReadOnlySpan<byte> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_EnumerateDirectory(global::System.ReadOnlySpan<byte> path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> callback, nint userdata)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -2346,7 +1895,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native, delegate* unmanaged<nint, byte*, byte*, int> __callback_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -2356,10 +1905,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_EnumerateDirectory(global::System.ReadOnlySpan<char> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_EnumerateDirectory(global::System.ReadOnlySpan<char> path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> callback, nint userdata)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -2381,7 +1930,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native, delegate* unmanaged<nint, byte*, byte*, int> __callback_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -2390,7 +1939,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemovePath", ExactSpelling = true)]
-        public static extern partial int SDL_RemovePath(byte* path);
+        public static extern partial global::SDL3.SDLBool SDL_RemovePath(byte* path);
     }
 }
 namespace SDL3
@@ -2399,9 +1948,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RemovePath(global::System.ReadOnlySpan<byte> path)
+        public static partial global::SDL3.SDLBool SDL_RemovePath(global::System.ReadOnlySpan<byte> path)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -2411,7 +1960,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemovePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -2421,10 +1970,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RemovePath(global::System.ReadOnlySpan<char> path)
+        public static partial global::SDL3.SDLBool SDL_RemovePath(global::System.ReadOnlySpan<char> path)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -2446,7 +1995,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemovePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -2455,7 +2004,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenamePath", ExactSpelling = true)]
-        public static extern partial int SDL_RenamePath(byte* oldpath, byte* newpath);
+        public static extern partial global::SDL3.SDLBool SDL_RenamePath(byte* oldpath, byte* newpath);
     }
 }
 namespace SDL3
@@ -2464,9 +2013,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RenamePath(global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
+        public static partial global::SDL3.SDLBool SDL_RenamePath(global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __newpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(newpath))
             fixed (void* __oldpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(oldpath))
@@ -2477,7 +2026,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenamePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -2487,11 +2036,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RenamePath(global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
+        public static partial global::SDL3.SDLBool SDL_RenamePath(global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
             byte* __oldpath_native = default;
             byte* __newpath_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __newpath_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __oldpath_native__marshaller = new();
@@ -2517,7 +2066,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenamePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -2526,7 +2075,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyFile", ExactSpelling = true)]
-        public static extern partial int SDL_CopyFile(byte* oldpath, byte* newpath);
+        public static extern partial global::SDL3.SDLBool SDL_CopyFile(byte* oldpath, byte* newpath);
     }
 }
 namespace SDL3
@@ -2535,9 +2084,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CopyFile(global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
+        public static partial global::SDL3.SDLBool SDL_CopyFile(global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __newpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(newpath))
             fixed (void* __oldpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(oldpath))
@@ -2548,7 +2097,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -2558,11 +2107,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CopyFile(global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
+        public static partial global::SDL3.SDLBool SDL_CopyFile(global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
             byte* __oldpath_native = default;
             byte* __newpath_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __newpath_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __oldpath_native__marshaller = new();
@@ -2588,7 +2137,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -2597,7 +2146,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPathInfo", ExactSpelling = true)]
-        public static extern partial int SDL_GetPathInfo(byte* path, global::SDL3.SDL_PathInfo* info);
+        public static extern partial global::SDL3.SDLBool SDL_GetPathInfo(byte* path, global::SDL3.SDL_PathInfo* info);
     }
 }
 namespace SDL3
@@ -2606,9 +2155,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetPathInfo(global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_PathInfo* info)
+        public static partial global::SDL3.SDLBool SDL_GetPathInfo(global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_PathInfo* info)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -2618,7 +2167,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPathInfo", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
         }
     }
 }
@@ -2628,10 +2177,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetPathInfo(global::System.ReadOnlySpan<char> path, global::SDL3.SDL_PathInfo* info)
+        public static partial global::SDL3.SDLBool SDL_GetPathInfo(global::System.ReadOnlySpan<char> path, global::SDL3.SDL_PathInfo* info)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -2653,7 +2202,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPathInfo", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
         }
     }
 }
@@ -2797,23 +2346,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_AddGamepadMappingsFromIO(global::SDL3.SDL_IOStream src, bool closeio)
-        {
-            int __closeio_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __closeio_native = (int)(closeio ? 1 : 0);
-            {
-                __retVal = __PInvoke(src, __closeio_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddGamepadMappingsFromIO", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, int __closeio_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddGamepadMappingsFromIO", ExactSpelling = true)]
+        public static extern partial int SDL_AddGamepadMappingsFromIO(global::SDL3.SDL_IOStream src, global::SDL3.SDLBool closeio);
     }
 }
 namespace SDL3
@@ -2886,7 +2420,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReloadGamepadMappings", ExactSpelling = true)]
-        public static extern partial int SDL_ReloadGamepadMappings();
+        public static extern partial global::SDL3.SDLBool SDL_ReloadGamepadMappings();
     }
 }
 namespace SDL3
@@ -2933,7 +2467,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadMapping", ExactSpelling = true)]
-        public static extern partial int SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, byte* mapping);
+        public static extern partial global::SDL3.SDLBool SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, byte* mapping);
     }
 }
 namespace SDL3
@@ -2942,9 +2476,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, global::System.ReadOnlySpan<byte> mapping)
+        public static partial global::SDL3.SDLBool SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, global::System.ReadOnlySpan<byte> mapping)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __mapping_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(mapping))
             {
@@ -2954,7 +2488,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadMapping", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_JoystickID __instance_id_native, byte* __mapping_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_JoystickID __instance_id_native, byte* __mapping_native);
         }
     }
 }
@@ -2964,10 +2498,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, global::System.ReadOnlySpan<char> mapping)
+        public static partial global::SDL3.SDLBool SDL_SetGamepadMapping(global::SDL3.SDL_JoystickID instance_id, global::System.ReadOnlySpan<char> mapping)
         {
             byte* __mapping_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __mapping_native__marshaller = new();
             try
@@ -2989,7 +2523,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadMapping", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_JoystickID __instance_id_native, byte* __mapping_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_JoystickID __instance_id_native, byte* __mapping_native);
         }
     }
 }
@@ -2997,23 +2531,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasGamepad()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasGamepad", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasGamepad", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasGamepad();
     }
 }
 namespace SDL3
@@ -3043,23 +2562,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsGamepad(global::SDL3.SDL_JoystickID instance_id)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(instance_id);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsGamepad", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_JoystickID __instance_id_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsGamepad", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsGamepad(global::SDL3.SDL_JoystickID instance_id);
     }
 }
 namespace SDL3
@@ -3227,7 +2731,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadPlayerIndex", ExactSpelling = true)]
-        public static extern partial int SDL_SetGamepadPlayerIndex(global::SDL3.SDL_Gamepad gamepad, int player_index);
+        public static extern partial global::SDL3.SDLBool SDL_SetGamepadPlayerIndex(global::SDL3.SDL_Gamepad gamepad, int player_index);
     }
 }
 namespace SDL3
@@ -3298,23 +2802,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GamepadConnected(global::SDL3.SDL_Gamepad gamepad)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(gamepad);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadConnected", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Gamepad __gamepad_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadConnected", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GamepadConnected(global::SDL3.SDL_Gamepad gamepad);
     }
 }
 namespace SDL3
@@ -3329,44 +2818,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_SetGamepadEventsEnabled(bool enabled)
-        {
-            int __enabled_native;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __PInvoke(__enabled_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadEventsEnabled", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadEventsEnabled", ExactSpelling = true)]
+        public static extern partial void SDL_SetGamepadEventsEnabled(global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GamepadEventsEnabled()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadEventsEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadEventsEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GamepadEventsEnabled();
     }
 }
 namespace SDL3
@@ -3550,23 +3011,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GamepadHasAxis(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadAxis axis)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(gamepad, axis);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadHasAxis", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Gamepad __gamepad_native, global::SDL3.SDL_GamepadAxis __axis_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadHasAxis", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GamepadHasAxis(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadAxis axis);
     }
 }
 namespace SDL3
@@ -3654,23 +3100,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GamepadHasButton(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadButton button)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(gamepad, button);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadHasButton", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Gamepad __gamepad_native, global::SDL3.SDL_GamepadButton __button_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadHasButton", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GamepadHasButton(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadButton button);
     }
 }
 namespace SDL3
@@ -3678,7 +3109,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGamepadButton", ExactSpelling = true)]
-        public static extern partial byte SDL_GetGamepadButton(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadButton button);
+        public static extern partial global::SDL3.SDLBool SDL_GetGamepadButton(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_GamepadButton button);
     }
 }
 namespace SDL3
@@ -3718,76 +3149,31 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGamepadTouchpadFinger", ExactSpelling = true)]
-        public static extern partial int SDL_GetGamepadTouchpadFinger(global::SDL3.SDL_Gamepad gamepad, int touchpad, int finger, byte* state, float* x, float* y, float* pressure);
+        public static extern partial global::SDL3.SDLBool SDL_GetGamepadTouchpadFinger(global::SDL3.SDL_Gamepad gamepad, int touchpad, int finger, global::SDL3.SDLBool* down, float* x, float* y, float* pressure);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GamepadHasSensor(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(gamepad, type);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadHasSensor", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Gamepad __gamepad_native, global::SDL3.SDL_SensorType __type_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadHasSensor", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GamepadHasSensor(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetGamepadSensorEnabled(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type, bool enabled)
-        {
-            int __enabled_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __retVal = __PInvoke(gamepad, type, __enabled_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadSensorEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Gamepad __gamepad_native, global::SDL3.SDL_SensorType __type_native, int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadSensorEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetGamepadSensorEnabled(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type, global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GamepadSensorEnabled(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(gamepad, type);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadSensorEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Gamepad __gamepad_native, global::SDL3.SDL_SensorType __type_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GamepadSensorEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GamepadSensorEnabled(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type);
     }
 }
 namespace SDL3
@@ -3803,7 +3189,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGamepadSensorData", ExactSpelling = true)]
-        public static extern partial int SDL_GetGamepadSensorData(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type, float* data, int num_values);
+        public static extern partial global::SDL3.SDLBool SDL_GetGamepadSensorData(global::SDL3.SDL_Gamepad gamepad, global::SDL3.SDL_SensorType type, float* data, int num_values);
     }
 }
 namespace SDL3
@@ -3811,7 +3197,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RumbleGamepad", ExactSpelling = true)]
-        public static extern partial int SDL_RumbleGamepad(global::SDL3.SDL_Gamepad gamepad, ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms);
+        public static extern partial global::SDL3.SDLBool SDL_RumbleGamepad(global::SDL3.SDL_Gamepad gamepad, ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms);
     }
 }
 namespace SDL3
@@ -3819,7 +3205,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RumbleGamepadTriggers", ExactSpelling = true)]
-        public static extern partial int SDL_RumbleGamepadTriggers(global::SDL3.SDL_Gamepad gamepad, ushort left_rumble, ushort right_rumble, uint duration_ms);
+        public static extern partial global::SDL3.SDLBool SDL_RumbleGamepadTriggers(global::SDL3.SDL_Gamepad gamepad, ushort left_rumble, ushort right_rumble, uint duration_ms);
     }
 }
 namespace SDL3
@@ -3827,7 +3213,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGamepadLED", ExactSpelling = true)]
-        public static extern partial int SDL_SetGamepadLED(global::SDL3.SDL_Gamepad gamepad, byte red, byte green, byte blue);
+        public static extern partial global::SDL3.SDLBool SDL_SetGamepadLED(global::SDL3.SDL_Gamepad gamepad, byte red, byte green, byte blue);
     }
 }
 namespace SDL3
@@ -3835,7 +3221,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SendGamepadEffect", ExactSpelling = true)]
-        public static extern partial int SDL_SendGamepadEffect(global::SDL3.SDL_Gamepad gamepad, nint data, int size);
+        public static extern partial global::SDL3.SDLBool SDL_SendGamepadEffect(global::SDL3.SDL_Gamepad gamepad, nint data, int size);
     }
 }
 namespace SDL3
@@ -3994,23 +3380,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsMouseHaptic()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsMouseHaptic", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsMouseHaptic", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsMouseHaptic();
     }
 }
 namespace SDL3
@@ -4025,23 +3396,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsJoystickHaptic(global::SDL3.SDL_Joystick joystick)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(joystick);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsJoystickHaptic", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Joystick __joystick_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsJoystickHaptic", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsJoystickHaptic(global::SDL3.SDL_Joystick joystick);
     }
 }
 namespace SDL3
@@ -4096,23 +3452,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HapticEffectSupported(global::SDL3.SDL_Haptic haptic, global::SDL3.SDL_HapticEffect* effect)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(haptic, effect);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HapticEffectSupported", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Haptic __haptic_native, global::SDL3.SDL_HapticEffect* __effect_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HapticEffectSupported", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HapticEffectSupported(global::SDL3.SDL_Haptic haptic, global::SDL3.SDL_HapticEffect* effect);
     }
 }
 namespace SDL3
@@ -4128,7 +3469,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UpdateHapticEffect", ExactSpelling = true)]
-        public static extern partial int SDL_UpdateHapticEffect(global::SDL3.SDL_Haptic haptic, int effect, global::SDL3.SDL_HapticEffect* data);
+        public static extern partial global::SDL3.SDLBool SDL_UpdateHapticEffect(global::SDL3.SDL_Haptic haptic, int effect, global::SDL3.SDL_HapticEffect* data);
     }
 }
 namespace SDL3
@@ -4136,7 +3477,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RunHapticEffect", ExactSpelling = true)]
-        public static extern partial int SDL_RunHapticEffect(global::SDL3.SDL_Haptic haptic, int effect, uint iterations);
+        public static extern partial global::SDL3.SDLBool SDL_RunHapticEffect(global::SDL3.SDL_Haptic haptic, int effect, uint iterations);
     }
 }
 namespace SDL3
@@ -4144,7 +3485,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StopHapticEffect", ExactSpelling = true)]
-        public static extern partial int SDL_StopHapticEffect(global::SDL3.SDL_Haptic haptic, int effect);
+        public static extern partial global::SDL3.SDLBool SDL_StopHapticEffect(global::SDL3.SDL_Haptic haptic, int effect);
     }
 }
 namespace SDL3
@@ -4160,7 +3501,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetHapticEffectStatus", ExactSpelling = true)]
-        public static extern partial int SDL_GetHapticEffectStatus(global::SDL3.SDL_Haptic haptic, int effect);
+        public static extern partial global::SDL3.SDLBool SDL_GetHapticEffectStatus(global::SDL3.SDL_Haptic haptic, int effect);
     }
 }
 namespace SDL3
@@ -4168,7 +3509,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHapticGain", ExactSpelling = true)]
-        public static extern partial int SDL_SetHapticGain(global::SDL3.SDL_Haptic haptic, int gain);
+        public static extern partial global::SDL3.SDLBool SDL_SetHapticGain(global::SDL3.SDL_Haptic haptic, int gain);
     }
 }
 namespace SDL3
@@ -4176,7 +3517,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHapticAutocenter", ExactSpelling = true)]
-        public static extern partial int SDL_SetHapticAutocenter(global::SDL3.SDL_Haptic haptic, int autocenter);
+        public static extern partial global::SDL3.SDLBool SDL_SetHapticAutocenter(global::SDL3.SDL_Haptic haptic, int autocenter);
     }
 }
 namespace SDL3
@@ -4184,7 +3525,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PauseHaptic", ExactSpelling = true)]
-        public static extern partial int SDL_PauseHaptic(global::SDL3.SDL_Haptic haptic);
+        public static extern partial global::SDL3.SDLBool SDL_PauseHaptic(global::SDL3.SDL_Haptic haptic);
     }
 }
 namespace SDL3
@@ -4192,7 +3533,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResumeHaptic", ExactSpelling = true)]
-        public static extern partial int SDL_ResumeHaptic(global::SDL3.SDL_Haptic haptic);
+        public static extern partial global::SDL3.SDLBool SDL_ResumeHaptic(global::SDL3.SDL_Haptic haptic);
     }
 }
 namespace SDL3
@@ -4200,30 +3541,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StopHapticEffects", ExactSpelling = true)]
-        public static extern partial int SDL_StopHapticEffects(global::SDL3.SDL_Haptic haptic);
+        public static extern partial global::SDL3.SDLBool SDL_StopHapticEffects(global::SDL3.SDL_Haptic haptic);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HapticRumbleSupported(global::SDL3.SDL_Haptic haptic)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(haptic);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HapticRumbleSupported", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Haptic __haptic_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HapticRumbleSupported", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HapticRumbleSupported(global::SDL3.SDL_Haptic haptic);
     }
 }
 namespace SDL3
@@ -4231,7 +3557,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_InitHapticRumble", ExactSpelling = true)]
-        public static extern partial int SDL_InitHapticRumble(global::SDL3.SDL_Haptic haptic);
+        public static extern partial global::SDL3.SDLBool SDL_InitHapticRumble(global::SDL3.SDL_Haptic haptic);
     }
 }
 namespace SDL3
@@ -4239,7 +3565,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PlayHapticRumble", ExactSpelling = true)]
-        public static extern partial int SDL_PlayHapticRumble(global::SDL3.SDL_Haptic haptic, float strength, uint length);
+        public static extern partial global::SDL3.SDLBool SDL_PlayHapticRumble(global::SDL3.SDL_Haptic haptic, float strength, uint length);
     }
 }
 namespace SDL3
@@ -4247,7 +3573,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StopHapticRumble", ExactSpelling = true)]
-        public static extern partial int SDL_StopHapticRumble(global::SDL3.SDL_Haptic haptic);
+        public static extern partial global::SDL3.SDLBool SDL_StopHapticRumble(global::SDL3.SDL_Haptic haptic);
     }
 }
 namespace SDL3
@@ -4479,21 +3805,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_hid_ble_scan(bool active)
-        {
-            int __active_native;
-            // Marshal - Convert managed data to native data.
-            __active_native = (int)(active ? 1 : 0);
-            {
-                __PInvoke(__active_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_hid_ble_scan", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(int __active_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_hid_ble_scan", ExactSpelling = true)]
+        public static extern partial void SDL_hid_ble_scan(global::SDL3.SDLBool active);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHintWithPriority", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetHintWithPriority(byte* name, byte* value, global::SDL3.SDL_HintPriority priority);
     }
 }
 namespace SDL3
@@ -4502,46 +3823,20 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetHintWithPriority(byte* name, byte* value, global::SDL3.SDL_HintPriority priority)
+        public static partial global::SDL3.SDLBool SDL_SetHintWithPriority(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, global::SDL3.SDL_HintPriority priority)
         {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(name, value, priority);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHintWithPriority", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native, global::SDL3.SDL_HintPriority __priority_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetHintWithPriority(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, global::SDL3.SDL_HintPriority priority)
-        {
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __value_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(value))
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal_native = __PInvoke((byte*)__name_native, (byte*)__value_native, priority);
+                __retVal = __PInvoke((byte*)__name_native, (byte*)__value_native, priority);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHintWithPriority", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native, global::SDL3.SDL_HintPriority __priority_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, byte* __value_native, global::SDL3.SDL_HintPriority __priority_native);
         }
     }
 }
@@ -4551,12 +3846,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetHintWithPriority(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, global::SDL3.SDL_HintPriority priority)
+        public static partial global::SDL3.SDLBool SDL_SetHintWithPriority(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, global::SDL3.SDL_HintPriority priority)
         {
             byte* __name_native = default;
             byte* __value_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __value_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
@@ -4569,11 +3863,8 @@ namespace SDL3
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __value_native = __value_native__marshaller.ToUnmanaged();
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(__name_native, __value_native, priority);
+                    __retVal = __PInvoke(__name_native, __value_native, priority);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -4585,8 +3876,16 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHintWithPriority", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native, global::SDL3.SDL_HintPriority __priority_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, byte* __value_native, global::SDL3.SDL_HintPriority __priority_native);
         }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHint", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetHint(byte* name, byte* value);
     }
 }
 namespace SDL3
@@ -4595,46 +3894,20 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetHint(byte* name, byte* value)
+        public static partial global::SDL3.SDLBool SDL_SetHint(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
         {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(name, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHint", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetHint(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
-        {
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __value_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(value))
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal_native = __PInvoke((byte*)__name_native, (byte*)__value_native);
+                __retVal = __PInvoke((byte*)__name_native, (byte*)__value_native);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHint", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, byte* __value_native);
         }
     }
 }
@@ -4644,12 +3917,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetHint(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
+        public static partial global::SDL3.SDLBool SDL_SetHint(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
         {
             byte* __name_native = default;
             byte* __value_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __value_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
@@ -4662,11 +3934,8 @@ namespace SDL3
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __value_native = __value_native__marshaller.ToUnmanaged();
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(__name_native, __value_native);
+                    __retVal = __PInvoke(__name_native, __value_native);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -4678,8 +3947,16 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetHint", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, byte* __value_native);
         }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResetHint", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ResetHint(byte* name);
     }
 }
 namespace SDL3
@@ -4688,45 +3965,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ResetHint(byte* name)
+        public static partial global::SDL3.SDLBool SDL_ResetHint(global::System.ReadOnlySpan<byte> name)
         {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(name);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResetHint", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ResetHint(global::System.ReadOnlySpan<byte> name)
-        {
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal_native = __PInvoke((byte*)__name_native);
+                __retVal = __PInvoke((byte*)__name_native);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResetHint", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native);
         }
     }
 }
@@ -4736,11 +3987,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ResetHint(global::System.ReadOnlySpan<char> name)
+        public static partial global::SDL3.SDLBool SDL_ResetHint(global::System.ReadOnlySpan<char> name)
         {
             byte* __name_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -4750,11 +4000,8 @@ namespace SDL3
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(__name_native);
+                    __retVal = __PInvoke(__name_native);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -4765,7 +4012,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ResetHint", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native);
         }
     }
 }
@@ -4846,26 +4093,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetHintBoolean(byte* name, bool default_value)
-        {
-            int __default_value_native;
-            bool __retVal;
-            int __retVal_native;
-            // Marshal - Convert managed data to native data.
-            __default_value_native = (int)(default_value ? 1 : 0);
-            {
-                __retVal_native = __PInvoke(name, __default_value_native);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetHintBoolean", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, int __default_value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetHintBoolean", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetHintBoolean(byte* name, global::SDL3.SDLBool default_value);
     }
 }
 namespace SDL3
@@ -4874,25 +4103,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetHintBoolean(global::System.ReadOnlySpan<byte> name, bool default_value)
+        public static partial global::SDL3.SDLBool SDL_GetHintBoolean(global::System.ReadOnlySpan<byte> name, global::SDL3.SDLBool default_value)
         {
-            int __default_value_native;
-            bool __retVal;
-            int __retVal_native;
-            // Marshal - Convert managed data to native data.
-            __default_value_native = (int)(default_value ? 1 : 0);
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal_native = __PInvoke((byte*)__name_native, __default_value_native);
+                __retVal = __PInvoke((byte*)__name_native, default_value);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetHintBoolean", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, int __default_value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, global::SDL3.SDLBool __default_value_native);
         }
     }
 }
@@ -4902,27 +4125,21 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetHintBoolean(global::System.ReadOnlySpan<char> name, bool default_value)
+        public static partial global::SDL3.SDLBool SDL_GetHintBoolean(global::System.ReadOnlySpan<char> name, global::SDL3.SDLBool default_value)
         {
             byte* __name_native = default;
-            int __default_value_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
             {
                 // Marshal - Convert managed data to native data.
-                __default_value_native = (int)(default_value ? 1 : 0);
                 __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(__name_native, __default_value_native);
+                    __retVal = __PInvoke(__name_native, default_value);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -4933,7 +4150,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetHintBoolean", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, int __default_value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, global::SDL3.SDLBool __default_value_native);
         }
     }
 }
@@ -4942,7 +4159,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddHintCallback", ExactSpelling = true)]
-        public static extern partial int SDL_AddHintCallback(byte* name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_AddHintCallback(byte* name, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -4951,9 +4168,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_AddHintCallback(global::System.ReadOnlySpan<byte> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_AddHintCallback(global::System.ReadOnlySpan<byte> name, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -4963,7 +4180,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddHintCallback", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, delegate* unmanaged<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -4973,10 +4190,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_AddHintCallback(global::System.ReadOnlySpan<char> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_AddHintCallback(global::System.ReadOnlySpan<char> name, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -4998,7 +4215,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddHintCallback", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, delegate* unmanaged<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -5006,8 +4223,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DelHintCallback", ExactSpelling = true)]
-        public static extern partial void SDL_DelHintCallback(byte* name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveHintCallback", ExactSpelling = true)]
+        public static extern partial void SDL_RemoveHintCallback(byte* name, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -5016,7 +4233,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_DelHintCallback(global::System.ReadOnlySpan<byte> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
+        public static partial void SDL_RemoveHintCallback(global::System.ReadOnlySpan<byte> name, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
@@ -5025,8 +4242,8 @@ namespace SDL3
             }
 
             // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DelHintCallback", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(byte* __name_native, delegate* unmanaged<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveHintCallback", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(byte* __name_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -5036,7 +4253,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_DelHintCallback(global::System.ReadOnlySpan<char> name, delegate* unmanaged<nint, byte*, byte*, byte*, void> callback, nint userdata)
+        public static partial void SDL_RemoveHintCallback(global::System.ReadOnlySpan<char> name, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> callback, nint userdata)
         {
             byte* __name_native = default;
             // Setup - Perform required setup.
@@ -5058,8 +4275,8 @@ namespace SDL3
             }
 
             // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DelHintCallback", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(byte* __name_native, delegate* unmanaged<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveHintCallback", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(byte* __name_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, void> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -5068,7 +4285,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Init", ExactSpelling = true)]
-        public static extern partial int SDL_Init(global::SDL3.SDL_InitFlags flags);
+        public static extern partial global::SDL3.SDLBool SDL_Init(global::SDL3.SDL_InitFlags flags);
     }
 }
 namespace SDL3
@@ -5076,7 +4293,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_InitSubSystem", ExactSpelling = true)]
-        public static extern partial int SDL_InitSubSystem(global::SDL3.SDL_InitFlags flags);
+        public static extern partial global::SDL3.SDLBool SDL_InitSubSystem(global::SDL3.SDL_InitFlags flags);
     }
 }
 namespace SDL3
@@ -5108,7 +4325,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAppMetadata", ExactSpelling = true)]
-        public static extern partial int SDL_SetAppMetadata(byte* appname, byte* appversion, byte* appidentifier);
+        public static extern partial global::SDL3.SDLBool SDL_SetAppMetadata(byte* appname, byte* appversion, byte* appidentifier);
     }
 }
 namespace SDL3
@@ -5117,9 +4334,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetAppMetadata(global::System.ReadOnlySpan<byte> appname, global::System.ReadOnlySpan<byte> appversion, global::System.ReadOnlySpan<byte> appidentifier)
+        public static partial global::SDL3.SDLBool SDL_SetAppMetadata(global::System.ReadOnlySpan<byte> appname, global::System.ReadOnlySpan<byte> appversion, global::System.ReadOnlySpan<byte> appidentifier)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __appidentifier_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(appidentifier))
             fixed (void* __appversion_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(appversion))
@@ -5131,7 +4348,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAppMetadata", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __appname_native, byte* __appversion_native, byte* __appidentifier_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __appname_native, byte* __appversion_native, byte* __appidentifier_native);
         }
     }
 }
@@ -5141,12 +4358,12 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetAppMetadata(global::System.ReadOnlySpan<char> appname, global::System.ReadOnlySpan<char> appversion, global::System.ReadOnlySpan<char> appidentifier)
+        public static partial global::SDL3.SDLBool SDL_SetAppMetadata(global::System.ReadOnlySpan<char> appname, global::System.ReadOnlySpan<char> appversion, global::System.ReadOnlySpan<char> appidentifier)
         {
             byte* __appname_native = default;
             byte* __appversion_native = default;
             byte* __appidentifier_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __appidentifier_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __appversion_native__marshaller = new();
@@ -5176,7 +4393,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAppMetadata", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __appname_native, byte* __appversion_native, byte* __appidentifier_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __appname_native, byte* __appversion_native, byte* __appidentifier_native);
         }
     }
 }
@@ -5185,7 +4402,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAppMetadataProperty", ExactSpelling = true)]
-        public static extern partial int SDL_SetAppMetadataProperty(byte* name, byte* value);
+        public static extern partial global::SDL3.SDLBool SDL_SetAppMetadataProperty(byte* name, byte* value);
     }
 }
 namespace SDL3
@@ -5194,9 +4411,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetAppMetadataProperty(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
+        public static partial global::SDL3.SDLBool SDL_SetAppMetadataProperty(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __value_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(value))
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
@@ -5207,7 +4424,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAppMetadataProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, byte* __value_native);
         }
     }
 }
@@ -5217,11 +4434,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetAppMetadataProperty(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
+        public static partial global::SDL3.SDLBool SDL_SetAppMetadataProperty(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
         {
             byte* __name_native = default;
             byte* __value_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __value_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
@@ -5247,7 +4464,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetAppMetadataProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, byte* __value_native);
         }
     }
 }
@@ -5424,7 +4641,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CloseIO", ExactSpelling = true)]
-        public static extern partial int SDL_CloseIO(global::SDL3.SDL_IOStream context);
+        public static extern partial global::SDL3.SDLBool SDL_CloseIO(global::SDL3.SDL_IOStream context);
     }
 }
 namespace SDL3
@@ -5487,23 +4704,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial nint SDL_LoadFile_IO(global::SDL3.SDL_IOStream src, nuint* datasize, bool closeio)
-        {
-            int __closeio_native;
-            nint __retVal;
-            // Marshal - Convert managed data to native data.
-            __closeio_native = (int)(closeio ? 1 : 0);
-            {
-                __retVal = __PInvoke(src, datasize, __closeio_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadFile_IO", ExactSpelling = true)]
-            static extern unsafe nint __PInvoke(global::SDL3.SDL_IOStream __src_native, nuint* __datasize_native, int __closeio_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FlushIO", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_FlushIO(global::SDL3.SDL_IOStream context);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadFile_IO", ExactSpelling = true)]
+        public static extern partial nint SDL_LoadFile_IO(global::SDL3.SDL_IOStream src, nuint* datasize, global::SDL3.SDLBool closeio);
     }
 }
 namespace SDL3
@@ -5575,644 +4785,224 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU8(global::SDL3.SDL_IOStream src, byte* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU8", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, byte* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU8", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU8(global::SDL3.SDL_IOStream src, byte* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS8(global::SDL3.SDL_IOStream src, sbyte* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS8", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, sbyte* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS8", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS8(global::SDL3.SDL_IOStream src, sbyte* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU16LE(global::SDL3.SDL_IOStream src, ushort* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU16LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, ushort* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU16LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU16LE(global::SDL3.SDL_IOStream src, ushort* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS16LE(global::SDL3.SDL_IOStream src, short* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS16LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, short* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS16LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS16LE(global::SDL3.SDL_IOStream src, short* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU16BE(global::SDL3.SDL_IOStream src, ushort* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU16BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, ushort* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU16BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU16BE(global::SDL3.SDL_IOStream src, ushort* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS16BE(global::SDL3.SDL_IOStream src, short* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS16BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, short* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS16BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS16BE(global::SDL3.SDL_IOStream src, short* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU32LE(global::SDL3.SDL_IOStream src, uint* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU32LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, uint* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU32LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU32LE(global::SDL3.SDL_IOStream src, uint* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS32LE(global::SDL3.SDL_IOStream src, int* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS32LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, int* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS32LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS32LE(global::SDL3.SDL_IOStream src, int* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU32BE(global::SDL3.SDL_IOStream src, uint* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU32BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, uint* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU32BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU32BE(global::SDL3.SDL_IOStream src, uint* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS32BE(global::SDL3.SDL_IOStream src, int* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS32BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, int* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS32BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS32BE(global::SDL3.SDL_IOStream src, int* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU64LE(global::SDL3.SDL_IOStream src, ulong* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU64LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, ulong* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU64LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU64LE(global::SDL3.SDL_IOStream src, ulong* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS64LE(global::SDL3.SDL_IOStream src, long* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS64LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, long* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS64LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS64LE(global::SDL3.SDL_IOStream src, long* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadU64BE(global::SDL3.SDL_IOStream src, ulong* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU64BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, ulong* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadU64BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadU64BE(global::SDL3.SDL_IOStream src, ulong* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ReadS64BE(global::SDL3.SDL_IOStream src, long* value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(src, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS64BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __src_native, long* __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadS64BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ReadS64BE(global::SDL3.SDL_IOStream src, long* value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU8(global::SDL3.SDL_IOStream dst, byte value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU8", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, byte __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU8", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU8(global::SDL3.SDL_IOStream dst, byte value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS8(global::SDL3.SDL_IOStream dst, sbyte value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS8", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, sbyte __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS8", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS8(global::SDL3.SDL_IOStream dst, sbyte value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU16LE(global::SDL3.SDL_IOStream dst, ushort value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU16LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, ushort __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU16LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU16LE(global::SDL3.SDL_IOStream dst, ushort value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS16LE(global::SDL3.SDL_IOStream dst, short value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS16LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, short __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS16LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS16LE(global::SDL3.SDL_IOStream dst, short value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU16BE(global::SDL3.SDL_IOStream dst, ushort value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU16BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, ushort __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU16BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU16BE(global::SDL3.SDL_IOStream dst, ushort value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS16BE(global::SDL3.SDL_IOStream dst, short value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS16BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, short __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS16BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS16BE(global::SDL3.SDL_IOStream dst, short value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU32LE(global::SDL3.SDL_IOStream dst, uint value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU32LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, uint __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU32LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU32LE(global::SDL3.SDL_IOStream dst, uint value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS32LE(global::SDL3.SDL_IOStream dst, int value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS32LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, int __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS32LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS32LE(global::SDL3.SDL_IOStream dst, int value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU32BE(global::SDL3.SDL_IOStream dst, uint value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU32BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, uint __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU32BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU32BE(global::SDL3.SDL_IOStream dst, uint value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS32BE(global::SDL3.SDL_IOStream dst, int value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS32BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, int __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS32BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS32BE(global::SDL3.SDL_IOStream dst, int value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU64LE(global::SDL3.SDL_IOStream dst, ulong value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU64LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, ulong __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU64LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU64LE(global::SDL3.SDL_IOStream dst, ulong value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS64LE(global::SDL3.SDL_IOStream dst, long value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS64LE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, long __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS64LE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS64LE(global::SDL3.SDL_IOStream dst, long value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteU64BE(global::SDL3.SDL_IOStream dst, ulong value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU64BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, ulong __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteU64BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteU64BE(global::SDL3.SDL_IOStream dst, ulong value);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WriteS64BE(global::SDL3.SDL_IOStream dst, long value)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(dst, value);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS64BE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_IOStream __dst_native, long __value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteS64BE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WriteS64BE(global::SDL3.SDL_IOStream dst, long value);
     }
 }
 namespace SDL3
@@ -6235,23 +5025,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasJoystick()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasJoystick", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasJoystick", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasJoystick();
     }
 }
 namespace SDL3
@@ -6378,30 +5153,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DetachVirtualJoystick", ExactSpelling = true)]
-        public static extern partial int SDL_DetachVirtualJoystick(global::SDL3.SDL_JoystickID instance_id);
+        public static extern partial global::SDL3.SDLBool SDL_DetachVirtualJoystick(global::SDL3.SDL_JoystickID instance_id);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsJoystickVirtual(global::SDL3.SDL_JoystickID instance_id)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(instance_id);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsJoystickVirtual", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_JoystickID __instance_id_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsJoystickVirtual", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsJoystickVirtual(global::SDL3.SDL_JoystickID instance_id);
     }
 }
 namespace SDL3
@@ -6409,7 +5169,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickVirtualAxis", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickVirtualAxis(global::SDL3.SDL_Joystick joystick, int axis, short value);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickVirtualAxis(global::SDL3.SDL_Joystick joystick, int axis, short value);
     }
 }
 namespace SDL3
@@ -6417,7 +5177,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickVirtualBall", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickVirtualBall(global::SDL3.SDL_Joystick joystick, int ball, short xrel, short yrel);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickVirtualBall(global::SDL3.SDL_Joystick joystick, int ball, short xrel, short yrel);
     }
 }
 namespace SDL3
@@ -6425,7 +5185,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickVirtualButton", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickVirtualButton(global::SDL3.SDL_Joystick joystick, int button, byte value);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickVirtualButton(global::SDL3.SDL_Joystick joystick, int button, global::SDL3.SDLBool down);
     }
 }
 namespace SDL3
@@ -6433,7 +5193,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickVirtualHat", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickVirtualHat(global::SDL3.SDL_Joystick joystick, int hat, byte value);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickVirtualHat(global::SDL3.SDL_Joystick joystick, int hat, byte value);
     }
 }
 namespace SDL3
@@ -6441,7 +5201,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickVirtualTouchpad", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickVirtualTouchpad(global::SDL3.SDL_Joystick joystick, int touchpad, int finger, byte state, float x, float y, float pressure);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickVirtualTouchpad(global::SDL3.SDL_Joystick joystick, int touchpad, int finger, global::SDL3.SDLBool down, float x, float y, float pressure);
     }
 }
 namespace SDL3
@@ -6449,7 +5209,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SendJoystickVirtualSensorData", ExactSpelling = true)]
-        public static extern partial int SDL_SendJoystickVirtualSensorData(global::SDL3.SDL_Joystick joystick, global::SDL3.SDL_SensorType type, ulong sensor_timestamp, float* data, int num_values);
+        public static extern partial global::SDL3.SDLBool SDL_SendJoystickVirtualSensorData(global::SDL3.SDL_Joystick joystick, global::SDL3.SDL_SensorType type, ulong sensor_timestamp, float* data, int num_values);
     }
 }
 namespace SDL3
@@ -6489,7 +5249,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickPlayerIndex", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickPlayerIndex(global::SDL3.SDL_Joystick joystick, int player_index);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickPlayerIndex(global::SDL3.SDL_Joystick joystick, int player_index);
     }
 }
 namespace SDL3
@@ -6560,23 +5320,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_JoystickConnected(global::SDL3.SDL_Joystick joystick)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(joystick);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_JoystickConnected", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Joystick __joystick_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_JoystickConnected", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_JoystickConnected(global::SDL3.SDL_Joystick joystick);
     }
 }
 namespace SDL3
@@ -6623,44 +5368,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_SetJoystickEventsEnabled(bool enabled)
-        {
-            int __enabled_native;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __PInvoke(__enabled_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickEventsEnabled", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickEventsEnabled", ExactSpelling = true)]
+        public static extern partial void SDL_SetJoystickEventsEnabled(global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_JoystickEventsEnabled()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_JoystickEventsEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_JoystickEventsEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_JoystickEventsEnabled();
     }
 }
 namespace SDL3
@@ -6683,23 +5400,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetJoystickAxisInitialState(global::SDL3.SDL_Joystick joystick, int axis, short* state)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(joystick, axis, state);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetJoystickAxisInitialState", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Joystick __joystick_native, int __axis_native, short* __state_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetJoystickAxisInitialState", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetJoystickAxisInitialState(global::SDL3.SDL_Joystick joystick, int axis, short* state);
     }
 }
 namespace SDL3
@@ -6707,7 +5409,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetJoystickBall", ExactSpelling = true)]
-        public static extern partial int SDL_GetJoystickBall(global::SDL3.SDL_Joystick joystick, int ball, int* dx, int* dy);
+        public static extern partial global::SDL3.SDLBool SDL_GetJoystickBall(global::SDL3.SDL_Joystick joystick, int ball, int* dx, int* dy);
     }
 }
 namespace SDL3
@@ -6723,7 +5425,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetJoystickButton", ExactSpelling = true)]
-        public static extern partial byte SDL_GetJoystickButton(global::SDL3.SDL_Joystick joystick, int button);
+        public static extern partial global::SDL3.SDLBool SDL_GetJoystickButton(global::SDL3.SDL_Joystick joystick, int button);
     }
 }
 namespace SDL3
@@ -6731,7 +5433,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RumbleJoystick", ExactSpelling = true)]
-        public static extern partial int SDL_RumbleJoystick(global::SDL3.SDL_Joystick joystick, ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms);
+        public static extern partial global::SDL3.SDLBool SDL_RumbleJoystick(global::SDL3.SDL_Joystick joystick, ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms);
     }
 }
 namespace SDL3
@@ -6739,7 +5441,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RumbleJoystickTriggers", ExactSpelling = true)]
-        public static extern partial int SDL_RumbleJoystickTriggers(global::SDL3.SDL_Joystick joystick, ushort left_rumble, ushort right_rumble, uint duration_ms);
+        public static extern partial global::SDL3.SDLBool SDL_RumbleJoystickTriggers(global::SDL3.SDL_Joystick joystick, ushort left_rumble, ushort right_rumble, uint duration_ms);
     }
 }
 namespace SDL3
@@ -6747,7 +5449,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetJoystickLED", ExactSpelling = true)]
-        public static extern partial int SDL_SetJoystickLED(global::SDL3.SDL_Joystick joystick, byte red, byte green, byte blue);
+        public static extern partial global::SDL3.SDLBool SDL_SetJoystickLED(global::SDL3.SDL_Joystick joystick, byte red, byte green, byte blue);
     }
 }
 namespace SDL3
@@ -6755,7 +5457,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SendJoystickEffect", ExactSpelling = true)]
-        public static extern partial int SDL_SendJoystickEffect(global::SDL3.SDL_Joystick joystick, nint data, int size);
+        public static extern partial global::SDL3.SDLBool SDL_SendJoystickEffect(global::SDL3.SDL_Joystick joystick, nint data, int size);
     }
 }
 namespace SDL3
@@ -6786,23 +5488,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasKeyboard()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasKeyboard", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasKeyboard", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasKeyboard();
     }
 }
 namespace SDL3
@@ -6849,7 +5536,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetKeyboardState", ExactSpelling = true)]
-        public static extern partial byte* SDL_GetKeyboardState(int* numkeys);
+        public static extern partial global::SDL3.SDLBool* SDL_GetKeyboardState(int* numkeys);
     }
 }
 namespace SDL3
@@ -6880,24 +5567,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDefaultKeyFromScancode", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Keycode SDL_GetDefaultKeyFromScancode(global::SDL3.SDL_Scancode scancode, global::SDL3.SDL_Keymod modstate);
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetKeyFromScancode", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Keycode SDL_GetKeyFromScancode(global::SDL3.SDL_Scancode scancode, global::SDL3.SDL_Keymod modstate);
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDefaultScancodeFromKey", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Scancode SDL_GetDefaultScancodeFromKey(global::SDL3.SDL_Keycode key, global::SDL3.SDL_Keymod* modstate);
+        public static extern partial global::SDL3.SDL_Keycode SDL_GetKeyFromScancode(global::SDL3.SDL_Scancode scancode, global::SDL3.SDL_Keymod modstate, global::SDL3.SDLBool key_event);
     }
 }
 namespace SDL3
@@ -6913,7 +5584,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetScancodeName", ExactSpelling = true)]
-        public static extern partial int SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, byte* name);
+        public static extern partial global::SDL3.SDLBool SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, byte* name);
     }
 }
 namespace SDL3
@@ -6922,9 +5593,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, global::System.ReadOnlySpan<byte> name)
+        public static partial global::SDL3.SDLBool SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, global::System.ReadOnlySpan<byte> name)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -6934,7 +5605,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetScancodeName", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Scancode __scancode_native, byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Scancode __scancode_native, byte* __name_native);
         }
     }
 }
@@ -6944,10 +5615,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, global::System.ReadOnlySpan<char> name)
+        public static partial global::SDL3.SDLBool SDL_SetScancodeName(global::SDL3.SDL_Scancode scancode, global::System.ReadOnlySpan<char> name)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -6969,7 +5640,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetScancodeName", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Scancode __scancode_native, byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Scancode __scancode_native, byte* __name_native);
         }
     }
 }
@@ -7124,7 +5795,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StartTextInput", ExactSpelling = true)]
-        public static extern partial int SDL_StartTextInput(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_StartTextInput(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -7132,30 +5803,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StartTextInputWithProperties", ExactSpelling = true)]
-        public static extern partial int SDL_StartTextInputWithProperties(global::SDL3.SDL_Window window, global::SDL3.SDL_PropertiesID props);
+        public static extern partial global::SDL3.SDLBool SDL_StartTextInputWithProperties(global::SDL3.SDL_Window window, global::SDL3.SDL_PropertiesID props);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_TextInputActive(global::SDL3.SDL_Window window)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(window);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TextInputActive", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TextInputActive", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_TextInputActive(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -7163,7 +5819,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StopTextInput", ExactSpelling = true)]
-        public static extern partial int SDL_StopTextInput(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_StopTextInput(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -7171,7 +5827,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearComposition", ExactSpelling = true)]
-        public static extern partial int SDL_ClearComposition(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_ClearComposition(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -7179,7 +5835,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextInputArea", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextInputArea(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect, int cursor);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextInputArea(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect, int cursor);
     }
 }
 namespace SDL3
@@ -7187,53 +5843,23 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextInputArea", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextInputArea(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect, int* cursor);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextInputArea(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect, int* cursor);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasScreenKeyboardSupport()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasScreenKeyboardSupport", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasScreenKeyboardSupport", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasScreenKeyboardSupport();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ScreenKeyboardShown(global::SDL3.SDL_Window window)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(window);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ScreenKeyboardShown", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ScreenKeyboardShown", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ScreenKeyboardShown(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -7241,7 +5867,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadObject", ExactSpelling = true)]
-        public static extern partial nint SDL_LoadObject(byte* sofile);
+        public static extern partial global::SDL3.SDL_SharedObject SDL_LoadObject(byte* sofile);
     }
 }
 namespace SDL3
@@ -7250,9 +5876,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial nint SDL_LoadObject(global::System.ReadOnlySpan<byte> sofile)
+        public static partial global::SDL3.SDL_SharedObject SDL_LoadObject(global::System.ReadOnlySpan<byte> sofile)
         {
-            nint __retVal;
+            global::SDL3.SDL_SharedObject __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __sofile_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(sofile))
             {
@@ -7262,7 +5888,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadObject", ExactSpelling = true)]
-            static extern unsafe nint __PInvoke(byte* __sofile_native);
+            static extern unsafe global::SDL3.SDL_SharedObject __PInvoke(byte* __sofile_native);
         }
     }
 }
@@ -7272,10 +5898,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial nint SDL_LoadObject(global::System.ReadOnlySpan<char> sofile)
+        public static partial global::SDL3.SDL_SharedObject SDL_LoadObject(global::System.ReadOnlySpan<char> sofile)
         {
             byte* __sofile_native = default;
-            nint __retVal = default;
+            global::SDL3.SDL_SharedObject __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __sofile_native__marshaller = new();
             try
@@ -7297,7 +5923,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadObject", ExactSpelling = true)]
-            static extern unsafe nint __PInvoke(byte* __sofile_native);
+            static extern unsafe global::SDL3.SDL_SharedObject __PInvoke(byte* __sofile_native);
         }
     }
 }
@@ -7306,7 +5932,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadFunction", ExactSpelling = true)]
-        public static extern partial delegate* unmanaged<void> SDL_LoadFunction(nint handle, byte* name);
+        public static extern partial delegate* unmanaged[Cdecl]<void> * SDL_LoadFunction(global::SDL3.SDL_SharedObject handle, byte* name);
     }
 }
 namespace SDL3
@@ -7315,9 +5941,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial delegate* unmanaged<void> SDL_LoadFunction(nint handle, global::System.ReadOnlySpan<byte> name)
+        public static partial delegate* unmanaged[Cdecl]<void> * SDL_LoadFunction(global::SDL3.SDL_SharedObject handle, global::System.ReadOnlySpan<byte> name)
         {
-            delegate* unmanaged<void> __retVal;
+            delegate* unmanaged[Cdecl]<void> * __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -7327,7 +5953,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadFunction", ExactSpelling = true)]
-            static extern unsafe delegate* unmanaged<void> __PInvoke(nint __handle_native, byte* __name_native);
+            static extern unsafe delegate* unmanaged[Cdecl]<void> * __PInvoke(global::SDL3.SDL_SharedObject __handle_native, byte* __name_native);
         }
     }
 }
@@ -7337,10 +5963,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial delegate* unmanaged<void> SDL_LoadFunction(nint handle, global::System.ReadOnlySpan<char> name)
+        public static partial delegate* unmanaged[Cdecl]<void> * SDL_LoadFunction(global::SDL3.SDL_SharedObject handle, global::System.ReadOnlySpan<char> name)
         {
             byte* __name_native = default;
-            delegate* unmanaged<void> __retVal = default;
+            delegate* unmanaged[Cdecl]<void> * __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -7362,7 +5988,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadFunction", ExactSpelling = true)]
-            static extern unsafe delegate* unmanaged<void> __PInvoke(nint __handle_native, byte* __name_native);
+            static extern unsafe delegate* unmanaged[Cdecl]<void> * __PInvoke(global::SDL3.SDL_SharedObject __handle_native, byte* __name_native);
         }
     }
 }
@@ -7371,7 +5997,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnloadObject", ExactSpelling = true)]
-        public static extern partial void SDL_UnloadObject(nint handle);
+        public static extern partial void SDL_UnloadObject(global::SDL3.SDL_SharedObject handle);
     }
 }
 namespace SDL3
@@ -7433,6 +6059,71 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetLogPriorityPrefix", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetLogPriorityPrefix(global::SDL3.SDL_LogPriority priority, byte* prefix);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_SetLogPriorityPrefix(global::SDL3.SDL_LogPriority priority, global::System.ReadOnlySpan<byte> prefix)
+        {
+            global::SDL3.SDLBool __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __prefix_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(prefix))
+            {
+                __retVal = __PInvoke(priority, (byte*)__prefix_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetLogPriorityPrefix", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_LogPriority __priority_native, byte* __prefix_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_SetLogPriorityPrefix(global::SDL3.SDL_LogPriority priority, global::System.ReadOnlySpan<char> prefix)
+        {
+            byte* __prefix_native = default;
+            global::SDL3.SDLBool __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __prefix_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __prefix_native__marshaller.FromManaged(prefix, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __prefix_native = __prefix_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(priority, __prefix_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __prefix_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetLogPriorityPrefix", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_LogPriority __priority_native, byte* __prefix_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Log", ExactSpelling = true)]
         public static extern partial void SDL_Log(byte* fmt);
     }
@@ -7487,6 +6178,67 @@ namespace SDL3
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Log", ExactSpelling = true)]
             static extern unsafe void __PInvoke(byte* __fmt_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LogTrace", ExactSpelling = true)]
+        public static extern partial void SDL_LogTrace(int category, byte* fmt);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_LogTrace(int category, global::System.ReadOnlySpan<byte> fmt)
+        {
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __fmt_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(fmt))
+            {
+                __PInvoke(category, (byte*)__fmt_native);
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LogTrace", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(int __category_native, byte* __fmt_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_LogTrace(int category, global::System.ReadOnlySpan<char> fmt)
+        {
+            byte* __fmt_native = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __fmt_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __fmt_native__marshaller.FromManaged(fmt, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __fmt_native = __fmt_native__marshaller.ToUnmanaged();
+                    __PInvoke(category, __fmt_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __fmt_native__marshaller.Free();
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LogTrace", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(int __category_native, byte* __fmt_native);
         }
     }
 }
@@ -7922,7 +6674,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetLogOutputFunction", ExactSpelling = true)]
-        public static extern partial void SDL_GetLogOutputFunction(delegate* unmanaged<nint, int, global::SDL3.SDL_LogPriority, byte*, void> callback, nint userdata);
+        public static extern partial void SDL_GetLogOutputFunction(delegate* unmanaged[Cdecl]<nint, int, global::SDL3.SDL_LogPriority, byte*, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -7930,7 +6682,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetLogOutputFunction", ExactSpelling = true)]
-        public static extern partial void SDL_SetLogOutputFunction(delegate* unmanaged<nint, int, global::SDL3.SDL_LogPriority, byte*, void> callback, nint userdata);
+        public static extern partial void SDL_SetLogOutputFunction(delegate* unmanaged[Cdecl]<nint, int, global::SDL3.SDL_LogPriority, byte*, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -7938,7 +6690,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowMessageBox", ExactSpelling = true)]
-        public static extern partial int SDL_ShowMessageBox(global::SDL3.SDL_MessageBoxData* messageboxdata, int* buttonid);
+        public static extern partial global::SDL3.SDLBool SDL_ShowMessageBox(global::SDL3.SDL_MessageBoxData* messageboxdata, int* buttonid);
     }
 }
 namespace SDL3
@@ -7946,7 +6698,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowSimpleMessageBox", ExactSpelling = true)]
-        public static extern partial int SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, byte* title, byte* message, global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, byte* title, byte* message, global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -7955,9 +6707,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, global::System.ReadOnlySpan<byte> title, global::System.ReadOnlySpan<byte> message, global::SDL3.SDL_Window window)
+        public static partial global::SDL3.SDLBool SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, global::System.ReadOnlySpan<byte> title, global::System.ReadOnlySpan<byte> message, global::SDL3.SDL_Window window)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __message_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(message))
             fixed (void* __title_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(title))
@@ -7968,7 +6720,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowSimpleMessageBox", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_MessageBoxFlags __flags_native, byte* __title_native, byte* __message_native, global::SDL3.SDL_Window __window_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_MessageBoxFlags __flags_native, byte* __title_native, byte* __message_native, global::SDL3.SDL_Window __window_native);
         }
     }
 }
@@ -7978,11 +6730,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, global::System.ReadOnlySpan<char> title, global::System.ReadOnlySpan<char> message, global::SDL3.SDL_Window window)
+        public static partial global::SDL3.SDLBool SDL_ShowSimpleMessageBox(global::SDL3.SDL_MessageBoxFlags flags, global::System.ReadOnlySpan<char> title, global::System.ReadOnlySpan<char> message, global::SDL3.SDL_Window window)
         {
             byte* __title_native = default;
             byte* __message_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __message_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __title_native__marshaller = new();
@@ -8008,7 +6760,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowSimpleMessageBox", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_MessageBoxFlags __flags_native, byte* __title_native, byte* __message_native, global::SDL3.SDL_Window __window_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_MessageBoxFlags __flags_native, byte* __title_native, byte* __message_native, global::SDL3.SDL_Window __window_native);
         }
     }
 }
@@ -8041,7 +6793,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_OpenURL", ExactSpelling = true)]
-        public static extern partial int SDL_OpenURL(byte* url);
+        public static extern partial global::SDL3.SDLBool SDL_OpenURL(byte* url);
     }
 }
 namespace SDL3
@@ -8050,9 +6802,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_OpenURL(global::System.ReadOnlySpan<byte> url)
+        public static partial global::SDL3.SDLBool SDL_OpenURL(global::System.ReadOnlySpan<byte> url)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __url_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(url))
             {
@@ -8062,7 +6814,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_OpenURL", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __url_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __url_native);
         }
     }
 }
@@ -8072,10 +6824,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_OpenURL(global::System.ReadOnlySpan<char> url)
+        public static partial global::SDL3.SDLBool SDL_OpenURL(global::System.ReadOnlySpan<char> url)
         {
             byte* __url_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __url_native__marshaller = new();
             try
@@ -8097,7 +6849,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_OpenURL", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __url_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __url_native);
         }
     }
 }
@@ -8105,23 +6857,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasMouse()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasMouse", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasMouse", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasMouse();
     }
 }
 namespace SDL3
@@ -8200,76 +6937,31 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WarpMouseGlobal", ExactSpelling = true)]
-        public static extern partial int SDL_WarpMouseGlobal(float x, float y);
+        public static extern partial global::SDL3.SDLBool SDL_WarpMouseGlobal(float x, float y);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetRelativeMouseMode(bool enabled)
-        {
-            int __enabled_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __retVal = __PInvoke(__enabled_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRelativeMouseMode", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowRelativeMouseMode", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowRelativeMouseMode(global::SDL3.SDL_Window window, global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CaptureMouse(bool enabled)
-        {
-            int __enabled_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __retVal = __PInvoke(__enabled_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CaptureMouse", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowRelativeMouseMode", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowRelativeMouseMode(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRelativeMouseMode()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRelativeMouseMode", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CaptureMouse", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_CaptureMouse(global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
@@ -8301,7 +6993,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetCursor", ExactSpelling = true)]
-        public static extern partial int SDL_SetCursor(global::SDL3.SDL_Cursor cursor);
+        public static extern partial global::SDL3.SDLBool SDL_SetCursor(global::SDL3.SDL_Cursor cursor);
     }
 }
 namespace SDL3
@@ -8333,7 +7025,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowCursor", ExactSpelling = true)]
-        public static extern partial int SDL_ShowCursor();
+        public static extern partial global::SDL3.SDLBool SDL_ShowCursor();
     }
 }
 namespace SDL3
@@ -8341,30 +7033,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HideCursor", ExactSpelling = true)]
-        public static extern partial int SDL_HideCursor();
+        public static extern partial global::SDL3.SDLBool SDL_HideCursor();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_CursorVisible()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CursorVisible", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CursorVisible", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_CursorVisible();
     }
 }
 namespace SDL3
@@ -8388,7 +7065,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TryLockMutex", ExactSpelling = true)]
-        public static extern partial int SDL_TryLockMutex(global::SDL3.SDL_Mutex mutex);
+        public static extern partial global::SDL3.SDLBool SDL_TryLockMutex(global::SDL3.SDL_Mutex mutex);
     }
 }
 namespace SDL3
@@ -8436,7 +7113,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TryLockRWLockForReading", ExactSpelling = true)]
-        public static extern partial int SDL_TryLockRWLockForReading(global::SDL3.SDL_RWLock rwlock);
+        public static extern partial global::SDL3.SDLBool SDL_TryLockRWLockForReading(global::SDL3.SDL_RWLock rwlock);
     }
 }
 namespace SDL3
@@ -8444,7 +7121,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TryLockRWLockForWriting", ExactSpelling = true)]
-        public static extern partial int SDL_TryLockRWLockForWriting(global::SDL3.SDL_RWLock rwlock);
+        public static extern partial global::SDL3.SDLBool SDL_TryLockRWLockForWriting(global::SDL3.SDL_RWLock rwlock);
     }
 }
 namespace SDL3
@@ -8484,7 +7161,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitSemaphore", ExactSpelling = true)]
-        public static extern partial int SDL_WaitSemaphore(global::SDL3.SDL_Semaphore sem);
+        public static extern partial void SDL_WaitSemaphore(global::SDL3.SDL_Semaphore sem);
     }
 }
 namespace SDL3
@@ -8492,7 +7169,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TryWaitSemaphore", ExactSpelling = true)]
-        public static extern partial int SDL_TryWaitSemaphore(global::SDL3.SDL_Semaphore sem);
+        public static extern partial global::SDL3.SDLBool SDL_TryWaitSemaphore(global::SDL3.SDL_Semaphore sem);
     }
 }
 namespace SDL3
@@ -8500,7 +7177,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitSemaphoreTimeout", ExactSpelling = true)]
-        public static extern partial int SDL_WaitSemaphoreTimeout(global::SDL3.SDL_Semaphore sem, int timeoutMS);
+        public static extern partial global::SDL3.SDLBool SDL_WaitSemaphoreTimeout(global::SDL3.SDL_Semaphore sem, int timeoutMS);
     }
 }
 namespace SDL3
@@ -8508,7 +7185,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SignalSemaphore", ExactSpelling = true)]
-        public static extern partial int SDL_SignalSemaphore(global::SDL3.SDL_Semaphore sem);
+        public static extern partial void SDL_SignalSemaphore(global::SDL3.SDL_Semaphore sem);
     }
 }
 namespace SDL3
@@ -8540,7 +7217,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SignalCondition", ExactSpelling = true)]
-        public static extern partial int SDL_SignalCondition(global::SDL3.SDL_Condition cond);
+        public static extern partial void SDL_SignalCondition(global::SDL3.SDL_Condition cond);
     }
 }
 namespace SDL3
@@ -8548,7 +7225,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BroadcastCondition", ExactSpelling = true)]
-        public static extern partial int SDL_BroadcastCondition(global::SDL3.SDL_Condition cond);
+        public static extern partial void SDL_BroadcastCondition(global::SDL3.SDL_Condition cond);
     }
 }
 namespace SDL3
@@ -8556,7 +7233,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitCondition", ExactSpelling = true)]
-        public static extern partial int SDL_WaitCondition(global::SDL3.SDL_Condition cond, global::SDL3.SDL_Mutex mutex);
+        public static extern partial void SDL_WaitCondition(global::SDL3.SDL_Condition cond, global::SDL3.SDL_Mutex mutex);
     }
 }
 namespace SDL3
@@ -8564,101 +7241,31 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitConditionTimeout", ExactSpelling = true)]
-        public static extern partial int SDL_WaitConditionTimeout(global::SDL3.SDL_Condition cond, global::SDL3.SDL_Mutex mutex, int timeoutMS);
+        public static extern partial global::SDL3.SDLBool SDL_WaitConditionTimeout(global::SDL3.SDL_Condition cond, global::SDL3.SDL_Mutex mutex, int timeoutMS);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial global::SDL3.SDL_PenID* SDL_GetPens(out int count)
-        {
-            count = default;
-            global::SDL3.SDL_PenID* __retVal;
-            // Pin - Pin data in preparation for calling the P/Invoke.
-            fixed (int* __count_native = &count)
-            {
-                __retVal = __PInvoke(__count_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPens", ExactSpelling = true)]
-            static extern unsafe global::SDL3.SDL_PenID* __PInvoke(int* __count_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShouldInit", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ShouldInit(global::SDL3.SDL_InitState* state);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPenStatus", ExactSpelling = true)]
-        public static extern partial uint SDL_GetPenStatus(global::SDL3.SDL_PenID instance_id, float* x, float* y, float* axes, nuint num_axes);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShouldQuit", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ShouldQuit(global::SDL3.SDL_InitState* state);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPenFromGUID", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_PenID SDL_GetPenFromGUID(global::System.Guid guid);
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPenGUID", ExactSpelling = true)]
-        public static extern partial global::System.Guid SDL_GetPenGUID(global::SDL3.SDL_PenID instance_id);
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_PenConnected(global::SDL3.SDL_PenID instance_id)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(instance_id);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PenConnected", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PenID __instance_id_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPenName", ExactSpelling = true)]
-        public static extern partial byte* SDL_GetPenNamePtr(global::SDL3.SDL_PenID instance_id);
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPenCapabilities", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_PenCapabilityFlags SDL_GetPenCapabilities(global::SDL3.SDL_PenID instance_id, global::SDL3.SDL_PenCapabilityInfo* capabilities);
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetPenType", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_PenSubtype SDL_GetPenType(global::SDL3.SDL_PenID instance_id);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetInitialized", ExactSpelling = true)]
+        public static extern partial void SDL_SetInitialized(global::SDL3.SDL_InitState* state, global::SDL3.SDLBool initialized);
     }
 }
 namespace SDL3
@@ -8674,7 +7281,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetMasksForPixelFormat", ExactSpelling = true)]
-        public static extern partial int SDL_GetMasksForPixelFormat(global::SDL3.SDL_PixelFormat format, int* bpp, uint* Rmask, uint* Gmask, uint* Bmask, uint* Amask);
+        public static extern partial global::SDL3.SDLBool SDL_GetMasksForPixelFormat(global::SDL3.SDL_PixelFormat format, int* bpp, uint* Rmask, uint* Gmask, uint* Bmask, uint* Amask);
     }
 }
 namespace SDL3
@@ -8706,7 +7313,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPaletteColors", ExactSpelling = true)]
-        public static extern partial int SDL_SetPaletteColors(global::SDL3.SDL_Palette* palette, global::SDL3.SDL_Color* colors, int firstcolor, int ncolors);
+        public static extern partial global::SDL3.SDLBool SDL_SetPaletteColors(global::SDL3.SDL_Palette* palette, global::SDL3.SDL_Color* colors, int firstcolor, int ncolors);
     }
 }
 namespace SDL3
@@ -8786,7 +7393,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyProperties", ExactSpelling = true)]
-        public static extern partial int SDL_CopyProperties(global::SDL3.SDL_PropertiesID src, global::SDL3.SDL_PropertiesID dst);
+        public static extern partial global::SDL3.SDLBool SDL_CopyProperties(global::SDL3.SDL_PropertiesID src, global::SDL3.SDL_PropertiesID dst);
     }
 }
 namespace SDL3
@@ -8794,7 +7401,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LockProperties", ExactSpelling = true)]
-        public static extern partial int SDL_LockProperties(global::SDL3.SDL_PropertiesID props);
+        public static extern partial global::SDL3.SDLBool SDL_LockProperties(global::SDL3.SDL_PropertiesID props);
     }
 }
 namespace SDL3
@@ -8810,7 +7417,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPointerPropertyWithCleanup", ExactSpelling = true)]
-        public static extern partial int SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, byte* name, nint value, delegate* unmanaged<nint, nint, void> cleanup, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, byte* name, nint value, delegate* unmanaged[Cdecl]<nint, nint, void> cleanup, nint userdata);
     }
 }
 namespace SDL3
@@ -8819,9 +7426,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint value, delegate* unmanaged<nint, nint, void> cleanup, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint value, delegate* unmanaged[Cdecl]<nint, nint, void> cleanup, nint userdata)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -8831,7 +7438,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPointerPropertyWithCleanup", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native, delegate* unmanaged<nint, nint, void> __cleanup_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native, delegate* unmanaged[Cdecl]<nint, nint, void> __cleanup_native, nint __userdata_native);
         }
     }
 }
@@ -8841,10 +7448,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint value, delegate* unmanaged<nint, nint, void> cleanup, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_SetPointerPropertyWithCleanup(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint value, delegate* unmanaged[Cdecl]<nint, nint, void> cleanup, nint userdata)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -8866,7 +7473,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPointerPropertyWithCleanup", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native, delegate* unmanaged<nint, nint, void> __cleanup_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native, delegate* unmanaged[Cdecl]<nint, nint, void> __cleanup_native, nint __userdata_native);
         }
     }
 }
@@ -8875,7 +7482,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPointerProperty", ExactSpelling = true)]
-        public static extern partial int SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, byte* name, nint value);
+        public static extern partial global::SDL3.SDLBool SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, byte* name, nint value);
     }
 }
 namespace SDL3
@@ -8884,9 +7491,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint value)
+        public static partial global::SDL3.SDLBool SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, nint value)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -8896,7 +7503,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPointerProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native);
         }
     }
 }
@@ -8906,10 +7513,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint value)
+        public static partial global::SDL3.SDLBool SDL_SetPointerProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, nint value)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -8931,7 +7538,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetPointerProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, nint __value_native);
         }
     }
 }
@@ -8940,7 +7547,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetStringProperty", ExactSpelling = true)]
-        public static extern partial int SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, byte* name, byte* value);
+        public static extern partial global::SDL3.SDLBool SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, byte* name, byte* value);
     }
 }
 namespace SDL3
@@ -8949,9 +7556,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
+        public static partial global::SDL3.SDLBool SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __value_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(value))
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
@@ -8962,7 +7569,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetStringProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, byte* __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, byte* __value_native);
         }
     }
 }
@@ -8972,11 +7579,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
+        public static partial global::SDL3.SDLBool SDL_SetStringProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value)
         {
             byte* __name_native = default;
             byte* __value_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __value_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
@@ -9002,7 +7609,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetStringProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, byte* __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, byte* __value_native);
         }
     }
 }
@@ -9011,7 +7618,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetNumberProperty", ExactSpelling = true)]
-        public static extern partial int SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, byte* name, long value);
+        public static extern partial global::SDL3.SDLBool SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, byte* name, long value);
     }
 }
 namespace SDL3
@@ -9020,9 +7627,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, long value)
+        public static partial global::SDL3.SDLBool SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, long value)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -9032,7 +7639,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetNumberProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, long __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, long __value_native);
         }
     }
 }
@@ -9042,10 +7649,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, long value)
+        public static partial global::SDL3.SDLBool SDL_SetNumberProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, long value)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -9067,7 +7674,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetNumberProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, long __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, long __value_native);
         }
     }
 }
@@ -9076,7 +7683,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetFloatProperty", ExactSpelling = true)]
-        public static extern partial int SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, byte* name, float value);
+        public static extern partial global::SDL3.SDLBool SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, byte* name, float value);
     }
 }
 namespace SDL3
@@ -9085,9 +7692,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, float value)
+        public static partial global::SDL3.SDLBool SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, float value)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -9097,7 +7704,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetFloatProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, float __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, float __value_native);
         }
     }
 }
@@ -9107,10 +7714,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, float value)
+        public static partial global::SDL3.SDLBool SDL_SetFloatProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, float value)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -9132,8 +7739,16 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetFloatProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, float __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, float __value_native);
         }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetBooleanProperty", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, byte* name, global::SDL3.SDLBool value);
     }
 }
 namespace SDL3
@@ -9142,45 +7757,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, byte* name, bool value)
+        public static partial global::SDL3.SDLBool SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, global::SDL3.SDLBool value)
         {
-            int __value_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __value_native = (int)(value ? 1 : 0);
-            {
-                __retVal = __PInvoke(props, name, __value_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetBooleanProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, int __value_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, bool value)
-        {
-            int __value_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __value_native = (int)(value ? 1 : 0);
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal = __PInvoke(props, (byte*)__name_native, __value_native);
+                __retVal = __PInvoke(props, (byte*)__name_native, value);
             }
 
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetBooleanProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, int __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, global::SDL3.SDLBool __value_native);
         }
     }
 }
@@ -9190,22 +7779,20 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, bool value)
+        public static partial global::SDL3.SDLBool SDL_SetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, global::SDL3.SDLBool value)
         {
             byte* __name_native = default;
-            int __value_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
             {
                 // Marshal - Convert managed data to native data.
-                __value_native = (int)(value ? 1 : 0);
                 __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal = __PInvoke(props, __name_native, __value_native);
+                    __retVal = __PInvoke(props, __name_native, value);
                 }
             }
             finally
@@ -9217,8 +7804,16 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetBooleanProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, int __value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, global::SDL3.SDLBool __value_native);
         }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasProperty", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, byte* name);
     }
 }
 namespace SDL3
@@ -9227,45 +7822,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, byte* name)
+        public static partial global::SDL3.SDLBool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
         {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(props, name);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
-        {
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal_native = __PInvoke(props, (byte*)__name_native);
+                __retVal = __PInvoke(props, (byte*)__name_native);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
         }
     }
 }
@@ -9275,11 +7844,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
+        public static partial global::SDL3.SDLBool SDL_HasProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
         {
             byte* __name_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -9289,11 +7857,8 @@ namespace SDL3
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(props, __name_native);
+                    __retVal = __PInvoke(props, __name_native);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -9304,7 +7869,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
         }
     }
 }
@@ -9643,26 +8208,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, byte* name, bool default_value)
-        {
-            int __default_value_native;
-            bool __retVal;
-            int __retVal_native;
-            // Marshal - Convert managed data to native data.
-            __default_value_native = (int)(default_value ? 1 : 0);
-            {
-                __retVal_native = __PInvoke(props, name, __default_value_native);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetBooleanProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, int __default_value_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetBooleanProperty", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, byte* name, global::SDL3.SDLBool default_value);
     }
 }
 namespace SDL3
@@ -9671,25 +8218,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, bool default_value)
+        public static partial global::SDL3.SDLBool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name, global::SDL3.SDLBool default_value)
         {
-            int __default_value_native;
-            bool __retVal;
-            int __retVal_native;
-            // Marshal - Convert managed data to native data.
-            __default_value_native = (int)(default_value ? 1 : 0);
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
-                __retVal_native = __PInvoke(props, (byte*)__name_native, __default_value_native);
+                __retVal = __PInvoke(props, (byte*)__name_native, default_value);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetBooleanProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, int __default_value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, global::SDL3.SDLBool __default_value_native);
         }
     }
 }
@@ -9699,27 +8240,21 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, bool default_value)
+        public static partial global::SDL3.SDLBool SDL_GetBooleanProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name, global::SDL3.SDLBool default_value)
         {
             byte* __name_native = default;
-            int __default_value_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
             {
                 // Marshal - Convert managed data to native data.
-                __default_value_native = (int)(default_value ? 1 : 0);
                 __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __name_native = __name_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(props, __name_native, __default_value_native);
+                    __retVal = __PInvoke(props, __name_native, default_value);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -9730,7 +8265,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetBooleanProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, int __default_value_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native, global::SDL3.SDLBool __default_value_native);
         }
     }
 }
@@ -9739,7 +8274,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearProperty", ExactSpelling = true)]
-        public static extern partial int SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, byte* name);
+        public static extern partial global::SDL3.SDLBool SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, byte* name);
     }
 }
 namespace SDL3
@@ -9748,9 +8283,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
+        public static partial global::SDL3.SDLBool SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<byte> name)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
             {
@@ -9760,7 +8295,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
         }
     }
 }
@@ -9770,10 +8305,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
+        public static partial global::SDL3.SDLBool SDL_ClearProperty(global::SDL3.SDL_PropertiesID props, global::System.ReadOnlySpan<char> name)
         {
             byte* __name_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
             try
@@ -9795,7 +8330,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearProperty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_PropertiesID __props_native, byte* __name_native);
         }
     }
 }
@@ -9804,7 +8339,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateProperties", ExactSpelling = true)]
-        public static extern partial int SDL_EnumerateProperties(global::SDL3.SDL_PropertiesID props, delegate* unmanaged<nint, global::SDL3.SDL_PropertiesID, byte*, void> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_EnumerateProperties(global::SDL3.SDL_PropertiesID props, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_PropertiesID, byte*, void> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -9827,115 +8362,40 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_PointInRect(global::System.Drawing.Point* p, global::System.Drawing.Rectangle* r)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(p, r);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PointInRect", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Point* __p_native, global::System.Drawing.Rectangle* __r_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PointInRect", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_PointInRect(global::System.Drawing.Point* p, global::System.Drawing.Rectangle* r);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RectEmpty(global::System.Drawing.Rectangle* r)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(r);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectEmpty", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Rectangle* __r_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectEmpty", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RectEmpty(global::System.Drawing.Rectangle* r);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RectsEqual(global::System.Drawing.Rectangle* a, global::System.Drawing.Rectangle* b)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(a, b);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectsEqual", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Rectangle* __a_native, global::System.Drawing.Rectangle* __b_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectsEqual", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RectsEqual(global::System.Drawing.Rectangle* a, global::System.Drawing.Rectangle* b);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasRectIntersection(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(A, B);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasRectIntersection", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Rectangle* __A_native, global::System.Drawing.Rectangle* __B_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasRectIntersection", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasRectIntersection(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRectIntersection(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B, global::System.Drawing.Rectangle* result)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(A, B, result);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectIntersection", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Rectangle* __A_native, global::System.Drawing.Rectangle* __B_native, global::System.Drawing.Rectangle* __result_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectIntersection", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetRectIntersection(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B, global::System.Drawing.Rectangle* result);
     }
 }
 namespace SDL3
@@ -9943,191 +8403,71 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectUnion", ExactSpelling = true)]
-        public static extern partial int SDL_GetRectUnion(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B, global::System.Drawing.Rectangle* result);
+        public static extern partial global::SDL3.SDLBool SDL_GetRectUnion(global::System.Drawing.Rectangle* A, global::System.Drawing.Rectangle* B, global::System.Drawing.Rectangle* result);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRectEnclosingPoints(global::System.Drawing.Point* points, int count, global::System.Drawing.Rectangle* clip, global::System.Drawing.Rectangle* result)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(points, count, clip, result);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectEnclosingPoints", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Point* __points_native, int __count_native, global::System.Drawing.Rectangle* __clip_native, global::System.Drawing.Rectangle* __result_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectEnclosingPoints", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetRectEnclosingPoints(global::System.Drawing.Point* points, int count, global::System.Drawing.Rectangle* clip, global::System.Drawing.Rectangle* result);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRectAndLineIntersection(global::System.Drawing.Rectangle* rect, int* X1, int* Y1, int* X2, int* Y2)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(rect, X1, Y1, X2, Y2);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectAndLineIntersection", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.Rectangle* __rect_native, int* __X1_native, int* __Y1_native, int* __X2_native, int* __Y2_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectAndLineIntersection", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetRectAndLineIntersection(global::System.Drawing.Rectangle* rect, int* X1, int* Y1, int* X2, int* Y2);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_PointInRectFloat(global::System.Drawing.PointF* p, global::System.Drawing.RectangleF* r)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(p, r);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PointInRectFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.PointF* __p_native, global::System.Drawing.RectangleF* __r_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PointInRectFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_PointInRectFloat(global::System.Drawing.PointF* p, global::System.Drawing.RectangleF* r);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RectEmptyFloat(global::System.Drawing.RectangleF* r)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(r);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectEmptyFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.RectangleF* __r_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectEmptyFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RectEmptyFloat(global::System.Drawing.RectangleF* r);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RectsEqualEpsilon(global::System.Drawing.RectangleF* a, global::System.Drawing.RectangleF* b, float epsilon)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(a, b, epsilon);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectsEqualEpsilon", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.RectangleF* __a_native, global::System.Drawing.RectangleF* __b_native, float __epsilon_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectsEqualEpsilon", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RectsEqualEpsilon(global::System.Drawing.RectangleF* a, global::System.Drawing.RectangleF* b, float epsilon);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RectsEqualFloat(global::System.Drawing.RectangleF* a, global::System.Drawing.RectangleF* b)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(a, b);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectsEqualFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.RectangleF* __a_native, global::System.Drawing.RectangleF* __b_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RectsEqualFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RectsEqualFloat(global::System.Drawing.RectangleF* a, global::System.Drawing.RectangleF* b);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_HasRectIntersectionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(A, B);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasRectIntersectionFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.RectangleF* __A_native, global::System.Drawing.RectangleF* __B_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HasRectIntersectionFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_HasRectIntersectionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRectIntersectionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B, global::System.Drawing.RectangleF* result)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(A, B, result);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectIntersectionFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.RectangleF* __A_native, global::System.Drawing.RectangleF* __B_native, global::System.Drawing.RectangleF* __result_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectIntersectionFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetRectIntersectionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B, global::System.Drawing.RectangleF* result);
     }
 }
 namespace SDL3
@@ -10135,53 +8475,23 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectUnionFloat", ExactSpelling = true)]
-        public static extern partial int SDL_GetRectUnionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B, global::System.Drawing.RectangleF* result);
+        public static extern partial global::SDL3.SDLBool SDL_GetRectUnionFloat(global::System.Drawing.RectangleF* A, global::System.Drawing.RectangleF* B, global::System.Drawing.RectangleF* result);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRectEnclosingPointsFloat(global::System.Drawing.PointF* points, int count, global::System.Drawing.RectangleF* clip, global::System.Drawing.RectangleF* result)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(points, count, clip, result);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectEnclosingPointsFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.PointF* __points_native, int __count_native, global::System.Drawing.RectangleF* __clip_native, global::System.Drawing.RectangleF* __result_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectEnclosingPointsFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetRectEnclosingPointsFloat(global::System.Drawing.PointF* points, int count, global::System.Drawing.RectangleF* clip, global::System.Drawing.RectangleF* result);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetRectAndLineIntersectionFloat(global::System.Drawing.RectangleF* rect, float* X1, float* Y1, float* X2, float* Y2)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(rect, X1, Y1, X2, Y2);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectAndLineIntersectionFloat", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::System.Drawing.RectangleF* __rect_native, float* __X1_native, float* __Y1_native, float* __X2_native, float* __Y2_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRectAndLineIntersectionFloat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetRectAndLineIntersectionFloat(global::System.Drawing.RectangleF* rect, float* X1, float* Y1, float* X2, float* Y2);
     }
 }
 namespace SDL3
@@ -10205,7 +8515,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateWindowAndRenderer", ExactSpelling = true)]
-        public static extern partial int SDL_CreateWindowAndRenderer(byte* title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer);
+        public static extern partial global::SDL3.SDLBool SDL_CreateWindowAndRenderer(byte* title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -10214,9 +8524,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CreateWindowAndRenderer(global::System.ReadOnlySpan<byte> title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer)
+        public static partial global::SDL3.SDLBool SDL_CreateWindowAndRenderer(global::System.ReadOnlySpan<byte> title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __title_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(title))
             {
@@ -10226,7 +8536,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateWindowAndRenderer", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __title_native, int __width_native, int __height_native, global::SDL3.SDL_WindowFlags __window_flags_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_Renderer __renderer_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __title_native, int __width_native, int __height_native, global::SDL3.SDL_WindowFlags __window_flags_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_Renderer __renderer_native);
         }
     }
 }
@@ -10236,10 +8546,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CreateWindowAndRenderer(global::System.ReadOnlySpan<char> title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer)
+        public static partial global::SDL3.SDLBool SDL_CreateWindowAndRenderer(global::System.ReadOnlySpan<char> title, int width, int height, global::SDL3.SDL_WindowFlags window_flags, global::SDL3.SDL_Window window, global::SDL3.SDL_Renderer renderer)
         {
             byte* __title_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __title_native__marshaller = new();
             try
@@ -10261,7 +8571,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateWindowAndRenderer", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __title_native, int __width_native, int __height_native, global::SDL3.SDL_WindowFlags __window_flags_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_Renderer __renderer_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __title_native, int __width_native, int __height_native, global::SDL3.SDL_WindowFlags __window_flags_native, global::SDL3.SDL_Window __window_native, global::SDL3.SDL_Renderer __renderer_native);
         }
     }
 }
@@ -10384,11 +8694,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetRenderOutputSize(global::SDL3.SDL_Renderer renderer, out int w, out int h)
+        public static partial global::SDL3.SDLBool SDL_GetRenderOutputSize(global::SDL3.SDL_Renderer renderer, out int w, out int h)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
@@ -10399,7 +8709,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderOutputSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Renderer __renderer_native, int* __w_native, int* __h_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Renderer __renderer_native, int* __w_native, int* __h_native);
         }
     }
 }
@@ -10409,11 +8719,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetCurrentRenderOutputSize(global::SDL3.SDL_Renderer renderer, out int w, out int h)
+        public static partial global::SDL3.SDLBool SDL_GetCurrentRenderOutputSize(global::SDL3.SDL_Renderer renderer, out int w, out int h)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
@@ -10424,7 +8734,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetCurrentRenderOutputSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Renderer __renderer_native, int* __w_native, int* __h_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Renderer __renderer_native, int* __w_native, int* __h_native);
         }
     }
 }
@@ -10433,7 +8743,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateTexture", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Texture SDL_CreateTexture(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_PixelFormat format, global::SDL3.SDL_TextureAccess access, int w, int h);
+        public static extern partial global::SDL3.SDL_Texture* SDL_CreateTexture(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_PixelFormat format, global::SDL3.SDL_TextureAccess access, int w, int h);
     }
 }
 namespace SDL3
@@ -10441,7 +8751,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateTextureFromSurface", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Texture SDL_CreateTextureFromSurface(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Surface* surface);
+        public static extern partial global::SDL3.SDL_Texture* SDL_CreateTextureFromSurface(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Surface* surface);
     }
 }
 namespace SDL3
@@ -10449,7 +8759,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateTextureWithProperties", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Texture SDL_CreateTextureWithProperties(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_PropertiesID props);
+        public static extern partial global::SDL3.SDL_Texture* SDL_CreateTextureWithProperties(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_PropertiesID props);
     }
 }
 namespace SDL3
@@ -10457,7 +8767,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureProperties", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_PropertiesID SDL_GetTextureProperties(global::SDL3.SDL_Texture texture);
+        public static extern partial global::SDL3.SDL_PropertiesID SDL_GetTextureProperties(global::SDL3.SDL_Texture* texture);
     }
 }
 namespace SDL3
@@ -10465,7 +8775,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRendererFromTexture", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Renderer SDL_GetRendererFromTexture(global::SDL3.SDL_Texture texture);
+        public static extern partial global::SDL3.SDL_Renderer SDL_GetRendererFromTexture(global::SDL3.SDL_Texture* texture);
     }
 }
 namespace SDL3
@@ -10473,7 +8783,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureSize", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureSize(global::SDL3.SDL_Texture texture, float* w, float* h);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureSize(global::SDL3.SDL_Texture* texture, float* w, float* h);
     }
 }
 namespace SDL3
@@ -10481,7 +8791,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextureColorMod", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextureColorMod(global::SDL3.SDL_Texture texture, byte r, byte g, byte b);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextureColorMod(global::SDL3.SDL_Texture* texture, byte r, byte g, byte b);
     }
 }
 namespace SDL3
@@ -10489,7 +8799,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextureColorModFloat", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextureColorModFloat(global::SDL3.SDL_Texture texture, float r, float g, float b);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextureColorModFloat(global::SDL3.SDL_Texture* texture, float r, float g, float b);
     }
 }
 namespace SDL3
@@ -10497,7 +8807,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureColorMod", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureColorMod(global::SDL3.SDL_Texture texture, byte* r, byte* g, byte* b);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureColorMod(global::SDL3.SDL_Texture* texture, byte* r, byte* g, byte* b);
     }
 }
 namespace SDL3
@@ -10505,7 +8815,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureColorModFloat", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureColorModFloat(global::SDL3.SDL_Texture texture, float* r, float* g, float* b);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureColorModFloat(global::SDL3.SDL_Texture* texture, float* r, float* g, float* b);
     }
 }
 namespace SDL3
@@ -10513,7 +8823,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextureAlphaMod", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextureAlphaMod(global::SDL3.SDL_Texture texture, byte alpha);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextureAlphaMod(global::SDL3.SDL_Texture* texture, byte alpha);
     }
 }
 namespace SDL3
@@ -10521,7 +8831,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextureAlphaModFloat", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextureAlphaModFloat(global::SDL3.SDL_Texture texture, float alpha);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextureAlphaModFloat(global::SDL3.SDL_Texture* texture, float alpha);
     }
 }
 namespace SDL3
@@ -10529,7 +8839,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureAlphaMod", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureAlphaMod(global::SDL3.SDL_Texture texture, byte* alpha);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureAlphaMod(global::SDL3.SDL_Texture* texture, byte* alpha);
     }
 }
 namespace SDL3
@@ -10537,7 +8847,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureAlphaModFloat", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureAlphaModFloat(global::SDL3.SDL_Texture texture, float* alpha);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureAlphaModFloat(global::SDL3.SDL_Texture* texture, float* alpha);
     }
 }
 namespace SDL3
@@ -10545,7 +8855,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextureBlendMode", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextureBlendMode(global::SDL3.SDL_Texture texture, global::SDL3.SDL_BlendMode blendMode);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextureBlendMode(global::SDL3.SDL_Texture* texture, global::SDL3.SDL_BlendMode blendMode);
     }
 }
 namespace SDL3
@@ -10553,7 +8863,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureBlendMode", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureBlendMode(global::SDL3.SDL_Texture texture, global::SDL3.SDL_BlendMode* blendMode);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureBlendMode(global::SDL3.SDL_Texture* texture, global::SDL3.SDL_BlendMode* blendMode);
     }
 }
 namespace SDL3
@@ -10561,7 +8871,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTextureScaleMode", ExactSpelling = true)]
-        public static extern partial int SDL_SetTextureScaleMode(global::SDL3.SDL_Texture texture, global::SDL3.SDL_ScaleMode scaleMode);
+        public static extern partial global::SDL3.SDLBool SDL_SetTextureScaleMode(global::SDL3.SDL_Texture* texture, global::SDL3.SDL_ScaleMode scaleMode);
     }
 }
 namespace SDL3
@@ -10569,7 +8879,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetTextureScaleMode", ExactSpelling = true)]
-        public static extern partial int SDL_GetTextureScaleMode(global::SDL3.SDL_Texture texture, global::SDL3.SDL_ScaleMode* scaleMode);
+        public static extern partial global::SDL3.SDLBool SDL_GetTextureScaleMode(global::SDL3.SDL_Texture* texture, global::SDL3.SDL_ScaleMode* scaleMode);
     }
 }
 namespace SDL3
@@ -10577,7 +8887,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UpdateTexture", ExactSpelling = true)]
-        public static extern partial int SDL_UpdateTexture(global::SDL3.SDL_Texture texture, global::System.Drawing.Rectangle* rect, nint pixels, int pitch);
+        public static extern partial global::SDL3.SDLBool SDL_UpdateTexture(global::SDL3.SDL_Texture* texture, global::System.Drawing.Rectangle* rect, nint pixels, int pitch);
     }
 }
 namespace SDL3
@@ -10585,7 +8895,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UpdateYUVTexture", ExactSpelling = true)]
-        public static extern partial int SDL_UpdateYUVTexture(global::SDL3.SDL_Texture texture, global::System.Drawing.Rectangle* rect, byte* Yplane, int Ypitch, byte* Uplane, int Upitch, byte* Vplane, int Vpitch);
+        public static extern partial global::SDL3.SDLBool SDL_UpdateYUVTexture(global::SDL3.SDL_Texture* texture, global::System.Drawing.Rectangle* rect, byte* Yplane, int Ypitch, byte* Uplane, int Upitch, byte* Vplane, int Vpitch);
     }
 }
 namespace SDL3
@@ -10593,7 +8903,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UpdateNVTexture", ExactSpelling = true)]
-        public static extern partial int SDL_UpdateNVTexture(global::SDL3.SDL_Texture texture, global::System.Drawing.Rectangle* rect, byte* Yplane, int Ypitch, byte* UVplane, int UVpitch);
+        public static extern partial global::SDL3.SDLBool SDL_UpdateNVTexture(global::SDL3.SDL_Texture* texture, global::System.Drawing.Rectangle* rect, byte* Yplane, int Ypitch, byte* UVplane, int UVpitch);
     }
 }
 namespace SDL3
@@ -10601,7 +8911,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LockTexture", ExactSpelling = true)]
-        public static extern partial int SDL_LockTexture(global::SDL3.SDL_Texture texture, global::System.Drawing.Rectangle* rect, nint pixels, int* pitch);
+        public static extern partial global::SDL3.SDLBool SDL_LockTexture(global::SDL3.SDL_Texture* texture, global::System.Drawing.Rectangle* rect, nint pixels, int* pitch);
     }
 }
 namespace SDL3
@@ -10609,7 +8919,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LockTextureToSurface", ExactSpelling = true)]
-        public static extern partial int SDL_LockTextureToSurface(global::SDL3.SDL_Texture texture, global::System.Drawing.Rectangle* rect, global::SDL3.SDL_Surface** surface);
+        public static extern partial global::SDL3.SDLBool SDL_LockTextureToSurface(global::SDL3.SDL_Texture* texture, global::System.Drawing.Rectangle* rect, global::SDL3.SDL_Surface** surface);
     }
 }
 namespace SDL3
@@ -10617,7 +8927,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnlockTexture", ExactSpelling = true)]
-        public static extern partial void SDL_UnlockTexture(global::SDL3.SDL_Texture texture);
+        public static extern partial void SDL_UnlockTexture(global::SDL3.SDL_Texture* texture);
     }
 }
 namespace SDL3
@@ -10625,7 +8935,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderTarget", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderTarget(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderTarget(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture);
     }
 }
 namespace SDL3
@@ -10633,7 +8943,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderTarget", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Texture SDL_GetRenderTarget(global::SDL3.SDL_Renderer renderer);
+        public static extern partial global::SDL3.SDL_Texture* SDL_GetRenderTarget(global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -10641,7 +8951,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderLogicalPresentation", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderLogicalPresentation(global::SDL3.SDL_Renderer renderer, int w, int h, global::SDL3.SDL_RendererLogicalPresentation mode, global::SDL3.SDL_ScaleMode scale_mode);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderLogicalPresentation(global::SDL3.SDL_Renderer renderer, int w, int h, global::SDL3.SDL_RendererLogicalPresentation mode);
     }
 }
 namespace SDL3
@@ -10650,22 +8960,22 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetRenderLogicalPresentation(global::SDL3.SDL_Renderer renderer, out int w, out int h, global::SDL3.SDL_RendererLogicalPresentation* mode, global::SDL3.SDL_ScaleMode* scale_mode)
+        public static partial global::SDL3.SDLBool SDL_GetRenderLogicalPresentation(global::SDL3.SDL_Renderer renderer, out int w, out int h, global::SDL3.SDL_RendererLogicalPresentation* mode)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
             {
-                __retVal = __PInvoke(renderer, __w_native, __h_native, mode, scale_mode);
+                __retVal = __PInvoke(renderer, __w_native, __h_native, mode);
             }
 
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderLogicalPresentation", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Renderer __renderer_native, int* __w_native, int* __h_native, global::SDL3.SDL_RendererLogicalPresentation* __mode_native, global::SDL3.SDL_ScaleMode* __scale_mode_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Renderer __renderer_native, int* __w_native, int* __h_native, global::SDL3.SDL_RendererLogicalPresentation* __mode_native);
         }
     }
 }
@@ -10674,7 +8984,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderLogicalPresentationRect", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderLogicalPresentationRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderLogicalPresentationRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rect);
     }
 }
 namespace SDL3
@@ -10682,7 +8992,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderCoordinatesFromWindow", ExactSpelling = true)]
-        public static extern partial int SDL_RenderCoordinatesFromWindow(global::SDL3.SDL_Renderer renderer, float window_x, float window_y, float* x, float* y);
+        public static extern partial global::SDL3.SDLBool SDL_RenderCoordinatesFromWindow(global::SDL3.SDL_Renderer renderer, float window_x, float window_y, float* x, float* y);
     }
 }
 namespace SDL3
@@ -10690,7 +9000,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderCoordinatesToWindow", ExactSpelling = true)]
-        public static extern partial int SDL_RenderCoordinatesToWindow(global::SDL3.SDL_Renderer renderer, float x, float y, float* window_x, float* window_y);
+        public static extern partial global::SDL3.SDLBool SDL_RenderCoordinatesToWindow(global::SDL3.SDL_Renderer renderer, float x, float y, float* window_x, float* window_y);
     }
 }
 namespace SDL3
@@ -10698,7 +9008,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ConvertEventToRenderCoordinates", ExactSpelling = true)]
-        public static extern partial int SDL_ConvertEventToRenderCoordinates(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Event* @event);
+        public static extern partial global::SDL3.SDLBool SDL_ConvertEventToRenderCoordinates(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Event* @event);
     }
 }
 namespace SDL3
@@ -10706,7 +9016,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderViewport", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderViewport(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderViewport(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -10714,30 +9024,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderViewport", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderViewport(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderViewport(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RenderViewportSet(global::SDL3.SDL_Renderer renderer)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(renderer);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderViewportSet", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Renderer __renderer_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderViewportSet", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RenderViewportSet(global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -10745,7 +9040,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderSafeArea", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderSafeArea(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderSafeArea(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -10753,7 +9048,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderClipRect", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderClipRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderClipRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -10761,30 +9056,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderClipRect", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderClipRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderClipRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_RenderClipEnabled(global::SDL3.SDL_Renderer renderer)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(renderer);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderClipEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Renderer __renderer_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderClipEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RenderClipEnabled(global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -10792,7 +9072,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderScale", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderScale(global::SDL3.SDL_Renderer renderer, float scaleX, float scaleY);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderScale(global::SDL3.SDL_Renderer renderer, float scaleX, float scaleY);
     }
 }
 namespace SDL3
@@ -10800,7 +9080,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderScale", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderScale(global::SDL3.SDL_Renderer renderer, float* scaleX, float* scaleY);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderScale(global::SDL3.SDL_Renderer renderer, float* scaleX, float* scaleY);
     }
 }
 namespace SDL3
@@ -10808,7 +9088,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderDrawColor", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderDrawColor(global::SDL3.SDL_Renderer renderer, byte r, byte g, byte b, byte a);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderDrawColor(global::SDL3.SDL_Renderer renderer, byte r, byte g, byte b, byte a);
     }
 }
 namespace SDL3
@@ -10816,7 +9096,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderDrawColorFloat", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderDrawColorFloat(global::SDL3.SDL_Renderer renderer, float r, float g, float b, float a);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderDrawColorFloat(global::SDL3.SDL_Renderer renderer, float r, float g, float b, float a);
     }
 }
 namespace SDL3
@@ -10824,7 +9104,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderDrawColor", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderDrawColor(global::SDL3.SDL_Renderer renderer, byte* r, byte* g, byte* b, byte* a);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderDrawColor(global::SDL3.SDL_Renderer renderer, byte* r, byte* g, byte* b, byte* a);
     }
 }
 namespace SDL3
@@ -10832,7 +9112,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderDrawColorFloat", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderDrawColorFloat(global::SDL3.SDL_Renderer renderer, float* r, float* g, float* b, float* a);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderDrawColorFloat(global::SDL3.SDL_Renderer renderer, float* r, float* g, float* b, float* a);
     }
 }
 namespace SDL3
@@ -10840,7 +9120,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderColorScale", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderColorScale(global::SDL3.SDL_Renderer renderer, float scale);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderColorScale(global::SDL3.SDL_Renderer renderer, float scale);
     }
 }
 namespace SDL3
@@ -10848,7 +9128,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderColorScale", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderColorScale(global::SDL3.SDL_Renderer renderer, float* scale);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderColorScale(global::SDL3.SDL_Renderer renderer, float* scale);
     }
 }
 namespace SDL3
@@ -10856,7 +9136,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderDrawBlendMode", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderDrawBlendMode(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_BlendMode blendMode);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderDrawBlendMode(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_BlendMode blendMode);
     }
 }
 namespace SDL3
@@ -10864,7 +9144,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderDrawBlendMode", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderDrawBlendMode(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_BlendMode* blendMode);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderDrawBlendMode(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_BlendMode* blendMode);
     }
 }
 namespace SDL3
@@ -10872,7 +9152,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderClear", ExactSpelling = true)]
-        public static extern partial int SDL_RenderClear(global::SDL3.SDL_Renderer renderer);
+        public static extern partial global::SDL3.SDLBool SDL_RenderClear(global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -10880,7 +9160,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderPoint", ExactSpelling = true)]
-        public static extern partial int SDL_RenderPoint(global::SDL3.SDL_Renderer renderer, float x, float y);
+        public static extern partial global::SDL3.SDLBool SDL_RenderPoint(global::SDL3.SDL_Renderer renderer, float x, float y);
     }
 }
 namespace SDL3
@@ -10888,7 +9168,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderPoints", ExactSpelling = true)]
-        public static extern partial int SDL_RenderPoints(global::SDL3.SDL_Renderer renderer, global::System.Drawing.PointF* points, int count);
+        public static extern partial global::SDL3.SDLBool SDL_RenderPoints(global::SDL3.SDL_Renderer renderer, global::System.Drawing.PointF* points, int count);
     }
 }
 namespace SDL3
@@ -10896,7 +9176,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderLine", ExactSpelling = true)]
-        public static extern partial int SDL_RenderLine(global::SDL3.SDL_Renderer renderer, float x1, float y1, float x2, float y2);
+        public static extern partial global::SDL3.SDLBool SDL_RenderLine(global::SDL3.SDL_Renderer renderer, float x1, float y1, float x2, float y2);
     }
 }
 namespace SDL3
@@ -10904,7 +9184,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderLines", ExactSpelling = true)]
-        public static extern partial int SDL_RenderLines(global::SDL3.SDL_Renderer renderer, global::System.Drawing.PointF* points, int count);
+        public static extern partial global::SDL3.SDLBool SDL_RenderLines(global::SDL3.SDL_Renderer renderer, global::System.Drawing.PointF* points, int count);
     }
 }
 namespace SDL3
@@ -10912,7 +9192,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderRect", ExactSpelling = true)]
-        public static extern partial int SDL_RenderRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rect);
+        public static extern partial global::SDL3.SDLBool SDL_RenderRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rect);
     }
 }
 namespace SDL3
@@ -10920,7 +9200,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderRects", ExactSpelling = true)]
-        public static extern partial int SDL_RenderRects(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rects, int count);
+        public static extern partial global::SDL3.SDLBool SDL_RenderRects(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rects, int count);
     }
 }
 namespace SDL3
@@ -10928,7 +9208,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderFillRect", ExactSpelling = true)]
-        public static extern partial int SDL_RenderFillRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rect);
+        public static extern partial global::SDL3.SDLBool SDL_RenderFillRect(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rect);
     }
 }
 namespace SDL3
@@ -10936,7 +9216,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderFillRects", ExactSpelling = true)]
-        public static extern partial int SDL_RenderFillRects(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rects, int count);
+        public static extern partial global::SDL3.SDLBool SDL_RenderFillRects(global::SDL3.SDL_Renderer renderer, global::System.Drawing.RectangleF* rects, int count);
     }
 }
 namespace SDL3
@@ -10944,7 +9224,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderTexture", ExactSpelling = true)]
-        public static extern partial int SDL_RenderTexture(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture, global::System.Drawing.RectangleF* srcrect, global::System.Drawing.RectangleF* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_RenderTexture(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture, global::System.Drawing.RectangleF* srcrect, global::System.Drawing.RectangleF* dstrect);
     }
 }
 namespace SDL3
@@ -10952,7 +9232,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderTextureRotated", ExactSpelling = true)]
-        public static extern partial int SDL_RenderTextureRotated(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture, global::System.Drawing.RectangleF* srcrect, global::System.Drawing.RectangleF* dstrect, double angle, global::System.Drawing.PointF* center, global::SDL3.SDL_FlipMode flip);
+        public static extern partial global::SDL3.SDLBool SDL_RenderTextureRotated(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture, global::System.Drawing.RectangleF* srcrect, global::System.Drawing.RectangleF* dstrect, double angle, global::System.Drawing.PointF* center, global::SDL3.SDL_FlipMode flip);
     }
 }
 namespace SDL3
@@ -10960,7 +9240,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderTextureTiled", ExactSpelling = true)]
-        public static extern partial int SDL_RenderTextureTiled(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture, global::System.Drawing.RectangleF* srcrect, float scale, global::System.Drawing.RectangleF* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_RenderTextureTiled(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture, global::System.Drawing.RectangleF* srcrect, float scale, global::System.Drawing.RectangleF* dstrect);
     }
 }
 namespace SDL3
@@ -10968,7 +9248,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderTexture9Grid", ExactSpelling = true)]
-        public static extern partial int SDL_RenderTexture9Grid(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture, global::System.Drawing.RectangleF* srcrect, float left_width, float right_width, float top_height, float bottom_height, float scale, global::System.Drawing.RectangleF* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_RenderTexture9Grid(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture, global::System.Drawing.RectangleF* srcrect, float left_width, float right_width, float top_height, float bottom_height, float scale, global::System.Drawing.RectangleF* dstrect);
     }
 }
 namespace SDL3
@@ -10976,7 +9256,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderGeometry", ExactSpelling = true)]
-        public static extern partial int SDL_RenderGeometry(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture, global::SDL3.SDL_Vertex* vertices, int num_vertices, int* indices, int num_indices);
+        public static extern partial global::SDL3.SDLBool SDL_RenderGeometry(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture, global::SDL3.SDL_Vertex* vertices, int num_vertices, int* indices, int num_indices);
     }
 }
 namespace SDL3
@@ -10984,7 +9264,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderGeometryRaw", ExactSpelling = true)]
-        public static extern partial int SDL_RenderGeometryRaw(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture texture, float* xy, int xy_stride, global::SDL3.SDL_FColor* color, int color_stride, float* uv, int uv_stride, int num_vertices, nint indices, int num_indices, int size_indices);
+        public static extern partial global::SDL3.SDLBool SDL_RenderGeometryRaw(global::SDL3.SDL_Renderer renderer, global::SDL3.SDL_Texture* texture, float* xy, int xy_stride, global::SDL3.SDL_FColor* color, int color_stride, float* uv, int uv_stride, int num_vertices, nint indices, int num_indices, int size_indices);
     }
 }
 namespace SDL3
@@ -11000,7 +9280,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenderPresent", ExactSpelling = true)]
-        public static extern partial int SDL_RenderPresent(global::SDL3.SDL_Renderer renderer);
+        public static extern partial global::SDL3.SDLBool SDL_RenderPresent(global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -11008,7 +9288,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DestroyTexture", ExactSpelling = true)]
-        public static extern partial void SDL_DestroyTexture(global::SDL3.SDL_Texture texture);
+        public static extern partial void SDL_DestroyTexture(global::SDL3.SDL_Texture* texture);
     }
 }
 namespace SDL3
@@ -11024,7 +9304,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FlushRenderer", ExactSpelling = true)]
-        public static extern partial int SDL_FlushRenderer(global::SDL3.SDL_Renderer renderer);
+        public static extern partial global::SDL3.SDLBool SDL_FlushRenderer(global::SDL3.SDL_Renderer renderer);
     }
 }
 namespace SDL3
@@ -11048,7 +9328,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddVulkanRenderSemaphores", ExactSpelling = true)]
-        public static extern partial int SDL_AddVulkanRenderSemaphores(global::SDL3.SDL_Renderer renderer, uint wait_stage_mask, long wait_semaphore, long signal_semaphore);
+        public static extern partial global::SDL3.SDLBool SDL_AddVulkanRenderSemaphores(global::SDL3.SDL_Renderer renderer, uint wait_stage_mask, long wait_semaphore, long signal_semaphore);
     }
 }
 namespace SDL3
@@ -11056,7 +9336,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetRenderVSync", ExactSpelling = true)]
-        public static extern partial int SDL_SetRenderVSync(global::SDL3.SDL_Renderer renderer, int vsync);
+        public static extern partial global::SDL3.SDLBool SDL_SetRenderVSync(global::SDL3.SDL_Renderer renderer, int vsync);
     }
 }
 namespace SDL3
@@ -11064,7 +9344,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetRenderVSync", ExactSpelling = true)]
-        public static extern partial int SDL_GetRenderVSync(global::SDL3.SDL_Renderer renderer, int* vsync);
+        public static extern partial global::SDL3.SDLBool SDL_GetRenderVSync(global::SDL3.SDL_Renderer renderer, int* vsync);
     }
 }
 namespace SDL3
@@ -11175,7 +9455,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetSensorData", ExactSpelling = true)]
-        public static extern partial int SDL_GetSensorData(global::SDL3.SDL_Sensor sensor, float* data, int num_values);
+        public static extern partial global::SDL3.SDLBool SDL_GetSensorData(global::SDL3.SDL_Sensor sensor, float* data, int num_values);
     }
 }
 namespace SDL3
@@ -11231,7 +9511,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetOriginalMemoryFunctions", ExactSpelling = true)]
-        public static extern partial void SDL_GetOriginalMemoryFunctions(delegate* unmanaged<nuint, nint> malloc_func, delegate* unmanaged<nuint, nuint, nint> calloc_func, delegate* unmanaged<nint, nuint, nint> realloc_func, delegate* unmanaged<nint, void> free_func);
+        public static extern partial void SDL_GetOriginalMemoryFunctions(delegate* unmanaged[Cdecl]<nuint, nint> malloc_func, delegate* unmanaged[Cdecl]<nuint, nuint, nint> calloc_func, delegate* unmanaged[Cdecl]<nint, nuint, nint> realloc_func, delegate* unmanaged[Cdecl]<nint, void> free_func);
     }
 }
 namespace SDL3
@@ -11239,7 +9519,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetMemoryFunctions", ExactSpelling = true)]
-        public static extern partial void SDL_GetMemoryFunctions(delegate* unmanaged<nuint, nint> malloc_func, delegate* unmanaged<nuint, nuint, nint> calloc_func, delegate* unmanaged<nint, nuint, nint> realloc_func, delegate* unmanaged<nint, void> free_func);
+        public static extern partial void SDL_GetMemoryFunctions(delegate* unmanaged[Cdecl]<nuint, nint> malloc_func, delegate* unmanaged[Cdecl]<nuint, nuint, nint> calloc_func, delegate* unmanaged[Cdecl]<nint, nuint, nint> realloc_func, delegate* unmanaged[Cdecl]<nint, void> free_func);
     }
 }
 namespace SDL3
@@ -11247,7 +9527,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetMemoryFunctions", ExactSpelling = true)]
-        public static extern partial int SDL_SetMemoryFunctions(delegate* unmanaged<nuint, nint> malloc_func, delegate* unmanaged<nuint, nuint, nint> calloc_func, delegate* unmanaged<nint, nuint, nint> realloc_func, delegate* unmanaged<nint, void> free_func);
+        public static extern partial global::SDL3.SDLBool SDL_SetMemoryFunctions(delegate* unmanaged[Cdecl]<nuint, nint> malloc_func, delegate* unmanaged[Cdecl]<nuint, nuint, nint> calloc_func, delegate* unmanaged[Cdecl]<nint, nuint, nint> realloc_func, delegate* unmanaged[Cdecl]<nint, void> free_func);
     }
 }
 namespace SDL3
@@ -11272,6 +9552,239 @@ namespace SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetNumAllocations", ExactSpelling = true)]
         public static extern partial int SDL_GetNumAllocations();
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEnvironment", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_Environment SDL_GetEnvironment();
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateEnvironment", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_Environment SDL_CreateEnvironment(global::SDL3.SDLBool populated);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEnvironmentVariable", ExactSpelling = true)]
+        public static extern partial byte* SDL_GetEnvironmentVariablePtr(global::SDL3.SDL_Environment env, byte* name);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial byte* SDL_GetEnvironmentVariablePtr(global::SDL3.SDL_Environment env, global::System.ReadOnlySpan<byte> name)
+        {
+            byte* __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke(env, (byte*)__name_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEnvironmentVariable", ExactSpelling = true)]
+            static extern unsafe byte* __PInvoke(global::SDL3.SDL_Environment __env_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial byte* SDL_GetEnvironmentVariablePtr(global::SDL3.SDL_Environment env, global::System.ReadOnlySpan<char> name)
+        {
+            byte* __name_native = default;
+            byte* __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(env, __name_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEnvironmentVariable", ExactSpelling = true)]
+            static extern unsafe byte* __PInvoke(global::SDL3.SDL_Environment __env_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetEnvironmentVariables", ExactSpelling = true)]
+        public static extern partial byte** SDL_GetEnvironmentVariables(global::SDL3.SDL_Environment env);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetEnvironmentVariable", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetEnvironmentVariable(global::SDL3.SDL_Environment env, byte* name, byte* value, global::SDL3.SDLBool overwrite);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_SetEnvironmentVariable(global::SDL3.SDL_Environment env, global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, global::SDL3.SDLBool overwrite)
+        {
+            global::SDL3.SDLBool __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __value_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(value))
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke(env, (byte*)__name_native, (byte*)__value_native, overwrite);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetEnvironmentVariable", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Environment __env_native, byte* __name_native, byte* __value_native, global::SDL3.SDLBool __overwrite_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_SetEnvironmentVariable(global::SDL3.SDL_Environment env, global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, global::SDL3.SDLBool overwrite)
+        {
+            byte* __name_native = default;
+            byte* __value_native = default;
+            global::SDL3.SDLBool __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __value_native__marshaller = new();
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __value_native__marshaller.FromManaged(value, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __value_native = __value_native__marshaller.ToUnmanaged();
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(env, __name_native, __value_native, overwrite);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __value_native__marshaller.Free();
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetEnvironmentVariable", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Environment __env_native, byte* __name_native, byte* __value_native, global::SDL3.SDLBool __overwrite_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnsetEnvironmentVariable", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_UnsetEnvironmentVariable(global::SDL3.SDL_Environment env, byte* name);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_UnsetEnvironmentVariable(global::SDL3.SDL_Environment env, global::System.ReadOnlySpan<byte> name)
+        {
+            global::SDL3.SDLBool __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke(env, (byte*)__name_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnsetEnvironmentVariable", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Environment __env_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_UnsetEnvironmentVariable(global::SDL3.SDL_Environment env, global::System.ReadOnlySpan<char> name)
+        {
+            byte* __name_native = default;
+            global::SDL3.SDLBool __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(env, __name_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnsetEnvironmentVariable", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Environment __env_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DestroyEnvironment", ExactSpelling = true)]
+        public static extern partial void SDL_DestroyEnvironment(global::SDL3.SDL_Environment env);
     }
 }
 namespace SDL3
@@ -11343,8 +9856,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_setenv", ExactSpelling = true)]
-        public static extern partial int SDL_setenv(byte* name, byte* value, int overwrite);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_getenv_unsafe", ExactSpelling = true)]
+        public static extern partial byte* SDL_getenv_unsafePtr(byte* name);
     }
 }
 namespace SDL3
@@ -11353,7 +9866,72 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_setenv(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, int overwrite)
+        public static partial byte* SDL_getenv_unsafePtr(global::System.ReadOnlySpan<byte> name)
+        {
+            byte* __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke((byte*)__name_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_getenv_unsafe", ExactSpelling = true)]
+            static extern unsafe byte* __PInvoke(byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial byte* SDL_getenv_unsafePtr(global::System.ReadOnlySpan<char> name)
+        {
+            byte* __name_native = default;
+            byte* __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(__name_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_getenv_unsafe", ExactSpelling = true)]
+            static extern unsafe byte* __PInvoke(byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_setenv_unsafe", ExactSpelling = true)]
+        public static extern partial int SDL_setenv_unsafe(byte* name, byte* value, int overwrite);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial int SDL_setenv_unsafe(global::System.ReadOnlySpan<byte> name, global::System.ReadOnlySpan<byte> value, int overwrite)
         {
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
@@ -11365,7 +9943,7 @@ namespace SDL3
 
             return __retVal;
             // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_setenv", ExactSpelling = true)]
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_setenv_unsafe", ExactSpelling = true)]
             static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native, int __overwrite_native);
         }
     }
@@ -11376,7 +9954,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_setenv(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, int overwrite)
+        public static partial int SDL_setenv_unsafe(global::System.ReadOnlySpan<char> name, global::System.ReadOnlySpan<char> value, int overwrite)
         {
             byte* __name_native = default;
             byte* __value_native = default;
@@ -11405,7 +9983,7 @@ namespace SDL3
 
             return __retVal;
             // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_setenv", ExactSpelling = true)]
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_setenv_unsafe", ExactSpelling = true)]
             static extern unsafe int __PInvoke(byte* __name_native, byte* __value_native, int __overwrite_native);
         }
     }
@@ -11414,8 +9992,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_unsetenv", ExactSpelling = true)]
-        public static extern partial int SDL_unsetenv(byte* name);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_unsetenv_unsafe", ExactSpelling = true)]
+        public static extern partial int SDL_unsetenv_unsafe(byte* name);
     }
 }
 namespace SDL3
@@ -11424,7 +10002,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_unsetenv(global::System.ReadOnlySpan<byte> name)
+        public static partial int SDL_unsetenv_unsafe(global::System.ReadOnlySpan<byte> name)
         {
             int __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
@@ -11435,7 +10013,7 @@ namespace SDL3
 
             return __retVal;
             // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_unsetenv", ExactSpelling = true)]
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_unsetenv_unsafe", ExactSpelling = true)]
             static extern unsafe int __PInvoke(byte* __name_native);
         }
     }
@@ -11446,7 +10024,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_unsetenv(global::System.ReadOnlySpan<char> name)
+        public static partial int SDL_unsetenv_unsafe(global::System.ReadOnlySpan<char> name)
         {
             byte* __name_native = default;
             int __retVal = default;
@@ -11470,7 +10048,7 @@ namespace SDL3
 
             return __retVal;
             // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_unsetenv", ExactSpelling = true)]
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_unsetenv_unsafe", ExactSpelling = true)]
             static extern unsafe int __PInvoke(byte* __name_native);
         }
     }
@@ -11480,7 +10058,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_qsort", ExactSpelling = true)]
-        public static extern partial void SDL_qsort(nint @base, nuint nmemb, nuint size, delegate* unmanaged<nint, nint, int> compare);
+        public static extern partial void SDL_qsort(nint @base, nuint nmemb, nuint size, delegate* unmanaged[Cdecl]<nint, nint, int> compare);
     }
 }
 namespace SDL3
@@ -11488,7 +10066,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_bsearch", ExactSpelling = true)]
-        public static extern partial nint SDL_bsearch(nint key, nint @base, nuint nmemb, nuint size, delegate* unmanaged<nint, nint, int> compare);
+        public static extern partial nint SDL_bsearch(nint key, nint @base, nuint nmemb, nuint size, delegate* unmanaged[Cdecl]<nint, nint, int> compare);
     }
 }
 namespace SDL3
@@ -11496,7 +10074,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_qsort_r", ExactSpelling = true)]
-        public static extern partial void SDL_qsort_r(nint @base, nuint nmemb, nuint size, delegate* unmanaged<nint, nint, nint, int> compare, nint userdata);
+        public static extern partial void SDL_qsort_r(nint @base, nuint nmemb, nuint size, delegate* unmanaged[Cdecl]<nint, nint, nint, int> compare, nint userdata);
     }
 }
 namespace SDL3
@@ -11504,7 +10082,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_bsearch_r", ExactSpelling = true)]
-        public static extern partial nint SDL_bsearch_r(nint key, nint @base, nuint nmemb, nuint size, delegate* unmanaged<nint, nint, nint, int> compare, nint userdata);
+        public static extern partial nint SDL_bsearch_r(nint key, nint @base, nuint nmemb, nuint size, delegate* unmanaged[Cdecl]<nint, nint, nint, int> compare, nint userdata);
     }
 }
 namespace SDL3
@@ -11641,6 +10219,14 @@ namespace SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_crc32", ExactSpelling = true)]
         public static extern partial uint SDL_crc32(uint crc, nint data, nuint len);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_murmur3_32", ExactSpelling = true)]
+        public static extern partial uint SDL_murmur3_32(nint data, nuint len, uint seed);
     }
 }
 namespace SDL3
@@ -14124,6 +12710,77 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_strpbrk", ExactSpelling = true)]
+        public static extern partial byte* SDL_strpbrkPtr(byte* str, byte* breakset);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial byte* SDL_strpbrkPtr(global::System.ReadOnlySpan<byte> str, global::System.ReadOnlySpan<byte> breakset)
+        {
+            byte* __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __breakset_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(breakset))
+            fixed (void* __str_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(str))
+            {
+                __retVal = __PInvoke((byte*)__str_native, (byte*)__breakset_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_strpbrk", ExactSpelling = true)]
+            static extern unsafe byte* __PInvoke(byte* __str_native, byte* __breakset_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial byte* SDL_strpbrkPtr(global::System.ReadOnlySpan<char> str, global::System.ReadOnlySpan<char> breakset)
+        {
+            byte* __str_native = default;
+            byte* __breakset_native = default;
+            byte* __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __breakset_native__marshaller = new();
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __str_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __breakset_native__marshaller.FromManaged(breakset, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                __str_native__marshaller.FromManaged(str, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __breakset_native = __breakset_native__marshaller.ToUnmanaged();
+                    __str_native = __str_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(__str_native, __breakset_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __breakset_native__marshaller.Free();
+                __str_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_strpbrk", ExactSpelling = true)]
+            static extern unsafe byte* __PInvoke(byte* __str_native, byte* __breakset_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StepUTF8", ExactSpelling = true)]
         public static extern partial uint SDL_StepUTF8(byte** pstr, nuint* pslen);
     }
@@ -15231,32 +13888,32 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_mul_overflow", ExactSpelling = true)]
-        public static extern partial int SDL_size_mul_overflow(nuint a, nuint b, nuint* ret);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_mul_check_overflow", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_size_mul_check_overflow(nuint a, nuint b, nuint* ret);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_mul_overflow_builtin", ExactSpelling = true)]
-        public static extern partial int SDL_size_mul_overflow_builtin(nuint a, nuint b, nuint* ret);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_mul_check_overflow_builtin", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_size_mul_check_overflow_builtin(nuint a, nuint b, nuint* ret);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_add_overflow", ExactSpelling = true)]
-        public static extern partial int SDL_size_add_overflow(nuint a, nuint b, nuint* ret);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_add_check_overflow", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_size_add_check_overflow(nuint a, nuint b, nuint* ret);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_add_overflow_builtin", ExactSpelling = true)]
-        public static extern partial int SDL_size_add_overflow_builtin(nuint a, nuint b, nuint* ret);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_size_add_check_overflow_builtin", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_size_add_check_overflow_builtin(nuint a, nuint b, nuint* ret);
     }
 }
 namespace SDL3
@@ -15473,30 +14130,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CloseStorage", ExactSpelling = true)]
-        public static extern partial int SDL_CloseStorage(global::SDL3.SDL_Storage storage);
+        public static extern partial global::SDL3.SDLBool SDL_CloseStorage(global::SDL3.SDL_Storage storage);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_StorageReady(global::SDL3.SDL_Storage storage)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(storage);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StorageReady", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_StorageReady", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_StorageReady(global::SDL3.SDL_Storage storage);
     }
 }
 namespace SDL3
@@ -15504,7 +14146,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetStorageFileSize", ExactSpelling = true)]
-        public static extern partial int SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, byte* path, ulong* length);
+        public static extern partial global::SDL3.SDLBool SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, byte* path, ulong* length);
     }
 }
 namespace SDL3
@@ -15513,9 +14155,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, ulong* length)
+        public static partial global::SDL3.SDLBool SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, ulong* length)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -15525,7 +14167,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetStorageFileSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, ulong* __length_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, ulong* __length_native);
         }
     }
 }
@@ -15535,10 +14177,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, ulong* length)
+        public static partial global::SDL3.SDLBool SDL_GetStorageFileSize(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, ulong* length)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -15560,7 +14202,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetStorageFileSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, ulong* __length_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, ulong* __length_native);
         }
     }
 }
@@ -15569,7 +14211,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadStorageFile", ExactSpelling = true)]
-        public static extern partial int SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, byte* path, nint destination, ulong length);
+        public static extern partial global::SDL3.SDLBool SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, byte* path, nint destination, ulong length);
     }
 }
 namespace SDL3
@@ -15578,9 +14220,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, nint destination, ulong length)
+        public static partial global::SDL3.SDLBool SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, nint destination, ulong length)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -15590,7 +14232,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadStorageFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __destination_native, ulong __length_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __destination_native, ulong __length_native);
         }
     }
 }
@@ -15600,10 +14242,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, nint destination, ulong length)
+        public static partial global::SDL3.SDLBool SDL_ReadStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, nint destination, ulong length)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -15625,7 +14267,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadStorageFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __destination_native, ulong __length_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __destination_native, ulong __length_native);
         }
     }
 }
@@ -15634,7 +14276,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteStorageFile", ExactSpelling = true)]
-        public static extern partial int SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, byte* path, nint source, ulong length);
+        public static extern partial global::SDL3.SDLBool SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, byte* path, nint source, ulong length);
     }
 }
 namespace SDL3
@@ -15643,9 +14285,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, nint source, ulong length)
+        public static partial global::SDL3.SDLBool SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, nint source, ulong length)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -15655,7 +14297,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteStorageFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __source_native, ulong __length_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __source_native, ulong __length_native);
         }
     }
 }
@@ -15665,10 +14307,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, nint source, ulong length)
+        public static partial global::SDL3.SDLBool SDL_WriteStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, nint source, ulong length)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -15690,7 +14332,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteStorageFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __source_native, ulong __length_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, nint __source_native, ulong __length_native);
         }
     }
 }
@@ -15699,7 +14341,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateStorageDirectory", ExactSpelling = true)]
-        public static extern partial int SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, byte* path);
+        public static extern partial global::SDL3.SDLBool SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, byte* path);
     }
 }
 namespace SDL3
@@ -15708,9 +14350,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path)
+        public static partial global::SDL3.SDLBool SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -15720,7 +14362,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateStorageDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
         }
     }
 }
@@ -15730,10 +14372,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path)
+        public static partial global::SDL3.SDLBool SDL_CreateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -15755,7 +14397,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateStorageDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
         }
     }
 }
@@ -15764,7 +14406,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateStorageDirectory", ExactSpelling = true)]
-        public static extern partial int SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, byte* path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, byte* path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -15773,9 +14415,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> callback, nint userdata)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -15785,7 +14427,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateStorageDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, delegate* unmanaged<nint, byte*, byte*, int> __callback_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -15795,10 +14437,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, delegate* unmanaged<nint, byte*, byte*, int> callback, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_EnumerateStorageDirectory(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> callback, nint userdata)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -15820,7 +14462,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnumerateStorageDirectory", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, delegate* unmanaged<nint, byte*, byte*, int> __callback_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, delegate* unmanaged[Cdecl]<nint, byte*, byte*, global::SDL3.SDL_EnumerationResult> __callback_native, nint __userdata_native);
         }
     }
 }
@@ -15829,7 +14471,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveStoragePath", ExactSpelling = true)]
-        public static extern partial int SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, byte* path);
+        public static extern partial global::SDL3.SDLBool SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, byte* path);
     }
 }
 namespace SDL3
@@ -15838,9 +14480,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path)
+        public static partial global::SDL3.SDLBool SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -15850,7 +14492,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveStoragePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
         }
     }
 }
@@ -15860,10 +14502,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path)
+        public static partial global::SDL3.SDLBool SDL_RemoveStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -15885,7 +14527,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveStoragePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native);
         }
     }
 }
@@ -15894,7 +14536,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenameStoragePath", ExactSpelling = true)]
-        public static extern partial int SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, byte* oldpath, byte* newpath);
+        public static extern partial global::SDL3.SDLBool SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, byte* oldpath, byte* newpath);
     }
 }
 namespace SDL3
@@ -15903,9 +14545,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
+        public static partial global::SDL3.SDLBool SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __newpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(newpath))
             fixed (void* __oldpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(oldpath))
@@ -15916,7 +14558,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenameStoragePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -15926,11 +14568,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
+        public static partial global::SDL3.SDLBool SDL_RenameStoragePath(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
             byte* __oldpath_native = default;
             byte* __newpath_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __newpath_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __oldpath_native__marshaller = new();
@@ -15956,7 +14598,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RenameStoragePath", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -15965,7 +14607,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyStorageFile", ExactSpelling = true)]
-        public static extern partial int SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, byte* oldpath, byte* newpath);
+        public static extern partial global::SDL3.SDLBool SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, byte* oldpath, byte* newpath);
     }
 }
 namespace SDL3
@@ -15974,9 +14616,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
+        public static partial global::SDL3.SDLBool SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> oldpath, global::System.ReadOnlySpan<byte> newpath)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __newpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(newpath))
             fixed (void* __oldpath_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(oldpath))
@@ -15987,7 +14629,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyStorageFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -15997,11 +14639,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
+        public static partial global::SDL3.SDLBool SDL_CopyStorageFile(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> oldpath, global::System.ReadOnlySpan<char> newpath)
         {
             byte* __oldpath_native = default;
             byte* __newpath_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __newpath_native__marshaller = new();
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __oldpath_native__marshaller = new();
@@ -16027,7 +14669,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyStorageFile", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __oldpath_native, byte* __newpath_native);
         }
     }
 }
@@ -16036,7 +14678,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetStoragePathInfo", ExactSpelling = true)]
-        public static extern partial int SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, byte* path, global::SDL3.SDL_PathInfo* info);
+        public static extern partial global::SDL3.SDLBool SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, byte* path, global::SDL3.SDL_PathInfo* info);
     }
 }
 namespace SDL3
@@ -16045,9 +14687,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_PathInfo* info)
+        public static partial global::SDL3.SDLBool SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<byte> path, global::SDL3.SDL_PathInfo* info)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -16057,7 +14699,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetStoragePathInfo", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
         }
     }
 }
@@ -16067,10 +14709,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, global::SDL3.SDL_PathInfo* info)
+        public static partial global::SDL3.SDLBool SDL_GetStoragePathInfo(global::SDL3.SDL_Storage storage, global::System.ReadOnlySpan<char> path, global::SDL3.SDL_PathInfo* info)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -16092,7 +14734,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetStoragePathInfo", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Storage __storage_native, byte* __path_native, global::SDL3.SDL_PathInfo* __info_native);
         }
     }
 }
@@ -16212,7 +14854,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceColorspace", ExactSpelling = true)]
-        public static extern partial int SDL_SetSurfaceColorspace(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_Colorspace colorspace);
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceColorspace(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_Colorspace colorspace);
     }
 }
 namespace SDL3
@@ -16236,7 +14878,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfacePalette", ExactSpelling = true)]
-        public static extern partial int SDL_SetSurfacePalette(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_Palette* palette);
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfacePalette(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_Palette* palette);
     }
 }
 namespace SDL3
@@ -16252,30 +14894,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddSurfaceAlternateImage", ExactSpelling = true)]
-        public static extern partial int SDL_AddSurfaceAlternateImage(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_Surface* image);
+        public static extern partial global::SDL3.SDLBool SDL_AddSurfaceAlternateImage(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_Surface* image);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SurfaceHasAlternateImages(global::SDL3.SDL_Surface* surface)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(surface);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SurfaceHasAlternateImages", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SurfaceHasAlternateImages", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SurfaceHasAlternateImages(global::SDL3.SDL_Surface* surface);
     }
 }
 namespace SDL3
@@ -16314,7 +14941,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LockSurface", ExactSpelling = true)]
-        public static extern partial int SDL_LockSurface(global::SDL3.SDL_Surface* surface);
+        public static extern partial global::SDL3.SDLBool SDL_LockSurface(global::SDL3.SDL_Surface* surface);
     }
 }
 namespace SDL3
@@ -16329,23 +14956,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial global::SDL3.SDL_Surface* SDL_LoadBMP_IO(global::SDL3.SDL_IOStream src, bool closeio)
-        {
-            int __closeio_native;
-            global::SDL3.SDL_Surface* __retVal;
-            // Marshal - Convert managed data to native data.
-            __closeio_native = (int)(closeio ? 1 : 0);
-            {
-                __retVal = __PInvoke(src, __closeio_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadBMP_IO", ExactSpelling = true)]
-            static extern unsafe global::SDL3.SDL_Surface* __PInvoke(global::SDL3.SDL_IOStream __src_native, int __closeio_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_LoadBMP_IO", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_Surface* SDL_LoadBMP_IO(global::SDL3.SDL_IOStream src, global::SDL3.SDLBool closeio);
     }
 }
 namespace SDL3
@@ -16417,23 +15029,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SaveBMP_IO(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_IOStream dst, bool closeio)
-        {
-            int __closeio_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __closeio_native = (int)(closeio ? 1 : 0);
-            {
-                __retVal = __PInvoke(surface, dst, __closeio_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SaveBMP_IO", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, global::SDL3.SDL_IOStream __dst_native, int __closeio_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SaveBMP_IO", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SaveBMP_IO(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_IOStream dst, global::SDL3.SDLBool closeio);
     }
 }
 namespace SDL3
@@ -16441,7 +15038,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SaveBMP", ExactSpelling = true)]
-        public static extern partial int SDL_SaveBMP(global::SDL3.SDL_Surface* surface, byte* file);
+        public static extern partial global::SDL3.SDLBool SDL_SaveBMP(global::SDL3.SDL_Surface* surface, byte* file);
     }
 }
 namespace SDL3
@@ -16450,9 +15047,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SaveBMP(global::SDL3.SDL_Surface* surface, global::System.ReadOnlySpan<byte> file)
+        public static partial global::SDL3.SDLBool SDL_SaveBMP(global::SDL3.SDL_Surface* surface, global::System.ReadOnlySpan<byte> file)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __file_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(file))
             {
@@ -16462,7 +15059,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SaveBMP", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, byte* __file_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Surface* __surface_native, byte* __file_native);
         }
     }
 }
@@ -16472,10 +15069,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SaveBMP(global::SDL3.SDL_Surface* surface, global::System.ReadOnlySpan<char> file)
+        public static partial global::SDL3.SDLBool SDL_SaveBMP(global::SDL3.SDL_Surface* surface, global::System.ReadOnlySpan<char> file)
         {
             byte* __file_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __file_native__marshaller = new();
             try
@@ -16497,7 +15094,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SaveBMP", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, byte* __file_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Surface* __surface_native, byte* __file_native);
         }
     }
 }
@@ -16505,92 +15102,32 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetSurfaceRLE(global::SDL3.SDL_Surface* surface, bool enabled)
-        {
-            int __enabled_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __retVal = __PInvoke(surface, __enabled_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceRLE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceRLE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceRLE(global::SDL3.SDL_Surface* surface, global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SurfaceHasRLE(global::SDL3.SDL_Surface* surface)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(surface);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SurfaceHasRLE", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SurfaceHasRLE", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SurfaceHasRLE(global::SDL3.SDL_Surface* surface);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetSurfaceColorKey(global::SDL3.SDL_Surface* surface, bool enabled, uint key)
-        {
-            int __enabled_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __retVal = __PInvoke(surface, __enabled_native, key);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceColorKey", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, int __enabled_native, uint __key_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceColorKey", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceColorKey(global::SDL3.SDL_Surface* surface, global::SDL3.SDLBool enabled, uint key);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SurfaceHasColorKey(global::SDL3.SDL_Surface* surface)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(surface);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SurfaceHasColorKey", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SurfaceHasColorKey", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SurfaceHasColorKey(global::SDL3.SDL_Surface* surface);
     }
 }
 namespace SDL3
@@ -16598,7 +15135,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetSurfaceColorKey", ExactSpelling = true)]
-        public static extern partial int SDL_GetSurfaceColorKey(global::SDL3.SDL_Surface* surface, uint* key);
+        public static extern partial global::SDL3.SDLBool SDL_GetSurfaceColorKey(global::SDL3.SDL_Surface* surface, uint* key);
     }
 }
 namespace SDL3
@@ -16606,7 +15143,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceColorMod", ExactSpelling = true)]
-        public static extern partial int SDL_SetSurfaceColorMod(global::SDL3.SDL_Surface* surface, byte r, byte g, byte b);
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceColorMod(global::SDL3.SDL_Surface* surface, byte r, byte g, byte b);
     }
 }
 namespace SDL3
@@ -16614,7 +15151,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetSurfaceColorMod", ExactSpelling = true)]
-        public static extern partial int SDL_GetSurfaceColorMod(global::SDL3.SDL_Surface* surface, byte* r, byte* g, byte* b);
+        public static extern partial global::SDL3.SDLBool SDL_GetSurfaceColorMod(global::SDL3.SDL_Surface* surface, byte* r, byte* g, byte* b);
     }
 }
 namespace SDL3
@@ -16622,7 +15159,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceAlphaMod", ExactSpelling = true)]
-        public static extern partial int SDL_SetSurfaceAlphaMod(global::SDL3.SDL_Surface* surface, byte alpha);
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceAlphaMod(global::SDL3.SDL_Surface* surface, byte alpha);
     }
 }
 namespace SDL3
@@ -16630,7 +15167,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetSurfaceAlphaMod", ExactSpelling = true)]
-        public static extern partial int SDL_GetSurfaceAlphaMod(global::SDL3.SDL_Surface* surface, byte* alpha);
+        public static extern partial global::SDL3.SDLBool SDL_GetSurfaceAlphaMod(global::SDL3.SDL_Surface* surface, byte* alpha);
     }
 }
 namespace SDL3
@@ -16638,7 +15175,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceBlendMode", ExactSpelling = true)]
-        public static extern partial int SDL_SetSurfaceBlendMode(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_BlendMode blendMode);
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceBlendMode(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_BlendMode blendMode);
     }
 }
 namespace SDL3
@@ -16646,30 +15183,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetSurfaceBlendMode", ExactSpelling = true)]
-        public static extern partial int SDL_GetSurfaceBlendMode(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_BlendMode* blendMode);
+        public static extern partial global::SDL3.SDLBool SDL_GetSurfaceBlendMode(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_BlendMode* blendMode);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_SetSurfaceClipRect(global::SDL3.SDL_Surface* surface, global::System.Drawing.Rectangle* rect)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(surface, rect);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceClipRect", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, global::System.Drawing.Rectangle* __rect_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetSurfaceClipRect", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetSurfaceClipRect(global::SDL3.SDL_Surface* surface, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -16677,7 +15199,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetSurfaceClipRect", ExactSpelling = true)]
-        public static extern partial int SDL_GetSurfaceClipRect(global::SDL3.SDL_Surface* surface, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetSurfaceClipRect(global::SDL3.SDL_Surface* surface, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -16685,7 +15207,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FlipSurface", ExactSpelling = true)]
-        public static extern partial int SDL_FlipSurface(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_FlipMode flip);
+        public static extern partial global::SDL3.SDLBool SDL_FlipSurface(global::SDL3.SDL_Surface* surface, global::SDL3.SDL_FlipMode flip);
     }
 }
 namespace SDL3
@@ -16725,7 +15247,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ConvertPixels", ExactSpelling = true)]
-        public static extern partial int SDL_ConvertPixels(int width, int height, global::SDL3.SDL_PixelFormat src_format, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, nint dst, int dst_pitch);
+        public static extern partial global::SDL3.SDLBool SDL_ConvertPixels(int width, int height, global::SDL3.SDL_PixelFormat src_format, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, nint dst, int dst_pitch);
     }
 }
 namespace SDL3
@@ -16733,53 +15255,23 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ConvertPixelsAndColorspace", ExactSpelling = true)]
-        public static extern partial int SDL_ConvertPixelsAndColorspace(int width, int height, global::SDL3.SDL_PixelFormat src_format, global::SDL3.SDL_Colorspace src_colorspace, global::SDL3.SDL_PropertiesID src_properties, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, global::SDL3.SDL_Colorspace dst_colorspace, global::SDL3.SDL_PropertiesID dst_properties, nint dst, int dst_pitch);
+        public static extern partial global::SDL3.SDLBool SDL_ConvertPixelsAndColorspace(int width, int height, global::SDL3.SDL_PixelFormat src_format, global::SDL3.SDL_Colorspace src_colorspace, global::SDL3.SDL_PropertiesID src_properties, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, global::SDL3.SDL_Colorspace dst_colorspace, global::SDL3.SDL_PropertiesID dst_properties, nint dst, int dst_pitch);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_PremultiplyAlpha(int width, int height, global::SDL3.SDL_PixelFormat src_format, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, nint dst, int dst_pitch, bool linear)
-        {
-            int __linear_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __linear_native = (int)(linear ? 1 : 0);
-            {
-                __retVal = __PInvoke(width, height, src_format, src, src_pitch, dst_format, dst, dst_pitch, __linear_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PremultiplyAlpha", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(int __width_native, int __height_native, global::SDL3.SDL_PixelFormat __src_format_native, nint __src_native, int __src_pitch_native, global::SDL3.SDL_PixelFormat __dst_format_native, nint __dst_native, int __dst_pitch_native, int __linear_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PremultiplyAlpha", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_PremultiplyAlpha(int width, int height, global::SDL3.SDL_PixelFormat src_format, nint src, int src_pitch, global::SDL3.SDL_PixelFormat dst_format, nint dst, int dst_pitch, global::SDL3.SDLBool linear);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_PremultiplySurfaceAlpha(global::SDL3.SDL_Surface* surface, bool linear)
-        {
-            int __linear_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __linear_native = (int)(linear ? 1 : 0);
-            {
-                __retVal = __PInvoke(surface, __linear_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PremultiplySurfaceAlpha", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Surface* __surface_native, int __linear_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PremultiplySurfaceAlpha", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_PremultiplySurfaceAlpha(global::SDL3.SDL_Surface* surface, global::SDL3.SDLBool linear);
     }
 }
 namespace SDL3
@@ -16787,7 +15279,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClearSurface", ExactSpelling = true)]
-        public static extern partial int SDL_ClearSurface(global::SDL3.SDL_Surface* surface, float r, float g, float b, float a);
+        public static extern partial global::SDL3.SDLBool SDL_ClearSurface(global::SDL3.SDL_Surface* surface, float r, float g, float b, float a);
     }
 }
 namespace SDL3
@@ -16795,7 +15287,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FillSurfaceRect", ExactSpelling = true)]
-        public static extern partial int SDL_FillSurfaceRect(global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* rect, uint color);
+        public static extern partial global::SDL3.SDLBool SDL_FillSurfaceRect(global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* rect, uint color);
     }
 }
 namespace SDL3
@@ -16803,7 +15295,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FillSurfaceRects", ExactSpelling = true)]
-        public static extern partial int SDL_FillSurfaceRects(global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* rects, int count, uint color);
+        public static extern partial global::SDL3.SDLBool SDL_FillSurfaceRects(global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* rects, int count, uint color);
     }
 }
 namespace SDL3
@@ -16811,7 +15303,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurface", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurface(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurface(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
     }
 }
 namespace SDL3
@@ -16819,7 +15311,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurfaceUnchecked", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurfaceUnchecked(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurfaceUnchecked(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
     }
 }
 namespace SDL3
@@ -16827,7 +15319,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurfaceScaled", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurfaceScaled(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect, global::SDL3.SDL_ScaleMode scaleMode);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurfaceScaled(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect, global::SDL3.SDL_ScaleMode scaleMode);
     }
 }
 namespace SDL3
@@ -16835,7 +15327,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurfaceUncheckedScaled", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurfaceUncheckedScaled(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect, global::SDL3.SDL_ScaleMode scaleMode);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurfaceUncheckedScaled(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect, global::SDL3.SDL_ScaleMode scaleMode);
     }
 }
 namespace SDL3
@@ -16843,7 +15335,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurfaceTiled", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurfaceTiled(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurfaceTiled(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
     }
 }
 namespace SDL3
@@ -16851,7 +15343,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurfaceTiledWithScale", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurfaceTiledWithScale(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, float scale, global::SDL3.SDL_ScaleMode scaleMode, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurfaceTiledWithScale(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, float scale, global::SDL3.SDL_ScaleMode scaleMode, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
     }
 }
 namespace SDL3
@@ -16859,7 +15351,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitSurface9Grid", ExactSpelling = true)]
-        public static extern partial int SDL_BlitSurface9Grid(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, int left_width, int right_width, int top_height, int bottom_height, float scale, global::SDL3.SDL_ScaleMode scaleMode, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
+        public static extern partial global::SDL3.SDLBool SDL_BlitSurface9Grid(global::SDL3.SDL_Surface* src, global::System.Drawing.Rectangle* srcrect, int left_width, int right_width, int top_height, int bottom_height, float scale, global::SDL3.SDL_ScaleMode scaleMode, global::SDL3.SDL_Surface* dst, global::System.Drawing.Rectangle* dstrect);
     }
 }
 namespace SDL3
@@ -16883,7 +15375,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadSurfacePixel", ExactSpelling = true)]
-        public static extern partial int SDL_ReadSurfacePixel(global::SDL3.SDL_Surface* surface, int x, int y, byte* r, byte* g, byte* b, byte* a);
+        public static extern partial global::SDL3.SDLBool SDL_ReadSurfacePixel(global::SDL3.SDL_Surface* surface, int x, int y, byte* r, byte* g, byte* b, byte* a);
     }
 }
 namespace SDL3
@@ -16891,7 +15383,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadSurfacePixelFloat", ExactSpelling = true)]
-        public static extern partial int SDL_ReadSurfacePixelFloat(global::SDL3.SDL_Surface* surface, int x, int y, float* r, float* g, float* b, float* a);
+        public static extern partial global::SDL3.SDLBool SDL_ReadSurfacePixelFloat(global::SDL3.SDL_Surface* surface, int x, int y, float* r, float* g, float* b, float* a);
     }
 }
 namespace SDL3
@@ -16899,7 +15391,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteSurfacePixel", ExactSpelling = true)]
-        public static extern partial int SDL_WriteSurfacePixel(global::SDL3.SDL_Surface* surface, int x, int y, byte r, byte g, byte b, byte a);
+        public static extern partial global::SDL3.SDLBool SDL_WriteSurfacePixel(global::SDL3.SDL_Surface* surface, int x, int y, byte r, byte g, byte b, byte a);
     }
 }
 namespace SDL3
@@ -16907,7 +15399,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WriteSurfacePixelFloat", ExactSpelling = true)]
-        public static extern partial int SDL_WriteSurfacePixelFloat(global::SDL3.SDL_Surface* surface, int x, int y, float r, float g, float b, float a);
+        public static extern partial global::SDL3.SDLBool SDL_WriteSurfacePixelFloat(global::SDL3.SDL_Surface* surface, int x, int y, float r, float g, float b, float a);
     }
 }
 namespace SDL3
@@ -16915,7 +15407,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateThreadRuntime", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged<nint, int> fn, byte* name, nint data, delegate* unmanaged<void> pfnBeginThread, delegate* unmanaged<void> pfnEndThread);
+        public static extern partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged[Cdecl]<nint, int> fn, byte* name, nint data, delegate* unmanaged[Cdecl]<void> pfnBeginThread, delegate* unmanaged[Cdecl]<void> pfnEndThread);
     }
 }
 namespace SDL3
@@ -16924,7 +15416,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged<nint, int> fn, global::System.ReadOnlySpan<byte> name, nint data, delegate* unmanaged<void> pfnBeginThread, delegate* unmanaged<void> pfnEndThread)
+        public static partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged[Cdecl]<nint, int> fn, global::System.ReadOnlySpan<byte> name, nint data, delegate* unmanaged[Cdecl]<void> pfnBeginThread, delegate* unmanaged[Cdecl]<void> pfnEndThread)
         {
             global::SDL3.SDL_Thread __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
@@ -16936,7 +15428,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateThreadRuntime", ExactSpelling = true)]
-            static extern unsafe global::SDL3.SDL_Thread __PInvoke(delegate* unmanaged<nint, int> __fn_native, byte* __name_native, nint __data_native, delegate* unmanaged<void> __pfnBeginThread_native, delegate* unmanaged<void> __pfnEndThread_native);
+            static extern unsafe global::SDL3.SDL_Thread __PInvoke(delegate* unmanaged[Cdecl]<nint, int> __fn_native, byte* __name_native, nint __data_native, delegate* unmanaged[Cdecl]<void> __pfnBeginThread_native, delegate* unmanaged[Cdecl]<void> __pfnEndThread_native);
         }
     }
 }
@@ -16946,7 +15438,7 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged<nint, int> fn, global::System.ReadOnlySpan<char> name, nint data, delegate* unmanaged<void> pfnBeginThread, delegate* unmanaged<void> pfnEndThread)
+        public static partial global::SDL3.SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged[Cdecl]<nint, int> fn, global::System.ReadOnlySpan<char> name, nint data, delegate* unmanaged[Cdecl]<void> pfnBeginThread, delegate* unmanaged[Cdecl]<void> pfnEndThread)
         {
             byte* __name_native = default;
             global::SDL3.SDL_Thread __retVal = default;
@@ -16971,7 +15463,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateThreadRuntime", ExactSpelling = true)]
-            static extern unsafe global::SDL3.SDL_Thread __PInvoke(delegate* unmanaged<nint, int> __fn_native, byte* __name_native, nint __data_native, delegate* unmanaged<void> __pfnBeginThread_native, delegate* unmanaged<void> __pfnEndThread_native);
+            static extern unsafe global::SDL3.SDL_Thread __PInvoke(delegate* unmanaged[Cdecl]<nint, int> __fn_native, byte* __name_native, nint __data_native, delegate* unmanaged[Cdecl]<void> __pfnBeginThread_native, delegate* unmanaged[Cdecl]<void> __pfnEndThread_native);
         }
     }
 }
@@ -16980,7 +15472,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateThreadWithPropertiesRuntime", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_Thread SDL_CreateThreadWithPropertiesRuntime(global::SDL3.SDL_PropertiesID props, delegate* unmanaged<void> pfnBeginThread, delegate* unmanaged<void> pfnEndThread);
+        public static extern partial global::SDL3.SDL_Thread SDL_CreateThreadWithPropertiesRuntime(global::SDL3.SDL_PropertiesID props, delegate* unmanaged[Cdecl]<void> pfnBeginThread, delegate* unmanaged[Cdecl]<void> pfnEndThread);
     }
 }
 namespace SDL3
@@ -17011,8 +15503,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetThreadPriority", ExactSpelling = true)]
-        public static extern partial int SDL_SetThreadPriority(global::SDL3.SDL_ThreadPriority priority);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetCurrentThreadPriority", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetCurrentThreadPriority(global::SDL3.SDL_ThreadPriority priority);
     }
 }
 namespace SDL3
@@ -17044,7 +15536,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetTLS", ExactSpelling = true)]
-        public static extern partial int SDL_SetTLS(global::SDL3.SDL_AtomicInt* id, nint value, delegate* unmanaged<nint, void> destructor);
+        public static extern partial global::SDL3.SDLBool SDL_SetTLS(global::SDL3.SDL_AtomicInt* id, nint value, delegate* unmanaged[Cdecl]<nint, void> destructor);
     }
 }
 namespace SDL3
@@ -17060,7 +15552,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDateTimeLocalePreferences", ExactSpelling = true)]
-        public static extern partial int SDL_GetDateTimeLocalePreferences(global::SDL3.SDL_DateFormat* dateFormat, global::SDL3.SDL_TimeFormat* timeFormat);
+        public static extern partial global::SDL3.SDLBool SDL_GetDateTimeLocalePreferences(global::SDL3.SDL_DateFormat* dateFormat, global::SDL3.SDL_TimeFormat* timeFormat);
     }
 }
 namespace SDL3
@@ -17068,30 +15560,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetCurrentTime", ExactSpelling = true)]
-        public static extern partial int SDL_GetCurrentTime(long* ticks);
+        public static extern partial global::SDL3.SDLBool SDL_GetCurrentTime(long* ticks);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_TimeToDateTime(long ticks, global::SDL3.SDL_DateTime* dt, bool localTime)
-        {
-            int __localTime_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __localTime_native = (int)(localTime ? 1 : 0);
-            {
-                __retVal = __PInvoke(ticks, dt, __localTime_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TimeToDateTime", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(long __ticks_native, global::SDL3.SDL_DateTime* __dt_native, int __localTime_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_TimeToDateTime", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_TimeToDateTime(long ticks, global::SDL3.SDL_DateTime* dt, global::SDL3.SDLBool localTime);
     }
 }
 namespace SDL3
@@ -17099,7 +15576,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DateTimeToTime", ExactSpelling = true)]
-        public static extern partial int SDL_DateTimeToTime(global::SDL3.SDL_DateTime* dt, long* ticks);
+        public static extern partial global::SDL3.SDLBool SDL_DateTimeToTime(global::SDL3.SDL_DateTime* dt, long* ticks);
     }
 }
 namespace SDL3
@@ -17195,7 +15672,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddTimer", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_TimerID SDL_AddTimer(uint interval, delegate* unmanaged<nint, global::SDL3.SDL_TimerID, uint, uint> callback, nint userdata);
+        public static extern partial global::SDL3.SDL_TimerID SDL_AddTimer(uint interval, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_TimerID, uint, uint> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -17203,7 +15680,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AddTimerNS", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_TimerID SDL_AddTimerNS(ulong interval, delegate* unmanaged<nint, global::SDL3.SDL_TimerID, ulong, ulong> callback, nint userdata);
+        public static extern partial global::SDL3.SDL_TimerID SDL_AddTimerNS(ulong interval, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_TimerID, ulong, ulong> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -17211,7 +15688,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RemoveTimer", ExactSpelling = true)]
-        public static extern partial int SDL_RemoveTimer(global::SDL3.SDL_TimerID id);
+        public static extern partial global::SDL3.SDLBool SDL_RemoveTimer(global::SDL3.SDL_TimerID id);
     }
 }
 namespace SDL3
@@ -17376,7 +15853,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDisplayBounds", ExactSpelling = true)]
-        public static extern partial int SDL_GetDisplayBounds(global::SDL3.SDL_DisplayID displayID, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetDisplayBounds(global::SDL3.SDL_DisplayID displayID, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -17384,7 +15861,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDisplayUsableBounds", ExactSpelling = true)]
-        public static extern partial int SDL_GetDisplayUsableBounds(global::SDL3.SDL_DisplayID displayID, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetDisplayUsableBounds(global::SDL3.SDL_DisplayID displayID, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -17438,23 +15915,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetClosestFullscreenDisplayMode(global::SDL3.SDL_DisplayID displayID, int w, int h, float refresh_rate, bool include_high_density_modes, global::SDL3.SDL_DisplayMode* mode)
-        {
-            int __include_high_density_modes_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __include_high_density_modes_native = (int)(include_high_density_modes ? 1 : 0);
-            {
-                __retVal = __PInvoke(displayID, w, h, refresh_rate, __include_high_density_modes_native, mode);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetClosestFullscreenDisplayMode", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_DisplayID __displayID_native, int __w_native, int __h_native, float __refresh_rate_native, int __include_high_density_modes_native, global::SDL3.SDL_DisplayMode* __mode_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetClosestFullscreenDisplayMode", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetClosestFullscreenDisplayMode(global::SDL3.SDL_DisplayID displayID, int w, int h, float refresh_rate, global::SDL3.SDLBool include_high_density_modes, global::SDL3.SDL_DisplayMode* mode);
     }
 }
 namespace SDL3
@@ -17518,7 +15980,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowFullscreenMode", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowFullscreenMode(global::SDL3.SDL_Window window, global::SDL3.SDL_DisplayMode* mode);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowFullscreenMode(global::SDL3.SDL_Window window, global::SDL3.SDL_DisplayMode* mode);
     }
 }
 namespace SDL3
@@ -17694,7 +16156,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowTitle", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowTitle(global::SDL3.SDL_Window window, byte* title);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowTitle(global::SDL3.SDL_Window window, byte* title);
     }
 }
 namespace SDL3
@@ -17703,9 +16165,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowTitle(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> title)
+        public static partial global::SDL3.SDLBool SDL_SetWindowTitle(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<byte> title)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __title_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(title))
             {
@@ -17715,7 +16177,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowTitle", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, byte* __title_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, byte* __title_native);
         }
     }
 }
@@ -17725,10 +16187,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowTitle(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> title)
+        public static partial global::SDL3.SDLBool SDL_SetWindowTitle(global::SDL3.SDL_Window window, global::System.ReadOnlySpan<char> title)
         {
             byte* __title_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __title_native__marshaller = new();
             try
@@ -17750,7 +16212,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowTitle", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, byte* __title_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, byte* __title_native);
         }
     }
 }
@@ -17767,7 +16229,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowIcon", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowIcon(global::SDL3.SDL_Window window, global::SDL3.SDL_Surface* icon);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowIcon(global::SDL3.SDL_Window window, global::SDL3.SDL_Surface* icon);
     }
 }
 namespace SDL3
@@ -17775,7 +16237,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowPosition", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowPosition(global::SDL3.SDL_Window window, int x, int y);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowPosition(global::SDL3.SDL_Window window, int x, int y);
     }
 }
 namespace SDL3
@@ -17784,11 +16246,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetWindowPosition(global::SDL3.SDL_Window window, out int x, out int y)
+        public static partial global::SDL3.SDLBool SDL_GetWindowPosition(global::SDL3.SDL_Window window, out int x, out int y)
         {
             x = default;
             y = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __y_native = &y)
             fixed (int* __x_native = &x)
@@ -17799,7 +16261,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowPosition", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int* __x_native, int* __y_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, int* __x_native, int* __y_native);
         }
     }
 }
@@ -17808,7 +16270,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowSize", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowSize(global::SDL3.SDL_Window window, int w, int h);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowSize(global::SDL3.SDL_Window window, int w, int h);
     }
 }
 namespace SDL3
@@ -17817,11 +16279,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetWindowSize(global::SDL3.SDL_Window window, out int w, out int h)
+        public static partial global::SDL3.SDLBool SDL_GetWindowSize(global::SDL3.SDL_Window window, out int w, out int h)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
@@ -17832,7 +16294,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
         }
     }
 }
@@ -17841,7 +16303,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowSafeArea", ExactSpelling = true)]
-        public static extern partial int SDL_GetWindowSafeArea(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowSafeArea(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -17849,7 +16311,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowAspectRatio", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowAspectRatio(global::SDL3.SDL_Window window, float min_aspect, float max_aspect);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowAspectRatio(global::SDL3.SDL_Window window, float min_aspect, float max_aspect);
     }
 }
 namespace SDL3
@@ -17857,7 +16319,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowAspectRatio", ExactSpelling = true)]
-        public static extern partial int SDL_GetWindowAspectRatio(global::SDL3.SDL_Window window, float* min_aspect, float* max_aspect);
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowAspectRatio(global::SDL3.SDL_Window window, float* min_aspect, float* max_aspect);
     }
 }
 namespace SDL3
@@ -17865,7 +16327,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowBordersSize", ExactSpelling = true)]
-        public static extern partial int SDL_GetWindowBordersSize(global::SDL3.SDL_Window window, int* top, int* left, int* bottom, int* right);
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowBordersSize(global::SDL3.SDL_Window window, int* top, int* left, int* bottom, int* right);
     }
 }
 namespace SDL3
@@ -17874,11 +16336,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetWindowSizeInPixels(global::SDL3.SDL_Window window, out int w, out int h)
+        public static partial global::SDL3.SDLBool SDL_GetWindowSizeInPixels(global::SDL3.SDL_Window window, out int w, out int h)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
@@ -17889,7 +16351,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowSizeInPixels", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
         }
     }
 }
@@ -17898,7 +16360,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowMinimumSize", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowMinimumSize(global::SDL3.SDL_Window window, int min_w, int min_h);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowMinimumSize(global::SDL3.SDL_Window window, int min_w, int min_h);
     }
 }
 namespace SDL3
@@ -17907,11 +16369,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetWindowMinimumSize(global::SDL3.SDL_Window window, out int w, out int h)
+        public static partial global::SDL3.SDLBool SDL_GetWindowMinimumSize(global::SDL3.SDL_Window window, out int w, out int h)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
@@ -17922,7 +16384,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowMinimumSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
         }
     }
 }
@@ -17931,7 +16393,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowMaximumSize", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowMaximumSize(global::SDL3.SDL_Window window, int max_w, int max_h);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowMaximumSize(global::SDL3.SDL_Window window, int max_w, int max_h);
     }
 }
 namespace SDL3
@@ -17940,11 +16402,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GetWindowMaximumSize(global::SDL3.SDL_Window window, out int w, out int h)
+        public static partial global::SDL3.SDLBool SDL_GetWindowMaximumSize(global::SDL3.SDL_Window window, out int w, out int h)
         {
             w = default;
             h = default;
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (int* __h_native = &h)
             fixed (int* __w_native = &w)
@@ -17955,7 +16417,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowMaximumSize", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Window __window_native, int* __w_native, int* __h_native);
         }
     }
 }
@@ -17963,69 +16425,24 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowBordered(global::SDL3.SDL_Window window, bool bordered)
-        {
-            int __bordered_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __bordered_native = (int)(bordered ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __bordered_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowBordered", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __bordered_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowBordered", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowBordered(global::SDL3.SDL_Window window, global::SDL3.SDLBool bordered);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowResizable(global::SDL3.SDL_Window window, bool resizable)
-        {
-            int __resizable_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __resizable_native = (int)(resizable ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __resizable_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowResizable", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __resizable_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowResizable", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowResizable(global::SDL3.SDL_Window window, global::SDL3.SDLBool resizable);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowAlwaysOnTop(global::SDL3.SDL_Window window, bool on_top)
-        {
-            int __on_top_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __on_top_native = (int)(on_top ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __on_top_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowAlwaysOnTop", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __on_top_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowAlwaysOnTop", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowAlwaysOnTop(global::SDL3.SDL_Window window, global::SDL3.SDLBool on_top);
     }
 }
 namespace SDL3
@@ -18033,7 +16450,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowWindow", ExactSpelling = true)]
-        public static extern partial int SDL_ShowWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_ShowWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18041,7 +16458,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_HideWindow", ExactSpelling = true)]
-        public static extern partial int SDL_HideWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_HideWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18049,7 +16466,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RaiseWindow", ExactSpelling = true)]
-        public static extern partial int SDL_RaiseWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_RaiseWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18057,7 +16474,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_MaximizeWindow", ExactSpelling = true)]
-        public static extern partial int SDL_MaximizeWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_MaximizeWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18065,7 +16482,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_MinimizeWindow", ExactSpelling = true)]
-        public static extern partial int SDL_MinimizeWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_MinimizeWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18073,30 +16490,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RestoreWindow", ExactSpelling = true)]
-        public static extern partial int SDL_RestoreWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_RestoreWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowFullscreen(global::SDL3.SDL_Window window, bool fullscreen)
-        {
-            int __fullscreen_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __fullscreen_native = (int)(fullscreen ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __fullscreen_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowFullscreen", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __fullscreen_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowFullscreen", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowFullscreen(global::SDL3.SDL_Window window, global::SDL3.SDLBool fullscreen);
     }
 }
 namespace SDL3
@@ -18104,30 +16506,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SyncWindow", ExactSpelling = true)]
-        public static extern partial int SDL_SyncWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_SyncWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_WindowHasSurface(global::SDL3.SDL_Window window)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(window);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WindowHasSurface", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WindowHasSurface", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WindowHasSurface(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18143,7 +16530,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowSurfaceVSync", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowSurfaceVSync(global::SDL3.SDL_Window window, int vsync);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowSurfaceVSync(global::SDL3.SDL_Window window, int vsync);
     }
 }
 namespace SDL3
@@ -18151,7 +16538,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowSurfaceVSync", ExactSpelling = true)]
-        public static extern partial int SDL_GetWindowSurfaceVSync(global::SDL3.SDL_Window window, int* vsync);
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowSurfaceVSync(global::SDL3.SDL_Window window, int* vsync);
     }
 }
 namespace SDL3
@@ -18159,7 +16546,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UpdateWindowSurface", ExactSpelling = true)]
-        public static extern partial int SDL_UpdateWindowSurface(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_UpdateWindowSurface(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18167,7 +16554,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UpdateWindowSurfaceRects", ExactSpelling = true)]
-        public static extern partial int SDL_UpdateWindowSurfaceRects(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rects, int numrects);
+        public static extern partial global::SDL3.SDLBool SDL_UpdateWindowSurfaceRects(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rects, int numrects);
     }
 }
 namespace SDL3
@@ -18175,99 +16562,39 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DestroyWindowSurface", ExactSpelling = true)]
-        public static extern partial int SDL_DestroyWindowSurface(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_DestroyWindowSurface(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowKeyboardGrab(global::SDL3.SDL_Window window, bool grabbed)
-        {
-            int __grabbed_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __grabbed_native = (int)(grabbed ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __grabbed_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowKeyboardGrab", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __grabbed_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowKeyboardGrab", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowKeyboardGrab(global::SDL3.SDL_Window window, global::SDL3.SDLBool grabbed);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowMouseGrab(global::SDL3.SDL_Window window, bool grabbed)
-        {
-            int __grabbed_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __grabbed_native = (int)(grabbed ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __grabbed_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowMouseGrab", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __grabbed_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowMouseGrab", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowMouseGrab(global::SDL3.SDL_Window window, global::SDL3.SDLBool grabbed);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetWindowKeyboardGrab(global::SDL3.SDL_Window window)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(window);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowKeyboardGrab", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowKeyboardGrab", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowKeyboardGrab(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GetWindowMouseGrab(global::SDL3.SDL_Window window)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(window);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowMouseGrab", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWindowMouseGrab", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GetWindowMouseGrab(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18283,7 +16610,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowMouseRect", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowMouseRect(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowMouseRect(global::SDL3.SDL_Window window, global::System.Drawing.Rectangle* rect);
     }
 }
 namespace SDL3
@@ -18299,7 +16626,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowOpacity", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowOpacity(global::SDL3.SDL_Window window, float opacity);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowOpacity(global::SDL3.SDL_Window window, float opacity);
     }
 }
 namespace SDL3
@@ -18314,31 +16641,24 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowModalFor", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowModalFor(global::SDL3.SDL_Window modal_window, global::SDL3.SDL_Window parent_window);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowParent", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowParent(global::SDL3.SDL_Window window, global::SDL3.SDL_Window parent);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_SetWindowFocusable(global::SDL3.SDL_Window window, bool focusable)
-        {
-            int __focusable_native;
-            int __retVal;
-            // Marshal - Convert managed data to native data.
-            __focusable_native = (int)(focusable ? 1 : 0);
-            {
-                __retVal = __PInvoke(window, __focusable_native);
-            }
-
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowFocusable", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Window __window_native, int __focusable_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowModal", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowModal(global::SDL3.SDL_Window window, global::SDL3.SDLBool modal);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowFocusable", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowFocusable(global::SDL3.SDL_Window window, global::SDL3.SDLBool focusable);
     }
 }
 namespace SDL3
@@ -18346,7 +16666,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowWindowSystemMenu", ExactSpelling = true)]
-        public static extern partial int SDL_ShowWindowSystemMenu(global::SDL3.SDL_Window window, int x, int y);
+        public static extern partial global::SDL3.SDLBool SDL_ShowWindowSystemMenu(global::SDL3.SDL_Window window, int x, int y);
     }
 }
 namespace SDL3
@@ -18354,7 +16674,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowHitTest", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowHitTest(global::SDL3.SDL_Window window, delegate* unmanaged<global::SDL3.SDL_Window, global::System.Drawing.Point*, nint, global::SDL3.SDL_HitTestResult> callback, nint callback_data);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowHitTest(global::SDL3.SDL_Window window, delegate* unmanaged[Cdecl]<global::SDL3.SDL_Window, global::System.Drawing.Point*, nint, global::SDL3.SDL_HitTestResult> callback, nint callback_data);
     }
 }
 namespace SDL3
@@ -18362,7 +16682,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowShape", ExactSpelling = true)]
-        public static extern partial int SDL_SetWindowShape(global::SDL3.SDL_Window window, global::SDL3.SDL_Surface* shape);
+        public static extern partial global::SDL3.SDLBool SDL_SetWindowShape(global::SDL3.SDL_Window window, global::SDL3.SDL_Surface* shape);
     }
 }
 namespace SDL3
@@ -18370,7 +16690,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_FlashWindow", ExactSpelling = true)]
-        public static extern partial int SDL_FlashWindow(global::SDL3.SDL_Window window, global::SDL3.SDL_FlashOperation operation);
+        public static extern partial global::SDL3.SDLBool SDL_FlashWindow(global::SDL3.SDL_Window window, global::SDL3.SDL_FlashOperation operation);
     }
 }
 namespace SDL3
@@ -18385,23 +16705,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_ScreenSaverEnabled()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ScreenSaverEnabled", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ScreenSaverEnabled", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ScreenSaverEnabled();
     }
 }
 namespace SDL3
@@ -18409,7 +16714,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnableScreenSaver", ExactSpelling = true)]
-        public static extern partial int SDL_EnableScreenSaver();
+        public static extern partial global::SDL3.SDLBool SDL_EnableScreenSaver();
     }
 }
 namespace SDL3
@@ -18417,7 +16722,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DisableScreenSaver", ExactSpelling = true)]
-        public static extern partial int SDL_DisableScreenSaver();
+        public static extern partial global::SDL3.SDLBool SDL_DisableScreenSaver();
     }
 }
 namespace SDL3
@@ -18425,7 +16730,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_LoadLibrary", ExactSpelling = true)]
-        public static extern partial int SDL_GL_LoadLibrary(byte* path);
+        public static extern partial global::SDL3.SDLBool SDL_GL_LoadLibrary(byte* path);
     }
 }
 namespace SDL3
@@ -18434,9 +16739,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GL_LoadLibrary(global::System.ReadOnlySpan<byte> path)
+        public static partial global::SDL3.SDLBool SDL_GL_LoadLibrary(global::System.ReadOnlySpan<byte> path)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -18446,7 +16751,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_LoadLibrary", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -18456,10 +16761,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_GL_LoadLibrary(global::System.ReadOnlySpan<char> path)
+        public static partial global::SDL3.SDLBool SDL_GL_LoadLibrary(global::System.ReadOnlySpan<char> path)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -18481,7 +16786,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_LoadLibrary", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -18490,7 +16795,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_GetProcAddress", ExactSpelling = true)]
-        public static extern partial delegate* unmanaged<void> * SDL_GL_GetProcAddress(byte* proc);
+        public static extern partial delegate* unmanaged[Cdecl]<void> * SDL_GL_GetProcAddress(byte* proc);
     }
 }
 namespace SDL3
@@ -18499,9 +16804,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial delegate* unmanaged<void> * SDL_GL_GetProcAddress(global::System.ReadOnlySpan<byte> proc)
+        public static partial delegate* unmanaged[Cdecl]<void> * SDL_GL_GetProcAddress(global::System.ReadOnlySpan<byte> proc)
         {
-            delegate* unmanaged<void> * __retVal;
+            delegate* unmanaged[Cdecl]<void> * __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __proc_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(proc))
             {
@@ -18511,7 +16816,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_GetProcAddress", ExactSpelling = true)]
-            static extern unsafe delegate* unmanaged<void> * __PInvoke(byte* __proc_native);
+            static extern unsafe delegate* unmanaged[Cdecl]<void> * __PInvoke(byte* __proc_native);
         }
     }
 }
@@ -18521,10 +16826,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial delegate* unmanaged<void> * SDL_GL_GetProcAddress(global::System.ReadOnlySpan<char> proc)
+        public static partial delegate* unmanaged[Cdecl]<void> * SDL_GL_GetProcAddress(global::System.ReadOnlySpan<char> proc)
         {
             byte* __proc_native = default;
-            delegate* unmanaged<void> * __retVal = default;
+            delegate* unmanaged[Cdecl]<void> * __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __proc_native__marshaller = new();
             try
@@ -18546,7 +16851,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_GetProcAddress", ExactSpelling = true)]
-            static extern unsafe delegate* unmanaged<void> * __PInvoke(byte* __proc_native);
+            static extern unsafe delegate* unmanaged[Cdecl]<void> * __PInvoke(byte* __proc_native);
         }
     }
 }
@@ -18555,7 +16860,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EGL_GetProcAddress", ExactSpelling = true)]
-        public static extern partial delegate* unmanaged<void> * SDL_EGL_GetProcAddress(byte* proc);
+        public static extern partial delegate* unmanaged[Cdecl]<void> * SDL_EGL_GetProcAddress(byte* proc);
     }
 }
 namespace SDL3
@@ -18564,9 +16869,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial delegate* unmanaged<void> * SDL_EGL_GetProcAddress(global::System.ReadOnlySpan<byte> proc)
+        public static partial delegate* unmanaged[Cdecl]<void> * SDL_EGL_GetProcAddress(global::System.ReadOnlySpan<byte> proc)
         {
-            delegate* unmanaged<void> * __retVal;
+            delegate* unmanaged[Cdecl]<void> * __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __proc_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(proc))
             {
@@ -18576,7 +16881,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EGL_GetProcAddress", ExactSpelling = true)]
-            static extern unsafe delegate* unmanaged<void> * __PInvoke(byte* __proc_native);
+            static extern unsafe delegate* unmanaged[Cdecl]<void> * __PInvoke(byte* __proc_native);
         }
     }
 }
@@ -18586,10 +16891,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial delegate* unmanaged<void> * SDL_EGL_GetProcAddress(global::System.ReadOnlySpan<char> proc)
+        public static partial delegate* unmanaged[Cdecl]<void> * SDL_EGL_GetProcAddress(global::System.ReadOnlySpan<char> proc)
         {
             byte* __proc_native = default;
-            delegate* unmanaged<void> * __retVal = default;
+            delegate* unmanaged[Cdecl]<void> * __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __proc_native__marshaller = new();
             try
@@ -18611,7 +16916,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EGL_GetProcAddress", ExactSpelling = true)]
-            static extern unsafe delegate* unmanaged<void> * __PInvoke(byte* __proc_native);
+            static extern unsafe delegate* unmanaged[Cdecl]<void> * __PInvoke(byte* __proc_native);
         }
     }
 }
@@ -18627,23 +16932,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GL_ExtensionSupported(byte* extension)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(extension);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_ExtensionSupported", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __extension_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_ExtensionSupported", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GL_ExtensionSupported(byte* extension);
     }
 }
 namespace SDL3
@@ -18652,22 +16942,19 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GL_ExtensionSupported(global::System.ReadOnlySpan<byte> extension)
+        public static partial global::SDL3.SDLBool SDL_GL_ExtensionSupported(global::System.ReadOnlySpan<byte> extension)
         {
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __extension_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(extension))
             {
-                __retVal_native = __PInvoke((byte*)__extension_native);
+                __retVal = __PInvoke((byte*)__extension_native);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_ExtensionSupported", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __extension_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __extension_native);
         }
     }
 }
@@ -18677,11 +16964,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_GL_ExtensionSupported(global::System.ReadOnlySpan<char> extension)
+        public static partial global::SDL3.SDLBool SDL_GL_ExtensionSupported(global::System.ReadOnlySpan<char> extension)
         {
             byte* __extension_native = default;
-            bool __retVal = default;
-            int __retVal_native = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __extension_native__marshaller = new();
             try
@@ -18691,11 +16977,8 @@ namespace SDL3
                 {
                     // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
                     __extension_native = __extension_native__marshaller.ToUnmanaged();
-                    __retVal_native = __PInvoke(__extension_native);
+                    __retVal = __PInvoke(__extension_native);
                 }
-
-                // Unmarshal - Convert native data to managed data.
-                __retVal = __retVal_native != 0;
             }
             finally
             {
@@ -18706,7 +16989,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_ExtensionSupported", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __extension_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __extension_native);
         }
     }
 }
@@ -18723,7 +17006,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_SetAttribute", ExactSpelling = true)]
-        public static extern partial int SDL_GL_SetAttribute(global::SDL3.SDL_GLattr attr, int value);
+        public static extern partial global::SDL3.SDLBool SDL_GL_SetAttribute(global::SDL3.SDL_GLattr attr, int value);
     }
 }
 namespace SDL3
@@ -18731,7 +17014,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_GetAttribute", ExactSpelling = true)]
-        public static extern partial int SDL_GL_GetAttribute(global::SDL3.SDL_GLattr attr, int* value);
+        public static extern partial global::SDL3.SDLBool SDL_GL_GetAttribute(global::SDL3.SDL_GLattr attr, int* value);
     }
 }
 namespace SDL3
@@ -18747,7 +17030,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_MakeCurrent", ExactSpelling = true)]
-        public static extern partial int SDL_GL_MakeCurrent(global::SDL3.SDL_Window window, global::SDL3.SDL_GLContext context);
+        public static extern partial global::SDL3.SDLBool SDL_GL_MakeCurrent(global::SDL3.SDL_Window window, global::SDL3.SDL_GLContext context);
     }
 }
 namespace SDL3
@@ -18795,7 +17078,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EGL_SetAttributeCallbacks", ExactSpelling = true)]
-        public static extern partial void SDL_EGL_SetAttributeCallbacks(delegate* unmanaged<nint> platformAttribCallback, delegate* unmanaged<int*> surfaceAttribCallback, delegate* unmanaged<int*> contextAttribCallback);
+        public static extern partial void SDL_EGL_SetAttributeCallbacks(delegate* unmanaged[Cdecl]<nint, nint> platformAttribCallback, delegate* unmanaged[Cdecl]<nint, nint, nint, int*> surfaceAttribCallback, delegate* unmanaged[Cdecl]<nint, nint, nint, int*> contextAttribCallback, nint userdata);
     }
 }
 namespace SDL3
@@ -18803,7 +17086,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_SetSwapInterval", ExactSpelling = true)]
-        public static extern partial int SDL_GL_SetSwapInterval(int interval);
+        public static extern partial global::SDL3.SDLBool SDL_GL_SetSwapInterval(int interval);
     }
 }
 namespace SDL3
@@ -18811,7 +17094,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_GetSwapInterval", ExactSpelling = true)]
-        public static extern partial int SDL_GL_GetSwapInterval(int* interval);
+        public static extern partial global::SDL3.SDLBool SDL_GL_GetSwapInterval(int* interval);
     }
 }
 namespace SDL3
@@ -18819,7 +17102,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_SwapWindow", ExactSpelling = true)]
-        public static extern partial int SDL_GL_SwapWindow(global::SDL3.SDL_Window window);
+        public static extern partial global::SDL3.SDLBool SDL_GL_SwapWindow(global::SDL3.SDL_Window window);
     }
 }
 namespace SDL3
@@ -18827,7 +17110,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GL_DestroyContext", ExactSpelling = true)]
-        public static extern partial int SDL_GL_DestroyContext(global::SDL3.SDL_GLContext context);
+        public static extern partial global::SDL3.SDLBool SDL_GL_DestroyContext(global::SDL3.SDL_GLContext context);
     }
 }
 namespace SDL3
@@ -18835,7 +17118,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_LoadLibrary", ExactSpelling = true)]
-        public static extern partial int SDL_Vulkan_LoadLibrary(byte* path);
+        public static extern partial global::SDL3.SDLBool SDL_Vulkan_LoadLibrary(byte* path);
     }
 }
 namespace SDL3
@@ -18844,9 +17127,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_Vulkan_LoadLibrary(global::System.ReadOnlySpan<byte> path)
+        public static partial global::SDL3.SDLBool SDL_Vulkan_LoadLibrary(global::System.ReadOnlySpan<byte> path)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __path_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(path))
             {
@@ -18856,7 +17139,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_LoadLibrary", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -18866,10 +17149,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_Vulkan_LoadLibrary(global::System.ReadOnlySpan<char> path)
+        public static partial global::SDL3.SDLBool SDL_Vulkan_LoadLibrary(global::System.ReadOnlySpan<char> path)
         {
             byte* __path_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __path_native__marshaller = new();
             try
@@ -18891,7 +17174,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_LoadLibrary", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __path_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __path_native);
         }
     }
 }
@@ -18900,7 +17183,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_GetVkGetInstanceProcAddr", ExactSpelling = true)]
-        public static extern partial delegate* unmanaged<void> * SDL_Vulkan_GetVkGetInstanceProcAddr();
+        public static extern partial delegate* unmanaged[Cdecl]<void> * SDL_Vulkan_GetVkGetInstanceProcAddr();
     }
 }
 namespace SDL3
@@ -18939,7 +17222,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_CreateSurface", ExactSpelling = true)]
-        public static extern partial int SDL_Vulkan_CreateSurface(global::SDL3.SDL_Window window, nint instance, nint allocator, ulong** surface);
+        public static extern partial global::SDL3.SDLBool SDL_Vulkan_CreateSurface(global::SDL3.SDL_Window window, nint instance, nint allocator, ulong** surface);
     }
 }
 namespace SDL3
@@ -18954,23 +17237,8 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_Vulkan_GetPresentationSupport(nint instance, nint physicalDevice, uint queueFamilyIndex)
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke(instance, physicalDevice, queueFamilyIndex);
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_GetPresentationSupport", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(nint __instance_native, nint __physicalDevice_native, uint __queueFamilyIndex_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_Vulkan_GetPresentationSupport", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_Vulkan_GetPresentationSupport(nint instance, nint physicalDevice, uint queueFamilyIndex);
     }
 }
 namespace SDL3
@@ -18978,7 +17246,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetWindowsMessageHook", ExactSpelling = true)]
-        public static extern partial void SDL_SetWindowsMessageHook(delegate* unmanaged<nint, global::SDL3.tagMSG, global::SDL3.SDL_bool> callback, nint userdata);
+        public static extern partial void SDL_SetWindowsMessageHook(delegate* unmanaged[Cdecl]<nint, global::SDL3.tagMSG, global::SDL3.SDLBool> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -18994,7 +17262,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDXGIOutputInfo", ExactSpelling = true)]
-        public static extern partial int SDL_GetDXGIOutputInfo(global::SDL3.SDL_DisplayID displayID, int* adapterIndex, int* outputIndex);
+        public static extern partial global::SDL3.SDLBool SDL_GetDXGIOutputInfo(global::SDL3.SDL_DisplayID displayID, int* adapterIndex, int* outputIndex);
     }
 }
 namespace SDL3
@@ -19002,7 +17270,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetX11EventHook", ExactSpelling = true)]
-        public static extern partial void SDL_SetX11EventHook(delegate* unmanaged<nint, global::SDL3._XEvent, global::SDL3.SDL_bool> callback, nint userdata);
+        public static extern partial void SDL_SetX11EventHook(delegate* unmanaged[Cdecl]<nint, global::SDL3._XEvent, global::SDL3.SDLBool> callback, nint userdata);
     }
 }
 namespace SDL3
@@ -19010,28 +17278,15 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetiOSAnimationCallback", ExactSpelling = true)]
-        public static extern partial int SDL_SetiOSAnimationCallback(global::SDL3.SDL_Window window, int interval, delegate* unmanaged<nint, void> callback, nint callbackParam);
+        public static extern partial global::SDL3.SDLBool SDL_SetiOSAnimationCallback(global::SDL3.SDL_Window window, int interval, delegate* unmanaged[Cdecl]<nint, void> callback, nint callbackParam);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial void SDL_SetiOSEventPump(bool enabled)
-        {
-            int __enabled_native;
-            // Marshal - Convert managed data to native data.
-            __enabled_native = (int)(enabled ? 1 : 0);
-            {
-                __PInvoke(__enabled_native);
-            }
-
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetiOSEventPump", ExactSpelling = true)]
-            static extern unsafe void __PInvoke(int __enabled_native);
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetiOSEventPump", ExactSpelling = true)]
+        public static extern partial void SDL_SetiOSEventPump(global::SDL3.SDLBool enabled);
     }
 }
 namespace SDL3
@@ -19062,69 +17317,16 @@ namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsAndroidTV()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsAndroidTV", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsChromebook", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsChromebook();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsChromebook()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsChromebook", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsDeXMode()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsDeXMode", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsDeXMode", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsDeXMode();
     }
 }
 namespace SDL3
@@ -19172,7 +17374,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RequestAndroidPermission", ExactSpelling = true)]
-        public static extern partial int SDL_RequestAndroidPermission(byte* permission, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> cb, nint userdata);
+        public static extern partial global::SDL3.SDLBool SDL_RequestAndroidPermission(byte* permission, delegate* unmanaged[Cdecl]<nint, byte*, global::SDL3.SDLBool, void> cb, nint userdata);
     }
 }
 namespace SDL3
@@ -19181,9 +17383,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RequestAndroidPermission(global::System.ReadOnlySpan<byte> permission, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> cb, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_RequestAndroidPermission(global::System.ReadOnlySpan<byte> permission, delegate* unmanaged[Cdecl]<nint, byte*, global::SDL3.SDLBool, void> cb, nint userdata)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __permission_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(permission))
             {
@@ -19193,7 +17395,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RequestAndroidPermission", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __permission_native, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> __cb_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __permission_native, delegate* unmanaged[Cdecl]<nint, byte*, global::SDL3.SDLBool, void> __cb_native, nint __userdata_native);
         }
     }
 }
@@ -19203,10 +17405,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_RequestAndroidPermission(global::System.ReadOnlySpan<char> permission, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> cb, nint userdata)
+        public static partial global::SDL3.SDLBool SDL_RequestAndroidPermission(global::System.ReadOnlySpan<char> permission, delegate* unmanaged[Cdecl]<nint, byte*, global::SDL3.SDLBool, void> cb, nint userdata)
         {
             byte* __permission_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __permission_native__marshaller = new();
             try
@@ -19228,7 +17430,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RequestAndroidPermission", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __permission_native, delegate* unmanaged<nint, byte*, global::SDL3.SDL_bool, void> __cb_native, nint __userdata_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __permission_native, delegate* unmanaged[Cdecl]<nint, byte*, global::SDL3.SDLBool, void> __cb_native, nint __userdata_native);
         }
     }
 }
@@ -19237,7 +17439,7 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowAndroidToast", ExactSpelling = true)]
-        public static extern partial int SDL_ShowAndroidToast(byte* message, int duration, int gravity, int xoffset, int yoffset);
+        public static extern partial global::SDL3.SDLBool SDL_ShowAndroidToast(byte* message, int duration, int gravity, int xoffset, int yoffset);
     }
 }
 namespace SDL3
@@ -19246,9 +17448,9 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ShowAndroidToast(global::System.ReadOnlySpan<byte> message, int duration, int gravity, int xoffset, int yoffset)
+        public static partial global::SDL3.SDLBool SDL_ShowAndroidToast(global::System.ReadOnlySpan<byte> message, int duration, int gravity, int xoffset, int yoffset)
         {
-            int __retVal;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (void* __message_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(message))
             {
@@ -19258,7 +17460,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowAndroidToast", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __message_native, int __duration_native, int __gravity_native, int __xoffset_native, int __yoffset_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __message_native, int __duration_native, int __gravity_native, int __xoffset_native, int __yoffset_native);
         }
     }
 }
@@ -19268,10 +17470,10 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial int SDL_ShowAndroidToast(global::System.ReadOnlySpan<char> message, int duration, int gravity, int xoffset, int yoffset)
+        public static partial global::SDL3.SDLBool SDL_ShowAndroidToast(global::System.ReadOnlySpan<char> message, int duration, int gravity, int xoffset, int yoffset)
         {
             byte* __message_native = default;
-            int __retVal = default;
+            global::SDL3.SDLBool __retVal = default;
             // Setup - Perform required setup.
             scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __message_native__marshaller = new();
             try
@@ -19293,7 +17495,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ShowAndroidToast", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(byte* __message_native, int __duration_native, int __gravity_native, int __xoffset_native, int __yoffset_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __message_native, int __duration_native, int __gravity_native, int __xoffset_native, int __yoffset_native);
         }
     }
 }
@@ -19302,46 +17504,23 @@ namespace SDL3
     public unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SendAndroidMessage", ExactSpelling = true)]
-        public static extern partial int SDL_SendAndroidMessage(uint command, int param);
+        public static extern partial global::SDL3.SDLBool SDL_SendAndroidMessage(uint command, int param);
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWinRTFSPath", ExactSpelling = true)]
-        public static extern partial byte* SDL_GetWinRTFSPathPtr(global::SDL3.SDL_WinRT_Path pathType);
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsTablet", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsTablet();
     }
 }
 namespace SDL3
 {
     public unsafe partial class SDL3
     {
-        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetWinRTDeviceFamily", ExactSpelling = true)]
-        public static extern partial global::SDL3.SDL_WinRT_DeviceFamily SDL_GetWinRTDeviceFamily();
-    }
-}
-namespace SDL3
-{
-    public unsafe partial class SDL3
-    {
-        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
-        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_IsTablet()
-        {
-            bool __retVal;
-            int __retVal_native;
-            {
-                __retVal_native = __PInvoke();
-            }
-
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
-            return __retVal;
-            // Local P/Invoke
-            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsTablet", ExactSpelling = true)]
-            static extern unsafe int __PInvoke();
-        }
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_IsTV", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_IsTV();
     }
 }
 namespace SDL3
@@ -19402,6 +17581,1205 @@ namespace SDL3
 }
 namespace SDL3
 {
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUSupportsShaderFormats", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GPUSupportsShaderFormats(global::SDL3.SDL_GPUShaderFormat format_flags, byte* name);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_GPUSupportsShaderFormats(global::SDL3.SDL_GPUShaderFormat format_flags, global::System.ReadOnlySpan<byte> name)
+        {
+            global::SDL3.SDLBool __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke(format_flags, (byte*)__name_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUSupportsShaderFormats", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_GPUShaderFormat __format_flags_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_GPUSupportsShaderFormats(global::SDL3.SDL_GPUShaderFormat format_flags, global::System.ReadOnlySpan<char> name)
+        {
+            byte* __name_native = default;
+            global::SDL3.SDLBool __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(format_flags, __name_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUSupportsShaderFormats", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_GPUShaderFormat __format_flags_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUSupportsProperties", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GPUSupportsProperties(global::SDL3.SDL_PropertiesID props);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUDevice", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUDevice SDL_CreateGPUDevice(global::SDL3.SDL_GPUShaderFormat format_flags, global::SDL3.SDLBool debug_mode, byte* name);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDL_GPUDevice SDL_CreateGPUDevice(global::SDL3.SDL_GPUShaderFormat format_flags, global::SDL3.SDLBool debug_mode, global::System.ReadOnlySpan<byte> name)
+        {
+            global::SDL3.SDL_GPUDevice __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke(format_flags, debug_mode, (byte*)__name_native);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUDevice", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDL_GPUDevice __PInvoke(global::SDL3.SDL_GPUShaderFormat __format_flags_native, global::SDL3.SDLBool __debug_mode_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDL_GPUDevice SDL_CreateGPUDevice(global::SDL3.SDL_GPUShaderFormat format_flags, global::SDL3.SDLBool debug_mode, global::System.ReadOnlySpan<char> name)
+        {
+            byte* __name_native = default;
+            global::SDL3.SDL_GPUDevice __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(format_flags, debug_mode, __name_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUDevice", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDL_GPUDevice __PInvoke(global::SDL3.SDL_GPUShaderFormat __format_flags_native, global::SDL3.SDLBool __debug_mode_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUDeviceWithProperties", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUDevice SDL_CreateGPUDeviceWithProperties(global::SDL3.SDL_PropertiesID props);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DestroyGPUDevice", ExactSpelling = true)]
+        public static extern partial void SDL_DestroyGPUDevice(global::SDL3.SDL_GPUDevice device);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetNumGPUDrivers", ExactSpelling = true)]
+        public static extern partial int SDL_GetNumGPUDrivers();
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGPUDriver", ExactSpelling = true)]
+        public static extern partial byte* SDL_GetGPUDriverPtr(int index);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGPUDeviceDriver", ExactSpelling = true)]
+        public static extern partial byte* SDL_GetGPUDeviceDriverPtr(global::SDL3.SDL_GPUDevice device);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGPUShaderFormats", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUShaderFormat SDL_GetGPUShaderFormats(global::SDL3.SDL_GPUDevice device);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUComputePipeline", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUComputePipeline SDL_CreateGPUComputePipeline(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUComputePipelineCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUGraphicsPipeline", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUGraphicsPipeline SDL_CreateGPUGraphicsPipeline(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUGraphicsPipelineCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUSampler", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUSampler SDL_CreateGPUSampler(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUSamplerCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUShader", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUShader SDL_CreateGPUShader(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUShaderCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUTexture", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUTexture SDL_CreateGPUTexture(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTextureCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUBuffer", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUBuffer SDL_CreateGPUBuffer(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUBufferCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateGPUTransferBuffer", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUTransferBuffer SDL_CreateGPUTransferBuffer(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTransferBufferCreateInfo* createinfo);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUBufferName", ExactSpelling = true)]
+        public static extern partial void SDL_SetGPUBufferName(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUBuffer buffer, byte* text);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_SetGPUBufferName(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUBuffer buffer, global::System.ReadOnlySpan<byte> text)
+        {
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __text_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(text))
+            {
+                __PInvoke(device, buffer, (byte*)__text_native);
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUBufferName", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUDevice __device_native, global::SDL3.SDL_GPUBuffer __buffer_native, byte* __text_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_SetGPUBufferName(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUBuffer buffer, global::System.ReadOnlySpan<char> text)
+        {
+            byte* __text_native = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __text_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __text_native__marshaller.FromManaged(text, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __text_native = __text_native__marshaller.ToUnmanaged();
+                    __PInvoke(device, buffer, __text_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __text_native__marshaller.Free();
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUBufferName", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUDevice __device_native, global::SDL3.SDL_GPUBuffer __buffer_native, byte* __text_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUTextureName", ExactSpelling = true)]
+        public static extern partial void SDL_SetGPUTextureName(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTexture texture, byte* text);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_SetGPUTextureName(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTexture texture, global::System.ReadOnlySpan<byte> text)
+        {
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __text_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(text))
+            {
+                __PInvoke(device, texture, (byte*)__text_native);
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUTextureName", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUDevice __device_native, global::SDL3.SDL_GPUTexture __texture_native, byte* __text_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_SetGPUTextureName(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTexture texture, global::System.ReadOnlySpan<char> text)
+        {
+            byte* __text_native = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __text_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __text_native__marshaller.FromManaged(text, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __text_native = __text_native__marshaller.ToUnmanaged();
+                    __PInvoke(device, texture, __text_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __text_native__marshaller.Free();
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUTextureName", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUDevice __device_native, global::SDL3.SDL_GPUTexture __texture_native, byte* __text_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_InsertGPUDebugLabel", ExactSpelling = true)]
+        public static extern partial void SDL_InsertGPUDebugLabel(global::SDL3.SDL_GPUCommandBuffer command_buffer, byte* text);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_InsertGPUDebugLabel(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::System.ReadOnlySpan<byte> text)
+        {
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __text_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(text))
+            {
+                __PInvoke(command_buffer, (byte*)__text_native);
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_InsertGPUDebugLabel", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUCommandBuffer __command_buffer_native, byte* __text_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_InsertGPUDebugLabel(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::System.ReadOnlySpan<char> text)
+        {
+            byte* __text_native = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __text_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __text_native__marshaller.FromManaged(text, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __text_native = __text_native__marshaller.ToUnmanaged();
+                    __PInvoke(command_buffer, __text_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __text_native__marshaller.Free();
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_InsertGPUDebugLabel", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUCommandBuffer __command_buffer_native, byte* __text_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushGPUDebugGroup", ExactSpelling = true)]
+        public static extern partial void SDL_PushGPUDebugGroup(global::SDL3.SDL_GPUCommandBuffer command_buffer, byte* name);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_PushGPUDebugGroup(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::System.ReadOnlySpan<byte> name)
+        {
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __PInvoke(command_buffer, (byte*)__name_native);
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushGPUDebugGroup", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUCommandBuffer __command_buffer_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial void SDL_PushGPUDebugGroup(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::System.ReadOnlySpan<char> name)
+        {
+            byte* __name_native = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __PInvoke(command_buffer, __name_native);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushGPUDebugGroup", ExactSpelling = true)]
+            static extern unsafe void __PInvoke(global::SDL3.SDL_GPUCommandBuffer __command_buffer_native, byte* __name_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PopGPUDebugGroup", ExactSpelling = true)]
+        public static extern partial void SDL_PopGPUDebugGroup(global::SDL3.SDL_GPUCommandBuffer command_buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUTexture", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUTexture(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTexture texture);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUSampler", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUSampler(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUSampler sampler);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUBuffer(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUBuffer buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUTransferBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUTransferBuffer(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTransferBuffer transfer_buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUComputePipeline", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUComputePipeline(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUComputePipeline compute_pipeline);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUShader", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUShader(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUShader shader);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUGraphicsPipeline", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUGraphicsPipeline(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUGraphicsPipeline graphics_pipeline);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AcquireGPUCommandBuffer", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUCommandBuffer SDL_AcquireGPUCommandBuffer(global::SDL3.SDL_GPUDevice device);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushGPUVertexUniformData", ExactSpelling = true)]
+        public static extern partial void SDL_PushGPUVertexUniformData(global::SDL3.SDL_GPUCommandBuffer command_buffer, uint slot_index, nint data, uint length);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushGPUFragmentUniformData", ExactSpelling = true)]
+        public static extern partial void SDL_PushGPUFragmentUniformData(global::SDL3.SDL_GPUCommandBuffer command_buffer, uint slot_index, nint data, uint length);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PushGPUComputeUniformData", ExactSpelling = true)]
+        public static extern partial void SDL_PushGPUComputeUniformData(global::SDL3.SDL_GPUCommandBuffer command_buffer, uint slot_index, nint data, uint length);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BeginGPURenderPass", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPURenderPass SDL_BeginGPURenderPass(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::SDL3.SDL_GPUColorTargetInfo* color_target_infos, uint num_color_targets, global::SDL3.SDL_GPUDepthStencilTargetInfo* depth_stencil_target_info);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUGraphicsPipeline", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUGraphicsPipeline(global::SDL3.SDL_GPURenderPass render_pass, global::SDL3.SDL_GPUGraphicsPipeline graphics_pipeline);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUViewport", ExactSpelling = true)]
+        public static extern partial void SDL_SetGPUViewport(global::SDL3.SDL_GPURenderPass render_pass, global::SDL3.SDL_GPUViewport* viewport);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUScissor", ExactSpelling = true)]
+        public static extern partial void SDL_SetGPUScissor(global::SDL3.SDL_GPURenderPass render_pass, global::System.Drawing.Rectangle* scissor);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUBlendConstants", ExactSpelling = true)]
+        public static extern partial void SDL_SetGPUBlendConstants(global::SDL3.SDL_GPURenderPass render_pass, global::SDL3.SDL_FColor blend_constants);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUStencilReference", ExactSpelling = true)]
+        public static extern partial void SDL_SetGPUStencilReference(global::SDL3.SDL_GPURenderPass render_pass, byte reference);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUVertexBuffers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUVertexBuffers(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUBufferBinding* bindings, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUIndexBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUIndexBuffer(global::SDL3.SDL_GPURenderPass render_pass, global::SDL3.SDL_GPUBufferBinding* binding, global::SDL3.SDL_GPUIndexElementSize index_element_size);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUVertexSamplers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUVertexSamplers(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUTextureSamplerBinding* texture_sampler_bindings, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUVertexStorageTextures", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUVertexStorageTextures(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUTexture** storage_textures, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUVertexStorageBuffers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUVertexStorageBuffers(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUBuffer** storage_buffers, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUFragmentSamplers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUFragmentSamplers(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUTextureSamplerBinding* texture_sampler_bindings, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUFragmentStorageTextures", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUFragmentStorageTextures(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUTexture** storage_textures, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUFragmentStorageBuffers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUFragmentStorageBuffers(global::SDL3.SDL_GPURenderPass render_pass, uint first_slot, global::SDL3.SDL_GPUBuffer** storage_buffers, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DrawGPUIndexedPrimitives", ExactSpelling = true)]
+        public static extern partial void SDL_DrawGPUIndexedPrimitives(global::SDL3.SDL_GPURenderPass render_pass, uint num_indices, uint num_instances, uint first_index, int vertex_offset, uint first_instance);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DrawGPUPrimitives", ExactSpelling = true)]
+        public static extern partial void SDL_DrawGPUPrimitives(global::SDL3.SDL_GPURenderPass render_pass, uint num_vertices, uint num_instances, uint first_vertex, uint first_instance);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DrawGPUPrimitivesIndirect", ExactSpelling = true)]
+        public static extern partial void SDL_DrawGPUPrimitivesIndirect(global::SDL3.SDL_GPURenderPass render_pass, global::SDL3.SDL_GPUBuffer buffer, uint offset, uint draw_count);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DrawGPUIndexedPrimitivesIndirect", ExactSpelling = true)]
+        public static extern partial void SDL_DrawGPUIndexedPrimitivesIndirect(global::SDL3.SDL_GPURenderPass render_pass, global::SDL3.SDL_GPUBuffer buffer, uint offset, uint draw_count);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EndGPURenderPass", ExactSpelling = true)]
+        public static extern partial void SDL_EndGPURenderPass(global::SDL3.SDL_GPURenderPass render_pass);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BeginGPUComputePass", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUComputePass SDL_BeginGPUComputePass(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::SDL3.SDL_GPUStorageTextureReadWriteBinding* storage_texture_bindings, uint num_storage_texture_bindings, global::SDL3.SDL_GPUStorageBufferReadWriteBinding* storage_buffer_bindings, uint num_storage_buffer_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUComputePipeline", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUComputePipeline(global::SDL3.SDL_GPUComputePass compute_pass, global::SDL3.SDL_GPUComputePipeline compute_pipeline);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUComputeSamplers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUComputeSamplers(global::SDL3.SDL_GPUComputePass compute_pass, uint first_slot, global::SDL3.SDL_GPUTextureSamplerBinding* texture_sampler_bindings, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUComputeStorageTextures", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUComputeStorageTextures(global::SDL3.SDL_GPUComputePass compute_pass, uint first_slot, global::SDL3.SDL_GPUTexture** storage_textures, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BindGPUComputeStorageBuffers", ExactSpelling = true)]
+        public static extern partial void SDL_BindGPUComputeStorageBuffers(global::SDL3.SDL_GPUComputePass compute_pass, uint first_slot, global::SDL3.SDL_GPUBuffer** storage_buffers, uint num_bindings);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DispatchGPUCompute", ExactSpelling = true)]
+        public static extern partial void SDL_DispatchGPUCompute(global::SDL3.SDL_GPUComputePass compute_pass, uint groupcount_x, uint groupcount_y, uint groupcount_z);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DispatchGPUComputeIndirect", ExactSpelling = true)]
+        public static extern partial void SDL_DispatchGPUComputeIndirect(global::SDL3.SDL_GPUComputePass compute_pass, global::SDL3.SDL_GPUBuffer buffer, uint offset);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EndGPUComputePass", ExactSpelling = true)]
+        public static extern partial void SDL_EndGPUComputePass(global::SDL3.SDL_GPUComputePass compute_pass);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_MapGPUTransferBuffer", ExactSpelling = true)]
+        public static extern partial nint SDL_MapGPUTransferBuffer(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTransferBuffer transfer_buffer, global::SDL3.SDLBool cycle);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnmapGPUTransferBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_UnmapGPUTransferBuffer(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTransferBuffer transfer_buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BeginGPUCopyPass", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUCopyPass SDL_BeginGPUCopyPass(global::SDL3.SDL_GPUCommandBuffer command_buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UploadToGPUTexture", ExactSpelling = true)]
+        public static extern partial void SDL_UploadToGPUTexture(global::SDL3.SDL_GPUCopyPass copy_pass, global::SDL3.SDL_GPUTextureTransferInfo* source, global::SDL3.SDL_GPUTextureRegion* destination, global::SDL3.SDLBool cycle);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UploadToGPUBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_UploadToGPUBuffer(global::SDL3.SDL_GPUCopyPass copy_pass, global::SDL3.SDL_GPUTransferBufferLocation* source, global::SDL3.SDL_GPUBufferRegion* destination, global::SDL3.SDLBool cycle);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyGPUTextureToTexture", ExactSpelling = true)]
+        public static extern partial void SDL_CopyGPUTextureToTexture(global::SDL3.SDL_GPUCopyPass copy_pass, global::SDL3.SDL_GPUTextureLocation* source, global::SDL3.SDL_GPUTextureLocation* destination, uint w, uint h, uint d, global::SDL3.SDLBool cycle);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CopyGPUBufferToBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_CopyGPUBufferToBuffer(global::SDL3.SDL_GPUCopyPass copy_pass, global::SDL3.SDL_GPUBufferLocation* source, global::SDL3.SDL_GPUBufferLocation* destination, uint size, global::SDL3.SDLBool cycle);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DownloadFromGPUTexture", ExactSpelling = true)]
+        public static extern partial void SDL_DownloadFromGPUTexture(global::SDL3.SDL_GPUCopyPass copy_pass, global::SDL3.SDL_GPUTextureRegion* source, global::SDL3.SDL_GPUTextureTransferInfo* destination);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DownloadFromGPUBuffer", ExactSpelling = true)]
+        public static extern partial void SDL_DownloadFromGPUBuffer(global::SDL3.SDL_GPUCopyPass copy_pass, global::SDL3.SDL_GPUBufferRegion* source, global::SDL3.SDL_GPUTransferBufferLocation* destination);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EndGPUCopyPass", ExactSpelling = true)]
+        public static extern partial void SDL_EndGPUCopyPass(global::SDL3.SDL_GPUCopyPass copy_pass);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GenerateMipmapsForGPUTexture", ExactSpelling = true)]
+        public static extern partial void SDL_GenerateMipmapsForGPUTexture(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::SDL3.SDL_GPUTexture texture);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_BlitGPUTexture", ExactSpelling = true)]
+        public static extern partial void SDL_BlitGPUTexture(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::SDL3.SDL_GPUBlitInfo* info);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WindowSupportsGPUSwapchainComposition", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WindowSupportsGPUSwapchainComposition(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_Window window, global::SDL3.SDL_GPUSwapchainComposition swapchain_composition);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WindowSupportsGPUPresentMode", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WindowSupportsGPUPresentMode(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_Window window, global::SDL3.SDL_GPUPresentMode present_mode);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ClaimWindowForGPUDevice", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_ClaimWindowForGPUDevice(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_Window window);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseWindowFromGPUDevice", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseWindowFromGPUDevice(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_Window window);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetGPUSwapchainParameters", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SetGPUSwapchainParameters(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_Window window, global::SDL3.SDL_GPUSwapchainComposition swapchain_composition, global::SDL3.SDL_GPUPresentMode present_mode);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetGPUSwapchainTextureFormat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUTextureFormat SDL_GetGPUSwapchainTextureFormat(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_Window window);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_AcquireGPUSwapchainTexture", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_AcquireGPUSwapchainTexture(global::SDL3.SDL_GPUCommandBuffer command_buffer, global::SDL3.SDL_Window window, global::SDL3.SDL_GPUTexture swapchain_texture, uint* swapchain_texture_width, uint* swapchain_texture_height);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SubmitGPUCommandBuffer", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_SubmitGPUCommandBuffer(global::SDL3.SDL_GPUCommandBuffer command_buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SubmitGPUCommandBufferAndAcquireFence", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_GPUFence SDL_SubmitGPUCommandBufferAndAcquireFence(global::SDL3.SDL_GPUCommandBuffer command_buffer);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitForGPUIdle", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WaitForGPUIdle(global::SDL3.SDL_GPUDevice device);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitForGPUFences", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WaitForGPUFences(global::SDL3.SDL_GPUDevice device, global::SDL3.SDLBool wait_all, global::SDL3.SDL_GPUFence** fences, uint num_fences);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_QueryGPUFence", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_QueryGPUFence(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUFence fence);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReleaseGPUFence", ExactSpelling = true)]
+        public static extern partial void SDL_ReleaseGPUFence(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUFence fence);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUTextureFormatTexelBlockSize", ExactSpelling = true)]
+        public static extern partial uint SDL_GPUTextureFormatTexelBlockSize(global::SDL3.SDL_GPUTextureFormat format);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUTextureSupportsFormat", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GPUTextureSupportsFormat(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTextureFormat format, global::SDL3.SDL_GPUTextureType type, global::SDL3.SDL_GPUTextureUsageFlags usage);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GPUTextureSupportsSampleCount", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_GPUTextureSupportsSampleCount(global::SDL3.SDL_GPUDevice device, global::SDL3.SDL_GPUTextureFormat format, global::SDL3.SDL_GPUSampleCount sample_count);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_main", ExactSpelling = true)]
+        public static extern partial int SDL_main(int argc, byte** argv);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_SetMainReady", ExactSpelling = true)]
+        public static extern partial void SDL_SetMainReady();
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RunApp", ExactSpelling = true)]
+        public static extern partial int SDL_RunApp(int argc, byte** argv, delegate* unmanaged[Cdecl]<int, byte**, int> mainFunction, nint reserved);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_EnterAppMainCallbacks", ExactSpelling = true)]
+        public static extern partial int SDL_EnterAppMainCallbacks(int argc, byte** argv, delegate* unmanaged[Cdecl]<nint, int, byte**, global::SDL3.SDL_AppResult> appinit, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_AppResult> appiter, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_Event*, global::SDL3.SDL_AppResult> appevent, delegate* unmanaged[Cdecl]<nint, global::SDL3.SDL_AppResult, void> appquit);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RegisterApp", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_RegisterApp(byte* name, uint style, nint hInst);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_RegisterApp(global::System.ReadOnlySpan<byte> name, uint style, nint hInst)
+        {
+            global::SDL3.SDLBool __retVal;
+            // Pin - Pin data in preparation for calling the P/Invoke.
+            fixed (void* __name_native = &global::System.Runtime.InteropServices.Marshalling.ReadOnlySpanMarshaller<byte, byte>.ManagedToUnmanagedIn.GetPinnableReference(name))
+            {
+                __retVal = __PInvoke((byte*)__name_native, style, hInst);
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RegisterApp", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, uint __style_native, nint __hInst_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
+        [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
+        public static partial global::SDL3.SDLBool SDL_RegisterApp(global::System.ReadOnlySpan<char> name, uint style, nint hInst)
+        {
+            byte* __name_native = default;
+            global::SDL3.SDLBool __retVal = default;
+            // Setup - Perform required setup.
+            scoped global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn __name_native__marshaller = new();
+            try
+            {
+                // Marshal - Convert managed data to native data.
+                __name_native__marshaller.FromManaged(name, stackalloc byte[global::SDL3.Utf8CustomMarshaller.ManagedToUnmanagedIn.BufferSize]);
+                {
+                    // PinnedMarshal - Convert managed data to native data that requires the managed data to be pinned.
+                    __name_native = __name_native__marshaller.ToUnmanaged();
+                    __retVal = __PInvoke(__name_native, style, hInst);
+                }
+            }
+            finally
+            {
+                // CleanupCallerAllocated - Perform cleanup of caller allocated resources.
+                __name_native__marshaller.Free();
+            }
+
+            return __retVal;
+            // Local P/Invoke
+            [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_RegisterApp", ExactSpelling = true)]
+            static extern unsafe global::SDL3.SDLBool __PInvoke(byte* __name_native, uint __style_native, nint __hInst_native);
+        }
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_UnregisterApp", ExactSpelling = true)]
+        public static extern partial void SDL_UnregisterApp();
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateProcess", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_Process SDL_CreateProcess(byte** args, global::SDL3.SDLBool pipe_stdio);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_CreateProcessWithProperties", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_Process SDL_CreateProcessWithProperties(global::SDL3.SDL_PropertiesID props);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetProcessProperties", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_PropertiesID SDL_GetProcessProperties(global::SDL3.SDL_Process process);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_ReadProcess", ExactSpelling = true)]
+        public static extern partial nint SDL_ReadProcess(global::SDL3.SDL_Process process, nuint* datasize, int* exitcode);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetProcessInput", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_IOStream SDL_GetProcessInput(global::SDL3.SDL_Process process);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetProcessOutput", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDL_IOStream SDL_GetProcessOutput(global::SDL3.SDL_Process process);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_KillProcess", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_KillProcess(global::SDL3.SDL_Process process, global::SDL3.SDLBool force);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_WaitProcess", ExactSpelling = true)]
+        public static extern partial global::SDL3.SDLBool SDL_WaitProcess(global::SDL3.SDL_Process process, global::SDL3.SDLBool block, int* exitcode);
+    }
+}
+namespace SDL3
+{
+    public unsafe partial class SDL3
+    {
+        [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_DestroyProcess", ExactSpelling = true)]
+        public static extern partial void SDL_DestroyProcess(global::SDL3.SDL_Process process);
+    }
+}
+namespace SDL3
+{
     public static unsafe partial class SDL3
     {
         [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_free", ExactSpelling = true)]
@@ -19414,11 +18792,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial global::SDL3.SDL_DisplayID SDL_GetDisplayForPoint(in global::SDL3.SDL_Point point)
+        public static partial global::SDL3.SDL_DisplayID SDL_GetDisplayForPoint(in global::System.Drawing.Point point)
         {
             global::SDL3.SDL_DisplayID __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
-            fixed (global::SDL3.SDL_Point* __point_native = &point)
+            fixed (global::System.Drawing.Point* __point_native = &point)
             {
                 __retVal = __PInvoke(__point_native);
             }
@@ -19426,7 +18804,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDisplayForPoint", ExactSpelling = true)]
-            static extern unsafe global::SDL3.SDL_DisplayID __PInvoke(global::SDL3.SDL_Point* __point_native);
+            static extern unsafe global::SDL3.SDL_DisplayID __PInvoke(global::System.Drawing.Point* __point_native);
         }
     }
 }
@@ -19436,11 +18814,11 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial global::SDL3.SDL_DisplayID SDL_GetDisplayForRect(in global::SDL3.SDL_Rect rect)
+        public static partial global::SDL3.SDL_DisplayID SDL_GetDisplayForRect(in global::System.Drawing.Rectangle rect)
         {
             global::SDL3.SDL_DisplayID __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
-            fixed (global::SDL3.SDL_Rect* __rect_native = &rect)
+            fixed (global::System.Drawing.Rectangle* __rect_native = &rect)
             {
                 __retVal = __PInvoke(__rect_native);
             }
@@ -19448,7 +18826,7 @@ namespace SDL3
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_GetDisplayForRect", ExactSpelling = true)]
-            static extern unsafe global::SDL3.SDL_DisplayID __PInvoke(global::SDL3.SDL_Rect* __rect_native);
+            static extern unsafe global::SDL3.SDL_DisplayID __PInvoke(global::System.Drawing.Rectangle* __rect_native);
         }
     }
 }
@@ -19458,23 +18836,20 @@ namespace SDL3
     {
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Interop.LibraryImportGenerator", "9.0.11.2809")]
         [global::System.Runtime.CompilerServices.SkipLocalsInitAttribute]
-        public static partial bool SDL_PollEvent(out global::SDL3.SDL_Event @event)
+        public static partial global::SDL3.SDLBool SDL_PollEvent(out global::SDL3.SDL_Event @event)
         {
             @event = default;
-            bool __retVal;
-            int __retVal_native;
+            global::SDL3.SDLBool __retVal;
             // Pin - Pin data in preparation for calling the P/Invoke.
             fixed (global::SDL3.SDL_Event* __event_native = &@event)
             {
-                __retVal_native = __PInvoke(__event_native);
+                __retVal = __PInvoke(__event_native);
             }
 
-            // Unmarshal - Convert native data to managed data.
-            __retVal = __retVal_native != 0;
             return __retVal;
             // Local P/Invoke
             [global::System.Runtime.InteropServices.DllImportAttribute("SDL3", EntryPoint = "SDL_PollEvent", ExactSpelling = true)]
-            static extern unsafe int __PInvoke(global::SDL3.SDL_Event* __event_native);
+            static extern unsafe global::SDL3.SDLBool __PInvoke(global::SDL3.SDL_Event* __event_native);
         }
     }
 }
