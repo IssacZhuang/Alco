@@ -430,7 +430,7 @@ public class GraphicsMaterial : Material
                 slot.type = ResourceType.Buffer;
                 slot.buffer = _system.CreateGraphicsBuffer(
                     info.Size,
-                    $"Material_{_pipelineInfo.ModulesInfo.Name}_Buffer_{info.Entry.Name}"
+                    $"Material_{_pipelineInfo.Pipeline.Name}_Buffer_{info.Entry.Name}"
                     );
             }
             else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))

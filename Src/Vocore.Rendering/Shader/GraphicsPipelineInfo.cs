@@ -7,17 +7,12 @@ public struct GraphicsPipelineInfo
 {
     public GPUPipeline Pipeline;
     public GPURenderPass RenderPass;
-    public ShaderModulesInfo ModulesInfo;
+    public ShaderReflectionInfo ReflectionInfo;
     public DepthStencilState DepthStencil;
     public BlendState BlendState;
     public RasterizerState Rasterizer;
     public PrimitiveTopology PrimitiveTopology;
-
-    public ShaderReflectionInfo ReflectionInfo
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ModulesInfo.ReflectionInfo;
-    }
+    public string[] Defines;
 
 
     /// <summary>
@@ -29,7 +24,7 @@ public struct GraphicsPipelineInfo
     /// <returns>True if the resource sID was found, false otherwise.</returns>
     public readonly bool TryGetResourceId(string name, out uint resourceId)
     {
-        return ModulesInfo.TryGetResourceId(name, out resourceId);
+        return ReflectionInfo.TryGetResourceId(name, out resourceId);
     }
 
     /// <summary>
@@ -41,16 +36,16 @@ public struct GraphicsPipelineInfo
     /// <returns>The resource ID.</returns>
     public readonly uint GetResourceId(string name)
     {
-        if (ModulesInfo.TryGetResourceId(name, out uint resourceId))
+        if (ReflectionInfo.TryGetResourceId(name, out uint resourceId))
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {ModulesInfo.Name}");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader {Pipeline.Name}");
     }
 
     public int BindGroupCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ModulesInfo.ReflectionInfo.BindGroups.Count;
+        get => ReflectionInfo.BindGroups.Count;
     }
 }

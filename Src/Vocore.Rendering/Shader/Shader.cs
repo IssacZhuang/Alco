@@ -48,11 +48,12 @@ public class Shader : AutoDisposable
         {
             Pipeline = pipeline,
             RenderPass = renderPass,
-            ModulesInfo = modulesInfo,
+            ReflectionInfo = modulesInfo.ReflectionInfo,
             DepthStencil = depthStencil,
             BlendState = blend,
             Rasterizer = rasterizer,
-            PrimitiveTopology = primitiveTopology
+            PrimitiveTopology = primitiveTopology,
+            Defines = defines.ToArray()
         };
     }
 
@@ -95,9 +96,11 @@ public class Shader : AutoDisposable
             return false;
         }
 
+        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
+
         GPUPipeline pipeline = GetGraphicsPipeline(
             renderPass,
-            pipelineInfo.ModulesInfo,
+            modulesInfo,
             pipelineInfo.DepthStencil,
             pipelineInfo.BlendState,
             pipelineInfo.Rasterizer,
@@ -117,7 +120,6 @@ public class Shader : AutoDisposable
         return new ComputePipelineInfo
         {
             Pipeline = pipeline,
-            ModulesInfo = modulesInfo,
             ReflectionInfo = modulesInfo.ReflectionInfo
         };
     }

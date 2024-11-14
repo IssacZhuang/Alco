@@ -6,7 +6,6 @@ namespace Vocore.Rendering;
 public struct ComputePipelineInfo
 {
     public GPUPipeline Pipeline;
-    public ShaderModulesInfo ModulesInfo;
     public ShaderReflectionInfo ReflectionInfo;
 
     /// <summary>
@@ -18,7 +17,7 @@ public struct ComputePipelineInfo
     /// <returns>True if the resource sID was found, false otherwise.</returns>
     public readonly bool TryGetResourceId(string name, out uint resourceId)
     {
-        return ModulesInfo.TryGetResourceId(name, out resourceId);
+        return ReflectionInfo.TryGetResourceId(name, out resourceId);
     }
 
     /// <summary>
@@ -30,16 +29,16 @@ public struct ComputePipelineInfo
     /// <returns>The resource ID.</returns>
     public readonly uint GetResourceId(string name)
     {
-        if (ModulesInfo.TryGetResourceId(name, out uint resourceId))
+        if (ReflectionInfo.TryGetResourceId(name, out uint resourceId))
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {ModulesInfo.Name}");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader");
     }
 
     public int BindGroupCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ModulesInfo.ReflectionInfo.BindGroups.Count;
+        get => ReflectionInfo.BindGroups.Count;
     }
 }

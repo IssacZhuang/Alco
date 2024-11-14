@@ -30,12 +30,12 @@ public static class UtilsShaderRelfection
 
 
         ShaderReflectionInfo info = new ShaderReflectionInfo
-        {
-            BindGroups = GetBindgGroupLayouts(module,useStandardStage),
-            VertexLayouts = new VertexInputLayout[] { GetVertexInputLayout(module) },
-            PushConstantsRanges = GetPushConstants(module),
-            Size = GetThreadGroupSize(module)
-        };
+        (
+            new VertexInputLayout[] { GetVertexInputLayout(module) },
+            GetBindgGroupLayouts(module,useStandardStage),
+            GetPushConstants(module),
+            GetThreadGroupSize(module)
+        );
 
         API.DestroyShaderModule(&module);
 
@@ -153,11 +153,12 @@ public static class UtilsShaderRelfection
         
 
         return new ShaderReflectionInfo
-        {
-            BindGroups = layouts,
-            VertexLayouts = vertex.VertexLayouts,
-            PushConstantsRanges = ranges,
-        };
+        (
+            vertex.VertexLayouts,
+            layouts,
+            ranges,
+            ThreadGroupSize.Default
+        );
     }
 
     // compute thread group size

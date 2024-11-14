@@ -8,8 +8,6 @@ namespace Vocore.Rendering;
 /// </summary>
 public class ShaderModulesInfo
 {
-    private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
-
     public string Name { get; }
 
     /// <summary>
@@ -62,8 +60,6 @@ public class ShaderModulesInfo
         FragmentShader = fragment;
         ComputeShader = compute;
         ReflectionInfo = reflectionInfo;
-
-        BuildResourceIndex();
     }
 
     /// <summary>
@@ -100,48 +96,4 @@ public class ShaderModulesInfo
         return new ShaderModulesInfo(name, defines, null, null, computeShader, reflectionInfo);
     }
 
-    /// <summary>
-    /// Tries to get the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
-    /// <returns>True if the resource sID was found, false otherwise.</returns>
-    public bool TryGetResourceId(string name, out uint resourceId)
-    {
-        return _resourceIds.TryGetValue(name, out resourceId);
-    }
-
-    /// <summary>
-    /// Gets the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    /// <throws>KeyNotFoundException if the resource is not found.</throws>
-    /// <returns>The resource ID.</returns>
-    public uint GetResourceId(string name)
-    {
-        if (_resourceIds.TryGetValue(name, out uint resourceId))
-        {
-            return resourceId;
-        }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {Name}");
-    }
-
-    private void BuildResourceIndex()
-    {
-        Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
-        resourceIds.Clear();
-        for (uint i = 0; i < ReflectionInfo.BindGroups.Count; i++)
-        {
-            BindGroupLayout bindGroup = ReflectionInfo.BindGroups[(int)i];
-            if (bindGroup.Bindings != null
-            && bindGroup.Bindings.Count > 0)
-            {
-                resourceIds[bindGroup.Bindings[0].Entry.Name] = i;
-            }
-        }
-
-        _resourceIds = resourceIds.ToFrozenDictionary();
-    }
 }
