@@ -87,7 +87,7 @@ public class Game : GameEngine
 
         _timer += delta;
 
-        _shader.TryUpdatePipelineInfo(ref _pipelineInfo, MainFrameBuffer.RenderPass);
+        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.RenderPass);
 
         _commandBuffer.Begin();
         _commandBuffer.SetFrameBuffer(MainFrameBuffer);

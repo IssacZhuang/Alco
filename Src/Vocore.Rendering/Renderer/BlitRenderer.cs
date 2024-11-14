@@ -30,7 +30,7 @@ public class BlitRenderer : AutoDisposable
 
     public void Blit(Texture2D from, GPUFrameBuffer to)
     {
-        if (_shaderBlit.TryUpdatePipelineInfo(ref _pipelineInfo, to.RenderPass))
+        if (_shaderBlit.TryUpdatePipelineContext(ref _pipelineInfo, to.RenderPass))
         {
             _shaderId_Texture = _pipelineInfo.GetResourceId("_texture");
         }
@@ -47,7 +47,7 @@ public class BlitRenderer : AutoDisposable
     }
     public void Blit(RenderTexture from, GPUFrameBuffer to)
     {
-        if (_shaderBlit.TryUpdatePipelineInfo(ref _pipelineInfo, to.RenderPass))
+        if (_shaderBlit.TryUpdatePipelineContext(ref _pipelineInfo, to.RenderPass))
         {
             _shaderId_Texture = _pipelineInfo.GetResourceId("_texture");
         }

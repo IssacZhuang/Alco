@@ -12,12 +12,14 @@ public class GraphicsMaterialInstance : Material
     {
         _parent = parent;
         _shader = parent.Shader;
+
+        _context = GraphicsPipelineContext.Default;
     }
 
     public override GPUPipeline GetPipeline(GPURenderPass renderPass)
     {
-        _shader.TryUpdatePipelineInfo(ref _context, renderPass);
-        return _context.Pipeline;
+        _shader.TryUpdatePipelineContext(ref _context, renderPass);
+        return _context.Pipeline!;
     }
 
     protected override void SetPipelineResources(MaterialCommandContext context)

@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 //todo: opt exception message
-public class GraphicsMaterial : Material
+public sealed class GraphicsMaterial : Material
 {
     private enum ResourceType
     {
@@ -28,49 +28,51 @@ public class GraphicsMaterial : Material
 
     private bool _isPipelineDirty = true;
 
-    private GraphicsPipelineContext _pipelineInfo;
-
-    private DepthStencilState _depthStencilState = DepthStencilState.Default;
-    private BlendState _blendState = BlendState.Opaque;
-    private RasterizerState _rasterizerState = RasterizerState.CullNone;
-    private PrimitiveTopology _primitiveTopology = PrimitiveTopology.TriangleList;
+    private GraphicsPipelineContext _pipelineContext;
 
     public DepthStencilState DepthStencilState
     {
-        get => _depthStencilState;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipelineContext.DepthStencil;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _depthStencilState = value;
+            _pipelineContext.DepthStencil = value;
             _isPipelineDirty = true;
         }
     }
 
     public BlendState BlendState
     {
-        get => _blendState;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipelineContext.BlendState;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _blendState = value;
+            _pipelineContext.BlendState = value;
             _isPipelineDirty = true;
         }
     }
 
     public RasterizerState RasterizerState
     {
-        get => _rasterizerState;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipelineContext.Rasterizer;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _rasterizerState = value;
+            _pipelineContext.Rasterizer = value;
             _isPipelineDirty = true;
         }
     }
 
     public PrimitiveTopology PrimitiveTopology
     {
-        get => _primitiveTopology;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipelineContext.PrimitiveTopology;
         set
         {
-            _primitiveTopology = value;
+            _pipelineContext.PrimitiveTopology = value;
             _isPipelineDirty = true;
         }
     }
@@ -81,6 +83,8 @@ public class GraphicsMaterial : Material
         get => _shader;
     }
 
+    public string Name { get; } 
+
     public uint? StencilReference;
 
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
@@ -88,16 +92,10 @@ public class GraphicsMaterial : Material
         _system = system;
         _shader = shader;
         _slots = new ArrayBuffer<Slot>();
+        Name = name;
 
-        _pipelineInfo = shader.GetGraphicsPipeline(
-            system.PrefferedSDRPass,
-            _depthStencilState,
-            _blendState,
-            _rasterizerState,
-            _primitiveTopology
-            );
-
-
+        _pipelineContext = GraphicsPipelineContext.Default;
+        _pipelineContext.ReflectionInfo = shader.GetShaderModules().ReflectionInfo;
         UpdateSlotResources();
     }
 
@@ -105,7 +103,7 @@ public class GraphicsMaterial : Material
 
     public bool TrySetValue<T>(string name, T value) where T : unmanaged
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             return false;
         }
@@ -137,7 +135,7 @@ public class GraphicsMaterial : Material
 
     public void SetValue<T>(string name, T value) where T : unmanaged
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
@@ -172,7 +170,7 @@ public class GraphicsMaterial : Material
 
     public bool TrySetTexture(string name, Texture2D texture)
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             return false;
         }
@@ -201,7 +199,7 @@ public class GraphicsMaterial : Material
 
     public void SetTexture(string name, Texture2D texture)
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
@@ -234,7 +232,7 @@ public class GraphicsMaterial : Material
 
     public bool TrySetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             return false;
         }
@@ -268,7 +266,7 @@ public class GraphicsMaterial : Material
 
     public void SetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
@@ -301,7 +299,7 @@ public class GraphicsMaterial : Material
 
     public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             return false;
         }
@@ -330,7 +328,7 @@ public class GraphicsMaterial : Material
 
     public void SetRenderTextureDepth(string name, RenderTexture renderTexture)
     {
-        if (!_pipelineInfo.TryGetResourceId(name, out uint id))
+        if (!_pipelineContext.TryGetResourceId(name, out uint id))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
@@ -366,24 +364,13 @@ public class GraphicsMaterial : Material
 
     public override GPUPipeline GetPipeline(GPURenderPass renderPass)
     {
-        if (_isPipelineDirty)
+        if (_shader.TryUpdatePipelineContext(ref _pipelineContext, renderPass, _isPipelineDirty))
         {
-            _pipelineInfo = _shader.GetGraphicsPipeline(
-                renderPass,
-                _depthStencilState,
-                _blendState,
-                _rasterizerState,
-                _primitiveTopology
-                );
+            UpdateSlotResources();
             _isPipelineDirty = false;
         }
 
-        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, renderPass))
-        {
-            UpdateSlotResources();
-        }
-
-        return _pipelineInfo.Pipeline;
+        return _pipelineContext.Pipeline!;
     }
 
     protected override void SetPipelineResources(MaterialCommandContext context)
@@ -408,8 +395,8 @@ public class GraphicsMaterial : Material
 
     private void UpdateSlotResources()
     {
-        ShaderReflectionInfo reflectionInfo = _pipelineInfo.ReflectionInfo;
-        _slots.EnsureSize(_pipelineInfo.BindGroupCount);
+        ShaderReflectionInfo reflectionInfo = _pipelineContext.ReflectionInfo!;
+        _slots.EnsureSize(reflectionInfo.BindGroups.Count);
 
         for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
         {
@@ -426,7 +413,7 @@ public class GraphicsMaterial : Material
                 slot.type = ResourceType.UniformBuffer;
                 slot.buffer = _system.CreateGraphicsBuffer(
                     info.Size,
-                    $"Material_{_pipelineInfo.Pipeline.Name}_Buffer_{info.Entry.Name}"
+                    $"Material_{Name}_Buffer_{info.Entry.Name}"
                     );
                 slot.resourceGroup = slot.buffer.EntryReadonly;
             }

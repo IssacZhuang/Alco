@@ -74,24 +74,10 @@ public class Shader : AutoDisposable
             );
     }
 
-    public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
-        params ReadOnlySpan<string> defines
-        )
-    {
-        return GetGraphicsPipeline(
-            renderPass,
-            DepthStencilState.Default,
-            BlendState.Opaque,
-            RasterizerState.CullNone,
-            PrimitiveTopology.TriangleList,
-            defines
-            );
-    }
 
-    public bool TryUpdatePipelineInfo(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass)
+    public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
     {
-        if (pipelineInfo.RenderPass == renderPass)
+        if (pipelineInfo.RenderPass == renderPass && !forced)
         {
             return false;
         }
@@ -109,6 +95,7 @@ public class Shader : AutoDisposable
 
         pipelineInfo.Pipeline = pipeline;
         pipelineInfo.RenderPass = renderPass;
+        pipelineInfo.ReflectionInfo = modulesInfo.ReflectionInfo;
 
         return true;
     }
@@ -124,7 +111,7 @@ public class Shader : AutoDisposable
         };
     }
 
-    private ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
+    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
     {
         int hash = GetDefinesHash(defines);
 

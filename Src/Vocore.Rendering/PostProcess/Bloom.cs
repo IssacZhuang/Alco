@@ -59,33 +59,31 @@ public class Bloom : PostProcess
         _renderingSystem = _system;
         _targetDownSampleHeight = targetDownSampleHeight;
 
-        RenderPassDescriptor descriptor = new RenderPassDescriptor(
-            [new(_system.PrefferedHDRFormat)],
-            null
-        );
-
         _backBufferPass = _system.PrefferedHDRPassWithoutDepth;
 
         _blitShader = blitShader;
-        _blitPipelineInfo = blitShader.GetGraphicsPipeline(
-            _system.PrefferedSDRPass,
-            DepthStencilState.Default,
-            BlendState.Additive
-            );
-        _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
+        _blitPipelineInfo = GraphicsPipelineContext.Default with
+        {
+            DepthStencil = DepthStencilState.Default,
+            BlendState = BlendState.Additive
+        };
+
 
         _clampShader = clampShader;
-        _clampPipelineInfo = clampShader.GetGraphicsPipeline(_backBufferPass);
+        _clampPipelineInfo = GraphicsPipelineContext.Default;
+        _clampShader.TryUpdatePipelineContext(ref _clampPipelineInfo, _backBufferPass);
         _clampShaderData = _system.CreateGraphicsValueBuffer<ClampShaderData>("bloom_threshold");
         _clampShaderId_texture = _clampPipelineInfo.GetResourceId(ShaderId_texture);
         _clampShaderId_data = _clampPipelineInfo.GetResourceId(ShaderId_data);
 
         _downSampleShader = downSampleShader;
-        _downSamplePipelineInfo = downSampleShader.GetGraphicsPipeline(_backBufferPass);
+        _downSamplePipelineInfo = GraphicsPipelineContext.Default;
+        _downSampleShader.TryUpdatePipelineContext(ref _downSamplePipelineInfo, _backBufferPass);
         _downSampleShaderId_texture = _downSamplePipelineInfo.GetResourceId(ShaderId_texture);
 
         _upSampleShader = upSampleShader;
-        _upSamplePipelineInfo = upSampleShader.GetGraphicsPipeline(_backBufferPass);
+        _upSamplePipelineInfo = GraphicsPipelineContext.Default;
+        _upSampleShader.TryUpdatePipelineContext(ref _upSamplePipelineInfo, _backBufferPass);
         _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
         _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
 
@@ -237,12 +235,7 @@ public class Bloom : PostProcess
         _commandDownSample.End();
         _device.Submit(_commandDownSample);
 
-        // if (_blitPass != target.RenderPass)
-        // {
-        //     _blitPass = target.RenderPass;
-        //     _blitPipeline = _blitShader.GetPipelineVariant(_blitPass);
-        // }
-        if(_blitShader.TryUpdatePipelineInfo(ref _blitPipelineInfo, target.RenderPass))
+        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
         {
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }

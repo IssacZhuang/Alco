@@ -16,7 +16,7 @@ public class ColorSpaceConverter : AutoDisposable
 
     private GPUFrameBuffer? _input;
     private GPUResourceGroup? _inputGroup;
-    private GraphicsPipelineContext _pipelineInfo;
+    private GraphicsPipelineContext _pipelineContext;
 
     internal ColorSpaceConverter(RenderingSystem renderingSystem, Shader toneMapShader)
     {
@@ -25,13 +25,9 @@ public class ColorSpaceConverter : AutoDisposable
 
         _mesh = renderingSystem.MeshFullScreen;
 
-        _pipelineInfo = toneMapShader.GetGraphicsPipeline(
-            renderingSystem.PrefferedSDRPass
-        );
+        _pipelineContext = GraphicsPipelineContext.Default;
 
-        _shaderId_input = _pipelineInfo.GetResourceId(ShaderId_texture);
         _command = _device.CreateCommandBuffer();
-        OnUpdatePipeline(_pipelineInfo);
     }
 
     public virtual void SetInput(GPUFrameBuffer input)
@@ -59,14 +55,15 @@ public class ColorSpaceConverter : AutoDisposable
             throw new InvalidOperationException("Input is not set.");
         }
 
-        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, target.RenderPass))
+        if (_shader.TryUpdatePipelineContext(ref _pipelineContext, target.RenderPass))
         {
-            _shaderId_input = _pipelineInfo.GetResourceId(ShaderId_texture);
+            _shaderId_input = _pipelineContext.GetResourceId(ShaderId_texture);
+            OnUpdatePipeline(_pipelineContext);
         }
 
         _command.Begin();
         _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_pipelineInfo);
+        _command.SetGraphicsPipeline(_pipelineContext);
         _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _command.SetGraphicsResources(_shaderId_input, _inputGroup!);

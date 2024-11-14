@@ -87,7 +87,7 @@ public class TextRenderer : AutoDisposable, IRenderer
             throw new InvalidOperationException("TextRenderer.Begin() called twice without calling End()");
         }
 
-        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, target.RenderPass))
+        if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
         {
             _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
             _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderId_textBuffer);

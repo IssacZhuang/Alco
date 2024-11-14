@@ -108,13 +108,13 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
             throw new ArgumentNullException(nameof(target));
         }
 
-        if(_shaderSprite.TryUpdatePipelineInfo(ref _pipelineInfoSprite, target.RenderPass))
+        if (_shaderSprite.TryUpdatePipelineContext(ref _pipelineInfoSprite, target.RenderPass))
         {
             _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
             _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderId_texture);
         }
 
-        if(_shaderText.TryUpdatePipelineInfo(ref _pipelineInfoText, target.RenderPass))
+        if (_shaderText.TryUpdatePipelineContext(ref _pipelineInfoText, target.RenderPass))
         {
             _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderId_camera);
             _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderId_textBuffer);

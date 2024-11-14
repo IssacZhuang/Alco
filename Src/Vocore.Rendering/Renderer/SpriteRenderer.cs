@@ -57,7 +57,7 @@ public class SpriteRenderer : AutoDisposable, IRenderer
 
     public void Begin(GPUFrameBuffer target)
     {
-        if (_shader.TryUpdatePipelineInfo(ref _pipelineInfo, target.RenderPass))
+        if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
         {
             _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
             _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
