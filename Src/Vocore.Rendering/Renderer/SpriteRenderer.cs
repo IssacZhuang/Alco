@@ -29,7 +29,7 @@ public class SpriteRenderer : AutoDisposable, IRenderer
     private readonly Shader _shader;
     private readonly Mesh _mesh;
 
-    private GraphicsPipelineInfo _pipelineInfo;
+    private GraphicsPipelineContext _pipelineInfo;
 
     private uint _shaderId_camera;
     private uint _shaderId_texture;

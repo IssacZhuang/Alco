@@ -28,7 +28,7 @@ public class GraphicsMaterial : Material
 
     private bool _isPipelineDirty = true;
 
-    private GraphicsPipelineInfo _pipelineInfo;
+    private GraphicsPipelineContext _pipelineInfo;
 
     private DepthStencilState _depthStencilState = DepthStencilState.Default;
     private BlendState _blendState = BlendState.Opaque;

@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public struct ComputePipelineInfo
+public struct ComputePipelineContext
 {
     public GPUPipeline Pipeline;
     public ShaderReflectionInfo ReflectionInfo;

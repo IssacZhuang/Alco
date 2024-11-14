@@ -27,7 +27,7 @@ public class ComputeDispatcher
     private readonly GPUDevice _device;
     private readonly Shader _shader;
     private readonly ArrayBuffer<Slot> _slots;
-    private ComputePipelineInfo _pipelineInfo;
+    private ComputePipelineContext _pipelineInfo;
 
 
     internal ComputeDispatcher(RenderingSystem system, Shader shader)

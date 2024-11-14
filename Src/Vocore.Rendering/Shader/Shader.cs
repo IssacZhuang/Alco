@@ -33,7 +33,7 @@ public class Shader : AutoDisposable
         _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
     }
 
-    public GraphicsPipelineInfo GetGraphicsPipeline(
+    public GraphicsPipelineContext GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
@@ -44,7 +44,7 @@ public class Shader : AutoDisposable
     {
         ShaderModulesInfo modulesInfo = GetShaderModules(defines);
         GPUPipeline pipeline = GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
-        return new GraphicsPipelineInfo
+        return new GraphicsPipelineContext
         {
             Pipeline = pipeline,
             RenderPass = renderPass,
@@ -57,7 +57,7 @@ public class Shader : AutoDisposable
         };
     }
 
-    public GraphicsPipelineInfo GetGraphicsPipeline(
+    public GraphicsPipelineContext GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
@@ -74,7 +74,7 @@ public class Shader : AutoDisposable
             );
     }
 
-    public GraphicsPipelineInfo GetGraphicsPipeline(
+    public GraphicsPipelineContext GetGraphicsPipeline(
         GPURenderPass renderPass,
         params ReadOnlySpan<string> defines
         )
@@ -89,7 +89,7 @@ public class Shader : AutoDisposable
             );
     }
 
-    public bool TryUpdatePipelineInfo(ref GraphicsPipelineInfo pipelineInfo, GPURenderPass renderPass)
+    public bool TryUpdatePipelineInfo(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass)
     {
         if (pipelineInfo.RenderPass == renderPass)
         {
@@ -113,11 +113,11 @@ public class Shader : AutoDisposable
         return true;
     }
 
-    public ComputePipelineInfo GetComputePipelineInfo(params ReadOnlySpan<string> defines)
+    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<string> defines)
     {
         ShaderModulesInfo modulesInfo = GetShaderModules(defines);
         GPUPipeline pipeline = GetComputePipeline(modulesInfo);
-        return new ComputePipelineInfo
+        return new ComputePipelineContext
         {
             Pipeline = pipeline,
             ReflectionInfo = modulesInfo.ReflectionInfo

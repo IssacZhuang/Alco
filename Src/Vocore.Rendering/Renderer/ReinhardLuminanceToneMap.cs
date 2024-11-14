@@ -26,7 +26,7 @@ public class ReinhardLuminanceToneMap : ColorSpaceConverter
         command.SetGraphicsResources(_shaderId_data, _data.EntryReadonly);
     }
 
-    protected override void OnUpdatePipeline(GraphicsPipelineInfo pipelineInfo)
+    protected override void OnUpdatePipeline(GraphicsPipelineContext pipelineInfo)
     {
         _shaderId_data = pipelineInfo.GetResourceId("_data");
     }

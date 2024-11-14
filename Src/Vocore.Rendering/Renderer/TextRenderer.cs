@@ -37,7 +37,7 @@ public class TextRenderer : AutoDisposable, IRenderer
 
     private readonly NativeBuffer<TextData> _textBufferCPU;
 
-    private GraphicsPipelineInfo _pipelineInfo;
+    private GraphicsPipelineContext _pipelineInfo;
 
     private uint _shaderId_camera;
     private uint _shaderId_textBuffer;

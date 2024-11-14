@@ -31,7 +31,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
 
     //sprite properties
     private readonly Shader _shaderSprite;
-    private GraphicsPipelineInfo _pipelineInfoSprite;
+    private GraphicsPipelineContext _pipelineInfoSprite;
     private readonly Mesh _meshSprite;
 
     private uint _spriteShaderId_camera;
@@ -39,7 +39,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
 
     //text properties
     private readonly Shader _shaderText;
-    private GraphicsPipelineInfo _pipelineInfoText;
+    private GraphicsPipelineContext _pipelineInfoText;
     private readonly Mesh _meshText;
 
     private uint _textShaderId_camera;

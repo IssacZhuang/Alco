@@ -23,7 +23,7 @@ public class Bloom : PostProcess
     private readonly RenderingSystem _renderingSystem;
 
     private readonly Shader _blitShader;
-    private GraphicsPipelineInfo _blitPipelineInfo;
+    private GraphicsPipelineContext _blitPipelineInfo;
     private uint _blitShaderId_texture;
 
     protected GPUFrameBuffer? _input;
@@ -33,12 +33,12 @@ public class Bloom : PostProcess
 
     //for clamp
     private readonly Shader _clampShader;
-    private GraphicsPipelineInfo _clampPipelineInfo;
+    private GraphicsPipelineContext _clampPipelineInfo;
     private readonly uint _clampShaderId_texture;
     private readonly uint _clampShaderId_data;
 
     private readonly Shader _downSampleShader;
-    private GraphicsPipelineInfo _downSamplePipelineInfo;
+    private GraphicsPipelineContext _downSamplePipelineInfo;
     private uint _downSampleShaderId_texture;
 
 
@@ -47,7 +47,7 @@ public class Bloom : PostProcess
     private GPUResourceGroup[]? _downSampleGroups;
 
     private readonly Shader _upSampleShader;
-    private GraphicsPipelineInfo _upSamplePipelineInfo;
+    private GraphicsPipelineContext _upSamplePipelineInfo;
     private readonly uint _upSampleShaderId_previousTexture;
     private readonly uint _upSampleShaderId_currentTexture;
 

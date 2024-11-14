@@ -16,7 +16,7 @@ public class ColorSpaceConverter : AutoDisposable
 
     private GPUFrameBuffer? _input;
     private GPUResourceGroup? _inputGroup;
-    private GraphicsPipelineInfo _pipelineInfo;
+    private GraphicsPipelineContext _pipelineInfo;
 
     internal ColorSpaceConverter(RenderingSystem renderingSystem, Shader toneMapShader)
     {
@@ -81,7 +81,7 @@ public class ColorSpaceConverter : AutoDisposable
 
     }
 
-    protected virtual void OnUpdatePipeline(GraphicsPipelineInfo pipelineInfo)
+    protected virtual void OnUpdatePipeline(GraphicsPipelineContext pipelineInfo)
     {
 
     }
