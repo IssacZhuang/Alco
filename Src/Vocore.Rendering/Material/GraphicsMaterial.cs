@@ -1,19 +1,19 @@
+using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 //todo: opt exception message
 public class GraphicsMaterial : Material
 {
-    private const int RenderTextureIndexDepth = -1;
-    protected enum ResourceType
+    private enum ResourceType
     {
         Unavailable,
         TextureWithSampler,
-        Buffer
+        UniformBuffer
     }
 
 
-    protected struct Slot
+    private struct Slot
     {
         public ResourceType type;
         public GraphicsBuffer? buffer;
@@ -75,6 +75,12 @@ public class GraphicsMaterial : Material
         }
     }
 
+    public Shader Shader
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _shader;
+    }
+
     public uint? StencilReference;
 
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
@@ -115,7 +121,7 @@ public class GraphicsMaterial : Material
         }
 
         Slot slot = _slots.Get(id);
-        if (slot.type != ResourceType.Buffer)
+        if (slot.type != ResourceType.UniformBuffer)
         {
             return false;
         }
@@ -147,7 +153,7 @@ public class GraphicsMaterial : Material
         }
 
         Slot slot = _slots.Get(id);
-        if (slot.type != ResourceType.Buffer)
+        if (slot.type != ResourceType.UniformBuffer)
         {
             throw new InvalidOperationException($"The resource {id} is not a buffer.");
         }
@@ -417,7 +423,7 @@ public class GraphicsMaterial : Material
                     continue;
                 }
                 BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                slot.type = ResourceType.Buffer;
+                slot.type = ResourceType.UniformBuffer;
                 slot.buffer = _system.CreateGraphicsBuffer(
                     info.Size,
                     $"Material_{_pipelineInfo.Pipeline.Name}_Buffer_{info.Entry.Name}"
