@@ -59,6 +59,14 @@ public struct DepthStencilState
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(DepthWriteEnabled, DepthBoundsTestEnabled, DepthCompare, FrontFace, BackFace);
+        return HashCode.Combine(
+            DepthWriteEnabled, 
+            DepthBoundsTestEnabled, 
+            DepthCompare, 
+            FrontFace, 
+            BackFace,
+            StencilReadMask,
+            StencilWriteMask
+            );
     }
 }
