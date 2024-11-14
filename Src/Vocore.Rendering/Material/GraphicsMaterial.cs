@@ -19,7 +19,7 @@ public class GraphicsMaterial : Material
         public GraphicsBuffer? buffer;
         public Texture2D? texture;
         public RenderTexture? renderTexture;
-        public int renderTextureIndex;
+        public GPUResourceGroup? resourceGroup;
     }
 
     private readonly RenderingSystem _system;
@@ -189,6 +189,7 @@ public class GraphicsMaterial : Material
 
         slot.renderTexture = null;
         slot.texture = texture;
+        slot.resourceGroup = texture.EntrySample;
         return true;
     }
 
@@ -217,6 +218,7 @@ public class GraphicsMaterial : Material
 
         slot.renderTexture = null;
         slot.texture = texture;
+        slot.resourceGroup = texture.EntrySample;
     }
 
 
@@ -254,7 +256,7 @@ public class GraphicsMaterial : Material
 
         slot.texture = null;
         slot.renderTexture = renderTexture;
-        slot.renderTextureIndex = renderTextureIndex;
+        slot.resourceGroup = renderTexture.EntriesColorSample[renderTextureIndex];
         return true;
     }
 
@@ -288,7 +290,7 @@ public class GraphicsMaterial : Material
 
         slot.texture = null;
         slot.renderTexture = renderTexture;
-        slot.renderTextureIndex = renderTextureIndex;
+        slot.resourceGroup = renderTexture.EntriesColorSample[renderTextureIndex];
     }
 
     public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
@@ -316,7 +318,7 @@ public class GraphicsMaterial : Material
 
         slot.texture = null;
         slot.renderTexture = renderTexture;
-        slot.renderTextureIndex = RenderTextureIndexDepth;
+        slot.resourceGroup = renderTexture.EntryDepthSample;
         return true;
     }
 
@@ -350,7 +352,7 @@ public class GraphicsMaterial : Material
 
         slot.texture = null;
         slot.renderTexture = renderTexture;
-        slot.renderTextureIndex = RenderTextureIndexDepth;
+        slot.resourceGroup = renderTexture.EntryDepthSample;
     }
 
     #endregion
@@ -389,24 +391,12 @@ public class GraphicsMaterial : Material
         {
             int index = (int)i;
             Slot slot = _slots[index];
-            if (slot.type == ResourceType.Buffer)
+            if (slot.resourceGroup == null)
             {
-                context.SetGraphicsResources(i, slot.buffer!.EntryReadonly);
+                continue;
             }
-            else if (slot.type == ResourceType.TextureWithSampler)
-            {
-                if (slot.texture != null)
-                {
-                    context.SetGraphicsResources(i, slot.texture!.EntrySample);
-                }
-                else if (slot.renderTexture != null)
-                {
-                    GPUResourceGroup entry = slot.renderTextureIndex == RenderTextureIndexDepth
-                        ? slot.renderTexture.EntryDepthSample!
-                        : slot.renderTexture.EntriesColorSample[slot.renderTextureIndex];
-                    context.SetGraphicsResources(i, entry);
-                }
-            }
+
+            context.SetGraphicsResources(i, slot.resourceGroup);
         }
     }
 
@@ -432,6 +422,7 @@ public class GraphicsMaterial : Material
                     info.Size,
                     $"Material_{_pipelineInfo.Pipeline.Name}_Buffer_{info.Entry.Name}"
                     );
+                slot.resourceGroup = slot.buffer.EntryReadonly;
             }
             else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
@@ -442,10 +433,15 @@ public class GraphicsMaterial : Material
                 }
                 slot.type = ResourceType.TextureWithSampler;
                 slot.texture = _system.TextureWhite;
+                slot.resourceGroup = slot.texture.EntrySample;
             }
             else
             {
                 slot.type = ResourceType.Unavailable;
+                slot.buffer = null;
+                slot.texture = null;
+                slot.renderTexture = null;
+                slot.resourceGroup = null;
             }
         }
     }
