@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUSampler : GPUSampler
+internal sealed class WebGPUSampler : GPUSampler
 {
     #region Properties
 

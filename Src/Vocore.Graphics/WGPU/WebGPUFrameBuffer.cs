@@ -5,7 +5,7 @@ using static Vocore.Graphics.UtilsInterop;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUFrameBuffer : WebGPUFrameBufferBase
+internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
     private readonly uint _width;

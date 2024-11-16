@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUResourceGroup : GPUResourceGroup
+internal unsafe sealed class WebGPUResourceGroup : GPUResourceGroup
 {
     #region Properties
     private readonly WGPUBindGroup _native;

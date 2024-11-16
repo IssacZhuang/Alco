@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
+internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
     // use list for the abstraction but only one element inside
@@ -270,7 +270,7 @@ internal unsafe class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     #endregion
 
-    internal class WebGPUSurfaceTexture : WebGPUTextureBase
+    internal sealed class WebGPUSurfaceTexture : WebGPUTextureBase
     {
         #region Properties
         private const string NAME = "WebGPU Surface Texture";

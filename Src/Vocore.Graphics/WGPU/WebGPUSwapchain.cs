@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUSwapchain : GPUSwapchain
+internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 {
     private readonly WebGPUDevice _device;
     private readonly WebGPURenderPass _renderPass;

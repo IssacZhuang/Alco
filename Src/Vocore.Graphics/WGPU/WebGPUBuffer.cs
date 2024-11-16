@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUBuffer : GPUBuffer
+internal sealed unsafe class WebGPUBuffer : GPUBuffer
 {
     private const uint MAP_STATE_UNMAPPED = 0;
     private const uint MAP_STATE_PENDING = 1;

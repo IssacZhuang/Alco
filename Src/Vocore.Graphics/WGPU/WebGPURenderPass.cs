@@ -6,7 +6,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPURenderPass : GPURenderPass
+internal sealed class WebGPURenderPass : GPURenderPass
 {
 
     #region Properties

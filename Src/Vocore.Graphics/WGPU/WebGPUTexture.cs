@@ -4,7 +4,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal class WebGPUTexture : WebGPUTextureBase
+internal sealed class WebGPUTexture : WebGPUTextureBase
 {
     #region Properties
     private readonly WGPUDevice _nativeDevice;

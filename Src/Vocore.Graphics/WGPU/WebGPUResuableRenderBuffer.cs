@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal unsafe class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
+internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
 {
     private static readonly Exception ExceptionNoFramebuffer = new("No framebuffer is set before set the graphics pipeline");
     private static readonly Exception ExceptionNoGraphicsPipeline = new("No graphics pipeline is set before drawing or set resources");

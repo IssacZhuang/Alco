@@ -7,7 +7,7 @@ namespace Vocore.Graphics;
 //on a reference to WGPUTextureView
 //no control of the lifecycle of the wgpuTextureView
 //only used by framebuffers to prevent new managed GPUTextureView object at render loop
-internal class WebGPUTextureViewWrapper : WebGPUTextureViewBase
+internal sealed class WebGPUTextureViewWrapper : WebGPUTextureViewBase
 {
     private WebGPUTextureBase _texture;
     private WGPUTextureView _view;

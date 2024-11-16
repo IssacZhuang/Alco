@@ -7,7 +7,7 @@ using static WebGPU.WebGPU;
 
 namespace Vocore.Graphics.WebGPU;
 
-internal partial class WebGPUDevice : GPUDevice
+internal sealed partial class WebGPUDevice : GPUDevice
 {
 
     #region Properties
