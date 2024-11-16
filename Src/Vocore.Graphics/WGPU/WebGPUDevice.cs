@@ -382,7 +382,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 sType = (WGPUSType)WGPUNativeSType.InstanceExtras,
                 next = null,
             },
-            flags = descriptor.Debug ? WGPUInstanceFlags.Debug : WGPUInstanceFlags.None,
+            flags = descriptor.Debug ? WGPUInstanceFlags.Validation : WGPUInstanceFlags.None,
             backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
         };
 
@@ -393,20 +393,14 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         Instance = wgpuCreateInstance(&instanceDescriptor);
 
-        // create surface
-        //Surface = Instance.CreateSurface(descriptor.SurfaceSource);
-
         // create adapter
         WGPURequestAdapterOptions requestAdapterOptions = new WGPURequestAdapterOptions()
         {
             nextInChain = null,
             //compatibleSurface = Surface,
             powerPreference = WGPUPowerPreference.HighPerformance,
-            //backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
-            //forceFallbackAdapter = WGPUBool.True,
+            backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
         };
-
-
 
         WGPUAdapter adapter = WGPUAdapter.Null;
         wgpuInstanceRequestAdapter(Instance, &requestAdapterOptions, &OnAdapterRequestEnded, &adapter);
@@ -414,6 +408,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         WGPUAdapterInfo info = default;
         wgpuAdapterGetInfo(adapter, &info);
+        GraphicsLogger.Info($"Adapter name: {UtilsInterop.ReadString(info.device)}");
         GraphicsLogger.Info($"Graphics backend: {info.backendType}");
 
         wgpuAdapterInfoFreeMembers(info);
@@ -442,22 +437,21 @@ internal sealed partial class WebGPUDevice : GPUDevice
         // create device
         fixed (byte* name = descriptor.Name.GetUtf8Span())
         {
-            WGPUDeviceDescriptor deviceDescriptor = new()
+            WGPUSupportedLimitsExtras supportedLimitsExtras = new WGPUSupportedLimitsExtras()
             {
-                nextInChain = null,
-                label = name,
-                requiredLimits = null,
-                requiredFeatureCount = (uint)featuresList.Count,
-                requiredFeatures = features,
+                chain = new WGPUChainedStructOut
+                {
+                    sType = (WGPUSType)WGPUNativeSType.SupportedLimitsExtras,
+                    next = null,
+                },
             };
 
-            WGPUDevice device = WGPUDevice.Null;
-
-
-            WGPUNativeLimits limits = new WGPUNativeLimits
+            WGPUSupportedLimits supportedLimits = new WGPUSupportedLimits()
             {
-                maxPushConstantSize = 128,
+                nextInChain = &supportedLimitsExtras.chain,
             };
+            wgpuAdapterGetLimits(Adapter, &supportedLimits);
+
 
             WGPURequiredLimitsExtras requiredLimitsExtras = new WGPURequiredLimitsExtras
             {
@@ -466,18 +460,27 @@ internal sealed partial class WebGPUDevice : GPUDevice
                     sType = (WGPUSType)WGPUNativeSType.RequiredLimitsExtras,
                     next = null,
                 },
-                limits = limits,
+                limits = supportedLimitsExtras.limits,
             };
 
             WGPURequiredLimits requiredLimits = new WGPURequiredLimits
             {
                 nextInChain = &requiredLimitsExtras.chain,
-                limits = DefaultLimits
+                limits = supportedLimits.limits
             };
 
-            deviceDescriptor.requiredLimits = &requiredLimits;
+            WGPUDeviceDescriptor deviceDescriptor = new WGPUDeviceDescriptor()
+            {
+                nextInChain = null,
+                label = name,
+                requiredLimits = &requiredLimits,
+                requiredFeatureCount = (uint)featuresList.Count,
+                requiredFeatures = features,
+            };
 
+            deviceDescriptor.defaultQueue.nextInChain = null;
 
+            WGPUDevice device = WGPUDevice.Null;
             wgpuAdapterRequestDevice(Adapter, &deviceDescriptor, &OnDeviceRequestEnded, &device);
             Device = device;
         }
@@ -615,7 +618,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestAdapterStatus.Success)
         {
             *(WGPUAdapter*)pUserData = candidateAdapter;
-            GraphicsLogger.Info("Adapter created");
+            GraphicsLogger.Info("Adapter found");
         }
         else
         {
@@ -637,11 +640,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
     }
 
-    // [UnmanagedCallersOnly]
-    // private unsafe static void OnUnhandleError(WGPUErrorType type, sbyte* message, nint pUserData)
-    // {
-    //     throw new GraphicsException("Unhandle WebGPU error: " + Interop.GetString(message));
-    // }
+    [UnmanagedCallersOnly]
+    private unsafe static void OnUnhandleError(WGPUErrorType type, byte* message, void* pUserData)
+    {
+        throw new GraphicsException("Unhandle WebGPU error: " + Interop.GetString(message));
+    }
 
     [UnmanagedCallersOnly]
     private unsafe static void BufferMapCallback(WGPUBufferMapAsyncStatus status, void* userdata)

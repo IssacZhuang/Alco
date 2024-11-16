@@ -8,7 +8,7 @@ public struct DeviceDescriptor
         GraphicsBackend backend = GraphicsBackend.Auto,
         PixelFormat preferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
         bool debug = false,        
-        uint pushConstantsSize = 256,
+        uint pushConstantsSize = 128,
         string name = "Vocore Graphics Device"
     )
     {

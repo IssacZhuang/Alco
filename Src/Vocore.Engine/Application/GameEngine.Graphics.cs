@@ -30,7 +30,7 @@ public partial class GameEngine
             Debug = setting.DebugInfo,
             Backend = setting.Backend,
             PreferredSurfaceFormat = setting.PreferredSurfaceFormat,
-            PushConstantsSize = 256,
+            PushConstantsSize = 128,
             Name = "graphics_device"
         };
 
