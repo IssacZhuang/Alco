@@ -129,7 +129,7 @@ internal class NoDevice : GPUDevice
         // base.DestroyImmediate(obj);
     }
 
-    public override void Dispose()
+    protected override void DisposeCore()
     {
         
     }
@@ -159,6 +159,11 @@ internal class NoDevice : GPUDevice
     }
 
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
+    {
+        
+    }
+
+    protected override void OnEndFrameCore()
     {
         
     }

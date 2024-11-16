@@ -1,8 +1,6 @@
-using System.Threading;
+namespace Vocore.Graphics;
 
-namespace Vocore;
-
-public struct AtomicSpinLock
+internal struct AtomicSpinLock
 {
     private int _lock;
 

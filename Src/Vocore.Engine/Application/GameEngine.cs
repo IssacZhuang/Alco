@@ -349,7 +349,7 @@ public partial class GameEngine : IDisposable
         }
 
         OnSystemEndFrame();
-        _graphicsDevice.ProcessDestroy();
+        _graphicsDevice.OnEndFrame();
     }
 
 

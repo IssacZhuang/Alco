@@ -56,7 +56,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
-    
+    private readonly List<WGPUCommandBuffer> _submittedCommandBuffers = new List<WGPUCommandBuffer>(64);
+    private AtomicSpinLock _lockSubmit = new AtomicSpinLock();
+
 
     #endregion
 
@@ -87,8 +89,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
-        WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).Native;
+        WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).TakeBuffer();
         wgpuQueueSubmit(Queue, 1, &buffer);
+        _lockSubmit.Lock();
+        _submittedCommandBuffers.Add(buffer);
+        _lockSubmit.Unlock();
     }
 
     protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
@@ -97,7 +102,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         buffer.ExecuteBundle(Queue);
     }
 
-    public override void Dispose()
+    protected override void DisposeCore()
     {
         // _surfaceFrameBuffer.Destroy();
         // _surfaceRenderPass.Destroy();
@@ -115,6 +120,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
         BindGroupTexture2DSampled.Destroy();
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
+
+        //DebugPrintReport();
 
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
@@ -355,6 +362,18 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuCommandBufferRelease(commandBuffer);
         wgpuBufferDestroy(tmpBuffer);
         wgpuBufferRelease(tmpBuffer);
+    }
+
+    protected unsafe override void OnEndFrameCore()
+    {
+        wgpuDevicePoll(Device, WGPUBool.True, null);
+        _lockSubmit.Lock();
+        for (int i = 0; i < _submittedCommandBuffers.Count; i++)
+        {
+            wgpuCommandBufferRelease(_submittedCommandBuffers[i]);
+        }
+        _submittedCommandBuffers.Clear();
+        _lockSubmit.Unlock();
     }
 
     #endregion
@@ -683,6 +702,34 @@ internal sealed partial class WebGPUDevice : GPUDevice
             }
         }
         return false;
+    }
+    
+    [Conditional("DEBUG")]
+    private unsafe void DebugPrintReport()
+    {
+        WGPUGlobalReport report;
+        wgpuGenerateReport(Instance, &report);
+
+        //UtilsWebGPU.PrintHubReport(report.vulkan);
+        switch(report.backendType)
+        {
+            case WGPUBackendType.Vulkan:
+                UtilsWebGPU.PrintHubReport(report.vulkan);
+                break;
+            case WGPUBackendType.Metal:
+                UtilsWebGPU.PrintHubReport(report.metal);
+                break;
+            case WGPUBackendType.D3D12:
+                UtilsWebGPU.PrintHubReport(report.dx12);
+                break;
+            case WGPUBackendType.OpenGLES:
+            case WGPUBackendType.OpenGL:
+                UtilsWebGPU.PrintHubReport(report.gl);
+                break;
+            case WGPUBackendType.WebGPU:
+            default:
+                break;
+        }
     }
 
     #endregion

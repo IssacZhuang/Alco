@@ -76,6 +76,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         // clear buffer
         if (_buffer != WGPUCommandBuffer.Null)
         {
+            //only happens when the buffer is not submitted
             wgpuCommandBufferRelease(_buffer);
             _buffer = WGPUCommandBuffer.Null;
         }
@@ -325,10 +326,12 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     #region WebGPU Implementation
 
-    public WGPUCommandBuffer Native
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public WGPUCommandBuffer TakeBuffer()
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer;
+        WGPUCommandBuffer buffer = _buffer;
+        _buffer = WGPUCommandBuffer.Null;
+        return buffer;
     }
 
     public unsafe WebGPUCommandBuffer(WebGPUDevice device, CommandBufferDescriptor? descriptor = null)

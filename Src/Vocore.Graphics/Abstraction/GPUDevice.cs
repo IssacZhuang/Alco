@@ -256,8 +256,9 @@ public abstract class GPUDevice : IDisposable
     /// <summary>
     /// Processes the deferred disposal of the GPU objects.
     /// </summary>
-    public void ProcessDestroy()
+    public void OnEndFrame()
     {
+        OnEndFrameCore();
         while (_deferredDisposal.TryDequeue(out BaseGPUObject? obj))
         {
             obj.Destroy();
@@ -524,8 +525,13 @@ public abstract class GPUDevice : IDisposable
 
     /// <exclude />
     protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0);
-    public virtual void Dispose()
+    
+    protected abstract void OnEndFrameCore();
+    protected abstract void DisposeCore();
+    
+    public void Dispose()
     {
-
+        OnEndFrame();
+        DisposeCore();
     }
 }
