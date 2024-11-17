@@ -4,7 +4,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public sealed class GraphicsParameterSet
+public sealed class ShaderParameterSet
 {
     private const int RenderTextureIndexDepth = -1;
     private enum ResourceType
@@ -34,7 +34,7 @@ public sealed class GraphicsParameterSet
         get => _resourceGroups.Span;
     }
 
-    internal GraphicsParameterSet(ShaderReflectionInfo reflectionInfo)
+    internal ShaderParameterSet(ShaderReflectionInfo reflectionInfo)
     {
         _reflectionInfo = reflectionInfo;
         _slots = new ArrayBuffer<Slot>();

@@ -7,7 +7,7 @@ public class ComputeDispatcher
 {
     private readonly GPUDevice _device;
     private readonly Shader _shader;
-    private readonly GraphicsParameterSet _parameterSet;
+    private readonly ShaderParameterSet _parameterSet;
     private ComputePipelineContext _pipelineInfo;
 
 
@@ -16,7 +16,7 @@ public class ComputeDispatcher
         _device = system.GraphicsDevice;
         _shader = shader;
         _pipelineInfo = shader.GetComputePipelineInfo();
-        _parameterSet = new GraphicsParameterSet(_pipelineInfo.ReflectionInfo);
+        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo);
     }
 
     internal ComputeDispatcher(RenderingSystem system, Shader shader, ReadOnlySpan<string> defines)
@@ -24,7 +24,7 @@ public class ComputeDispatcher
         _device = system.GraphicsDevice;
         _shader = shader;
         _pipelineInfo = shader.GetComputePipelineInfo(defines);
-        _parameterSet = new GraphicsParameterSet(_pipelineInfo.ReflectionInfo);
+        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo);
     }
 
     public void Dispatch(GPUCommandBuffer command, uint x, uint y, uint z)
