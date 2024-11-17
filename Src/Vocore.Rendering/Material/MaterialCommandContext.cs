@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Rendering;
 
-public struct MaterialCommandContext
+public readonly struct MaterialCommandContext
 {
     private readonly GPUCommandBuffer _commandBuffer;
 

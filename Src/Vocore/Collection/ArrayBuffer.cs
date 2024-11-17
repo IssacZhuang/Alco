@@ -55,15 +55,29 @@ public class ArrayBuffer<T>
         return ref _buffer[index];
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(int index, T value)
+    {
+        _buffer[index] = value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(uint index, T value)
+    {
+        _buffer[index] = value;
+    }
+
     public T[] Data
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer;
     }
 
+
     public ReadOnlySpan<T> Span
     {
-        get => _buffer;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _buffer.AsSpan(0, Length);
     }
 
     public void EnsureSize(int size)
@@ -82,6 +96,7 @@ public class ArrayBuffer<T>
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<T> Slice(int start, int length)
     {
         return _buffer.AsSpan(start, length);
