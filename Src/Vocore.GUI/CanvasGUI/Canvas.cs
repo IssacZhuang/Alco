@@ -61,11 +61,11 @@ public class Canvas : AutoDisposable
     public Vector2 Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _camera.Size;
+        get => _camera.ViewSize;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _camera.Size = value;
+            _camera.ViewSize = value;
             _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
             _bound = new BoundingBox2D(_camera.Position - value * 0.5f, _camera.Position + value * 0.5f);
         }

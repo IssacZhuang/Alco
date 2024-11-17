@@ -37,7 +37,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         //internal resources
         _camera = renderingSystem.CreateCamera2D(width, height, 100);
         _camera.Position = new Vector2(width / 2, -height / 2);
-        Vector2 halfSize = _camera.Size * 0.5f;
+        Vector2 halfSize = _camera.ViewSize * 0.5f;
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
 
         _canvasRenderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
@@ -48,9 +48,9 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
     public void SetResolution(float width, float height)
     {
-        _camera.Size = new Vector2(width, height);
+        _camera.ViewSize = new Vector2(width, height);
         _camera.Position = new Vector2(width / 2, -height / 2);
-        Vector2 halfSize = _camera.Size * 0.5f;
+        Vector2 halfSize = _camera.ViewSize * 0.5f;
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
         _backBuffer.Dispose();
         _backBuffer = _renderingSystem.CreateRenderTexture(_renderingSystem.PrefferedSDRPass, (uint)width, (uint)height);

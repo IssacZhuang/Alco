@@ -9,7 +9,7 @@ public class CameraOrthographic : BaseCamera<CameraDataOrthographic>
         _data.tranform = Transform3D.Identity;
     }
 
-    public Vector2 Size
+    public Vector2 ViewSize
     {
         get => new Vector2(_data.width, _data.height);
         set

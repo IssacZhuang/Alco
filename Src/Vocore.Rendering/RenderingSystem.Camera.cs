@@ -14,7 +14,7 @@ public partial class RenderingSystem
     {
         return new Camera2D(this, "camera_2d")
         {
-            Size = size,
+            ViewSize = size,
             Depth = depth
         };
     }
@@ -64,7 +64,7 @@ public partial class RenderingSystem
     {
         return new CameraOrthographic(this, "camera_orthographic")
         {
-            Size = new Vector2(width, height),
+            ViewSize = new Vector2(width, height),
             Near = near,
             Far = far
         };
@@ -81,7 +81,7 @@ public partial class RenderingSystem
     {
         return new CameraOrthographic(this, "camera_orthographic")
         {
-            Size = size,
+            ViewSize = size,
             Near = near,
             Far = far
         };

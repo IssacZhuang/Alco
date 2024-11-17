@@ -19,7 +19,7 @@ public class Camera2D : BaseCamera<CameraData2D>
         }
     }
 
-    public Vector2 Size
+    public Vector2 ViewSize
     {
         get => _data.Size;
         set
