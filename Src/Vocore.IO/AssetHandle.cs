@@ -11,7 +11,8 @@ internal class AssetHandle
     
 
     public event AssetAsyncLoadDelegate? OnLoadComplete;//on main thread
-    public object? tmpAsset;//store the asset that is loaded by thread by not yet assigned to the cache
+    //just keep reference when asyc load to avoid GC
+    public object? tmpAsset;
 
     public bool IsLoading
     {

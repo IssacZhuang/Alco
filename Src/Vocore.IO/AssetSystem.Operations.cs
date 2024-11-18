@@ -112,14 +112,11 @@ public sealed partial class AssetSystem
     public void LoadAsync<TAsset>(string filename, Action<TAsset, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
     {
 
-        TryRefreshEntries();
         filename = ParseEntry(filename);
 
         AssetHandle handle = GetAssetHandle(filename);
         lock (handle)
         {
-
-
             //try load from cache
             object? cachedAsset = handle.CachedAsset;
             if (cachedAsset is TAsset cached)
@@ -129,14 +126,6 @@ public sealed partial class AssetSystem
             }
 
             // check the asset loader
-            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
-            {
-                string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
-                Log.Error(failedReason);
-                onComplete(null!, new AssetLoadException(failedReason));
-                return;
-            }
-
             handle.OnLoadComplete += (asset, exception) => onComplete((TAsset)asset, exception);
 
             if (handle.IsLoading)
@@ -146,10 +135,18 @@ public sealed partial class AssetSystem
 
             handle.IsLoading = true;
 
+            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+            {
+                string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
+                Log.Error(failedReason);
+                onComplete(null!, new AssetLoadException(failedReason));
+                return;
+            }
+
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
                 name = filename,
-                onCreate = GetOnCreateAction(filename, handle, assetLoaderT), // on worker thread
+                onCreate = GetOnCreateAction<TAsset>(filename, cacheMode), // on worker thread
                 handle = handle,
                 cacheMode = cacheMode
             };
@@ -185,27 +182,11 @@ public sealed partial class AssetSystem
 
 
     //on worker thread
-    private Func<object?> GetOnCreateAction<TAsset>(string filename, AssetHandle handle, IAssetLoader<TAsset> assetLoaderT) where TAsset : class
+    private Func<object?> GetOnCreateAction<TAsset>(string filename, AssetCacheMode cacheMode) where TAsset : class
     {
         return () =>
         {
-            lock (handle)
-            {
-                //it might already loaded by other thread
-                TAsset? newAsset = handle.CachedAsset as TAsset;
-                if (newAsset != null)
-                {
-                    return newAsset;
-                }
-
-
-                if (!TryLoadAssetCore(filename, handle, assetLoaderT, out newAsset, out string? failedReason))
-                {
-                    throw new AssetLoadException(failedReason);
-                }
-                return newAsset;
-            }
-
+            return Load<TAsset>(filename, cacheMode);
         };
     }
 
@@ -330,10 +311,11 @@ public sealed partial class AssetSystem
                 Log.Error($"Exception on creating asset '{job.name}': {e}");
             }
 
-            if (asset != null)
-            {
-                handle.SetCache(asset, job.cacheMode);
-            }
+            // already cached in async job
+            // if (asset != null)
+            // {
+            //     handle.SetCache(asset, job.cacheMode);
+            // }
             handle.ResetLoadingState();
         }
     }
