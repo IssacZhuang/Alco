@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Vocore.Rendering;
 
-public abstract class Material
+public abstract class Material: AutoDisposable
 {
     /// <summary>
     /// Get the GPU pipeline of the material.

@@ -6,6 +6,7 @@ public abstract class BaseMaterial : Material
 {
     protected readonly RenderingSystem _system;
     protected readonly ShaderParameterSet _parameters;
+    private readonly HashSet<AutoDisposable> _managedResources = new();
 
     /// <summary>
     /// The name of the material.
@@ -258,13 +259,26 @@ public abstract class BaseMaterial : Material
             BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
             if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
             {
-                if (!_parameters.TryGetBuffer(i, out GraphicsBuffer? _))
+                BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
+                if (!_parameters.TryGetBuffer(i, out GraphicsBuffer? buffer))
                 {
-                    BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                    _parameters.SetBuffer(i, _system.CreateGraphicsBuffer(
+                    
+                    buffer = _system.CreateGraphicsBuffer(
                         info.Size,
                         $"Material_{Name}_Buffer_{info.Entry.Name}"
-                    ));
+                    );
+                    _parameters.SetBuffer(i, buffer);
+                    _managedResources.Add(buffer);
+                }
+                else if (buffer.Size < info.Size)
+                {
+                    buffer.Dispose();
+                    buffer = _system.CreateGraphicsBuffer(
+                        info.Size,
+                        $"Material_{Name}_Buffer_{info.Entry.Name}"
+                    );
+                    _parameters.SetBuffer(i, buffer);
+                    _managedResources.Add(buffer);
                 }
             }
             else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
@@ -280,6 +294,16 @@ public abstract class BaseMaterial : Material
                 //do nothing
             }
         }
+    }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            foreach (AutoDisposable resource in _managedResources)
+            {
+                resource.Dispose();
+            }
+        }
     }
 }
