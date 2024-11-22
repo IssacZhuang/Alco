@@ -4,6 +4,10 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
+
+/// <summary>
+/// The shader parameter set which manages the resources of the shader.
+/// </summary>
 public sealed class ShaderParameterSet
 {
     private const int RenderTextureIndexDepth = -1;
@@ -28,12 +32,19 @@ public sealed class ShaderParameterSet
     private readonly ArrayBuffer<GPUResourceGroup?> _resourceGroups;
     private ShaderReflectionInfo _reflectionInfo;
 
+    /// <summary>
+    /// The resource groups of the shader.
+    /// </summary>
     public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _resourceGroups.Span;
     }
 
+    /// <summary>
+    /// Initialize the shader parameter set.
+    /// </summary>
+    /// <param name="reflectionInfo">The reflection information of the shader.</param>
     internal ShaderParameterSet(ShaderReflectionInfo reflectionInfo)
     {
         _reflectionInfo = reflectionInfo;
@@ -43,6 +54,11 @@ public sealed class ShaderParameterSet
         UpdateSlotResources();
     }
 
+    /// <summary>
+    /// Set the reflection information of the shader.
+    /// </summary>
+    /// <param name="reflectionInfo">The reflection information of the shader.</param>
+    /// <param name="resetResources">Whether to reset the resources.</param>
     public void SetReflectionInfo(ShaderReflectionInfo reflectionInfo, bool resetResources = false)
     {
         _reflectionInfo = reflectionInfo;
@@ -51,6 +67,12 @@ public sealed class ShaderParameterSet
 
     #region Set Buffer
 
+    /// <summary>
+    /// Try to set the buffer to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="buffer">The buffer to set.</param>
+    /// <returns>Whether the buffer is set successfully.</returns>
     public bool TrySetBuffer(string name, GraphicsBuffer buffer)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -61,7 +83,12 @@ public sealed class ShaderParameterSet
         return TrySetBuffer(id, buffer);
     }
 
-
+    /// <summary>
+    /// Try to set the buffer to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="buffer">The buffer to set.</param>
+    /// <returns>Whether the buffer is set successfully.</returns>
     public bool TrySetBuffer(uint id, GraphicsBuffer buffer)
     {
         if (id < 0 || id >= _slots.Length)
@@ -86,6 +113,11 @@ public sealed class ShaderParameterSet
         return false;
     }
 
+    /// <summary>
+    /// Set the buffer to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="buffer">The buffer to set.</param>
     public void SetBuffer(string name, GraphicsBuffer buffer)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -96,6 +128,11 @@ public sealed class ShaderParameterSet
         SetBuffer(id, buffer);
     }
 
+    /// <summary>
+    /// Set the buffer to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="buffer">The buffer to set.</param>
     public void SetBuffer(uint id, GraphicsBuffer buffer)
     {
         if (id < 0 || id >= _slots.Length)
@@ -126,6 +163,12 @@ public sealed class ShaderParameterSet
 
     #region Get Buffer
 
+    /// <summary>
+    /// Try to get the buffer from the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="buffer">The buffer to get.</param>
+    /// <returns>Whether the buffer is got successfully.</returns>
     public bool TryGetBuffer(string name, [NotNullWhen(true)]out GraphicsBuffer? buffer)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -137,6 +180,12 @@ public sealed class ShaderParameterSet
         return TryGetBuffer(id, out buffer);
     }
 
+    /// <summary>
+    /// Try to get the buffer from the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="buffer">The buffer to get.</param>
+    /// <returns>Whether the buffer is got successfully.</returns>
     public bool TryGetBuffer(uint id, [NotNullWhen(true)]out GraphicsBuffer? buffer)
     {
         if (id < 0 || id >= _slots.Length)
@@ -156,6 +205,11 @@ public sealed class ShaderParameterSet
         return false;
     }
 
+    /// <summary>
+    /// Get the buffer from the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <returns>The buffer.</returns>
     public GraphicsBuffer? GetBuffer(string name)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -166,6 +220,11 @@ public sealed class ShaderParameterSet
         return GetBuffer(id);
     }
 
+    /// <summary>
+    /// Get the buffer from the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <returns>The buffer.</returns>
     public GraphicsBuffer? GetBuffer(uint id)
     {
         if (id < 0 || id >= _slots.Length)
@@ -187,6 +246,12 @@ public sealed class ShaderParameterSet
 
     #region Set Texture
 
+    /// <summary>
+    /// Try to set the texture to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="texture">The texture to set.</param>
+    /// <returns>Whether the texture is set successfully.</returns>
     public bool TrySetTexture(string name, Texture2D texture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -197,6 +262,12 @@ public sealed class ShaderParameterSet
         return TrySetTexture(id, texture);
     }
 
+    /// <summary>
+    /// Try to set the texture to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="texture">The texture to set.</param>
+    /// <returns>Whether the texture is set successfully.</returns>
     public bool TrySetTexture(uint id, Texture2D texture)
     {
         if (id < 0 || id >= _slots.Length)
@@ -221,6 +292,11 @@ public sealed class ShaderParameterSet
         return false;
     }
 
+    /// <summary>
+    /// Set the texture to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="texture">The texture to set.</param>
     public void SetTexture(string name, Texture2D texture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -259,6 +335,12 @@ public sealed class ShaderParameterSet
 
     #region Get Texture
 
+    /// <summary>
+    /// Try to get the texture from the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="texture">The texture to get.</param>
+    /// <returns>Whether the texture is got successfully.</returns>
     public bool TryGetTexture(string name, [NotNullWhen(true)]out Texture2D? texture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -289,6 +371,11 @@ public sealed class ShaderParameterSet
         return false;
     }
 
+    /// <summary>
+    /// Get the texture from the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <returns>The texture.</returns>
     public Texture2D? GetTexture(string name)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -299,6 +386,11 @@ public sealed class ShaderParameterSet
         return GetTexture(id);
     }
 
+    /// <summary>
+    /// Get the texture from the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <returns>The texture.</returns>
     public Texture2D? GetTexture(uint id)
     {
         if (id < 0 || id >= _slots.Length)
@@ -319,6 +411,13 @@ public sealed class ShaderParameterSet
 
     #region Set RenderTexture Color
 
+    /// <summary>
+    /// Try to set the color texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <param name="index">The index of the color texture in the render texture.</param>
+    /// <returns>Whether the color texture in the render texture is set successfully.</returns>
     public bool TrySetRenderTexture(string name, RenderTexture renderTexture, int index = 0)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -329,6 +428,13 @@ public sealed class ShaderParameterSet
         return TrySetRenderTexture(id, renderTexture, index);
     }
 
+    /// <summary>
+    /// Try to set the color texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <param name="index">The index of the color texture in the render texture.</param>
+    /// <returns>Whether the color texture in the render texture is set successfully.</returns> 
     public bool TrySetRenderTexture(uint id, RenderTexture renderTexture, int index = 0)
     {
         if (id < 0 || id >= _slots.Length)
@@ -361,7 +467,13 @@ public sealed class ShaderParameterSet
 
         return false;
     }
-
+  
+    /// <summary>
+    /// Set the color texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <param name="index">The index of the color texture in the render texture.</param>
     public void SetRenderTexture(string name, RenderTexture renderTexture, int index = 0)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -372,6 +484,12 @@ public sealed class ShaderParameterSet
         SetRenderTexture(id, renderTexture, index);
     }
 
+    /// <summary>
+    /// Set the color texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <param name="index">The index of the color texture in the render texture.</param>
     public void SetRenderTexture(uint id, RenderTexture renderTexture, int index = 0)
     {
         if (id < 0 || id >= _slots.Length)
@@ -407,6 +525,12 @@ public sealed class ShaderParameterSet
 
     #region Set RenderTexture Depth
 
+    /// <summary>
+    /// Try to set the depth texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <returns>Whether the depth texture in the render texture is set successfully.</returns>
     public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -417,6 +541,12 @@ public sealed class ShaderParameterSet
         return TrySetRenderTextureDepth(id, renderTexture);
     }
 
+    /// <summary>
+    /// Try to set the depth texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <returns>Whether the depth texture in the render texture is set successfully.</returns>
     public bool TrySetRenderTextureDepth(uint id, RenderTexture renderTexture)
     {
         if (id < 0 || id >= _slots.Length)
@@ -444,6 +574,11 @@ public sealed class ShaderParameterSet
         return true;
     }
 
+    /// <summary>
+    /// Set the depth texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
     public void SetRenderTextureDepth(string name, RenderTexture renderTexture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -454,6 +589,11 @@ public sealed class ShaderParameterSet
         SetRenderTextureDepth(id, renderTexture);
     }
 
+    /// <summary>
+    /// Set the depth texture in the render texture to the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
     public void SetRenderTextureDepth(uint id, RenderTexture renderTexture)
     {
         if (id < 0 || id >= _slots.Length)
@@ -483,6 +623,12 @@ public sealed class ShaderParameterSet
 
     #region Get RenderTexture
 
+    /// <summary>
+    /// Try to get the render texture from the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="renderTexture">The render texture to get.</param>
+    /// <returns>Whether the render texture is got successfully.</returns>
     public bool TryGetRenderTexture(string name, [NotNullWhen(true)]out RenderTexture? renderTexture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -494,6 +640,12 @@ public sealed class ShaderParameterSet
         return TryGetRenderTexture(id, out renderTexture);
     }
 
+    /// <summary>
+    /// Try to get the render texture from the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="renderTexture">The render texture to get.</param>
+    /// <returns>Whether the render texture is got successfully.</returns>
     public bool TryGetRenderTexture(uint id, [NotNullWhen(true)]out RenderTexture? renderTexture)
     {
         if (id < 0 || id >= _slots.Length)
@@ -513,6 +665,11 @@ public sealed class ShaderParameterSet
         return false;
     }
 
+    /// <summary>
+    /// Get the render texture from the shader parameter set.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <returns>The render texture.</returns>
     public RenderTexture? GetRenderTexture(string name)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
@@ -523,6 +680,11 @@ public sealed class ShaderParameterSet
         return GetRenderTexture(id);
     }
 
+    /// <summary>
+    /// Get the render texture from the shader parameter set.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <returns>The render texture.</returns>
     public RenderTexture? GetRenderTexture(uint id)
     {
         if (id < 0 || id >= _slots.Length)
