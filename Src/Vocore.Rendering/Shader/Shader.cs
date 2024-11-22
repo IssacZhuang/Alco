@@ -20,8 +20,17 @@ public class Shader : AutoDisposable
     private readonly Lock _lockCreateModules = new Lock();
     private readonly string _shaderText;
 
+    /// <summary>
+    /// The name of the shader
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Create a new shader
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system</param>
+    /// <param name="shaderText">The shader text</param>
+    /// <param name="name">The name of the shader</param>
     internal Shader(RenderingSystem renderingSystem, string shaderText, string name)
     {
         _renderingSystem = renderingSystem;
