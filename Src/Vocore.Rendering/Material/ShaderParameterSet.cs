@@ -114,8 +114,12 @@ public sealed class ShaderParameterSet
             slot.buffer = buffer;
             _resourceGroups.Set(id, buffer.EntryReadWrite);
         }
+        else
+        {
+            throw new InvalidOperationException($"The bind group {id} is not for a buffer but {slot.type}.");
+        }
 
-        throw new InvalidOperationException($"The bind group {id} is not for a buffer.");
+
     }
 
     #endregion
@@ -245,8 +249,10 @@ public sealed class ShaderParameterSet
             slot.texture = texture;
             _resourceGroups.Set(id, texture.EntryWriteable);
         }
-
-        throw new InvalidOperationException($"The bind group {id} is not for a texture.");
+        else
+        {
+            throw new InvalidOperationException($"The bind group {id} is not for a texture but {slot.type}.");
+        }
     }
 
     #endregion
@@ -392,9 +398,9 @@ public sealed class ShaderParameterSet
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
             _resourceGroups.Set(id, renderTexture.EntriesColorWrite[index]);
+        }else{
+            throw new InvalidOperationException($"The bind group {id} is not for a texture but {slot.type}.");
         }
-
-        throw new InvalidOperationException($"The bind group {id} is not for a texture.");
     }
 
     #endregion

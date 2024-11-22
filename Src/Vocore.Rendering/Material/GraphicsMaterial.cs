@@ -5,25 +5,9 @@ namespace Vocore.Rendering;
 //todo: opt exception message
 public sealed class GraphicsMaterial : Material
 {
-    private enum ResourceType
-    {
-        Unavailable,
-        TextureWithSampler,
-        UniformBuffer
-    }
-
-
-    private struct Slot
-    {
-        public ResourceType type;
-        public GraphicsBuffer? buffer;
-        public Texture2D? texture;
-        public RenderTexture? renderTexture;
-        public GPUResourceGroup? resourceGroup;
-    }
 
     private readonly RenderingSystem _system;
-    private readonly ArrayBuffer<Slot> _slots;
+    private readonly ShaderParameterSet _parameters;
     private readonly Shader _shader;
 
     private bool _isPipelineDirty = true;
@@ -91,77 +75,76 @@ public sealed class GraphicsMaterial : Material
     {
         _system = system;
         _shader = shader;
-        _slots = new ArrayBuffer<Slot>();
         Name = name;
 
         _pipelineContext = GraphicsPipelineContext.Default;
         _pipelineContext.ReflectionInfo = shader.GetShaderModules().ReflectionInfo;
+        _parameters = new ShaderParameterSet(_pipelineContext.ReflectionInfo);
         UpdateSlotResources();
     }
 
     #region  Set value
 
-    public bool TrySetValue<T>(string name, T value) where T : unmanaged
+    public unsafe bool TrySetValue<T>(string name, T value) where T : unmanaged
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
+        if (_parameters.TryGetBuffer(name, out GraphicsBuffer? buffer))
         {
-            return false;
+            if (buffer.Size < sizeof(T))
+            {
+                return false;
+            }
+
+            buffer.UpdateBuffer(value);
+            return true;
         }
 
-        return TrySetValue(id, value);
+        return false;
     }
 
     public unsafe bool TrySetValue<T>(uint id, T value) where T : unmanaged
     {
-        if (id < 0 || id >= _slots.Length)
+        if (_parameters.TryGetBuffer(id, out GraphicsBuffer? buffer))
         {
-            return false;
+            if (buffer.Size < sizeof(T))
+            {
+                return false;
+            }
+
+            buffer.UpdateBuffer(value);
+            return true;
         }
 
-        Slot slot = _slots.Get(id);
-        if (slot.type != ResourceType.UniformBuffer)
-        {
-            return false;
-        }
-
-        if (sizeof(T) > slot.buffer!.Size)
-        {
-            return false;
-        }
-
-        slot.buffer!.UpdateBuffer(value);
-        return true;
+        return false;
     }
 
-    public void SetValue<T>(string name, T value) where T : unmanaged
+    public unsafe void SetValue<T>(string name, T value) where T : unmanaged
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
+        if (!_parameters.TryGetBuffer(name, out GraphicsBuffer? buffer))
         {
             throw new KeyNotFoundException($"Resource '{name}' not found in shader");
         }
 
-        SetValue(id, value);
+        if (buffer.Size < sizeof(T))
+        {
+            throw new InvalidOperationException($"The buffer size is not enough for the value.");
+        }
+
+        buffer.UpdateBuffer(value);
     }
 
     public unsafe void SetValue<T>(uint id, T value) where T : unmanaged
     {
-        if (id < 0 || id >= _slots.Length)
+        if (!_parameters.TryGetBuffer(id, out GraphicsBuffer? buffer))
         {
             throw new ArgumentOutOfRangeException(nameof(id));
         }
 
-        Slot slot = _slots.Get(id);
-        if (slot.type != ResourceType.UniformBuffer)
+        if (buffer.Size < sizeof(T))
         {
-            throw new InvalidOperationException($"The resource {id} is not a buffer.");
+            throw new InvalidOperationException($"The buffer size is not enough for the value.");
         }
 
-        if (sizeof(T) > slot.buffer!.Size)
-        {
-            throw new ArgumentOutOfRangeException($"The size of {typeof(T).Name} is larger than the buffer size: {slot.buffer.Size}.");
-        }
-
-        slot.buffer!.UpdateBuffer(value);
+        buffer.UpdateBuffer(value);
     }
 
     #endregion
@@ -170,59 +153,22 @@ public sealed class GraphicsMaterial : Material
 
     public bool TrySetTexture(string name, Texture2D texture)
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
-        {
-            return false;
-        }
-
-        return TrySetTexture(id, texture);
+        return _parameters.TrySetTexture(name, texture);
     }
 
     public bool TrySetTexture(uint id, Texture2D texture)
     {
-        if (id < 0 || id >= _slots.Length)
-        {
-            return false;
-        }
-
-        ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type != ResourceType.TextureWithSampler)
-        {
-            return false;
-        }
-
-        slot.renderTexture = null;
-        slot.texture = texture;
-        slot.resourceGroup = texture.EntrySample;
-        return true;
+        return _parameters.TrySetTexture(id, texture);
     }
 
     public void SetTexture(string name, Texture2D texture)
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
-        {
-            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
-        }
-
-        SetTexture(id, texture);
+        _parameters.SetTexture(name, texture);
     }
 
     public void SetTexture(uint id, Texture2D texture)
     {
-        if (id < 0 || id >= _slots.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(id));
-        }
-
-        ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type != ResourceType.TextureWithSampler)
-        {
-            throw new InvalidOperationException($"The resource {id} is not a texture.");
-        }
-
-        slot.renderTexture = null;
-        slot.texture = texture;
-        slot.resourceGroup = texture.EntrySample;
+        _parameters.SetTexture(id, texture);
     }
 
 
@@ -232,131 +178,42 @@ public sealed class GraphicsMaterial : Material
 
     public bool TrySetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
-        {
-            return false;
-        }
-
-        return TrySetRenderTexture(id, renderTexture, renderTextureIndex);
+        return _parameters.TrySetRenderTexture(name, renderTexture, renderTextureIndex);
     }
 
     public bool TrySetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        if (id < 0 || id >= _slots.Length)
-        {
-            return false;
-        }
-
-        if (renderTextureIndex < 0 || renderTextureIndex >= renderTexture.EntriesColorSample.Length)
-        {
-            return false;
-        }
-
-        ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type != ResourceType.TextureWithSampler)
-        {
-            return false;
-        }
-
-        slot.texture = null;
-        slot.renderTexture = renderTexture;
-        slot.resourceGroup = renderTexture.EntriesColorSample[renderTextureIndex];
-        return true;
+        return _parameters.TrySetRenderTexture(id, renderTexture, renderTextureIndex);
     }
 
     public void SetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
-        {
-            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
-        }
-
-        SetRenderTexture(id, renderTexture, renderTextureIndex);
+        _parameters.SetRenderTexture(name, renderTexture, renderTextureIndex);
     }
 
     public void SetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        if (id < 0 || id >= _slots.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(id));
-        }
-
-        if (renderTextureIndex < 0 || renderTextureIndex >= renderTexture.EntriesColorSample.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(renderTextureIndex));
-        }
-
-        ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type != ResourceType.TextureWithSampler)
-        {
-            throw new InvalidOperationException($"The resource {id} is not a texture.");
-        }
-
-        slot.texture = null;
-        slot.renderTexture = renderTexture;
-        slot.resourceGroup = renderTexture.EntriesColorSample[renderTextureIndex];
+        _parameters.SetRenderTexture(id, renderTexture, renderTextureIndex);
     }
 
     public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
-        {
-            return false;
-        }
-
-        return TrySetRenderTextureDepth(id, renderTexture);
+        return _parameters.TrySetRenderTextureDepth(name, renderTexture);
     }
 
     public bool TrySetRenderTextureDepth(uint id, RenderTexture renderTexture)
     {
-        if (id < 0 || id >= _slots.Length)
-        {
-            return false;
-        }
-
-        ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type != ResourceType.TextureWithSampler)
-        {
-            return false;
-        }
-
-        slot.texture = null;
-        slot.renderTexture = renderTexture;
-        slot.resourceGroup = renderTexture.EntryDepthSample;
-        return true;
+        return _parameters.TrySetRenderTextureDepth(id, renderTexture);
     }
 
     public void SetRenderTextureDepth(string name, RenderTexture renderTexture)
     {
-        if (!_pipelineContext.TryGetResourceId(name, out uint id))
-        {
-            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
-        }
-
-        SetRenderTextureDepth(id, renderTexture);
+        _parameters.SetRenderTextureDepth(name, renderTexture);
     }
 
     public void SetRenderTextureDepth(uint id, RenderTexture renderTexture)
     {
-        if (id < 0 || id >= _slots.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(id));
-        }
-
-        if (!renderTexture.HasDepth)
-        {
-            throw new InvalidOperationException($"The render texture does not have a depth attachment.");
-        }
-
-        ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type != ResourceType.TextureWithSampler)
-        {
-            throw new InvalidOperationException($"The resource {id} is not a texture.");
-        }
-
-        slot.texture = null;
-        slot.renderTexture = renderTexture;
-        slot.resourceGroup = renderTexture.EntryDepthSample;
+        _parameters.SetRenderTextureDepth(id, renderTexture);
     }
 
     #endregion
@@ -380,61 +237,60 @@ public sealed class GraphicsMaterial : Material
             context.SetStencilReference(StencilReference.Value);
         }
 
-        for (uint i = 0; i < _slots.Length; i++)
-        {
-            int index = (int)i;
-            Slot slot = _slots[index];
-            if (slot.resourceGroup == null)
-            {
-                continue;
-            }
+        // for (uint i = 0; i < _slots.Length; i++)
+        // {
+        //     int index = (int)i;
+        //     Slot slot = _slots[index];
+        //     if (slot.resourceGroup == null)
+        //     {
+        //         continue;
+        //     }
 
-            context.SetGraphicsResources(i, slot.resourceGroup);
+        //     context.SetGraphicsResources(i, slot.resourceGroup);
+        // }
+        
+        ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
+        for (uint i = 0; i < resources.Length; i++)
+        {
+            if (resources[(int)i] != null)
+            {
+                context.SetGraphicsResources(i, resources[(int)i]!);
+            }else{
+                throw new InvalidOperationException($"Resource group {i} is null");
+            }
         }
     }
 
     private void UpdateSlotResources()
     {
         ShaderReflectionInfo reflectionInfo = _pipelineContext.ReflectionInfo!;
-        _slots.EnsureSize(reflectionInfo.BindGroups.Count);
 
-        for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
+        for (uint i = 0; i < reflectionInfo.BindGroups.Count; i++)
         {
-            ref Slot slot = ref _slots[i];
 
-            BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[i];
+            BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
             if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
             {
-                if (slot.buffer != null)
+                if (!_parameters.TryGetBuffer(i, out GraphicsBuffer? _))
                 {
-                    continue;
+                    BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
+                    _parameters.SetBuffer(i, _system.CreateGraphicsBuffer(
+                        info.Size,
+                        $"Material_{Name}_Buffer_{info.Entry.Name}"
+                    ));
                 }
-                BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                slot.type = ResourceType.UniformBuffer;
-                slot.buffer = _system.CreateGraphicsBuffer(
-                    info.Size,
-                    $"Material_{Name}_Buffer_{info.Entry.Name}"
-                    );
-                slot.resourceGroup = slot.buffer.EntryReadonly;
             }
             else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
-                if (slot.texture != null||
-                    slot.renderTexture != null)
+                if (!_parameters.TryGetTexture(i, out Texture2D? _) &&
+                    !_parameters.TryGetRenderTexture(i, out RenderTexture? _))
                 {
-                    continue;
+                    _parameters.SetTexture(i, _system.TextureWhite);
                 }
-                slot.type = ResourceType.TextureWithSampler;
-                slot.texture = _system.TextureWhite;
-                slot.resourceGroup = slot.texture.EntrySample;
             }
             else
             {
-                slot.type = ResourceType.Unavailable;
-                slot.buffer = null;
-                slot.texture = null;
-                slot.renderTexture = null;
-                slot.resourceGroup = null;
+                //do nothing
             }
         }
     }
