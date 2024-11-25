@@ -9,113 +9,16 @@ namespace Vocore.Rendering;
 /// </summary>
 public sealed class GraphicsMaterial : BaseMaterial
 {
-    private readonly Shader _shader;
-    private bool _isPipelineDirty = true;
-    private GraphicsPipelineContext _pipelineContext;
-
-    /// <summary>
-    /// The depth stencil state of the shader pipeline.
-    /// </summary>
-    public DepthStencilState DepthStencilState
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext.DepthStencil;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            _pipelineContext.DepthStencil = value;
-            _isPipelineDirty = true;
-        }
-    }
-
-    /// <summary>
-    /// The blend state of the shader pipeline.
-    /// </summary>
-    public BlendState BlendState
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext.BlendState;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            _pipelineContext.BlendState = value;
-            _isPipelineDirty = true;
-        }
-    }
-
-    /// <summary>
-    /// The rasterizer state of the shader pipeline.
-    /// </summary>
-    public RasterizerState RasterizerState
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext.Rasterizer;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set
-        {
-            _pipelineContext.Rasterizer = value;
-            _isPipelineDirty = true;
-        }
-    }
-
-    /// <summary>
-    /// The primitive topology of the shader pipeline.
-    /// </summary>
-    public PrimitiveTopology PrimitiveTopology
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext.PrimitiveTopology;
-        set
-        {
-            _pipelineContext.PrimitiveTopology = value;
-            _isPipelineDirty = true;
-        }
-    }
-
-    /// <summary>
-    /// The shader of the material.
-    /// </summary>
-    public Shader Shader
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _shader;
-    }
-
-
-    /// <summary>
-    /// The stencil reference value which used in <see cref="GPUCommandBuffer.SetStencilReference"/>.
-    /// </summary>
-    public uint? StencilReference;
-
-
+    
     public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _parameters.ResourceGroups;
     }
 
-    internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader.GetShaderModules().ReflectionInfo, name)
+    internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader, name)
     {
-        _shader = shader;
-        _pipelineContext = GraphicsPipelineContext.Default;
-        _pipelineContext.ReflectionInfo = shader.GetShaderModules().ReflectionInfo;
-    }
-
-
-    /// <summary>
-    /// Get the shader pipeline.
-    /// </summary>
-    /// <param name="renderPass">The render pass.</param>
-    /// <returns>The shader pipeline.</returns>
-    public override GPUPipeline GetPipeline(GPURenderPass renderPass)
-    {
-        if (_shader.TryUpdatePipelineContext(ref _pipelineContext, renderPass, _isPipelineDirty))
-        {
-            UpdateSlotResources(_pipelineContext.ReflectionInfo!);
-            _isPipelineDirty = false;
-        }
-
-        return _pipelineContext.Pipeline!;
+        
     }
 
     /// <summary>
@@ -141,5 +44,48 @@ public sealed class GraphicsMaterial : BaseMaterial
         }
     }
 
+    protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo)
+    {
+        for (uint i = 0; i < reflectionInfo.BindGroups.Count; i++)
+        {
 
+            BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
+            if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
+            {
+                BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
+                if (!_parameters.TryGetBuffer(i, out GraphicsBuffer? buffer))
+                {
+
+                    buffer = _system.CreateGraphicsBuffer(
+                        info.Size,
+                        $"Material_{Name}_Buffer_{info.Entry.Name}"
+                    );
+                    _parameters.SetBuffer(i, buffer);
+                    _managedResources.Add(buffer);
+                }
+                else if (buffer.Size < info.Size)
+                {
+                    buffer.Dispose();
+                    buffer = _system.CreateGraphicsBuffer(
+                        info.Size,
+                        $"Material_{Name}_Buffer_{info.Entry.Name}"
+                    );
+                    _parameters.SetBuffer(i, buffer);
+                    _managedResources.Add(buffer);
+                }
+            }
+            else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
+            {
+                if (!_parameters.TryGetTexture(i, out Texture2D? _) &&
+                    !_parameters.TryGetRenderTexture(i, out RenderTexture? _))
+                {
+                    _parameters.SetTexture(i, _system.TextureWhite);
+                }
+            }
+            else
+            {
+                //do nothing
+            }
+        }
+    }
 }
