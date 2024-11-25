@@ -15,6 +15,15 @@ public abstract class BaseMaterial : Material
     protected readonly Shader _shader;
 
     /// <summary>
+    /// The resource groups of the shader.
+    /// </summary>
+    public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _parameters.ResourceGroups;
+    }
+
+    /// <summary>
     /// The depth stencil state of the shader pipeline.
     /// </summary>
     public DepthStencilState DepthStencilState

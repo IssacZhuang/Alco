@@ -84,4 +84,9 @@ public struct GraphicsPipelineContext
         }
         throw new KeyNotFoundException($"Resource '{name}' not found in shader {Pipeline!.Name}");
     }
+
+    public readonly GraphicsPipelineContext Clone()
+    {
+        return new GraphicsPipelineContext(DepthStencil, BlendState, Rasterizer, PrimitiveTopology, Defines);
+    }
 }

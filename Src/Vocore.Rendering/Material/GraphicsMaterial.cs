@@ -9,11 +9,10 @@ namespace Vocore.Rendering;
 /// </summary>
 public sealed class GraphicsMaterial : BaseMaterial
 {
-    
-    public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
+    internal GraphicsPipelineContext PipelineContext
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _parameters.ResourceGroups;
+        get => _pipelineContext;
     }
 
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader, name)

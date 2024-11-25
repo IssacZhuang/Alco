@@ -13,16 +13,14 @@ public sealed class GraphicsMaterialInstance : BaseMaterial
     internal GraphicsMaterialInstance(GraphicsMaterial parent, RenderingSystem system, string name) : base(system, parent.Shader, name)
     {
         _parent = parent;
+        _pipelineContext = parent.PipelineContext.Clone();
     }
 
     protected override void SetPipelineResources(MaterialCommandContext context)
     {
-        if (StencilReference.HasValue)
-        {
+        if(StencilReference.HasValue){
             context.SetStencilReference(StencilReference.Value);
-        }
-        else if (_parent.StencilReference.HasValue)
-        {
+        }else if(_parent.StencilReference.HasValue){
             context.SetStencilReference(_parent.StencilReference.Value);
         }
 
