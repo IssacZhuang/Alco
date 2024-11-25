@@ -25,4 +25,8 @@ public abstract class GPUTexture : BaseGPUObject
     {
         return Math.Max(1, Depth >> (int)mipLevel);
     }
+
+    protected GPUTexture(string name): base(name)
+    {
+    }
 }

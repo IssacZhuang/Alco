@@ -15,4 +15,12 @@ public abstract class GPUTextureView : BaseGPUObject, IGPUBindableResource
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => BindableResourceType.TextureView;
     }
+
+    protected GPUTextureView(in TextureViewDescriptor descriptor): base(descriptor.Name)
+    {
+    }
+
+    public GPUTextureView(string name): base(name)
+    {
+    }
 }

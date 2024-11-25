@@ -36,7 +36,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     #endregion
 
     #region Abstract Implementation
-    public override string Name { get; }
     protected override WebGPUDevice Device { get; }
     public override GPURenderPass RenderPass
     {
@@ -124,10 +123,9 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config)
+    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config): base("swapchain_frameBuffer")
     {
         Device = device;
-        Name = "swapchain_frameBuffer";
         _renderPass = renderPass;
 
         // configure the surface
@@ -273,7 +271,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     internal sealed class WebGPUSurfaceTexture : WebGPUTextureBase
     {
         #region Properties
-        private const string NAME = "WebGPU Surface Texture";
         private readonly WGPUSurface _surface;
         // Update every frame
         private WGPUTexture _texture;
@@ -302,12 +299,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 1;
-        }
-
-        public override string Name
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => NAME;
         }
 
         public override PixelFormat PixelFormat { get; }
@@ -345,7 +336,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
 
 
-        public unsafe WebGPUSurfaceTexture(WebGPUDevice device, WGPUSurface surface)
+        public unsafe WebGPUSurfaceTexture(WebGPUDevice device, WGPUSurface surface): base("swapchain_texture")
         {
             Device = device;
             _surface = surface;

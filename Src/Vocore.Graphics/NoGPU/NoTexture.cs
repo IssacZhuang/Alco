@@ -10,11 +10,14 @@ internal class NoTexture : GPUTexture
 
     public override uint MipLevelCount => 1;
 
-    public override string Name => "no_gpu_texture";
-
     public override PixelFormat PixelFormat => PixelFormat.RGBA8Unorm;
 
     protected override GPUDevice Device => NoDevice.noDevice;
+
+    public NoTexture(in TextureDescriptor descriptor): base(descriptor.Name)
+    {
+    }
+
     protected override void Dispose(bool disposing)
     {
         

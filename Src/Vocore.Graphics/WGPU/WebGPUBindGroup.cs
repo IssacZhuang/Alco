@@ -20,8 +20,6 @@ internal sealed class WebGPUBindGroup : GPUBindGroup
         get => _bindings;
     }
 
-    public override string Name { get; }
-
     protected override void Dispose(bool disposing)
     {
         wgpuBindGroupLayoutReference(_native);
@@ -39,13 +37,12 @@ internal sealed class WebGPUBindGroup : GPUBindGroup
 
     protected override GPUDevice Device { get; }
 
-    public unsafe WebGPUBindGroup(WebGPUDevice device, BindGroupDescriptor descriptor)
+    public unsafe WebGPUBindGroup(WebGPUDevice device, BindGroupDescriptor descriptor):base(descriptor)
     {
         Device = device;
 
         WGPUDevice nativeDevice = device.Native;
         BindGroupEntry[] entries = descriptor.Bindings;
-        Name = descriptor.Name;
         WGPUBindGroupLayoutEntry* nativeEntries = stackalloc WGPUBindGroupLayoutEntry[entries.Length];
         for (int i = 0; i < entries.Length; i++)
         {

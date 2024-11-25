@@ -15,7 +15,7 @@ public abstract class GPURenderPass : BaseGPUObject
     }
     public DepthAttachment? Depth { get; }
 
-    protected GPURenderPass(in RenderPassDescriptor descriptor)
+    protected GPURenderPass(in RenderPassDescriptor descriptor): base(descriptor.Name)
     {
         _colors = new ColorAttachment[descriptor.Colors.Length];
         for (int i = 0; i < descriptor.Colors.Length; i++)

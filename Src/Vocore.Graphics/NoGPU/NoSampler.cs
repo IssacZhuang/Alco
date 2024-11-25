@@ -2,8 +2,11 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoSampler : GPUSampler
 {
-    public override string Name => "no_gpu_sampler";
     protected override GPUDevice Device => NoDevice.noDevice;
+
+    public NoSampler(in SamplerDescriptor descriptor): base(descriptor){
+        
+    }
     protected override void Dispose(bool disposing)
     {
         

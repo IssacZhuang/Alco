@@ -13,6 +13,10 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
         get => _isRecording;
     }
 
+    protected GPUResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor): base(descriptor?.Name ?? "unnamed_reusable_render_buffer")
+    {
+    }
+
     public void Begin(GPUFrameBuffer frameBuffer)
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");

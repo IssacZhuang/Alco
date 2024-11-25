@@ -4,12 +4,17 @@ namespace Vocore.Graphics;
 
 public abstract class BaseGPUObject : IDisposable
 {
-    public abstract string Name { get; }
+    public string Name { get; }
     private volatile uint _disposed;
     //used for deffered disposal
     protected abstract GPUDevice Device { get; }
 
     public bool IsDisposed => _disposed != 0;
+
+    protected BaseGPUObject(string name)
+    {
+        Name = name;
+    }
 
     ~BaseGPUObject()
     {

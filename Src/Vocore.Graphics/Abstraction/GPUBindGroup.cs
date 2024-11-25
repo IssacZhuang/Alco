@@ -6,4 +6,8 @@ namespace Vocore.Graphics;
 public abstract class GPUBindGroup : BaseGPUObject
 {
     public abstract IReadOnlyList<BindGroupEntry> Bindings { get; }
+
+    public GPUBindGroup(in BindGroupDescriptor descriptor) : base(descriptor.Name)
+    {
+    }
 }

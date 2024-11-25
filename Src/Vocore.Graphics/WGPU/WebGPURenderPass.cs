@@ -19,9 +19,6 @@ internal sealed class WebGPURenderPass : GPURenderPass
     #endregion
 
     #region Abstract Implementation
-
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
@@ -55,7 +52,6 @@ internal sealed class WebGPURenderPass : GPURenderPass
     public unsafe WebGPURenderPass(WebGPUDevice device, in RenderPassDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        Name = descriptor.Name;
         
         _nativeDevice = device.Native;
 

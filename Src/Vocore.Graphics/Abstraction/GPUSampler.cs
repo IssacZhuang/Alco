@@ -9,4 +9,8 @@ public abstract class GPUSampler : BaseGPUObject, IGPUBindableResource
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => BindableResourceType.Sampler;
     }
+
+    protected GPUSampler(in SamplerDescriptor descriptor): base(descriptor.Name)
+    {
+    }
 }

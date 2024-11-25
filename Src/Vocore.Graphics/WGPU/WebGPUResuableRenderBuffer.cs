@@ -27,8 +27,6 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
 
     #region Abstract Implementation
 
-    public override string Name { get; }
-
     public override bool HasBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,20 +159,12 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
 
     #region WebGPU Implementation
 
-    public unsafe WebGPUResuableRenderBuffer(WebGPUDevice device, ResuableRenderBufferDescriptor? descriptor = null)
+    public unsafe WebGPUResuableRenderBuffer(WebGPUDevice device, in ResuableRenderBufferDescriptor? descriptor): base(descriptor)
     {
         Device = device;
         WGPUDevice nativeDevice = device.Native;
         
         _nativeDevice = nativeDevice;
-        if (descriptor.HasValue)
-        {
-            Name = descriptor.Value.Name;
-        }
-        else
-        {
-            Name = "unnamed_command_buffer";
-        }
 
         ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
         fixed (byte* ptr = nameSpan)

@@ -16,8 +16,6 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
     #region Abstract Implementation
 
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     public override ShaderStage Stages
@@ -43,10 +41,9 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
     
 
-    public unsafe WebGPUGraphicsPipeline(WebGPUDevice device, in GraphicsPipelineDescriptor descriptor)
+    public unsafe WebGPUGraphicsPipeline(WebGPUDevice device, in GraphicsPipelineDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
 

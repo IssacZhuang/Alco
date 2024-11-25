@@ -18,9 +18,6 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
     #endregion
 
     #region Abstract Implementation
-
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
@@ -42,7 +39,6 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
     public unsafe WebGPUBuffer(WebGPUDevice device, in BufferDescriptor descriptor):base(descriptor)
     {
         Device = device;
-        Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
 

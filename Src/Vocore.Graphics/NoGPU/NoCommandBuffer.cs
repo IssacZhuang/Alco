@@ -3,9 +3,11 @@ namespace Vocore.Graphics.NoGPU;
 internal class NoCommandBuffer : GPUCommandBuffer
 {
     public override bool HasBuffer => false;
-
-    public override string Name => "no_gpu_command_buffer";
     protected override GPUDevice Device => NoDevice.noDevice;
+
+    public NoCommandBuffer(in CommandBufferDescriptor? descriptor): base(descriptor)
+    {
+    }
 
     protected override void BeginCore()
     {

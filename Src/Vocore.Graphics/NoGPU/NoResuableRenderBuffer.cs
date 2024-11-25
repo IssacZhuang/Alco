@@ -4,8 +4,12 @@ internal class NoResuableRenderBuffer : GPUResuableRenderBuffer
 {
     public override bool HasBuffer => true;
 
-    public override string Name => "no_gpu_reusable_render_buffer";
     protected override GPUDevice Device => NoDevice.noDevice;
+
+    public NoResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor): base(descriptor)
+    {
+    }
+
     protected override void BeginCore(GPUFrameBuffer frameBuffer)
     {
         

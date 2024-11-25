@@ -29,7 +29,6 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     #endregion
 
     #region Abstract Implementation
-    public override string Name { get; }
 
     public override GPURenderPass RenderPass
     {
@@ -130,15 +129,13 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor)
+    internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor): base(descriptor)
     {
         Device = device;
         WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.RenderPass;
-        string name = descriptor.Name;
         uint width = descriptor.Width;
         uint height = descriptor.Height;
 
-        Name = name;
         _renderPass = renderPass;
 
         _width = width;

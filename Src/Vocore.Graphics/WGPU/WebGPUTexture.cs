@@ -15,8 +15,6 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
     #endregion
 
     #region Abstract Implementation
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     public override uint Width
@@ -61,9 +59,8 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
         get => _mipLevelCount;
     }
 
-    internal unsafe WebGPUTexture(WebGPUDevice device, in WGPUTextureDescriptor descriptor, string name)
+    internal unsafe WebGPUTexture(WebGPUDevice device, in WGPUTextureDescriptor descriptor, string name): base(name)
     {
-        Name = name;
         Device = device;
         WGPUDevice nativeDevice = device.Native;
 
@@ -76,9 +73,8 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
         PixelFormat = UtilsWebGPU.PixelFormatToAbstract (descriptor.format);
     }
 
-    internal unsafe WebGPUTexture(WebGPUDevice device, in TextureDescriptor descriptor)
+    internal unsafe WebGPUTexture(WebGPUDevice device, in TextureDescriptor descriptor): base(descriptor.Name)
     {
-        Name = descriptor.Name;
         Device = device;
         WGPUDevice nativeDevice = device.Native;
 

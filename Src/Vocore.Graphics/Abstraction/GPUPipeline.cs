@@ -19,5 +19,13 @@ namespace Vocore.Graphics
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (Stages & ShaderStage.Compute) != 0;
         }
+
+        protected GPUPipeline(in GraphicsPipelineDescriptor descriptor): base(descriptor.Name)
+        {
+        }
+
+        protected GPUPipeline(in ComputePipelineDescriptor descriptor): base(descriptor.Name)
+        {
+        }
     }
 }

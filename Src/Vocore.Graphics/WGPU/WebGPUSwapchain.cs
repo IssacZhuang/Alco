@@ -20,9 +20,8 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
     private WGPUSurfaceConfiguration _config;
     private bool _isVSyncEnabled;
     //for custom swapchain
-    internal WebGPUSwapchain(WebGPUDevice device, SwapchainDescriptor descriptor)
+    internal WebGPUSwapchain(WebGPUDevice device, in SwapchainDescriptor descriptor): base(descriptor)
     {
-        Name = descriptor.Name;
         _device = device;
 
         WGPUAdapter adapter = device.Adapter;
@@ -107,8 +106,6 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
     }
 
     #region Abstract Implementation
-
-    public override string Name { get; }
 
     public override GPUFrameBuffer FrameBuffer
     {

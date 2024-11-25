@@ -2,42 +2,153 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoDevice : GPUDevice
 {
-    public static readonly NoTexture noTexture = new NoTexture();
-    public static readonly NoSampler noSampler = new NoSampler();
-    public static readonly NoBindGroup noBindGroup = new NoBindGroup();
-    public static readonly NoCommandBuffer noCommandBuffer = new NoCommandBuffer();
-    public static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
-    public static readonly NoPipeline noPipeline = new NoPipeline();
-    public static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
     public static readonly NoDevice noDevice = new NoDevice();
 
-    public override GPUSampler SamplerNearestRepeat => noSampler;
+    public override GPUSampler SamplerNearestRepeat {get;   }
 
-    public override GPUSampler SamplerLinearRepeat => noSampler;
+    public override GPUSampler SamplerLinearRepeat {get;}
 
-    public override GPUSampler SamplerNearestClamp => noSampler;
+    public override GPUSampler SamplerNearestClamp {get;}
 
-    public override GPUSampler SamplerLinearClamp => noSampler;
+    public override GPUSampler SamplerLinearClamp {get;}
 
-    public override GPUSampler SamplerNearestMirrorRepeat => noSampler;
+    public override GPUSampler SamplerNearestMirrorRepeat {get;}
 
-    public override GPUSampler SamplerLinearMirrorRepeat => noSampler;
+    public override GPUSampler SamplerLinearMirrorRepeat {get;}
 
-    public override GPUBindGroup BindGroupUniformBuffer => noBindGroup;
+    public override GPUBindGroup BindGroupUniformBuffer {get;}
 
-    public override GPUBindGroup BindGroupStorageBuffer => noBindGroup;
+    public override GPUBindGroup BindGroupStorageBuffer {get;}
 
-    public override GPUBindGroup BindGroupTexture2DSampled => noBindGroup;
+    public override GPUBindGroup BindGroupTexture2DSampled {get;}
 
-    public override GPUBindGroup BindGroupTexture2DRead => noBindGroup;
+    public override GPUBindGroup BindGroupTexture2DRead {get;}
 
-    public override GPUBindGroup BindGroupTexture2DStorage => noBindGroup;
+    public override GPUBindGroup BindGroupTexture2DStorage {get;}
 
-    public override PixelFormat PrefferedSurfaceFomat => PixelFormat.RGBA8UnormSrgb;
+    public override PixelFormat PrefferedSurfaceFomat {get;}
+
+    public NoDevice()
+    {
+        // create default samplers
+
+        SamplerNearestRepeat = CreateSampler(SamplerDescriptor.Default with
+        {
+            AddressModeU = AddressMode.Repeat,
+            AddressModeV = AddressMode.Repeat,
+            AddressModeW = AddressMode.Repeat,
+            MinFilter = FilterMode.Nearest,
+            MagFilter = FilterMode.Nearest,
+            MipFilter = FilterMode.Nearest,
+            Name = "nearest_repeat_sampler",
+        });
+
+        SamplerLinearRepeat = CreateSampler(SamplerDescriptor.Default with
+        {
+            AddressModeU = AddressMode.Repeat,
+            AddressModeV = AddressMode.Repeat,
+            AddressModeW = AddressMode.Repeat,
+            MinFilter = FilterMode.Linear,
+            MagFilter = FilterMode.Linear,
+            MipFilter = FilterMode.Linear,
+            Name = "linear_repeat_sampler",
+        });
+
+        SamplerNearestClamp = CreateSampler(SamplerDescriptor.Default with
+        {
+            AddressModeU = AddressMode.ClampToEdge,
+            AddressModeV = AddressMode.ClampToEdge,
+            AddressModeW = AddressMode.ClampToEdge,
+            MinFilter = FilterMode.Nearest,
+            MagFilter = FilterMode.Nearest,
+            MipFilter = FilterMode.Nearest,
+            Name = "nearest_clamp_sampler",
+        });
+
+        SamplerLinearClamp = CreateSampler(SamplerDescriptor.Default with
+        {
+            AddressModeU = AddressMode.ClampToEdge,
+            AddressModeV = AddressMode.ClampToEdge,
+            AddressModeW = AddressMode.ClampToEdge,
+            MinFilter = FilterMode.Linear,
+            MagFilter = FilterMode.Linear,
+            MipFilter = FilterMode.Linear,
+            Name = "linear_clamp_sampler",
+        });
+
+        SamplerNearestMirrorRepeat = CreateSampler(SamplerDescriptor.Default with
+        {
+            AddressModeU = AddressMode.MirrorRepeat,
+            AddressModeV = AddressMode.MirrorRepeat,
+            AddressModeW = AddressMode.MirrorRepeat,
+            MinFilter = FilterMode.Nearest,
+            MagFilter = FilterMode.Nearest,
+            MipFilter = FilterMode.Nearest,
+            Name = "nearest_mirror_repeat_sampler",
+        });
+
+        SamplerLinearMirrorRepeat = CreateSampler(SamplerDescriptor.Default with
+        {
+            AddressModeU = AddressMode.MirrorRepeat,
+            AddressModeV = AddressMode.MirrorRepeat,
+            AddressModeW = AddressMode.MirrorRepeat,
+            MinFilter = FilterMode.Linear,
+            MagFilter = FilterMode.Linear,
+            MipFilter = FilterMode.Linear,
+            Name = "linear_mirror_repeat_sampler",
+        });
+
+        //create default bind groups
+        BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_buffer",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
+            },
+        });
+
+        BindGroupStorageBuffer = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_storage_buffer",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+            },
+        });
+
+        BindGroupTexture2DSampled = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTexture2DRead = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture_read",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+            },
+        });
+
+        BindGroupTexture2DStorage = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_storage_texture",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.Write, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
+            },
+        });
+    }
 
     protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
     {
-        return noBindGroup;
+        return new NoBindGroup(descriptor);
     }
 
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
@@ -47,12 +158,12 @@ internal class NoDevice : GPUDevice
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
-        return noCommandBuffer;
+        return new NoCommandBuffer(descriptor);
     }
 
     protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
     {
-        return noPipeline;
+        return new NoPipeline(descriptor);
     }
 
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
@@ -62,7 +173,7 @@ internal class NoDevice : GPUDevice
 
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
     {
-        return noPipeline;
+        return new NoPipeline(descriptor);
     }
 
     protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
@@ -72,22 +183,22 @@ internal class NoDevice : GPUDevice
 
     protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)
     {
-        return noResourceGroup;
+        return new NoResourceGroup(descriptor);
     }
 
     protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
     {
-        return noResuableRenderBuffer;
+        return new NoResuableRenderBuffer(descriptor);
     }
 
     protected override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
     {
-        return noSampler;
+        return new NoSampler(descriptor);
     }
 
     protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)
     {
-        return noTexture;
+        return new NoTexture(descriptor);
     }
 
     protected override GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor)

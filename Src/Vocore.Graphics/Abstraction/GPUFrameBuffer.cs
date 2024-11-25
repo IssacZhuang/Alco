@@ -42,4 +42,12 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// </summary>
     /// <value>The height of the frame buffer</value>
     public abstract uint Height { get; }
+
+    protected GPUFrameBuffer(in FrameBufferDescriptor descriptor): base(descriptor.Name)
+    {
+    }
+
+    protected GPUFrameBuffer(string name): base(name)
+    {
+    }
 }

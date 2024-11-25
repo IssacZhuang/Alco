@@ -17,8 +17,6 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
 
     #region Abstract Implementation
 
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
     public override GPUTexture Texture
     {
@@ -43,9 +41,8 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
 
     
 
-    public unsafe WebGPUTextureView(WebGPUDevice device, in TextureViewDescriptor descriptor)
+    public unsafe WebGPUTextureView(WebGPUDevice device, in TextureViewDescriptor descriptor): base(descriptor)    
     {
-        Name = descriptor.Name;
         Device = device;
 
         _texture = (WebGPUTextureBase)descriptor.Texture;

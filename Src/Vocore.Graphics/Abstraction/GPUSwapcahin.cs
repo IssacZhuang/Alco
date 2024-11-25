@@ -23,4 +23,8 @@ public abstract class GPUSwapchain : BaseGPUObject
     /// Present the rendered image to the screen.
     /// </summary>
     public abstract void Present();
+
+    protected GPUSwapchain(in SwapchainDescriptor descriptor): base(descriptor.Name)
+    {
+    }
 }

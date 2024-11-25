@@ -18,8 +18,6 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
         get => ShaderStage.Compute;
     }
 
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
@@ -40,10 +38,9 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
 
     public unsafe WebGPUComputePipeline(
         WebGPUDevice device,
-        ComputePipelineDescriptor descriptor)
+        in ComputePipelineDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
 

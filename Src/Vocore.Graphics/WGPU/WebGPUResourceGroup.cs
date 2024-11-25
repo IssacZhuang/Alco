@@ -21,8 +21,6 @@ internal unsafe sealed class WebGPUResourceGroup : GPUResourceGroup
         get => _resources;
     }
 
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
@@ -42,10 +40,9 @@ internal unsafe sealed class WebGPUResourceGroup : GPUResourceGroup
 
     
 
-    public WebGPUResourceGroup(WebGPUDevice device, ResourceGroupDescriptor descriptor)
+    public WebGPUResourceGroup(WebGPUDevice device, in ResourceGroupDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
         _resources = new IGPUBindableResource[descriptor.Resources.Length];

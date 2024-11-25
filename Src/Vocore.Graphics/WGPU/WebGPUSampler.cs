@@ -16,8 +16,6 @@ internal sealed class WebGPUSampler : GPUSampler
 
     #region Abstract Implementation
 
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
@@ -44,11 +42,10 @@ internal sealed class WebGPUSampler : GPUSampler
 
     
 
-    public unsafe WebGPUSampler(WebGPUDevice device, SamplerDescriptor descriptor, bool isBuiltIn)
+    public unsafe WebGPUSampler(WebGPUDevice device, in SamplerDescriptor descriptor, bool isBuiltIn): base(descriptor)
     {
         _isBuiltIn = isBuiltIn;
         Device = device;
-        Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
         fixed (byte* ptrName = descriptor.Name.GetUtf8Span())

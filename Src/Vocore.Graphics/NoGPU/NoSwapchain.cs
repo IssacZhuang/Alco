@@ -2,7 +2,6 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoSwapchain : GPUSwapchain
 {
-    public override string Name => "no_gpu_swapchain";
 
     public override GPUFrameBuffer FrameBuffer { get; }
 
@@ -10,7 +9,7 @@ internal class NoSwapchain : GPUSwapchain
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public NoSwapchain(in SwapchainDescriptor descriptor)
+    public NoSwapchain(in SwapchainDescriptor descriptor): base(descriptor)
     {
         GPURenderPass renderPass = new NoRenderPass(new RenderPassDescriptor(
             [new ColorAttachment(descriptor.ColorFormat)],

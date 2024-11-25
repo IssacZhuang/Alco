@@ -17,6 +17,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         get => _isRecording;
     }
 
+    protected GPUCommandBuffer(in CommandBufferDescriptor? descriptor): base(descriptor?.Name ?? "unnamed_command_buffer")
+    {
+    }
+
     public void Begin()
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");

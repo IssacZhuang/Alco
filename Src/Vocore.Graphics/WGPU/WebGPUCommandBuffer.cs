@@ -39,8 +39,6 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     #region Abstract Implementation
 
-    public override string Name { get; }
-
     protected override GPUDevice Device { get; }
 
     public override bool HasBuffer
@@ -334,19 +332,11 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         return buffer;
     }
 
-    public unsafe WebGPUCommandBuffer(WebGPUDevice device, CommandBufferDescriptor? descriptor = null)
+    public unsafe WebGPUCommandBuffer(WebGPUDevice device, in CommandBufferDescriptor? descriptor) : base(descriptor)
     {
         Device = device;
         WGPUDevice nativeDevice = device.Native;
         _nativeDevice = nativeDevice;
-        if (descriptor.HasValue)
-        {
-            Name = descriptor.Value.Name;
-        }
-        else
-        {
-            Name = "unnamed_command_buffer";
-        }
 
         _buffer = WGPUCommandBuffer.Null;
         _encoder = WGPUCommandEncoder.Null;

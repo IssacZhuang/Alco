@@ -24,16 +24,10 @@ internal sealed class WebGPUTextureViewWrapper : WebGPUTextureViewBase
         get => _texture;
     }
 
-    public override string Name
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Texture.Name;
-    }
-
     protected override GPUDevice Device { get; }
 
 
-    public WebGPUTextureViewWrapper(WebGPUDevice device,WebGPUTextureBase texture, WGPUTextureView view)
+    public WebGPUTextureViewWrapper(WebGPUDevice device,WebGPUTextureBase texture, WGPUTextureView view): base(texture.Name)
     {
         Device = device;
         _texture = texture;
