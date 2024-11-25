@@ -6,6 +6,9 @@ namespace Vocore.Graphics;
 /// </surmmary>
 public abstract class GPUFrameBuffer : BaseGPUObject
 {
+    public static readonly TextureUsage ColorAttachmentUsage = TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.StorageBinding | TextureUsage.Read;
+    public static readonly TextureUsage DepthAttachmentUsage = TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.Read;
+
     /// <summary>
     /// The metadata of the frame buffer which describes the color and depth attachments
     /// </summary>

@@ -25,7 +25,7 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
             height,
             1,
             1,
-            TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.StorageBinding | TextureUsage.Read,
+            ColorAttachmentUsage,
             1,
             $"{Name}_color_texture"
             );
@@ -40,7 +40,7 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
             height,
             1,
             1,
-            TextureUsage.DepthAttachment | TextureUsage.TextureBinding | TextureUsage.Read,
+            DepthAttachmentUsage,
             1,
             $"{Name}_depth_texture"
         );

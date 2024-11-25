@@ -2,20 +2,24 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoTexture : GPUTexture
 {
-    public override uint Width => 0;
+    public override uint Width { get; }
 
-    public override uint Height => 0;
+    public override uint Height { get; }
+    public override uint Depth { get; }
 
-    public override uint Depth => 0;
+    public override uint MipLevelCount { get; }
 
-    public override uint MipLevelCount => 1;
-
-    public override PixelFormat PixelFormat => PixelFormat.RGBA8Unorm;
+    public override PixelFormat PixelFormat { get; }
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
     public NoTexture(in TextureDescriptor descriptor): base(descriptor)
     {
+        Width = descriptor.Width;
+        Height = descriptor.Height;
+        Depth = descriptor.DepthOrArrayLayer;
+        MipLevelCount = descriptor.MipLevels;
+        PixelFormat = descriptor.Format;
     }
 
     protected override void Dispose(bool disposing)
