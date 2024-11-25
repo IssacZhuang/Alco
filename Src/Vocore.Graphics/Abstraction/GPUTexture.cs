@@ -29,4 +29,18 @@ public abstract class GPUTexture : BaseGPUObject
     protected GPUTexture(string name): base(name)
     {
     }
+
+    protected GPUTexture(in TextureDescriptor descriptor): base(descriptor.Name)
+    {
+        if(descriptor.Format == PixelFormat.Undefined)
+            throw new ArgumentException("Format cannot be undefined", nameof(descriptor));
+        if (descriptor.Width <= 0)
+            throw new ArgumentException("Width cannot be less than or equal to 0", nameof(descriptor));
+        if (descriptor.Height <= 0) 
+            throw new ArgumentException("Height cannot be less than or equal to     0", nameof(descriptor));
+        if (descriptor.DepthOrArrayLayer <= 0)
+            throw new ArgumentException("Depth cannot be less than or equal to 0", nameof(descriptor));
+        if (descriptor.MipLevels <= 0)
+            throw new ArgumentException("MipLevels cannot be less than or equal to 0", nameof(descriptor));
+    }
 }

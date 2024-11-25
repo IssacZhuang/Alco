@@ -14,7 +14,7 @@ internal class NoTexture : GPUTexture
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public NoTexture(in TextureDescriptor descriptor): base(descriptor.Name)
+    public NoTexture(in TextureDescriptor descriptor): base(descriptor)
     {
     }
 

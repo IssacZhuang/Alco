@@ -9,4 +9,8 @@ internal abstract class WebGPUTextureBase : GPUTexture
     protected WebGPUTextureBase(string name): base(name)
     {
     }
+
+    protected WebGPUTextureBase(in TextureDescriptor descriptor): base(descriptor)
+    {
+    }
 }

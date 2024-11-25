@@ -7,7 +7,6 @@ namespace Vocore.Graphics.WebGPU;
 internal sealed class WebGPUTexture : WebGPUTextureBase
 {
     #region Properties
-    private readonly WGPUDevice _nativeDevice;
     private readonly WGPUTexture _nativeTexture;
     private readonly WGPUExtent3D _size;
     private readonly uint _mipLevelCount;
@@ -59,27 +58,12 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
         get => _mipLevelCount;
     }
 
-    internal unsafe WebGPUTexture(WebGPUDevice device, in WGPUTextureDescriptor descriptor, string name): base(name)
+    internal unsafe WebGPUTexture(WebGPUDevice device, in TextureDescriptor descriptor): base(descriptor)
     {
         Device = device;
         WGPUDevice nativeDevice = device.Native;
 
-        WGPUTextureDescriptor textureDescriptor = descriptor;
-        _nativeDevice = nativeDevice;
-        _size = descriptor.size;
-        _mipLevelCount = descriptor.mipLevelCount;
-        _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
-
-        PixelFormat = UtilsWebGPU.PixelFormatToAbstract (descriptor.format);
-    }
-
-    internal unsafe WebGPUTexture(WebGPUDevice device, in TextureDescriptor descriptor): base(descriptor.Name)
-    {
-        Device = device;
-        WGPUDevice nativeDevice = device.Native;
-
-        _nativeDevice = nativeDevice;
-
+        _mipLevelCount = descriptor.MipLevels;
         _size = new WGPUExtent3D
         {
             width = descriptor.Width,

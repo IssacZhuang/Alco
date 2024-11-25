@@ -155,8 +155,8 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
             WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
             _colorTextures[i] = new WebGPUTexture(
                 device,
-                BuildTextureDescriptor(colorInfo.format, width, height, false),
-                $"Color Texture {i}");
+                BuildColorTextureDescriptor(colorInfo.format, width, height)
+                );
 
             _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
             _colorViewsWrapper[i] = new WebGPUTextureViewWrapper(Device, _colorTextures[i], _colorViews[i]);
@@ -177,8 +177,8 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
             _depthTexture = new WebGPUTexture(
                 device,
-                BuildTextureDescriptor(depthInfo.format, width, height, true),
-                "depth_texture");
+                BuildDepthTextureDescriptor(depthInfo.format, width, height)
+                );
 
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
             _depthViewWrapper = new WebGPUTextureViewWrapper(Device, _depthTexture, _depthView);
@@ -210,32 +210,6 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         {
             _depth = renderPass.WebGPUDepthInfo.Value.format;
         }
-    }
-
-    private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height, bool isDepth)
-    {
-        WGPUTextureUsage usage = WGPUTextureUsage.RenderAttachment | WGPUTextureUsage.TextureBinding | WGPUTextureUsage.CopySrc;
-        if (!isDepth)
-        {
-            usage |= WGPUTextureUsage.StorageBinding;
-        }
-
-        return new WGPUTextureDescriptor
-        {
-            // the texture could be used as a render target, copied from, or sampled from a shader
-            usage = usage,
-            dimension = WGPUTextureDimension._2D,
-            size = new WGPUExtent3D
-            {
-                width = width,
-                height = height,
-                depthOrArrayLayers = 1,
-            },
-            format = format,
-            mipLevelCount = 1,
-            sampleCount = 1,
-            viewFormatCount = 0,
-        };
     }
 
     #endregion

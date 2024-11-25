@@ -176,8 +176,8 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
             _depthTexture = new WebGPUTexture(
                 Device,
-                BuildTextureDescriptor(depthInfo.format, _width, _height),
-                "Depth Texture");
+                BuildDepthTextureDescriptor(depthInfo.format, _width, _height)
+                );
 
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
 
@@ -238,33 +238,13 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             wgpuTextureViewRelease(_depthView);
             _depthTexture = new WebGPUTexture(
                 Device,
-                BuildTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height),
-                "Depth Texture");
+                BuildDepthTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height)
+                );
             _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
             (*_depthAttachment).view = _depthView;
         }
     }
 
-
-    private static WGPUTextureDescriptor BuildTextureDescriptor(in WGPUTextureFormat format, uint width, uint height)
-    {
-        return new WGPUTextureDescriptor
-        {
-            // the texture could be used as a render target, copied from, or sampled from a shader
-            usage = WGPUTextureUsage.RenderAttachment | WGPUTextureUsage.TextureBinding | WGPUTextureUsage.CopySrc,
-            dimension = WGPUTextureDimension._2D,
-            size = new WGPUExtent3D
-            {
-                width = width,
-                height = height,
-                depthOrArrayLayers = 1,
-            },
-            format = format,
-            mipLevelCount = 1,
-            sampleCount = 1,
-            viewFormatCount = 0,
-        };
-    }
 
     #endregion
 
