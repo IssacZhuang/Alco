@@ -2,8 +2,6 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoDevice : GPUDevice
 {
-    public static readonly NoRenderPass noRenderPass = new NoRenderPass();
-    public static readonly NoFrameBuffer noFrameBuffer = new NoFrameBuffer();
     public static readonly NoTexture noTexture = new NoTexture();
     public static readonly NoTextureView noTextureView = new NoTextureView();
     public static readonly NoSampler noSampler = new NoSampler();
@@ -12,19 +10,7 @@ internal class NoDevice : GPUDevice
     public static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
     public static readonly NoPipeline noPipeline = new NoPipeline();
     public static readonly NoResourceGroup noResourceGroup = new NoResourceGroup();
-    public static readonly NoSwapchain noSwapchain = new NoSwapchain();
     public static readonly NoDevice noDevice = new NoDevice();
-
-    // public override GPURenderPass SwapChainRenderPass => noRenderPass;
-
-    // public override GPUFrameBuffer SwapChainFrameBuffer => noFrameBuffer;
-
-    // public override PixelFormat PrefferedSurfaceFomat => PixelFormat.RGBA8Unorm;
-
-    // public override PixelFormat? PrefferedDepthStencilFormat => null;
-    // public override PixelFormat PrefferedHDRFormat => PixelFormat.RGBA16Float;
-
-    // public override bool VSync { get; set; }
 
     public override GPUSampler SamplerNearestRepeat => noSampler;
 
@@ -72,7 +58,7 @@ internal class NoDevice : GPUDevice
 
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
     {
-        return noFrameBuffer;
+        return new NoFrameBuffer(descriptor);
     }
 
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
@@ -82,7 +68,7 @@ internal class NoDevice : GPUDevice
 
     protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
     {
-        return noRenderPass;
+        return new NoRenderPass(descriptor);
     }
 
     protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)
@@ -112,7 +98,7 @@ internal class NoDevice : GPUDevice
 
     public override GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor)
     {
-        return noSwapchain;
+        return new NoSwapchain(descriptor);
     }
 
 

@@ -11,7 +11,6 @@ internal sealed class WebGPURenderPass : GPURenderPass
 
     #region Properties
     private readonly WGPUDevice _nativeDevice;
-    private readonly RenderPassDescriptor _descriptor;
 
     //the texture view are not setted in the WebGPURenderPass object, these attachments are used to create the framebuffer
     private readonly WGPUColorAttachmentInfo[] _colorInfos;
@@ -21,25 +20,9 @@ internal sealed class WebGPURenderPass : GPURenderPass
 
     #region Abstract Implementation
 
-    public override string Name
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _descriptor.Name;
-    }
+    public override string Name { get; }
 
     protected override GPUDevice Device { get; }
-
-    public override ReadOnlySpan<ColorAttachment> Colors
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _descriptor.Colors;
-    }
-
-    public override DepthAttachment? Depth
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _descriptor.Depth;
-    }
 
     protected override void Dispose(bool disposing)
     {
@@ -69,10 +52,11 @@ internal sealed class WebGPURenderPass : GPURenderPass
     }
 
     // for GPUDevice.CreateRenderPass(RenderPassDescriptor)
-    public unsafe WebGPURenderPass(WebGPUDevice device, in RenderPassDescriptor descriptor)
+    public unsafe WebGPURenderPass(WebGPUDevice device, in RenderPassDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        _descriptor = descriptor;
+        Name = descriptor.Name;
+        
         _nativeDevice = device.Native;
 
         int colorCount = descriptor.Colors.Length;

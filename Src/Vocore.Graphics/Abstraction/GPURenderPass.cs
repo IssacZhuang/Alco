@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vocore.Graphics;
 
 /// <summary>
@@ -5,8 +7,24 @@ namespace Vocore.Graphics;
 /// </summary>
 public abstract class GPURenderPass : BaseGPUObject
 {
-    public abstract ReadOnlySpan<ColorAttachment> Colors { get; }
-    public abstract DepthAttachment? Depth { get; }
+    private ColorAttachment[] _colors;
+    public ReadOnlySpan<ColorAttachment> Colors
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colors;
+    }
+    public DepthAttachment? Depth { get; }
+
+    protected GPURenderPass(in RenderPassDescriptor descriptor)
+    {
+        _colors = new ColorAttachment[descriptor.Colors.Length];
+        for (int i = 0; i < descriptor.Colors.Length; i++)
+        {
+            _colors[i] = descriptor.Colors[i];
+        }
+
+        Depth = descriptor.Depth;
+    }
 
     public bool AttachmentsEqual(GPURenderPass other)
     {
