@@ -4,8 +4,12 @@ namespace Vocore.Graphics;
 
 public abstract class GPUTextureView : BaseGPUObject, IGPUBindableResource
 {
+    /// <summary>
+    /// The texture that this view is associated with.  
+    /// </summary>
     public abstract GPUTexture Texture { get; }
-    public abstract TextureViewDimension Dimension { get; }
+
+
     public BindableResourceType ResourceType
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

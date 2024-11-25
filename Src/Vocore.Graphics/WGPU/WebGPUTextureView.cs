@@ -11,27 +11,20 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
     #region Properties
 
     private readonly WGPUTextureView _native;
-    private readonly TextureViewDimension _dimension;
     private readonly WebGPUTextureBase _texture;
 
     #endregion
 
     #region Abstract Implementation
+
+    public override string Name { get; }
+
+    protected override GPUDevice Device { get; }
     public override GPUTexture Texture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _texture;
     }
-
-    public override TextureViewDimension Dimension
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _dimension;
-    }
-
-    public override string Name { get; }
-
-    protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
     {
@@ -55,10 +48,7 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
         Name = descriptor.Name;
         Device = device;
 
-
-        WGPUDevice nativeDevice = device.Native;
         _texture = (WebGPUTextureBase)descriptor.Texture;
-        _dimension = descriptor.Dimension;
 
         fixed (byte* ptrName = descriptor.Name.GetUtf8Span())
         {

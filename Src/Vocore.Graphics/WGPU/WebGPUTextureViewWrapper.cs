@@ -24,13 +24,6 @@ internal sealed class WebGPUTextureViewWrapper : WebGPUTextureViewBase
         get => _texture;
     }
 
-    public override TextureViewDimension Dimension
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => TextureViewDimension.Texture2D; // framebuffers are always 2D
-
-    }
-
     public override string Name
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

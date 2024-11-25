@@ -3,7 +3,6 @@ namespace Vocore.Graphics.NoGPU;
 internal class NoDevice : GPUDevice
 {
     public static readonly NoTexture noTexture = new NoTexture();
-    public static readonly NoTextureView noTextureView = new NoTextureView();
     public static readonly NoSampler noSampler = new NoSampler();
     public static readonly NoBindGroup noBindGroup = new NoBindGroup();
     public static readonly NoCommandBuffer noCommandBuffer = new NoCommandBuffer();
@@ -93,7 +92,7 @@ internal class NoDevice : GPUDevice
 
     protected override GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor)
     {
-        return noTextureView;
+        return new NoTextureView(descriptor);
     }
 
     public override GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor)

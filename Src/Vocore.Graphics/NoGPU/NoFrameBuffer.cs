@@ -4,7 +4,7 @@ namespace Vocore.Graphics.NoGPU;
 internal class NoFrameBuffer : GPUFrameBuffer
 {
     private static readonly NoTexture[] NoColors = new NoTexture[1] { new() };
-    private static readonly NoTextureView[] NoColorViews = new NoTextureView[1] { new() };
+    private readonly NoTextureView[] NoColorViews;
     public override string Name => "no_gpu_frame_buffer";
     protected override GPUDevice Device => NoDevice.noDevice;
     public override GPURenderPass RenderPass { get; }
@@ -26,6 +26,15 @@ internal class NoFrameBuffer : GPUFrameBuffer
         RenderPass = descriptor.RenderPass;
         Width = descriptor.Width;
         Height = descriptor.Height;
+
+        NoColorViews = [new(new TextureViewDescriptor(
+            NoColors[0],
+            TextureViewDimension.Texture2D,
+            0,
+            1,
+            0,
+            1
+            ))];
     }
 
     protected override void Dispose(bool disposing)
