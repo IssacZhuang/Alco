@@ -8,7 +8,7 @@ namespace Vocore.Graphics
         /// The shader stages that this pipeline is using. This is a flag enum which can contain multiple stages
         /// </summary>
         /// <value>The shader stages</value>
-        public abstract ShaderStage Stages { get; }
+        public ShaderStage Stages { get; }
 
         /// <summary>
         /// Is the pipeline a compute pipeline
@@ -22,6 +22,12 @@ namespace Vocore.Graphics
 
         protected GPUPipeline(in GraphicsPipelineDescriptor descriptor): base(descriptor.Name)
         {
+            ShaderStage stages = ShaderStage.None;
+            for (int i = 0; i < descriptor.ShaderStages.Length; i++)
+            {
+                stages |= descriptor.ShaderStages[i].Stage;
+            }
+            Stages = stages;
         }
 
         protected GPUPipeline(in ComputePipelineDescriptor descriptor): base(descriptor.Name)

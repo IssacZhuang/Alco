@@ -3,7 +3,6 @@ namespace Vocore.Graphics.NoGPU;
 internal class NoPipeline : GPUPipeline
 {
     protected override GPUDevice Device => NoDevice.noDevice;
-    public override ShaderStage Stages => ShaderStage.None;
 
     public NoPipeline(in GraphicsPipelineDescriptor descriptor): base(descriptor)
     {

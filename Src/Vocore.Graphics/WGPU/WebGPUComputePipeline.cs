@@ -12,12 +12,6 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
     #endregion
 
     #region Abstract Implementation
-    public override ShaderStage Stages
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ShaderStage.Compute;
-    }
-
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)

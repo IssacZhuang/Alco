@@ -18,12 +18,6 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
     protected override GPUDevice Device { get; }
 
-    public override ShaderStage Stages
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _stages;
-    }
-
     protected override void Dispose(bool disposing)
     {
         wgpuRenderPipelineRelease(_graphicsipeline);
