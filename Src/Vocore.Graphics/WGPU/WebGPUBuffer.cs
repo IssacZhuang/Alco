@@ -14,29 +14,10 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
 
     #region Properties
     private readonly WGPUBuffer _buffer;
-    private readonly uint _size;
-    private readonly BufferUsage _usage;
 
     #endregion
 
     #region Abstract Implementation
-    public override uint Size
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _size;
-    }
-
-    public override BufferUsage Usage
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _usage;
-    }
-
-    public override BindableResourceType ResourceType
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => BindableResourceType.Buffer;
-    }
 
     public override string Name { get; }
 
@@ -58,16 +39,12 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
         get => _buffer;
     }
 
-    public unsafe WebGPUBuffer(WebGPUDevice device, in BufferDescriptor descriptor)
+    public unsafe WebGPUBuffer(WebGPUDevice device, in BufferDescriptor descriptor):base(descriptor)
     {
         Device = device;
         Name = descriptor.Name;
 
         WGPUDevice nativeDevice = device.Native;
-
-        _size = UtilsBuffer.GetBufferSize(descriptor.Size);
-        //_size = (uint)descriptor.Size;
-        _usage = descriptor.Usage;
 
         fixed (byte* name = descriptor.Name.GetUtf8Span())
         {
@@ -75,7 +52,7 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
             {
                 nextInChain = null,
                 label = name,
-                size = _size,
+                size = Size,
                 usage = UtilsWebGPU.ConvertBufferUsage(descriptor.Usage),
                 mappedAtCreation = false,
             };

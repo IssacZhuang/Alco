@@ -8,7 +8,6 @@ internal class NoDevice : GPUDevice
     public static readonly NoTextureView noTextureView = new NoTextureView();
     public static readonly NoSampler noSampler = new NoSampler();
     public static readonly NoBindGroup noBindGroup = new NoBindGroup();
-    public static readonly NoBuffer noBuffer = new NoBuffer();
     public static readonly NoCommandBuffer noCommandBuffer = new NoCommandBuffer();
     public static readonly NoResuableRenderBuffer noResuableRenderBuffer = new NoResuableRenderBuffer();
     public static readonly NoPipeline noPipeline = new NoPipeline();
@@ -58,7 +57,7 @@ internal class NoDevice : GPUDevice
 
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
-        return noBuffer;
+        return new NoBuffer(descriptor);
     }
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)

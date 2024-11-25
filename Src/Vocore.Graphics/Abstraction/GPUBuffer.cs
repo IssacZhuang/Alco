@@ -12,14 +12,21 @@ public unsafe abstract class GPUBuffer : BaseGPUObject, IGPUBindableResource
     /// The size of the buffer
     /// </summary>
     /// <value></value>
-    public abstract uint Size { get; }
+    public uint Size { get; }
     /// <summary>
     /// The usage of the buffer
     /// </summary> 
-    public abstract BufferUsage Usage { get; }
+    public BufferUsage Usage { get; }
     /// <summary>
     /// The type of the resource
     /// </summary>
-    public abstract BindableResourceType ResourceType { get; }
+    public BindableResourceType ResourceType { get; }
+
+    protected GPUBuffer(in BufferDescriptor descriptor)
+    {
+        Size = UtilsBuffer.GetAlignedBufferSize(descriptor.Size);
+        Usage = descriptor.Usage;
+        ResourceType = BindableResourceType.Buffer;
+    }
 
 }

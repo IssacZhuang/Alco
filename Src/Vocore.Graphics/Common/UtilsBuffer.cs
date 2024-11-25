@@ -4,25 +4,21 @@ namespace Vocore.Graphics;
 
 internal static class UtilsBuffer
 {
-    public unsafe static uint GetStructBufferSize<T>() where T : unmanaged
-    {
-        return GetBufferSize(sizeof(T));
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint GetBufferSize(ulong size)
     {
-        return GetBufferSize((uint)size);
+        return GetAlignedBufferSize((uint)size);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint GetBufferSize(int size)
     {
-        return GetBufferSize((uint)size);
+        return GetAlignedBufferSize((uint)size);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static uint GetBufferSize(uint size)
+    public static uint GetAlignedBufferSize(uint size)
     {
         uint sizeInBytes = (uint)size;
         uint remainder = sizeInBytes % 16;
