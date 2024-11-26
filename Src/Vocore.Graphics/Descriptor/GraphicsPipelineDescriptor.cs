@@ -4,7 +4,7 @@ public struct GraphicsPipelineDescriptor
 {
     public GraphicsPipelineDescriptor(
         GPUBindGroup[] bindGroups,
-        ShaderModule[] shaderStages,
+        ShaderModule[] shaderModules,
         VertexInputLayout[] vertexInputLayouts,
         RasterizerState rasterizerState,
         BlendState blendState,
@@ -16,7 +16,7 @@ public struct GraphicsPipelineDescriptor
         )
     {
         BindGroups = bindGroups;
-        ShaderStages = shaderStages;
+        ShaderModules = shaderModules;
         RasterizerState = rasterizerState;
         BlendState = blendState;
         DepthStencilState = depthStencilState;
@@ -29,7 +29,7 @@ public struct GraphicsPipelineDescriptor
 
     public GraphicsPipelineDescriptor(
         GPUBindGroup[] bindGroups,
-        ShaderModule[] shaderStages,
+        ShaderModule[] shaderModules,
         VertexInputLayout[] vertexInputLayouts,
         RasterizerState rasterizerState,
         BlendState blendState,
@@ -42,7 +42,7 @@ public struct GraphicsPipelineDescriptor
         )
     {
         BindGroups = bindGroups;
-        ShaderStages = shaderStages;
+        ShaderModules = shaderModules;
         RasterizerState = rasterizerState;
         BlendState = blendState;
         DepthStencilState = depthStencilState;
@@ -55,7 +55,7 @@ public struct GraphicsPipelineDescriptor
     }
 
     public GPUBindGroup[] BindGroups { get; init; }
-    public ShaderModule[] ShaderStages { get; init; }
+    public ShaderModule[] ShaderModules { get; init; }
     public VertexInputLayout[] VertexInputLayouts { get; init; }
     public RasterizerState RasterizerState { get; init; } = RasterizerState.CullNone;
     public PrimitiveTopology PrimitiveTopology { get; init; } = PrimitiveTopology.TriangleList;

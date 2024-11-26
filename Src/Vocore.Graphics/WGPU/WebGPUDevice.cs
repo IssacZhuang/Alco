@@ -185,10 +185,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
         return new WebGPUTextureView(this, descriptor);
     }
 
-    
     protected unsafe override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
     {
-        return new WebGPUSampler(this, descriptor, false);
+        return new WebGPUSampler(this, descriptor);
     }
 
     public override GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor)

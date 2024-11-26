@@ -10,7 +10,6 @@ internal sealed class WebGPUSampler : GPUSampler
     #region Properties
 
     private readonly WGPUSampler _native;
-    private readonly bool _isBuiltIn;
 
     #endregion
 
@@ -20,14 +19,8 @@ internal sealed class WebGPUSampler : GPUSampler
 
     protected override void Dispose(bool disposing)
     {
-        if (!_isBuiltIn)
-        {
+
             wgpuSamplerRelease(_native);
-        }
-        else
-        {
-            throw new InvalidOperationException("Trying to dispose a built-in sampler which is not allowed");
-        }
     }
 
     #endregion
@@ -42,9 +35,8 @@ internal sealed class WebGPUSampler : GPUSampler
 
     
 
-    public unsafe WebGPUSampler(WebGPUDevice device, in SamplerDescriptor descriptor, bool isBuiltIn): base(descriptor)
+    public unsafe WebGPUSampler(WebGPUDevice device, in SamplerDescriptor descriptor): base(descriptor)
     {
-        _isBuiltIn = isBuiltIn;
         Device = device;
 
         WGPUDevice nativeDevice = device.Native;

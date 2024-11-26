@@ -43,16 +43,12 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
         // === Create shader modules ===============================
 
-
-        if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderStages, out ShaderModule vertex, out ShaderModule pixel))
-        {
-            throw new GraphicsException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
-        }
+        UtilsDescriptor.GetVertexAndPixelModules(descriptor.ShaderModules, out ShaderModule vertex, out ShaderModule pixel);
 
         _stages = ShaderStage.None;
-        for (int i = 0; i < descriptor.ShaderStages.Length; i++)
+        for (int i = 0; i < descriptor.ShaderModules.Length; i++)
         {
-            _stages |= descriptor.ShaderStages[i].Stage;
+            _stages |= descriptor.ShaderModules[i].Stage;
         }
 
         WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);
