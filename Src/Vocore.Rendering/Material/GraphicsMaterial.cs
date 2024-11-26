@@ -20,10 +20,7 @@ public sealed class GraphicsMaterial : BaseMaterial
         
     }
 
-    /// <summary>
-    /// Set resources of the shader pipeline.
-    /// </summary>
-    /// <param name="context">The material command context.</param>
+    /// <inheritdoc/>
     protected override void SetPipelineResources(MaterialCommandContext context)
     {
         if (StencilReference.HasValue)
@@ -41,6 +38,15 @@ public sealed class GraphicsMaterial : BaseMaterial
                 throw new InvalidOperationException($"Resource group {i} is null");
             }
         }
+    }
+
+    /// <summary>
+    /// Create a instance of the material. The instance can override part of the parameters of the parent material.
+    /// </summary>
+    /// <returns>The instance of the material.</returns>
+    public GraphicsMaterialInstance CreateInstance()
+    {
+        return new GraphicsMaterialInstance(_system, this);
     }
 
     protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo)

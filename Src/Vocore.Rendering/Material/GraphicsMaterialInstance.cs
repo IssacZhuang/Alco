@@ -10,7 +10,7 @@ public sealed class GraphicsMaterialInstance : BaseMaterial
 {
     private readonly GraphicsMaterial _parent;
 
-    internal GraphicsMaterialInstance(GraphicsMaterial parent, RenderingSystem system, string name) : base(system, parent.Shader, name)
+    internal GraphicsMaterialInstance(RenderingSystem system, GraphicsMaterial parent) : base(system, parent.Shader, $"{parent.Name}_instance")
     {
         _parent = parent;
         _pipelineContext = parent.PipelineContext.Clone();
