@@ -10,10 +10,7 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
 
     protected WebGPUFrameBufferBase(in FrameBufferDescriptor descriptor): base(descriptor)
     {
-    }
-
-    protected WebGPUFrameBufferBase(string name): base(name)
-    {
+        
     }
 
     protected TextureDescriptor BuildColorTextureDescriptor(in WGPUTextureFormat format, uint width, uint height)

@@ -6,10 +6,6 @@ internal abstract class WebGPUTextureBase : GPUTexture
 {
     public abstract WGPUTexture Native { get; }
 
-    protected WebGPUTextureBase(string name): base(name)
-    {
-    }
-
     protected WebGPUTextureBase(in TextureDescriptor descriptor): base(descriptor)
     {
     }

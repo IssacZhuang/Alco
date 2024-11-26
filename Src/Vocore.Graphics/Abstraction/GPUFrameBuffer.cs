@@ -9,6 +9,8 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     public static readonly TextureUsage ColorAttachmentUsage = TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.StorageBinding | TextureUsage.Read;
     public static readonly TextureUsage DepthAttachmentUsage = TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.Read;
 
+    //it might be a dynamic frame buffer so the width and height might be changed
+
     /// <summary>
     /// The metadata of the frame buffer which describes the color and depth attachments
     /// </summary>
@@ -48,6 +50,14 @@ public abstract class GPUFrameBuffer : BaseGPUObject
 
     protected GPUFrameBuffer(in FrameBufferDescriptor descriptor): base(descriptor.Name)
     {
+        if (descriptor.Width <= 0)
+        {
+            throw new GraphicsException("The width of the frame buffer must be greater than 0");
+        }
+        if (descriptor.Height <= 0)
+        {
+            throw new GraphicsException("The height of the frame buffer must be greater than 0");
+        }
     }
 
     protected GPUFrameBuffer(string name): base(name)

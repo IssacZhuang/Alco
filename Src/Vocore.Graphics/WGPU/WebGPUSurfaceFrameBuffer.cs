@@ -29,7 +29,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     // dynamic
     private WGPUSurfaceConfiguration _config;
-    private bool _isResized;
+    private bool _hasResized;
     private uint _width;
     private uint _height;
 
@@ -123,7 +123,15 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config): base("swapchain_frameBuffer")
+    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config) : base(
+        new FrameBufferDescriptor(
+            renderPass,
+            config.width,
+            config.height,
+            "swapchain_frameBuffer"
+
+        )
+    )
     {
         Device = device;
         _renderPass = renderPass;
@@ -132,7 +140,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         wgpuSurfaceConfigure(surface, &config);
         _surface = surface;
         _config = config;
-        _isResized = false;
+        _hasResized = false;
 
         _descriptor = new WGPURenderPassDescriptor
         {
@@ -144,7 +152,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _colorAttachments = null;
         _depthAttachment = null;
 
-        WebGPUSurfaceTexture surfaceTexture = new WebGPUSurfaceTexture(Device, surface);
+        WebGPUSurfaceTexture surfaceTexture = WebGPUSurfaceTexture.Create(Device, surface);
         _colorTextures = new WebGPUSurfaceTexture[1];
         _colorTextures[0] = surfaceTexture;
 
@@ -212,19 +220,19 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _config = config;
         _width = config.width;
         _height = config.height;
-        _isResized = true;
+        _hasResized = true;
     }
 
     public void SwapBuffers()
     {
         _colorTextures[0].PresentAnDrop();
-        if (_isResized)
+        if (_hasResized)
         {
             
             WGPUSurfaceConfiguration config = _config;
             wgpuSurfaceConfigure(_surface, &config);
             ResizeDepthTexture();
-            _isResized = false;
+            _hasResized = false;
         }
         _colorTextures[0].GetNewOutputTexture(ref (*_colorAttachments).view);
     }
@@ -314,15 +322,34 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
         protected override GPUDevice Device { get; }
 
+        public static WebGPUSurfaceTexture Create(WebGPUDevice device, WGPUSurface surface)
+        {
+            WGPUSurfaceTexture surfaceTexture = default;
+            wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+            return new WebGPUSurfaceTexture(device, surface, surfaceTexture);
+        }
 
-
-        public unsafe WebGPUSurfaceTexture(WebGPUDevice device, WGPUSurface surface): base("swapchain_texture")
+        internal unsafe WebGPUSurfaceTexture(
+            WebGPUDevice device,
+            WGPUSurface surface,
+            WGPUSurfaceTexture surfaceTexture
+        ) : base(
+            new TextureDescriptor(//just a dummy descriptor
+                TextureDimension.Texture2D,
+                UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(surfaceTexture.texture)),
+                wgpuTextureGetWidth(surfaceTexture.texture),
+                wgpuTextureGetHeight(surfaceTexture.texture),
+                1,
+                1,
+                TextureUsage.None,//the surface texture cannot be sampled
+                1,
+                "swapchain_texture"
+            )
+        )
         {
             Device = device;
             _surface = surface;
 
-            WGPUSurfaceTexture surfaceTexture = default;
-            wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
             _texture = surfaceTexture.texture;
             _width = wgpuTextureGetWidth(_texture);
             _height = wgpuTextureGetHeight(_texture);
