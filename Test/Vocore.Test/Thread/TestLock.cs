@@ -192,61 +192,58 @@ public class TestLock
 
     }
 
-    // [Test(Description = "Test synchronization primitives")]
-    // public void TestSynchronizationPrimitives(){
-    //     int count = 1000;
+    [Test(Description = "Test synchronization primitives")]
+    public void TestSynchronizationPrimitives()
+    {
+        int count = 1000000;
 
-    //     ManualResetEvent manualResetEvent = new ManualResetEvent(false);
-    //     ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim(false);
-    //     AutoResetEvent autoResetEvent = new AutoResetEvent(false);
-    //     Semaphore semaphore = new Semaphore(count, count);
-    //     SemaphoreSlim semaphoreSlim = new SemaphoreSlim(count, count);
+        ManualResetEvent manualResetEvent = new ManualResetEvent(false);
+        SemaphoreSlim semaphoreSlim = new SemaphoreSlim(0);
 
-        
 
-    //     UtilsTest.Benchmark("ManualResetEvent", () =>
-    //     {
-    //         manualResetEvent.Set();
-    //         for (int i = 0; i < count; i++)
-    //         {
-    //             manualResetEvent.WaitOne();
-    //         }
-    //     });
 
-    //     UtilsTest.Benchmark("ManualResetEventSlim", () =>
-    //     {
-    //         manualResetEventSlim.Set();
-    //         for (int i = 0; i < count; i++)
-    //         {
-    //             manualResetEventSlim.Wait();
-    //         }
-    //     });
+        UtilsTest.Benchmark("ManualResetEvent single thread", () =>
+        {
+            manualResetEvent.Set();
+            for (int i = 0; i < count; i++)
+            {
+                manualResetEvent.WaitOne();
+            }
+        });
 
-    //     // UtilsTest.Benchmark("AutoResetEvent", () =>
-    //     // {
-    //     //     autoResetEvent.Set();
-    //     //     for (int i = 0; i < count; i++)
-    //     //     {
-    //     //         autoResetEvent.WaitOne();
-    //     //     }
-    //     // });
 
-    //     UtilsTest.Benchmark("Semaphore", () =>
-    //     {
-    //         semaphore.Release(count);
-    //         for (int i = 0; i < count; i++)
-    //         {
-    //             semaphore.WaitOne();
-    //         }
-    //     });
+        UtilsTest.Benchmark("ManualResetEvent multi thread", () =>
+        {
+            manualResetEvent.Set();
+            Parallel.For(0, count, (i) =>
+            {
+                manualResetEvent.WaitOne();
+            });
+        });
 
-    //     // UtilsTest.Benchmark("SemaphoreSlim", () =>
-    //     // {
-    //     //     semaphoreSlim.Release();
-    //     //     for (int i = 0; i < count; i++)
-    //     //     {
-    //     //         semaphoreSlim.Wait();
-    //     //     }
-    //     // });
-    // }
+        UtilsTest.Benchmark("SemaphoreSlim single thread", () =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                semaphoreSlim.Release();
+            }
+            for (int i = 0; i < count; i++)
+            {
+                semaphoreSlim.Wait();
+            }
+        });
+
+
+        UtilsTest.Benchmark("SemaphoreSlim multi thread", () =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                semaphoreSlim.Release();
+            }
+            Parallel.For(0, count, (i) =>
+            {
+                semaphoreSlim.Wait();
+            });
+        });
+    }
 }

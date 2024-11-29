@@ -149,7 +149,7 @@ public class ThreadWorkerQueue<TJob> : AutoDisposable where TJob : IJob
         ref WorkerData selfData = ref _threadData[index];
         while (!token.IsCancellationRequested)
         {
-            _semaphore.Wait(token);
+            _semaphore.Wait();
             //exploit local queue
             while (true)
             {
