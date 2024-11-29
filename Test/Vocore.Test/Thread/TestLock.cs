@@ -191,4 +191,62 @@ public class TestLock
         // });
 
     }
+
+    // [Test(Description = "Test synchronization primitives")]
+    // public void TestSynchronizationPrimitives(){
+    //     int count = 1000;
+
+    //     ManualResetEvent manualResetEvent = new ManualResetEvent(false);
+    //     ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim(false);
+    //     AutoResetEvent autoResetEvent = new AutoResetEvent(false);
+    //     Semaphore semaphore = new Semaphore(count, count);
+    //     SemaphoreSlim semaphoreSlim = new SemaphoreSlim(count, count);
+
+        
+
+    //     UtilsTest.Benchmark("ManualResetEvent", () =>
+    //     {
+    //         manualResetEvent.Set();
+    //         for (int i = 0; i < count; i++)
+    //         {
+    //             manualResetEvent.WaitOne();
+    //         }
+    //     });
+
+    //     UtilsTest.Benchmark("ManualResetEventSlim", () =>
+    //     {
+    //         manualResetEventSlim.Set();
+    //         for (int i = 0; i < count; i++)
+    //         {
+    //             manualResetEventSlim.Wait();
+    //         }
+    //     });
+
+    //     // UtilsTest.Benchmark("AutoResetEvent", () =>
+    //     // {
+    //     //     autoResetEvent.Set();
+    //     //     for (int i = 0; i < count; i++)
+    //     //     {
+    //     //         autoResetEvent.WaitOne();
+    //     //     }
+    //     // });
+
+    //     UtilsTest.Benchmark("Semaphore", () =>
+    //     {
+    //         semaphore.Release(count);
+    //         for (int i = 0; i < count; i++)
+    //         {
+    //             semaphore.WaitOne();
+    //         }
+    //     });
+
+    //     // UtilsTest.Benchmark("SemaphoreSlim", () =>
+    //     // {
+    //     //     semaphoreSlim.Release();
+    //     //     for (int i = 0; i < count; i++)
+    //     //     {
+    //     //         semaphoreSlim.Wait();
+    //     //     }
+    //     // });
+    // }
 }

@@ -8,7 +8,7 @@ using System.Threading;
 namespace Vocore;
 
 
-public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
+public class ThreadWorkerQueue<TJob> : AutoDisposable where TJob : IJob
 {
     private struct Task
     {
@@ -19,23 +19,21 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     private struct WorkerData
     {
         public int index;
-        public bool isRunning;
         public CircularWorkStealingDeque<Task> outputs;
     }
 
     private readonly WorkerData[] _threadData;
     private readonly Thread[] _threads;
-    private readonly ManualResetEvent _event;
+    private readonly SemaphoreSlim _semaphore;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CircularWorkStealingDeque<Task> _inputs;
-    private bool _isDisposed;
     private int _count;
 
 
     public ThreadWorkerQueue(int threadCount, string threadPrefix = "JobThread")
     {
         _cancellationTokenSource = new CancellationTokenSource();
-        _event = new ManualResetEvent(false);
+        _semaphore = new SemaphoreSlim(0);
         _inputs = new CircularWorkStealingDeque<Task>(512);
         _count = 0;
 
@@ -45,7 +43,6 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
             _threadData[i] = new WorkerData()
             {
                 index = i,
-                isRunning = false,
                 outputs = new CircularWorkStealingDeque<Task>(256)
             };
         }
@@ -53,7 +50,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         _threads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++)
         {
-            Thread thread = new Thread(ThreadWorker(i));
+            Thread thread = new Thread(CreateThreadWorker(i));
             thread.Name = $"{threadPrefix} {i}";
             _threads[i] = thread;
             thread.Start();
@@ -65,7 +62,6 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     /// <br/> This method is not thread-safe.
     /// </summary>
     /// <param name="job">The job to do.</param>
-    /// <param name="startImmediately">Start the worker immediately.</param>
     public void Push(TJob job)
     {
         if (job == null)
@@ -73,7 +69,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
             return;
         }
         _inputs.Push(new Task() { job = job });
-        _event.Set();
+        _semaphore.Release();
         _count++;
     }
 
@@ -144,7 +140,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
     }
 
 
-    private ThreadStart ThreadWorker(int index){
+    private ThreadStart CreateThreadWorker(int index){
         return () => ThreadLoop(_cancellationTokenSource.Token, index);
     }
 
@@ -153,8 +149,7 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
         ref WorkerData selfData = ref _threadData[index];
         while (!token.IsCancellationRequested)
         {
-            _event.WaitOne();
-            Volatile.Write(ref selfData.isRunning, true);
+            _semaphore.Wait(token);
             //exploit local queue
             while (true)
             {
@@ -182,28 +177,18 @@ public class ThreadWorkerQueue<TJob> : IDisposable where TJob : IJob
                     break;
                 }
             }
-            _event.Reset();
-            Volatile.Write(ref selfData.isRunning, false);
         }
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        if (_isDisposed)
-        {
-            return;
-        }
-
         _cancellationTokenSource.Cancel();
-        _event.Set();
+        _semaphore.Release(_threads.Length);
         foreach (var thread in _threads)
         {
             thread.Join();
         }
         _cancellationTokenSource.Dispose();
-        _event.Dispose();
-
-        _isDisposed = true;
-        GC.SuppressFinalize(this);
+        _semaphore.Dispose();
     }
 }

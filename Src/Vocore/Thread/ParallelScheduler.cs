@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace Vocore
 {
-    public class ParallelScheduler : IDisposable
+    public class ParallelScheduler : AutoDisposable
     {
         private struct WorkerData
         {
@@ -29,7 +29,6 @@ namespace Vocore
         private readonly Thread[] _threads;
         private readonly CancellationTokenSource _cancellationTokenSource;
         //private readonly ManualResetEvent _event = new ManualResetEvent(false);
-        private readonly CountdownEvent _countdownEvent;
         private readonly WorkerData[] _threadData;
         private readonly int _threadCount;
         private readonly int _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
@@ -37,8 +36,6 @@ namespace Vocore
         private readonly DelegateJob _delegateJob = new DelegateJob();
         private IJobBatch _currentJob;
 
-
-        private bool _isDisposed = false;
         public ParallelScheduler(string threadPrefix = "JobThread") : this(Environment.ProcessorCount * 2, threadPrefix)
         {
         }
@@ -46,7 +43,6 @@ namespace Vocore
         public ParallelScheduler(int threadCount, string threadPrefix = "JobThread")
         {
             _cancellationTokenSource = new CancellationTokenSource();
-            _countdownEvent = new CountdownEvent(threadCount);
             _threadData = new WorkerData[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
@@ -63,7 +59,7 @@ namespace Vocore
             _threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                _threads[i] = new Thread(ThreadWorker(i));
+                _threads[i] = new Thread(CreateThreadWorker(i));
                 _threads[i].Name = $"{threadPrefix} {i}";
                 _threads[i].Start();
             }
@@ -75,7 +71,7 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ThreadStart ThreadWorker(int index)
+        private ThreadStart CreateThreadWorker(int index)
         {
             return () => ThreadLoop(_cancellationTokenSource.Token, index);
         }
@@ -202,15 +198,10 @@ namespace Vocore
             {
                 while (Volatile.Read(ref _threadData[i].isRunning)) ;
             }
-            //Log.Info("Parallel for finished");
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            if (_isDisposed)
-            {
-                return;
-            }
             for (int i = 0; i < _threadCount; i++)
             {
                 _threadData[i].tasks.Clear();
@@ -225,7 +216,6 @@ namespace Vocore
             {
                 thread.Join();
             }
-            _isDisposed = true;
         }
     }
 }
