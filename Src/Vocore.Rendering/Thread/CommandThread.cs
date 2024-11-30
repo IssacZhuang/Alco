@@ -18,9 +18,14 @@ public class CommandThread : AutoDisposable
     private readonly CancellationTokenSource _cancellationTokenSource;
     //the lock free deque
     private readonly CircularWorkStealingDeque<CommandBufferContext> _commandBuffers = new CircularWorkStealingDeque<CommandBufferContext>(64);
+    //the push operation of circular work stealing deque is not thread safe, so we need a lock to protect it
+    private AtomicSpinLock _lockPush = new AtomicSpinLock();
     private uint _submittedCommandBufferCount;
     private uint _finishedCommandBufferCount;
 
+    /// <summary>
+    /// Whether the command thread has finished processing all submitted command buffers.
+    /// </summary>
     public bool IsFinished
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -40,18 +45,30 @@ public class CommandThread : AutoDisposable
         _submitThread.Start();
     }
 
+    /// <summary>
+    /// Submit a command buffer to the command thread.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <param name="commandBuffer">The command buffer to submit.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the command buffer is not being recorded.</exception>
     public void SubmitCommandBuffer(GPUCommandBuffer commandBuffer)
     {
         if (!commandBuffer.IsRecording)
         {
             throw new InvalidOperationException("Trying to submit a command buffer that is not being recorded.");
         }
-        commandBuffer.End();
+        _lockPush.Lock();
         _commandBuffers.Push(new CommandBufferContext { commandBuffer = commandBuffer });
+        _lockPush.Unlock();
+    
         Interlocked.Increment(ref _submittedCommandBufferCount);
         _semaphore.Release();
     }
 
+    /// <summary>
+    /// Reset the command thread.
+    /// <br/>This method is not thread safe.
+    /// </summary>
     public void Reset()
     {
         _commandBuffers.Clear();
@@ -59,6 +76,10 @@ public class CommandThread : AutoDisposable
         Interlocked.Exchange(ref _finishedCommandBufferCount, 0);
     }
 
+    /// <summary>
+    /// Wait for the command thread to finish.
+    /// <br/>This method is not thread safe.
+    /// </summary>
     public void WaitForFinish()
     {
         while (!IsFinished)
