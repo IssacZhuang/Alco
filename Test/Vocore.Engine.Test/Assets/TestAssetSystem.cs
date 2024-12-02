@@ -254,6 +254,33 @@ public class TestAssetSystem
     }
 
     [Test]
+    public async Task TestLoadAsyncTask()
+    {
+        AssetSystem assetSystem = new AssetSystem(2);
+        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestExceptionAssetLoader());
+        assetSystem.AddFileSource(new TestFileSource());
+
+        var fastAsset = await assetSystem.LoadAsyncTask<TestFastAsset>("test.fast");
+        Assert.NotNull(fastAsset);
+
+        var slowAsset = await assetSystem.LoadAsyncTask<TestSlowAsset>("test.slow");
+        Assert.NotNull(slowAsset);
+
+        Assert.CatchAsync<AssetLoadException>(async () =>
+        {
+            await assetSystem.LoadAsyncTask<TestFastAsset>("test.empty");
+        });
+
+        Assert.CatchAsync<AssetLoadException>(async () =>
+        {
+            await assetSystem.LoadAsyncTask<TestFastAsset>("test.exception");
+        });
+    }
+
+    [Test]
     public void TestLoadAsyncConcurrent()
     {
         AssetSystem assetSystem = new AssetSystem(2);

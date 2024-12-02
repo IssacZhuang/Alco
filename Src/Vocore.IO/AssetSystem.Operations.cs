@@ -7,6 +7,7 @@ public sealed partial class AssetSystem
 {
     /// <summary>
     /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// <br/>This method is thread safe.
     /// </summary>
     /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
     /// <param name="filename">The filename of the asset to load.</param>
@@ -73,6 +74,7 @@ public sealed partial class AssetSystem
 
     /// <summary>
     /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// 
     /// </summary>
     /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
     /// <param name="filename">The filename of the asset to load.</param>
@@ -86,6 +88,7 @@ public sealed partial class AssetSystem
 
     /// <summary>
     /// Load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// <br/>This method is thread safe.
     /// </summary>
     /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
     /// <param name="filename">The filename of the asset to load.</param>
@@ -103,7 +106,22 @@ public sealed partial class AssetSystem
 
 
     /// <summary>
+    /// Load asset file and preprocess the asset asynchronously, then return the asset as a task.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of asset.</typeparam>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns>The loaded asset as a task.</returns>
+    public Task<TAsset> LoadAsyncTask<TAsset>(string filename, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    {
+        return Task.Run(() => Load<TAsset>(filename, cacheMode));
+    }
+
+
+    /// <summary>
     /// Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
+    /// <br/>This method is thread safe.
     /// </summary>
     /// <typeparam name="TAsset">The type of asset.</typeparam>
     /// <param name="filename">Path and name of the asset file.</param>
@@ -159,6 +177,7 @@ public sealed partial class AssetSystem
 
     /// <summary>
     /// Try to load the raw data of the asset from the file source.
+    /// <br/>This method is thread safe.
     /// </summary>
     /// <param name="filename">The filename of the asset.</param>
     /// <param name="data">The raw data of the asset if it is loaded successfully; otherwise, <c>null</c>.</param>
