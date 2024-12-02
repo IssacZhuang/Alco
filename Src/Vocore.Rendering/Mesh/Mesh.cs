@@ -96,7 +96,7 @@ public unsafe class Mesh : ShaderResource, IMesh
     {
         fixed (void* ptr = indices)
         {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset, (uint)indices.Length, IndexFormat.Uint32);
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset, (uint)indices.Length, IndexFormat.UInt32);
         }
     }
 
@@ -104,7 +104,7 @@ public unsafe class Mesh : ShaderResource, IMesh
     {
         fixed (void* ptr = indices)
         {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset, (uint)indices.Length, IndexFormat.Uint16);
+            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset, (uint)indices.Length, IndexFormat.UInt16);
         }
     }
 
@@ -173,8 +173,8 @@ public unsafe class Mesh : ShaderResource, IMesh
     {
         return format switch
         {
-            IndexFormat.Uint16 => sizeof(ushort),
-            IndexFormat.Uint32 => sizeof(uint),
+            IndexFormat.UInt16 => sizeof(ushort),
+            IndexFormat.UInt32 => sizeof(uint),
             _ => throw new InvalidOperationException("Invalid index format.")
         };
     }

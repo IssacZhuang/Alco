@@ -52,7 +52,7 @@ public class Game : GameEngine
         _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

@@ -111,7 +111,7 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
 
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
         _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);

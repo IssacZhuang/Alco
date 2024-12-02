@@ -14,7 +14,7 @@ public partial class RenderingSystem
     /// <returns>The created mesh.</returns>
     public unsafe Mesh CreateMesh(string name = "mesh")
     {
-        return new Mesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.Uint32, name);
+        return new Mesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
     }
     
 
@@ -28,7 +28,7 @@ public partial class RenderingSystem
     /// <returns>The created mesh.</returns>
     public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
     {
-        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.Uint16, name);
+        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
         mesh.UpdateVertex<TVertex>(vertices);
         mesh.UpdateIndex(indices, 0);
         return mesh;
@@ -45,7 +45,7 @@ public partial class RenderingSystem
     public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
     {
 
-        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.Uint16, name);
+        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
         mesh.UpdateVertex<TVertex>(vertices);
         mesh.UpdateIndex(indices, 0);
         return mesh;

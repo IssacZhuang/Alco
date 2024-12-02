@@ -79,8 +79,8 @@ internal static partial class UtilsWebGPU
     {
         return format switch
         {
-            IndexFormat.Uint16 => WGPUIndexFormat.Uint16,
-            IndexFormat.Uint32 => WGPUIndexFormat.Uint32,
+            IndexFormat.UInt16 => WGPUIndexFormat.Uint16,
+            IndexFormat.UInt32 => WGPUIndexFormat.Uint32,
             _ => WGPUIndexFormat.Undefined,
         };
     }

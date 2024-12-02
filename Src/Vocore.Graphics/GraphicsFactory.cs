@@ -10,7 +10,7 @@ using Vocore.Graphics.WebGPU;
 
 namespace Vocore.Graphics;
 
-public static class GraphicsFactory
+public static class GraphicsDeviceFactory
 {
     /// <summary>
     /// The virtual GPU device that does not support any GPU operations but keep the object not null. Can be used for the development of the game logic without the need for a real GPU.

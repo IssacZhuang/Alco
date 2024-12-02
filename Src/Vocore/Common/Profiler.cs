@@ -28,6 +28,11 @@ public struct ProfilerBlock
             return Math.Round(time * Profiler.MilisecondMultiplier, 3);
         }
     }
+
+    public override string ToString()
+    {
+        return $"{name}: {Miliseconds}ms";
+    }
 }
 
 

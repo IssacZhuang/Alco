@@ -22,7 +22,7 @@ public partial class GameEngine
     {
         if (setting.Backend == GraphicsBackend.None)
         {
-            return GraphicsFactory.GetNoGPUDevice();
+            return GraphicsDeviceFactory.GetNoGPUDevice();
         }
 
         DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
@@ -35,7 +35,7 @@ public partial class GameEngine
         };
 
         RegisterLogger();
-        return GraphicsFactory.CreateWebGPUDevice(deviceDescriptor);
+        return GraphicsDeviceFactory.CreateWebGPUDevice(deviceDescriptor);
     }
 
     private static void RegisterLogger()

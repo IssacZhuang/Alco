@@ -121,7 +121,7 @@ public class Game : GameEngine
         _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(2, _texGreen.EntrySample);
@@ -134,7 +134,7 @@ public class Game : GameEngine
         _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(2, _texRed.EntrySample);
@@ -147,7 +147,7 @@ public class Game : GameEngine
         _commandBuffer.SetFrameBuffer(MainFrameBuffer);
         _commandBuffer.SetGraphicsPipeline(_pipeline);
         _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.Uint16);
+        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(2, _texBlue.EntrySample);
