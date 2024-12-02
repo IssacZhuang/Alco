@@ -7,21 +7,39 @@ namespace Vocore.Rendering;
 public class CommandThread : AutoDisposable
 {
     //the circular work stealing deque is struct only, so we need to wrap the command buffer in a struct to avoid boxing    
-    private struct CommandBufferContext
+    private struct CommandBufferJob : IJob
     {
+        public int index;
         public GPUCommandBuffer commandBuffer;
+        public SemaphoreSlim semaphore;
+
+
+        public void Execute()
+        {
+            try
+            {
+                commandBuffer.End();
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Error ending command buffer.");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
     }
 
     private readonly GPUDevice _device;
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
     private readonly Thread _submitThread;
     private readonly CancellationTokenSource _cancellationTokenSource;
-    //the lock free deque
-    private readonly CircularWorkStealingDeque<CommandBufferContext> _commandBuffers = new CircularWorkStealingDeque<CommandBufferContext>(64);
-    //the push operation of circular work stealing deque is not thread safe, so we need a lock to protect it
+    private readonly ThreadWorkerQueue<CommandBufferJob> _workerThreads;
+    private readonly List<CommandBufferJob> _commandBuffers = new List<CommandBufferJob>();//just for keeping the order of submitted command buffers
     private AtomicSpinLock _lockPush = new AtomicSpinLock();
-    private uint _submittedCommandBufferCount;
-    private uint _finishedCommandBufferCount;
+    private int _submittedCommandBufferCount;
+    private int _finishedCommandBufferCount;
 
     /// <summary>
     /// Whether the command thread has finished processing all submitted command buffers.
@@ -36,18 +54,21 @@ public class CommandThread : AutoDisposable
     }
 
 
-    public CommandThread(GPUDevice device)
+    public CommandThread(GPUDevice device, int threadCount)
     {
         _device = device;
         _cancellationTokenSource = new CancellationTokenSource();
         _submitThread = new Thread(CreateSubmitThread());
         _submitThread.Name = "command_submit_thread";
         _submitThread.Start();
+
+        _workerThreads = new ThreadWorkerQueue<CommandBufferJob>(threadCount);
     }
 
     /// <summary>
     /// Submit a command buffer to the command thread.
-    /// <br/>This method is thread safe.
+    /// The <see cref="GPUCommandBuffer.End()"/> and <see cref="GPUCommandBuffer.Submit()"/> methods are called in the thread. Don't call them in the command buffer yourself.
+    /// <br/>This method is thread safe but the command buffer is not. So don't do anything with the command buffer untill it is finished.
     /// </summary>
     /// <param name="commandBuffer">The command buffer to submit.</param>
     /// <exception cref="InvalidOperationException">Thrown when the command buffer is not being recorded.</exception>
@@ -57,21 +78,36 @@ public class CommandThread : AutoDisposable
         {
             throw new InvalidOperationException("Trying to submit a command buffer that is not being recorded.");
         }
+
         _lockPush.Lock();
-        _commandBuffers.Push(new CommandBufferContext { commandBuffer = commandBuffer });
+        var job = new CommandBufferJob
+        {
+            commandBuffer = commandBuffer,
+            semaphore = _semaphore
+        };
+        _commandBuffers.Add(job);
+        _workerThreads.Push(job);
         _lockPush.Unlock();
-    
+
         Interlocked.Increment(ref _submittedCommandBufferCount);
-        _semaphore.Release();
     }
 
     /// <summary>
     /// Reset the command thread.
+    /// Make sure all command buffers are finished before resetting the command thread.
     /// <br/>This method is not thread safe.
     /// </summary>
     public void Reset()
     {
+        if (Volatile.Read(ref _submittedCommandBufferCount) != Volatile.Read(ref _finishedCommandBufferCount))
+        {
+            throw new InvalidOperationException("Trying to reset the command thread while there are still unfinished command buffers.");
+        }
+
+        _lockPush.Lock();
         _commandBuffers.Clear();
+        _lockPush.Unlock();
+
         Interlocked.Exchange(ref _submittedCommandBufferCount, 0);
         Interlocked.Exchange(ref _finishedCommandBufferCount, 0);
     }
@@ -99,23 +135,19 @@ public class CommandThread : AutoDisposable
         while (!token.IsCancellationRequested)
         {
             _semaphore.Wait();
-            ProcessCommandBuffers();
-        }
-    }
-
-    private void ProcessCommandBuffers()
-    {
-        StealingResult result;
-        // Process all available command buffers
-        while ((result = _commandBuffers.TrySteal(out var context)) != StealingResult.Empty)
-        {
-            if (result == StealingResult.Success)
+            while (true)
             {
+                _lockPush.Lock();
+                CommandBufferJob currentJob = _commandBuffers[_finishedCommandBufferCount];
+                _lockPush.Unlock();
+                if (currentJob.commandBuffer.IsRecording)
+                {
+                    break;
+                }
+
                 try
                 {
-                    GPUCommandBuffer commandBuffer = context.commandBuffer;
-                    commandBuffer.End();
-                    _device.Submit(commandBuffer);
+                    _device.Submit(currentJob.commandBuffer);
                 }
                 catch (Exception e)
                 {
@@ -127,8 +159,12 @@ public class CommandThread : AutoDisposable
         }
     }
 
+
+
     protected override void Dispose(bool disposing)
     {
+        WaitForFinish();
+
         _cancellationTokenSource.Cancel();
         _semaphore.Release();
         _submitThread.Join();

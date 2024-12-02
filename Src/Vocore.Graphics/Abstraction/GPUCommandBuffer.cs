@@ -11,10 +11,11 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected bool _isRecording = false;
     //API
     public abstract bool HasBuffer { get; }
-    public virtual bool IsRecording
+
+    public bool IsRecording
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _isRecording;
+        get => Volatile.Read(ref _isRecording);
     }
 
     protected GPUCommandBuffer(in CommandBufferDescriptor? descriptor): base(descriptor?.Name ?? "unnamed_command_buffer")
