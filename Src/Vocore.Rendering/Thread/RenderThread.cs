@@ -4,9 +4,8 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class CommandThread : AutoDisposable
+public class RenderThread : AutoDisposable
 {
-    //the circular work stealing deque is struct only, so we need to wrap the command buffer in a struct to avoid boxing    
     private struct CommandBufferJob : IJob
     {
         public int index;
@@ -54,7 +53,7 @@ public class CommandThread : AutoDisposable
     }
 
 
-    public CommandThread(GPUDevice device, int threadCount)
+    public RenderThread(GPUDevice device, int threadCount)
     {
         _device = device;
         _cancellationTokenSource = new CancellationTokenSource();
@@ -93,8 +92,8 @@ public class CommandThread : AutoDisposable
     }
 
     /// <summary>
-    /// Reset the command thread.
-    /// Make sure all command buffers are finished before resetting the command thread.
+    /// Reset the render thread.
+    /// Make sure all command buffers are finished before resetting the render thread.
     /// <br/>This method is not thread safe.
     /// </summary>
     public void Reset()
@@ -113,7 +112,7 @@ public class CommandThread : AutoDisposable
     }
 
     /// <summary>
-    /// Wait for the command thread to finish.
+    /// Wait for the render thread to finish.
     /// <br/>This method is not thread safe.
     /// </summary>
     public void WaitForFinish()
