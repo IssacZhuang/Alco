@@ -80,7 +80,6 @@ public class TestRender
         protected override void EndCore()
         {
             //simulate the most time-consuming operation
-            Thread.Sleep(6);
             _hasBuffer = true;
         }
 
@@ -142,7 +141,7 @@ public class TestRender
     public void TestRenderThread()
     {
 
-        GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
+        GameEngine engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
         GPUDevice device = engine.GraphicsDevice;
         int commandCount = 128;
         int drawCallCount = 1000;
@@ -151,7 +150,7 @@ public class TestRender
 
         for (int i = 0; i < commandCount; i++)
         {
-            commands[i] = new TestCommandBuffer(null);
+            commands[i] = device.CreateCommandBuffer();
         }
 
         RenderingSystem rendering = engine.Rendering;
@@ -166,6 +165,8 @@ public class TestRender
         material.SetTexture("_texture", rendering.TextureWhite);
         Mesh mesh = rendering.MeshSprite;
 
+        RenderTexture renderTarget = rendering.CreateRenderTexture(rendering.PrefferedHDRPass, 1024, 1024);
+
         Constant constant = new Constant
         {
             Model = transform.Matrix,
@@ -175,19 +176,20 @@ public class TestRender
 
         Profiler profiler = new Profiler();
 
-        profiler.Start("Render thread: ");
+        //jit warm-up
         for (int i = 0; i < commandCount; i++)
         {
             GPUCommandBuffer command = commands[i];
             command.Begin();
+            command.SetFrameBuffer(renderTarget.FrameBuffer);
+            command.SetGraphicsPipeline(material.GetPipeline(renderTarget.FrameBuffer.RenderPass));
             command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
             command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
-            command.SetGraphicsPipeline(material.GetPipeline(engine.MainFrameBuffer.RenderPass));
             material.PushResourceToCommandBuffer(command);
 
             for (int j = 0; j < drawCallCount; j++)
             {
-                command.PushConstants(ShaderStage.Vertex, constant);
+                command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
                 command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
             }
 
@@ -198,9 +200,36 @@ public class TestRender
 
         renderThread.WaitForFinish();
 
-        var result = profiler.End();
+        //benchmark
+        profiler.Start("Render thread: ");
 
-        TestContext.WriteLine(result);
+        profiler.Start("Build Command");
+        for (int i = 0; i < commandCount; i++)
+        {
+            GPUCommandBuffer command = commands[i];
+            command.Begin();
+            command.SetFrameBuffer(renderTarget.FrameBuffer);
+            command.SetGraphicsPipeline(material.GetPipeline(renderTarget.FrameBuffer.RenderPass));
+            command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
+            command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
+            material.PushResourceToCommandBuffer(command);
+
+            for (int j = 0; j < drawCallCount; j++)
+            {
+                command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+                command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+            }
+
+            //the GPUCommandBuffer.End() is most time-consuming operation
+            //it will be called in the render thread
+            renderThread.SubmitCommandBuffer(command);
+        }
+
+        TestContext.WriteLine(profiler.End());
+
+        renderThread.WaitForFinish();
+
+        TestContext.WriteLine(profiler.End());
 
         renderThread.Dispose();
         engine.Dispose();

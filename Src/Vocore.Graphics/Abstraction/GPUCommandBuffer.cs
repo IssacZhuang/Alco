@@ -32,8 +32,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     public void End()
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
-        _isRecording = false;
         EndCore();
+        _isRecording = false;
     }
 
     //graphics

@@ -17,9 +17,9 @@ namespace Vocore.Engine;
 /// </summary>
 public partial class GameEngine : IDisposable
 {
-#pragma warning disable CS8618
-    public static GameEngine Instance { get; private set; }
-#pragma warning restore CS8618
+// #pragma warning disable CS8618
+//     public static GameEngine Instance { get; private set; }
+// #pragma warning restore CS8618
     private readonly GameEngineSetting _setting;
 
     #region  Resources
@@ -175,11 +175,11 @@ public partial class GameEngine : IDisposable
 
     public GameEngine(GameEngineSetting setting)
     {
-        if (Instance != null)
-        {
-            throw new Exception("The GameEngine can only have one instance.");
-        }
-        Instance = this;
+        // if (Instance != null)
+        // {
+        //     throw new Exception("The GameEngine can only have one instance.");
+        // }
+        // Instance = this;
         _setting = setting;
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
@@ -396,9 +396,9 @@ public partial class GameEngine : IDisposable
     {
         if (_isDisposed) return;
         _isDisposed = true;
-#pragma warning disable CS8625
-        Instance = null;
-#pragma warning restore CS8625
+// #pragma warning disable CS8625
+//         Instance = null;
+// #pragma warning restore CS8625
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
         GraphicsDevice.Dispose();

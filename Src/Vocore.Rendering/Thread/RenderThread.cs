@@ -8,7 +8,6 @@ public class RenderThread : AutoDisposable
 {
     private struct CommandBufferJob : IJob
     {
-        public int index;
         public GPUCommandBuffer commandBuffer;
         public SemaphoreSlim semaphore;
 
@@ -36,7 +35,7 @@ public class RenderThread : AutoDisposable
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly ThreadWorkerQueue<CommandBufferJob> _workerThreads;
     private readonly List<CommandBufferJob> _commandBuffers = new List<CommandBufferJob>();//just for keeping the order of submitted command buffers
-    private AtomicSpinLock _lockPush = new AtomicSpinLock();
+    private readonly AtomicSpinLock _lockPush = new AtomicSpinLock();//optimistic lock
     private int _submittedCommandBufferCount;
     private int _finishedCommandBufferCount;
 
@@ -61,7 +60,7 @@ public class RenderThread : AutoDisposable
         _submitThread.Name = "command_submit_thread";
         _submitThread.Start();
 
-        _workerThreads = new ThreadWorkerQueue<CommandBufferJob>(threadCount);
+        _workerThreads = new ThreadWorkerQueue<CommandBufferJob>(threadCount, "command_build_thread");
     }
 
     /// <summary>
@@ -136,17 +135,25 @@ public class RenderThread : AutoDisposable
             _semaphore.Wait();
             while (true)
             {
+                if (_finishedCommandBufferCount >= _commandBuffers.Count)
+                {
+                    break;
+                }
+
+                
                 _lockPush.Lock();
-                CommandBufferJob currentJob = _commandBuffers[_finishedCommandBufferCount];
+                GPUCommandBuffer commandBuffer = _commandBuffers[_finishedCommandBufferCount].commandBuffer;
                 _lockPush.Unlock();
-                if (currentJob.commandBuffer.IsRecording)
+
+                Thread.MemoryBarrier();
+                if (commandBuffer.IsRecording)
                 {
                     break;
                 }
 
                 try
                 {
-                    _device.Submit(currentJob.commandBuffer);
+                    _device.Submit(commandBuffer);
                 }
                 catch (Exception e)
                 {
