@@ -24,6 +24,15 @@ public abstract class BaseMaterial : Material
     }
 
     /// <summary>
+    /// The reflection info of the shader.
+    /// </summary>
+    public ShaderReflectionInfo ReflectionInfo
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipelineContext.ReflectionInfo!;
+    }
+
+    /// <summary>
     /// The depth stencil state of the shader pipeline.
     /// </summary>
     public DepthStencilState DepthStencilState

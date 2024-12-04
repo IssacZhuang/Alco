@@ -10,7 +10,7 @@ public class RenderThread : AutoDisposable
     {
         public GPUCommandBuffer commandBuffer;
         public SemaphoreSlim semaphore;
-
+        public Exception? exception;
 
         public void Execute()
         {
@@ -20,7 +20,7 @@ public class RenderThread : AutoDisposable
             }
             catch (Exception e)
             {
-                Log.Error(e, "Error ending command buffer.");
+                exception = e;
             }
             finally
             {
@@ -38,6 +38,8 @@ public class RenderThread : AutoDisposable
     private readonly AtomicSpinLock _lockPush = new AtomicSpinLock();//optimistic lock
     private int _submittedCommandBufferCount;
     private int _finishedCommandBufferCount;
+
+    public event Action<Exception>? OnException;
 
     /// <summary>
     /// Whether the command thread has finished processing all submitted command buffers.
@@ -119,6 +121,22 @@ public class RenderThread : AutoDisposable
         while (!IsFinished)
         {
             Thread.Yield();
+        }
+
+        for (int i = 0; i < _commandBuffers.Count; i++)
+        {
+            Exception? exception = _commandBuffers[i].exception;
+            if (exception != null)
+            {
+                if (OnException != null)
+                {
+                    OnException(exception);
+                }
+                else
+                {
+                    Log.Error(exception, "Error in command thread.");
+                }
+            }
         }
     }
 

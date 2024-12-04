@@ -157,6 +157,11 @@ public class TestRender
         RenderThread renderThread = new RenderThread(device, 16);//16 threads
         Transform3D transform = Transform3D.Identity;
 
+        renderThread.OnException += (e) =>
+        {
+            Assert.Fail(e.Message);
+        };
+
 
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
         GraphicsMaterial material = rendering.CreateGraphicsMaterial(shader);
@@ -180,16 +185,17 @@ public class TestRender
         for (int i = 0; i < commandCount; i++)
         {
             GPUCommandBuffer command = commands[i];
+            GPUPipeline pipeline = material.GetPipeline(renderTarget.FrameBuffer.RenderPass);
             command.Begin();
             command.SetFrameBuffer(renderTarget.FrameBuffer);
-            command.SetGraphicsPipeline(material.GetPipeline(renderTarget.FrameBuffer.RenderPass));
+            command.SetGraphicsPipeline(pipeline);
             command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
             command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
             material.PushResourceToCommandBuffer(command);
 
             for (int j = 0; j < drawCallCount; j++)
             {
-                command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+                command.PushConstants(material.ReflectionInfo.PushConstantsStages, constant);
                 command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
             }
 
