@@ -11,6 +11,7 @@ public abstract class BaseMaterial : Material
 
     protected bool _isPipelineDirty = true;
     protected GraphicsPipelineContext _pipelineContext;
+    protected ShaderPipelineInfo _pipelineInfo;
 
     protected readonly Shader _shader;
 
@@ -129,15 +130,20 @@ public abstract class BaseMaterial : Material
     /// </summary>
     /// <param name="renderPass">The render pass.</param>
     /// <returns>The shader pipeline.</returns>
-    public override GPUPipeline GetPipeline(GPURenderPass renderPass)
+    public override ShaderPipelineInfo GetPipelineInfo(GPURenderPass renderPass)
     {
         if (_shader.TryUpdatePipelineContext(ref _pipelineContext, renderPass, _isPipelineDirty))
         {
             UpdateSlotResources(_pipelineContext.ReflectionInfo!);
+            _pipelineInfo = new ShaderPipelineInfo{
+                Pipeline = _pipelineContext.Pipeline!,
+                PushConstantsStages = _pipelineContext.ReflectionInfo!.PushConstantsStages,
+                PushConstantsSize = _pipelineContext.ReflectionInfo!.PushConstantsSize
+            };
             _isPipelineDirty = false;
         }
 
-        return _pipelineContext.Pipeline!;
+        return _pipelineInfo;
     }
 
     #region  Set value

@@ -10,7 +10,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="renderPass">The render pass of the render target.</param>
     /// <returns>The GPU pipeline of the material.</returns>
-    public abstract GPUPipeline GetPipeline(GPURenderPass renderPass);
+    public abstract ShaderPipelineInfo GetPipelineInfo(GPURenderPass renderPass);
 
     /// <summary>
     /// Set the resources to the command buffer.

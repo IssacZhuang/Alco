@@ -26,6 +26,10 @@ public class ShaderReflectionInfo
     /// The stage of the push constants
     /// </summary>
     public ShaderStage PushConstantsStages { get; }
+    /// <summary>
+    /// The size of the push constants
+    /// </summary>
+    public int PushConstantsSize { get; }
 
     /// <summary>
     /// Thread group size for compute shader
@@ -44,11 +48,14 @@ public class ShaderReflectionInfo
         Size = size;
 
         ShaderStage stages = ShaderStage.None;
+        int pushConstantsSize = 0;
         for (int i = 0; i < pushConstantsRanges.Count; i++)
         {
             stages |= pushConstantsRanges[i].Stage;
+            pushConstantsSize = Math.Max(pushConstantsSize, (int)pushConstantsRanges[i].End);
         }
         PushConstantsStages = stages;
+        PushConstantsSize = pushConstantsSize;
 
         BuildResourceIndex();
     }

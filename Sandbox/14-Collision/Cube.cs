@@ -40,6 +40,6 @@ public class Cube
     {
         _renderData.matrix = transform.Matrix;
         // renderer already began
-        renderer.DrawWithConstant(_mesh, _material, _renderData, ShaderStage.Vertex|ShaderStage.Fragment);
+        renderer.DrawWithConstant(_mesh, _material, _renderData);
     }
 }

@@ -28,24 +28,30 @@ public class MaterialRenderer : AutoDisposable, IRenderer
         {
             throw new InvalidOperationException("Begin must be called before Draw");
         }
-        _command.SetGraphicsPipeline(material.GetPipeline(_framebuffer.RenderPass));
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer.RenderPass);
+        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         _command.SetVertexBuffer(0, mesh.VertexBuffer);
         _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         material.PushResourceToCommandBuffer(_command);
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    public void DrawWithConstant<T>(IMesh mesh, Material material, T constant, ShaderStage pushConstantStage) where T : unmanaged
+    public unsafe void DrawWithConstant<T>(IMesh mesh, Material material, T constant) where T : unmanaged
     {
         if (_framebuffer == null)
         {
             throw new InvalidOperationException("Begin must be called before Draw");
         }
-        _command.SetGraphicsPipeline(material.GetPipeline(_framebuffer.RenderPass));
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer.RenderPass);
+        if (pipelineInfo.PushConstantsSize != sizeof(T))
+        {
+            throw new ArgumentException("The size of the constant does not match the push constants size");
+        }
+        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         _command.SetVertexBuffer(0, mesh.VertexBuffer);
         _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         material.PushResourceToCommandBuffer(_command);
-        _command.PushConstants(pushConstantStage, constant);
+        _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
     }
 

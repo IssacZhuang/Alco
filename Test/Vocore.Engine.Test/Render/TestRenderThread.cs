@@ -185,10 +185,10 @@ public class TestRender
         for (int i = 0; i < commandCount; i++)
         {
             GPUCommandBuffer command = commands[i];
-            GPUPipeline pipeline = material.GetPipeline(renderTarget.FrameBuffer.RenderPass);
+            ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(renderTarget.FrameBuffer.RenderPass);
             command.Begin();
             command.SetFrameBuffer(renderTarget.FrameBuffer);
-            command.SetGraphicsPipeline(pipeline);
+            command.SetGraphicsPipeline(pipelineInfo.Pipeline);
             command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
             command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
             material.PushResourceToCommandBuffer(command);
@@ -215,7 +215,7 @@ public class TestRender
             GPUCommandBuffer command = commands[i];
             command.Begin();
             command.SetFrameBuffer(renderTarget.FrameBuffer);
-            command.SetGraphicsPipeline(material.GetPipeline(renderTarget.FrameBuffer.RenderPass));
+            command.SetGraphicsPipeline(material.GetPipelineInfo(renderTarget.FrameBuffer.RenderPass).Pipeline);
             command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
             command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
             material.PushResourceToCommandBuffer(command);
