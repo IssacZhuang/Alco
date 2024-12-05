@@ -129,6 +129,32 @@ public class TestRender
         }
     }
 
+    private class TestRenderJob : IRenderJob
+    {
+        public Material material;
+        public Mesh mesh;
+        public Constant constant;
+        public RenderTexture renderTarget;
+        public int drawCallCount;
+        public void Execute(GPUCommandBuffer commandBuffer)
+        {
+            //the usage of renderjobcontext is the same as the command buffer but without the end() method
+            ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(renderTarget.FrameBuffer.RenderPass);
+            commandBuffer.SetFrameBuffer(renderTarget.FrameBuffer);
+            commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            commandBuffer.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
+            commandBuffer.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
+            material.PushResourceToCommandBuffer(commandBuffer);
+
+            for (int i = 0; i < drawCallCount; i++)
+            {
+                commandBuffer.PushConstants(pipelineInfo.PushConstantsStages, constant);
+                commandBuffer.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+            }
+
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
@@ -141,17 +167,22 @@ public class TestRender
     public void TestRenderThread()
     {
 
-        GameEngine engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        GameEngine engine;
+        if (OperatingSystem.IsLinux())
+        {
+            //the azure pipeline linux machine has no built-in vulkan driver
+            engine = new GameEngine(GameEngineSetting.CreateNoGPU());
+        }
+        else
+        {
+            engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        }
+
         GPUDevice device = engine.GraphicsDevice;
         int commandCount = 128;
         int drawCallCount = 1000;
 
-        GPUCommandBuffer[] commands = new GPUCommandBuffer[commandCount];
-
-        for (int i = 0; i < commandCount; i++)
-        {
-            commands[i] = device.CreateCommandBuffer();
-        }
+        
 
         RenderingSystem rendering = engine.Rendering;
         RenderThread renderThread = new RenderThread(device, 16);//16 threads
@@ -179,32 +210,40 @@ public class TestRender
             UvRect = new Rect(0, 0, 1, 1)
         };
 
+        GPUCommandBuffer[] commands = new GPUCommandBuffer[commandCount];
+        TestRenderJob[] jobs = new TestRenderJob[commandCount];
+
+
+        for (int i = 0; i < commandCount; i++)
+        {
+            jobs[i] = new TestRenderJob();
+            jobs[i].material = material;
+            jobs[i].mesh = mesh;
+            jobs[i].constant = constant;
+            jobs[i].renderTarget = renderTarget;
+            jobs[i].drawCallCount = drawCallCount;
+
+            if (OperatingSystem.IsLinux())
+            {
+                commands[i] = new TestCommandBuffer(null);
+            }
+            else
+            {
+                commands[i] = device.CreateCommandBuffer();
+            }
+        }
+
+
         Profiler profiler = new Profiler();
 
         //jit warm-up
         for (int i = 0; i < commandCount; i++)
         {
-            GPUCommandBuffer command = commands[i];
-            ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(renderTarget.FrameBuffer.RenderPass);
-            command.Begin();
-            command.SetFrameBuffer(renderTarget.FrameBuffer);
-            command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-            command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
-            command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
-            material.PushResourceToCommandBuffer(command);
-
-            for (int j = 0; j < drawCallCount; j++)
-            {
-                command.PushConstants(material.ReflectionInfo.PushConstantsStages, constant);
-                command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
-            }
-
-            //the GPUCommandBuffer.End() is most time-consuming operation
-            //it will be called in the render thread
-            renderThread.SubmitCommandBuffer(command);
+            renderThread.ScheduleRenderJob(jobs[i]);
         }
 
         renderThread.WaitForFinish();
+        device.OnEndFrame();
 
         //benchmark
         profiler.Start("Render thread: ");
@@ -212,23 +251,7 @@ public class TestRender
         profiler.Start("Build Command");
         for (int i = 0; i < commandCount; i++)
         {
-            GPUCommandBuffer command = commands[i];
-            command.Begin();
-            command.SetFrameBuffer(renderTarget.FrameBuffer);
-            command.SetGraphicsPipeline(material.GetPipelineInfo(renderTarget.FrameBuffer.RenderPass).Pipeline);
-            command.SetVertexBuffer(0, mesh.VertexBuffer, 0, mesh.VertexBuffer.Size);
-            command.SetIndexBuffer(mesh.IndexBuffer, IndexFormat.UInt16, 0, mesh.IndexBuffer.Size);
-            material.PushResourceToCommandBuffer(command);
-
-            for (int j = 0; j < drawCallCount; j++)
-            {
-                command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
-                command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
-            }
-
-            //the GPUCommandBuffer.End() is most time-consuming operation
-            //it will be called in the render thread
-            renderThread.SubmitCommandBuffer(command);
+            renderThread.ScheduleRenderJob(jobs[i]);
         }
 
         TestContext.WriteLine(profiler.End());

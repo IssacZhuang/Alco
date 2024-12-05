@@ -8,14 +8,24 @@ public class RenderThread : AutoDisposable
 {
     private struct CommandBufferJob : IJob
     {
+        public string callStack;
+        public ObjectPool<GPUCommandBuffer> commandBufferPool;
         public GPUCommandBuffer commandBuffer;
-        public SemaphoreSlim semaphore;
         public Exception? exception;
+        public SemaphoreSlim semaphore;
+        public IRenderJob job;
+        public readonly bool IsFinished
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => commandBuffer.HasBuffer;
+        }
 
         public void Execute()
         {
             try
             {
+                commandBuffer.Begin();
+                job.Execute(commandBuffer);
                 commandBuffer.End();
             }
             catch (Exception e)
@@ -33,8 +43,9 @@ public class RenderThread : AutoDisposable
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
     private readonly Thread _submitThread;
     private readonly CancellationTokenSource _cancellationTokenSource;
+    private readonly ObjectPool<GPUCommandBuffer> _commandBufferPool;
     private readonly ThreadWorkerQueue<CommandBufferJob> _workerThreads;
-    private readonly List<CommandBufferJob> _commandBuffers = new List<CommandBufferJob>();//just for keeping the order of submitted command buffers
+    private readonly List<CommandBufferJob> _commandBufferJobs = new List<CommandBufferJob>();//just for keeping the order of submitted command buffers
     private readonly AtomicSpinLock _lockPush = new AtomicSpinLock();//optimistic lock
     private int _submittedCommandBufferCount;
     private int _finishedCommandBufferCount;
@@ -63,6 +74,8 @@ public class RenderThread : AutoDisposable
         _submitThread.Start();
 
         _workerThreads = new ThreadWorkerQueue<CommandBufferJob>(threadCount, "command_build_thread");
+
+        _commandBufferPool = new ObjectPool<GPUCommandBuffer>(() => _device.CreateCommandBuffer());
     }
 
     /// <summary>
@@ -72,22 +85,28 @@ public class RenderThread : AutoDisposable
     /// </summary>
     /// <param name="commandBuffer">The command buffer to submit.</param>
     /// <exception cref="InvalidOperationException">Thrown when the command buffer is not being recorded.</exception>
-    public void SubmitCommandBuffer(GPUCommandBuffer commandBuffer)
+    public void ScheduleRenderJob(IRenderJob renderJob, [CallerFilePath] string callStack = "")
     {
-        if (!commandBuffer.IsRecording)
+        try
         {
-            throw new InvalidOperationException("Trying to submit a command buffer that is not being recorded.");
-        }
+            GPUCommandBuffer commandBuffer = _commandBufferPool.Get();
 
-        _lockPush.Lock();
-        var job = new CommandBufferJob
+            _lockPush.Lock();
+            var job = new CommandBufferJob
+            {
+                commandBufferPool = _commandBufferPool,
+                callStack = callStack,
+                job = renderJob,
+                semaphore = _semaphore,
+                commandBuffer = commandBuffer
+            };
+            _commandBufferJobs.Add(job);
+            _workerThreads.Push(job);
+        }
+        finally
         {
-            commandBuffer = commandBuffer,
-            semaphore = _semaphore
-        };
-        _commandBuffers.Add(job);
-        _workerThreads.Push(job);
-        _lockPush.Unlock();
+            _lockPush.Unlock();
+        }
 
         Interlocked.Increment(ref _submittedCommandBufferCount);
     }
@@ -105,7 +124,7 @@ public class RenderThread : AutoDisposable
         }
 
         _lockPush.Lock();
-        _commandBuffers.Clear();
+        _commandBufferJobs.Clear();
         _lockPush.Unlock();
 
         Interlocked.Exchange(ref _submittedCommandBufferCount, 0);
@@ -123,9 +142,10 @@ public class RenderThread : AutoDisposable
             Thread.Yield();
         }
 
-        for (int i = 0; i < _commandBuffers.Count; i++)
+        for (int i = 0; i < _commandBufferJobs.Count; i++)
         {
-            Exception? exception = _commandBuffers[i].exception;
+            Exception? exception = _commandBufferJobs[i].exception;
+            GPUCommandBuffer commandBuffer = _commandBufferJobs[i].commandBuffer;
             if (exception != null)
             {
                 if (OnException != null)
@@ -136,6 +156,13 @@ public class RenderThread : AutoDisposable
                 {
                     Log.Error(exception, "Error in command thread.");
                 }
+                //the command buffer is broken, dispose it
+                commandBuffer.Dispose();
+            }
+            else
+            {
+                _commandBufferPool.Return(commandBuffer);
+
             }
         }
     }
@@ -153,29 +180,29 @@ public class RenderThread : AutoDisposable
             _semaphore.Wait();
             while (true)
             {
-                if (_finishedCommandBufferCount >= _commandBuffers.Count)
+                if (_finishedCommandBufferCount >= _commandBufferJobs.Count)
                 {
                     break;
                 }
 
-                
                 _lockPush.Lock();
-                GPUCommandBuffer commandBuffer = _commandBuffers[_finishedCommandBufferCount].commandBuffer;
+                CommandBufferJob job = _commandBufferJobs[_finishedCommandBufferCount];
                 _lockPush.Unlock();
 
                 Thread.MemoryBarrier();
-                if (commandBuffer.IsRecording)
+                if (!job.IsFinished)
                 {
                     break;
                 }
 
                 try
                 {
-                    _device.Submit(commandBuffer);
+                    _device.Submit(job.commandBuffer!);
                 }
                 catch (Exception e)
                 {
                     Log.Error(e, "Error submitting command buffer.");
+                    // Consider retry logic or additional error handling here
                 }
 
                 Interlocked.Increment(ref _finishedCommandBufferCount);
