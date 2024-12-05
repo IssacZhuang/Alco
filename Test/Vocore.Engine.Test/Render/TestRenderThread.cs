@@ -179,8 +179,8 @@ public class TestRender
         }
 
         GPUDevice device = engine.GraphicsDevice;
-        int commandCount = 128;
-        int drawCallCount = 1000;
+        int commandCount = 32;
+        int drawCallCount = 4000;
 
         
 

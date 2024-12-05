@@ -189,7 +189,6 @@ public class RenderThread : AutoDisposable
                 CommandBufferJob job = _commandBufferJobs[_finishedCommandBufferCount];
                 _lockPush.Unlock();
 
-                Thread.MemoryBarrier();
                 if (!job.IsFinished)
                 {
                     break;
