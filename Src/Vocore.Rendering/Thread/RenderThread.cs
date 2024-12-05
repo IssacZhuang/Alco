@@ -8,8 +8,7 @@ public class RenderThread : AutoDisposable
 {
     private struct CommandBufferJob : IJob
     {
-        public string callStack;
-        public ObjectPool<GPUCommandBuffer> commandBufferPool;
+
         public GPUCommandBuffer commandBuffer;
         public Exception? exception;
         public SemaphoreSlim semaphore;
@@ -85,7 +84,7 @@ public class RenderThread : AutoDisposable
     /// </summary>
     /// <param name="commandBuffer">The command buffer to submit.</param>
     /// <exception cref="InvalidOperationException">Thrown when the command buffer is not being recorded.</exception>
-    public void ScheduleRenderJob(IRenderJob renderJob, [CallerFilePath] string callStack = "")
+    public void ScheduleRenderJob(IRenderJob renderJob)
     {
         try
         {
@@ -94,8 +93,6 @@ public class RenderThread : AutoDisposable
             _lockPush.Lock();
             var job = new CommandBufferJob
             {
-                commandBufferPool = _commandBufferPool,
-                callStack = callStack,
                 job = renderJob,
                 semaphore = _semaphore,
                 commandBuffer = commandBuffer
