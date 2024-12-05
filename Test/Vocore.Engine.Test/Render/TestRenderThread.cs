@@ -185,7 +185,7 @@ public class TestRender
         
 
         RenderingSystem rendering = engine.Rendering;
-        RenderThread renderThread = new RenderThread(device, 16);//16 threads
+        RenderThread renderThread = new RenderThread(device, 8);//16 threads
         Transform3D transform = Transform3D.Identity;
 
         renderThread.OnException += (e) =>
@@ -243,6 +243,10 @@ public class TestRender
         }
 
         renderThread.WaitForFinish();
+
+        Assert.That(renderThread.IsFinished);
+        renderThread.Reset();
+
         device.OnEndFrame();
 
         //benchmark

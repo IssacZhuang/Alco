@@ -134,32 +134,65 @@ public class RenderThread : AutoDisposable
     /// </summary>
     public void WaitForFinish()
     {
-        while (!IsFinished)
-        {
-            Thread.Yield();
-        }
+        // while (!IsFinished)
+        // {
+        //     Thread.Yield();
+        // }
 
-        for (int i = 0; i < _commandBufferJobs.Count; i++)
+        // for (int i = 0; i < _commandBufferJobs.Count; i++)
+        // {
+        //     Exception? exception = _commandBufferJobs[i].exception;
+        //     GPUCommandBuffer commandBuffer = _commandBufferJobs[i].commandBuffer;
+        //     if (exception != null)
+        //     {
+        //         if (OnException != null)
+        //         {
+        //             OnException(exception);
+        //         }
+        //         else
+        //         {
+        //             Log.Error(exception, "Error in command thread.");
+        //         }
+        //         //the command buffer is broken, dispose it
+        //         commandBuffer.Dispose();
+        //     }
+        //     else
+        //     {
+        //         _commandBufferPool.Return(commandBuffer);
+
+        //     }
+        // }
+
+        int handleIndex = 0;
+        while (handleIndex < Volatile.Read(ref _submittedCommandBufferCount))
         {
-            Exception? exception = _commandBufferJobs[i].exception;
-            GPUCommandBuffer commandBuffer = _commandBufferJobs[i].commandBuffer;
-            if (exception != null)
+            if (handleIndex >= Volatile.Read(ref _finishedCommandBufferCount))
             {
-                if (OnException != null)
-                {
-                    OnException(exception);
-                }
-                else
-                {
-                    Log.Error(exception, "Error in command thread.");
-                }
-                //the command buffer is broken, dispose it
-                commandBuffer.Dispose();
+                Thread.Yield();
             }
             else
             {
-                _commandBufferPool.Return(commandBuffer);
+                Exception? exception = _commandBufferJobs[handleIndex].exception;
+                GPUCommandBuffer commandBuffer = _commandBufferJobs[handleIndex].commandBuffer;
+                if (exception != null)
+                {
+                    if (OnException != null)
+                    {
+                        OnException(exception);
+                    }
+                    else
+                    {
+                        Log.Error(exception, "Error in command thread.");
+                    }
+                    // Dispose broken command buffer
+                    commandBuffer.Dispose();
+                }
+                else
+                {
+                    _commandBufferPool.Return(commandBuffer);
+                }
 
+                handleIndex++;
             }
         }
     }
