@@ -155,6 +155,14 @@ public class TestRender
         }
     }
 
+    private class TestErrorRenderJob : IRenderJob
+    {
+        public void Execute(GPUCommandBuffer commandBuffer)
+        {
+            throw new Exception("Test error");
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
@@ -167,16 +175,13 @@ public class TestRender
     public void TestRenderThread()
     {
 
-        GameEngine engine;
         if (OperatingSystem.IsLinux())
         {
-            //the azure pipeline linux machine has no built-in vulkan driver
-            engine = new GameEngine(GameEngineSetting.CreateNoGPU());
+            //the linux server of azure pipleine has no vulkan driver
+            return;
         }
-        else
-        {
-            engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
-        }
+
+        GameEngine engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
 
         GPUDevice device = engine.GraphicsDevice;
         int commandCount = 32;
@@ -223,14 +228,7 @@ public class TestRender
             jobs[i].renderTarget = renderTarget;
             jobs[i].drawCallCount = drawCallCount;
 
-            if (OperatingSystem.IsLinux())
-            {
-                commands[i] = new TestCommandBuffer(null);
-            }
-            else
-            {
-                commands[i] = device.CreateCommandBuffer();
-            }
+            commands[i] = device.CreateCommandBuffer();
         }
 
 
@@ -267,5 +265,59 @@ public class TestRender
         renderThread.Dispose();
         engine.Dispose();
 
+    }
+
+    [Test]
+    public void TestRenderThreadError()
+    {
+
+        if (OperatingSystem.IsLinux())
+        {
+            //the linux server of azure pipleine has no vulkan driver
+            return;
+        }
+
+        GameEngine engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        GPUDevice device = engine.GraphicsDevice;
+        RenderThread renderThread = new RenderThread(device, 8);
+        renderThread.OnException += (e) =>
+        {
+            Assert.Pass();
+        };
+
+        Transform3D transform = Transform3D.Identity;
+
+        RenderingSystem rendering = engine.Rendering;
+
+        Shader shader = engine.BuiltInAssets.Shader_Sprite;
+        GraphicsMaterial material = rendering.CreateGraphicsMaterial(shader);
+        CameraDataPerspective cameraData = new CameraDataPerspective();
+        material.SetValue("_camera", cameraData);
+        material.SetTexture("_texture", rendering.TextureWhite);
+        Mesh mesh = rendering.MeshSprite;
+
+        RenderTexture renderTarget = rendering.CreateRenderTexture(rendering.PrefferedHDRPass, 1024, 1024);
+
+        Constant constant = new Constant
+        {
+            Model = transform.Matrix,
+            Color = new Vector4(1, 1, 1, 1),
+            UvRect = new Rect(0, 0, 1, 1)
+        };
+
+        TestRenderJob commonJob = new TestRenderJob();
+        commonJob.material = material;
+        commonJob.mesh = mesh;
+        commonJob.constant = constant;
+        commonJob.renderTarget = renderTarget;
+        commonJob.drawCallCount = 1000;
+
+        TestErrorRenderJob errorJob = new TestErrorRenderJob();
+
+        renderThread.ScheduleRenderJob(commonJob);
+        renderThread.ScheduleRenderJob(errorJob);
+        renderThread.WaitForFinish();
+
+        Assert.That(renderThread.IsFinished);
     }
 }

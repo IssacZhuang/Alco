@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace Vocore.Test
 {
-    public class ThreadWorkerQueueTest
+    public class TestThreadWorkerQueue
     {
         [Test(Description = "ThreadWorkerQueue Add")]
         public void TestPush()
@@ -54,7 +54,7 @@ namespace Vocore.Test
                     value = i
                 };
             }
-            ThreadWorkerQueue<QuickJob> queue = new ThreadWorkerQueue<QuickJob>(8);
+            using ThreadWorkerQueue<QuickJob> queue = new ThreadWorkerQueue<QuickJob>(8);
             int finishedCount = 0;
             foreach (var job in jobs)
             {
@@ -88,7 +88,7 @@ namespace Vocore.Test
                     value = i
                 };
             }
-            ThreadWorkerQueue<SlowJob> queue = new ThreadWorkerQueue<SlowJob>(4);
+            using ThreadWorkerQueue<SlowJob> queue = new ThreadWorkerQueue<SlowJob>(4);
             int finishedCount = 0;
             foreach (var job in jobs)
             {
@@ -121,7 +121,7 @@ namespace Vocore.Test
                     value = i
                 };
             }
-            ThreadWorkerQueue<SlowJob> queue = new ThreadWorkerQueue<SlowJob>(4);
+            using ThreadWorkerQueue<SlowJob> queue = new ThreadWorkerQueue<SlowJob>(4);
 
             foreach (var job in jobs)
             {
@@ -141,7 +141,7 @@ namespace Vocore.Test
         public void TestErrorJob()
         {
             ErrorJob job = new ErrorJob();
-            ThreadWorkerQueue<ErrorJob> queue = new ThreadWorkerQueue<ErrorJob>(2);
+            using ThreadWorkerQueue<ErrorJob> queue = new ThreadWorkerQueue<ErrorJob>(2);
             queue.Push(job);
 
             Exception exception = null;
@@ -158,7 +158,7 @@ namespace Vocore.Test
         public void TestNoErrorJob()
         {
             QuickJob job = new QuickJob();
-            ThreadWorkerQueue<QuickJob> queue = new ThreadWorkerQueue<QuickJob>(2);
+            using ThreadWorkerQueue<QuickJob> queue = new ThreadWorkerQueue<QuickJob>(2);
             queue.Push(job);
 
             Exception exception = null;
@@ -169,6 +169,23 @@ namespace Vocore.Test
             }
 
             Assert.IsNull(exception);
+        }
+
+        [Test]
+        public void TestValueJob()
+        {
+            ValueJob job = new ValueJob()
+            {
+                value = 1
+            };
+
+            using ThreadWorkerQueue<ValueJob> queue = new ThreadWorkerQueue<ValueJob>(2);
+            queue.Push(job);
+
+            foreach (var result in queue.WaitForAllCompleted())
+            {
+                Assert.That(result.job.value, Is.EqualTo(2));
+            }
         }
 
 
@@ -198,6 +215,16 @@ namespace Vocore.Test
             public void Execute()
             {
                 throw new Exception("Error");
+            }
+        }
+
+        private struct ValueJob : IJob
+        {
+            public int value;
+
+            public void Execute()
+            {
+                value *= 2;
             }
         }
     }
