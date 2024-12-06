@@ -8,6 +8,7 @@ public class RenderThread : AutoDisposable
 {
     private struct CommandBufferJob : IJob
     {
+        public Lock @lock;
         public List<CommandBufferJob> parent;
         public int index;
 
@@ -34,7 +35,10 @@ public class RenderThread : AutoDisposable
             {
                 //update the value because it is a struct
                 isFinished = true;
-                parent[index] = this;
+                using (@lock.EnterScope())
+                {
+                    parent[index] = this;
+                }
                 semaphore.Release();
             }
         }
@@ -47,7 +51,7 @@ public class RenderThread : AutoDisposable
     private readonly ObjectPool<GPUCommandBuffer> _commandBufferPool;
     private readonly ThreadWorkerQueue<CommandBufferJob> _workerThreads;
     private readonly List<CommandBufferJob> _commandBufferJobs = new List<CommandBufferJob>();//just for keeping the order of submitted command buffers
-    private readonly AtomicSpinLock _lockPush = new AtomicSpinLock();//optimistic lock
+    private readonly Lock _lockPush = new Lock();
     private int _submittedCommandBufferCount;
     private int _finishedCommandBufferCount;
 
@@ -93,15 +97,17 @@ public class RenderThread : AutoDisposable
             semaphore = _semaphore,
             commandBuffer = commandBuffer,
             parent = _commandBufferJobs,
-            isFinished = false
+            isFinished = false,
+            @lock = _lockPush,
         };
 
-        _lockPush.Lock();
-        job.index = _commandBufferJobs.Count;
-        _commandBufferJobs.Add(job);
-        Interlocked.Increment(ref _submittedCommandBufferCount);
-        _workerThreads.Push(job);
-        _lockPush.Unlock();
+        using (_lockPush.EnterScope())
+        {
+            job.index = _commandBufferJobs.Count;
+            _commandBufferJobs.Add(job);
+            Interlocked.Increment(ref _submittedCommandBufferCount);
+            _workerThreads.Push(job);
+        }
     }
 
     /// <summary>
@@ -111,13 +117,14 @@ public class RenderThread : AutoDisposable
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
         //no need to use thread worker because the command buffer is already ended
-        _lockPush.Lock();
-        _commandBufferJobs.Add(new CommandBufferJob { 
-            commandBuffer = commandBuffer ,
-            isFinished = true,
+        using (_lockPush.EnterScope())
+        {
+            _commandBufferJobs.Add(new CommandBufferJob
+            {
+                commandBuffer = commandBuffer,
+                isFinished = true,
             });
-
-        _lockPush.Unlock();
+        }
 
         Interlocked.Increment(ref _submittedCommandBufferCount);
         Interlocked.Increment(ref _finishedCommandBufferCount);
@@ -136,9 +143,10 @@ public class RenderThread : AutoDisposable
             throw new InvalidOperationException("Trying to reset the command thread while there are still unfinished command buffers.");
         }
 
-        _lockPush.Lock();
-        _commandBufferJobs.Clear();
-        _lockPush.Unlock();
+        using (_lockPush.EnterScope())
+        {
+            _commandBufferJobs.Clear();
+        }
 
         Interlocked.Exchange(ref _submittedCommandBufferCount, 0);
         Interlocked.Exchange(ref _finishedCommandBufferCount, 0);
@@ -202,10 +210,13 @@ public class RenderThread : AutoDisposable
                     break;
                 }
 
-                _lockPush.Lock();
-                int index = _finishedCommandBufferCount;
-                CommandBufferJob job = _commandBufferJobs[index];
-                _lockPush.Unlock();
+                CommandBufferJob job;
+                int index;
+                using (_lockPush.EnterScope())
+                {
+                    index = _finishedCommandBufferCount;
+                    job = _commandBufferJobs[index];
+                }
 
                 if (!job.isFinished)
                 {

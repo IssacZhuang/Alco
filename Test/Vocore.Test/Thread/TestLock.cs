@@ -21,6 +21,26 @@ public class TestLock
             @lock.Unlock();
         });
         Assert.That(list.Count, Is.EqualTo(count));
+
+        list.Clear();
+        AtomicSpinLockObject lock2 = new AtomicSpinLockObject();
+        Parallel.For(0, count, (i) =>
+        {
+            lock2.Lock();
+            list.Add(i);
+            lock2.Unlock();
+        });
+        Assert.That(list.Count, Is.EqualTo(count));
+
+        list.Clear();
+        Parallel.For(0, count, (i) =>
+        {
+            using (lock2.EnterScope())
+            {
+                list.Add(i);
+            }
+        });
+        Assert.That(list.Count, Is.EqualTo(count));
     }
 
     [Test(Description = "Test lock performance")]
@@ -71,14 +91,15 @@ public class TestLock
         });
 
         //cas lock single thread
-        UtilsTest.Benchmark("CAS Lock single thread", () =>
+        AtomicSpinLockObject atomicSpinLockObject = new AtomicSpinLockObject();
+        UtilsTest.Benchmark("CAS Lock single thread 2", () =>
         {
-            AtomicSpinLock @lock = new AtomicSpinLock();
             for (int i = 0; i < count; i++)
             {
-                @lock.Lock();
-                list.Add(i);
-                @lock.Unlock();
+                using (atomicSpinLockObject.EnterScope())
+                {
+                    list.Add(i);
+                }
             }
         });
 
@@ -119,28 +140,17 @@ public class TestLock
         });
 
         //cas lock multi thread
-        UtilsTest.Benchmark("CAS Lock multi thread", () =>
+        AtomicSpinLockObject atomicSpinLockObject2 = new AtomicSpinLockObject();
+        UtilsTest.Benchmark("CAS Lock multi thread 2", () =>
         {
             Parallel.For(0, count, (i) =>
             {
-                AtomicSpinLock @lock = new AtomicSpinLock();
-                @lock.Lock();
-                list.Add(i);
-                @lock.Unlock();
+                using (atomicSpinLockObject2.EnterScope())
+                {
+                    list.Add(i);
+                }
             });
         });
-
-        //mutex multi thread
-        // UtilsTest.Benchmark("Mutex multi thread", () =>
-        // {
-        //     Parallel.For(0, count, (i) =>
-        //     {
-        //         mutex.WaitOne();
-        //         list.Add(i);
-        //         mutex.ReleaseMutex();
-        //     });
-        // });
-
 
         //custom scheduler
         using ParallelScheduler scheduler = new ParallelScheduler(8, "TestScheduler");
@@ -168,28 +178,17 @@ public class TestLock
         });
 
         //cas lock multi thread
-        UtilsTest.Benchmark("CAS Lock multi thread 2", () =>
+        AtomicSpinLockObject atomicSpinLockObject3 = new AtomicSpinLockObject();
+        UtilsTest.Benchmark("CAS Lock multi thread 3", () =>
         {
             scheduler.For(count, (i) =>
             {
-                AtomicSpinLock @lock = new AtomicSpinLock();
-                @lock.Lock();
-                list.Add(i);
-                @lock.Unlock();
+                using (atomicSpinLockObject3.EnterScope())
+                {
+                    list.Add(i);
+                }
             });
         });
-
-        //mutex multi thread
-        // UtilsTest.Benchmark("Mutex multi thread 2", () =>
-        // {
-        //     scheduler.For(count, (i) =>
-        //     {
-        //         mutex.WaitOne();
-        //         list.Add(i);
-        //         mutex.ReleaseMutex();
-        //     });
-        // });
-
     }
 
     [Test(Description = "Test synchronization primitives")]
