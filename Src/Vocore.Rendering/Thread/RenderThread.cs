@@ -127,7 +127,7 @@ public class RenderThread : AutoDisposable
         }
 
         Interlocked.Increment(ref _submittedCommandBufferCount);
-        Interlocked.Increment(ref _finishedCommandBufferCount);
+        //Interlocked.Increment(ref _finishedCommandBufferCount);
         _semaphore.Release();
     }
 
