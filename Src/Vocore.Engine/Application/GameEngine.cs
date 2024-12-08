@@ -30,6 +30,7 @@ public partial class GameEngine : IDisposable
     private readonly AssetSystem _assets;
 
     private readonly RenderingSystem _rendering;
+    private readonly RenderThread _renderThread;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
 
@@ -187,8 +188,10 @@ public partial class GameEngine : IDisposable
 
         _platform = _setting.Platform ?? new Sdl3Platform();
 
+        _renderThread = new RenderThread(_graphicsDevice, _setting.Graphics.RenderThreadCount);
         _rendering = new RenderingSystem(
             _graphicsDevice,
+            _renderThread,
             _setting.Graphics.PreferredSDRFormat,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat
@@ -401,6 +404,7 @@ public partial class GameEngine : IDisposable
 // #pragma warning restore CS8625
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
+        _renderThread.Dispose();
         GraphicsDevice.Dispose();
         AudioDevice.Dispose();
         MainWindow.Close();

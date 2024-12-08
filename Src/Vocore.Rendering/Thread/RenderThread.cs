@@ -244,6 +244,8 @@ public class RenderThread : AutoDisposable
     {
         WaitForFinish();
 
+        _workerThreads.Dispose();
+
         _cancellationTokenSource.Cancel();
         _semaphore.Release();
         _submitThread.Join();

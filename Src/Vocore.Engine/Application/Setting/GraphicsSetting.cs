@@ -28,6 +28,11 @@ public struct GraphicsSetting
     /// </summary>
     public PixelFormat PreferredDepthStencilFormat { get; set; }
 
+    /// <summary>
+    /// The number of render threads.
+    /// </summary>
+    public int RenderThreadCount { get; set; }
+
 
     /// <summary>
     /// The default graphics setting
@@ -39,6 +44,7 @@ public struct GraphicsSetting
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
+        RenderThreadCount = Environment.ProcessorCount,
         DebugInfo = false,
     };
 
@@ -52,6 +58,7 @@ public struct GraphicsSetting
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
+        RenderThreadCount = Environment.ProcessorCount,
         DebugInfo = true,
     };
 
@@ -62,6 +69,7 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting NoGPU = new GraphicsSetting
     {
         Backend = GraphicsBackend.None,
+        RenderThreadCount = Environment.ProcessorCount,
         DebugInfo = false,
     };
 }

@@ -12,6 +12,7 @@ public partial class RenderingSystem
 {
 
     private readonly GPUDevice _device;
+    private readonly RenderThread _renderThread;
 
     //preffered
     private readonly GPURenderPass _prefferedSDRPass;
@@ -85,12 +86,14 @@ public partial class RenderingSystem
     }
 
     public RenderingSystem(GPUDevice device, 
+    RenderThread renderThread,
     PixelFormat prefferedSDRFormat, 
     PixelFormat prefferedHDRFormat,
     PixelFormat prefferedDepthStencilFormat
     )
     {
         _device = device;
+        _renderThread = renderThread;
 
         _prefferedSDRFormat = prefferedSDRFormat;
         _prefferedHDRFormat = prefferedHDRFormat;
