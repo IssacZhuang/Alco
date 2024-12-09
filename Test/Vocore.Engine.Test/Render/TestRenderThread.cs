@@ -190,7 +190,7 @@ public class TestRender
         
 
         RenderingSystem rendering = engine.Rendering;
-        RenderThread renderThread = new RenderThread(device, 8);//16 threads
+        ThreadedRenderScheduler renderThread = new ThreadedRenderScheduler(device, 8);//16 threads
         Transform3D transform = Transform3D.Identity;
 
         renderThread.OnException += (e) =>
@@ -279,7 +279,7 @@ public class TestRender
 
         GameEngine engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
         GPUDevice device = engine.GraphicsDevice;
-        RenderThread renderThread = new RenderThread(device, 8);
+        ThreadedRenderScheduler renderThread = new ThreadedRenderScheduler(device, 8);
         renderThread.OnException += (e) =>
         {
             Assert.Pass();

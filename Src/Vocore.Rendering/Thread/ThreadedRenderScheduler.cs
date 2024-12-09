@@ -4,7 +4,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class RenderThread : AutoDisposable
+public class ThreadedRenderScheduler : AutoDisposable, IRenderScheduler
 {
     private struct CommandBufferJob : IJob
     {
@@ -70,7 +70,7 @@ public class RenderThread : AutoDisposable
     }
 
 
-    public RenderThread(GPUDevice device, int threadCount)
+    public ThreadedRenderScheduler(GPUDevice device, int threadCount)
     {
         _device = device;
         _cancellationTokenSource = new CancellationTokenSource();

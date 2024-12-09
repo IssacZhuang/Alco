@@ -12,7 +12,7 @@ public partial class RenderingSystem
 {
 
     private readonly GPUDevice _device;
-    private readonly RenderThread _renderThread;
+    private readonly IRenderScheduler _renderThread;
 
     //preffered
     private readonly GPURenderPass _prefferedSDRPass;
@@ -23,6 +23,7 @@ public partial class RenderingSystem
     private readonly PixelFormat _prefferedSDRFormat;
     private readonly PixelFormat _prefferedHDRFormat;
     private readonly PixelFormat _prefferedDepthStencilFormat;
+
     
 
     public GPUDevice GraphicsDevice
@@ -85,15 +86,15 @@ public partial class RenderingSystem
         }
     }
 
-    public RenderingSystem(GPUDevice device, 
-    RenderThread renderThread,
+    public RenderingSystem(GPUDevice device,
+    IRenderScheduler renderScheduler,//the render thread need update every frame, so it is controlled a external object
     PixelFormat prefferedSDRFormat, 
     PixelFormat prefferedHDRFormat,
     PixelFormat prefferedDepthStencilFormat
     )
     {
         _device = device;
-        _renderThread = renderThread;
+        _renderThread = renderScheduler;
 
         _prefferedSDRFormat = prefferedSDRFormat;
         _prefferedHDRFormat = prefferedHDRFormat;
@@ -126,5 +127,17 @@ public partial class RenderingSystem
             null,
             "hdr_pass_no_depth"
         ));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
+    {
+        _renderThread.ScheduleCommandBuffer(commandBuffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ScheduleRenderJob(IRenderJob job)
+    {
+        _renderThread.ScheduleRenderJob(job);
     }
 }

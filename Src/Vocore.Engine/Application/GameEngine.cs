@@ -30,7 +30,7 @@ public partial class GameEngine : IDisposable
     private readonly AssetSystem _assets;
 
     private readonly RenderingSystem _rendering;
-    private readonly RenderThread _renderThread;
+    private readonly ThreadedRenderScheduler _renderThread;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
 
@@ -188,7 +188,7 @@ public partial class GameEngine : IDisposable
 
         _platform = _setting.Platform ?? new Sdl3Platform();
 
-        _renderThread = new RenderThread(_graphicsDevice, _setting.Graphics.RenderThreadCount);
+        _renderThread = new ThreadedRenderScheduler(_graphicsDevice, _setting.Graphics.RenderThreadCount);
         _rendering = new RenderingSystem(
             _graphicsDevice,
             _renderThread,
