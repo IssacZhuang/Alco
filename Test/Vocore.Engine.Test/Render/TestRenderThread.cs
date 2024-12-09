@@ -319,5 +319,8 @@ public class TestRender
         renderThread.WaitForFinish();
 
         Assert.That(renderThread.IsFinished);
+
+        renderThread.Dispose();
+        engine.Dispose();
     }
 }
