@@ -77,62 +77,6 @@ namespace Vocore.Test
                 }
             }
         }
-
-        [Test(Description = "Benckmark PriorityList vs List add element")]
-        public void TestVsList()
-        {
-            PriorityList<int> list = new PriorityList<int>();
-            List<int> list2 = new List<int>();
-
-            int count = 1000000;
-
-            UtilsTest.Benchmark(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    list.Add(i);
-                }
-            }, "PriorityList add benchmark: ");
-
-            UtilsTest.Benchmark(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    list2.Add(i);
-                }
-            }, "List add benchmark:");
-        }
-
-        [Test(Description = "PriorityList vs List remove element benchmark:")]
-        public void TestVsList2()
-        {
-            PriorityList<int> list = new PriorityList<int>();
-            List<int> list2 = new List<int>();
-
-            int count = 100000;
-
-            for (int i = 0; i < count; i++)
-            {
-                list.Add(i);
-                list2.Add(i);
-            }
-
-            UtilsTest.Benchmark(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    list.Remove(i);
-                }
-            }, "PriorityList remove benchmark:");
-
-            UtilsTest.Benchmark(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    list2.Remove(i);
-                }
-            }, "List remove benchmark:");
-        }
     }
 }
 

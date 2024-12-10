@@ -53,34 +53,4 @@ public class TestNative
 
     }
 
-
-    [Test(Description = "mini heap alloc vs List add element performance")]
-    public unsafe void TestMiniHeapVsList()
-    {
-        int count = 10000000;
-
-        List<int> list = new List<int>();
-
-        using MiniHeap<int> chunkList = new MiniHeap<int>();
-
-        UtilsTest.Benchmark(() =>
-        {
-            for (int i = 0; i < count; i++)
-            {
-                list.Add(i);
-            }
-        }, "List add element");
-
-
-        Stopwatch sw = new Stopwatch();
-        sw.Start();
-        for (int i = 0; i < count; i++)
-        {
-            chunkList.Alloc(i);
-        }
-
-        sw.Stop();
-        TestContext.WriteLine($"Mini heap alloc element: {sw.ElapsedMilliseconds} ms");
-
-    }
 }
