@@ -84,22 +84,6 @@ namespace Vocore.Test
             Assert.IsTrue(obj.success2, "Event send and recieve failed");
         }
 
-        [Test(Description ="Bechmark event send and recieve")]
-        public void TestSend_Benchmark()
-        {
-            EventTestObject2 obj = new EventTestObject2();
-            EventId evt = EventGenerator.Generate("TestEvent");
-            int count = 1000000;
-
-            UtilsTest.Benchmark(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    obj.InvokeEvent(evt, i);
-                }
-            }, "Event Invoke benchmark: ");
-
-        }
     }
 }
 

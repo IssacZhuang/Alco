@@ -128,69 +128,6 @@ namespace Vocore.Test
             Assert.IsTrue(success == count);
         }
 
-        [Test(Description ="Circular Working Stealing Deque vs .Net concurrent queue")]
-        public void TestWorkStealingDequeVsConcurrentQueue()
-        {
-            int count = 1000000;
-            CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
-            ConcurrentQueue<int> queue = new ConcurrentQueue<int>();
-
-            UtilsTest.CheckGCAlloc(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    deque.Push(i);
-                }
-            }, "CircularWorkStealingDeque<int>.Push alloc:");
-
-
-            UtilsTest.CheckGCAlloc(() =>
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    queue.Enqueue(i);
-                }
-            }, "ConcurrentQueue<int>.Enqueue alloc:");
-
-            UtilsTest.Benchmark(() =>
-            {
-                Parallel.For(0, count, (i) =>
-                {
-                    while (true)
-                    {
-                        StealingResult result = deque.TrySteal(out int value);
-                        if (result == StealingResult.Empty)
-                        {
-                            break;
-                        }
-                    }
-                });
-            }, "CircularWorkStealingDeque<int>.TrySteal benchmark: ");
-
-            // UnitTest.Benchmark("ConcurrentQueue<int>.TryDequeue", () =>
-            // {
-            //     Parallel.For(0, count, (i) =>
-            //     {
-            //         while (queue.TryDequeue(out int value))
-            //         {
-
-            //         }
-            //     });
-            // });
-
-            UtilsTest.Benchmark(() =>
-            {
-                Parallel.For(0, count, (i) =>
-                {
-                    while (queue.TryDequeue(out int value))
-                    {
-
-                    }
-                });
-            }, "ConcurrentQueue<int>.TryDequeue benchmark: ");
-
-
-        }
 
         [Test(Description ="Index Working Stealing Deque Pop&Steal")]
         public void TestIndexWorkStealing()
