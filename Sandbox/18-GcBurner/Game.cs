@@ -4,6 +4,7 @@ using Vocore.Audio;
 using Vocore;
 using Vocore.Rendering;
 using Vocore.GUI;
+using Vocore.Graphics;
 
 
 /*Note: 
@@ -26,9 +27,12 @@ public class Game : GameEngine
 
     private TestThreakWorkerItem _item = new TestThreakWorkerItem();
 
+    private readonly ConcurrentPool<GPUCommandBuffer> _gpuCommandBufferPool;
+    private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
+
     public Game(GameEngineSetting setting) : base(setting)
     {
-
+        _gpuCommandBufferPool = new ConcurrentPool<GPUCommandBuffer>(CreateGPUCommandBuffer);
     }
 
     protected override void OnTick(float delta)
@@ -39,6 +43,20 @@ public class Game : GameEngine
 
     override protected void OnUpdate(float delta)
     {
+
+        int count = 1000;
+        for (int i = 0; i < count; i++)
+        {
+            _gpuCommandBufferList.Add(_gpuCommandBufferPool.Get());
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            _gpuCommandBufferPool.Return(_gpuCommandBufferList[i]);
+        }
+
+        _gpuCommandBufferList.Clear();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -117,5 +135,10 @@ public class Game : GameEngine
     private void TestSpanParam(params Span<string> spans)
     {
         DebugGUI.Text(spans.Length);
+    }
+
+    private GPUCommandBuffer CreateGPUCommandBuffer()
+    {
+        return GraphicsDevice.CreateCommandBuffer();
     }
 }

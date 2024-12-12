@@ -48,7 +48,7 @@ public class ThreadedRenderScheduler : AutoDisposable, IRenderScheduler
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
     private readonly Thread _submitThread;
     private readonly CancellationTokenSource _cancellationTokenSource;
-    private readonly ObjectPool<GPUCommandBuffer> _commandBufferPool;
+    private readonly ConcurrentPool<GPUCommandBuffer> _commandBufferPool;
     private readonly ThreadWorkerQueue<CommandBufferJob> _workerThreads;
     private readonly List<CommandBufferJob> _commandBufferJobs = new List<CommandBufferJob>();//just for keeping the order of submitted command buffers
     private readonly Lock _lockPush = new Lock();
@@ -80,7 +80,7 @@ public class ThreadedRenderScheduler : AutoDisposable, IRenderScheduler
 
         _workerThreads = new ThreadWorkerQueue<CommandBufferJob>(threadCount, "command_build_thread");
 
-        _commandBufferPool = new ObjectPool<GPUCommandBuffer>(() => _device.CreateCommandBuffer());
+        _commandBufferPool = new ConcurrentPool<GPUCommandBuffer>(() => _device.CreateCommandBuffer());
     }
 
     /// <summary>

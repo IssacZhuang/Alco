@@ -5,12 +5,12 @@ namespace Vocore.Rendering;
 public class ImmediateRenderScheduler : IRenderScheduler
 {
     private readonly GPUDevice _device;
-    private readonly ObjectPool<GPUCommandBuffer> _commandBufferPool;
+    private readonly ConcurrentPool<GPUCommandBuffer> _commandBufferPool;
 
     public ImmediateRenderScheduler(GPUDevice device)
     {
         _device = device;
-        _commandBufferPool = new ObjectPool<GPUCommandBuffer>(() => device.CreateCommandBuffer());
+        _commandBufferPool = new ConcurrentPool<GPUCommandBuffer>(() => device.CreateCommandBuffer());
     }
 
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
