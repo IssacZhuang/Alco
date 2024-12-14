@@ -10,14 +10,6 @@ public static class UtilsTest
     private readonly static long SizeG = 1024 * 1024 * 1024;
 
 
-    public static void Benchmark(string name, Action action)
-    {
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
-        action();
-        stopwatch.Stop();
-        TestContext.WriteLine($"{name}: {stopwatch.ElapsedMilliseconds}ms");
-    }
 
 
     //size in bytes, to B, KB, MB, GB
