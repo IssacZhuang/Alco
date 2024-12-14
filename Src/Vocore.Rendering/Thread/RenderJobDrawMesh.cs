@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
@@ -9,6 +10,7 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
 {
     private readonly List<IMesh> _meshes;
     private readonly List<Material> _materials;
+    private readonly List<GPUResourceGroup> _resources;
     private NativeBuffer<byte> _commands;
     private int _byteIndex;
 
@@ -23,6 +25,7 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
     {
         _meshes = new List<IMesh>();
         _materials = new List<Material>();
+        _resources = new List<GPUResourceGroup>();
         _commands = new NativeBuffer<byte>(1024);
         _byteIndex = 0;
         FrameBuffer = frameBuffer;
@@ -35,25 +38,31 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         {
             byte code = *p;
             p++;
-            if (code == CommandDrawWithConstantCode)
+            if (code == CommandDrawWithConstant.Code)
             {
                 CommandDrawWithConstant command = *(CommandDrawWithConstant*)p;
                 command.Execute(this, commandBuffer);
                 p += sizeof(CommandDrawWithConstant);
             }
-            else if (code == CommandDrawCode)
+            else if (code == CommandDraw.Code)
             {
                 CommandDraw command = *(CommandDraw*)p;
                 command.Execute(this, commandBuffer);
                 p += sizeof(CommandDraw);
             }
-            else if (code == CommandSetMeshCode)
+            else if (code == CommandSetResources.Code)
+            {
+                CommandSetResources command = *(CommandSetResources*)p;
+                command.Execute(this, commandBuffer);
+                p += sizeof(CommandSetResources);
+            }
+            else if (code == CommandSetMesh.Code)
             {
                 CommandSetMesh command = *(CommandSetMesh*)p;
                 command.Execute(this, commandBuffer);
                 p += sizeof(CommandSetMesh);
             }
-            else if (code == CommandSetMaterialCode)
+            else if (code == CommandSetMaterial.Code)
             {
                 CommandSetMaterial command = *(CommandSetMaterial*)p;
                 command.Execute(this, commandBuffer, FrameBuffer);
@@ -79,19 +88,28 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         _materials.Clear();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetMaterial(Material material)
     {
-        AddCommand(CommandSetMaterialCode, new CommandSetMaterial { MaterialIndex = _materials.IndexOf(material) });
+        AddCommand(CommandSetMaterial.Code, new CommandSetMaterial { MaterialIndex = _materials.IndexOf(material) });
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetMesh(IMesh mesh)
     {
-        AddCommand(CommandSetMeshCode, new CommandSetMesh { MeshIndex = _meshes.IndexOf(mesh) });
+        AddCommand(CommandSetMesh.Code, new CommandSetMesh { MeshIndex = _meshes.IndexOf(mesh) });
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Draw()
     {
-        AddCommand(CommandDrawCode, new CommandDraw());
+        AddCommand(CommandDraw.Code, new CommandDraw());
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetResources(uint slot, GPUResourceGroup resources)
+    {
+        AddCommand(CommandSetResources.Code, new CommandSetResources { Slot = slot, ResourcesIndex = _resources.IndexOf(resources) });
     }
 
     public unsafe void DrawWithConstant<T>(T constant) where T : unmanaged
@@ -99,7 +117,7 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         CommandDrawWithConstant command = new CommandDrawWithConstant();
         byte* p = command.ConstantData;
         *(T*)p = constant;
-        AddCommand(CommandDrawWithConstantCode, command);
+        AddCommand(CommandDrawWithConstant.Code, command);
     }
 
     private unsafe void AddCommand<T>(byte commandCode, T command) where T : unmanaged
@@ -130,9 +148,9 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
 
     private const byte CommandEndCode = 0;
 
-    private const byte CommandSetMeshCode = 1;
     private struct CommandSetMesh
     {
+        public const byte Code = 1;
         public int MeshIndex;
 
         public void Execute(RenderJobDrawMesh job, GPUCommandBuffer commandBuffer)
@@ -144,9 +162,9 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         }
     }
 
-    private const byte CommandSetMaterialCode = 2;
     private struct CommandSetMaterial
     {
+        public const byte Code = 2;
         public int MaterialIndex;
 
         public void Execute(RenderJobDrawMesh job, GPUCommandBuffer commandBuffer, GPUFrameBuffer frameBuffer)
@@ -159,18 +177,32 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         }
     }
 
-    private const byte CommandDrawCode = 3;
+    private struct CommandSetResources
+    {
+        public const byte Code = 3;
+        public uint Slot;
+        public int ResourcesIndex;
+        public void Execute(RenderJobDrawMesh job, GPUCommandBuffer commandBuffer)
+        {
+            GPUResourceGroup resources = job._resources[ResourcesIndex];
+            commandBuffer.SetGraphicsResources(Slot, resources);
+        }
+
+    }
+
+
     private struct CommandDraw
     {
+        public const byte Code = 4;
         public void Execute(RenderJobDrawMesh job, GPUCommandBuffer commandBuffer)
         {
             commandBuffer.DrawIndexed(job._indexCount, 1, 0, 0, 0);
         }
     }
 
-    private const byte CommandDrawWithConstantCode = 4;
     private unsafe struct CommandDrawWithConstant
     {
+        public const byte Code = 5;
         public fixed byte ConstantData[128];
         public void Execute(RenderJobDrawMesh job, GPUCommandBuffer commandBuffer)
         {
