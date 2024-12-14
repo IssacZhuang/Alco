@@ -38,43 +38,53 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         {
             byte code = *p;
             p++;
-            if (code == CommandDrawWithConstant.Code)
+            switch (code)
             {
-                CommandDrawWithConstant command = *(CommandDrawWithConstant*)p;
-                command.Execute(this, commandBuffer);
-                p += sizeof(CommandDrawWithConstant);
-            }
-            else if (code == CommandDraw.Code)
-            {
-                CommandDraw command = *(CommandDraw*)p;
-                command.Execute(this, commandBuffer);
-                p += sizeof(CommandDraw);
-            }
-            else if (code == CommandSetResources.Code)
-            {
-                CommandSetResources command = *(CommandSetResources*)p;
-                command.Execute(this, commandBuffer);
-                p += sizeof(CommandSetResources);
-            }
-            else if (code == CommandSetMesh.Code)
-            {
-                CommandSetMesh command = *(CommandSetMesh*)p;
-                command.Execute(this, commandBuffer);
-                p += sizeof(CommandSetMesh);
-            }
-            else if (code == CommandSetMaterial.Code)
-            {
-                CommandSetMaterial command = *(CommandSetMaterial*)p;
-                command.Execute(this, commandBuffer, FrameBuffer);
-                p += sizeof(CommandSetMaterial);
-            }
-            else if (code == CommandEndCode)
-            {
-                break;
-            }
-            else
-            {
-                throw new Exception($"Invalid command code: {code}");
+                case CommandDrawWithConstant.Code:
+                    {
+                        CommandDrawWithConstant command = *(CommandDrawWithConstant*)p;
+                        command.Execute(this, commandBuffer);
+                        p += sizeof(CommandDrawWithConstant);
+                    }
+                    break;
+
+                case CommandDraw.Code:
+                    {
+                        CommandDraw command = *(CommandDraw*)p;
+                        command.Execute(this, commandBuffer);
+                        p += sizeof(CommandDraw);
+                    }
+                    break;
+
+                case CommandSetResources.Code:
+                    {
+                        CommandSetResources command = *(CommandSetResources*)p;
+                        command.Execute(this, commandBuffer);
+                        p += sizeof(CommandSetResources);
+                    }
+                    break;
+
+                case CommandSetMaterial.Code:
+                    {
+                        CommandSetMaterial command = *(CommandSetMaterial*)p;
+                        command.Execute(this, commandBuffer, FrameBuffer);
+                        p += sizeof(CommandSetMaterial);
+                    }
+                    break;
+
+                case CommandSetMesh.Code:
+                    {
+                        CommandSetMesh command = *(CommandSetMesh*)p;
+                        command.Execute(this, commandBuffer);
+                        p += sizeof(CommandSetMesh);
+                    }
+                    break;
+
+                case CommandEndCode:
+                    return;
+
+                default:
+                    throw new Exception($"Invalid command code: {code}");
             }
         }
     }
