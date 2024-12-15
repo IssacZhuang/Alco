@@ -101,13 +101,17 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetMaterial(Material material)
     {
-        AddCommand(CommandSetMaterial.Code, new CommandSetMaterial { MaterialIndex = _materials.IndexOf(material) });
+        int index = _materials.Count;
+        _materials.Add(material);
+        AddCommand(CommandSetMaterial.Code, new CommandSetMaterial { MaterialIndex = index });
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetMesh(IMesh mesh)
     {
-        AddCommand(CommandSetMesh.Code, new CommandSetMesh { MeshIndex = _meshes.IndexOf(mesh) });
+        int index = _meshes.Count;
+        _meshes.Add(mesh);
+        AddCommand(CommandSetMesh.Code, new CommandSetMesh { MeshIndex = index });
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -119,7 +123,9 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetResources(uint slot, GPUResourceGroup resources)
     {
-        AddCommand(CommandSetResources.Code, new CommandSetResources { Slot = slot, ResourcesIndex = _resources.IndexOf(resources) });
+        int index = _resources.Count;
+        _resources.Add(resources);
+        AddCommand(CommandSetResources.Code, new CommandSetResources { Slot = slot, ResourcesIndex = index });
     }
 
     public unsafe void DrawWithConstant<T>(T constant) where T : unmanaged
