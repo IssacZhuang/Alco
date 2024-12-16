@@ -96,6 +96,7 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
         *p = CommandEndCode;
         _meshes.Clear();
         _materials.Clear();
+        _resources.Clear();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

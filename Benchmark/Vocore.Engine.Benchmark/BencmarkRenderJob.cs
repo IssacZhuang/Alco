@@ -58,12 +58,14 @@ public class BenchmarkRenderJob
     [Benchmark(Description = "RenderJobDrawMesh Encode")]
     public void RenderJobDrawMeshEncode()
     {
+        
         for (int i = 0; i < _drawCount; i++)
         {
             _renderJobEncode.SetMesh(_mesh);
             _renderJobEncode.SetMaterial(_material);
             _renderJobEncode.DrawWithConstant(_contant);
         }
+        _renderJobEncode.Reset();
     }
 
 
