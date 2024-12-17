@@ -33,6 +33,7 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
 
     public unsafe void Execute(GPUCommandBuffer commandBuffer)
     {
+        commandBuffer.SetFrameBuffer(FrameBuffer);
         byte* p = _commands.UnsafePointer;
         while (*p != CommandEndCode)
         {
@@ -139,12 +140,14 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
 
     private unsafe void AddCommand<T>(byte commandCode, T command) where T : unmanaged
     {
-        int size = sizeof(T);
+        int size = sizeof(T) + 1;
         if (_byteIndex + size > _commands.Length)
         {
             _commands.Resize(_commands.Length * 2);
         }
         byte* p = _commands.UnsafePointer + _byteIndex;
+        *p = commandCode;
+        p++;
         *(T*)p = command;
         _byteIndex += size;
         //write end

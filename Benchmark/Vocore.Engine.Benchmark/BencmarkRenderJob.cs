@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Engines;
+using Vocore.Graphics;
 using Vocore.Rendering;
 
 namespace Vocore.Engine.Benchmark;
@@ -22,6 +23,7 @@ public class BenchmarkRenderJob
     private GraphicsMaterial _material;
     private Mesh _mesh;
     private RenderTexture _renderTexture;
+    private GPUCommandBuffer _commandBuffer;
     private Constant _contant;
 
     private const int _drawCount = 12800;
@@ -31,13 +33,15 @@ public class BenchmarkRenderJob
     {
         _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
         RenderingSystem renderingSystem = _engine.Rendering;
-        _renderJobEncode = new RenderJobDrawMesh(_engine.MainFrameBuffer);
-        _renderJobExecute = new RenderJobDrawMesh(_engine.MainFrameBuffer);
+        
 
         _shader = _engine.BuiltInAssets.Shader_Sprite;
         _material = renderingSystem.CreateGraphicsMaterial(_shader);
         _mesh = renderingSystem.MeshSprite;
         _renderTexture = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedHDRPass, 1024, 1024);
+
+        _renderJobEncode = new RenderJobDrawMesh(_renderTexture.FrameBuffer);
+        _renderJobExecute = new RenderJobDrawMesh(_renderTexture.FrameBuffer);
 
         _contant = new Constant
         {
@@ -45,6 +49,14 @@ public class BenchmarkRenderJob
             Color = new Vector4(1, 1, 1, 1),
             UvRect = new Rect(0, 0, 1, 1)
         };
+
+
+        for (int i = 0; i < _drawCount; i++)
+        {
+            _renderJobExecute.SetMesh(_mesh);
+            _renderJobExecute.SetMaterial(_material);
+            _renderJobExecute.DrawWithConstant(_contant);
+        }
     }
 
     [GlobalCleanup]
@@ -68,6 +80,24 @@ public class BenchmarkRenderJob
         _renderJobEncode.Reset();
     }
 
+    [IterationSetup]
+    public void IterationSetup()
+    {
+        _commandBuffer = _engine.GraphicsDevice.CreateCommandBuffer();
+    }
 
+    [IterationCleanup]
+    public void IterationCleanup()
+    {
+        _commandBuffer.Dispose();
+    }
 
+    [Benchmark(Description = "RenderJobDrawMesh Execute")]
+    public void RenderJobDrawMeshExecute()
+    {
+        _commandBuffer.Begin();
+        _renderJobExecute.Execute(_commandBuffer);
+        _commandBuffer.End();
+        _engine.GraphicsDevice.Submit(_commandBuffer);
+    }
 }
