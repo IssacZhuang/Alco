@@ -144,7 +144,7 @@ public class TestRenderJob
     {
         int drawCount = 1000;
 
-        using GameEngine engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        using GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
         RenderJobDrawMesh renderJob = new RenderJobDrawMesh(engine.MainFrameBuffer);
 
         RenderingSystem rendering = engine.Rendering;
@@ -153,8 +153,8 @@ public class TestRenderJob
         Material material = rendering.CreateGraphicsMaterial(shader);
         Mesh mesh = rendering.MeshSprite;
 
-        //TestCommandBuffer commandBuffer = new TestCommandBuffer(engine.GraphicsDevice, null);
-        GPUCommandBuffer commandBuffer = engine.GraphicsDevice.CreateCommandBuffer(null);
+        TestCommandBuffer commandBuffer = new TestCommandBuffer(engine.GraphicsDevice, null);
+        //GPUCommandBuffer commandBuffer = engine.GraphicsDevice.CreateCommandBuffer(null);
 
         Constant constant = new Constant
         {
@@ -173,7 +173,7 @@ public class TestRenderJob
         commandBuffer.Begin();
         renderJob.Execute(commandBuffer);
         commandBuffer.End();
-        //Assert.That(commandBuffer.DrawCallCount, Is.EqualTo(drawCount));
+        Assert.That(commandBuffer.DrawCallCount, Is.EqualTo(drawCount));
 
 
     }

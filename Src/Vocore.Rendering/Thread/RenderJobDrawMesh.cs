@@ -192,6 +192,7 @@ public class RenderJobDrawMesh : AutoDisposable, IRenderJob
             Material material = job._materials[MaterialIndex];
             ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(frameBuffer.RenderPass);
             commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            material.PushResourceToCommandBuffer(commandBuffer);
             job._pushConstantsStages = pipelineInfo.PushConstantsStages;
             job._pushConstantSize = pipelineInfo.PushConstantsSize;
         }
