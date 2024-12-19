@@ -26,12 +26,12 @@ public class BenchmarkRenderJob
     private GPUCommandBuffer _commandBuffer;
     private Constant _contant;
 
-    private const int _drawCount = 12800;
+    private const int _drawCount = 128000;
 
     [GlobalSetup]
     public void Setup()
     {
-        _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        _engine = new GameEngine(GameEngineSetting.CreateNoGPU());
         RenderingSystem renderingSystem = _engine.Rendering;
         
 

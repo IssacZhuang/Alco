@@ -2,7 +2,8 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoCommandBuffer : GPUCommandBuffer
 {
-    public override bool HasBuffer => false;
+    private bool _hasBuffer = false;
+    public override bool HasBuffer => _hasBuffer;
     protected override GPUDevice Device => NoDevice.noDevice;
 
     public NoCommandBuffer(in CommandBufferDescriptor? descriptor): base(descriptor)
@@ -11,7 +12,7 @@ internal class NoCommandBuffer : GPUCommandBuffer
 
     protected override void BeginCore()
     {
-        
+        _hasBuffer = false;
     }
 
     protected override void ClearColorCore(ColorFloat color, uint index)
@@ -66,7 +67,7 @@ internal class NoCommandBuffer : GPUCommandBuffer
 
     protected override void EndCore()
     {
-        
+        _hasBuffer = true;
     }
 
     protected override unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
