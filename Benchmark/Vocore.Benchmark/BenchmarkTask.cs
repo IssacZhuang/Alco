@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 
 namespace Vocore.Benchmark;
 
+[MemoryDiagnoser]
 public class BenchmarkTask
 {
     private class TestAddTask : ReuseableTask<int>

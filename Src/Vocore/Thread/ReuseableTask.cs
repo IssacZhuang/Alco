@@ -13,7 +13,6 @@ public abstract class ReuseableTask<T> : AutoDisposable, IThreadPoolWorkItem
 {
     private static readonly Exception _exceptionTaskNotRunning = new InvalidOperationException("Task is not running");
     private readonly ManualResetEventSlim _event = new ManualResetEventSlim(false);
-    private volatile bool _isInExecuting = false;
     private T? _result;
     private Exception? _exception;
 
@@ -54,7 +53,6 @@ public abstract class ReuseableTask<T> : AutoDisposable, IThreadPoolWorkItem
         }
         finally
         {
-            _isInExecuting = false;
             _event.Set();
         }
     }
@@ -70,12 +68,10 @@ public abstract class ReuseableTask<T> : AutoDisposable, IThreadPoolWorkItem
     /// </summary>
     public void Wait()
     {
-        if (!_isInExecuting)
+        if (!_event.IsSet)
         {
-            return;
+            _event.Wait();
         }
-        _event.Wait();
-        _event.Reset();
     }
 
     /// <summary>
@@ -86,7 +82,7 @@ public abstract class ReuseableTask<T> : AutoDisposable, IThreadPoolWorkItem
     /// <returns>True if the result was successfully retrieved; otherwise, false.</returns>
     public bool TryGetResult([NotNullWhen(true)] out T? result, [NotNullWhen(false)] out Exception? exception)
     {
-        if (!_isInExecuting)
+        if (!_event.IsSet)
         {
             result = default;
             exception = _exceptionTaskNotRunning;
@@ -110,12 +106,8 @@ public abstract class ReuseableTask<T> : AutoDisposable, IThreadPoolWorkItem
     /// <exception cref="InvalidOperationException">Thrown if the task is already in executing.</exception>
     public void Run()
     {
-        if (_isInExecuting)
-        {
-            throw new InvalidOperationException("Task is already in executing");
-        }
+        Wait();
         _event.Reset();
-        _isInExecuting = true;
         ThreadPool.UnsafeQueueUserWorkItem(this, false);
     }
 
