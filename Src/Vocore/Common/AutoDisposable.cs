@@ -10,6 +10,9 @@ public abstract class AutoDisposable : IDisposable
 {
     private volatile uint _disposed;
 
+    /// <summary>
+    /// Gets a value indicating whether the object has been disposed.
+    /// </summary>
     public bool IsDisposed => _disposed != 0;
 
     ~AutoDisposable()
@@ -21,6 +24,10 @@ public abstract class AutoDisposable : IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the object, releasing any unmanaged resources. 
+    /// This method is usually not called manually, as the object will be automatically collected by the garbage collector.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)

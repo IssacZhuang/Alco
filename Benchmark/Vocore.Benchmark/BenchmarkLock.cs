@@ -273,3 +273,139 @@ public class BenchmarkLockAdd
         });
     }
 }
+
+public class BenchmarkWait
+{
+    private int _count = 1000;
+    private SemaphoreSlim[] _semaphores;
+    private ManualResetEvent[] _manualResetEvents;
+    private ManualResetEventSlim[] _manualResetEventSlims;
+    private AutoResetEvent[] _autoResetEvents;
+    private Barrier[] _barriers;
+
+    [IterationSetup]
+    public void Setup()
+    {
+        _semaphores = new SemaphoreSlim[_count];
+        for (int i = 0; i < _count; i++)
+        {
+            _semaphores[i] = new SemaphoreSlim(0);
+        }
+        _manualResetEvents = new ManualResetEvent[_count];
+        for (int i = 0; i < _count; i++)
+        {
+            _manualResetEvents[i] = new ManualResetEvent(false);
+        }
+        _manualResetEventSlims = new ManualResetEventSlim[_count];
+        for (int i = 0; i < _count; i++)
+        {
+            _manualResetEventSlims[i] = new ManualResetEventSlim(false);
+        }
+        _autoResetEvents = new AutoResetEvent[_count];
+        for (int i = 0; i < _count; i++)
+        {
+            _autoResetEvents[i] = new AutoResetEvent(false);
+        }
+
+        _barriers = new Barrier[_count];    
+        for (int i = 0; i < _count; i++)
+        {
+            _barriers[i] = new Barrier(2);
+        }
+
+    }
+
+    [Benchmark(Description = "SemaphoreSlim")]
+    public void SemaphoreSlim()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            int index = i;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                _semaphores[index].Release();
+            });
+        }
+
+        for (int i = 0; i < _count; i++)
+        {
+            _semaphores[i].Wait();
+        }
+    }
+
+    [Benchmark(Description = "ManualResetEvent")]
+    public void ManualResetEvent()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            int index = i;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                _manualResetEvents[index].Set();
+            });
+        }
+
+        for (int i = 0; i < _count; i++)
+        {
+            _manualResetEvents[i].WaitOne();
+        }
+    }
+
+    [Benchmark(Description = "ManualResetEventSlim")]
+    public void ManualResetEventSlim()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            int index = i;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                _manualResetEventSlims[index].Set();
+            });
+        }
+
+        for (int i = 0; i < _count; i++)
+        {
+            _manualResetEventSlims[i].Wait();
+        }
+    }
+
+    [Benchmark(Description = "AutoResetEvent")]
+    public void AutoResetEvent()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            int index = i;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                _autoResetEvents[index].Set();
+            });
+        }
+
+        for (int i = 0; i < _count; i++)
+        {
+            _autoResetEvents[i].WaitOne();
+        }
+    }
+
+
+    [Benchmark(Description = "Barrier")]    
+    public void Barrier()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            int index = i;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                _barriers[index].SignalAndWait();
+            });
+        }
+
+        for (int i = 0; i < _count; i++)
+        {
+            _barriers[i].SignalAndWait();
+        }
+    }
+
+
+}
+
