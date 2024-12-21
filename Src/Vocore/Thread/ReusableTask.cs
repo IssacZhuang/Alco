@@ -113,7 +113,6 @@ public abstract class ReusableTask<T> : AutoDisposable, IThreadPoolWorkItem
 
     protected override void Dispose(bool disposing)
     {
-        Wait();
         _event.Dispose();
     }
 }

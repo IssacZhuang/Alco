@@ -33,5 +33,19 @@ public class TestTask
         }
 
         Assert.That(task.Result, Is.EqualTo(10003));
+
+        for (int i = 0; i < 10000; i++)
+        {
+            task.Run();
+        }
+
+        Assert.That(task.Result, Is.EqualTo(20003));
+
+        for (int i = 0; i < 10000; i++)
+        {
+            task.Wait();
+        }
+
+        Assert.That(task.Result, Is.EqualTo(20003));
     }
 }
