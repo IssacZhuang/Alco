@@ -6,7 +6,7 @@ namespace Vocore.Test;
 
 public class TestTask
 {
-    private class TestAddTask : ReuseableTask<int>
+    private class TestAddTask : ReusableTask<int>
     {
         public int value;
         protected override int ExecuteCore()

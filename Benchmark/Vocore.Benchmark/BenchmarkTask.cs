@@ -5,7 +5,7 @@ namespace Vocore.Benchmark;
 [MemoryDiagnoser]
 public class BenchmarkTask
 {
-    private class TestAddTask : ReuseableTask<int>
+    private class TestAddTask : ReusableTask<int>
     {
         public int value;
         protected override int ExecuteCore()

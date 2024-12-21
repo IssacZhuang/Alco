@@ -9,10 +9,10 @@ namespace Vocore;
 /// <br/>Note: The methods of this class are not thread-safe and should not be used across multiple threads.
 /// </summary>
 /// <typeparam name="T">The type of the result produced by the task.</typeparam>
-public abstract class ReuseableTask<T> : AutoDisposable, IThreadPoolWorkItem
+public abstract class ReusableTask<T> : AutoDisposable, IThreadPoolWorkItem
 {
     private static readonly Exception _exceptionTaskNotRunning = new InvalidOperationException("Task is not running");
-    private readonly ManualResetEventSlim _event = new ManualResetEventSlim(false);
+    private readonly ManualResetEventSlim _event = new ManualResetEventSlim(true);
     private T? _result;
     private Exception? _exception;
 
