@@ -14,6 +14,13 @@ public class TestTask
             return ++value;
         }
     }
+    private class TestErrorTask : ReusableTask
+    {
+        protected override void ExecuteCore()
+        {
+            throw new Exception("Test Error");
+        }
+    }
 
     [Test(Description = "Test Task")]
     public void TestReuseableTask()
@@ -47,5 +54,9 @@ public class TestTask
         }
 
         Assert.That(task.Result, Is.EqualTo(20003));
+
+        TestErrorTask errorTask = new TestErrorTask();
+        errorTask.Run();
+        Assert.Catch(() => errorTask.Wait());
     }
 }
