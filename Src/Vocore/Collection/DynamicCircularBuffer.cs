@@ -29,7 +29,7 @@ public class DynamicCircularBuffer<T>
     /// <summary>
     /// Index of the current item
     /// </summary>
-    private int _currentIndex;
+    private int _usedCount;
 
     /// <summary>
     /// Gets the total number of items in the buffer
@@ -54,20 +54,12 @@ public class DynamicCircularBuffer<T>
     /// <summary>
     /// Gets the index of the current item
     /// </summary>
-    public int CurrentIndex
+    public int UsedCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _currentIndex;
+        get => _usedCount;
     }
 
-    /// <summary>
-    /// Gets the current item in the buffer
-    /// </summary>
-    public T Current
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _current;
-    }
 
     /// <summary>
     /// Creates a new dynamic circular buffer
@@ -76,9 +68,8 @@ public class DynamicCircularBuffer<T>
     public DynamicCircularBuffer(Func<T> objectGenerator)
     {
         _objectGenerator = objectGenerator;
-        _currentIndex = 0;
+        _usedCount = 0;
         _list.Add(_current = _objectGenerator());
-        _current = _list[0];
     }
 
     /// <summary>
@@ -88,11 +79,11 @@ public class DynamicCircularBuffer<T>
     /// <returns>The next item in the buffer</returns>
     public T Next()
     {
-        if (_currentIndex >= _list.Count)
+        if (_usedCount >= _list.Count)
         {
             _list.Add(_current = _objectGenerator());
         }
-        _current = _list[_currentIndex++];
+        _current = _list[_usedCount++];
         return _current;
     }
 
@@ -101,7 +92,7 @@ public class DynamicCircularBuffer<T>
     /// </summary>
     public void ResetToHead()
     {
-        _currentIndex = 0;
+        _usedCount = 0;
         _current = _list[0];
     }
 }

@@ -33,28 +33,46 @@ public class SpriteRenderer : AutoDisposable, IRenderer
 
 
 
-        private readonly uint _shaderId_texture;
-        private readonly uint _shaderId_camera;
+
         private readonly GraphicsBuffer _camera;
         private readonly Mesh _mesh;
         private readonly Shader _shader;
-        private readonly GraphicsPipelineContext _pipelineInfo;
 
-        private readonly List<DrawData> _drawData = new List<DrawData>(1024);
+        private GraphicsPipelineContext _pipelineInfo;
+        private uint _shaderId_texture;
+        private uint _shaderId_camera;
+
+        private readonly DrawData[] drawDatas;
+        private int _capacity;
+        private int _drawCount = 0;
 
         public GPUFrameBuffer? RenderTarget { get; set; }
 
         public int DrawCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _drawData.Count;
+            get => _drawCount;
+        }
+
+        public int Capacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _capacity;
+        }
+
+        public bool IsFull
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _drawCount >= _capacity;
         }
 
         public DrawTask(
             RenderingSystem renderingSystem,
             GraphicsBuffer camera,
             Shader shader,
-            Mesh mesh) : base(renderingSystem.GraphicsDevice, 1)
+            Mesh mesh,
+            int capacity = 10000
+            ) : base(renderingSystem.GraphicsDevice, 1)
         {
             _camera = camera;
             _shader = shader;
@@ -68,6 +86,9 @@ public class SpriteRenderer : AutoDisposable, IRenderer
 
             _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
             _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
+
+            _capacity = capacity;
+            drawDatas = new DrawData[_capacity];
         }
 
         protected override void ExecuteCore(GPUCommandBuffer commandBuffer)
@@ -77,6 +98,12 @@ public class SpriteRenderer : AutoDisposable, IRenderer
                 throw new InvalidOperationException("RenderTarget is not set");
             }
 
+            if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, RenderTarget.RenderPass))
+            {
+                _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+                _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
+            }
+
             commandBuffer.SetFrameBuffer(RenderTarget);
             commandBuffer.SetGraphicsPipeline(_pipelineInfo);
             commandBuffer.SetGraphicsResources(_shaderId_camera, _camera.EntryReadonly);
@@ -84,9 +111,9 @@ public class SpriteRenderer : AutoDisposable, IRenderer
             commandBuffer.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
 
 
-            for (int i = 0; i < _drawData.Count; i++)
+            for (int i = 0; i < _drawCount; i++)
             {
-                DrawData drawData = _drawData[i];
+                DrawData drawData = drawDatas[i];
                 commandBuffer.SetGraphicsResources(_shaderId_texture, drawData.Texture.EntrySample);
                 commandBuffer.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, drawData.Constant);
                 commandBuffer.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
@@ -96,12 +123,12 @@ public class SpriteRenderer : AutoDisposable, IRenderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddDrawData(Texture2D texture, Constant constant)
         {
-            _drawData.Add(new DrawData { Texture = texture, Constant = constant });
+            drawDatas[_drawCount++] = new DrawData { Texture = texture, Constant = constant };
         }
 
         public void Clear()
         {
-            _drawData.Clear();
+            _drawCount = 0;
         }
     }
 
@@ -117,8 +144,8 @@ public class SpriteRenderer : AutoDisposable, IRenderer
     private uint _shaderId_texture;
 
     private readonly DynamicCircularBuffer<DrawTask> _drawTasks;
+    private DrawTask? _currentTask;
 
-    public int DrawPerTask { get; set; } = 10000;
     public GraphicsBuffer Camera { get; set; }
 
 
@@ -156,14 +183,15 @@ public class SpriteRenderer : AutoDisposable, IRenderer
         // _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         // _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         // _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
+        _currentTask = _drawTasks.Next();
+        _currentTask.RenderTarget = target;
     }
 
     public void End()
     {
-        // _command.End();
-        // _device.Submit(_command);
-
-        for (int i = 0; i < _drawTasks.Count; i++)
+        //run last task
+        _currentTask!.Run();
+        for (int i = 0; i < _drawTasks.UsedCount; i++)
         {
             _drawTasks[i].Submit();
             _drawTasks[i].Clear();
@@ -259,17 +287,15 @@ public class SpriteRenderer : AutoDisposable, IRenderer
             UvRect = uvRect
         };
 
-        // _command.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
-        // _command.PushConstants(ShaderStage.Vertex|ShaderStage.Fragment, constant);
-        // _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
-
-        if (_drawTasks.Current.DrawCount >= DrawPerTask)
+        if (_currentTask!.IsFull)
         {
-            _drawTasks.Current.Run();
-            _drawTasks.Next();
+            _currentTask.Run();
+            GPUFrameBuffer? target = _currentTask.RenderTarget;
+            _currentTask = _drawTasks.Next();
+            _currentTask.RenderTarget = target;
         }
 
-        _drawTasks.Current.AddDrawData(texture, constant);
+        _currentTask.AddDrawData(texture, constant);
     }
 
     protected override void Dispose(bool disposing)
