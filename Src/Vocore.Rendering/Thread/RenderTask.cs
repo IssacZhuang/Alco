@@ -4,17 +4,19 @@ namespace Vocore.Rendering;
 
 public abstract class RenderTask : ReusableTask
 {
-    private readonly SwapChain<GPUCommandBuffer> _commandBuffers;
+    private readonly GPUDevice _device;
+    private readonly CircularBuffer<GPUCommandBuffer> _commandBuffers;
     private GPUCommandBuffer _currentCommandBuffer;
 
     public RenderTask(GPUDevice device, int pooledCommandBuffers = 1)
     {
+        _device = device;
         if (pooledCommandBuffers <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(pooledCommandBuffers), "Must be greater than 0");
         }
 
-        _commandBuffers = new SwapChain<GPUCommandBuffer>();
+        _commandBuffers = new CircularBuffer<GPUCommandBuffer>();
         for (int i = 0; i < pooledCommandBuffers; i++)
         {
             _commandBuffers.Add(device.CreateCommandBuffer());
@@ -25,9 +27,17 @@ public abstract class RenderTask : ReusableTask
     protected override void ExecuteCore()
     {
         GPUCommandBuffer commandBuffer = _currentCommandBuffer;
+        commandBuffer.Begin();
         ExecuteCore(commandBuffer);
+        commandBuffer.End();
         _currentCommandBuffer = _commandBuffers.Swap();
     }
 
     protected abstract void ExecuteCore(GPUCommandBuffer commandBuffer);
+
+    public void Submit()
+    {
+        Wait();
+        _device.Submit(_currentCommandBuffer);
+    }
 }

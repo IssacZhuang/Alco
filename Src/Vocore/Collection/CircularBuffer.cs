@@ -4,15 +4,15 @@ using System.Runtime.CompilerServices;
 namespace Vocore;
 
 /// <summary>
-/// A swap chain is a collection of items that can be swapped between.
+/// A fixed size circular buffer is a collection of items that can be swapped between.
 /// </summary>
-/// <typeparam name="T">The type of items in the swap chain.</typeparam>
-public class SwapChain<T>
+/// <typeparam name="T">The type of items in the circular buffer.</typeparam>
+public class CircularBuffer<T>
 {
     private readonly List<T> _items = new List<T>();
     private int _index;
 
-    public SwapChain()
+    public CircularBuffer()
     {
 
     }
@@ -31,9 +31,9 @@ public class SwapChain<T>
     }
 
     /// <summary>
-    /// Gets the current item in the swap chain.
+    /// Gets the current item in the circular buffer.
     /// </summary>
-    /// <returns>The current item in the swap chain.</returns>
+    /// <returns>The current item in the circular buffer.</returns>
     public T Current
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -41,7 +41,7 @@ public class SwapChain<T>
         {
             if (_items.Count == 0)
             {
-                throw new System.InvalidOperationException("No items in the swap chain");
+                throw new System.InvalidOperationException("No items in the circular buffer");
             }
 
             return _items[_index];
@@ -49,7 +49,7 @@ public class SwapChain<T>
     }
 
     /// <summary>
-    /// Adds an item to the swap chain.
+    /// Adds an item to the circular buffer.
     /// </summary>
     /// <param name="item">The item to add.</param>
     public void Add(T item)
@@ -58,7 +58,7 @@ public class SwapChain<T>
     }
 
     /// <summary>
-    /// Clears the swap chain.
+    /// Clears the circular buffer.
     /// </summary>
     public void Clear()
     {
@@ -67,9 +67,9 @@ public class SwapChain<T>
     }
 
     /// <summary>
-    /// Swaps the current item in the swap chain.
+    /// Swaps the current item in the circular buffer.
     /// </summary>
-    /// <returns>The next item in the swap chain.</returns>
+    /// <returns>The next item in the circular buffer.</returns>
     public T Swap()
     {
         _index = (_index + 1) % _items.Count;
