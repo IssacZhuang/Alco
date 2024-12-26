@@ -18,7 +18,7 @@ public class DefferedRenderScheduler : IRenderScheduler
         _commandBuffers.Clear();
     }
 
-    public void OnPostSwapBuffers()
+    public void OnEndFrame()
     {
         for (int i = 0; i < _commandBuffers.Count; i++)
         {
@@ -27,7 +27,7 @@ public class DefferedRenderScheduler : IRenderScheduler
         _commandBuffers.Clear();
     }
 
-    public void OnPreSwapBuffers()
+    public void OnBeginFrame()
     {
         
     }

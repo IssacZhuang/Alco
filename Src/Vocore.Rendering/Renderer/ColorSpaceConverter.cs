@@ -72,7 +72,7 @@ public class ColorSpaceConverter : AutoDisposable
         OnSetGraphicsResources(_command);
         _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
         _command.End();
-        _renderingSystem.ScheduleCommandBuffer(_command);
+        _device.Submit(_command);
     }
 
     protected virtual void OnSetGraphicsResources(GPUCommandBuffer command)

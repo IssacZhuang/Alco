@@ -21,12 +21,12 @@ public class ImmediateRenderScheduler : IRenderScheduler
 
     }
 
-    public void OnPreSwapBuffers()
+    public void OnBeginFrame()
     {
        
     }
 
-    public void OnPostSwapBuffers()
+    public void OnEndFrame()
     {
         
     }

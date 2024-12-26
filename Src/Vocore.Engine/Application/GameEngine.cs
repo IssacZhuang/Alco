@@ -324,6 +324,8 @@ public partial class GameEngine : IDisposable
 
         OnSystemBeginFrame();
 
+        _renderScheduler.OnEndFrame();
+
         OnSystemUpdate(delta);
 
         try
@@ -353,9 +355,9 @@ public partial class GameEngine : IDisposable
 
         OnSystemEndFrame();
 
-        _renderScheduler.OnPreSwapBuffers();
+        _renderScheduler.OnBeginFrame();
         _graphicsDevice.OnEndFrame();
-        _renderScheduler.OnPostSwapBuffers();
+
     }
 
 

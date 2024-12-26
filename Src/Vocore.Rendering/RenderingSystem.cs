@@ -132,7 +132,7 @@ public partial class RenderingSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
-        //_renderThread.ScheduleCommandBuffer(commandBuffer);
-        _device.Submit(commandBuffer);
+        _renderThread.ScheduleCommandBuffer(commandBuffer);
+        //_device.Submit(commandBuffer);
     }
 }

@@ -11,7 +11,7 @@ public interface IRenderScheduler : IDisposable
     /// <param name="commandBuffer">The command buffer to be executed.</param>
     void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer);
 
-    void OnPreSwapBuffers();
+    void OnBeginFrame();
 
-    void OnPostSwapBuffers();
+    void OnEndFrame();
 }
