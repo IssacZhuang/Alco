@@ -5,12 +5,14 @@ namespace Vocore.Rendering;
 public abstract class RenderTask : ReusableTask
 {
     private readonly GPUDevice _device;
+    private readonly RenderingSystem _renderingSystem;
     private readonly CircularBuffer<GPUCommandBuffer> _commandBuffers;
     private GPUCommandBuffer _currentCommandBuffer;
 
-    public RenderTask(GPUDevice device, int pooledCommandBuffers = 1)
+    public RenderTask(RenderingSystem renderingSystem, int pooledCommandBuffers = 1)
     {
-        _device = device;
+        _renderingSystem = renderingSystem;
+        _device = renderingSystem.GraphicsDevice;
         if (pooledCommandBuffers <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(pooledCommandBuffers), "Must be greater than 0");
@@ -19,7 +21,7 @@ public abstract class RenderTask : ReusableTask
         _commandBuffers = new CircularBuffer<GPUCommandBuffer>();
         for (int i = 0; i < pooledCommandBuffers; i++)
         {
-            _commandBuffers.Add(device.CreateCommandBuffer());
+            _commandBuffers.Add(_device.CreateCommandBuffer());
         }
         _currentCommandBuffer = _commandBuffers.Current;
     }
@@ -38,6 +40,6 @@ public abstract class RenderTask : ReusableTask
     public void Submit()
     {
         Wait();
-        _device.Submit(_currentCommandBuffer);
+        _renderingSystem.ScheduleCommandBuffer(_currentCommandBuffer);
     }
 }

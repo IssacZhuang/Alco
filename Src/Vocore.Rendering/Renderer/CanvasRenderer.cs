@@ -21,6 +21,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
     public const string ShaderId_font = "_font";
 
     public const float Depth = 100;
+    private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
     private readonly Texture2D _textWhite;
@@ -46,22 +47,23 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
     private uint _textShaderId_textBuffer;
     private uint _textShaderId_font;
 
-    public CanvasRenderer(RenderingSystem system, GraphicsBuffer camera, Shader shaderSpirte, Shader shaderText)
+    public CanvasRenderer(RenderingSystem renderingSystem, GraphicsBuffer camera, Shader shaderSpirte, Shader shaderText)
     {
-        _device = system.GraphicsDevice;
+        _renderingSystem = renderingSystem;
+        _device = renderingSystem.GraphicsDevice;
         _camera = camera;
         _command = _device.CreateCommandBuffer();
 
-        _textWhite = system.TextureWhite;
+        _textWhite = renderingSystem.TextureWhite;
 
         //init test rendering
-        _meshText = system.MeshTrueType;
-        _textBufferGPU = system.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount);
+        _meshText = renderingSystem.MeshTrueType;
+        _textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount);
         _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _shaderText = shaderText;
 
         _pipelineInfoText = _shaderText.GetGraphicsPipeline(
-            system.PrefferedSDRPass,
+            renderingSystem.PrefferedSDRPass,
             DepthStencilState.Default,
             BlendState.AlphaBlend
         );
@@ -71,11 +73,11 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderId_font);
 
         //init sprite rendering
-        _meshSprite = system.MeshSprite;
+        _meshSprite = renderingSystem.MeshSprite;
         _shaderSprite = shaderSpirte;
 
         _pipelineInfoSprite = _shaderSprite.GetGraphicsPipeline(
-            system.PrefferedSDRPass,
+            renderingSystem.PrefferedSDRPass,
             DepthStencilState.Default,
             BlendState.AlphaBlend
         );
@@ -157,7 +159,7 @@ public partial class CanvasRenderer : AutoDisposable, IRenderer
         _state = RenderingState.None;
         _textBufferGPU.UpdateBufferRanged(0, (uint)_textInstanceIndex);
         _command.End();
-        _device.Submit(_command);
+        _renderingSystem.ScheduleCommandBuffer(_command);
         _textInstanceIndex = 0;
     }
 

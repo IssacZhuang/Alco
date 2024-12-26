@@ -8,6 +8,7 @@ public class ColorSpaceConverter : AutoDisposable
     public const string ShaderId_texture = "_texture";
 
     private readonly GPUDevice _device;
+    private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
     private readonly Shader _shader;
 
@@ -20,6 +21,7 @@ public class ColorSpaceConverter : AutoDisposable
 
     internal ColorSpaceConverter(RenderingSystem renderingSystem, Shader toneMapShader)
     {
+        _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
         _shader = toneMapShader;
 
@@ -70,7 +72,7 @@ public class ColorSpaceConverter : AutoDisposable
         OnSetGraphicsResources(_command);
         _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
         _command.End();
-        _device.Submit(_command);
+        _renderingSystem.ScheduleCommandBuffer(_command);
     }
 
     protected virtual void OnSetGraphicsResources(GPUCommandBuffer command)

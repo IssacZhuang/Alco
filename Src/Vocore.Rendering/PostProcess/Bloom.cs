@@ -202,7 +202,7 @@ public class Bloom : PostProcess
             _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }
         _commandDownSample.End();
-        _device.Submit(_commandDownSample);
+        _renderingSystem.ScheduleCommandBuffer(_commandDownSample);
 
         //up sample
         //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
@@ -233,7 +233,7 @@ public class Bloom : PostProcess
         }
 
         _commandDownSample.End();
-        _device.Submit(_commandDownSample);
+        _renderingSystem.ScheduleCommandBuffer(_commandDownSample);
 
         if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
         {
@@ -249,7 +249,7 @@ public class Bloom : PostProcess
         _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleGroups![_upSampleGroups.Length - 1]);
         _commandBlit.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         _commandBlit.End();
-        _device.Submit(_commandBlit);
+        _renderingSystem.ScheduleCommandBuffer(_commandBlit);
     }
 
     private void CreateFrameBuffer(uint width, uint height, string name, out GPUFrameBuffer frameBuffer, out GPUResourceGroup group)

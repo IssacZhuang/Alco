@@ -6,6 +6,7 @@ public class BlitRenderer : AutoDisposable
 {
 
     private readonly GPUDevice _device;
+    private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
 
     //external resources 
@@ -16,6 +17,7 @@ public class BlitRenderer : AutoDisposable
 
     internal BlitRenderer(RenderingSystem renderingSystem, Shader shaderBlit)
     {
+        _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
         _fullScreenQuad = renderingSystem.MeshFullScreen;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("blit"));
@@ -43,7 +45,7 @@ public class BlitRenderer : AutoDisposable
         _command.SetGraphicsResources(_shaderId_Texture, from.EntrySample);
         _command.DrawIndexed(_fullScreenQuad.IndexCount, 1, 0, 0, 0);
         _command.End();
-        _device.Submit(_command);
+        _renderingSystem.ScheduleCommandBuffer(_command);
     }
     public void Blit(RenderTexture from, GPUFrameBuffer to)
     {
@@ -60,7 +62,7 @@ public class BlitRenderer : AutoDisposable
         _command.SetGraphicsResources(_shaderId_Texture, from.EntriesColorSample[0]);
         _command.DrawIndexed(_fullScreenQuad.IndexCount, 1, 0, 0, 0);
         _command.End();
-        _device.Submit(_command);
+        _renderingSystem.ScheduleCommandBuffer(_command);
     }
 
     public void Blit(Texture2D from, RenderTexture to)

@@ -5,11 +5,13 @@ namespace Vocore.Rendering;
 public class MaterialRenderer : AutoDisposable, IRenderer
 {
     private readonly GPUDevice _device;
+    private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
     private GPUFrameBuffer? _framebuffer;
-    public MaterialRenderer(GPUDevice device)
+    public MaterialRenderer(RenderingSystem renderingSystem)
     {
-        _device = device;
+        _renderingSystem = renderingSystem;
+        _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("material_renderer"));
     }
 
@@ -58,7 +60,7 @@ public class MaterialRenderer : AutoDisposable, IRenderer
     public void End()
     {
         _command.End();
-        _device.Submit(_command);
+        _renderingSystem.ScheduleCommandBuffer(_command);
     }
 
     protected override void Dispose(bool disposing)

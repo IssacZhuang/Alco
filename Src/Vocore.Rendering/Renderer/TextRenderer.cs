@@ -29,6 +29,7 @@ public class TextRenderer : AutoDisposable, IRenderer
 
     private const int MaxTextInstancingCount = 300;
     private readonly GPUDevice _device;
+    private readonly RenderingSystem _renderingSystem;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
     private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
@@ -51,6 +52,7 @@ public class TextRenderer : AutoDisposable, IRenderer
 
     internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
     {
+        _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
         _textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
 
@@ -131,7 +133,7 @@ public class TextRenderer : AutoDisposable, IRenderer
     {
         _textBufferGPU.UpdateBufferRanged(0, (uint)_instanceIndex);
         _command.End();
-        _device.Submit(_command);
+        _renderingSystem.ScheduleCommandBuffer(_command);
         _instanceIndex = 0;
     }
 

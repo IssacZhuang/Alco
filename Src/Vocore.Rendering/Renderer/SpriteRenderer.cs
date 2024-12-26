@@ -72,7 +72,7 @@ public class SpriteRenderer : AutoDisposable, IRenderer
             Shader shader,
             Mesh mesh,
             int capacity = 10000
-            ) : base(renderingSystem.GraphicsDevice, 1)
+            ) : base(renderingSystem, 1)
         {
             _camera = camera;
             _shader = shader;

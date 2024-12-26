@@ -18,7 +18,7 @@ public partial class RenderingSystem
 
     public MaterialRenderer CreateMaterialRenderer()
     {
-        return new MaterialRenderer(_device);
+        return new MaterialRenderer(this);
     }
 
     public CanvasRenderer CreateCanvasRenderer(GraphicsBuffer camera, Shader shaderSprite, Shader shaderText)

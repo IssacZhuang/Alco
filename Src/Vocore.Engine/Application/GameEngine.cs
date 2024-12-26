@@ -188,7 +188,7 @@ public partial class GameEngine : IDisposable
 
         _platform = _setting.Platform ?? new Sdl3Platform();
 
-        _renderScheduler = new ImmediateRenderScheduler(_graphicsDevice);
+        _renderScheduler = new DefferedRenderScheduler(_graphicsDevice);
         _rendering = new RenderingSystem(
             _graphicsDevice,
             _renderScheduler,
@@ -353,9 +353,9 @@ public partial class GameEngine : IDisposable
 
         OnSystemEndFrame();
 
-        _renderScheduler.OnPostSwapBuffers();
-        _graphicsDevice.OnEndFrame();
         _renderScheduler.OnPreSwapBuffers();
+        _graphicsDevice.OnEndFrame();
+        _renderScheduler.OnPostSwapBuffers();
     }
 
 

@@ -68,6 +68,8 @@ public class DropletSystem : IDisposable
 
     private Random _random = new Random(123);
 
+    private readonly Profiler _profiler = new Profiler();
+
     public DropletSystem(WindowRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         // _renderer = new SpriteRenderer[RenderThreadCount];
@@ -184,13 +186,17 @@ public class DropletSystem : IDisposable
 
         //_scheduler.Run(_jobParallelRender, RenderThreadCount);
 
+        _profiler.Start("all");
+        _profiler.Start("draw");
         _renderer.Begin(_renderTarget.FrameBuffer);
         for (int i = 0; i < _activeList.Count; i++)
         {
             var droplet = _activeList[i];
             _renderer.Draw(_texture, droplet.transform.Matrix, droplet.color);
         }
+        DebugGUI.Text(_profiler.End().time);
         _renderer.End();
+        DebugGUI.Text(_profiler.End().time);
 
         DebugGUI.Text("Active: 0", _activeList.Count);
 
