@@ -22,7 +22,14 @@ public class DefferedRenderScheduler : IRenderScheduler
     {
         for (int i = 0; i < _commandBuffers.Count; i++)
         {
-            _device.Submit(_commandBuffers[i]);
+            try
+            {
+                _device.Submit(_commandBuffers[i]);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e);
+            }
         }
         _commandBuffers.Clear();
     }

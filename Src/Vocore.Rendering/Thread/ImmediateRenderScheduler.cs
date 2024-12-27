@@ -13,7 +13,14 @@ public class ImmediateRenderScheduler : IRenderScheduler
 
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
-        _device.Submit(commandBuffer);
+        try
+        {
+            _device.Submit(commandBuffer);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e);
+        }
     }
 
     public void Dispose()
