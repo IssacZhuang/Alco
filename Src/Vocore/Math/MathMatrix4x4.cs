@@ -9,43 +9,43 @@ namespace Vocore
 
         // 3D
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4trs(Vector3 position, Quaternion rotation, Vector3 scale)
         {
-            return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
-            // float x2 = rotation.X + rotation.X;
-            // float y2 = rotation.Y + rotation.Y;
-            // float z2 = rotation.Z + rotation.Z;
+            //return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
+            float x2 = rotation.X + rotation.X;
+            float y2 = rotation.Y + rotation.Y;
+            float z2 = rotation.Z + rotation.Z;
 
-            // float wx2 = rotation.W * x2;
-            // float wy2 = rotation.W * y2;
-            // float wz2 = rotation.W * z2;
-            // float xx2 = rotation.X * x2;
-            // float xy2 = rotation.X * y2;
-            // float xz2 = rotation.X * z2;
-            // float yy2 = rotation.Y * y2;
-            // float yz2 = rotation.Y * z2;
-            // float zz2 = rotation.Z * z2;
+            float wx2 = rotation.W * x2;
+            float wy2 = rotation.W * y2;
+            float wz2 = rotation.W * z2;
+            float xx2 = rotation.X * x2;
+            float xy2 = rotation.X * y2;
+            float xz2 = rotation.X * z2;
+            float yy2 = rotation.Y * y2;
+            float yz2 = rotation.Y * z2;
+            float zz2 = rotation.Z * z2;
 
-            // Matrix4x4 result;
-            // result.M11 = scale.X * (1.0f - (yy2 + zz2));
-            // result.M12 = scale.X * (xy2 - wz2);
-            // result.M13 = scale.X * (xz2 + wy2);
-            // result.M14 = 0.0f;
-            // result.M21 = scale.Y * (xy2 + wz2);
-            // result.M22 = scale.Y * (1.0f - (xx2 + zz2));
-            // result.M23 = scale.Y * (yz2 - wx2);
-            // result.M24 = 0.0f;
-            // result.M31 = scale.Z * (xz2 - wy2);
-            // result.M32 = scale.Z * (yz2 + wx2);
-            // result.M33 = scale.Z * (1.0f - (xx2 + yy2));
-            // result.M34 = 0.0f;
-            // result.M41 = position.X;
-            // result.M42 = position.Y;
-            // result.M43 = position.Z;
-            // result.M44 = 1.0f;
+            Matrix4x4 result;
+            result.M11 = scale.X * (1.0f - (yy2 + zz2));
+            result.M12 = scale.X * (xy2 + wz2);
+            result.M13 = scale.X * (xz2 - wy2);
+            result.M14 = 0.0f;
+            result.M21 = scale.Y * (xy2 - wz2);
+            result.M22 = scale.Y * (1.0f - (xx2 + zz2));
+            result.M23 = scale.Y * (yz2 + wx2);
+            result.M24 = 0.0f;
+            result.M31 = scale.Z * (xz2 + wy2);
+            result.M32 = scale.Z * (yz2 - wx2);
+            result.M33 = scale.Z * (1.0f - (xx2 + yy2));
+            result.M34 = 0.0f;
+            result.M41 = position.X;
+            result.M42 = position.Y;
+            result.M43 = position.Z;
+            result.M44 = 1.0f;
 
-            // return result;
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -68,15 +68,15 @@ namespace Vocore
 
             // Matrix4x4 result;
             // result.M11 = 1.0f - (yy2 + zz2);
-            // result.M12 = xy2 - wz2;
-            // result.M13 = xz2 + wy2;
+            // result.M12 = xy2 + wz2;
+            // result.M13 = xz2 - wy2;
             // result.M14 = 0.0f;
-            // result.M21 = xy2 + wz2;
+            // result.M21 = xy2 - wz2;
             // result.M22 = 1.0f - (xx2 + zz2);
-            // result.M23 = yz2 - wx2;
+            // result.M23 = yz2 + wx2;
             // result.M24 = 0.0f;
-            // result.M31 = xz2 - wy2;
-            // result.M32 = yz2 + wx2;
+            // result.M31 = xz2 + wy2;
+            // result.M32 = yz2 - wx2;
             // result.M33 = 1.0f - (xx2 + yy2);
             // result.M34 = 0.0f;
             // result.M41 = position.X;
@@ -116,32 +116,28 @@ namespace Vocore
         public static Matrix4x4 matrix4rs(Quaternion rotation, Vector3 scale)
         {
             return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation);
-            // float x2 = rotation.X + rotation.X;
-            // float y2 = rotation.Y + rotation.Y;
-            // float z2 = rotation.Z + rotation.Z;
-
-            // float wx2 = rotation.W * x2;
-            // float wy2 = rotation.W * y2;
-            // float wz2 = rotation.W * z2;
-            // float xx2 = rotation.X * x2;
-            // float xy2 = rotation.X * y2;
-            // float xz2 = rotation.X * z2;
-            // float yy2 = rotation.Y * y2;
-            // float yz2 = rotation.Y * z2;
-            // float zz2 = rotation.Z * z2;
+            // float xx2 = rotation.X * rotation.X * 2.0f;
+            // float yy2 = rotation.Y * rotation.Y * 2.0f;
+            // float zz2 = rotation.Z * rotation.Z * 2.0f;
+            // float xy2 = rotation.X * rotation.Y * 2.0f;
+            // float wz2 = rotation.W * rotation.Z * 2.0f;
+            // float xz2 = rotation.X * rotation.Z * 2.0f;
+            // float wy2 = rotation.W * rotation.Y * 2.0f;
+            // float yz2 = rotation.Y * rotation.Z * 2.0f;
+            // float wx2 = rotation.W * rotation.X * 2.0f;
 
             // Matrix4x4 result;
-            // result.M11 = scale.X * (1.0f - (yy2 + zz2));
-            // result.M12 = scale.X * (xy2 - wz2);
-            // result.M13 = scale.X * (xz2 + wy2);
+            // result.M11 = (1.0f - (yy2 + zz2)) * scale.X;
+            // result.M12 = (xy2 + wz2) * scale.X;
+            // result.M13 = (xz2 - wy2) * scale.X;
             // result.M14 = 0.0f;
-            // result.M21 = scale.Y * (xy2 + wz2);
-            // result.M22 = scale.Y * (1.0f - (xx2 + zz2));
-            // result.M23 = scale.Y * (yz2 - wx2);
+            // result.M21 = (xy2 - wz2) * scale.Y;
+            // result.M22 = (1.0f - (xx2 + zz2)) * scale.Y;
+            // result.M23 = (yz2 + wx2) * scale.Y;
             // result.M24 = 0.0f;
-            // result.M31 = scale.Z * (xz2 - wy2);
-            // result.M32 = scale.Z * (yz2 + wx2);
-            // result.M33 = scale.Z * (1.0f - (xx2 + yy2));
+            // result.M31 = (xz2 + wy2) * scale.Z;
+            // result.M32 = (yz2 - wx2) * scale.Z;
+            // result.M33 = (1.0f - (xx2 + yy2)) * scale.Z;
             // result.M34 = 0.0f;
             // result.M41 = 0.0f;
             // result.M42 = 0.0f;
