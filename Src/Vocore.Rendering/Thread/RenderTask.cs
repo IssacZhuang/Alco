@@ -8,6 +8,7 @@ public abstract class RenderTask : ReusableTask
     private readonly RenderingSystem _renderingSystem;
     private readonly CircularBuffer<GPUCommandBuffer> _commandBuffers;
     private GPUCommandBuffer _currentCommandBuffer;
+    private GPUFrameBuffer? _renderTarget;
 
     public RenderTask(RenderingSystem renderingSystem, int pooledCommandBuffers = 1)
     {
@@ -30,12 +31,25 @@ public abstract class RenderTask : ReusableTask
     {
         GPUCommandBuffer commandBuffer = _currentCommandBuffer;
         commandBuffer.Begin();
-        ExecuteCore(commandBuffer);
+        commandBuffer.SetFrameBuffer(_renderTarget!);
+        ExecuteCore(commandBuffer, _renderTarget!);
         commandBuffer.End();
         _currentCommandBuffer = _commandBuffers.Swap();
     }
 
-    protected abstract void ExecuteCore(GPUCommandBuffer commandBuffer);
+    /// <summary>
+    /// Executes the task on a thread pool.
+    /// <br/>Note: The render target is already set in the command buffer, there is no need to set it again.
+    /// </summary>
+    /// <param name="commandBuffer">The command buffer to use for the task.</param>
+    /// <param name="renderTarget">The render target to use for the task.</param>
+    protected abstract void ExecuteCore(GPUCommandBuffer commandBuffer, GPUFrameBuffer renderTarget);
+
+    public void Run(GPUFrameBuffer renderTarget)
+    {
+        _renderTarget = renderTarget ?? throw new ArgumentNullException(nameof(renderTarget));
+        RunCore();
+    }
 
     public void Submit()
     {

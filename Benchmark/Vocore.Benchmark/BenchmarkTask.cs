@@ -28,7 +28,7 @@ public class BenchmarkTask
     {
         for (int i = 0; i < _count; i++)
         {
-            _task.Run();
+            _task.RunCore();
             //_task.Wait();
         }
     }

@@ -77,7 +77,7 @@ public abstract class ReusableTask<T> : AutoDisposable, IThreadPoolWorkItem
     /// <summary>
     /// Starts the execution of the task. Throws an exception if the task is already executing.
     /// </summary>
-    public void Run()
+    protected void RunCore()
     {
         Wait();
         _event.Reset();
@@ -132,7 +132,7 @@ public abstract class ReusableTask : AutoDisposable, IThreadPoolWorkItem
     /// <summary>
     /// Starts the execution of the task. Throws an exception if the task is already executing.
     /// </summary>
-    public void Run()
+    protected void RunCore()
     {
         Wait();
         _event.Reset();

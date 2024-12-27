@@ -46,8 +46,6 @@ public class SpriteRenderer : AutoDisposable, IRenderer
         private int _capacity;
         private int _drawCount = 0;
 
-        public GPUFrameBuffer? RenderTarget { get; set; }
-
         public int DrawCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -91,20 +89,14 @@ public class SpriteRenderer : AutoDisposable, IRenderer
             drawDatas = new DrawData[_capacity];
         }
 
-        protected override void ExecuteCore(GPUCommandBuffer commandBuffer)
+        protected override void ExecuteCore(GPUCommandBuffer commandBuffer, GPUFrameBuffer renderTarget)
         {
-            if (RenderTarget is null)
-            {
-                throw new InvalidOperationException("RenderTarget is not set");
-            }
-
-            if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, RenderTarget.RenderPass))
+            if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, renderTarget.RenderPass))
             {
                 _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
                 _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
             }
 
-            commandBuffer.SetFrameBuffer(RenderTarget);
             commandBuffer.SetGraphicsPipeline(_pipelineInfo);
             commandBuffer.SetGraphicsResources(_shaderId_camera, _camera.EntryReadonly);
             commandBuffer.SetVertexBuffer(0, _mesh.VertexBuffer);
@@ -137,6 +129,8 @@ public class SpriteRenderer : AutoDisposable, IRenderer
     private readonly RenderingSystem _renderingSystem;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
+
+    private GPUFrameBuffer? _renderTarget;
 
     private GraphicsPipelineContext _pipelineInfo;
 
@@ -184,13 +178,13 @@ public class SpriteRenderer : AutoDisposable, IRenderer
         // _command.SetVertexBuffer(0, _mesh.VertexBuffer);
         // _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _currentTask = _drawTasks.Next();
-        _currentTask.RenderTarget = target;
+        this._renderTarget = target ?? throw new ArgumentNullException(nameof(target));
     }
 
     public void End()
     {
         //run last task
-        _currentTask!.Run();
+        _currentTask!.Run(_renderTarget!);
         for (int i = 0; i < _drawTasks.UsedCount; i++)
         {
             _drawTasks[i].Submit();
@@ -289,10 +283,8 @@ public class SpriteRenderer : AutoDisposable, IRenderer
 
         if (_currentTask!.IsFull)
         {
-            _currentTask.Run();
-            GPUFrameBuffer? target = _currentTask.RenderTarget;
+            _currentTask.Run(_renderTarget!);
             _currentTask = _drawTasks.Next();
-            _currentTask.RenderTarget = target;
         }
 
         _currentTask.AddDrawData(texture, constant);

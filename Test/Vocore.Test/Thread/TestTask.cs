@@ -13,12 +13,22 @@ public class TestTask
         {
             return ++value;
         }
+
+        public void Run()
+        {
+            RunCore();
+        }
     }
     private class TestErrorTask : ReusableTask
     {
         protected override void ExecuteCore()
         {
             throw new Exception("Test Error");
+        }
+
+        public void Run()
+        {
+            RunCore();
         }
     }
 
