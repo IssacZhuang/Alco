@@ -19,7 +19,7 @@ public class ImmediateRenderScheduler : IRenderScheduler
         }
         catch (Exception e)
         {
-            Log.Error(e);
+            Log.Error($"Error in command buffer: {e.Message}, callstakc: {Environment.StackTrace}");
         }
     }
 
