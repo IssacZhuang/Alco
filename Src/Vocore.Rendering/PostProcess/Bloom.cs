@@ -26,8 +26,7 @@ public class Bloom : PostProcess
     private GraphicsPipelineContext _blitPipelineInfo;
     private uint _blitShaderId_texture;
 
-    protected GPUFrameBuffer? _input;
-    protected GPUResourceGroup? _inputGroup;
+    protected RenderTexture? _input;
 
     private readonly GraphicsValueBuffer<ClampShaderData> _clampShaderData;
 
@@ -90,22 +89,11 @@ public class Bloom : PostProcess
         _commandBlit = _device.CreateCommandBuffer();
     }
 
-    public override void SetInput(GPUFrameBuffer input)
+    public override void SetInput(RenderTexture input)
     {
         base.SetInput(input);
 
         _input = input;
-        _inputGroup?.Dispose();
-
-        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _input.ColorViews[0]),
-                new ResourceBindingEntry(1, _device.SamplerLinearClamp)
-            }
-        );
-
-        _inputGroup = _device.CreateResourceGroup(groupDescriptor);
 
         TryDisposeFrames();
 
@@ -181,7 +169,7 @@ public class Bloom : PostProcess
         _commandDownSample.SetGraphicsPipeline(_clampPipelineInfo);
         _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-        _commandDownSample.SetGraphicsResources(_clampShaderId_texture, _inputGroup!);
+        _commandDownSample.SetGraphicsResources(_clampShaderId_texture, _input!.EntriesColorSample[0]);
         _commandDownSample.SetGraphicsResources(_clampShaderId_data, _clampShaderData.EntryReadonly);
         _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
 
@@ -283,8 +271,8 @@ public class Bloom : PostProcess
     protected override void Dispose(bool disposing)
     {
         //dispose non-private managed resources
-        _inputGroup?.Dispose();
         _commandDownSample.Dispose();
+        _commandBlit.Dispose();
         TryDisposeFrames();
     }
 }

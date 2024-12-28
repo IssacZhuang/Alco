@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
@@ -19,13 +20,19 @@ public abstract class PostProcess : AutoDisposable
         _mesh = renderingSystem.MeshFullScreen;
     }
 
-    public virtual void SetInput(GPUFrameBuffer input)
+    public virtual void SetInput(RenderTexture input)
     {
         
-       
     }
 
     public abstract void Blit(GPUFrameBuffer target);
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Blit(RenderTexture renderTexture)
+    {
+        Blit(renderTexture.FrameBuffer);
+    }
 
 
     protected override void Dispose(bool disposing)
