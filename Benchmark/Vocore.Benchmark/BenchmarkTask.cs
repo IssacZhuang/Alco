@@ -12,6 +12,11 @@ public class BenchmarkTask
         {
             return ++value;
         }
+
+        public void Run()
+        {
+            RunCore();
+        }
     }
 
     private int _count = 10000;
@@ -28,7 +33,7 @@ public class BenchmarkTask
     {
         for (int i = 0; i < _count; i++)
         {
-            _task.RunCore();
+            _task.Run();
             //_task.Wait();
         }
     }

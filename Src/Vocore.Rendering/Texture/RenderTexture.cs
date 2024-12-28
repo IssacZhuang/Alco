@@ -39,8 +39,8 @@ public class RenderTexture : ShaderResource
     /// <summary>
     /// The height of the frame buffer.
     /// </summary>
-    /// <value>The hieght.</value>
-    public uint Hieght
+    /// <value>The height.</value>
+    public uint Height
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _frameBuffer.Height;

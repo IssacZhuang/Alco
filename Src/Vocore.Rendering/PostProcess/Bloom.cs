@@ -43,16 +43,15 @@ public class Bloom : PostProcess
 
 
     private readonly uint _targetDownSampleHeight;
-    private GPUFrameBuffer[]? _downSampleFrames;
-    private GPUResourceGroup[]? _downSampleGroups;
+
+    private RenderTexture[]? _downSampleTextures;
 
     private readonly Shader _upSampleShader;
     private GraphicsPipelineContext _upSamplePipelineInfo;
     private readonly uint _upSampleShaderId_previousTexture;
     private readonly uint _upSampleShaderId_currentTexture;
 
-    private GPUFrameBuffer[]? _upSampleFrames;
-    private GPUResourceGroup[]? _upSampleGroups;
+    private RenderTexture[]? _upSampleTextures;
     internal Bloom(RenderingSystem _system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(_system, blitShader)
     {
         _device = _system.GraphicsDevice;
@@ -119,8 +118,7 @@ public class Bloom : PostProcess
 
 
         int downSampleCount = GetDownSampleCount(input.Height);
-        _downSampleFrames = new GPUFrameBuffer[downSampleCount];
-        _downSampleGroups = new GPUResourceGroup[downSampleCount];
+        _downSampleTextures = new RenderTexture[downSampleCount];
 
         for (int i = 0; i < downSampleCount; i++)
         {
@@ -135,17 +133,16 @@ public class Bloom : PostProcess
                 height = _targetDownSampleHeight;
 
                 
-                CreateFrameBuffer(width, height, $"bloom_down_sample_frame{i}", out _downSampleFrames[i], out _downSampleGroups[i]);
+                _downSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
             else
             {
-                CreateFrameBuffer(width, height, $"bloom_down_sample_frame{i}", out _downSampleFrames[i], out _downSampleGroups[i]);
+                _downSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
         }
 
         int upSampleCount = downSampleCount - 1;
-        _upSampleFrames = new GPUFrameBuffer[upSampleCount];
-        _upSampleGroups = new GPUResourceGroup[upSampleCount];
+        _upSampleTextures = new RenderTexture[upSampleCount];
 
         for (int i = 0; i < upSampleCount; i++)
         {
@@ -155,11 +152,11 @@ public class Bloom : PostProcess
 
             if (i == 0)
             {
-                CreateFrameBuffer(width, height, $"bloom_up_sample_frame{i}", out _upSampleFrames[i], out _upSampleGroups[i]);
+                _upSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
             else
             {
-                CreateFrameBuffer(width, height, $"bloom_up_sample_frame{i}", out _upSampleFrames[i], out _upSampleGroups[i]);
+                _upSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
         }
 
@@ -176,7 +173,7 @@ public class Bloom : PostProcess
 
         _commandDownSample.Begin();
 
-        GPUFrameBuffer clampFrame = _downSampleFrames![0];
+        RenderTexture clampFrame = _downSampleTextures![0];
         //clamp
         Vector2 invFrameSize;// = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
 
@@ -190,14 +187,15 @@ public class Bloom : PostProcess
 
 
         //down sample
-        for (int i = 1; i < _downSampleFrames!.Length; i++)
+        for (int i = 1; i < _downSampleTextures!.Length; i++)
         {
-            invFrameSize = new Vector2(1f) / new Vector2(_downSampleFrames[i].Width, _downSampleFrames[i].Height);
-            _commandDownSample.SetFrameBuffer(_downSampleFrames[i]);
+            RenderTexture downSampleFrame = _downSampleTextures[i];
+            invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
+            _commandDownSample.SetFrameBuffer(downSampleFrame);
             _commandDownSample.SetGraphicsPipeline(_downSamplePipelineInfo);
             _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
             _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-            _commandDownSample.SetGraphicsResources(_downSampleShaderId_texture, _downSampleGroups![i - 1]);
+            _commandDownSample.SetGraphicsResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].EntriesColorSample[0]);
             _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }
@@ -207,27 +205,27 @@ public class Bloom : PostProcess
         //up sample
         //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
         _commandDownSample.Begin();
-        _commandDownSample.SetFrameBuffer(_upSampleFrames![0]);
+        _commandDownSample.SetFrameBuffer(_upSampleTextures![0]);
         _commandDownSample.SetGraphicsPipeline(_upSamplePipelineInfo);
         _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-        _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleGroups![_downSampleGroups.Length - 1]);
-        _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleGroups![_downSampleGroups.Length - 2]);
+        _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].EntriesColorSample[0]);
+        _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].EntriesColorSample[0]);
         //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
         _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         
 
 
-        for (int i = 1; i < _upSampleFrames!.Length; i++)
+        for (int i = 1; i < _upSampleTextures!.Length; i++)
         {
             //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames[i].Width, _upSampleFrames[i].Height);
 
-            _commandDownSample.SetFrameBuffer(_upSampleFrames[i]);
+            _commandDownSample.SetFrameBuffer(_upSampleTextures[i]);
             _commandDownSample.SetGraphicsPipeline(_upSamplePipelineInfo);
             _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
             _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-            _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleGroups![i - 1]);
-            _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleGroups![_downSampleGroups.Length - i - 2]);
+            _commandDownSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].EntriesColorSample[0]);
+            _commandDownSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].EntriesColorSample[0]);
             //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
             _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }
@@ -246,32 +244,10 @@ public class Bloom : PostProcess
         _commandBlit.SetGraphicsPipeline(_blitPipelineInfo);
         _commandBlit.SetVertexBuffer(0, mesh.VertexBuffer);
         _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
-        _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleGroups![_upSampleGroups.Length - 1]);
+        _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].EntriesColorSample[0]);
         _commandBlit.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         _commandBlit.End();
         _renderingSystem.ScheduleCommandBuffer(_commandBlit);
-    }
-
-    private void CreateFrameBuffer(uint width, uint height, string name, out GPUFrameBuffer frameBuffer, out GPUResourceGroup group)
-    {
-        FrameBufferDescriptor desc = new FrameBufferDescriptor(
-            _backBufferPass,
-            width,
-            height,
-            name
-        );
-
-        frameBuffer = _device.CreateFrameBuffer(desc);
-
-        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, frameBuffer.ColorViews[0]),
-                new ResourceBindingEntry(1, _device.SamplerLinearClamp)
-            }
-        );
-
-        group = _device.CreateResourceGroup(groupDescriptor);
     }
 
     private int GetDownSampleCount(uint height)
@@ -287,35 +263,19 @@ public class Bloom : PostProcess
 
     private void TryDisposeFrames()
     {
-        if (_downSampleFrames != null)
+        if (_downSampleTextures != null)
         {
-            for (int i = 0; i < _downSampleFrames.Length; i++)
+            for (int i = 0; i < _downSampleTextures.Length; i++)
             {
-                _downSampleFrames[i].Dispose();
+                _downSampleTextures[i].Dispose();
             }
         }
 
-        if (_downSampleGroups != null)
+        if (_upSampleTextures != null)
         {
-            for (int i = 0; i < _downSampleGroups.Length; i++)
+            for (int i = 0; i < _upSampleTextures.Length; i++)
             {
-                _downSampleGroups[i].Dispose();
-            }
-        }
-
-        if (_upSampleFrames != null)
-        {
-            for (int i = 0; i < _upSampleFrames.Length; i++)
-            {
-                _upSampleFrames[i].Dispose();
-            }
-        }
-
-        if (_upSampleGroups != null)
-        {
-            for (int i = 0; i < _upSampleGroups.Length; i++)
-            {
-                _upSampleGroups[i].Dispose();
+                _upSampleTextures[i].Dispose();
             }
         }
     }
