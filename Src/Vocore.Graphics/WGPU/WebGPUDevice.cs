@@ -494,6 +494,12 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 requiredLimits = &requiredLimits,
                 requiredFeatureCount = (uint)featuresList.Count,
                 requiredFeatures = features,
+                uncapturedErrorCallbackInfo = new WGPUUncapturedErrorCallbackInfo
+                {
+                    nextInChain = null,
+                    callback = &ErrorCallback,
+                    userdata = null,
+                },
             };
 
             deviceDescriptor.defaultQueue.nextInChain = null;
@@ -672,6 +678,12 @@ internal sealed partial class WebGPUDevice : GPUDevice
             GraphicsLogger.Error("Buffer map failed, status: " + status);
         }
 
+    }
+
+    [UnmanagedCallersOnly]
+    private static unsafe void ErrorCallback(WGPUErrorType type, byte* message, void* userdata)
+    {
+        throw new GraphicsException("WebGPU error: " + Interop.GetString(message));
     }
 
     private static void LogCallback(WGPULogLevel level, string message, nint userdata = 0)
