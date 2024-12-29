@@ -12,6 +12,7 @@ namespace Vocore;
 /// <typeparam name="T">The type of elements in the list.</typeparam>
 public class UnorderedList<T> : IList<T>
 {
+    private static readonly bool IsReferenceType = RuntimeHelpers.IsReferenceOrContainsReferences<T>();
     private T[] _items;
     private int _size;
 
@@ -41,7 +42,7 @@ public class UnorderedList<T> : IList<T>
         {
             return _items.Length;
         }
-        set
+        private set
         {
             if (value < _size)
             {
@@ -67,7 +68,7 @@ public class UnorderedList<T> : IList<T>
         }
     }
 
-    public bool IsReadOnly => throw new System.NotImplementedException();
+    public bool IsReadOnly => false;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(T item)
@@ -87,7 +88,7 @@ public class UnorderedList<T> : IList<T>
 
     public void Clear()
     {
-        if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+        if (IsReferenceType)
         {
             int size = _size;
             _size = 0;
@@ -113,6 +114,13 @@ public class UnorderedList<T> : IList<T>
 
     public void CopyTo(T[] array, int arrayIndex)
     {
+        if (array == null)
+            throw new ArgumentNullException(nameof(array));
+        if (arrayIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+        if (array.Length - arrayIndex < _size)
+            throw new ArgumentException("Destination array is not long enough");
+
         Array.Copy(_items, 0, array, arrayIndex, _size);
     }
 
@@ -128,9 +136,9 @@ public class UnorderedList<T> : IList<T>
 
     public void Insert(int index, T item)
     {
-        if (index > _size)
+        if (index < 0 || index > _size)
         {
-            throw new IndexOutOfRangeException(nameof(index));
+            throw new ArgumentOutOfRangeException(nameof(index));
         }
         if (_size == _items.Length)
         {
@@ -157,16 +165,30 @@ public class UnorderedList<T> : IList<T>
 
     public void RemoveAt(int index)
     {
+        if (index >= _size)
+        {
+            throw new IndexOutOfRangeException(nameof(index));
+        }
         //move the last element to the index and decrease the size
         T last = _items[_size - 1];
         _items[index] = last;
         _size--;
+        _items[_size] = default!;
     }
 
     public T RemoveLast()
     {
+        if (_size <= 0)
+        {
+            throw new InvalidOperationException("The list is empty");
+        }
         _size--;
-        return _items[_size];
+        T item = _items[_size];
+        if (IsReferenceType)
+        {
+            _items[_size] = default!;
+        }
+        return item;
     }
 
     IEnumerator IEnumerable.GetEnumerator()
