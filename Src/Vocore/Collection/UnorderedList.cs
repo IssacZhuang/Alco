@@ -25,7 +25,14 @@ public class UnorderedList<T> : IList<T>
     public T this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _items[index];
+        get
+        {
+            if ((uint)index >= (uint)_size)
+            {
+                throw new IndexOutOfRangeException(nameof(index));
+            }
+            return _items[index];
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set => _items[index] = value;
     }
@@ -42,7 +49,7 @@ public class UnorderedList<T> : IList<T>
         {
             return _items.Length;
         }
-        private set
+        set
         {
             if (value < _size)
             {
@@ -114,13 +121,6 @@ public class UnorderedList<T> : IList<T>
 
     public void CopyTo(T[] array, int arrayIndex)
     {
-        if (array == null)
-            throw new ArgumentNullException(nameof(array));
-        if (arrayIndex < 0)
-            throw new ArgumentOutOfRangeException(nameof(arrayIndex));
-        if (array.Length - arrayIndex < _size)
-            throw new ArgumentException("Destination array is not long enough");
-
         Array.Copy(_items, 0, array, arrayIndex, _size);
     }
 
@@ -142,7 +142,7 @@ public class UnorderedList<T> : IList<T>
         }
         if (_size == _items.Length)
         {
-            Grow(_size + 1);
+            EnsureCapacity(_size + 1);
         }
         if (index < _size)
         {
@@ -200,14 +200,14 @@ public class UnorderedList<T> : IList<T>
     private void AddWithResize(T item)
     {
         int size = _size;
-        Grow(size + 1);
+        EnsureCapacity(size + 1);
         _size = size + 1;
         _items[size] = item;
     }
 
-    private void Grow(int capacity)
+    private void EnsureCapacity(int capacity)
     {
-        int num = ((_items.Length == 0) ? 4 : (2 * _items.Length));
+        int num = (_items.Length == 0) ? 4 : (2 * _items.Length);
         if ((uint)num > Array.MaxLength)
         {
             num = Array.MaxLength;
