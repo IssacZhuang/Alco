@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace Vocore.Test
 {
-    public class TestScheduler
+    public class TestThreadScheduler
     {
 
         [Test(Description = "Parallel Scheduler")]
