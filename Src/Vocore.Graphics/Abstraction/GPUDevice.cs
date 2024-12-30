@@ -31,6 +31,11 @@ public abstract class GPUDevice : IDisposable
 
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
 
+    public GPUDevice(IGPULoopProvider provider)
+    {
+        provider.OnEndFrame += OnEndFrame;
+    }
+
     // Default samplers, those are the most common samplers used in the graphics pipeline.
     // user can also create their own samplers by using the CreateSampler method.
     /// <summary>
@@ -273,36 +278,7 @@ public abstract class GPUDevice : IDisposable
     {
         obj.Destroy();
     }
-
-    /// <summary>
-    /// Processes the deferred disposal of the GPU objects.
-    /// </summary>
-    public void OnEndFrame()
-    {
-        OnEndFrameCore();
-        _lock.Enter();
-        for (int i = 0; i < _deferredDisposal.Count; i++)
-        {
-            DeferredDisposalItem item = _deferredDisposal[i];
-            if (item.delay <= 0)
-            {
-                try
-                {
-                    item.@object.Destroy();
-                }
-                catch (Exception e)
-                {
-                    GraphicsLogger.Error($"Error in destroying GPU object: {e}");
-                }
-                _deferredDisposal.RemoveAt(i);
-                i--;
-                continue;
-            }
-            item.delay--;
-            _deferredDisposal[i] = item;
-        }
-        _lock.Exit();
-    }
+    
 
     /// <summary>
     /// Submits the GPU command buffer to the GPU for execution.
@@ -369,6 +345,14 @@ public abstract class GPUDevice : IDisposable
         WriteTextureCore(texture, data, dataSize, mipLevel);
     }
 
+
+    /// <summary>
+    /// Reads the data from the GPU texture at the mip level.
+    /// </summary>
+    /// <param name="texture">The target GPU texture.</param>
+    /// <param name="dest">The pointer to the destination.</param>
+    /// <param name="dataSize">The size of the data. (unit: byte)</param>
+    /// <param name="mipLevel">The mip level of the texture.</param>
     public unsafe void ReadTexture(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         ReadTextureCore(texture, dest, dataSize, mipLevel);
@@ -552,7 +536,6 @@ public abstract class GPUDevice : IDisposable
     /// <exclude />
     protected abstract void SubmitCore(GPUResuableRenderBuffer renderBuffer);
 
-    // Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);
 
@@ -567,7 +550,35 @@ public abstract class GPUDevice : IDisposable
     
     protected abstract void OnEndFrameCore();
     protected abstract void DisposeCore();
-    
+
+    private void OnEndFrame()
+    {
+        OnEndFrameCore();
+        _lock.Enter();
+        for (int i = 0; i < _deferredDisposal.Count; i++)
+        {
+            DeferredDisposalItem item = _deferredDisposal[i];
+            if (item.delay <= 0)
+            {
+                try
+                {
+                    item.@object.Destroy();
+                    GraphicsLogger.Info($"Destroyed GPU object: {item.@object.Name}");
+                }
+                catch (Exception e)
+                {
+                    GraphicsLogger.Error($"Error in destroying GPU object: {e}");
+                }
+                _deferredDisposal.RemoveAt(i);
+                i--;
+                continue;
+            }
+            item.delay--;
+            _deferredDisposal[i] = item;
+        }
+        _lock.Exit();
+    }
+
     public void Dispose()
     {
         OnEndFrame();

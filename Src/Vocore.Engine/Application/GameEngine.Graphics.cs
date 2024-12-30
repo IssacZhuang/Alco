@@ -18,7 +18,7 @@ public partial class GameEngine
         return new WindowRenderTarget(this, window, renderPass, blitShader);
     }
 
-    private static GPUDevice CreateGraphicsDevice(GraphicsSetting setting)
+    private GPUDevice CreateGraphicsDevice(GraphicsSetting setting)
     {
         if (setting.Backend == GraphicsBackend.None)
         {
@@ -27,6 +27,7 @@ public partial class GameEngine
 
         DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
         {
+            LoopProvider = this,
             Debug = setting.DebugInfo,
             Backend = setting.Backend,
             PreferredSurfaceFormat = setting.PreferredSurfaceFormat,

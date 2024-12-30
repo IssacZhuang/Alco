@@ -15,7 +15,7 @@ namespace Vocore.Engine;
 /// The entry point for the game <br/>
 /// The integration of the game loop, base API, sdl window and graphics device
 /// </summary>
-public partial class GameEngine : IDisposable
+public partial class GameEngine : IDisposable, IGPULoopProvider
 {
 // #pragma warning disable CS8618
 //     public static GameEngine Instance { get; private set; }
@@ -40,6 +40,11 @@ public partial class GameEngine : IDisposable
     private readonly WindowRenderTarget _mainRenderTarget;
 
     #endregion
+
+    #region Internal Events
+    private event Action? EventOnEndFrame;
+    #endregion
+
 
     #region  Internal Controllers
     private EngineProfiler _profiler;
@@ -174,6 +179,19 @@ public partial class GameEngine : IDisposable
 
     #endregion
 
+    event Action IGPULoopProvider.OnEndFrame
+    {
+        add
+        {
+            EventOnEndFrame += value;
+        }
+
+        remove
+        {
+            EventOnEndFrame -= value;
+        }
+    }
+
     public GameEngine(GameEngineSetting setting)
     {
         // if (Instance != null)
@@ -213,6 +231,8 @@ public partial class GameEngine : IDisposable
 
         InitializePlugins(_setting.Plugins);
     }
+
+
 
     ~GameEngine()
     {
@@ -356,7 +376,7 @@ public partial class GameEngine : IDisposable
         OnSystemEndFrame();
 
         _renderScheduler.OnBeginFrame();
-        _graphicsDevice.OnEndFrame();
+        EventOnEndFrame?.Invoke();
 
     }
 

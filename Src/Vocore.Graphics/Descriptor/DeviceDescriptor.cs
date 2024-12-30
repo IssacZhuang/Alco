@@ -2,9 +2,13 @@ using System.Numerics;
 
 namespace Vocore.Graphics;
 
+/// <summary>
+/// The descriptor of the GPU device
+/// </summary>
 public struct DeviceDescriptor
 {
     public DeviceDescriptor(
+        IGPULoopProvider loopProvider,
         GraphicsBackend backend = GraphicsBackend.Auto,
         PixelFormat preferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
         bool debug = false,        
@@ -12,6 +16,7 @@ public struct DeviceDescriptor
         string name = "Vocore Graphics Device"
     )
     {
+        LoopProvider = loopProvider;
         Debug = debug;
         Backend = backend;
         PushConstantsSize = pushConstantsSize;
@@ -30,9 +35,22 @@ public struct DeviceDescriptor
         // DepthFormat = depthFormat;
         
     }
+    /// <summary>
+    /// The loop provider of the GPU
+    /// </summary>
+    /// <value>The loop provider of the GPU</value>
+    public IGPULoopProvider LoopProvider { get; init; }
 
+    /// <summary>
+    /// The backend of the GPU
+    /// </summary>
+    /// <value></value>
     public GraphicsBackend Backend { get; init; } = GraphicsBackend.Auto;
     
+    /// <summary>
+    /// Whether to enable the debug mode
+    /// </summary>
+    /// <value>Whether to enable the debug mode</value>
     public bool Debug { get; init; } = false;
     /// <summary>
     /// The size of the push constants buffer in bytes. Put 0 to disable.

@@ -1,7 +1,24 @@
+
+
 namespace Vocore.Graphics.NoGPU;
 
 internal class NoDevice : GPUDevice
 {
+    private class DummyLoopProvider : IGPULoopProvider
+    {
+        event Action IGPULoopProvider.OnEndFrame
+        {
+            add
+            {
+                
+            }
+
+            remove
+            {
+                
+            }
+        }
+    }
     public static readonly NoDevice noDevice = new NoDevice();
 
     public override GPUSampler SamplerNearestRepeat {get;   }
@@ -28,7 +45,7 @@ internal class NoDevice : GPUDevice
 
     public override PixelFormat PrefferedSurfaceFomat {get;}
 
-    public NoDevice()
+    public NoDevice(): base(new DummyLoopProvider())
     {
         // create default samplers
 
