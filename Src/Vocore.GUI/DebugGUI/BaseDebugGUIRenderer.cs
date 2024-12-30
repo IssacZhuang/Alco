@@ -11,7 +11,6 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
     //for rendering
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _command;
     private readonly RenderingSystem _renderingSystem;
     private readonly CanvasRenderer _canvasRenderer;
     private readonly BlitRenderer _blitRenderer;
@@ -29,7 +28,6 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     protected BaseDebugGUIRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Shader shaderBlit)
     {
         _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer();
         _renderingSystem = renderingSystem;
         //external resources
         _textureWhite = renderingSystem.TextureWhite;

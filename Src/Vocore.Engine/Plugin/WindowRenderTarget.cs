@@ -128,7 +128,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 
     private void RecreateRenderTexture()
     {
-        //_renderTexture.Dispose(); //do not dispose, wait for GC to collect
+        _renderTexture.Dispose();
         _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
         _converter.SetInput(_renderTexture.FrameBuffer);
     }

@@ -9,7 +9,25 @@ namespace Vocore.Graphics;
 /// </summary> 
 public abstract class GPUDevice : IDisposable
 {
-    private readonly ConcurrentQueue<BaseGPUObject> _deferredDisposal = new();
+    private struct DeferredDisposalItem
+    {
+        public BaseGPUObject @object;
+        public uint delay;
+
+        public DeferredDisposalItem(BaseGPUObject @object, uint delay)
+        {
+            this.@object = @object;
+            this.delay = delay;
+        }
+    }
+    private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
+    private readonly Lock _lock = new();
+
+    /// <summary>
+    /// The delay time to dispose the GPU object. Unit: frame.
+    /// </summary>
+    /// <value>The delay time to dispose the GPU object. (unit: frame)</value>
+    public uint DisposeDelay { get; set; } = 1;
 
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
 
@@ -241,7 +259,10 @@ public abstract class GPUDevice : IDisposable
     /// <param name="obj"> The target GPU object to destroy.</param>
     public virtual void Destroy(BaseGPUObject obj)
     {
-        _deferredDisposal.Enqueue(obj);
+        ArgumentNullException.ThrowIfNull(obj);
+        _lock.Enter();
+        _deferredDisposal.Add(new DeferredDisposalItem(obj, DisposeDelay));
+        _lock.Exit();
     }
 
     /// <summary>
@@ -259,10 +280,28 @@ public abstract class GPUDevice : IDisposable
     public void OnEndFrame()
     {
         OnEndFrameCore();
-        while (_deferredDisposal.TryDequeue(out BaseGPUObject? obj))
+        _lock.Enter();
+        for (int i = 0; i < _deferredDisposal.Count; i++)
         {
-            obj.Destroy();
+            DeferredDisposalItem item = _deferredDisposal[i];
+            if (item.delay <= 0)
+            {
+                try
+                {
+                    item.@object.Destroy();
+                }
+                catch (Exception e)
+                {
+                    GraphicsLogger.Error($"Error in destroying GPU object: {e}");
+                }
+                _deferredDisposal.RemoveAt(i);
+                i--;
+                continue;
+            }
+            item.delay--;
+            _deferredDisposal[i] = item;
         }
+        _lock.Exit();
     }
 
     /// <summary>
