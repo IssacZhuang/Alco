@@ -15,7 +15,7 @@ namespace Vocore.Engine;
 /// The entry point for the game <br/>
 /// The integration of the game loop, base API, sdl window and graphics device
 /// </summary>
-public partial class GameEngine : IDisposable, IGPULoopProvider
+public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvider
 {
 // #pragma warning disable CS8618
 //     public static GameEngine Instance { get; private set; }
@@ -43,6 +43,7 @@ public partial class GameEngine : IDisposable, IGPULoopProvider
 
     #region Internal Events
     private event Action? EventOnEndFrame;
+    private event Action? EventOnHandleAssetLoaded;
     #endregion
 
 
@@ -192,6 +193,19 @@ public partial class GameEngine : IDisposable, IGPULoopProvider
         }
     }
 
+    event Action IAssetLoopProvider.OnHandleAssetLoaded
+    {
+        add
+        {
+            EventOnHandleAssetLoaded += value;
+        }
+
+        remove
+        {
+            EventOnHandleAssetLoaded -= value;
+        }
+    }
+
     public GameEngine(GameEngineSetting setting)
     {
         _setting = setting;
@@ -217,7 +231,7 @@ public partial class GameEngine : IDisposable, IGPULoopProvider
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat
             );
-        _assets = new AssetSystem(_setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
+        _assets = new AssetSystem(this, _setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
         _builtInAssets = new BuiltInAssets(_assets);
 
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
@@ -363,7 +377,7 @@ public partial class GameEngine : IDisposable, IGPULoopProvider
 
         OnSystemPostUpdate(delta);
 
-        _assets.OnUpdate();
+        EventOnHandleAssetLoaded?.Invoke();
         _profiler.Update(delta);
 
         try

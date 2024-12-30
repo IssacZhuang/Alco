@@ -45,7 +45,7 @@ namespace Vocore.IO
 
         public bool IsProfileEnabled { get; set; } = false;
 
-        internal AssetSystem(int threadCount, bool isProfileEnabled = false)
+        internal AssetSystem(IAssetLoopProvider loopProvider, int threadCount, bool isProfileEnabled = false)
         {
             if (threadCount <= 0)
             {
@@ -54,6 +54,7 @@ namespace Vocore.IO
 
             IsProfileEnabled = isProfileEnabled;
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
+            loopProvider.OnHandleAssetLoaded += OnHandleAssetLoaded;
 
         }
 

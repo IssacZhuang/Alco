@@ -249,7 +249,7 @@ public sealed partial class AssetSystem
     }
 
     // Only called from the GameEngine class
-    internal void OnUpdate()
+    private void OnHandleAssetLoaded()
     {
         int count = 0;
         //allow cas failed in serveral times
