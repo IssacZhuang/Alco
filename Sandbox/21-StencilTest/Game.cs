@@ -98,7 +98,7 @@ public class Game : GameEngine
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
         _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
         _commandClearScreen.End();
-        GraphicsDevice.Submit(_commandClearScreen);
+        Rendering.ScheduleCommandBuffer(_commandClearScreen);
 
 
         _renderer.Begin(MainFrameBuffer);
