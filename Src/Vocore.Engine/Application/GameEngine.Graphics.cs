@@ -18,7 +18,7 @@ public partial class GameEngine
         return new WindowRenderTarget(this, window, renderPass, blitShader);
     }
 
-    private GPUDevice CreateGraphicsDevice(GraphicsSetting setting)
+    private GPUDevice CreateGraphicsDevice(GraphicsSetting setting, uint disposeDelay)
     {
         if (setting.Backend == GraphicsBackend.None)
         {
@@ -32,6 +32,7 @@ public partial class GameEngine
             Backend = setting.Backend,
             PreferredSurfaceFormat = setting.PreferredSurfaceFormat,
             PushConstantsSize = 128,
+            DisposeDelay = disposeDelay,
             Name = "graphics_device"
         };
 

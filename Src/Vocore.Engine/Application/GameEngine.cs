@@ -194,19 +194,22 @@ public partial class GameEngine : IDisposable, IGPULoopProvider
 
     public GameEngine(GameEngineSetting setting)
     {
-        // if (Instance != null)
-        // {
-        //     throw new Exception("The GameEngine can only have one instance.");
-        // }
-        // Instance = this;
         _setting = setting;
 
-        _graphicsDevice = CreateGraphicsDevice(_setting.Graphics);
+        if (setting.Graphics.DefferedRenderSchedule)
+        {
+            _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 1);
+            _renderScheduler = new DefferedRenderScheduler(_graphicsDevice);
+        }
+        else
+        {
+            _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 0);
+            _renderScheduler = new ImmediateRenderScheduler(_graphicsDevice);
+        }
+
+
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice();
-
         _platform = _setting.Platform ?? new Sdl3Platform();
-
-        _renderScheduler = new DefferedRenderScheduler(_graphicsDevice);
         _rendering = new RenderingSystem(
             _graphicsDevice,
             _renderScheduler,

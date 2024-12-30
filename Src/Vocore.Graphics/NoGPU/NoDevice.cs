@@ -45,7 +45,13 @@ internal class NoDevice : GPUDevice
 
     public override PixelFormat PrefferedSurfaceFomat {get;}
 
-    public NoDevice(): base(new DummyLoopProvider())
+    public NoDevice(): base(new DeviceDescriptor{
+        LoopProvider = new DummyLoopProvider(),
+        Backend = GraphicsBackend.None,
+        Debug = false,
+        PreferredSurfaceFormat = PixelFormat.RGBA8Unorm,
+        Name = "NoGPU Device"
+    })
     {
         // create default samplers
 

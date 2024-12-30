@@ -13,6 +13,7 @@ public struct DeviceDescriptor
         PixelFormat preferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
         bool debug = false,        
         uint pushConstantsSize = 128,
+        uint disposeDelay = 0,
         string name = "Vocore Graphics Device"
     )
     {
@@ -22,18 +23,7 @@ public struct DeviceDescriptor
         PushConstantsSize = pushConstantsSize;
         PreferredSurfaceFormat = preferredSurfaceFormat;
         Name = name;
-
-        
-        // SurfaceSource = surfaceSource;
-        // SurfaceClearColor = surfaceClearColor;
-        
-        // VSync = vsync;
-        
-        // InitialSurfaceSizeWidth = initialSurfaceSizeWidth;
-        // InitialSurfaceSizeHeight = initialSurfaceSizeHeight;
-        // SurfaceFormat = surfaceFormat;
-        // DepthFormat = depthFormat;
-        
+        DisposeDelay = disposeDelay;
     }
     /// <summary>
     /// The loop provider of the GPU
@@ -55,7 +45,9 @@ public struct DeviceDescriptor
     /// <summary>
     /// The size of the push constants buffer in bytes. Put 0 to disable.
     /// </summary> 
-    public uint PushConstantsSize { get; init; } = 256;
+    public uint PushConstantsSize { get; init; } = 128;
+    
+    public uint DisposeDelay { get; init; } = 0;
     public PixelFormat PreferredSurfaceFormat { get; init; } = PixelFormat.BGRA8UnormSrgb;
     public string Name { get; init; } = "Vocore Graphics Device";
 }

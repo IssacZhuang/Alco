@@ -23,17 +23,14 @@ public abstract class GPUDevice : IDisposable
     private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
     private readonly Lock _lock = new();
 
-    /// <summary>
-    /// The delay time to dispose the GPU object. Unit: frame.
-    /// </summary>
-    /// <value>The delay time to dispose the GPU object. (unit: frame)</value>
-    public uint DisposeDelay { get; set; } = 1;
+    private uint _disposeDelay = 1;
 
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
 
-    public GPUDevice(IGPULoopProvider provider)
+    public GPUDevice(in DeviceDescriptor descriptor)
     {
-        provider.OnEndFrame += OnEndFrame;
+        _disposeDelay = descriptor.DisposeDelay;
+        descriptor.LoopProvider.OnEndFrame += OnEndFrame;
     }
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
@@ -266,7 +263,7 @@ public abstract class GPUDevice : IDisposable
     {
         ArgumentNullException.ThrowIfNull(obj);
         _lock.Enter();
-        _deferredDisposal.Add(new DeferredDisposalItem(obj, DisposeDelay));
+        _deferredDisposal.Add(new DeferredDisposalItem(obj, _disposeDelay));
         _lock.Exit();
     }
 
@@ -563,7 +560,7 @@ public abstract class GPUDevice : IDisposable
                 try
                 {
                     item.@object.Destroy();
-                    GraphicsLogger.Info($"Destroyed GPU object: {item.@object.Name}");
+                    //GraphicsLogger.Info($"Destroyed GPU object: {item.@object.Name}");
                 }
                 catch (Exception e)
                 {

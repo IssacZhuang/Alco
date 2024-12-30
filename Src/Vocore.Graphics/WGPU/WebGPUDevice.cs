@@ -385,7 +385,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         get => Device;
     }
 
-    public unsafe WebGPUDevice(in DeviceDescriptor descriptor) : base(descriptor.LoopProvider)
+    public unsafe WebGPUDevice(in DeviceDescriptor descriptor) : base(descriptor)
     {
         _descriptor = descriptor;
         wgpuSetLogCallback(LogCallback);
