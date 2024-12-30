@@ -61,7 +61,7 @@ internal unsafe class OpenALDevice : AudioDevice
         }
     }
 
-    public OpenALDevice()
+    public OpenALDevice(IAudioLifeCycleProvider lifeCycleProvider) : base(lifeCycleProvider)
     {
         _device = ALC.OpenDevice(string.Empty);
         ALC.MakeContextCurrent(ALC.CreateContext(_device, null));
@@ -71,11 +71,14 @@ internal unsafe class OpenALDevice : AudioDevice
         // AL.SpeedOfSound(343.3f);
 
         ListenerPosition = Vector3.Zero;
+
+        Log.Info("OpenAL device created");
     }
 
     protected override void Dispose(bool disposing)
     {
         ALC.CloseDevice(_device);
+        Log.Info("OpenAL device closed");
     }
 
     protected override AudioSource CreateAudioSourceCore()

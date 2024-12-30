@@ -4,8 +4,8 @@ namespace Vocore.Audio;
 
 public static class AudioDeviceFactory
 {
-    public static AudioDevice CreateOpenALDevice()
+    public static AudioDevice CreateOpenALDevice(IAudioLifeCycleProvider lifeCycleProvider)
     {
-        return new OpenALDevice();
+        return new OpenALDevice(lifeCycleProvider);
     }
 }

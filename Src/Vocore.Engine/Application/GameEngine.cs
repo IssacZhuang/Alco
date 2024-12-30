@@ -15,7 +15,11 @@ namespace Vocore.Engine;
 /// The entry point for the game <br/>
 /// The integration of the game loop, base API, sdl window and graphics device
 /// </summary>
-public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvider
+public partial class GameEngine : 
+IDisposable, 
+IGPULifeCycleProvider, 
+IAssetSystemLifeCycleProvider,
+IAudioLifeCycleProvider
 {
 // #pragma warning disable CS8618
 //     public static GameEngine Instance { get; private set; }
@@ -44,6 +48,37 @@ public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvi
     #region Internal Events
     private event Action? EventOnEndFrame;
     private event Action? EventOnHandleAssetLoaded;
+    private event Action? EventOnDispose;
+
+    event Action IGPULifeCycleProvider.OnEndFrame
+    {
+        add => EventOnEndFrame += value;
+        remove => EventOnEndFrame -= value;
+    }
+
+    event Action IAssetSystemLifeCycleProvider.OnHandleAssetLoaded
+    {
+        add => EventOnHandleAssetLoaded += value;
+        remove => EventOnHandleAssetLoaded -= value;
+    }
+
+    event Action IAssetSystemLifeCycleProvider.OnDispose
+    {
+        add => EventOnDispose += value;
+        remove => EventOnDispose -= value;
+    }
+
+    event Action IGPULifeCycleProvider.OnDispose
+    {
+        add => EventOnDispose += value;
+        remove => EventOnDispose -= value;
+    }
+
+    event Action IAudioLifeCycleProvider.OnDispose
+    {
+        add => EventOnDispose += value;
+        remove => EventOnDispose -= value;
+    }
     #endregion
 
 
@@ -180,35 +215,10 @@ public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvi
 
     #endregion
 
-    event Action IGPULoopProvider.OnEndFrame
-    {
-        add
-        {
-            EventOnEndFrame += value;
-        }
-
-        remove
-        {
-            EventOnEndFrame -= value;
-        }
-    }
-
-    event Action IAssetLoopProvider.OnHandleAssetLoaded
-    {
-        add
-        {
-            EventOnHandleAssetLoaded += value;
-        }
-
-        remove
-        {
-            EventOnHandleAssetLoaded -= value;
-        }
-    }
-
     public GameEngine(GameEngineSetting setting)
     {
         _setting = setting;
+        _assets = new AssetSystem(this, _setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
 
         if (setting.Graphics.DefferedRenderSchedule)
         {
@@ -222,7 +232,7 @@ public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvi
         }
 
 
-        _audioDevice = AudioDeviceFactory.CreateOpenALDevice();
+        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
         _platform = _setting.Platform ?? new Sdl3Platform();
         _rendering = new RenderingSystem(
             _graphicsDevice,
@@ -231,7 +241,7 @@ public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvi
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat
             );
-        _assets = new AssetSystem(this, _setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
+        
         _builtInAssets = new BuiltInAssets(_assets);
 
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
@@ -447,11 +457,10 @@ public partial class GameEngine : IDisposable, IGPULoopProvider, IAssetLoopProvi
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
         _renderScheduler.Dispose();
-        GraphicsDevice.Dispose();
-        AudioDevice.Dispose();
         MainWindow.Close();
-        Assets.Dispose();
         _platform.Dispose();
+
+        EventOnDispose?.Invoke();
         GC.SuppressFinalize(this);
     }
 

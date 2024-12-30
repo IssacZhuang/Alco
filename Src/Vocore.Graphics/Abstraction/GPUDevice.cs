@@ -7,7 +7,7 @@ namespace Vocore.Graphics;
 /// The low-level interface to do the operations on the GPU. It is the entry point to create the GPU resources and submit the commands to the GPU.
 /// <br/> !Attention: The GPUDevice is not thread-safe, it should only be used in the main thread or use the synchronization mechanism to protect the access.
 /// </summary> 
-public abstract class GPUDevice : IDisposable
+public abstract class GPUDevice
 {
     private struct DeferredDisposalItem
     {
@@ -30,7 +30,9 @@ public abstract class GPUDevice : IDisposable
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;
-        descriptor.LoopProvider.OnEndFrame += OnEndFrame;
+        IGPULifeCycleProvider loopProvider = descriptor.LoopProvider;
+        loopProvider.OnEndFrame += OnEndFrame;
+        loopProvider.OnDispose += Dispose;
     }
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
@@ -576,9 +578,11 @@ public abstract class GPUDevice : IDisposable
         _lock.Exit();
     }
 
-    public void Dispose()
+    private void Dispose()
     {
         OnEndFrame();
         DisposeCore();
+
+        GraphicsLogger.Info("GPU device closed");
     }
 }

@@ -4,19 +4,18 @@ namespace Vocore.Graphics.NoGPU;
 
 internal class NoDevice : GPUDevice
 {
-    private class DummyLoopProvider : IGPULoopProvider
+    private class DummyLoopProvider : IGPULifeCycleProvider
     {
-        event Action IGPULoopProvider.OnEndFrame
+        event Action IGPULifeCycleProvider.OnEndFrame
         {
-            add
-            {
-                
-            }
+            add{}
+            remove{}
+        }
 
-            remove
-            {
-                
-            }
+        event Action IGPULifeCycleProvider.OnDispose
+        {
+            add { }
+            remove { }
         }
     }
     public static readonly NoDevice noDevice = new NoDevice();

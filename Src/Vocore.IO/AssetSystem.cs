@@ -45,7 +45,7 @@ namespace Vocore.IO
 
         public bool IsProfileEnabled { get; set; } = false;
 
-        internal AssetSystem(IAssetLoopProvider loopProvider, int threadCount, bool isProfileEnabled = false)
+        public AssetSystem(IAssetSystemLifeCycleProvider loopProvider, int threadCount, bool isProfileEnabled = false)
         {
             if (threadCount <= 0)
             {
@@ -55,15 +55,19 @@ namespace Vocore.IO
             IsProfileEnabled = isProfileEnabled;
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
             loopProvider.OnHandleAssetLoaded += OnHandleAssetLoaded;
+            loopProvider.OnDispose += Dispose;
 
+            Log.Info("Asset system created");
         }
 
 
 
-        internal void Dispose()
+        private void Dispose()
         {
             _asyncLoadQueue.Dispose();
             Profiler.Dispose();
+
+            Log.Info("Asset system closed");
         }
 
 

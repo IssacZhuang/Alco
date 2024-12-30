@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Vocore.Audio;
-public abstract class AudioDevice : BaseAudioObject
+public abstract class AudioDevice
 {
     public const int Frequency44K = 44100;
     public const int Frequency48K = 48000;
@@ -13,10 +13,11 @@ public abstract class AudioDevice : BaseAudioObject
     public abstract Vector3 ListenerVelocity { get; set; }
     public abstract Vector3 ListenerDirection { get; set; }
 
-    public AudioDevice()
+    public AudioDevice(IAudioLifeCycleProvider lifeCycleProvider)
     {
         ListenerPosition = Vector3.Zero;
         ListenerVelocity = Vector3.Zero;
+        lifeCycleProvider.OnDispose += Dispose;
     }
 
     public unsafe AudioClip CreateAudioClip(ReadOnlySpan<float> data, int channel, int sampleRate)
@@ -32,4 +33,11 @@ public abstract class AudioDevice : BaseAudioObject
     protected abstract AudioSource CreateAudioSourceCore();
 
     protected abstract AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate);
+
+    protected abstract void Dispose(bool disposing);
+
+    private void Dispose()
+    {
+        Dispose(true);
+    }
 }
