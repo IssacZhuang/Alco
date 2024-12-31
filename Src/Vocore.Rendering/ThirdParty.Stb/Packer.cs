@@ -19,9 +19,9 @@ namespace StbRectPackSharp
 		public int Width => Rectangle.Width;
 		public int Height => Rectangle.Height;
 
-		public object Data { get; private set; }
+		public object? Data { get; private set; }
 
-		public PackerRectangle(Rectangle rect, object data)
+		public PackerRectangle(Rectangle rect, object? data)
 		{
 			Rectangle = rect;
 			Data = data;
@@ -81,7 +81,7 @@ namespace StbRectPackSharp
 		/// <param name="height"></param>
 		/// <param name="userData"></param>
 		/// <returns></returns>
-		public PackerRectangle? PackRect(int width, int height, object userData)
+		public PackerRectangle? PackRect(int width, int height, object? userData)
 		{
 			var rect = new stbrp_rect
 			{
