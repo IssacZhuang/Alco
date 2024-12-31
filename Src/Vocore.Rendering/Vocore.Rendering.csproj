@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseAssetsPack>false</UseAssetsPack>
+    <DefineConstants>STBSHARP_INTERNAL</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vocore\Vocore.csproj" />
