@@ -82,5 +82,15 @@ namespace Vocore
         {
             return new RectInt(Min - new int2(left, top), size + new int2(left + right, top + bottom));
         }
+
+        public static implicit operator System.Drawing.Rectangle(RectInt rect)
+        {
+            return new System.Drawing.Rectangle(rect.Min.x, rect.Min.y, rect.size.x, rect.size.y);
+        }
+        
+        public static implicit operator RectInt(System.Drawing.Rectangle rect)
+        {
+            return new RectInt(rect.Location.X, rect.Location.Y, rect.Width, rect.Height);
+        }
     }
 }
