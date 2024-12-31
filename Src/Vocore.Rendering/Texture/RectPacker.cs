@@ -145,22 +145,22 @@ public class RectPacker<T> : AutoDisposable
     /// <summary>
     /// Creates a new rectangle packer with the specified initial dimensions.
     /// </summary>
-    /// <param name="width">The initial width of the packing area.</param>
-    /// <param name="height">The initial height of the packing area.</param>
+    /// <param name="minWidth">The initial width of the packing area.</param>
+    /// <param name="minHeight">The initial height of the packing area.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when width or height is less than or equal to 0.</exception>
-    public RectPacker(int width, int height)
+    public RectPacker(int minWidth, int minHeight)
     {
-        if (width <= 0)
+        if (minWidth <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(width));
+            throw new ArgumentOutOfRangeException(nameof(minWidth));
         }
 
-        if (height <= 0)
+        if (minHeight <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(height));
+            throw new ArgumentOutOfRangeException(nameof(minHeight));
         }
 
-        _packer = new Packer(width, height);
+        _packer = new Packer(minWidth, minHeight);
         _items = new List<Item>();
     }
 

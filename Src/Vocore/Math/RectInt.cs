@@ -83,6 +83,21 @@ namespace Vocore
             return new RectInt(Min - new int2(left, top), size + new int2(left + right, top + bottom));
         }
 
+        public Rect Normalize(float width, float height)
+        {
+            return new Rect(origin.x / width, origin.y / height, size.x / width, size.y / height);
+        }
+
+        public static implicit operator RectInt(Rect rect)
+        {
+            return new RectInt(rect.origin, rect.size);
+        }
+
+        public static implicit operator Rect(RectInt rect)
+        {
+            return new Rect(rect.origin, rect.size);
+        }
+
         public static implicit operator System.Drawing.Rectangle(RectInt rect)
         {
             return new System.Drawing.Rectangle(rect.Min.x, rect.Min.y, rect.size.x, rect.size.y);

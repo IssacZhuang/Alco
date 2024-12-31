@@ -130,4 +130,43 @@ public partial class RenderingSystem
         );
     }
 
+    public unsafe Texture2D CreateTexture2D(
+        uint width,
+        uint height,
+        ImageLoadOption? option = null
+    )
+    {
+        GPUDevice device = _device;
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            optionReal.Format,
+            width,
+            height,
+            1,
+            optionReal.MipLevels,
+            optionReal.Usage,
+            1,
+            optionReal.Name
+        );
+
+        GPUTexture texture = device.CreateTexture(textureDescriptor);
+
+        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
+            texture,
+            TextureViewDimension.Texture2D
+        );
+
+        textureDescriptor.Name = optionReal.Name;
+
+        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
+
+        return new Texture2D(
+            device,
+            texture,
+            textureView,
+            device.SamplerLinearRepeat
+        );
+    }
+
 }
