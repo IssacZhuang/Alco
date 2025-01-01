@@ -424,4 +424,13 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="context">The wrapper of the GPU command buffer to limit the usage of the GPU command buffer.</param>
     protected abstract void SetPipelineResources(MaterialCommandContext context);
+
+    /// <summary>
+    /// Create a instance of the material. The instance can override part of the parameters of the parent material.
+    /// </summary>
+    /// <returns>The instance of the material.</returns>
+    public MaterialInstance CreateInstance()
+    {
+        return new MaterialInstance(_system, this);
+    }
 }

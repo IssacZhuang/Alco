@@ -4,9 +4,9 @@ using Vocore.Graphics;
 namespace Vocore.Rendering;
 
 /// <summary>
-/// The instance of the <see cref="GraphicsMaterial"/> which used to override the parameters of the parent material.
+/// The instance of the <see cref="Material"/> which used to override the parameters of the parent material.
 /// </summary>
-public sealed class GraphicsMaterialInstance : Material
+public sealed class MaterialInstance : Material
 {
     private readonly Material _parent;
 
@@ -16,7 +16,7 @@ public sealed class GraphicsMaterialInstance : Material
         get => _parent[index] ?? base[index];
     }
 
-    internal GraphicsMaterialInstance(RenderingSystem system, Material parent) : base(system, parent.Shader, $"{parent.Name}_instance")
+    internal MaterialInstance(RenderingSystem system, Material parent) : base(system, parent.Shader, $"{parent.Name}_instance")
     {
         _parent = parent;
         _pipelineContext = new GraphicsPipelineContext(

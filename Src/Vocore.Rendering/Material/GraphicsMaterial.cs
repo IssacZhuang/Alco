@@ -34,15 +34,6 @@ public sealed class GraphicsMaterial : Material
         }
     }
 
-    /// <summary>
-    /// Create a instance of the material. The instance can override part of the parameters of the parent material.
-    /// </summary>
-    /// <returns>The instance of the material.</returns>
-    public GraphicsMaterialInstance CreateInstance()
-    {
-        return new GraphicsMaterialInstance(_system, this);
-    }
-
     protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo)
     {
         for (uint i = 0; i < reflectionInfo.BindGroups.Count; i++)
