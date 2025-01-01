@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public static class GPUCommanBufferExtension
+public static class GPUCommandBufferExtension
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetFrameBuffer(this GPUCommandBuffer command, IRenderTarget renderTarget)
