@@ -6,14 +6,26 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The instance of the <see cref="GraphicsMaterial"/> which used to override the parameters of the parent material.
 /// </summary>
-public sealed class GraphicsMaterialInstance : BaseMaterial
+public sealed class GraphicsMaterialInstance : Material
 {
-    private readonly GraphicsMaterial _parent;
+    private readonly Material _parent;
 
-    internal GraphicsMaterialInstance(RenderingSystem system, GraphicsMaterial parent) : base(system, parent.Shader, $"{parent.Name}_instance")
+    public override GPUResourceGroup? this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _parent[index] ?? base[index];
+    }
+
+    internal GraphicsMaterialInstance(RenderingSystem system, Material parent) : base(system, parent.Shader, $"{parent.Name}_instance")
     {
         _parent = parent;
-        _pipelineContext = parent.PipelineContext.Clone();
+        _pipelineContext = new GraphicsPipelineContext(
+            parent.DepthStencilState,
+            parent.BlendState,
+            parent.RasterizerState,
+            parent.PrimitiveTopology,
+            parent.Defines
+            );
     }
 
     protected override void SetPipelineResources(MaterialCommandContext context)
@@ -24,31 +36,20 @@ public sealed class GraphicsMaterialInstance : BaseMaterial
             context.SetStencilReference(_parent.StencilReference.Value);
         }
 
-        ReadOnlySpan<GPUResourceGroup?> parentResourceGroups = _parent.ResourceGroups;
-        ReadOnlySpan<GPUResourceGroup?> resourceGroups = _parameters.ResourceGroups;
+        int length = ResourceGroupCount;
 
-        for (uint i = 0; i < resourceGroups.Length; i++)
+        for (uint i = 0; i < length; i++)
         {
-            GPUResourceGroup? resourceGroup = resourceGroups[(int)i];
-            GPUResourceGroup? parentResourceGroup = parentResourceGroups[(int)i];
-
+            GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
                 context.SetGraphicsResources(i, resourceGroup);
+                continue;
             }
-            else if (parentResourceGroup != null)
-            {
-                context.SetGraphicsResources(i, parentResourceGroup);
-            }
-            else
-            {
-                throw new Exception($"The bind group {i} has no resources. The resources must be setted on the parent material or the material instance.");
-            }
+
+            throw new Exception($"Missing required resources for bind group {i}. Resources must be set on either the parent material '{_parent.Name}' or this material instance '{Name}'.");
         }
     }
 
-    protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo)
-    {
-        // Do nothing.
-    }
+    protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo) { }
 }

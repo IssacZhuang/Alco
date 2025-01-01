@@ -7,14 +7,8 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The integration of the GPU pipeline state and shader resources.
 /// </summary>
-public sealed class GraphicsMaterial : BaseMaterial
+public sealed class GraphicsMaterial : Material
 {
-    internal GraphicsPipelineContext PipelineContext
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext;
-    }
-
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader, name)
     {
         
