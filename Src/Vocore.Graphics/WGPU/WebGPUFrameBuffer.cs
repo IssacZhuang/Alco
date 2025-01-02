@@ -12,11 +12,9 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     private readonly uint _height;
 
     private readonly WebGPUTexture[] _colorTextures;
-    private readonly WGPUTextureView[] _colorViews;
-    private readonly WebGPUTextureViewWrapper[] _colorViewsWrapper;
+    private readonly WebGPUTextureView[] _colorViews;
     private readonly WebGPUTexture? _depthTexture;
-    private readonly WGPUTextureView _depthView = WGPUTextureView.Null;
-    private readonly WebGPUTextureViewWrapper? _depthViewWrapper;
+    private readonly WebGPUTextureView? _depthView;
     private readonly WebGPURenderPass _renderPass;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
@@ -65,41 +63,34 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     public override ReadOnlySpan<GPUTextureView> ColorViews
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _colorViewsWrapper;
+        get => _colorViews;
     }
 
     public override GPUTextureView? DepthView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthViewWrapper;
+        get => _depthView;
     }
 
     protected override void Dispose(bool disposing)
     {
-
-        foreach (var texture in _colorTextures)
+        if (disposing)
         {
-            texture.Dispose();
+            foreach (var view in _colorViews)
+            {
+                view.Dispose();
+            }
+
+            _depthView?.Dispose();
+
+            foreach (var texture in _colorTextures)
+            {
+                texture.Dispose();
+            }
+
+            _depthTexture?.Dispose();
         }
 
-        foreach (var view in _colorViews)
-        {
-            wgpuTextureViewRelease(view);
-        }
-
-        foreach (var view in _colorViewsWrapper)
-        {
-            view.Dispose();
-        }
-
-        _depthTexture?.Dispose();
-        _depthViewWrapper?.Dispose();
-        
-        if(_depthView != WGPUTextureView.Null)
-        {
-            wgpuTextureViewRelease(_depthView);
-        }
-        
 
         Free(_colorAttachments);
         if (_depthAttachment != null)
@@ -142,8 +133,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _height = height;
 
         _colorTextures = new WebGPUTexture[renderPass.Colors.Length];
-        _colorViews = new WGPUTextureView[renderPass.Colors.Length];
-        _colorViewsWrapper = new WebGPUTextureViewWrapper[renderPass.Colors.Length];
+        _colorViews = new WebGPUTextureView[renderPass.Colors.Length];
         _descriptor = new WGPURenderPassDescriptor
         {
             colorAttachmentCount = (uint)renderPass.Colors.Length,
@@ -158,12 +148,13 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 BuildColorTextureDescriptor(colorInfo.format, width, height)
                 );
 
-            _colorViews[i] = wgpuTextureCreateView(_colorTextures[i].Native, null);
-            _colorViewsWrapper[i] = new WebGPUTextureViewWrapper(Device, _colorTextures[i], _colorViews[i]);
+            _colorViews[i] = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_colorTextures[i]));
+
+
 
             _colorAttachments[i] = new WGPURenderPassColorAttachment
             {
-                view = _colorViews[i],
+                view = _colorViews[i].Native,
                 loadOp = WGPULoadOp.Load,
                 storeOp = WGPUStoreOp.Store,
                 clearValue = colorInfo.clearColor,
@@ -180,14 +171,13 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 BuildDepthTextureDescriptor(depthInfo.format, width, height)
                 );
 
-            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
-            _depthViewWrapper = new WebGPUTextureViewWrapper(Device, _depthTexture, _depthView);
+            _depthView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthTexture));
 
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
 
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
-                view = _depthView,
+                view = _depthView.Native,
                 depthLoadOp = WGPULoadOp.Load,
                 depthStoreOp = WGPUStoreOp.Store,
                 depthClearValue = depthInfo.clearDepth,

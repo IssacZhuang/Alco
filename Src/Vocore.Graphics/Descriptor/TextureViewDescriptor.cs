@@ -4,7 +4,7 @@ public struct TextureViewDescriptor
 {
     public TextureViewDescriptor(
         GPUTexture texture,
-        TextureViewDimension dimension,
+        TextureViewDimension dimension = TextureViewDimension.Texture2D,
         uint baseMipLevel = 0,
         uint mipLevelCount = 1,
         uint baseArrayLayer = 0,
@@ -20,7 +20,7 @@ public struct TextureViewDescriptor
         Texture = texture;
     }
 
-    public TextureViewDimension Dimension { get; init; }
+    public TextureViewDimension Dimension { get; init; } = TextureViewDimension.Texture2D;
     public uint BaseMipLevel { get; init; } = 0;
     public uint MipLevelCount { get; init; } = 1;
     public uint BaseArrayLayer { get; init; } = 0;
