@@ -254,6 +254,30 @@ public abstract class Material: AutoDisposable
 
     #endregion
 
+    #region Set buffer
+
+    public bool TrySetBuffer(string name, GraphicsBuffer buffer)
+    {
+        return _parameters.TrySetBuffer(name, buffer);
+    }
+
+    public void SetBuffer(string name, GraphicsBuffer buffer)
+    {
+        _parameters.SetBuffer(name, buffer);
+    }
+
+    public bool TrySetBuffer(uint id, GraphicsBuffer buffer)
+    {
+        return _parameters.TrySetBuffer(id, buffer);
+    }
+
+    public void SetBuffer(uint id, GraphicsBuffer buffer)
+    {
+        _parameters.SetBuffer(id, buffer);
+    }
+
+    #endregion
+
     #region Set texture
 
     /// <summary>
@@ -420,5 +444,15 @@ public abstract class Material: AutoDisposable
     public MaterialInstance CreateInstance()
     {
         return new MaterialInstance(_system, this);
+    }
+
+    internal GraphicsBuffer? DebugGetBuffer(string name)
+    {
+        return _parameters.GetBuffer(name);
+    }
+
+    internal Texture2D? DebugGetTexture(string name)
+    {
+        return _parameters.GetTexture(name);
     }
 }
