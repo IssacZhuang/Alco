@@ -46,8 +46,13 @@ public class TextureAtlasPacker
         //todo: write texture
 
         List<Sprite> sprites = new List<Sprite>();
-        foreach (var item in _packer.Items)
+        // foreach (var item in _packer.Items)
+        // {
+        //     sprites.Add(new Sprite(item.Data.Name, atlasTexture, item.Rect.Normalize(atlasTexture.Width, atlasTexture.Height), true));
+        // }
+        for (int i = 0; i < _packer.Count; i++)
         {
+            var item = _packer.GetRect(i);
             sprites.Add(new Sprite(item.Data.Name, atlasTexture, item.Rect.Normalize(atlasTexture.Width, atlasTexture.Height), true));
         }
 

@@ -10,7 +10,7 @@ namespace StbRectPackSharp
 #else
 	internal
 #endif
-	struct PackerRectangle
+	struct PackerRectangle<T>
 	{
 		public Rectangle Rectangle { get; private set; }
 
@@ -19,9 +19,9 @@ namespace StbRectPackSharp
 		public int Width => Rectangle.Width;
 		public int Height => Rectangle.Height;
 
-		public object? Data { get; private set; }
+		public T Data { get; private set; }
 
-		public PackerRectangle(Rectangle rect, object? data)
+		public PackerRectangle(Rectangle rect, T data)
 		{
 			Rectangle = rect;
 			Data = data;
@@ -36,15 +36,15 @@ namespace StbRectPackSharp
 #else
 	internal
 #endif
-	unsafe class Packer : IDisposable
+	unsafe class Packer<T> : IDisposable
 	{
 		private readonly stbrp_context _context;
-		private readonly List<PackerRectangle> _rectangles = new List<PackerRectangle>();
+		private readonly List<PackerRectangle<T>> _rectangles = new List<PackerRectangle<T>>();
 
 		public int Width => _context.width;
 		public int Height => _context.height;
 
-		public List<PackerRectangle> PackRectangles => _rectangles;
+		public List<PackerRectangle<T>> PackRectangles => _rectangles;
 
 
 		public Packer(int width = 256, int height = 256)
@@ -81,7 +81,7 @@ namespace StbRectPackSharp
 		/// <param name="height"></param>
 		/// <param name="userData"></param>
 		/// <returns></returns>
-		public PackerRectangle? PackRect(int width, int height, object? userData)
+		public PackerRectangle<T>? PackRect(int width, int height, T userData)
 		{
 			var rect = new stbrp_rect
 			{
@@ -101,7 +101,7 @@ namespace StbRectPackSharp
 				return null;
 			}
 
-			var packRectangle = new PackerRectangle(new Rectangle(rect.x, rect.y, rect.w, rect.h), userData);
+			var packRectangle = new PackerRectangle<T>(new Rectangle(rect.x, rect.y, rect.w, rect.h), userData);
 			_rectangles.Add(packRectangle);
 
 			return packRectangle;

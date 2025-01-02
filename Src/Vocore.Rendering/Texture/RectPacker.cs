@@ -8,7 +8,7 @@ namespace Vocore.Rendering;
 /// </summary>
 public class RectPacker : AutoDisposable
 {
-    private Packer _packer;
+    private Packer<byte> _packer;
     private bool _extendVertical;
 
     /// <summary>
@@ -27,20 +27,6 @@ public class RectPacker : AutoDisposable
     public int Height => _packer.Height;
 
     /// <summary>
-    /// Gets the packed rectangle at the specified index.
-    /// </summary>
-    /// <param name="index">The index of the rectangle to retrieve.</param>
-    /// <returns>The rectangle at the specified index.</returns>
-    public RectInt this[int index]
-    {
-        get
-        {
-            var rect = _packer.PackRectangles[index];
-            return rect.Rectangle;
-        }
-    }
-
-    /// <summary>
     /// Creates a new rectangle packer with the specified initial dimensions.
     /// </summary>
     /// <param name="width">The initial width of the packing area.</param>
@@ -48,17 +34,10 @@ public class RectPacker : AutoDisposable
     /// <exception cref="ArgumentOutOfRangeException">Thrown when width or height is less than or equal to 0.</exception>
     public RectPacker(int width, int height)
     {
-        if (width <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
 
-        if (height <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height));
-        }
-
-        _packer = new Packer(width, height);
+        _packer = new Packer<byte>(width, height);
     }
 
     private void ResizePacker()
@@ -67,10 +46,10 @@ public class RectPacker : AutoDisposable
         int newWidth = _extendVertical ? _packer.Width : _packer.Width * 2;
         _extendVertical = !_extendVertical;
 
-        Packer newPacker = new Packer(newWidth, newHeight);
+        Packer<byte> newPacker = new Packer<byte>(newWidth, newHeight);
         for (int i = 0; i < _packer.PackRectangles.Count; i++)
         {
-            newPacker.PackRect(_packer.PackRectangles[i].Width, _packer.PackRectangles[i].Height, null);
+            newPacker.PackRect(_packer.PackRectangles[i].Width, _packer.PackRectangles[i].Height, 0);
         }
         _packer = newPacker;
     }
@@ -82,12 +61,26 @@ public class RectPacker : AutoDisposable
     /// <param name="height">The height of the rectangle to add.</param>
     public void AddRect(int width, int height)
     {
-        PackerRectangle? rectangle = _packer.PackRect(width, height, null);
+        PackerRectangle<byte>? rectangle = _packer.PackRect(width, height, 0);
         while (!rectangle.HasValue)
         {
             ResizePacker();
-            rectangle = _packer.PackRect(width, height, null);
+            rectangle = _packer.PackRect(width, height, 0);
         }
+    }
+
+    /// <summary>
+    /// Gets the rectangle at the specified index.
+    /// </summary>
+    /// <param name="index">The index of the rectangle to retrieve.</param>
+    /// <returns>The rectangle at the specified index.</returns>
+    public RectInt GetRect(int index)
+    {
+        if (index < 0 || index >= _packer.PackRectangles.Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        var rect = _packer.PackRectangles[index];
+        return rect.Rectangle;
     }
 
     /// <summary>
@@ -123,14 +116,8 @@ public class RectPacker<T> : AutoDisposable
         public T Data;
     }
 
-    private Packer _packer;
-    private List<Item> _items;
+    private Packer<T> _packer;
     private bool _extendVertical;
-
-    /// <summary>
-    /// Gets the list of packed items.
-    /// </summary>
-    public IReadOnlyList<Item> Items => _items;
 
     /// <summary>
     /// Gets the current width of the packing area.
@@ -143,6 +130,11 @@ public class RectPacker<T> : AutoDisposable
     public int Height => _packer.Height;
 
     /// <summary>
+    /// Gets the number of rectangles that have been packed.
+    /// </summary>
+    public int Count => _packer.PackRectangles.Count;
+
+    /// <summary>
     /// Creates a new rectangle packer with the specified initial dimensions.
     /// </summary>
     /// <param name="minWidth">The initial width of the packing area.</param>
@@ -150,18 +142,10 @@ public class RectPacker<T> : AutoDisposable
     /// <exception cref="ArgumentOutOfRangeException">Thrown when width or height is less than or equal to 0.</exception>
     public RectPacker(int minWidth, int minHeight)
     {
-        if (minWidth <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(minWidth));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minWidth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minHeight);
 
-        if (minHeight <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(minHeight));
-        }
-
-        _packer = new Packer(minWidth, minHeight);
-        _items = new List<Item>();
+        _packer = new Packer<T>(minWidth, minHeight);
     }
 
     private void ResizePacker()
@@ -170,10 +154,11 @@ public class RectPacker<T> : AutoDisposable
         int newWidth = _extendVertical ? _packer.Width : _packer.Width * 2;
         _extendVertical = !_extendVertical;
 
-        Packer newPacker = new Packer(newWidth, newHeight);
+        Packer<T> newPacker = new Packer<T>(newWidth, newHeight);
         for (int i = 0; i < _packer.PackRectangles.Count; i++)
         {
-            newPacker.PackRect(_packer.PackRectangles[i].Width, _packer.PackRectangles[i].Height, null);
+            var rect = _packer.PackRectangles[i];
+            newPacker.PackRect(rect.Width, rect.Height, rect.Data);
         }
         _packer = newPacker;
     }
@@ -186,13 +171,26 @@ public class RectPacker<T> : AutoDisposable
     /// <param name="data">The data associated with the rectangle.</param>
     public void AddRect(int width, int height, T data)
     {
-        PackerRectangle? rectangle = _packer.PackRect(width, height, data);
+        PackerRectangle<T>? rectangle = _packer.PackRect(width, height, data);
         while (!rectangle.HasValue)
         {
             ResizePacker();
             rectangle = _packer.PackRect(width, height, data);
         }
-        _items.Add(new Item { Rect = rectangle.Value.Rectangle, Data = data });
+    }
+
+    /// <summary>
+    /// Gets the rectangle at the specified index.
+    /// </summary>
+    /// <param name="index">The index of the rectangle to retrieve.</param>
+    /// <returns>The rectangle at the specified index.</returns>
+    public Item GetRect(int index)
+    {
+        if (index < 0 || index >= _packer.PackRectangles.Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        var rect = _packer.PackRectangles[index];
+        return new Item { Rect = rect.Rectangle, Data = rect.Data };
     }
 
     /// <summary>
