@@ -9,9 +9,11 @@ namespace Vocore.Rendering;
 /// </summary>
 public sealed class GraphicsMaterial : Material
 {
+    private readonly HashSet<AutoDisposable> _managedResources = new();
+    
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader, name)
     {
-        
+        _managedResources = new HashSet<AutoDisposable>();
     }
 
     /// <inheritdoc/>
@@ -75,6 +77,17 @@ public sealed class GraphicsMaterial : Material
             else
             {
                 //do nothing
+            }
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            foreach (AutoDisposable resource in _managedResources)
+            {
+                resource.Dispose();
             }
         }
     }

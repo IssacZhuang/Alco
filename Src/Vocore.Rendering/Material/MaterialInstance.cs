@@ -13,7 +13,7 @@ public sealed class MaterialInstance : Material
     public override GPUResourceGroup? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _parent[index] ?? base[index];
+        get => _parameters.ResourceGroups[index] ?? _parent[index];
     }
 
     internal MaterialInstance(RenderingSystem system, Material parent) : base(system, parent.Shader, $"{parent.Name}_instance")
@@ -52,4 +52,9 @@ public sealed class MaterialInstance : Material
     }
 
     protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo) { }
+
+    protected override void Dispose(bool disposing)
+    {
+        //do nothing
+    }
 }

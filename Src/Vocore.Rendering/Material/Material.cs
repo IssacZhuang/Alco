@@ -7,7 +7,6 @@ public abstract class Material: AutoDisposable
 {
     protected readonly RenderingSystem _system;
     protected readonly ShaderParameterSet _parameters;
-    protected readonly HashSet<AutoDisposable> _managedResources = new();
 
     protected bool _isPipelineDirty = true;
     protected GraphicsPipelineContext _pipelineContext;
@@ -395,17 +394,6 @@ public abstract class Material: AutoDisposable
     #endregion
 
     protected abstract void UpdateSlotResources(ShaderReflectionInfo reflectionInfo);
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            foreach (AutoDisposable resource in _managedResources)
-            {
-                resource.Dispose();
-            }
-        }
-    }
 
 
     /// <summary>
