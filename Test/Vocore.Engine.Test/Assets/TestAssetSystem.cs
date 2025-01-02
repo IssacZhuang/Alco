@@ -26,6 +26,17 @@ public class TestAssetSystem
         }
     }
 
+    private class LifeCycleProvider : IAssetSystemLifeCycleProvider, IDisposable
+    {
+        public event Action OnHandleAssetLoaded;
+        public event Action OnDispose;
+
+        public void Dispose()
+        {
+            OnDispose?.Invoke();
+        }
+    }
+
     private class TestFastAssetLoader : IAssetLoader<TestFastAsset>
     {
         public string Name => "TestFastAssetLoader";
@@ -117,7 +128,8 @@ public class TestAssetSystem
     [Test]
     public void TestLoad()
     {
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
@@ -146,13 +158,14 @@ public class TestAssetSystem
             assetSystem.Load<TestFastAsset>("test.noLoader");
         });
 
-        assetSystem.Dispose();
+        //assetSystem.Dispose();
     }
 
     [Test]
     public void TestLoadConcurrent()
     {
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
 
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
@@ -209,13 +222,14 @@ public class TestAssetSystem
             }
         }
 
-        assetSystem.Dispose();
+        //assetSystem.Dispose();
     }
 
     [Test]
     public void TestLoadAsync()
     {
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
@@ -250,13 +264,14 @@ public class TestAssetSystem
 
         Assert.That(count, Is.EqualTo(4));
 
-        assetSystem.Dispose();
+        //assetSystem.Dispose();
     }
 
     [Test]
     public async Task TestLoadAsyncTask()
     {
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
@@ -283,7 +298,8 @@ public class TestAssetSystem
     [Test]
     public void TestLoadAsyncConcurrent()
     {
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
 
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
@@ -399,7 +415,7 @@ public class TestAssetSystem
             Assert.NotNull(exceptionExceptions[i]);
         }
 
-        assetSystem.Dispose();
+        //assetSystem.Dispose();
     }
 
     [Test]
@@ -409,7 +425,8 @@ public class TestAssetSystem
         // half is Load, half is LoadAsync
         // in parallel  
         //use slow asset only
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
 
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
@@ -470,14 +487,15 @@ public class TestAssetSystem
 
         Assert.NotNull(checkSlowAsset);
 
-        assetSystem.Dispose();
+        //assetSystem.Dispose();
 
     }
 
     [Test]
     public void TestGarbagCollect()
     {
-        AssetSystem assetSystem = new AssetSystem(2);
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.AddFileSource(new TestFileSource());
@@ -524,6 +542,7 @@ public class TestAssetSystem
 
         Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
 
-        assetSystem.Dispose();
+
+        //assetSystem.Dispose();
     }
 }
