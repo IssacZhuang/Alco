@@ -287,10 +287,21 @@ public sealed partial class AssetSystem
             return false;
         }
 
-        // create the asset
-        if (!loader.TryCreateAsset(filename, data, out asset))
+        // // create the asset
+        // if (!loader.TryCreateAsset(filename, data, out asset))
+        // {
+        //     failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
+        //     asset = null;
+        //     return false;
+        // }
+
+        try
         {
-            failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
+            asset = loader.CreateAsset(filename, data);
+        }
+        catch (Exception ex)
+        {
+            failedReason = $"Exception occurred while creating asset {filename}: {ex}";
             asset = null;
             return false;
         }

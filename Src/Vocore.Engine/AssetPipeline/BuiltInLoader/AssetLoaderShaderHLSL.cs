@@ -26,7 +26,7 @@ public class AssetLoaderShaderHLSL : IAssetLoader<Shader>
     }
 
     /// <inheritdoc/>
-    public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Shader? asset)
+    public Shader CreateAsset(string filename, ReadOnlySpan<byte> file)
     {
         //ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         IncludeHelper includeHelper = new IncludeHelper();
@@ -36,8 +36,7 @@ public class AssetLoaderShaderHLSL : IAssetLoader<Shader>
             shaderText = includeHelper.ProcessInclude(shaderText, filename, _includeResolver);
         }
 
-        asset = _renderingSystem.CreateShader(shaderText , filename);
-        return true;
+        return _renderingSystem.CreateShader(shaderText, filename);
     }
 
 }

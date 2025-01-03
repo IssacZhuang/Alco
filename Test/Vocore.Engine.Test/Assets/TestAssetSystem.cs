@@ -43,10 +43,9 @@ public class TestAssetSystem
 
         public IReadOnlyList<string> FileExtensions => [".fast"];
 
-        public bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out TestFastAsset asset)
+        public TestFastAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
         {
-            asset = new TestFastAsset();
-            return true;
+            return new TestFastAsset();
         }
     }
 
@@ -56,10 +55,9 @@ public class TestAssetSystem
 
         public IReadOnlyList<string> FileExtensions => [".slow"];
 
-        public bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out TestSlowAsset asset)
+        public TestSlowAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
         {
-            asset = new TestSlowAsset();
-            return true;
+            return new TestSlowAsset();
         }
     }
 
@@ -70,10 +68,9 @@ public class TestAssetSystem
 
         public IReadOnlyList<string> FileExtensions => [".empty"];
 
-        public bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out TestFastAsset asset)
+        public TestFastAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
         {
-            asset = null;
-            return true;
+            return null;
         }
     }
 
@@ -83,7 +80,7 @@ public class TestAssetSystem
 
         public IReadOnlyList<string> FileExtensions => [".exception"];
 
-        public bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out TestFastAsset asset)
+        public TestFastAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
         {
             throw new Exception("Test Exception");
         }

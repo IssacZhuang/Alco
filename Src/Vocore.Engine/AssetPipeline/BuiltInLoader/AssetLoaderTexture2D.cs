@@ -34,9 +34,8 @@ public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
     }
 
     /// <inheritdoc/>
-    public unsafe bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Texture2D? asset)
+    public Texture2D CreateAsset(string filename, ReadOnlySpan<byte> file)
     {
-        asset = _renderingSystem.CreateTexture2DFromFile(file);
-        return true;
+        return _renderingSystem.CreateTexture2DFromFile(file);
     }
 }

@@ -12,7 +12,7 @@ public class AssetLoaderFontTTF : IAssetLoader<Font>
 {
     private static readonly string[] Extensions = [FileExt.FontTrueType];
     private readonly RenderingSystem _renderingSystem;
-    
+
     public string Name => "AssetLoader.Font.TTF";
     public IReadOnlyList<string> FileExtensions => Extensions;
 
@@ -20,14 +20,12 @@ public class AssetLoaderFontTTF : IAssetLoader<Font>
     {
         _renderingSystem = renderingSystem;
     }
-    public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Font? asset)
+    public Font CreateAsset(string filename, ReadOnlySpan<byte> file)
     {
-        FontAtlasPacker? packer = null;
-        try
-        {
-            packer = new FontAtlasPacker(8192, 8192);
 
-            packer.Add(file, 32, new int2[]{
+        using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
+
+        packer.Add(file, 32, new int2[]{
                 UtilsUnicode.RangeBasicLatin,
                 UtilsUnicode.RangeLatin1Supplement,
                 UtilsUnicode.RangeLatinExtendedA,
@@ -44,23 +42,11 @@ public class AssetLoaderFontTTF : IAssetLoader<Font>
                 UtilsUnicode.RangeHangulCompatibilityJamo,
             });
 
-            ReadOnlySpan<byte> bitmap = packer.Bitmap;
-            int width = packer.Width;
-            int height = packer.Height;
-            GlyphInfo[] glyphs = packer.Glyphs;
+        ReadOnlySpan<byte> bitmap = packer.Bitmap;
+        int width = packer.Width;
+        int height = packer.Height;
+        GlyphInfo[] glyphs = packer.Glyphs;
 
-            asset = _renderingSystem.CreateFont(bitmap, width, height, glyphs);
-            return true;
-        }
-        catch (Exception e)
-        {
-            asset = null;
-            Log.Error(e);
-            return false;
-        }
-        finally
-        {
-            packer?.Dispose();
-        }
+        return _renderingSystem.CreateFont(bitmap, width, height, glyphs);
     }
 }

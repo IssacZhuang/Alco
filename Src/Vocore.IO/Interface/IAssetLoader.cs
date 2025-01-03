@@ -11,13 +11,13 @@ namespace Vocore.IO;
 public interface IAssetLoader<TAsset> : IBaseAssetHandler where TAsset : class
 {
     /// <summary>
-    /// Loads the asset from the file.
+    /// Creates an asset from the given filename and data.
+    /// It might throw an exception if the asset cannot be created.
     /// </summary>
     /// <param name="filename">The filename of the asset.</param>
-    /// <param name="preprocessed">The preprocessed asset object.</param>
-    /// <param name="asset">The loaded asset object.</param>
-    /// <returns><c>true</c> if the loading is successful; otherwise, <c>false</c>.</returns>
-    bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out TAsset? asset);
+    /// <param name="data">The data of the asset.</param>
+    /// <returns>The created asset.</returns>
+    TAsset CreateAsset(string filename, ReadOnlySpan<byte> data);
 }
 
 

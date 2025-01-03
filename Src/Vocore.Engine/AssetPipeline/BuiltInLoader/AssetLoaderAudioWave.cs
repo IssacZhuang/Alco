@@ -20,9 +20,8 @@ public class AssetLoaderAudioWave : IAssetLoader<AudioClip>
         _device = device;
     }
 
-    public bool TryCreateAsset(string filename, ReadOnlySpan<byte> data, [NotNullWhen(true)] out AudioClip? asset)
+    public AudioClip CreateAsset(string filename, ReadOnlySpan<byte> data)
     {
-        asset = _device.CreateAudioClipFromWave(data);
-        return true;
+        return _device.CreateAudioClipFromWave(data);
     }
 }

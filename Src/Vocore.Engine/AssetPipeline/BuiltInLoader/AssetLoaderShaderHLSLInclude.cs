@@ -19,9 +19,8 @@ public class AssetLoaderShaderHLSLInclude : IAssetLoader<string>
     public IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out string? asset)
+    public string CreateAsset(string filename, ReadOnlySpan<byte> file)
     {
-        asset = Encoding.UTF8.GetString(file); 
-        return true;
+        return Encoding.UTF8.GetString(file);
     }
 }
