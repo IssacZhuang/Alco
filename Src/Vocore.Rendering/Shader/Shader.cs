@@ -83,6 +83,21 @@ public class Shader : AutoDisposable
             );
     }
 
+    public GraphicsPipelineContext GetGraphicsPipeline(
+        GPURenderPass renderPass,
+        params ReadOnlySpan<string> defines
+        )
+    {
+        return GetGraphicsPipeline(
+            renderPass,
+            DepthStencilState.Read,
+            BlendState.Opaque,
+            RasterizerState.CullNone,
+            PrimitiveTopology.TriangleList,
+            defines
+            );
+    }
+
 
     public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
     {

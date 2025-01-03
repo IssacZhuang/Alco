@@ -3,11 +3,11 @@ using System.Runtime.CompilerServices;
 namespace Vocore.Graphics;
 
 /// <summary>
-/// The meta data to describe the color attachment.
+/// The meta data to describe the GPU framebuffer.
 /// </summary>
 public abstract class GPURenderPass : BaseGPUObject
 {
-    private ColorAttachment[] _colors;
+    private readonly ColorAttachment[] _colors;
     public ReadOnlySpan<ColorAttachment> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,5 +35,33 @@ public abstract class GPURenderPass : BaseGPUObject
         }
         if (Depth != other.Depth) return false;
         return true;
+    }
+
+    public override int GetHashCode()
+    {
+        return GetAttachmentHash(Colors, Depth);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is GPURenderPass other)
+        {
+            return AttachmentsEqual(other);
+        }
+        return false;
+    }
+
+    public static int GetAttachmentHash(in ReadOnlySpan<ColorAttachment> colors, in DepthAttachment? depth)
+    {
+        int hash = 19;
+        for (int i = 0; i < colors.Length; i++)
+        {
+            hash = hash * 37 + colors[i].GetHashCode();
+        }
+        if (depth != null)
+        {
+            hash = hash * 37 + depth.GetHashCode();
+        }
+        return hash;
     }
 }
