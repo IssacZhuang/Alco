@@ -26,7 +26,7 @@ public class TestAssetSystem
         }
     }
 
-    private class LifeCycleProvider : IAssetSystemLifeCycleProvider, IDisposable
+    private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
         public event Action OnHandleAssetLoaded;
         public event Action OnDispose;

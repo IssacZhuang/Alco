@@ -30,7 +30,7 @@ public abstract class GPUDevice
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;
-        IGPULifeCycleProvider loopProvider = descriptor.LoopProvider;
+        IGPUDeviceHost loopProvider = descriptor.LoopProvider;
         loopProvider.OnEndFrame += OnEndFrame;
         loopProvider.OnDispose += Dispose;
     }

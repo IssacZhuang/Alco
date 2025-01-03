@@ -45,7 +45,7 @@ namespace Vocore.IO
 
         public bool IsProfileEnabled { get; set; } = false;
 
-        public AssetSystem(IAssetSystemLifeCycleProvider loopProvider, int threadCount, bool isProfileEnabled = false)
+        public AssetSystem(IAssetSystemHost loopProvider, int threadCount, bool isProfileEnabled = false)
         {
             if (threadCount <= 0)
             {

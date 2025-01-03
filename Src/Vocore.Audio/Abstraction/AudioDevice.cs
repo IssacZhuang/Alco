@@ -13,7 +13,7 @@ public abstract class AudioDevice
     public abstract Vector3 ListenerVelocity { get; set; }
     public abstract Vector3 ListenerDirection { get; set; }
 
-    public AudioDevice(IAudioLifeCycleProvider lifeCycleProvider)
+    public AudioDevice(IAudioDeviceHost lifeCycleProvider)
     {
         ListenerPosition = Vector3.Zero;
         ListenerVelocity = Vector3.Zero;

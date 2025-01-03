@@ -8,7 +8,7 @@ namespace Vocore.Graphics;
 public struct DeviceDescriptor
 {
     public DeviceDescriptor(
-        IGPULifeCycleProvider loopProvider,
+        IGPUDeviceHost loopProvider,
         GraphicsBackend backend = GraphicsBackend.Auto,
         PixelFormat preferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
         bool debug = false,        
@@ -29,7 +29,7 @@ public struct DeviceDescriptor
     /// The loop provider of the GPU
     /// </summary>
     /// <value>The loop provider of the GPU</value>
-    public IGPULifeCycleProvider LoopProvider { get; init; }
+    public IGPUDeviceHost LoopProvider { get; init; }
 
     /// <summary>
     /// The backend of the GPU

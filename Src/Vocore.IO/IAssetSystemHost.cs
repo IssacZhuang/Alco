@@ -1,6 +1,6 @@
 namespace Vocore.IO;
 
-public interface IAssetSystemLifeCycleProvider
+public interface IAssetSystemHost
 {
     event Action OnHandleAssetLoaded;
     event Action OnDispose;

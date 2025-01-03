@@ -15,11 +15,11 @@ namespace Vocore.Engine;
 /// The entry point for the game <br/>
 /// The integration of the game loop, base API, sdl window and graphics device
 /// </summary>
-public partial class GameEngine : 
-IDisposable, 
-IGPULifeCycleProvider, 
-IAssetSystemLifeCycleProvider,
-IAudioLifeCycleProvider
+public partial class GameEngine :
+IDisposable,
+IGPUDeviceHost,
+IAssetSystemHost,
+IAudioDeviceHost
 {
 // #pragma warning disable CS8618
 //     public static GameEngine Instance { get; private set; }
@@ -50,31 +50,31 @@ IAudioLifeCycleProvider
     private event Action? EventOnHandleAssetLoaded;
     private event Action? EventOnDispose;
 
-    event Action IGPULifeCycleProvider.OnEndFrame
+    event Action IGPUDeviceHost.OnEndFrame
     {
         add => EventOnEndFrame += value;
         remove => EventOnEndFrame -= value;
     }
 
-    event Action IAssetSystemLifeCycleProvider.OnHandleAssetLoaded
+    event Action IAssetSystemHost.OnHandleAssetLoaded
     {
         add => EventOnHandleAssetLoaded += value;
         remove => EventOnHandleAssetLoaded -= value;
     }
 
-    event Action IAssetSystemLifeCycleProvider.OnDispose
+    event Action IAssetSystemHost.OnDispose
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
     }
 
-    event Action IGPULifeCycleProvider.OnDispose
+    event Action IGPUDeviceHost.OnDispose
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
     }
 
-    event Action IAudioLifeCycleProvider.OnDispose
+    event Action IAudioDeviceHost.OnDispose
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;

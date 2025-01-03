@@ -1,6 +1,6 @@
 namespace Vocore.Audio;
 
-public interface IAudioLifeCycleProvider
+public interface IAudioDeviceHost
 {
     event Action OnDispose;
 }
