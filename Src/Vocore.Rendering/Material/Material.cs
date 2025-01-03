@@ -446,13 +446,4 @@ public abstract class Material: AutoDisposable
         return new MaterialInstance(_system, this);
     }
 
-    internal GraphicsBuffer? DebugGetBuffer(string name)
-    {
-        return _parameters.GetBuffer(name);
-    }
-
-    internal Texture2D? DebugGetTexture(string name)
-    {
-        return _parameters.GetTexture(name);
-    }
 }

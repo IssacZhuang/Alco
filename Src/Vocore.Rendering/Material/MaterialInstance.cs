@@ -15,7 +15,7 @@ public sealed class MaterialInstance : Material
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _parameters.ResourceGroups[index] ?? _parent[index];
     }
-
+    
     internal MaterialInstance(RenderingSystem system, Material parent) : base(system, parent.Shader, $"{parent.Name}_instance")
     {
         _parent = parent;
