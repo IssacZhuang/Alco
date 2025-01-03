@@ -43,6 +43,24 @@ public partial class RenderingSystem
         );
     }
 
+    public unsafe Texture2D CreateTexture2DFromFile(
+        ReadOnlySpan<byte> fileBytes,
+        ImageLoadOption? option = null
+    )
+    {
+        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
+
+        return CreateTexture2D(
+            image.Memory.Pointer,
+            (uint)image.Memory.Length,
+            (uint)image.Width,
+            (uint)image.Height,
+            option
+        );
+        
+    }
+
     public unsafe Texture2D CreateTexture2D(
         uint width,
         uint height,

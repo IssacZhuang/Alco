@@ -36,23 +36,7 @@ public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
     /// <inheritdoc/>
     public unsafe bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out Texture2D? asset)
     {
-        ImageResultBuffer? preprocessed = null;
-        try
-        {
-            preprocessed = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
-            asset = _renderingSystem.CreateTexture2D(preprocessed.Memory.Pointer, (uint)preprocessed.Memory.Length, (uint)preprocessed.Width, (uint)preprocessed.Height);
-        }
-        catch (Exception e)
-        {
-            Log.Error(e);
-            asset = null;
-            return false;
-        }
-        finally
-        {
-            preprocessed?.Dispose();
-        }
-
+        asset = _renderingSystem.CreateTexture2DFromFile(file);
         return true;
     }
 }
