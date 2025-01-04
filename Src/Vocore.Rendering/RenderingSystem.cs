@@ -19,6 +19,8 @@ public partial class RenderingSystem
     private readonly GPURenderPass _prefferedHDRPass;
     private readonly GPURenderPass _prefferedSDRPassWithoutDepth;
     private readonly GPURenderPass _prefferedHDRPassWithoutDepth;
+    private readonly GPURenderPass _prefferedRGBATexturePass;
+    private readonly GPURenderPass _prefferedRTexturePass;
 
     private readonly PixelFormat _prefferedSDRFormat;
     private readonly PixelFormat _prefferedHDRFormat;
@@ -53,37 +55,37 @@ public partial class RenderingSystem
     public GPURenderPass PrefferedSDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _prefferedSDRPass;
-        }
+        get => _prefferedSDRPass;
     }
 
     public GPURenderPass PrefferedSDRPassWithoutDepth
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _prefferedSDRPassWithoutDepth;
-        }
+        get => _prefferedSDRPassWithoutDepth;
     }
 
     public GPURenderPass PrefferedHDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _prefferedHDRPass;
-        }
+        get => _prefferedHDRPass;
     }
 
     public GPURenderPass PrefferedHDRPassWithoutDepth
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return _prefferedHDRPassWithoutDepth;
-        }
+        get => _prefferedHDRPassWithoutDepth;
+    }
+
+    public GPURenderPass PrefferedRGBATexturePass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedRGBATexturePass;
+    }
+
+    public GPURenderPass PrefferedRTexturePass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedRTexturePass;
     }
 
     public RenderingSystem(GPUDevice device,
@@ -126,6 +128,20 @@ public partial class RenderingSystem
             [new(_prefferedHDRFormat)],
             null,
             "hdr_pass_no_depth"
+        ));
+
+        _prefferedRGBATexturePass = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(PixelFormat.RGBA8Unorm)],
+            null,
+            "rgba_texture_pass"
+        ));
+
+        _prefferedRTexturePass = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(PixelFormat.R8Unorm)],
+            null,
+            "r_texture_pass"
         ));
     }
 

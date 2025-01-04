@@ -6,13 +6,13 @@ public class TextureAtlas : AutoDisposable
 {
     private readonly List<Sprite> _sprites;
     private readonly FrozenDictionary<string, Sprite> _spritesLookup;
-    public Texture2D Texture { get; }
+    public RenderTexture RenderTexture { get; }
     public IReadOnlyList<Sprite> Sprites => _sprites;
     public Sprite this[string name] => _spritesLookup[name];
 
-    public TextureAtlas(Texture2D texture, List<Sprite> sprites)
+    public TextureAtlas(RenderTexture renderTexture, List<Sprite> sprites)
     {
-        Texture = texture;
+        RenderTexture = renderTexture;
         _sprites = sprites;
         _spritesLookup = sprites.ToFrozenDictionary(sprite => sprite.Name, sprite => sprite);
     }
@@ -22,7 +22,8 @@ public class TextureAtlas : AutoDisposable
         if (disposing)
         {
             _sprites.Clear();
-            Texture.Dispose();
+            RenderTexture.Dispose();
         }
     }
 }
+

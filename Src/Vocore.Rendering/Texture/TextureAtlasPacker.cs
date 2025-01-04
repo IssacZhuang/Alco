@@ -32,15 +32,11 @@ public class TextureAtlasPacker
 
     public TextureAtlas BuildTextureAtlas()
     {
-        Texture2D atlasTexture = _renderingSystem.CreateTexture2D(
+        RenderTexture atlasTexture = _renderingSystem.CreateRenderTexture(
+            _renderingSystem.PrefferedRGBATexturePass,
             (uint)_packer.Width,
             (uint)_packer.Height,
-            new ImageLoadOption(
-                _format,
-                1,
-                TextureUsage.Standard,
-                "atlas_texture"
-            )
+            "atlas_texture"
         );
 
         //todo: write texture
