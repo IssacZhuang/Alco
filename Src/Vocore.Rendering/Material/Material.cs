@@ -153,6 +153,7 @@ public abstract class Material: AutoDisposable
             _pipelineInfo = new ShaderPipelineInfo
             {
                 Pipeline = _pipelineContext.Pipeline!,
+                ReflectionInfo = _pipelineContext.ReflectionInfo!,
                 PushConstantsStages = _pipelineContext.ReflectionInfo!.PushConstantsStages,
                 PushConstantsSize = _pipelineContext.ReflectionInfo!.PushConstantsSize
             };

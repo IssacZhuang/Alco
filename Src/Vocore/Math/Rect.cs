@@ -28,7 +28,7 @@ namespace Vocore
         public Vector2 Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => origin + size / 2;
+            get => origin + size * 0.5f;
         }
 
 
@@ -48,15 +48,6 @@ namespace Vocore
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => origin + size;
-        }
-
-        /// <summary>
-        /// the center of the rectangle
-        /// </summary>
-        public Vector2 Position
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => origin + size * 0.5f;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -140,6 +140,15 @@ public class RenderTexture : ShaderResource
         }
     }
 
+    /// <summary>
+    /// The render pass of the frame buffer.
+    /// </summary>
+    public GPURenderPass RenderPass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _frameBuffer.RenderPass;
+    }
+
 
     internal RenderTexture(
         GPUDevice device,

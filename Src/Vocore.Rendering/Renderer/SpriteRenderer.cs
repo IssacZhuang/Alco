@@ -14,20 +14,14 @@ public class SpriteRenderer : AutoDisposable, IRenderer
     public const string ShaderId_camera = "_camera";
     public const string ShaderId_texture = "_texture";
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Constant
-    {
-        public Matrix4x4 Model;
-        public Vector4 Color;
-        public Rect UvRect;
-    }
+   
 
     private class DrawTask : RenderTask
     {
         private struct DrawData
         {
             public Texture2D Texture;
-            public Constant Constant;
+            public SpriteConstant Constant;
         }
 
 
@@ -113,7 +107,7 @@ public class SpriteRenderer : AutoDisposable, IRenderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddDrawData(Texture2D texture, Constant constant)
+        public void AddDrawData(Texture2D texture, SpriteConstant constant)
         {
             drawDatas[_drawCount++] = new DrawData { Texture = texture, Constant = constant };
         }
@@ -274,7 +268,7 @@ public class SpriteRenderer : AutoDisposable, IRenderer
 
     private void DrawCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, ColorFloat color)
     {
-        Constant constant = new Constant
+        SpriteConstant constant = new SpriteConstant
         {
             Model = matrix,
             Color = color,

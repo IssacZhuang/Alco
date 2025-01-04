@@ -21,6 +21,12 @@ namespace Vocore
             this.size = new int2(width, height);
         }
 
+        public int2 Center
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => origin + size / new int2(2, 2);
+        }
+
         public int2 Min
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -145,6 +145,16 @@ public abstract class GPUDevice
         return CreateCommandBufferCore(descriptor);
     }
 
+    /// <summary>
+    /// Creates a GPU command buffer with the name.
+    /// </summary>
+    /// <param name="name">The name of the GPU command buffer.</param>
+    /// <returns>The created GPU command buffer.</returns>
+    public GPUCommandBuffer CreateCommandBuffer(string name)
+    {
+        return CreateCommandBufferCore(new CommandBufferDescriptor(name));
+    }
+
 
     /// <summary>
     /// Creates a GPU resuable render buffer with the descriptor.

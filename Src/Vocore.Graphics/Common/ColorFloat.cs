@@ -7,6 +7,9 @@ namespace Vocore.Graphics;
 [StructLayout(LayoutKind.Sequential)]
 public struct ColorFloat
 {
+    public static readonly ColorFloat Black = new(0, 0, 0, 1);
+    public static readonly ColorFloat White = new(1, 1, 1, 1);
+
     private const float invMaxByte = 1.0f / 255.0f;
     private static readonly Vector4 invMaxByteVec4 = new(invMaxByte);
     public Vector4 value;
