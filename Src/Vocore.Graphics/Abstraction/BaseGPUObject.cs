@@ -24,7 +24,11 @@ public abstract class BaseGPUObject : IDisposable
 #if LOG_GPU_GC
             LogGC();
 #endif
-            Device.Destroy(this);
+            //Device.Destroy(this);
+            //Device.Destroy will add this to a queue and dispose it at the end of the frame
+            //it will cause memory leak
+            //so it should be disposed immediately
+            Destroy();
         }
     }
 
