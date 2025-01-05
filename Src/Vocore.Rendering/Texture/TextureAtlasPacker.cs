@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class TextureAtlasPacker
+public class TextureAtlasPacker: AutoDisposable
 {
     public const string ShaderId_Texture = "_texture";
     public const string ShaderId_Camera = "_camera";
@@ -102,6 +102,7 @@ public class TextureAtlasPacker
         {
             var item = _packer.GetRect(i);
             transform.position = item.Rect.Center;
+            transform.position.Y = -transform.position.Y;//the rect packer is start from top left
             transform.scale = item.Rect.size;
             constant.Model = transform.Matrix;
 
@@ -115,5 +116,15 @@ public class TextureAtlasPacker
 
 
         return new TextureAtlas(atlasTexture, sprites);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if(disposing)
+        {
+            _camera.Dispose();
+            _packer.Dispose();
+            _commandBuffer.Dispose();
+        }
     }
 }

@@ -10,6 +10,10 @@ namespace Vocore.Engine;
 /// </summary>
 public unsafe abstract class Window : AutoDisposable//todo : change to disposable
 {
+
+    public uint Width => Size.x;
+    public uint Height => Size.y;
+
     /// <summary>
     /// Gets or sets the window mode.
     /// </summary>
