@@ -105,7 +105,7 @@ public class TextureAtlasPacker
             transform.scale = item.Rect.size;
             constant.Model = transform.Matrix;
 
-            _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntryReadonly);
+            _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
             _commandBuffer.PushConstants(pipelineInfo.PushConstantsStages, constant);
             _commandBuffer.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
         }

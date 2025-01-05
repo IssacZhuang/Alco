@@ -42,6 +42,12 @@ namespace Vocore
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public byte NextByte()
+        {
+            return (byte)(NextState() >> 24);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat()
         {
             return asfloat(0x3f800000 | (NextState() >> 9)) - 1.0f;
@@ -63,6 +69,12 @@ namespace Vocore
         public Vector4 NextVector4()
         {
             return new Vector4(NextFloat(), NextFloat(), NextFloat(), NextFloat());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint NextUint(uint max)
+        {
+            return NextUint() % max;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -107,7 +119,11 @@ namespace Vocore
             return NextVector4() * max;
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint NextUint(uint min, uint max)
+        {
+            return NextUint() % (max - min) + min;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat(float min, float max)

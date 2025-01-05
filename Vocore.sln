@@ -87,6 +87,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Benchmark", "Benchma
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vocore.Engine.Benchmark", "Benchmark\Vocore.Engine.Benchmark\Vocore.Engine.Benchmark.csproj", "{D9751781-A0CF-4696-82B1-11B82C0439EE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "22-AtlasPacker", "Sandbox\22-AtlasPacker\22-AtlasPacker.csproj", "{FBAAFC82-6AFA-422D-83A9-20C2B589FB85}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -241,6 +243,10 @@ Global
 		{D9751781-A0CF-4696-82B1-11B82C0439EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D9751781-A0CF-4696-82B1-11B82C0439EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D9751781-A0CF-4696-82B1-11B82C0439EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBAAFC82-6AFA-422D-83A9-20C2B589FB85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBAAFC82-6AFA-422D-83A9-20C2B589FB85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBAAFC82-6AFA-422D-83A9-20C2B589FB85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBAAFC82-6AFA-422D-83A9-20C2B589FB85}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -283,5 +289,6 @@ Global
 		{2CC5671E-20CF-490F-BDBD-5F52ACEAD500} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{A833C9CB-3382-4AD7-BABC-65C861822A4C} = {85C5C5E0-AF0D-40A2-A2A6-6B13E12A3662}
 		{D9751781-A0CF-4696-82B1-11B82C0439EE} = {85C5C5E0-AF0D-40A2-A2A6-6B13E12A3662}
+		{FBAAFC82-6AFA-422D-83A9-20C2B589FB85} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal
