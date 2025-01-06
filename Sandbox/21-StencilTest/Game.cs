@@ -15,10 +15,10 @@ public class Game : GameEngine
     //scence
     private Transform3D _camaraParent = Transform3D.Identity;
     private Transform3D _camaraChild = Transform3D.Identity;
-    private CameraDataPerspective _camera;
 
     private readonly Shader _shader;
     private readonly MaterialRenderer _renderer;
+    private readonly CameraPerspective _camera;
     private readonly GraphicsMaterial _materialStencilWrite;
     private readonly GraphicsMaterial _materialStencilTest;
 
@@ -28,19 +28,22 @@ public class Game : GameEngine
 
     private readonly GPUCommandBuffer _commandClearScreen;
 
-    private Plane3D _plane;
     public Game(GameEngineSetting setting) : base(setting)
     {
 
         _shader = Assets.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
-        _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
+        // _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
+        // _camaraChild.position.Z = -10;
+        // _camera.tranform = math.transform(_camaraParent, _camaraChild);
+
+        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
         _camaraChild.position.Z = -10;
-        _camera.tranform = math.transform(_camaraParent, _camaraChild);
+        _camera.Tranform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = Rendering.CreateMaterialRenderer();
         _materialStencilWrite = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
-        _materialStencilWrite.SetValue("_camera", _camera.ViewProjectionMatrix);
+        _materialStencilWrite.SetBuffer("_camera", _camera);
         _materialStencilWrite.DepthStencilState = new DepthStencilState
         {
             DepthWriteEnabled = false,
@@ -54,7 +57,7 @@ public class Game : GameEngine
         _materialStencilWrite.StencilReference = 250;
 
         _materialStencilTest = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
-        _materialStencilTest.SetValue("_camera", _camera.ViewProjectionMatrix);
+        _materialStencilTest.SetBuffer("_camera", _camera);
         _materialStencilTest.DepthStencilState = new DepthStencilState
         {
             DepthWriteEnabled = false,
@@ -66,8 +69,6 @@ public class Game : GameEngine
         };
 
         _materialStencilTest.StencilReference = 250;
-
-        _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
         _cubeStencilWrite = new Cube(Rendering.MeshCube, _materialStencilWrite);
         _cubeStencilWrite.Color = Color1;
@@ -107,30 +108,18 @@ public class Game : GameEngine
         _cubeStencilTest2.OnDraw(_renderer);
         _renderer.End();
 
-        Vector2 localMousePosition = MainWindow.MousePosition;
-
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.ViewProjectionMatrix, _camera.tranform.position);
-
-        bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _cubeStencilWrite.Shape, out RaycastHit3D rayCastHit);
-
-        //_cubeStencilWrite.Color = hit ? ColorHit : Color1;
-
-        _plane.IntersectRay(cameraRay, out Vector3 mouseWoldPosition);
-
         _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.X * 0.01f);
         _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
 
-        _camera.tranform = math.transform(_camaraParent, _camaraChild);
-
-        _materialStencilTest.SetValue("_camera",  _camera.ViewProjectionMatrix);
-        _materialStencilWrite.SetValue("_camera",  _camera.ViewProjectionMatrix);
+        _camera.Tranform = math.transform(_camaraParent, _camaraChild);
+        _camera.UpdateData();
     }
 
 
 
     protected void OnMainWindowResize(uint2 size)
     {
-        _camera.aspectRatio = (float)size.x / size.y;
+        _camera.AspectRatio = (float)size.x / size.y;
     }
 
     protected override void OnStop()

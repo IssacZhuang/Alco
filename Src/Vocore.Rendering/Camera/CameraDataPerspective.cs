@@ -41,7 +41,7 @@ public struct CameraDataPerspective : ICameraData
         }
     }
 
-    public CameraDataPerspective(float fov = DefaultFov, float near = DefaultNear, float far = DefaultFar, float aspectRatio = 16 / 9f)
+    public CameraDataPerspective(float fov = DefaultFov, float aspectRatio = 16 / 9f, float near = DefaultNear, float far = DefaultFar)
     {
         this.fov = fov;
         this.near = near;
