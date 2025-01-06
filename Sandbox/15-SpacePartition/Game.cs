@@ -30,7 +30,7 @@ public class Game : GameEngine
 
         _camera = Rendering.CreateCamera2D(960, 540, 100f);
 
-        _camera.UpdateData();
+        _camera.UpdateMatrixToGPU();
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 

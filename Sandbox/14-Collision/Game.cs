@@ -32,7 +32,7 @@ public class Game : GameEngine
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
         _camera.Tranform.position.Z = -10;
-        _camera.UpdateData();
+        _camera.UpdateMatrixToGPU();
 
         _renderer = Rendering.CreateMaterialRenderer();
         _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
@@ -108,7 +108,7 @@ public class Game : GameEngine
     protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.x / size.y;
-        _camera.UpdateData();
+        _camera.UpdateMatrixToGPU();
     }
 
     protected override void OnStop()

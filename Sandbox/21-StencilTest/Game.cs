@@ -112,7 +112,7 @@ public class Game : GameEngine
         _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
 
         _camera.Tranform = math.transform(_camaraParent, _camaraChild);
-        _camera.UpdateData();
+        _camera.UpdateMatrixToGPU();
     }
 
 

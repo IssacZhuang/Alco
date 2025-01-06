@@ -32,6 +32,9 @@ public abstract class BaseCamera<T> : GraphicsValueBuffer<Matrix4x4> where T : u
         }
     }
 
+    /// <summary>
+    /// The camera data.
+    /// </summary>
     public T Data
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,7 +47,10 @@ public abstract class BaseCamera<T> : GraphicsValueBuffer<Matrix4x4> where T : u
         }
     }
 
-    public void UpdateData()
+    /// <summary>
+    /// Update the camera matrix to GPU. This method is uses <see cref="GraphicsBuffer.UpdateBuffer<T> to update the buffer./>.
+    /// </summary>
+    public void UpdateMatrixToGPU()
     {
         UpdateBuffer(_data.ViewProjectionMatrix);
         _dirty = false;
