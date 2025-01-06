@@ -7,14 +7,7 @@ namespace Vocore.Rendering;
 
 public partial class CanvasRenderer
 {
-    [StructLayout(LayoutKind.Sequential)]
-    private struct SpriteConstant
-    {
-        public Matrix4x4 Model;
-        public BoundingBox2D Mask;
-        public Vector4 Color;
-        public Rect UvRect;
-    }
+    
 
     private static readonly Rect DefaultUvRect = new Rect(0, 0, 1, 1);
 
@@ -78,7 +71,7 @@ public partial class CanvasRenderer
     {
         SetState(RenderingState.Sprite);
 
-        SpriteConstant constant = new SpriteConstant
+        SpriteWithMaskConstant constant = new SpriteWithMaskConstant
         {
             Model = matrix,
             Mask = mask,
