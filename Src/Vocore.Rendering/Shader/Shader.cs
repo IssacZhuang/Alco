@@ -187,7 +187,7 @@ public class Shader : AutoDisposable
         return string.GetHashCode(buffer.Slice(0, index));
     }
 
-    private GPUPipeline GetGraphicsPipeline(
+    private unsafe GPUPipeline GetGraphicsPipeline(
         GPURenderPass renderPass,
         ShaderModulesInfo modulesInfo,
         DepthStencilState depthStencil,
@@ -198,10 +198,10 @@ public class Shader : AutoDisposable
     {
         long hash = default;
         //fist 32 bits are the render pass hash
-        hash |= (long)renderPass.GetHashCode();
+        int hash1= renderPass.GetHashCode();
 
         //next 32 bits are combination of the variant hash and the pipeline state hash
-        int subHash = HashCode.Combine(
+        int hash2 = HashCode.Combine(
             modulesInfo.GetHashCode(),
             depthStencil.GetHashCode(),
             blend.GetHashCode(),
@@ -209,7 +209,9 @@ public class Shader : AutoDisposable
             primitiveTopology.GetHashCode()
             );
 
-        hash |= (long)subHash << 32;
+        int* hashPtr = (int*)&hash;
+        hashPtr[0] = hash1;
+        hashPtr[1] = hash2;
 
         if (_graphicsPipelineCache.TryGetValue(hash, out GPUPipeline? pipeline))
         {
