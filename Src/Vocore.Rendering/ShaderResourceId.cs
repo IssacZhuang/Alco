@@ -11,4 +11,6 @@ public static class ShaderResourceId
     public const string Font = "_font";
     public const string TextBuffer = "_textBuffer";
     
+    public const string SpriteData = "_spriteData";
+    public const string TileData = "_tileData";
 }

@@ -32,6 +32,12 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         }
     }
 
+    public int Length
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _data.Length;
+    }
+
     internal unsafe GraphicsArrayBuffer(RenderingSystem renderingSystem, int length, string name = "unnamed_graphics_array_buffer") : base(renderingSystem, (uint)(length * sizeof(T)), name)
     {
         _data = new NativeBuffer<T>(length);
