@@ -1,25 +1,31 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
 public class TiledTerrainBlock2D : AutoDisposable
 {
+    //per block
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
         public Matrix4x4 Model;
     }
 
+    //per sprite
     [StructLayout(LayoutKind.Sequential)]
     private struct SpriteData
     {
         public Rect UVRect;
+        public float Scale;
     }
 
+    //per tile
     [StructLayout(LayoutKind.Sequential)]
     private struct TileData
     {
+        public ColorFloat Color;
         public int X;
         public int Y;
         public uint SpriteIndex;
@@ -71,6 +77,34 @@ public class TiledTerrainBlock2D : AutoDisposable
     public void Render(MaterialRenderer renderer)
     {
         renderer.DrawInstancedWithConstant(_mesh, _material, (uint)_tileDataBuffer.Length, new Constant { Model = Transform.Matrix });
+    }
+
+    public void SetTilesColor(ColorFloat color)
+    {
+        for (int i = 0; i < _tileDataBuffer.Length; i++)
+        {
+            TileData tileData = _tileDataBuffer[i];
+            tileData.Color = color;
+            _tileDataBuffer[i] = tileData;
+        }
+    }
+
+    public void SetTilesColor(int2 from, int2 to, ColorFloat color)
+    {
+        for (int i = from.x; i < to.x; i++)
+        {
+            for (int j = from.y; j < to.y; j++)
+            {
+                SetTileColor(i, j, color);
+            }
+        }
+    }
+
+    public void SetTileColor(int x, int y, ColorFloat color)
+    {
+        TileData tileData = _tileDataBuffer[x * _tileDataBuffer.Length + y];
+        tileData.Color = color;
+        _tileDataBuffer[x * _tileDataBuffer.Length + y] = tileData;
     }
 
     protected override void Dispose(bool disposing)
