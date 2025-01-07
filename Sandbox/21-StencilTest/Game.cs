@@ -6,6 +6,7 @@ using Vocore;
 using Random = Vocore.Random;
 using Vocore.Graphics;
 using Vocore.GUI;
+using System.Diagnostics;
 
 public class Game : GameEngine
 {
@@ -95,6 +96,8 @@ public class Game : GameEngine
             Stop();
         }
 
+        DebugGUI.Text("Hold mouse middle button to rotate camera");
+
         _commandClearScreen.Begin();
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
         _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
@@ -108,8 +111,11 @@ public class Game : GameEngine
         _cubeStencilTest2.OnDraw(_renderer);
         _renderer.End();
 
-        _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.X * 0.01f);
-        _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
+        if (Input.IsMousePressing(Mouse.Middle))
+        {
+            _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.X * 0.01f);
+            _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
+        }
 
         _camera.Tranform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
