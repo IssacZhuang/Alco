@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
@@ -26,11 +27,8 @@ public class MaterialRenderer : AutoDisposable
 
     public void Draw(IMesh mesh, Material material)
     {
-        if (_framebuffer == null)
-        {
-            throw new InvalidOperationException("Begin must be called before Draw");
-        }
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer.RenderPass);
+        Debug.Assert(_framebuffer != null);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         _command.SetVertexBuffer(0, mesh.VertexBuffer);
         _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
@@ -40,11 +38,8 @@ public class MaterialRenderer : AutoDisposable
 
     public unsafe void DrawWithConstant<T>(IMesh mesh, Material material, T constant) where T : unmanaged
     {
-        if (_framebuffer == null)
-        {
-            throw new InvalidOperationException("Begin must be called before Draw");
-        }
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer.RenderPass);
+        Debug.Assert(_framebuffer != null);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         if (pipelineInfo.PushConstantsSize != sizeof(T))
         {
             throw new ArgumentException("The size of the constant does not match the push constants size");
@@ -55,6 +50,29 @@ public class MaterialRenderer : AutoDisposable
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+    }
+
+    public void DrawInstanced(IMesh mesh, Material material, uint instanceCount)
+    {
+        Debug.Assert(_framebuffer != null);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
+        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _command.SetVertexBuffer(0, mesh.VertexBuffer);
+        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        material.PushResourceToCommandBuffer(_command);
+        _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, 0);
+    }
+
+    public void DrawInstancedWithConstant<T>(IMesh mesh, Material material, uint instanceCount, T constant) where T : unmanaged
+    {
+        Debug.Assert(_framebuffer != null);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
+        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _command.SetVertexBuffer(0, mesh.VertexBuffer);
+        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        material.PushResourceToCommandBuffer(_command);
+        _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
+        _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, 0);
     }
 
     public void End()

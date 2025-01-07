@@ -6,7 +6,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The encapsulation of a GPU buffer object and its binding resource group.
 /// </summary>
-public class GraphicsBuffer : ShaderResource
+public class GraphicsBuffer : AutoDisposable
 {
     protected readonly GPUDevice _device;
     protected readonly GPUBuffer _buffer;

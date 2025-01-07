@@ -15,11 +15,6 @@ public partial class CanvasRenderer : AutoDisposable
         Sprite
     }
 
-    public const string ShaderId_camera = "_camera";
-    public const string ShaderId_texture = "_texture";
-    public const string ShaderId_textBuffer = "_textBuffer";
-    public const string ShaderId_font = "_font";
-
     public const float Depth = 100;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
@@ -68,9 +63,9 @@ public partial class CanvasRenderer : AutoDisposable
             BlendState.AlphaBlend
         );
 
-        _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderId_camera);
-        _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderId_textBuffer);
-        _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderId_font);
+        _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderResourceId.Camera);
+        _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderResourceId.TextBuffer);
+        _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderResourceId.Font);
 
         //init sprite rendering
         _meshSprite = renderingSystem.MeshSprite;
@@ -82,8 +77,8 @@ public partial class CanvasRenderer : AutoDisposable
             BlendState.AlphaBlend
         );
 
-        _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
-        _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderId_texture);
+        _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderResourceId.Camera);
+        _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderResourceId.Texture);
     }
 
 
@@ -112,15 +107,15 @@ public partial class CanvasRenderer : AutoDisposable
 
         if (_shaderSprite.TryUpdatePipelineContext(ref _pipelineInfoSprite, target.RenderPass))
         {
-            _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderId_camera);
-            _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderId_texture);
+            _spriteShaderId_camera = _pipelineInfoSprite.GetResourceId(ShaderResourceId.Camera);
+            _spriteShaderId_texture = _pipelineInfoSprite.GetResourceId(ShaderResourceId.Texture);
         }
 
         if (_shaderText.TryUpdatePipelineContext(ref _pipelineInfoText, target.RenderPass))
         {
-            _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderId_camera);
-            _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderId_textBuffer);
-            _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderId_font);
+            _textShaderId_camera = _pipelineInfoText.GetResourceId(ShaderResourceId.Camera);
+            _textShaderId_textBuffer = _pipelineInfoText.GetResourceId(ShaderResourceId.TextBuffer);
+            _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderResourceId.Font);
         }
 
         _renderTarget = target;

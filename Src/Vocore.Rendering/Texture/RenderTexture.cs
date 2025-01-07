@@ -6,7 +6,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// The high level encapsulation of a GPUFrameBuffer with its entries of GPUTextureView
 /// </summary>
-public class RenderTexture : ShaderResource
+public class RenderTexture : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUFrameBuffer _frameBuffer;

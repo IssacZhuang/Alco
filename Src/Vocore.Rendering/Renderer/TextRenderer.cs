@@ -12,9 +12,6 @@ namespace Vocore.Rendering;
 /// </summary> 
 public class TextRenderer : AutoDisposable
 {
-    public const string ShaderId_camera = "_camera";
-    public const string ShaderId_textBuffer = "_textBuffer";
-    public const string ShaderId_font = "_font";
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -69,9 +66,9 @@ public class TextRenderer : AutoDisposable
             );
 
         //get resource ids
-        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
-        _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderId_textBuffer);
-        _shaderId_font = _pipelineInfo.GetResourceId(ShaderId_font);
+        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+        _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderResourceId.TextBuffer);
+        _shaderId_font = _pipelineInfo.GetResourceId(ShaderResourceId.Font);
 
         Camera = camera;
     }
@@ -91,9 +88,9 @@ public class TextRenderer : AutoDisposable
 
         if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
         {
-            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
-            _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderId_textBuffer);
-            _shaderId_font = _pipelineInfo.GetResourceId(ShaderId_font);
+            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+            _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderResourceId.TextBuffer);
+            _shaderId_font = _pipelineInfo.GetResourceId(ShaderResourceId.Font);
         }
 
         _renderTarget = target;

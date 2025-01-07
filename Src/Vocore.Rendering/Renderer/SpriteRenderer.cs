@@ -11,11 +11,6 @@ namespace Vocore.Rendering;
 /// </summary>
 public class SpriteRenderer : AutoDisposable
 {
-    public const string ShaderId_camera = "_camera";
-    public const string ShaderId_texture = "_texture";
-
-   
-
     private class DrawTask : RenderTask
     {
         private struct DrawData
@@ -76,8 +71,8 @@ public class SpriteRenderer : AutoDisposable
                 BlendState.AlphaBlend
             );
 
-            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
-            _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
+            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+            _shaderId_texture = _pipelineInfo.GetResourceId(ShaderResourceId.Texture);
 
             _capacity = capacity;
             drawDatas = new DrawData[_capacity];
@@ -87,8 +82,8 @@ public class SpriteRenderer : AutoDisposable
         {
             if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, renderTarget.RenderPass))
             {
-                _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
-                _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
+                _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+                _shaderId_texture = _pipelineInfo.GetResourceId(ShaderResourceId.Texture);
             }
 
             commandBuffer.SetGraphicsPipeline(_pipelineInfo);
@@ -149,8 +144,8 @@ public class SpriteRenderer : AutoDisposable
             BlendState.AlphaBlend
         );
 
-        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
-        _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
+        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+        _shaderId_texture = _pipelineInfo.GetResourceId(ShaderResourceId.Texture);
 
         Camera = camera;
 
@@ -159,20 +154,8 @@ public class SpriteRenderer : AutoDisposable
 
     public void Begin(GPUFrameBuffer target)
     {
-        // if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
-        // {
-        //     _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
-        //     _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
-        // }
-
-        // _command.Begin();
-        // _command.SetFrameBuffer(target);
-        // _command.SetGraphicsPipeline(_pipelineInfo);
-        // _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        // _command.SetVertexBuffer(0, _mesh.VertexBuffer);
-        // _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
         _currentTask = _drawTasks.Next();
-        this._renderTarget = target ?? throw new ArgumentNullException(nameof(target));
+        _renderTarget = target ?? throw new ArgumentNullException(nameof(target));
     }
 
     public void End()

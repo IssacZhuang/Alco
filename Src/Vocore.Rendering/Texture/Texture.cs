@@ -8,7 +8,7 @@ namespace Vocore.Rendering;
 /// <summary>
 /// High level encapsulation of a GPUTexture with a TextureView which the dimension is 2D
 /// </summary>
-public abstract class Texture : ShaderResource
+public abstract class Texture : AutoDisposable
 {
     protected readonly GPUDevice _device;
     // internal

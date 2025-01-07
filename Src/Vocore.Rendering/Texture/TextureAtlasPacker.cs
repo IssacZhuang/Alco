@@ -5,9 +5,6 @@ namespace Vocore.Rendering;
 
 public class TextureAtlasPacker: AutoDisposable
 {
-    public const string ShaderId_Texture = "_texture";
-    public const string ShaderId_Camera = "_camera";
-
     private struct TextureItem
     {
         public string Name;
@@ -77,8 +74,8 @@ public class TextureAtlasPacker: AutoDisposable
         Mesh mesh = _renderingSystem.MeshSprite;
 
         ShaderPipelineInfo pipelineInfo = _blitMaterial.GetPipelineInfo(atlasTexture.RenderPass);
-        uint shaderId_texture = pipelineInfo.ReflectionInfo.GetResourceId(ShaderId_Texture);
-        uint shaderId_camera = pipelineInfo.ReflectionInfo.GetResourceId(ShaderId_Camera);
+        uint shaderId_texture = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Texture);
+        uint shaderId_camera = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Camera);
 
         SpriteConstant constant = new SpriteConstant
         {

@@ -3,7 +3,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public unsafe class Mesh : ShaderResource, IMesh
+public unsafe class Mesh : AutoDisposable, IMesh
 {
     private readonly string VertexBufferName;
     private readonly string IndexBufferName;
