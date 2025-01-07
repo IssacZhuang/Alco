@@ -22,10 +22,17 @@ public class BenchmarkTask
     private int _count = 10000;
     private TestAddTask _task;
 
+    private TestAddTask[] _resuableTasks = new TestAddTask[10000];
+    private Task<int>[] _systemTasks = new Task<int>[10000];
+
     [IterationSetup]
     public void Setup()
     {
         _task = new TestAddTask();
+        for (int i = 0; i < _resuableTasks.Length; i++)
+        {
+            _resuableTasks[i] = new TestAddTask();
+        }
     }
 
     [Benchmark(Description = "Reuseable Task")]
@@ -47,4 +54,31 @@ public class BenchmarkTask
             task.Wait();
         }
     }
+
+    [Benchmark(Description = "Reuseable Task WaitAll")]
+    public void BenchmarkReuseableTaskArray()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            _resuableTasks[i].Run();
+        }
+
+        for (int i = 0; i < _count; i++)
+        {
+            _resuableTasks[i].Wait();
+        }
+    }
+
+    [Benchmark(Description = "System Task WaitAll")]    
+    public void BenchmarkSystemTaskArray()
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            _systemTasks[i] = Task.Run(() => { return 1; });
+        }
+
+        Task.WaitAll(_systemTasks);
+    }
+
+
 }
