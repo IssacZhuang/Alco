@@ -5,7 +5,7 @@ using Vocore.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Atlas Packer"),
+    Window = new WindowSetting(640, 360, "Tiled Terrain 2D"),
     Graphics = GraphicsSetting.Default with
     {
         Backend = GraphicsBackend.Vulkan
