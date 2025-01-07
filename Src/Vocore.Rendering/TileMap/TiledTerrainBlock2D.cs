@@ -18,7 +18,7 @@ public class TiledTerrainBlock2D : AutoDisposable
     private struct SpriteData
     {
         public Rect UVRect;
-        public float Scale;
+        public Vector2 Scale;
     }
 
     //per tile
@@ -26,8 +26,7 @@ public class TiledTerrainBlock2D : AutoDisposable
     private struct TileData
     {
         public ColorFloat Color;
-        public int X;
-        public int Y;
+        public int2 Position;
         public uint SpriteIndex;
     }
     private readonly TextureAtlas _textureAtlas;
@@ -62,7 +61,7 @@ public class TiledTerrainBlock2D : AutoDisposable
         {
             for (int j = 0; j < height; j++)
             {
-                _tileDataBuffer[i * height + j] = new TileData { X = i, Y = j, SpriteIndex = 0 };
+                _tileDataBuffer[i * height + j] = new TileData { Position = new int2(i, j), SpriteIndex = 0 };
             }
         }
         //todo: dirty check

@@ -17,6 +17,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_TextMasked = "Shaders/Pipelines/2D/TextMasked.hlsl";
 
+   public const string Shader_TiledTerrain = "Shaders/Pipelines/2D/TiledTerrain.hlsl";
+
    public const string Shader_Unlit = "Shaders/Pipelines/3D/Unlit.hlsl";
 
    public const string Shader_Blit = "Shaders/Pipelines/Common/Blit.hlsl";

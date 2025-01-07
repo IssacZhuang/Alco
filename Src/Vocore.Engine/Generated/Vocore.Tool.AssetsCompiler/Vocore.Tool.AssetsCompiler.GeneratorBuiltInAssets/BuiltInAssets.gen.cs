@@ -22,6 +22,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_TextMasked => GetShader("Shaders/Pipelines/2D/TextMasked.hlsl");
 
+    public Shader Shader_TiledTerrain => GetShader("Shaders/Pipelines/2D/TiledTerrain.hlsl");
+
     public Shader Shader_Unlit => GetShader("Shaders/Pipelines/3D/Unlit.hlsl");
 
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Common/Blit.hlsl");

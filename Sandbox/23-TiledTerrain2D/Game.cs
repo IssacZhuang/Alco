@@ -10,7 +10,7 @@ using Vocore.GUI;
 public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
-    private readonly MaterialRenderer _materialRenderer;
+    private readonly MaterialRenderer _renderer;
     private readonly Camera2D _camera;
     private readonly Material _atlasMaterial;
     private readonly Material _terrainMaterial;
@@ -28,15 +28,16 @@ public class Game : GameEngine
         _atlas = packer.BuildTextureAtlas();
 
         _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
-        _materialRenderer = Rendering.CreateMaterialRenderer();
+        _renderer = Rendering.CreateMaterialRenderer();
         _atlasMaterial = blitMaterial.CreateInstance();
         _atlasMaterial.SetBuffer("_camera", _camera);
         _atlasMaterial.SetRenderTexture("_texture", _atlas.RenderTexture);
 
-        _terrainMaterial = blitMaterial.CreateInstance();
+        _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
         _terrainMaterial.SetBuffer("_camera", _camera);
-        _terrainMaterial.SetRenderTexture("_texture", _atlas.RenderTexture);
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_atlas, _terrainMaterial, 32, 32);
+
+        MainWindow.OnResize += OnResize;
     }
 
     protected override void OnUpdate(float delta)
@@ -62,5 +63,14 @@ public class Game : GameEngine
         // _materialRenderer.DrawWithConstant(Rendering.MeshSprite, _material, constant);
         // _materialRenderer.End();
 
+        _renderer.Begin(MainRenderTarget.FrameBuffer);
+        _terrainBlock.Render(_renderer);
+        _renderer.End();
+    }
+
+    private void OnResize(uint2 size)
+    {
+        _camera.Width = size.x;
+        _camera.Height = size.y;
     }
 }
