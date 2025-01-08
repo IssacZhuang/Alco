@@ -87,4 +87,11 @@ public static partial class DebugGUI
 
         return false;
     }
+
+    internal static void Reset()
+    {
+        _renderer = new NoDebugGUIRenderer();
+        _style = default;
+        ResetPosition();
+    }
 }

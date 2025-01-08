@@ -41,6 +41,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         {
             _renderTarget.OnResize -= OnRenderTargetResize;
             _renderer.Dispose();
+            DebugGUI.Reset();
         }
     }
 

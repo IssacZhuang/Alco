@@ -2,6 +2,7 @@ using System.Numerics;
 using Vocore.Engine;
 using Vocore.Rendering;
 using Vocore;
+using Vocore.GUI;
 
 public class Game : GameEngine
 {
@@ -56,6 +57,7 @@ public class Game : GameEngine
             Stop();
         }
 
+        DebugGUI.Text(FrameRate);
 
         // Transform2D transform = Transform2D.Identity;
         // transform.scale = new Vector2(_atlas.RenderTexture.Width, _atlas.RenderTexture.Height);
