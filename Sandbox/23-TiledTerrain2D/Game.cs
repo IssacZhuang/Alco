@@ -11,6 +11,7 @@ public class Game : GameEngine
     private readonly Material _atlasMaterial;
     private readonly Material _terrainMaterial;
     private readonly TiledTerrainBlock2D _terrainBlock;
+    private float _zoom = 4f;
     public Game(GameEngineSetting setting) : base(setting)
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
@@ -33,10 +34,9 @@ public class Game : GameEngine
         }
         _atlas = packer.BuildTextureAtlas();
 
-        float zoom = 4f;
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
 
-        _camera = Rendering.CreateCamera2D(new Vector2(zoom * aspectRatio, zoom), 1000);
+        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 1000);
         _renderer = Rendering.CreateMaterialRenderer();
         _atlasMaterial = blitMaterial.CreateInstance();
         _atlasMaterial.SetBuffer("_camera", _camera);
@@ -79,7 +79,9 @@ public class Game : GameEngine
 
     private void OnResize(uint2 size)
     {
-        _camera.Width = size.x;
-        _camera.Height = size.y;
+        float aspectRatio = size.x / (float)size.y;
+        _camera.Width = _zoom * aspectRatio;
+        _camera.Height = _zoom;
+        _camera.UpdateMatrixToGPU();
     }
 }
