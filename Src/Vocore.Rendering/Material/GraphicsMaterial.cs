@@ -50,7 +50,7 @@ public sealed class GraphicsMaterial : Material
 
                     buffer = _system.CreateGraphicsBuffer(
                         info.Size,
-                        $"Material_{Name}_Buffer_{info.Entry.Name}"
+                        $"material_{Name}: {info.Entry.Name}"
                     );
                     _parameters.SetBuffer(i, buffer);
                     _managedResources.Add(buffer);
@@ -60,7 +60,7 @@ public sealed class GraphicsMaterial : Material
                     buffer.Dispose();
                     buffer = _system.CreateGraphicsBuffer(
                         info.Size,
-                        $"Material_{Name}_Buffer_{info.Entry.Name}"
+                        $"material_{Name}: {info.Entry.Name}"
                     );
                     _parameters.SetBuffer(i, buffer);
                     _managedResources.Add(buffer);

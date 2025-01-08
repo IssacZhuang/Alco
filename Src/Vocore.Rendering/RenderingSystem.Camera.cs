@@ -10,9 +10,9 @@ public partial class RenderingSystem
     /// <param name="size">The size of the camera.</param>
     /// <param name="depth">The depth of the camera.</param>
     /// <returns>A new 2D camera.</returns>
-    public Camera2D CreateCamera2D(Vector2 size, float depth)
+    public Camera2D CreateCamera2D(Vector2 size, float depth, string name = "camera_2d")
     {
-        return new Camera2D(this, "camera_2d")
+        return new Camera2D(this, name)
         {
             ViewSize = size,
             Depth = depth
@@ -26,9 +26,9 @@ public partial class RenderingSystem
     /// <param name="height">The height of the camera.</param>
     /// <param name="depth">The depth of the camera.</param>
     /// <returns>A new 2D camera.</returns>
-    public Camera2D CreateCamera2D(float width, float height, float depth)
+    public Camera2D CreateCamera2D(float width, float height, float depth, string name = "camera_2d")
     {
-        return CreateCamera2D(new Vector2(width, height), depth);
+        return CreateCamera2D(new Vector2(width, height), depth, name);
     }
 
 
@@ -40,9 +40,9 @@ public partial class RenderingSystem
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new perspective camera.</returns>
-    public CameraPerspective CreateCameraPerspective(float fov, float aspectRatio, float near, float far)
+    public CameraPerspective CreateCameraPerspective(float fov, float aspectRatio, float near, float far, string name = "camera_perspective")
     {
-        return new CameraPerspective(this, "camera_perspective")
+        return new CameraPerspective(this, name)
         {
             FieldOfView = fov,
             AspectRatio = aspectRatio,
@@ -60,9 +60,9 @@ public partial class RenderingSystem
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new orthographic camera.</returns>
-    public CameraOrthographic CreateCameraOrthographic(float width, float height, float near, float far)
+    public CameraOrthographic CreateCameraOrthographic(float width, float height, float near, float far, string name = "camera_orthographic")
     {
-        return new CameraOrthographic(this, "camera_orthographic")
+            return new CameraOrthographic(this, name)
         {
             ViewSize = new Vector2(width, height),
             Near = near,
@@ -77,9 +77,9 @@ public partial class RenderingSystem
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new orthographic camera.</returns>
-    public CameraOrthographic CreateCameraOrthographic(Vector2 size, float near, float far)
+    public CameraOrthographic CreateCameraOrthographic(Vector2 size, float near, float far, string name = "camera_orthographic")
     {
-        return new CameraOrthographic(this, "camera_orthographic")
+        return new CameraOrthographic(this, name)
         {
             ViewSize = size,
             Near = near,

@@ -47,12 +47,14 @@ public class TiledTerrainBlock2D : AutoDisposable
         TextureAtlas textureAtlas,
         Material material,
         int width,
-        int height)
+        int height,
+        string name = "tiled_terrain_block_2d"
+        )
     {
         _textureAtlas = textureAtlas;
-        _colorData = new GraphicsArrayBuffer<ColorFloat>(renderingSystem, width * height, "TiledTerrainBlock2D_ColorData");
-        _spriteIndexData = new GraphicsArrayBuffer<uint>(renderingSystem, width * height, "TiledTerrainBlock2D_SpriteIndexData");
-        _spriteData = new GraphicsArrayBuffer<SpriteData>(renderingSystem, textureAtlas.Sprites.Count, "TiledTerrainBlock2D_SpriteData");
+        _colorData = new GraphicsArrayBuffer<ColorFloat>(renderingSystem, width * height, name + "_color_data");
+        _spriteIndexData = new GraphicsArrayBuffer<uint>(renderingSystem, width * height, name + "_sprite_index_data");
+        _spriteData = new GraphicsArrayBuffer<SpriteData>(renderingSystem, textureAtlas.Sprites.Count, name + "_sprite_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
 

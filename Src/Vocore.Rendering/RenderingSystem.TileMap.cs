@@ -6,10 +6,11 @@ public partial class RenderingSystem
         TextureAtlas textureAtlas,
         Material material,
         int width,
-        int height
+        int height,
+        string name = "tiled_terrain_block_2d"
     )
     {
-        return new TiledTerrainBlock2D(this, textureAtlas, material, width, height);
+        return new TiledTerrainBlock2D(this, textureAtlas, material, width, height, name);
     }
 
 }

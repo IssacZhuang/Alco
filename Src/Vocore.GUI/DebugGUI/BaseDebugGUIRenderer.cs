@@ -33,7 +33,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _textureWhite = renderingSystem.TextureWhite;
 
         //internal resources
-        _camera = renderingSystem.CreateCamera2D(width, height, 100);
+        _camera = renderingSystem.CreateCamera2D(width, height, 100, "debug_gui_camera_2d");
         _camera.Position = new Vector2(width / 2, -height / 2);
         Vector2 halfSize = _camera.ViewSize * 0.5f;
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
@@ -41,7 +41,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _canvasRenderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
         
         _blitRenderer = _renderingSystem.CreateBlitRenderer(shaderBlit);
-        _backBuffer = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedSDRPass, (uint)width, (uint)height);
+        _backBuffer = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
     }
 
     public void SetResolution(float width, float height)
@@ -51,7 +51,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         Vector2 halfSize = _camera.ViewSize * 0.5f;
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
         _backBuffer.Dispose();
-        _backBuffer = _renderingSystem.CreateRenderTexture(_renderingSystem.PrefferedSDRPass, (uint)width, (uint)height);
+        _backBuffer = _renderingSystem.CreateRenderTexture(_renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
     }
 
     public void Begin()
