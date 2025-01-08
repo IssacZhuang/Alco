@@ -165,6 +165,10 @@ public unsafe partial class Sdl3Window : Window
 
     protected override void Dispose(bool disposing)
     {
+        if(disposing)
+        {
+            _swapchain.Dispose();
+        }
         SDL_DestroyWindow(_window);
     }
 

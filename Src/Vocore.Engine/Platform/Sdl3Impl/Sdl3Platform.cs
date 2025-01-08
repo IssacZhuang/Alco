@@ -94,6 +94,14 @@ public unsafe class Sdl3Platform : Platform
 
     protected override void Dispose(bool disposing)
     {
+        if(disposing)
+        {
+            foreach (var window in _windows.Values)
+            {
+                window.Dispose();
+            }
+        }
+        _windows.Clear();
         _events.Dispose();
     }
 
