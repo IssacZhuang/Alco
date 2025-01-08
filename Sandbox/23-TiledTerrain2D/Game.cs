@@ -3,10 +3,6 @@ using Vocore.Engine;
 using Vocore.Rendering;
 using Vocore;
 
-using Random = Vocore.Random;
-using Vocore.Graphics;
-using Vocore.GUI;
-
 public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
@@ -17,7 +13,17 @@ public class Game : GameEngine
     private readonly TiledTerrainBlock2D _terrainBlock;
     public Game(GameEngineSetting setting) : base(setting)
     {
-        List<Texture2D> textures = [Assets.Load<Texture2D>("Grass.png"), Assets.Load<Texture2D>("Sand.png")];
+        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
+        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Sand.png");
+        
+        Task.WaitAll(grid, grass, sand);
+
+        List<Texture2D> textures = [
+            grid.Result,
+            grass.Result,
+            sand.Result,
+            ];
 
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         TextureAtlasPacker packer = Rendering.CreateTextureAtlasPacker(blitMaterial,128,128);
@@ -27,7 +33,10 @@ public class Game : GameEngine
         }
         _atlas = packer.BuildTextureAtlas();
 
-        _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
+        float zoom = 4f;
+        float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
+
+        _camera = Rendering.CreateCamera2D(new Vector2(zoom * aspectRatio, zoom), 1000);
         _renderer = Rendering.CreateMaterialRenderer();
         _atlasMaterial = blitMaterial.CreateInstance();
         _atlasMaterial.SetBuffer("_camera", _camera);
@@ -59,9 +68,9 @@ public class Game : GameEngine
         // };
 
         // //draw atlas texture
-        // _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        // _materialRenderer.DrawWithConstant(Rendering.MeshSprite, _material, constant);
-        // _materialRenderer.End();
+        // _renderer.Begin(MainRenderTarget.FrameBuffer);
+        // _renderer.DrawWithConstant(Rendering.MeshSprite, _atlasMaterial, constant);
+        // _renderer.End();
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _terrainBlock.Render(_renderer);
