@@ -36,6 +36,9 @@ public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
     /// <inheritdoc/>
     public Texture2D CreateAsset(string filename, ReadOnlySpan<byte> file)
     {
-        return _renderingSystem.CreateTexture2DFromFile(file);
+        return _renderingSystem.CreateTexture2DFromFile(file, ImageLoadOption.Default with
+        {
+            Name = filename
+        });
     }
 }
