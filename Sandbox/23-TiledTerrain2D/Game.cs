@@ -15,7 +15,7 @@ public class Game : GameEngine
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
-    private ColorFloat _color = new ColorFloat(0.47f, 0.62, 1, 1);
+    private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
     public Game(GameEngineSetting setting) : base(setting)
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
@@ -49,6 +49,7 @@ public class Game : GameEngine
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 32, 32);
 
         _terrainBlock.SetTilesId(1);
+        _terrainBlock.SetTilesColor(_color);
     }
 
     protected override void OnUpdate(float delta)

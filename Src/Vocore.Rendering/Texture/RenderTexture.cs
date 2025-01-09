@@ -10,7 +10,6 @@ public class RenderTexture : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUFrameBuffer _frameBuffer;
-    private readonly bool _isFrameBufferExternal;
     private GPUResourceGroup[]? _groupsColorRead;
     private GPUResourceGroup[]? _groupsColorWrite;
     private GPUResourceGroup[]? _groupsColorSample;
@@ -152,11 +151,11 @@ public class RenderTexture : AutoDisposable
 
     internal RenderTexture(
         GPUDevice device,
-        GPUFrameBuffer frameBuffer, bool isExternal)
+        GPUFrameBuffer frameBuffer
+        )
     {
         _device = device;
         _frameBuffer = frameBuffer;
-        _isFrameBufferExternal = isExternal;
     }
 
     private GPUResourceGroup[] CreateGroupsColorSample()
@@ -228,41 +227,34 @@ public class RenderTexture : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        if (!disposing)
+        if (disposing)
         {
-            return;
-        }
-
-        //dispose non-private managed resources
-        if (_groupsColorRead != null)
-        {
-            for (int i = 0; i < _groupsColorRead.Length; i++)
+            //dispose managed resources
+            if (_groupsColorRead != null)
             {
-                _groupsColorRead[i].Dispose();
+                for (int i = 0; i < _groupsColorRead.Length; i++)
+                {
+                    _groupsColorRead[i].Dispose();
+                }
             }
-        }
 
-        if (_groupsColorWrite != null)
-        {
-            for (int i = 0; i < _groupsColorWrite.Length; i++)
+            if (_groupsColorWrite != null)
             {
-                _groupsColorWrite[i].Dispose();
+                for (int i = 0; i < _groupsColorWrite.Length; i++)
+                {
+                    _groupsColorWrite[i].Dispose();
+                }
             }
-        }
 
-        if (_groupsColorSample != null)
-        {
-            for (int i = 0; i < _groupsColorSample.Length; i++)
+            if (_groupsColorSample != null)
             {
-                _groupsColorSample[i].Dispose();
+                for (int i = 0; i < _groupsColorSample.Length; i++)
+                {
+                    _groupsColorSample[i].Dispose();
+                }
             }
-        }
 
-        _groupDepthSample?.Dispose();
-
-
-        if (!_isFrameBufferExternal)
-        {
+            _groupDepthSample?.Dispose();
             _frameBuffer.Dispose();
         }
     }

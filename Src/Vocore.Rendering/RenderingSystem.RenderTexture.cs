@@ -28,8 +28,7 @@ public partial class RenderingSystem
 
         return new RenderTexture(
             _device,
-            frameBuffer,
-            false
+            frameBuffer
         );
     }
 
