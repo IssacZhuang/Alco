@@ -22,7 +22,8 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     private readonly GraphicsArrayBuffer<uint> _tileIdData;
     private readonly Material _material;
     private readonly Mesh _mesh;
-    private bool _isIndexDirty;
+    private bool _isTileIdDirty;
+    private bool _isColorDirty;
 
     public Transform3D Transform;
 
@@ -67,11 +68,18 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
     public void Render(MaterialRenderer renderer)
     {
-        if (_isIndexDirty)
+        if (_isTileIdDirty)
         {
             _tileIdData.UpdateBuffer();
-            _isIndexDirty = false;
+            _isTileIdDirty = false;
         }
+
+        if (_isColorDirty)
+        {
+            _colorData.UpdateBuffer();
+            _isColorDirty = false;
+        }
+
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
     }
 
@@ -81,6 +89,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         {
             _colorData[i] = color;
         }
+        _isColorDirty = true;
     }
 
     public void SetTilesColor(int2 from, int2 to, ColorFloat color)
@@ -92,31 +101,42 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
                 SetTileColor(i, j, color);
             }
         }
+        _isColorDirty = true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetTileColor(int x, int y, ColorFloat color)
     {
         _colorData[y * _size.x + x] = color;
+        _isColorDirty = true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTileId(int x, int y, uint spriteIndex)
+    public void SetTileId(int x, int y, uint tileId)
     {
-        _tileIdData[y * _size.x + x] = spriteIndex;
-        _isIndexDirty = true;
+        _tileIdData[y * _size.x + x] = tileId;
+        _isTileIdDirty = true;
     }
 
-    public void SetTilesId(int2 from, int2 to, uint spriteIndex)
+    public void SetTilesId(int2 from, int2 to, uint tileId)
     {
         for (int i = from.x; i < to.x; i++)
         {
             for (int j = from.y; j < to.y; j++)
             {
-                _tileIdData[j * _size.x + i] = spriteIndex;
+                _tileIdData[j * _size.x + i] = tileId;
             }
         }
-        _isIndexDirty = true;
+        _isTileIdDirty = true;
+    }
+
+    public void SetTilesId(uint tileId)
+    {
+        for (int i = 0; i < _length; i++)
+        {
+            _tileIdData[i] = tileId;
+        }
+        _isTileIdDirty = true;
     }
 
     public uint GetTileId(int x, int y)

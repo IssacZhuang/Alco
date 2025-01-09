@@ -6,6 +6,7 @@ namespace Vocore.Graphics;
 [StructLayout(LayoutKind.Sequential)]
 public struct Color32
 {
+    public const float Inv255 = 1f / 255f;
     public byte R;
     public byte G;
     public byte B;
@@ -67,5 +68,10 @@ public struct Color32
     public static Color32 operator /(Color32 a, Color32 b)
     {
         return new Color32((byte)(a.R / b.R), (byte)(a.G / b.G), (byte)(a.B / b.B), (byte)(a.A / b.A));
+    }
+
+    public static implicit operator ColorFloat(Color32 color)
+    {
+        return new ColorFloat(color.R * Inv255, color.G * Inv255, color.B * Inv255, color.A * Inv255);
     }
 }

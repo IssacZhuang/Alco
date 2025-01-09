@@ -3,6 +3,7 @@ using Vocore.Engine;
 using Vocore.Rendering;
 using Vocore;
 using Vocore.GUI;
+using Vocore.Graphics;
 
 public class Game : GameEngine
 {
@@ -14,6 +15,7 @@ public class Game : GameEngine
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
+    private ColorFloat _color = new ColorFloat(0.47f, 0.62, 1, 1);
     public Game(GameEngineSetting setting) : base(setting)
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
@@ -46,11 +48,27 @@ public class Game : GameEngine
         _terrainMaterial.SetBuffer("_camera", _camera);
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 32, 32);
 
-        _terrainBlock.SetTilesId(new int2(0, 0), new int2(32, 32), 1);
+        _terrainBlock.SetTilesId(1);
     }
 
     protected override void OnUpdate(float delta)
     {
+        DebugGUI.Text(FrameRate);
+        if (DebugGUI.SliderWithText("R", ref _color.value.X, 0, 1))
+        {
+            _terrainBlock.SetTilesColor(_color);
+        }
+
+        if (DebugGUI.SliderWithText("G", ref _color.value.Y, 0, 1))
+        {
+            _terrainBlock.SetTilesColor(_color);
+        }
+
+        if (DebugGUI.SliderWithText("B", ref _color.value.Z, 0, 1))
+        {
+            _terrainBlock.SetTilesColor(_color);
+        }
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -74,7 +92,7 @@ public class Game : GameEngine
 
         _camera.UpdateMatrixToGPU();
 
-        DebugGUI.Text(FrameRate);
+
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _terrainBlock.Render(_renderer);
