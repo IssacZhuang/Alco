@@ -33,7 +33,7 @@ DEFINE_STORAGE(2, SpriteData, _spriteData);
 
 DEFINE_STORAGE(3, float4, _colorData);
 
-DEFINE_STORAGE(4, uint, _spriteIndexData);
+DEFINE_STORAGE(4, uint, _tileIdData);
 PUSH_CONSTANT Constants constants;
 
 [shader("vertex")]
@@ -50,8 +50,8 @@ V2F VertexMain(Vertex2D input)
     output.position = position;
 
     float4 color = _colorData[input.instanceId];
-    uint spriteIndex = _spriteIndexData[input.instanceId];
-    SpriteData sprite = _spriteData[spriteIndex];
+    uint tileId = _tileIdData[input.instanceId];
+    SpriteData sprite = _spriteData[tileId];
 
     output.color = color;
     output.uv = input.uv * sprite.uvRect.zw + sprite.uvRect.xy;

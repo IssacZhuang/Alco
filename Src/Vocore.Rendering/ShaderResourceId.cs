@@ -13,5 +13,5 @@ public static class ShaderResourceId
 
     public const string SpriteData = "_spriteData";
     public const string ColorData = "_colorData";
-    public const string SpriteIndexData = "_spriteIndexData";
+    public const string TileIdData = "_tileIdData";
 }

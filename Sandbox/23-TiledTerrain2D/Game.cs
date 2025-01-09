@@ -38,7 +38,7 @@ public class Game : GameEngine
         _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, "tile_set");
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
-
+ 
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 1000);
         _renderer = Rendering.CreateMaterialRenderer();
 
@@ -46,7 +46,7 @@ public class Game : GameEngine
         _terrainMaterial.SetBuffer("_camera", _camera);
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 32, 32);
 
-        _terrainBlock.SetTilesSpriteIndex(new int2(0, 0), new int2(32, 32), 1);
+        _terrainBlock.SetTilesId(new int2(0, 0), new int2(32, 32), 1);
     }
 
     protected override void OnUpdate(float delta)
