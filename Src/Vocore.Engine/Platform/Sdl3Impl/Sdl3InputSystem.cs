@@ -26,6 +26,7 @@ public unsafe class Sdl3InputSystem : InputSystem
     private Vector2 _lastMousePosition;
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
+    private float _mouseWheelDelta;
     
 
     public override Vector2 MousePosition
@@ -48,6 +49,8 @@ public unsafe class Sdl3InputSystem : InputSystem
             return _mouseDelta;
         }
     }
+
+    public override float MouseWheelDelta => _mouseWheelDelta;
 
     public Sdl3InputSystem()
     {
@@ -138,6 +141,17 @@ public unsafe class Sdl3InputSystem : InputSystem
         _state.isMousePressing[(int)b] = false;
     }
 
+    public override bool IsMouseWheelScrolling(out float delta)
+    {
+        delta = _mouseWheelDelta;
+        return _mouseWheelDelta != 0;
+    }
+
+    internal void OnSdlMouseWheel(float value)
+    {
+        _mouseWheelDelta = value;
+    }
+
     private void Reset()
     {
         for (int i = 0; i < MaxKeyCount; i++)
@@ -150,6 +164,7 @@ public unsafe class Sdl3InputSystem : InputSystem
             _state.isMouseDown[i] = false;
             _state.isMouseUp[i] = false;
         }
+        _mouseWheelDelta = 0;
     }
     
     private static Mouse ConvertMosueButton(uint button)

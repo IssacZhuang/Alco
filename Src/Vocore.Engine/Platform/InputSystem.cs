@@ -18,6 +18,11 @@ public abstract class InputSystem
     public abstract Vector2 MouseDelta { get; }
 
     /// <summary>
+    /// Gets the delta movement of the mouse wheel.
+    /// </summary>
+    public abstract float MouseWheelDelta { get; }
+
+    /// <summary>
     /// Determines whether the specified key is currently being pressed down.
     /// </summary>
     /// <param name="key">The key to check.</param>
@@ -66,6 +71,13 @@ public abstract class InputSystem
     /// <param name="delta">The delta scroll value.</param>
     /// <returns><c>true</c> if the mouse is currently scrolling; otherwise, <c>false</c>.</returns>
     public abstract bool IsMouseScrolling(out Vector2 delta);
+
+    /// <summary>
+    /// Determines whether the mouse wheel is currently scrolling.
+    /// </summary>
+    /// <param name="delta">The delta scroll value.</param>
+    /// <returns><c>true</c> if the mouse wheel is currently scrolling; otherwise, <c>false</c>.</returns>
+    public abstract bool IsMouseWheelScrolling(out float delta);
 
     /// <summary>
     /// Copy the specified text to the clipboard.
