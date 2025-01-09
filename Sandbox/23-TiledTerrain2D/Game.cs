@@ -9,10 +9,11 @@ public class Game : GameEngine
     private readonly TextureAtlas _atlas;
     private readonly MaterialRenderer _renderer;
     private readonly Camera2D _camera;
-    private readonly Material _atlasMaterial;
     private readonly Material _terrainMaterial;
     private readonly TiledTerrainBlock2D _terrainBlock;
     private float _zoom = 4f;
+    private float _targetZoom = 4f;
+    private float _zoomVelocity = 0f;
     public Game(GameEngineSetting setting) : base(setting)
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
@@ -39,15 +40,10 @@ public class Game : GameEngine
 
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 1000);
         _renderer = Rendering.CreateMaterialRenderer();
-        _atlasMaterial = blitMaterial.CreateInstance();
-        _atlasMaterial.SetBuffer("_camera", _camera);
-        _atlasMaterial.SetRenderTexture("_texture", _atlas.RenderTexture);
 
         _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
         _terrainMaterial.SetBuffer("_camera", _camera);
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_atlas, _terrainMaterial, 32, 32);
-
-        MainWindow.OnResize += OnResize;
     }
 
     protected override void OnUpdate(float delta)
@@ -57,33 +53,28 @@ public class Game : GameEngine
             Stop();
         }
 
+        if (Input.IsMousePressing(Mouse.Middle))
+        {
+            float speed = _zoom / MainWindow.Height;
+            _camera.Position += new Vector2(-Input.MouseDelta.X * speed, Input.MouseDelta.Y * speed);
+        }
+
+        if (Input.IsMouseWheelScrolling(out float wheelDelta))
+        {
+            _targetZoom -= wheelDelta * 0.2f;
+            _targetZoom = math.clamp(_targetZoom, 2, 20);
+        }
+
+        _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
+        _camera.Width = _zoom * MainWindow.AspectRatio; 
+        _camera.Height = _zoom;
+
+        _camera.UpdateMatrixToGPU();
+
         DebugGUI.Text(FrameRate);
-
-        // Transform2D transform = Transform2D.Identity;
-        // transform.scale = new Vector2(_atlas.RenderTexture.Width, _atlas.RenderTexture.Height);
-
-        // SpriteConstant constant = new SpriteConstant
-        // {
-        //     Model = transform.Matrix,
-        //     Color = new ColorFloat(1, 1, 1, 1),
-        //     UvRect = new Rect(0, 0, 1, 1)
-        // };
-
-        // //draw atlas texture
-        // _renderer.Begin(MainRenderTarget.FrameBuffer);
-        // _renderer.DrawWithConstant(Rendering.MeshSprite, _atlasMaterial, constant);
-        // _renderer.End();
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _terrainBlock.Render(_renderer);
         _renderer.End();
-    }
-
-    private void OnResize(uint2 size)
-    {
-        float aspectRatio = size.x / (float)size.y;
-        _camera.Width = _zoom * aspectRatio;
-        _camera.Height = _zoom;
-        _camera.UpdateMatrixToGPU();
     }
 }
