@@ -7,7 +7,7 @@ public class TileSetParams<TUserData>
     public struct Item
     {
         public TUserData UserData;
-        public Vector2 Scale;
+        public Vector4 Scale;
         public Texture2D Texture;
     }
 

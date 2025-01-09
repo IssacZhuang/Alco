@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Vocore.Rendering;
@@ -16,26 +17,40 @@ public class TileSet<TUserData> : AutoDisposable
     public struct SpriteData
     {
         public Rect UVRect;
-        public Vector2 Scale;
+        public Vector4 Scale;
     }
 
 
     private readonly RenderingSystem _renderingSystem;
     private readonly List<TileData> _tileData;
     private readonly GraphicsArrayBuffer<SpriteData> _spriteData;
+    private readonly TextureAtlas _atlas;
 
-    public GraphicsArrayBuffer<SpriteData> SpriteDataBuffer => _spriteData;
+    public int Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _tileData.Count;
+    }
 
-    private TextureAtlas Atlas { get; }
+    public GraphicsArrayBuffer<SpriteData> SpriteDataBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _spriteData;
+    }
 
+    public RenderTexture Atlas
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _atlas.RenderTexture;
+    }
 
-    internal TileSet(RenderingSystem renderingSystem, TileSetParams<TUserData> @params, Material material)
+    internal TileSet(RenderingSystem renderingSystem, TileSetParams<TUserData> @params, Material material, string name)
     {
         ArgumentNullException.ThrowIfNull(material);
 
         _renderingSystem = renderingSystem;
         int tileCount = @params.Items.Count;
-        _spriteData = new GraphicsArrayBuffer<SpriteData>(renderingSystem, tileCount, "TileSet_sprite_data");
+        _spriteData = new GraphicsArrayBuffer<SpriteData>(renderingSystem, tileCount, name + "_sprite_data");
 
         Dictionary<Texture2D, int> textureToAtlasIndex = new();
         List<Texture2D> uniqueTextures = new();
@@ -49,21 +64,19 @@ public class TileSet<TUserData> : AutoDisposable
             }
         }
 
-        // 创建和打包图集
-        using TextureAtlasPacker packer = renderingSystem.CreateTextureAtlasPacker(material);
+        using TextureAtlasPacker packer = renderingSystem.CreateTextureAtlasPacker(material, 32, 32);
         foreach (var texture in uniqueTextures)
         {
             packer.AddTexture(texture.Name, texture);
         }
-        Atlas = packer.BuildTextureAtlas();
+        _atlas = packer.BuildTextureAtlas();
 
-        // 为每个item创建tile数据
         _tileData = new List<TileData>(tileCount);
         for (int i = 0; i < tileCount; i++)
         {
             var item = @params.Items[i];
             int atlasIndex = textureToAtlasIndex[item.Texture];
-            Sprite sprite = Atlas[atlasIndex];
+            Sprite sprite = _atlas[atlasIndex];
 
             _tileData.Add(new TileData
             {
@@ -77,9 +90,19 @@ public class TileSet<TUserData> : AutoDisposable
                 Scale = item.Scale
             };
         }
+
+        _spriteData.UpdateBuffer();
     }
 
+    public TUserData GetUserData(int index)
+    {
+        return _tileData[index].UserData;
+    }
 
+    public TUserData GetUserData(uint index)
+    {
+        return _tileData[(int)index].UserData;
+    }
 
 
     protected override void Dispose(bool disposing)

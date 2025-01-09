@@ -20,7 +20,7 @@ struct Constants{
 
 struct SpriteData{
     float4 uvRect;
-    float2 scale;
+    float4 scale;
 };
 
 

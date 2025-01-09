@@ -1,10 +1,11 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class TiledTerrainBlock2D : AutoDisposable
+public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 {
     //per block
     [StructLayout(LayoutKind.Sequential)]
@@ -14,54 +15,32 @@ public class TiledTerrainBlock2D : AutoDisposable
         public int2 Size;
     }
 
-    //per sprite
-    [StructLayout(LayoutKind.Sequential)]
-    private struct SpriteData
-    {
-        public Rect UVRect;
-        public Vector2 Scale;
-    }
-
-    //per tile
-    [StructLayout(LayoutKind.Sequential)]
-    private struct TileData
-    {
-        public ColorFloat Color;
-        public uint SpriteIndex;
-    }
-
     private uint _length;
     private int2 _size;
-    private readonly TextureAtlas _textureAtlas;
+    private readonly TileSet<TUserData> _tileSet;
     private readonly GraphicsArrayBuffer<ColorFloat> _colorData;
     private readonly GraphicsArrayBuffer<uint> _spriteIndexData;
-    private readonly GraphicsArrayBuffer<SpriteData> _spriteData;
     private readonly Material _material;
     private readonly Mesh _mesh;
+    private bool _isIndexDirty;
 
     public Transform3D Transform;
 
 
     internal TiledTerrainBlock2D(
         RenderingSystem renderingSystem,
-        TextureAtlas textureAtlas,
+        TileSet<TUserData> tileSet,
         Material material,
         int width,
         int height,
         string name = "tiled_terrain_block_2d"
         )
     {
-        _textureAtlas = textureAtlas;
+        _tileSet = tileSet;
         _colorData = new GraphicsArrayBuffer<ColorFloat>(renderingSystem, width * height, name + "_color_data");
         _spriteIndexData = new GraphicsArrayBuffer<uint>(renderingSystem, width * height, name + "_sprite_index_data");
-        _spriteData = new GraphicsArrayBuffer<SpriteData>(renderingSystem, textureAtlas.Sprites.Count, name + "_sprite_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
-
-        for (int i = 0; i < textureAtlas.Sprites.Count; i++)
-        {
-            _spriteData[i] = new SpriteData { UVRect = textureAtlas.Sprites[i].UVRect };
-        }
 
         for (int i = 0; i < _colorData.Length; i++)
         {
@@ -73,14 +52,13 @@ public class TiledTerrainBlock2D : AutoDisposable
             _spriteIndexData[i] = 0;
         }
 
-        _spriteData.UpdateBuffer();
         _colorData.UpdateBuffer();
         _spriteIndexData.UpdateBuffer();
 
-        _material.SetRenderTexture(ShaderResourceId.Texture, _textureAtlas.RenderTexture);
+        _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.Atlas);
         _material.SetBuffer(ShaderResourceId.ColorData, _colorData);
-        _material.SetBuffer(ShaderResourceId.SpriteData, _spriteData);
         _material.SetBuffer(ShaderResourceId.SpriteIndexData, _spriteIndexData);
+        _material.SetBuffer(ShaderResourceId.SpriteData, _tileSet.SpriteDataBuffer);
 
         Transform = Transform3D.Identity;
         _size = new int2(width, height);
@@ -89,6 +67,11 @@ public class TiledTerrainBlock2D : AutoDisposable
 
     public void Render(MaterialRenderer renderer)
     {
+        if (_isIndexDirty)
+        {
+            _spriteIndexData.UpdateBuffer();
+            _isIndexDirty = false;
+        }
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
     }
 
@@ -111,14 +94,39 @@ public class TiledTerrainBlock2D : AutoDisposable
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetTileColor(int x, int y, ColorFloat color)
     {
         _colorData[y * _size.x + x] = color;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetTileSpriteIndex(int x, int y, uint spriteIndex)
     {
         _spriteIndexData[y * _size.x + x] = spriteIndex;
+        _isIndexDirty = true;
+    }
+
+    public void SetTilesSpriteIndex(int2 from, int2 to, uint spriteIndex)
+    {
+        for (int i = from.x; i < to.x; i++)
+        {
+            for (int j = from.y; j < to.y; j++)
+            {
+                _spriteIndexData[j * _size.x + i] = spriteIndex;
+            }
+        }
+        _isIndexDirty = true;
+    }
+
+    public uint GetTileSpriteIndex(int x, int y)
+    {
+        return _spriteIndexData[y * _size.x + x];
+    }
+
+    public TUserData GetTileUserData(int x, int y)
+    {
+        return _tileSet.GetUserData(GetTileSpriteIndex(x, y));
     }
 
     protected override void Dispose(bool disposing)
@@ -126,7 +134,6 @@ public class TiledTerrainBlock2D : AutoDisposable
         if (disposing)
         {
             _colorData.Dispose();
-            _spriteData.Dispose();
             _spriteIndexData.Dispose();
         }
     }

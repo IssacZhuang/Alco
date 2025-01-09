@@ -6,11 +6,11 @@ using Vocore.GUI;
 
 public class Game : GameEngine
 {
-    private readonly TextureAtlas _atlas;
     private readonly MaterialRenderer _renderer;
     private readonly Camera2D _camera;
     private readonly Material _terrainMaterial;
-    private readonly TiledTerrainBlock2D _terrainBlock;
+    private readonly TileSet<int> _tileSet;
+    private readonly TiledTerrainBlock2D<int> _terrainBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -29,12 +29,13 @@ public class Game : GameEngine
             ];
 
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-        TextureAtlasPacker packer = Rendering.CreateTextureAtlasPacker(blitMaterial,128,128);
+
+        TileSetParams<int> tileSetParams = new();
         for (int i = 0; i < textures.Count; i++)
         {
-            packer.AddTexture($"sprite_{i}", textures[i]);
+            tileSetParams.Add(textures[i], i);
         }
-        _atlas = packer.BuildTextureAtlas();
+        _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, "tile_set");
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
 
@@ -43,7 +44,9 @@ public class Game : GameEngine
 
         _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
         _terrainMaterial.SetBuffer("_camera", _camera);
-        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_atlas, _terrainMaterial, 32, 32);
+        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 32, 32);
+
+        _terrainBlock.SetTilesSpriteIndex(new int2(0, 0), new int2(32, 32), 1);
     }
 
     protected override void OnUpdate(float delta)
@@ -61,7 +64,7 @@ public class Game : GameEngine
 
         if (Input.IsMouseWheelScrolling(out float wheelDelta))
         {
-            _targetZoom -= wheelDelta * 0.2f;
+            _targetZoom -= wheelDelta * 0.5f;
             _targetZoom = math.clamp(_targetZoom, 2, 20);
         }
 
