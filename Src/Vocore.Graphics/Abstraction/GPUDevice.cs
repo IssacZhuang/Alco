@@ -20,8 +20,16 @@ public abstract class GPUDevice
             this.delay = delay;
         }
     }
+    private readonly ConcurrentDictionary<int, GPUSampler> _samplers = new();
     private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
     private readonly Lock _lock = new();
+
+    private GPUSampler? _samplerNearestRepeat;
+    private GPUSampler? _samplerLinearRepeat;
+    private GPUSampler? _samplerNearestClamp;
+    private GPUSampler? _samplerLinearClamp;
+    private GPUSampler? _samplerNearestMirrorRepeat;
+    private GPUSampler? _samplerLinearMirrorRepeat;
 
     private uint _disposeDelay = 1;
 
@@ -40,27 +48,69 @@ public abstract class GPUDevice
     /// <summary>
     /// The <see cref="GPUSampler"/> of the nearest filtering with repeat mode.
     /// </summary> 
-    public abstract GPUSampler SamplerNearestRepeat { get; }
+    public GPUSampler SamplerNearestRepeat
+    {
+        get
+        {
+            _samplerNearestRepeat ??= GetSampler(FilterMode.Nearest, AddressMode.Repeat);
+            return _samplerNearestRepeat;
+        }
+    }
     /// <summary>
     /// The <see cref="GPUSampler"/> of the linear filtering with repeat mode.
     /// </summary>
-    public abstract GPUSampler SamplerLinearRepeat { get; }
+    public GPUSampler SamplerLinearRepeat
+    {
+        get
+        {
+            _samplerLinearRepeat ??= GetSampler(FilterMode.Linear, AddressMode.Repeat);
+            return _samplerLinearRepeat;
+        }
+    }
     /// <summary>
     /// The <see cref="GPUSampler"/> of the nearest filtering with clamp mode.
     /// </summary>
-    public abstract GPUSampler SamplerNearestClamp { get; }
+    public GPUSampler SamplerNearestClamp
+    {
+        get
+        {
+            _samplerNearestClamp ??= GetSampler(FilterMode.Nearest, AddressMode.ClampToEdge);
+            return _samplerNearestClamp;
+        }
+    }
     /// <summary>
     /// The <see cref="GPUSampler"/> of the linear filtering with clamp mode.
     /// </summary>
-    public abstract GPUSampler SamplerLinearClamp { get; }
+    public GPUSampler SamplerLinearClamp
+    {
+        get
+        {
+            _samplerLinearClamp ??= GetSampler(FilterMode.Linear, AddressMode.ClampToEdge);
+            return _samplerLinearClamp;
+        }
+    }
     /// <summary>
     /// The <see cref="GPUSampler"/> of the nearest filtering with mirror repeat mode.
     /// </summary>
-    public abstract GPUSampler SamplerNearestMirrorRepeat { get; }
+    public GPUSampler SamplerNearestMirrorRepeat
+    {
+        get
+        {
+            _samplerNearestMirrorRepeat ??= GetSampler(FilterMode.Nearest, AddressMode.MirrorRepeat);
+            return _samplerNearestMirrorRepeat;
+        }
+    }
     /// <summary>
     /// The <see cref="GPUSampler"/> of the linear filtering with mirror repeat mode.
     /// </summary>
-    public abstract GPUSampler SamplerLinearMirrorRepeat { get; }
+    public GPUSampler SamplerLinearMirrorRepeat
+    {
+        get
+        {
+            _samplerLinearMirrorRepeat ??= GetSampler(FilterMode.Linear, AddressMode.MirrorRepeat);
+            return _samplerLinearMirrorRepeat;
+        }
+    }
 
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
     /// <summary>
@@ -265,6 +315,33 @@ public abstract class GPUDevice
     public GPUSwapchain CreateSwapchain(in SwapchainDescriptor descriptor)
     {
         return CreateSwapchainCore(descriptor);
+    }
+
+    public GPUSampler GetSampler(
+        FilterMode filter,
+        AddressMode addressMode
+    )
+    {
+        return GetSampler(filter, filter, filter, addressMode, addressMode, addressMode);
+    }
+
+    public GPUSampler GetSampler(
+        FilterMode minFilter,
+        FilterMode magFilter,
+        FilterMode mipFilter,
+        AddressMode addressModeU,
+        AddressMode addressModeV,
+        AddressMode addressModeW
+    )
+    {
+        int hash = 17;
+        hash = hash * 23 + minFilter.GetHashCode();
+        hash = hash * 23 + magFilter.GetHashCode();
+        hash = hash * 23 + mipFilter.GetHashCode();
+        hash = hash * 23 + addressModeU.GetHashCode();
+        hash = hash * 23 + addressModeV.GetHashCode();
+        hash = hash * 23 + addressModeW.GetHashCode();
+        return _samplers.GetOrAdd(hash, (hash) => CreateSampler(new SamplerDescriptor(minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW)));
     }
 
     /// <summary>
@@ -591,6 +668,10 @@ public abstract class GPUDevice
     private void Dispose()
     {
         OnEndFrame();
+        foreach (var sampler in _samplers)
+        {
+            sampler.Value.Destroy();
+        }
         DisposeCore();
 
         GraphicsLogger.Info("GPU device closed");

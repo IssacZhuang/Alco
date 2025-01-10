@@ -20,18 +20,6 @@ internal class NoDevice : GPUDevice
     }
     public static readonly NoDevice noDevice = new NoDevice();
 
-    public override GPUSampler SamplerNearestRepeat {get;   }
-
-    public override GPUSampler SamplerLinearRepeat {get;}
-
-    public override GPUSampler SamplerNearestClamp {get;}
-
-    public override GPUSampler SamplerLinearClamp {get;}
-
-    public override GPUSampler SamplerNearestMirrorRepeat {get;}
-
-    public override GPUSampler SamplerLinearMirrorRepeat {get;}
-
     public override GPUBindGroup BindGroupUniformBuffer {get;}
 
     public override GPUBindGroup BindGroupStorageBuffer {get;}
@@ -52,73 +40,6 @@ internal class NoDevice : GPUDevice
         Name = "NoGPU Device"
     })
     {
-        // create default samplers
-
-        SamplerNearestRepeat = CreateSampler(SamplerDescriptor.Default with
-        {
-            AddressModeU = AddressMode.Repeat,
-            AddressModeV = AddressMode.Repeat,
-            AddressModeW = AddressMode.Repeat,
-            MinFilter = FilterMode.Nearest,
-            MagFilter = FilterMode.Nearest,
-            MipFilter = FilterMode.Nearest,
-            Name = "nearest_repeat_sampler",
-        });
-
-        SamplerLinearRepeat = CreateSampler(SamplerDescriptor.Default with
-        {
-            AddressModeU = AddressMode.Repeat,
-            AddressModeV = AddressMode.Repeat,
-            AddressModeW = AddressMode.Repeat,
-            MinFilter = FilterMode.Linear,
-            MagFilter = FilterMode.Linear,
-            MipFilter = FilterMode.Linear,
-            Name = "linear_repeat_sampler",
-        });
-
-        SamplerNearestClamp = CreateSampler(SamplerDescriptor.Default with
-        {
-            AddressModeU = AddressMode.ClampToEdge,
-            AddressModeV = AddressMode.ClampToEdge,
-            AddressModeW = AddressMode.ClampToEdge,
-            MinFilter = FilterMode.Nearest,
-            MagFilter = FilterMode.Nearest,
-            MipFilter = FilterMode.Nearest,
-            Name = "nearest_clamp_sampler",
-        });
-
-        SamplerLinearClamp = CreateSampler(SamplerDescriptor.Default with
-        {
-            AddressModeU = AddressMode.ClampToEdge,
-            AddressModeV = AddressMode.ClampToEdge,
-            AddressModeW = AddressMode.ClampToEdge,
-            MinFilter = FilterMode.Linear,
-            MagFilter = FilterMode.Linear,
-            MipFilter = FilterMode.Linear,
-            Name = "linear_clamp_sampler",
-        });
-
-        SamplerNearestMirrorRepeat = CreateSampler(SamplerDescriptor.Default with
-        {
-            AddressModeU = AddressMode.MirrorRepeat,
-            AddressModeV = AddressMode.MirrorRepeat,
-            AddressModeW = AddressMode.MirrorRepeat,
-            MinFilter = FilterMode.Nearest,
-            MagFilter = FilterMode.Nearest,
-            MipFilter = FilterMode.Nearest,
-            Name = "nearest_mirror_repeat_sampler",
-        });
-
-        SamplerLinearMirrorRepeat = CreateSampler(SamplerDescriptor.Default with
-        {
-            AddressModeU = AddressMode.MirrorRepeat,
-            AddressModeV = AddressMode.MirrorRepeat,
-            AddressModeW = AddressMode.MirrorRepeat,
-            MinFilter = FilterMode.Linear,
-            MagFilter = FilterMode.Linear,
-            MipFilter = FilterMode.Linear,
-            Name = "linear_mirror_repeat_sampler",
-        });
 
         //create default bind groups
         BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
