@@ -17,8 +17,25 @@ public class TileSetParams<TUserData>
 
     public void Add(Texture2D texture, TUserData userData)
     {
-        _items.Add(new Item { Texture = texture, UserData = userData });
+        _items.Add(new Item
+        {
+            Texture = texture,
+            UserData = userData,
+            Scale = Vector4.One
+        });
     }
+
+    public void Add(Texture2D texture, TUserData userData, Vector2 scale)
+    {
+        _items.Add(new Item
+        {
+            Texture = texture,
+            UserData = userData,
+            Scale = new Vector4(scale, 1, 1)
+        });
+    }
+
+
 
     public void Clear()
     {

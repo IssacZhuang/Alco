@@ -35,7 +35,7 @@ public class Game : GameEngine
         TileSetParams<int> tileSetParams = new();
         for (int i = 0; i < textures.Count; i++)
         {
-            tileSetParams.Add(textures[i], i);
+            tileSetParams.Add(textures[i], i, new Vector2(1.5f, 1.5f));
         }
         _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
 
