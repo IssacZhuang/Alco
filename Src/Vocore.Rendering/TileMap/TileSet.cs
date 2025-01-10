@@ -110,6 +110,14 @@ public class TileSet<TUserData> : AutoDisposable
         return _tileData[(int)index].UserData;
     }
 
+    public void SetScale(int index, Vector2 scale)
+    {
+        SpriteData spriteData = _spriteData[index];
+        spriteData.Scale = new Vector4(scale.X, scale.Y, 0, 0);
+        _spriteData[index] = spriteData;
+        _spriteData.UpdateBufferRanged((uint)index, 1);
+    }
+
 
     protected override void Dispose(bool disposing)
     {

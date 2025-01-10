@@ -16,6 +16,7 @@ public class Game : GameEngine
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
+    private float _scale = 1f;
     public Game(GameEngineSetting setting) : base(setting)
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
@@ -35,7 +36,7 @@ public class Game : GameEngine
         TileSetParams<int> tileSetParams = new();
         for (int i = 0; i < textures.Count; i++)
         {
-            tileSetParams.Add(textures[i], i, new Vector2(1.5f, 1.5f));
+            tileSetParams.Add(textures[i], i, new Vector2(_scale, _scale));
         }
         _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
 
@@ -55,6 +56,11 @@ public class Game : GameEngine
     protected override void OnUpdate(float delta)
     {
         DebugGUI.Text(FrameRate);
+        if (DebugGUI.SliderWithText("Scale", ref _scale, 0.5f, 2))
+        {
+            _tileSet.SetScale(1, new Vector2(_scale, _scale));
+        }
+
         if (DebugGUI.SliderWithText("R", ref _color.value.X, 0, 1))
         {
             _terrainBlock.SetTilesColor(_color);

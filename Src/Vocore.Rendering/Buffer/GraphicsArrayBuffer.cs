@@ -74,8 +74,10 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         {
             return;
         }
+
+        int byteOffset = (int)(start * sizeof(T));
         
-        _device.WriteBuffer(_buffer, (byte*)_data.UnsafePointer + start * (uint)sizeof(T), count * (uint)sizeof(T));
+        _device.WriteBuffer(_buffer, (uint)byteOffset, (byte*)_data.UnsafePointer + byteOffset, (uint)(count * sizeof(T)));
     }
 
     protected override void Dispose(bool disposing)
