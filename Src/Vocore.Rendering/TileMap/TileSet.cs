@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
@@ -44,7 +45,12 @@ public class TileSet<TUserData> : AutoDisposable
         get => _atlas.RenderTexture;
     }
 
-    internal TileSet(RenderingSystem renderingSystem, TileSetParams<TUserData> @params, Material material, string name)
+    internal TileSet(
+        RenderingSystem renderingSystem, 
+        TileSetParams<TUserData> @params, 
+        Material material, 
+        GPUSampler sampler,
+        string name)
     {
         ArgumentNullException.ThrowIfNull(material);
 
@@ -69,7 +75,7 @@ public class TileSet<TUserData> : AutoDisposable
         {
             packer.AddTexture(texture.Name, texture);
         }
-        _atlas = packer.BuildTextureAtlas();
+        _atlas = packer.BuildTextureAtlas(sampler);
 
         _tileData = new List<TileData>(tileCount);
         for (int i = 0; i < tileCount; i++)

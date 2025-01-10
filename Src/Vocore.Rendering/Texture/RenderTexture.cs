@@ -9,6 +9,7 @@ namespace Vocore.Rendering;
 public class RenderTexture : AutoDisposable
 {
     private readonly GPUDevice _device;
+    private readonly GPUSampler _sampler;
     private readonly GPUFrameBuffer _frameBuffer;
     private GPUResourceGroup[]? _groupsColorRead;
     private GPUResourceGroup[]? _groupsColorWrite;
@@ -151,11 +152,13 @@ public class RenderTexture : AutoDisposable
 
     internal RenderTexture(
         GPUDevice device,
-        GPUFrameBuffer frameBuffer
+        GPUFrameBuffer frameBuffer,
+        GPUSampler sampler
         )
     {
         _device = device;
         _frameBuffer = frameBuffer;
+        _sampler = sampler;
     }
 
     private GPUResourceGroup[] CreateGroupsColorSample()
@@ -194,7 +197,7 @@ public class RenderTexture : AutoDisposable
             _device.BindGroupTexture2DSampled,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, view),
-                new ResourceBindingEntry(1, _device.SamplerLinearClamp)
+                new ResourceBindingEntry(1, _sampler)
             }
         );
 

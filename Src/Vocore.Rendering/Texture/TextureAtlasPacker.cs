@@ -44,16 +44,28 @@ public class TextureAtlasPacker: AutoDisposable
         _packer.AddRect((int)texture.Width, (int)texture.Height, new TextureItem { Name = name, Texture = texture });
     }
 
-    public TextureAtlas BuildTextureAtlas()
+    public TextureAtlas BuildTextureAtlas(GPUSampler? sampler = null)
     {
-        RenderTexture atlasTexture = _renderingSystem.CreateRenderTexture(
+        RenderTexture atlasTexture;
+        if (sampler == null)
+        {
+            atlasTexture = _renderingSystem.CreateRenderTexture(
             _renderingSystem.PrefferedRGBATexturePass,
             (uint)_packer.Width,
             (uint)_packer.Height,
-            "atlas_texture"
-        );
-
-
+                "atlas_texture"
+            );
+        }
+        else
+        {
+            atlasTexture = _renderingSystem.CreateRenderTexture(
+                _renderingSystem.PrefferedRGBATexturePass,
+                sampler,
+                (uint)_packer.Width,
+                (uint)_packer.Height,
+                "atlas_texture"
+            );
+        }
 
         List<Sprite> sprites = new List<Sprite>();
 

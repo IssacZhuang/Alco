@@ -341,7 +341,15 @@ public abstract class GPUDevice
         hash = hash * 23 + addressModeU.GetHashCode();
         hash = hash * 23 + addressModeV.GetHashCode();
         hash = hash * 23 + addressModeW.GetHashCode();
-        return _samplers.GetOrAdd(hash, (hash) => CreateSampler(new SamplerDescriptor(minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW)));
+
+        if (_samplers.TryGetValue(hash, out var sampler))
+        {
+            return sampler;
+        }
+
+        sampler = CreateSampler(new SamplerDescriptor(minFilter, magFilter, mipFilter,
+            addressModeU, addressModeV, addressModeW));
+        return _samplers.TryAdd(hash, sampler) ? sampler : _samplers[hash];
     }
 
     /// <summary>

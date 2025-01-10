@@ -37,7 +37,7 @@ public class Game : GameEngine
         {
             tileSetParams.Add(textures[i], i);
         }
-        _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, "tile_set");
+        _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
