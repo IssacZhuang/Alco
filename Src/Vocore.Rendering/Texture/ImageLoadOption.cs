@@ -7,15 +7,15 @@ public struct ImageLoadOption
     public static readonly ImageLoadOption Default = new ImageLoadOption
     {
         Format = PixelFormat.RGBA8Unorm,
-        MipLevels = 1,
         Usage = TextureUsage.Standard,
+        MipLevels = 1,
         Name = "unnamed_texture"
     };
 
     public ImageLoadOption(
         PixelFormat format = PixelFormat.RGBA8Unorm,
-        uint mipLevels = 1,
         TextureUsage usage = TextureUsage.Standard,
+        uint mipLevels = 1,
         string name = "unnamed_texture"
     )
     {

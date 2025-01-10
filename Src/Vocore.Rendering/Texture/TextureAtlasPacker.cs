@@ -60,9 +60,9 @@ public class TextureAtlasPacker: AutoDisposable
         {
             atlasTexture = _renderingSystem.CreateRenderTexture(
                 _renderingSystem.PrefferedRGBATexturePass,
-                sampler,
                 (uint)_packer.Width,
                 (uint)_packer.Height,
+                sampler,
                 "atlas_texture"
             );
         }

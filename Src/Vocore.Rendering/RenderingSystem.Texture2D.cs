@@ -109,52 +109,80 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
-        GPUDevice device = _device;
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        TextureDescriptor textureDescriptor = new TextureDescriptor(
-            TextureDimension.Texture2D,
-            optionReal.Format,
-            width,
-            height,
-            1,
-            optionReal.MipLevels,
-            optionReal.Usage,
-            1,
-            optionReal.Name
-        );
+        return CreateTexture2D(data, size, width, height, _device.SamplerLinearRepeat, option);
+    }
 
-        GPUTexture texture = device.CreateTexture(textureDescriptor);
+    public unsafe Texture2D CreateTexture2D(
+        byte* data,
+        uint size,
+        uint width,
+        uint height,
+        FilterMode filterMode,
+        ImageLoadOption? option = null
+    )
+    {
+        GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
+        return CreateTexture2D(data, size, width, height, sampler, option);
+    }
 
-        device.WriteTexture(
+    public unsafe Texture2D CreateTexture2D(
+        byte* data,
+        uint size,
+        uint width,
+        uint height,
+        FilterMode filterMode,
+        AddressMode addressMode,
+        ImageLoadOption? option = null
+    )
+    {
+        GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
+        return CreateTexture2D(data, size, width, height, sampler, option);
+    }
+
+    public unsafe Texture2D CreateTexture2D(
+        byte* data,
+        uint size,
+        uint width,
+        uint height,
+        GPUSampler sampler,
+        ImageLoadOption? option = null
+    )
+    {
+        CreateTexture2DCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
+
+        _device.WriteTexture(
             texture,
             data,
             size
         );
 
-        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
-            texture,
-            TextureViewDimension.Texture2D
-        );
-
-        textureDescriptor.Name = optionReal.Name;
-
-        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
-
         return new Texture2D(
-            device,
+            _device,
             texture,
             textureView,
-            device.SamplerLinearRepeat
+            sampler
         );
     }
 
     public unsafe Texture2D CreateTexture2D(
         uint width,
         uint height,
+        GPUSampler sampler,
         ImageLoadOption? option = null
     )
     {
-        GPUDevice device = _device;
+        CreateTexture2DCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
+
+        return new Texture2D(
+            _device,
+            texture,
+            textureView,
+            sampler
+        );
+    }
+
+    private void CreateTexture2DCore(uint width, uint height, ImageLoadOption? option, out GPUTexture texture, out GPUTextureView textureView)
+    {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,
@@ -168,23 +196,14 @@ public partial class RenderingSystem
             optionReal.Name
         );
 
-        GPUTexture texture = device.CreateTexture(textureDescriptor);
+        texture = _device.CreateTexture(textureDescriptor);
 
         TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
             texture,
             TextureViewDimension.Texture2D
         );
 
-        textureDescriptor.Name = optionReal.Name;
-
-        GPUTextureView textureView = device.CreateTextureView(textureViewDescriptor);
-
-        return new Texture2D(
-            device,
-            texture,
-            textureView,
-            device.SamplerLinearRepeat
-        );
+        textureView = _device.CreateTextureView(textureViewDescriptor);
     }
 
     
