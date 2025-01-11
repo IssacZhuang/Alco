@@ -21,7 +21,8 @@ struct Constants{
 
 struct SpriteData{
     float4 uvRect;
-    float4 scale;
+    float2 meshScale;
+    float2 uvScale;
 };
 
 
@@ -49,7 +50,7 @@ V2F VertexMain(Vertex2D input)
     int x = input.instanceId % constants.size.x;
     int y = input.instanceId / constants.size.x;
 
-    float2 pos2D = input.position * sprite.scale.xy;
+    float2 pos2D = input.position * sprite.meshScale;
 
     float4 position = float4(pos2D, 0, 1);
     position.xy += float2(x, y);
@@ -58,7 +59,7 @@ V2F VertexMain(Vertex2D input)
     output.position = position;
 
     output.color = color;
-    output.uv = input.uv * sprite.scale.xy;//sprite.uvRect.zw + sprite.uvRect.xy;
+    output.uv = input.uv * sprite.uvScale;//sprite.uvRect.zw + sprite.uvRect.xy;
     output.uvRect = sprite.uvRect;
     output.instanceId = input.instanceId;
 

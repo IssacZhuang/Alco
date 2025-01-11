@@ -16,7 +16,8 @@ public class Game : GameEngine
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
-    private float _scale = 1f;
+    private float _meshScale = 1f;
+    private float _uvScale = 1f;
     public Game(GameEngineSetting setting) : base(setting)
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
@@ -34,9 +35,11 @@ public class Game : GameEngine
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
         TileSetParams<int> tileSetParams = new();
+        Vector2 meshScale = new Vector2(_meshScale, _meshScale);
+        Vector2 uvScale = new Vector2(_uvScale, _uvScale);
         for (int i = 0; i < textures.Count; i++)
         {
-            tileSetParams.Add(textures[i], i, new Vector2(_scale, _scale));
+            tileSetParams.Add(textures[i], i, meshScale, uvScale);
         }
         _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
 
@@ -56,9 +59,14 @@ public class Game : GameEngine
     protected override void OnUpdate(float delta)
     {
         DebugGUI.Text(FrameRate);
-        if (DebugGUI.SliderWithText("Scale", ref _scale, 0.5f, 2))
+        if (DebugGUI.SliderWithText("Mesh Scale", ref _meshScale, 0.5f, 2))
         {
-            _tileSet.SetScale(1, new Vector2(_scale, _scale));
+            _tileSet.SetMeshScale(1, new Vector2(_meshScale, _meshScale));
+        }
+
+        if (DebugGUI.SliderWithText("UV Scale", ref _uvScale, 0.5f, 2))
+        {
+            _tileSet.SetUVScale(1, new Vector2(_uvScale, _uvScale));
         }
 
         if (DebugGUI.SliderWithText("R", ref _color.value.X, 0, 1))

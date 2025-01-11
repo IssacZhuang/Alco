@@ -18,7 +18,8 @@ public class TileSet<TUserData> : AutoDisposable
     public struct SpriteData
     {
         public Rect UVRect;
-        public Vector4 Scale;
+        public Vector2 MeshScale;
+        public Vector2 UVScale;
     }
 
 
@@ -93,7 +94,8 @@ public class TileSet<TUserData> : AutoDisposable
             _spriteData[i] = new SpriteData
             {
                 UVRect = sprite.UVRect,
-                Scale = item.Scale
+                MeshScale = item.MeshScale,
+                UVScale = item.UVScale
             };
         }
 
@@ -110,10 +112,18 @@ public class TileSet<TUserData> : AutoDisposable
         return _tileData[(int)index].UserData;
     }
 
-    public void SetScale(int index, Vector2 scale)
+    public void SetMeshScale(int index, Vector2 scale)
     {
         SpriteData spriteData = _spriteData[index];
-        spriteData.Scale = new Vector4(scale.X, scale.Y, 0, 0);
+        spriteData.MeshScale = scale;
+        _spriteData[index] = spriteData;
+        _spriteData.UpdateBufferRanged((uint)index, 1);
+    }
+
+    public void SetUVScale(int index, Vector2 scale)
+    {
+        SpriteData spriteData = _spriteData[index];
+        spriteData.UVScale = scale;
         _spriteData[index] = spriteData;
         _spriteData.UpdateBufferRanged((uint)index, 1);
     }

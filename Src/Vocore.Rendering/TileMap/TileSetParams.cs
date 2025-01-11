@@ -7,7 +7,8 @@ public class TileSetParams<TUserData>
     public struct Item
     {
         public TUserData UserData;
-        public Vector4 Scale;
+        public Vector2 MeshScale;
+        public Vector2 UVScale;
         public Texture2D Texture;
     }
 
@@ -21,17 +22,19 @@ public class TileSetParams<TUserData>
         {
             Texture = texture,
             UserData = userData,
-            Scale = Vector4.One
+            MeshScale = Vector2.One,
+            UVScale = Vector2.One
         });
     }
 
-    public void Add(Texture2D texture, TUserData userData, Vector2 scale)
+    public void Add(Texture2D texture, TUserData userData, Vector2 meshScale, Vector2 uvScale)
     {
         _items.Add(new Item
         {
             Texture = texture,
             UserData = userData,
-            Scale = new Vector4(scale, 1, 1)
+            MeshScale = meshScale,
+            UVScale = uvScale
         });
     }
 
