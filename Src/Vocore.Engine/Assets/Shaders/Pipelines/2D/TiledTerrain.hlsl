@@ -47,13 +47,13 @@ V2F VertexMain(Vertex2D input)
     SpriteData sprite = _spriteData[tileId];
 
     V2F output;
-    int x = input.instanceId % constants.size.x;
-    int y = input.instanceId / constants.size.x;
+    float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
+    float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
     float2 pos2D = input.position * sprite.meshScale;
 
     float4 position = float4(pos2D, 0, 1);
-    position.xy += float2(x, -y);
+    position.xy += float2(offsetX, -offsetY);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
     output.position = position;

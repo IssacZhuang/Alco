@@ -15,8 +15,8 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         public int2 Size;
     }
 
-    private uint _length;
-    private int2 _size;
+    private readonly uint _length;
+    private readonly int2 _size;
     private readonly TileSet<TUserData> _tileSet;
     private readonly GraphicsArrayBuffer<ColorFloat> _colorData;
     private readonly GraphicsArrayBuffer<uint> _tileIdData;
