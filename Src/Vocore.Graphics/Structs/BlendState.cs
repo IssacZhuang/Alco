@@ -19,7 +19,7 @@ namespace Vocore.Graphics
 
         public static readonly BlendState AlphaBlend = new BlendState
         {
-            Color = new BlendComponent(BlendFactor.One, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add),
+            Color = new BlendComponent(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add),
             Alpha = new BlendComponent(BlendFactor.One, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add)
         };
 

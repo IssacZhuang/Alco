@@ -16,7 +16,7 @@ public class Game : GameEngine
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
-    private float _meshScale = 1f;
+    private float _meshScale = 2f;
     private float _uvScale = 1f;
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -50,6 +50,7 @@ public class Game : GameEngine
 
         _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
         _terrainMaterial.SetBuffer("_camera", _camera);
+        _terrainMaterial.BlendState = BlendState.AlphaBlend;
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 32, 32);
 
         _terrainBlock.SetTilesId(1);

@@ -53,7 +53,7 @@ V2F VertexMain(Vertex2D input)
     float2 pos2D = input.position * sprite.meshScale;
 
     float4 position = float4(pos2D, 0, 1);
-    position.xy += float2(x, y);
+    position.xy += float2(x, -y);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
     output.position = position;
