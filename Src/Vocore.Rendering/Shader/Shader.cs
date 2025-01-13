@@ -18,7 +18,7 @@ public class Shader : AutoDisposable
     private readonly Lock _lockCreateGraphicsPipeline = new Lock();
     private readonly Lock _lockCreateComputePipeline = new Lock();
     private readonly Lock _lockCreateModules = new Lock();
-    private readonly string _shaderText;
+    private string _shaderText;
 
     /// <summary>
     /// The name of the shader
@@ -325,6 +325,25 @@ public class Shader : AutoDisposable
             _computePipelineCache[modulesInfo] = pipelineNew;
             return pipelineNew;
         }
+    }
+
+    /// <summary>
+    /// Unsafe hot reload the shader. It might break the material that uses this shader.
+    /// So make sure the new shader has the same shader resource at the same slot.
+    /// </summary>
+    /// <param name="shaderText">The new shader text</param>
+    public void UnsafeHotReload(string shaderText)
+    {
+        _shaderText = shaderText;
+
+        //clear cache
+        _graphicsPipelineCache.Clear();
+        _computePipelineCache.Clear();
+        _modulesCache.Clear();
+
+        //recompile
+        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
+        _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, Name, ReadOnlySpan<string>.Empty);
     }
 
 
