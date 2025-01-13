@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Vocore.Graphics;
 
+using static Vocore.math;
+
 namespace Vocore.Rendering;
 
 public class TiledTerrainBlock2D<TUserData> : AutoDisposable
@@ -147,6 +149,40 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     public TUserData GetTileUserData(int x, int y)
     {
         return _tileSet.GetUserData(GetTileId(x, y));
+    }
+
+    public bool TryGetTilePositionByRay(Ray3D ray, out int2 tilePosition)
+    {
+        Matrix4x4 matrix = Transform.Matrix;
+        //to local space
+        if (Matrix4x4.Invert(matrix, out Matrix4x4 invMatrix))
+        {
+            Vector3 start = ray.origin;
+            Vector3 end = ray.origin + ray.displacement;
+
+            Vector3 localStart = Vector3.Transform(start, invMatrix);
+            Vector3 localEnd = Vector3.Transform(end, invMatrix);
+
+            Plane3D plane = new Plane3D(Vector3.UnitZ, 0);
+
+            Ray3D localRay = new Ray3D(localStart, localEnd - localStart);
+
+            if (plane.IntersectRay(localRay, out Vector3 hitPoint))
+            {
+            
+                int tileX = (int)round(hitPoint.X / _size.x);
+                int tileY = (int)round(hitPoint.Y / _size.y);
+
+                if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
+                {
+                    tilePosition = new int2(tileX, tileY);
+                    return true;
+                }
+            }
+        }
+
+        tilePosition = new int2(0, 0);
+        return false;
     }
 
     protected override void Dispose(bool disposing)

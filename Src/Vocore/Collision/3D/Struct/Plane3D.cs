@@ -9,8 +9,20 @@ public struct Plane3D
 
     public Plane3D(Vector3 normal, float distance)
     {
-        this.normal = normal;
+        this.normal = Vector3.Normalize(normal);
         this.distance = distance;
+    }
+
+    public Plane3D(Transform3D transform)
+    {
+        normal = math.normalize(transform.Direction);
+        distance = Vector3.Dot(normal, transform.position);
+    }
+
+    public Plane3D(Vector3 normal, Vector3 point)
+    {
+        this.normal = Vector3.Normalize(normal);
+        distance = Vector3.Dot(normal, point);
     }
 
     public Plane3D(Vector3 a, Vector3 b, Vector3 c)
