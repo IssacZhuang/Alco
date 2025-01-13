@@ -153,13 +153,13 @@ public sealed partial class AssetSystem
 
             handle.IsLoading = true;
 
-            if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
-            {
-                string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
-                Log.Error(failedReason);
-                onComplete(null!, new AssetLoadException(failedReason));
-                return;
-            }
+            // if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
+            // {
+            //     string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
+            //     Log.Error(failedReason);
+            //     onComplete(null!, new AssetLoadException(failedReason));
+            //     return;
+            // }
 
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
