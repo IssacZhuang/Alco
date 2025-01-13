@@ -7,6 +7,10 @@ using static Vocore.math;
 
 namespace Vocore.Rendering;
 
+/// <summary>
+/// A 2D tiled terrain block. The top left corner is (0, 0).
+/// </summary>
+/// <typeparam name="TUserData">The type of the user data.</typeparam>
 public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 {
     //per block
@@ -109,14 +113,14 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetTileColor(int x, int y, ColorFloat color)
     {
-        _colorData[y * _size.x + x] = color;
+        _colorData[GetTileIndex(x, y)] = color;
         _isColorDirty = true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetTileId(int x, int y, uint tileId)
     {
-        _tileIdData[y * _size.x + x] = tileId;
+        _tileIdData[GetTileIndex(x, y)] = tileId;
         _isTileIdDirty = true;
     }
 
@@ -126,7 +130,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         {
             for (int j = from.y; j < to.y; j++)
             {
-                _tileIdData[j * _size.x + i] = tileId;
+                _tileIdData[GetTileIndex(i, j)] = tileId;
             }
         }
         _isTileIdDirty = true;
@@ -143,7 +147,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
     public uint GetTileId(int x, int y)
     {
-        return _tileIdData[y * _size.x + x];
+        return _tileIdData[GetTileIndex(x, y)];
     }
 
     public TUserData GetTileUserData(int x, int y)
@@ -169,20 +173,26 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
             if (plane.IntersectRay(localRay, out Vector3 hitPoint))
             {
-            
-                int tileX = (int)round(hitPoint.X / _size.x);
-                int tileY = (int)round(hitPoint.Y / _size.y);
 
-                if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
-                {
-                    tilePosition = new int2(tileX, tileY);
-                    return true;
-                }
+                int tileX = (int)round(hitPoint.X);
+                int tileY = (int)round(hitPoint.Y);
+
+                // if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
+                // {
+                tilePosition = new int2(tileX, tileY);
+                return true;
+                // }
             }
         }
 
         tilePosition = new int2(0, 0);
         return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetTileIndex(int x, int y)
+    {
+        return y * _size.x + x;
     }
 
     protected override void Dispose(bool disposing)

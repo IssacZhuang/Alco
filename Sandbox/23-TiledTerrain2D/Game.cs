@@ -102,6 +102,12 @@ public class Game : GameEngine
             _targetZoom = math.clamp(_targetZoom, 2, 20);
         }
 
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainWindow.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
+        if(_terrainBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+        {
+            DebugGUI.Text($"Tile Position: {tilePosition}");
+        }
+
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
         _camera.Width = _zoom * MainWindow.AspectRatio; 
         _camera.Height = _zoom;
