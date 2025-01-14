@@ -5,9 +5,13 @@ using System.Diagnostics.CodeAnalysis;
 namespace Vocore.IO;
 
 /// <summary>
-/// The file source interface
+/// The interface provide file data for <see cref="AssetSystem"/>. 
+/// The implementor should be thread safe.
+/// <br/>
+/// This interface is not recyclable and it will be disposed when the <see cref="AssetSystem"/> is disposed 
+/// or on the <see cref="AssetSystem.RemoveAllFileSource"/> and <see cref="AssetSystem.RemoveFileSource"/>
 /// </summary>
-public interface IFileSource
+public interface IFileSource : IDisposable
 {
     /// <summary>
     /// The order of this file source, the higher order will be override the lower order
@@ -21,10 +25,6 @@ public interface IFileSource
     /// Try get data from this file source
     /// </summary>
     bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data);
-    /// <summary>
-    /// Called when the file source is unloaded
-    /// </summary>
-    void OnUnload();
 }
 
 

@@ -1,5 +1,3 @@
-
-
 namespace Vocore.IO;
 
 public sealed partial class AssetSystem
@@ -34,8 +32,21 @@ public sealed partial class AssetSystem
     {
         if (_fileSources.Remove(fileSource))
         {
-            fileSource.OnUnload();
+            fileSource.Dispose();
         }
+        _isEntryDirty = true;
+    }
+
+    /// <summary>
+    /// Remove all the file sources
+    /// </summary>
+    public void RemoveAllFileSource()
+    {
+        foreach (var fileSource in _fileSources)
+        {
+            fileSource.Dispose();
+        }
+        _fileSources.Clear();
         _isEntryDirty = true;
     }
 

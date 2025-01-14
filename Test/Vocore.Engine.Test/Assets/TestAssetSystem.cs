@@ -92,7 +92,7 @@ public class TestAssetSystem
 
         public IEnumerable<string> AllFileNames => ["test.fast", "test.slow"];
 
-        public void OnUnload()
+        public void Dispose()
         {
 
         }

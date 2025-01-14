@@ -64,6 +64,7 @@ namespace Vocore.IO
 
         private void Dispose()
         {
+            RemoveAllFileSource();
             _asyncLoadQueue.Dispose();
             Profiler.Dispose();
 

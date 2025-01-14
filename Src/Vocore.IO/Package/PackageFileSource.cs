@@ -36,7 +36,7 @@ public class PackageFileSource : IFileSource
         }
     }
 
-    public void OnUnload()
+    public void Dispose()
     {
         _package.Dispose();
     }

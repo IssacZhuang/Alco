@@ -48,7 +48,7 @@ public class DirectoryFileSource : IFileSource
         return path.Replace('\\', '/');
     }
 
-    public void OnUnload()
+    public void Dispose()
     {
         //do nothing
     }
