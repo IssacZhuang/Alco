@@ -91,6 +91,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "22-AtlasPacker", "Sandbox\2
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "23-TiledTerrain2D", "Sandbox\23-TiledTerrain2D\23-TiledTerrain2D.csproj", "{BE5AE625-6CA2-417C-8ED5-1CCF8DD5C6DD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "~SandboxUtils", "Sandbox\~SandboxUtils\~SandboxUtils.csproj", "{98F36F63-E938-4102-847B-2CC3B1934266}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -253,6 +255,10 @@ Global
 		{BE5AE625-6CA2-417C-8ED5-1CCF8DD5C6DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE5AE625-6CA2-417C-8ED5-1CCF8DD5C6DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE5AE625-6CA2-417C-8ED5-1CCF8DD5C6DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98F36F63-E938-4102-847B-2CC3B1934266}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98F36F63-E938-4102-847B-2CC3B1934266}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98F36F63-E938-4102-847B-2CC3B1934266}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98F36F63-E938-4102-847B-2CC3B1934266}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -297,5 +303,6 @@ Global
 		{D9751781-A0CF-4696-82B1-11B82C0439EE} = {85C5C5E0-AF0D-40A2-A2A6-6B13E12A3662}
 		{FBAAFC82-6AFA-422D-83A9-20C2B589FB85} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{BE5AE625-6CA2-417C-8ED5-1CCF8DD5C6DD} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
+		{98F36F63-E938-4102-847B-2CC3B1934266} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal
