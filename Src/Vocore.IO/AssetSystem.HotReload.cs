@@ -10,9 +10,9 @@ public sealed partial class AssetSystem
     /// Register a hot reloader for a specific asset type
     /// </summary>
     /// <param name="hotReloader">The hot reloader implementation</param>
-    public void RegisterHotReloader(IAssetHotReloader hotReloader)
+    public void RegisterAssetHotReloader(Type type, IAssetHotReloader hotReloader)
     {
-        _hotReloaders[hotReloader.GetType()] = hotReloader;
+        _hotReloaders[type] = hotReloader;
     }
 
     public bool TryHotReload(string filename, ReadOnlySpan<byte> data, out string? failedReason)
@@ -27,13 +27,17 @@ public sealed partial class AssetSystem
 
         if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out object? hotReloader))
         {
-            if (hotReloader is not IAssetHotReloader assetHotReloader)
+            IAssetHotReloader assetHotReloader = (IAssetHotReloader)hotReloader;
+
+            try
             {
-                failedReason = $"Hot reloader for type {cachedAsset.GetType().Name} is not an instance of IAssetHotReloader";
+                assetHotReloader.HotReload(cachedAsset, data);
+            }
+            catch (Exception ex)
+            {
+                failedReason = $"Failed to hot reload asset {filename}: {ex.Message}";
                 return false;
             }
-
-            assetHotReloader.TryHotReload(cachedAsset, data);
             failedReason = string.Empty;
             return true;
         }

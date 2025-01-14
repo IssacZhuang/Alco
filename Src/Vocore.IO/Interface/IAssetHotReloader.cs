@@ -2,5 +2,5 @@ namespace Vocore.IO;
 
 public interface IAssetHotReloader
 {
-    bool TryHotReload(object asset, ReadOnlySpan<byte> data);
+    void HotReload(object asset, ReadOnlySpan<byte> data);
 }

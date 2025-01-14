@@ -1,10 +1,11 @@
 using System.Text;
+using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
 public partial class GameEngine
 {
-    private void InitializeDefaultAssetLoader()
+    protected virtual void InitializeDefaultAssetLoader()
     {
         //texture
         Assets.RegisterAssetLoader(new AssetLoaderFontTTF(Rendering));
@@ -28,5 +29,7 @@ public partial class GameEngine
         Assets.RegisterAssetLoader(new AssetLoaderAudioWave(AudioDevice));
         Assets.RegisterAssetLoader(new AssetLoaderAudioFlac(AudioDevice));
         //Assets.RegisterAssetLoader(new AssetLoaderAudioAiff(AudioDevice));
+
+        Assets.RegisterAssetHotReloader(typeof(Shader), new AssetHotReloaderShaderHLSL());
     }
 }

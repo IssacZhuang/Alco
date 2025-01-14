@@ -334,6 +334,8 @@ public class Shader : AutoDisposable
     /// <param name="shaderText">The new shader text</param>
     public void UnsafeHotReload(string shaderText)
     {
+        ShaderModulesInfo shaderModule = UtilsShaderHLSL.Compile(shaderText, Name, ReadOnlySpan<string>.Empty);
+        
         _shaderText = shaderText;
 
         //clear cache
@@ -343,7 +345,7 @@ public class Shader : AutoDisposable
 
         //recompile
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, Name, ReadOnlySpan<string>.Empty);
+        _modulesCache[hash] = shaderModule;
     }
 
 
