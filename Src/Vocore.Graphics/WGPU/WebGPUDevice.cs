@@ -56,9 +56,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
-    private readonly List<WGPUCommandBuffer> _submittedCommandBuffers = new List<WGPUCommandBuffer>(64);
-    private AtomicSpinLock _lockSubmit = new AtomicSpinLock();
-
 
     #endregion
 
@@ -82,10 +79,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).TakeBuffer();
-        wgpuQueueSubmit(Queue, 1, &buffer);
-        _lockSubmit.Lock();
-        _submittedCommandBuffers.Add(buffer);
-        _lockSubmit.Unlock();
+        wgpuQueueSubmit(Queue, 1, &buffer);//add reference count
+        wgpuCommandBufferRelease(buffer);//just decrement the reference count
     }
 
     protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
@@ -113,7 +108,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
 
-        //DebugPrintReport();
+        DebugPrintReport();
 
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
@@ -357,14 +352,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void OnEndFrameCore()
     {
-        wgpuDevicePoll(Device, WGPUBool.True, null);
-        _lockSubmit.Lock();
-        for (int i = 0; i < _submittedCommandBuffers.Count; i++)
-        {
-            wgpuCommandBufferRelease(_submittedCommandBuffers[i]);
-        }
-        _submittedCommandBuffers.Clear();
-        _lockSubmit.Unlock();
+
     }
 
     #endregion
@@ -645,26 +633,26 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUGlobalReport report;
         wgpuGenerateReport(Instance, &report);
 
-        //UtilsWebGPU.PrintHubReport(report.vulkan);
-        switch(report.backendType)
-        {
-            case WGPUBackendType.Vulkan:
-                UtilsWebGPU.PrintHubReport(report.vulkan);
-                break;
-            case WGPUBackendType.Metal:
-                UtilsWebGPU.PrintHubReport(report.metal);
-                break;
-            case WGPUBackendType.D3D12:
-                UtilsWebGPU.PrintHubReport(report.dx12);
-                break;
-            case WGPUBackendType.OpenGLES:
-            case WGPUBackendType.OpenGL:
-                UtilsWebGPU.PrintHubReport(report.gl);
-                break;
-            case WGPUBackendType.WebGPU:
-            default:
-                break;
-        }
+        UtilsWebGPU.PrintHubReport(report.vulkan);
+        // switch(report.backendType)
+        // {
+        //     case WGPUBackendType.Vulkan:
+        //         UtilsWebGPU.PrintHubReport(report.vulkan);
+        //         break;
+        //     case WGPUBackendType.Metal:
+        //         UtilsWebGPU.PrintHubReport(report.metal);
+        //         break;
+        //     case WGPUBackendType.D3D12:
+        //         UtilsWebGPU.PrintHubReport(report.dx12);
+        //         break;
+        //     case WGPUBackendType.OpenGLES:
+        //     case WGPUBackendType.OpenGL:
+        //         UtilsWebGPU.PrintHubReport(report.gl);
+        //         break;
+        //     case WGPUBackendType.WebGPU:
+        //     default:
+        //         break;
+        // }
     }
 
     #endregion
