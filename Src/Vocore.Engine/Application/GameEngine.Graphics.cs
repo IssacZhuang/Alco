@@ -36,32 +36,7 @@ public partial class GameEngine
             Name = "graphics_device"
         };
 
-        RegisterLogger();
         return GraphicsDeviceFactory.CreateWebGPUDevice(deviceDescriptor);
     }
 
-    private static void RegisterLogger()
-    {
-        GraphicsLogger.ErrorCallback = GraphicsLogError;
-        GraphicsLogger.WarningCallback = GraphicsLogWarning;
-        GraphicsLogger.InfoCallback = GraphicsLogInfo;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void GraphicsLogError(string message)
-    {
-        Log.Error(GraphicsLogPrefix, message);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void GraphicsLogWarning(string message)
-    {
-        Log.Warning(GraphicsLogPrefix, message);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void GraphicsLogInfo(string message)
-    {
-        Log.Info(GraphicsLogPrefix, message);
-    }
 }

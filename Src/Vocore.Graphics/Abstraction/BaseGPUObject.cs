@@ -49,6 +49,6 @@ public abstract class BaseGPUObject : IDisposable
 
     private void LogGC()
     {
-        GraphicsLogger.Info($"GC {Name}, {GetType().Name}");
+        Console.WriteLine($"GC {Name}, {GetType().Name}");
     }
 }

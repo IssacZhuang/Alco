@@ -59,7 +59,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
         {
             WGPUTextureFormat oldFormat = _surfaceFormat;
             _surfaceFormat = _supportedSurfaceFormats[0];
-            GraphicsLogger.Info($"Surface format {oldFormat} is not supported, using {_surfaceFormat} instead");
+            _device.LogInfo($"Surface format {oldFormat} is not supported, using {_surfaceFormat} instead");
         }
 
         wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
@@ -166,7 +166,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
             }
             else
             {
-                GraphicsLogger.Warning("VSync is off but no supported present mode found, using FIFO");
+                _device.LogWarning("VSync is off but no supported present mode found, using FIFO");
             }
         }
         return WGPUPresentMode.Fifo;

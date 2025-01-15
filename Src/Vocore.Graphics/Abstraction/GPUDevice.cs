@@ -31,6 +31,8 @@ public abstract class GPUDevice
     private GPUSampler? _samplerNearestMirrorRepeat;
     private GPUSampler? _samplerLinearMirrorRepeat;
 
+    protected readonly IGPUDeviceHost _host;
+
     private uint _disposeDelay = 1;
 
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
@@ -41,6 +43,7 @@ public abstract class GPUDevice
         IGPUDeviceHost loopProvider = descriptor.LoopProvider;
         loopProvider.OnEndFrame += OnEndFrame;
         loopProvider.OnDispose += Dispose;
+        _host = loopProvider;
     }
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
@@ -657,11 +660,10 @@ public abstract class GPUDevice
                 try
                 {
                     item.@object.Destroy();
-                    //GraphicsLogger.Info($"Destroyed GPU object: {item.@object.Name}");
                 }
                 catch (Exception e)
                 {
-                    GraphicsLogger.Error($"Error in destroying GPU object: {e}");
+                    _host.LogError($"Error in destroying GPU object: {e}");
                 }
                 _deferredDisposal.RemoveAt(i);
                 i--;
@@ -682,6 +684,6 @@ public abstract class GPUDevice
         }
         DisposeCore();
 
-        GraphicsLogger.Info("GPU device closed");
+        _host.LogInfo("GPU device closed");
     }
 }

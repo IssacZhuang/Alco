@@ -35,6 +35,26 @@ public class TestAssetSystem
         {
             OnDispose?.Invoke();
         }
+
+        public void LogError(ReadOnlySpan<char> message)
+        {
+            Console.WriteLine($"[Error] {message}");
+        }
+
+        public void LogInfo(ReadOnlySpan<char> message)
+        {
+            Console.WriteLine($"[Info] {message}");
+        }
+
+        public void LogSuccess(ReadOnlySpan<char> message)
+        {
+            Console.WriteLine($"[Success] {message}");
+        }
+
+        public void LogWarning(ReadOnlySpan<char> message)
+        {
+            Console.WriteLine($"[Warning] {message}");
+        }
     }
 
     private class TestFastAssetLoader : IAssetLoader<TestFastAsset>

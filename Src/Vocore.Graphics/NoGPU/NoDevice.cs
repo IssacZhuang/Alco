@@ -17,6 +17,26 @@ internal class NoDevice : GPUDevice
             add { }
             remove { }
         }
+
+        public void LogError(ReadOnlySpan<char> message)
+        {
+            
+        }
+
+        public void LogInfo(ReadOnlySpan<char> message)
+        {
+            
+        }
+
+        public void LogSuccess(ReadOnlySpan<char> message)
+        {
+            
+        }
+
+        public void LogWarning(ReadOnlySpan<char> message)
+        {
+            
+        }
     }
     public static readonly NoDevice noDevice = new NoDevice();
 

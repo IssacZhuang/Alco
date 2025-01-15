@@ -56,6 +56,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
+    private GCHandle _thisHandle;
 
     #endregion
 
@@ -115,6 +116,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuDeviceRelease(Device);
         //wgpuSurfaceRelease(Surface);
         wgpuAdapterRelease(Adapter);
+
+        _thisHandle.Free();
     }
 
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
@@ -190,9 +193,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
     {
-        // Stopwatch stopwatch = new Stopwatch();
-        // stopwatch.Start();
-
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
         WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
         {
@@ -202,54 +202,26 @@ internal sealed partial class WebGPUDevice : GPUDevice
         };
         WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
 
-        // stopwatch.Stop();
-        // GraphicsLogger.Info("create buffer: " + stopwatch.ElapsedTicks);
-
-        // stopwatch.Restart();
-
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
         wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
 
         WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
         
         wgpuQueueSubmit(Queue, 1, &commandBuffer);
-
-        // stopwatch.Stop();
-        // GraphicsLogger.Info("gpu copy: " + stopwatch.ElapsedTicks);
-
-        // stopwatch.Restart();
         
         wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size, &BufferMapCallback, null);
         wgpuDevicePoll(Device, WGPUBool.True, null);
-
-        // stopwatch.Stop();
-        // GraphicsLogger.Info("map: " + stopwatch.ElapsedTicks);
-
-        // stopwatch.Restart();
 
         void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
 
         Unsafe.CopyBlock(dest, pointer, size);
 
-        // stopwatch.Stop();
-        // GraphicsLogger.Info("cpoy: " + stopwatch.ElapsedTicks);
-
-        // stopwatch.Restart();
-
         wgpuBufferUnmap(tmpBuffer);
-
-        // stopwatch.Stop();
-        // GraphicsLogger.Info("unmap: " + stopwatch.ElapsedTicks);
-
-        // stopwatch.Restart();
 
         wgpuCommandEncoderRelease(encoder);
         wgpuCommandBufferRelease(commandBuffer);
         wgpuBufferDestroy(tmpBuffer);
         wgpuBufferRelease(tmpBuffer);
-
-        // stopwatch.Stop();
-        // GraphicsLogger.Info("release: " + stopwatch.ElapsedTicks);
     }
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
@@ -367,8 +339,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor) : base(descriptor)
     {
+        _thisHandle = GCHandle.Alloc(this, GCHandleType.Normal);
+
         _descriptor = descriptor;
-        wgpuSetLogCallback(LogCallback);
+        wgpuSetLogCallback(LogCallback, GCHandle.ToIntPtr(_thisHandle));
 
         _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
 
@@ -406,8 +380,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         WGPUAdapterInfo info = default;
         wgpuAdapterGetInfo(adapter, &info);
-        GraphicsLogger.Info($"Adapter name: {UtilsInterop.ReadString(info.device)}");
-        GraphicsLogger.Info($"Graphics backend: {info.backendType}");
+        _host.LogSuccess($"Adapter name: {UtilsInterop.ReadString(info.device)}");
+        _host.LogSuccess($"Graphics backend: {info.backendType}");
 
         wgpuAdapterInfoFreeMembers(info);
 
@@ -540,7 +514,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.Write, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
             },
         });
-
     }
 
 
@@ -554,7 +527,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestAdapterStatus.Success)
         {
             *(WGPUAdapter*)pUserData = candidateAdapter;
-            GraphicsLogger.Info("Adapter found");
         }
         else
         {
@@ -568,7 +540,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
         if (status == WGPURequestDeviceStatus.Success)
         {
             *(WGPUDevice*)pUserData = device;
-            GraphicsLogger.Info("Device created");
         }
         else
         {
@@ -587,7 +558,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     {
         if (status != WGPUBufferMapAsyncStatus.Success)
         {
-            GraphicsLogger.Error("Buffer map failed, status: " + status);
+            //todo: handle buffer map failed
         }
 
     }
@@ -600,17 +571,18 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     private static void LogCallback(WGPULogLevel level, string message, nint userdata = 0)
     {
+        WebGPUDevice device = (WebGPUDevice)GCHandle.FromIntPtr(userdata).Target!;
         switch (level)
         {
             case WGPULogLevel.Error:
                 throw new GraphicsException(message);
             case WGPULogLevel.Warn:
-                GraphicsLogger.Warning(message);
+                device._host.LogWarning(message);
                 break;
             case WGPULogLevel.Info:
             case WGPULogLevel.Debug:
             case WGPULogLevel.Trace:
-                GraphicsLogger.Info(message);
+                device._host.LogInfo(message);
                 break;
         }
     }
@@ -626,33 +598,73 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
         return false;
     }
+
+
+    //for wgpu object usage only
+    internal void LogInfo(ReadOnlySpan<char> message){
+        _host.LogInfo(message);
+    }
+
+    internal void LogWarning(ReadOnlySpan<char> message){
+        _host.LogWarning(message);
+    }
     
     [Conditional("DEBUG")]
     private unsafe void DebugPrintReport()
     {
-        WGPUGlobalReport report;
-        wgpuGenerateReport(Instance, &report);
+        // WGPUGlobalReport report;
+        // wgpuGenerateReport(Instance, &report);
 
-        UtilsWebGPU.PrintHubReport(report.vulkan);
         // switch(report.backendType)
         // {
         //     case WGPUBackendType.Vulkan:
-        //         UtilsWebGPU.PrintHubReport(report.vulkan);
+        //         PrintHubReport(report.vulkan);
         //         break;
         //     case WGPUBackendType.Metal:
-        //         UtilsWebGPU.PrintHubReport(report.metal);
+        //         PrintHubReport(report.metal);
         //         break;
         //     case WGPUBackendType.D3D12:
-        //         UtilsWebGPU.PrintHubReport(report.dx12);
+        //         PrintHubReport(report.dx12);
         //         break;
         //     case WGPUBackendType.OpenGLES:
         //     case WGPUBackendType.OpenGL:
-        //         UtilsWebGPU.PrintHubReport(report.gl);
+        //         PrintHubReport(report.gl);
         //         break;
         //     case WGPUBackendType.WebGPU:
         //     default:
         //         break;
         // }
+    }
+
+    private void PrintHubReport(WGPUHubReport report)
+    {
+        _host.LogInfo("Hub report:");
+        PrintRegistryReport(report.adapters, "adapters");
+        PrintRegistryReport(report.devices, "devices");
+        PrintRegistryReport(report.queues, "queues");
+        PrintRegistryReport(report.pipelineLayouts, "pipelineLayouts");
+        PrintRegistryReport(report.shaderModules, "shaderModules");
+        PrintRegistryReport(report.bindGroupLayouts, "bindGroupLayouts");
+        PrintRegistryReport(report.bindGroups, "bindGroups");
+        PrintRegistryReport(report.commandBuffers, "commandBuffers");
+        PrintRegistryReport(report.renderBundles, "renderBundles");
+        PrintRegistryReport(report.renderPipelines, "renderPipelines");
+        PrintRegistryReport(report.computePipelines, "computePipelines");
+        PrintRegistryReport(report.querySets, "querySets");
+        PrintRegistryReport(report.buffers, "buffers");
+        PrintRegistryReport(report.textures, "textures");
+        PrintRegistryReport(report.textureViews, "textureViews");
+        PrintRegistryReport(report.samplers, "samplers");
+    }
+
+    private void PrintRegistryReport(WGPURegistryReport report, string name)
+    {
+        _host.LogInfo($"Registry report for {name}:");
+        _host.LogInfo($"  Element size: {report.elementSize}");
+        _host.LogInfo($"  Allocated: {report.numAllocated}");
+        _host.LogInfo($"  Kept from user: {report.numKeptFromUser}");
+        _host.LogInfo($"  Released from user: {report.numReleasedFromUser}");
+        _host.LogInfo($"  Error: {report.numError}");
     }
 
     #endregion

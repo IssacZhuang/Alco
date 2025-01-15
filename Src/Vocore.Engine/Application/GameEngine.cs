@@ -16,10 +16,7 @@ namespace Vocore.Engine;
 /// The integration of the game loop, base API, sdl window and graphics device
 /// </summary>
 public partial class GameEngine :
-IDisposable,
-IGPUDeviceHost,
-IAssetSystemHost,
-IAudioDeviceHost
+IDisposable
 {
 // #pragma warning disable CS8618
 //     public static GameEngine Instance { get; private set; }
@@ -43,62 +40,6 @@ IAudioDeviceHost
     private readonly Window _mainWindow;
     private readonly WindowRenderTarget _mainRenderTarget;
 
-    #endregion
-
-    #region Host Interface
-    private event Action? EventOnEndFrame;
-    private event Action? EventOnHandleAssetLoaded;
-    private event Action? EventOnDispose;
-
-    event Action IGPUDeviceHost.OnEndFrame
-    {
-        add => EventOnEndFrame += value;
-        remove => EventOnEndFrame -= value;
-    }
-
-    event Action IAssetSystemHost.OnHandleAssetLoaded
-    {
-        add => EventOnHandleAssetLoaded += value;
-        remove => EventOnHandleAssetLoaded -= value;
-    }
-
-    event Action IAssetSystemHost.OnDispose
-    {
-        add => EventOnDispose += value;
-        remove => EventOnDispose -= value;
-    }
-
-    event Action IGPUDeviceHost.OnDispose
-    {
-        add => EventOnDispose += value;
-        remove => EventOnDispose -= value;
-    }
-
-    event Action IAudioDeviceHost.OnDispose
-    {
-        add => EventOnDispose += value;
-        remove => EventOnDispose -= value;
-    }
-
-    void IAssetSystemHost.LogInfo(ReadOnlySpan<char> message)
-    {
-        Log.Info(message);
-    }
-
-    void IAssetSystemHost.LogWarning(ReadOnlySpan<char> message)
-    {
-        Log.Warning(message);
-    }
-
-    void IAssetSystemHost.LogError(ReadOnlySpan<char> message)
-    {
-        Log.Error(message);
-    }
-
-    void IAssetSystemHost.LogSuccess(ReadOnlySpan<char> message)
-    {
-        Log.Success(message);
-    }
     #endregion
 
 
