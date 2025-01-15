@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -174,8 +175,8 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
             if (plane.IntersectRay(localRay, out Vector3 hitPoint))
             {
 
-                int tileX = (int)round(hitPoint.X);
-                int tileY = (int)round(hitPoint.Y);
+                int tileX = (int)floor(hitPoint.X + _size.x * 0.5f);
+                int tileY = (int)floor(_size.y * 0.5f - hitPoint.Y);
 
                 // if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
                 // {
