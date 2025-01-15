@@ -14,9 +14,9 @@ namespace Vocore.IO;
 public interface IFileSource : IDisposable
 {
     /// <summary>
-    /// The order of this file source, the higher order will be override the lower order
+    /// The priority of this file source, the higher priority will be override the lower priority
     /// </summary>
-    int Order { get; }
+    int Priority { get; }
     /// <summary>
     /// All file names in this file source
     /// </summary>

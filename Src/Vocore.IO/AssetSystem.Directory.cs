@@ -95,11 +95,8 @@ public sealed partial class AssetSystem
 
                     if (_recongizedExtensions.Contains(extension))
                     {
-                        //Log.Info($"Add file entry: {file}");
-                        if (!_fileEntries.TryAdd(ParseEntry(file), fileSource))
-                        {
-                            Log.Warning($"File entry already added: {file}");
-                        }
+                        //it can override the file source with the same priority
+                        _fileEntries[ParseEntry(file)] = fileSource;
                     }
                 }
             }

@@ -27,7 +27,7 @@ public class DirectoryFileSource : IFileSource
         }
     }
 
-    public virtual int Order => 3;
+    public virtual int Priority => 5;
 
     public virtual bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
     {

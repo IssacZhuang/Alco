@@ -27,7 +27,7 @@ public class DirectoryWatcherFileSource : IFileSource
         _watcher.EnableRaisingEvents = true;
     }
 
-    public int Order => 3;
+    public int Priority => 10;
 
     public IEnumerable<string> AllFileNames
     {

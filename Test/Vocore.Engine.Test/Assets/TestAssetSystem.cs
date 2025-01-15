@@ -88,7 +88,7 @@ public class TestAssetSystem
 
     private class TestFileSource : IFileSource
     {
-        public int Order => 0;
+        public int Priority => 0;
 
         public IEnumerable<string> AllFileNames => ["test.fast", "test.slow"];
 

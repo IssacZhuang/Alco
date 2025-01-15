@@ -19,7 +19,7 @@ namespace Vocore.IO
         private readonly Dictionary<string, IBaseAssetHandler> _assetLoaders = new Dictionary<string, IBaseAssetHandler>();
         // key: filename, value: file source
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
-        private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Order.CompareTo(b.Order));
+        private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Priority.CompareTo(b.Priority));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
 
         private readonly ThreadWorkerQueue<AsyncPreprocessJob> _asyncLoadQueue;
