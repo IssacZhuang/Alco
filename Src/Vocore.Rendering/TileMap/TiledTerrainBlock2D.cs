@@ -178,11 +178,11 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
                 int tileX = (int)floor(hitPoint.X + _size.x * 0.5f);
                 int tileY = (int)floor(_size.y * 0.5f - hitPoint.Y);
 
-                // if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
-                // {
-                tilePosition = new int2(tileX, tileY);
-                return true;
-                // }
+                if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
+                {
+                    tilePosition = new int2(tileX, tileY);
+                    return true;
+                }
             }
         }
 
