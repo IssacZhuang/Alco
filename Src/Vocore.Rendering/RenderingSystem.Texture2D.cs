@@ -148,7 +148,7 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
-        CreateTexture2DCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
+        CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
         _device.WriteTexture(
             texture,
@@ -171,7 +171,7 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
-        CreateTexture2DCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
+        CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
         return new Texture2D(
             _device,
@@ -181,7 +181,13 @@ public partial class RenderingSystem
         );
     }
 
-    private void CreateTexture2DCore(uint width, uint height, ImageLoadOption? option, out GPUTexture texture, out GPUTextureView textureView)
+    public unsafe void WriteImageFileToTexture(ReadOnlySpan<byte> file, GPUTexture texture)
+    {
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
+        _device.WriteTexture(texture, image.Memory.Pointer, (uint)image.Memory.Length);
+    }
+
+    public void CreateTextureCore(uint width, uint height, ImageLoadOption? option, out GPUTexture texture, out GPUTextureView textureView)
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         TextureDescriptor textureDescriptor = new TextureDescriptor(

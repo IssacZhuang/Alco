@@ -5,7 +5,7 @@ namespace Vocore.Engine;
 
 public partial class GameEngine
 {
-    protected virtual void InitializeDefaultAssetLoader()
+    protected virtual void InitializeDefaultAssetLoader(GameEngineSetting setting)
     {
         //texture
         Assets.RegisterAssetLoader(new AssetLoaderFontTTF(Rendering));

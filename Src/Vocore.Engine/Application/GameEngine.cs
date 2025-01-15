@@ -206,7 +206,7 @@ IDisposable
         _builtInAssets = new BuiltInAssets(_assets);
 
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
-        InitializeDefaultAssetLoader();
+        InitializeDefaultAssetLoader(setting);
 
         //main window
         _mainWindow = CreateWindow(_setting.Window);

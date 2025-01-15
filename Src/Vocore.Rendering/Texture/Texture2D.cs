@@ -67,6 +67,17 @@ public class Texture2D : Texture
 
     }
 
+    public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)
+    {
+        _texture = texture;
+        _textureView = textureView;
+
+        //just let them collect by GC
+        _resourcesSample = null;
+        _resourcesRead = null;
+        _resourcesStorage = null;
+    }
+
     private GPUResourceGroup CreateResourcesSample()
     {
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(

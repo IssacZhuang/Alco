@@ -12,8 +12,8 @@ public abstract class Texture : AutoDisposable
 {
     protected readonly GPUDevice _device;
     // internal
-    protected readonly GPUTexture _texture;
-    protected readonly GPUTextureView _textureView;
+    protected GPUTexture _texture;
+    protected GPUTextureView _textureView;
 
     // from outside
     protected readonly GPUSampler _sampler;
@@ -96,8 +96,8 @@ public abstract class Texture : AutoDisposable
         if (disposing)
         {
             //dispose non-private managed resources
-            _texture.Dispose();
-            _textureView.Dispose();
+            _texture?.Dispose();
+            _textureView?.Dispose();
         }
     }
 

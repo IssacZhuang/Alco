@@ -23,8 +23,7 @@ public class Game : GameEngine
     private float _uvScale = 1f;
     public Game(GameEngineSetting setting) : base(setting)
     {
-        DirectoryWatcherFileSource fileSource = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsFolder(), Assets);
-        Assets.AddFileSource(fileSource);
+        
 
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
@@ -61,6 +60,15 @@ public class Game : GameEngine
 
         _terrainBlock.SetTilesId(1);
         _terrainBlock.SetTilesColor(_color);
+    }
+
+    protected override void InitializeDefaultAssetLoader(GameEngineSetting setting)
+    {
+        base.InitializeDefaultAssetLoader(setting);
+        DirectoryWatcherFileSource fileSource1 = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsFolder(), Assets);
+        Assets.AddFileSource(fileSource1);
+        DirectoryWatcherFileSource fileSource2 = new DirectoryWatcherFileSource(setting.Assets.AssetsPath, Assets);
+        Assets.AddFileSource(fileSource2);
     }
 
     protected override void OnUpdate(float delta)
