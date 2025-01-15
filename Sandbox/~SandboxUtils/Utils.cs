@@ -1,6 +1,6 @@
 ﻿namespace SandboxUtils;
 
-public static class Uitls
+public static class Utils
 {
     public static string GetSolutionFolder()
     {

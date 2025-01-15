@@ -35,7 +35,7 @@ public sealed partial class AssetSystem
             }
             catch (Exception ex)
             {
-                failedReason = $"Failed to hot reload asset {filename}: {ex.Message}";
+                failedReason = $"Failed to hot reload asset {filename}: {ex}";
                 return false;
             }
             failedReason = string.Empty;

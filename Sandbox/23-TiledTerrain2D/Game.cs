@@ -4,6 +4,9 @@ using Vocore.Rendering;
 using Vocore;
 using Vocore.GUI;
 using Vocore.Graphics;
+using Vocore.IO;
+
+using SandboxUtils;
 
 public class Game : GameEngine
 {
@@ -20,6 +23,9 @@ public class Game : GameEngine
     private float _uvScale = 1f;
     public Game(GameEngineSetting setting) : base(setting)
     {
+        DirectoryWatcherFileSource fileSource = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsFolder(), Assets);
+        Assets.AddFileSource(fileSource);
+
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
         Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Sand.png");
