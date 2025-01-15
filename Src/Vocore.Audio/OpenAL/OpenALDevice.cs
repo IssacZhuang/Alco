@@ -61,7 +61,7 @@ internal unsafe class OpenALDevice : AudioDevice
         }
     }
 
-    public OpenALDevice(IAudioDeviceHost lifeCycleProvider) : base(lifeCycleProvider)
+    public OpenALDevice(IAudioDeviceHost host) : base(host)
     {
         _device = ALC.OpenDevice(string.Empty);
         ALC.MakeContextCurrent(ALC.CreateContext(_device, null));
@@ -72,13 +72,13 @@ internal unsafe class OpenALDevice : AudioDevice
 
         ListenerPosition = Vector3.Zero;
 
-        Log.Info("OpenAL device created");
+        _host.LogSuccess("OpenAL device created");
     }
 
     protected override void Dispose(bool disposing)
     {
         ALC.CloseDevice(_device);
-        Log.Info("OpenAL device closed");
+        _host.LogInfo("OpenAL device closed");
     }
 
     protected override AudioSource CreateAudioSourceCore()

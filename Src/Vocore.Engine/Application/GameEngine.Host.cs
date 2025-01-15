@@ -83,6 +83,26 @@ IAudioDeviceHost
     {
         Log.Success(message);
     }
+
+    void IAudioDeviceHost.LogInfo(ReadOnlySpan<char> message)
+    {
+        Log.Info(message);
+    }
+
+    void IAudioDeviceHost.LogWarning(ReadOnlySpan<char> message)
+    {
+        Log.Warning(message);
+    }
+
+    void IAudioDeviceHost.LogError(ReadOnlySpan<char> message)
+    {
+        Log.Error(message);
+    }
+
+    void IAudioDeviceHost.LogSuccess(ReadOnlySpan<char> message)
+    {
+        Log.Success(message);
+    }
     #endregion
 
 }
