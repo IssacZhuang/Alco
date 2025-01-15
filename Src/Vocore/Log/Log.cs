@@ -112,6 +112,11 @@ namespace Vocore{
         //     ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
         // }
 
+        public static void Warning(ReadOnlySpan<char> message)
+        {
+            Print(message, ConsoleColor.Yellow);
+        }
+
         public static void Warning<T> (T message)
         {
             if (message == null)
@@ -181,6 +186,11 @@ namespace Vocore{
         //     ConsolePrint(Builder.ToString(), ConsoleColor.Red);
         // }
 
+        public static void Error(ReadOnlySpan<char> message)
+        {
+            Print(message, ConsoleColor.Red);
+        }
+
         public static void Error<T> (T message)
         {
             if (message == null)
@@ -237,6 +247,67 @@ namespace Vocore{
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
             Print(Builder.ToString(), ConsoleColor.Red);
+        }
+
+
+        public static void Success(ReadOnlySpan<char> message)
+        {
+            Print(message, ConsoleColor.Green);
+        }
+
+        public static void Success<T1>(T1 message1)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Print(Builder.ToString(), ConsoleColor.Green);
+        }
+
+        public static void Success<T1, T2>(T1 message1, T2 message2)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Print(Builder.ToString(), ConsoleColor.Green);
+        }
+
+        public static void Success<T1, T2, T3>(T1 message1, T2 message2, T3 message3)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Print(Builder.ToString(), ConsoleColor.Green);
+        }
+
+        public static void Success<T1, T2, T3, T4>(T1 message1, T2 message2, T3 message3, T4 message4)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            Print(Builder.ToString(), ConsoleColor.Green);
+        }
+
+        public static void Success<T1, T2, T3, T4, T5>(T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
+        {
+            Builder.Clear();
+            Builder.Append(message1?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message2?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message3?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message4?.ToString());
+            Builder.Append(" ");
+            Builder.Append(message5?.ToString());
+            Print(Builder.ToString(), ConsoleColor.Green);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

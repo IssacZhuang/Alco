@@ -30,6 +30,8 @@ namespace Vocore.IO
         private volatile bool _isEntryDirty = false;
         private volatile bool _isRecongizedExtensionsDirty = false;
 
+        private readonly IAssetSystemHost _host;
+
         // Threads
         private struct AsyncPreprocessJob : IJob
         {
@@ -45,7 +47,7 @@ namespace Vocore.IO
 
         public bool IsProfileEnabled { get; set; } = false;
 
-        public AssetSystem(IAssetSystemHost loopProvider, int threadCount, bool isProfileEnabled = false)
+        public AssetSystem(IAssetSystemHost host, int threadCount, bool isProfileEnabled = false)
         {
             if (threadCount <= 0)
             {
@@ -54,10 +56,12 @@ namespace Vocore.IO
 
             IsProfileEnabled = isProfileEnabled;
             _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
-            loopProvider.OnHandleAssetLoaded += OnHandleAssetLoaded;
-            loopProvider.OnDispose += Dispose;
+            host.OnHandleAssetLoaded += OnHandleAssetLoaded;
+            host.OnDispose += Dispose;
 
-            Log.Info("Asset system created");
+            _host = host;
+
+            _host.LogSuccess("Asset system created");
         }
 
 
@@ -68,7 +72,7 @@ namespace Vocore.IO
             _asyncLoadQueue.Dispose();
             Profiler.Dispose();
 
-            Log.Info("Asset system closed");
+            _host.LogInfo("Asset system closed");
         }
 
 

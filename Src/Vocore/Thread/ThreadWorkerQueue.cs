@@ -162,7 +162,6 @@ public class ThreadWorkerQueue<TJob> : AutoDisposable where TJob : IJob
                     }
                     catch (Exception e)
                     {
-                        //Log.Error(e);
                         task.exception = e;
                     }
                     finally

@@ -51,14 +51,14 @@ public sealed partial class AssetSystem
         string extension = Path.GetExtension(filename);
         if (!_assetLoaders.TryGetValue(extension, out IBaseAssetHandler? assetLoader))
         {
-            Log.Error($"Trying to get asset {filename} but the asset loader does not exist");
+            _host.LogError($"Trying to get asset {filename} but the asset loader does not exist");
             loader = null;
             return false;
         }
 
         if (assetLoader is not IAssetLoader<TAsset> assetLoaderT)
         {
-            Log.Error($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset loader does not support this type");
+            _host.LogError($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset loader does not support this type");
             loader = null;
             return false;
         }

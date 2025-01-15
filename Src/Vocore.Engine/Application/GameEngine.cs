@@ -45,7 +45,7 @@ IAudioDeviceHost
 
     #endregion
 
-    #region Internal Events
+    #region Host Interface
     private event Action? EventOnEndFrame;
     private event Action? EventOnHandleAssetLoaded;
     private event Action? EventOnDispose;
@@ -78,6 +78,26 @@ IAudioDeviceHost
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
+    }
+
+    void IAssetSystemHost.LogInfo(ReadOnlySpan<char> message)
+    {
+        Log.Info(message);
+    }
+
+    void IAssetSystemHost.LogWarning(ReadOnlySpan<char> message)
+    {
+        Log.Warning(message);
+    }
+
+    void IAssetSystemHost.LogError(ReadOnlySpan<char> message)
+    {
+        Log.Error(message);
+    }
+
+    void IAssetSystemHost.LogSuccess(ReadOnlySpan<char> message)
+    {
+        Log.Success(message);
     }
     #endregion
 

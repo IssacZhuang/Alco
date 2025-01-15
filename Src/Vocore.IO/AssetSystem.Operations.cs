@@ -153,14 +153,6 @@ public sealed partial class AssetSystem
 
             handle.IsLoading = true;
 
-            // if (!TryGetLoader(filename, out IAssetLoader<TAsset>? assetLoaderT))
-            // {
-            //     string failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
-            //     Log.Error(failedReason);
-            //     onComplete(null!, new AssetLoadException(failedReason));
-            //     return;
-            // }
-
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
                 name = filename,
@@ -194,7 +186,7 @@ public sealed partial class AssetSystem
             return true;
         }
 
-        Log.Error($"Trying to get asset {filename} but the file does not exist");
+        _host.LogError($"Trying to get asset {filename} but the file does not exist");
         data = default;
         return false;
     }
@@ -320,13 +312,13 @@ public sealed partial class AssetSystem
 
         if (exception != null)
         {
-            Log.Error($"Exception on creating asset '{job.name}': {exception}");
+            _host.LogError($"Exception on creating asset '{job.name}': {exception}");
         }
 
         object? asset = handle.tmpAsset;
         if (asset == null)
         {
-            Log.Error($"Failed to load asset: {job.name}");
+            _host.LogError($"Failed to load asset: {job.name}");
         }
 
         lock (handle)
@@ -338,7 +330,7 @@ public sealed partial class AssetSystem
             }
             catch (Exception e)
             {
-                Log.Error($"Exception on creating asset '{job.name}': {e}");
+                _host.LogError($"Exception on creating asset '{job.name}': {e}");
             }
 
             // already cached in async job
