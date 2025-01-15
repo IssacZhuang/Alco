@@ -58,6 +58,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
     private readonly PixelFormat _preferredSurfaceFormat;
     private GCHandle _thisHandle;
 
+    public bool IsDebug { get; }
+
     #endregion
 
     #region Abstract Implementation
@@ -340,6 +342,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public unsafe WebGPUDevice(in DeviceDescriptor descriptor) : base(descriptor)
     {
         _thisHandle = GCHandle.Alloc(this, GCHandleType.Normal);
+        IsDebug = descriptor.Debug;
 
         _descriptor = descriptor;
         wgpuSetLogCallback(LogCallback, GCHandle.ToIntPtr(_thisHandle));
@@ -577,7 +580,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
             case WGPULogLevel.Error:
                 throw new GraphicsException(message);
             case WGPULogLevel.Warn:
-                device._host.LogWarning(message);
+                if (device.IsDebug)
+                {
+                    device._host.LogWarning(message);
+                }
                 break;
             case WGPULogLevel.Info:
             case WGPULogLevel.Debug:
