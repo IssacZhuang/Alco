@@ -38,5 +38,7 @@ public partial class GameEngine
             }
             throw new Exception($"Can not find the include file: {includeName}");
         }));
+
+        Assets.RegisterAssetHotReloader<Texture2D>(new AssetHotReloaderTexture2D(Rendering));
     }
 }
