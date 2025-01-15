@@ -250,7 +250,7 @@ public sealed partial class AssetSystem
             StealingResult result = _asyncLoadQueue.TryGetFinishedTask(out AsyncPreprocessJob job, out Exception? exception);
             if (result == StealingResult.Empty)
             {
-                return;
+                break;
             }
             else if (result == StealingResult.Success)
             {
@@ -262,6 +262,8 @@ public sealed partial class AssetSystem
                 count++;
             }
         }
+
+        ProcessHotReloadQueue();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

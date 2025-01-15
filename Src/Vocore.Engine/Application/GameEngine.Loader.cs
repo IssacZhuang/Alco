@@ -30,6 +30,13 @@ public partial class GameEngine
         Assets.RegisterAssetLoader(new AssetLoaderAudioFlac(AudioDevice));
         //Assets.RegisterAssetLoader(new AssetLoaderAudioAiff(AudioDevice));
 
-        Assets.RegisterAssetHotReloader(typeof(Shader), new AssetHotReloaderShaderHLSL());
+        Assets.RegisterAssetHotReloader<Shader>(new AssetHotReloaderShaderHLSL((string includeName) =>
+        {
+            if (Assets.TryLoadRaw(includeName, out ReadOnlySpan<byte> data))
+            {
+                return Encoding.UTF8.GetString(data);
+            }
+            throw new Exception($"Can not find the include file: {includeName}");
+        }));
     }
 }

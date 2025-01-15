@@ -58,17 +58,9 @@ public class DirectoryWatcherFileSource : IFileSource
     {
         if (e.ChangeType == WatcherChangeTypes.Changed)
         {
-            try
-            {
-                string relativePath = Path.GetRelativePath(_directoryPath, e.FullPath);
-                relativePath = FixPath(relativePath);
-                byte[] data = File.ReadAllBytes(e.FullPath);
-                _assetSystem.TryHotReload(relativePath, data);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to hot reload {e.FullPath}: {ex.Message}");
-            }
+            string relativePath = Path.GetRelativePath(_directoryPath, e.FullPath);
+            relativePath = FixPath(relativePath);
+            _assetSystem.EnqueueHotReload(relativePath);
         }
     }
 

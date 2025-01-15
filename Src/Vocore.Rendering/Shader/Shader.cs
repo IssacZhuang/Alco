@@ -19,6 +19,7 @@ public class Shader : AutoDisposable
     private readonly Lock _lockCreateComputePipeline = new Lock();
     private readonly Lock _lockCreateModules = new Lock();
     private string _shaderText;
+    private bool _isDirty = false;
 
     /// <summary>
     /// The name of the shader
@@ -101,7 +102,7 @@ public class Shader : AutoDisposable
 
     public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
     {
-        if (pipelineInfo.RenderPass == renderPass && !forced)
+        if (pipelineInfo.RenderPass == renderPass && !forced && !_isDirty)
         {
             return false;
         }
@@ -334,6 +335,7 @@ public class Shader : AutoDisposable
     /// <param name="shaderText">The new shader text</param>
     public void UnsafeHotReload(string shaderText)
     {
+        //it might throw exception if the shader code is not valid
         ShaderModulesInfo shaderModule = UtilsShaderHLSL.Compile(shaderText, Name, ReadOnlySpan<string>.Empty);
         
         _shaderText = shaderText;
@@ -346,6 +348,7 @@ public class Shader : AutoDisposable
         //recompile
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
         _modulesCache[hash] = shaderModule;
+        _isDirty = false;
     }
 
 

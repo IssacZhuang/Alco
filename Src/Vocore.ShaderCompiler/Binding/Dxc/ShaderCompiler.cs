@@ -130,7 +130,9 @@ public static class ShaderCompiler
         options->code_len = (nuint)code.Length;
         options->args = argsUtf8;
         options->args_len = (nuint)compilerArgs.Length;
-        options->include_callbacks = callbacks;
+
+        if(includeHandler != null)
+            options->include_callbacks = callbacks;
 
         CompilationResult result = GetResult(DXCNative.DxcCompile(nativeCompiler, options));
 
