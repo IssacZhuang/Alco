@@ -19,7 +19,11 @@ public sealed partial class AssetSystem
 
     public void EnqueueHotReload(string filename)
     {
-        _hotReloadSet.TryAdd(filename, 0);
+        string extension = Path.GetExtension(filename);
+        if (IsRecongizedExtension(extension))
+        {
+            _hotReloadSet.TryAdd(filename, 0);
+        }
     }
 
     private void HotReload(string filename, ReadOnlySpan<byte> data)

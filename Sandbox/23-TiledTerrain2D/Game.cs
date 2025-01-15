@@ -65,9 +65,9 @@ public class Game : GameEngine
     protected override void InitializeDefaultAssetLoader(GameEngineSetting setting)
     {
         base.InitializeDefaultAssetLoader(setting);
-        DirectoryWatcherFileSource fileSource1 = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsFolder(), Assets);
+        DirectoryWatcherFileSource fileSource1 = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), Assets);
         Assets.AddFileSource(fileSource1);
-        DirectoryWatcherFileSource fileSource2 = new DirectoryWatcherFileSource(setting.Assets.AssetsPath, Assets);
+        DirectoryWatcherFileSource fileSource2 = new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), Assets);
         Assets.AddFileSource(fileSource2);
     }
 
