@@ -348,7 +348,7 @@ public class Shader : AutoDisposable
         //recompile
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
         _modulesCache[hash] = shaderModule;
-        _isDirty = false;
+        _isDirty = true;
     }
 
 
