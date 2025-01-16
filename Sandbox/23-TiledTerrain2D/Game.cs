@@ -12,8 +12,9 @@ public class Game : GameEngine
 {
     private readonly MaterialRenderer _renderer;
     private readonly Camera2D _camera;
+    private readonly Material _blitMaterial;
     private readonly Material _terrainMaterial;
-    private readonly TileSet<int> _tileSet;
+    private TileSet<int> _tileSet;
     private readonly TiledTerrainBlock2D<int> _terrainBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
@@ -32,23 +33,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        
+        _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
-        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
-        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Sand.png");
-        
-        Task.WaitAll(grid, grass, sand);
-
-
-
-        Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-
-        TileSetParams<int> tileSetParams = new();
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One);
-        tileSetParams.Add(grass.Result, 1, new Vector2(_meshScale, _meshScale), new Vector2(_uvScale, _uvScale));
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One);
-        _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+        _tileSet = BuildTileSet();
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
@@ -77,6 +64,8 @@ public class Game : GameEngine
         };
 
         UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+
+        Assets.OnHotReload += OnHotReload;
     }
 
     protected override void InitializeDefaultAssetLoader(GameEngineSetting setting)
@@ -165,5 +154,28 @@ public class Game : GameEngine
             }
         }
         _renderer.End();
+    }
+
+    private void OnHotReload(string filename, object cachedAsset)
+    {
+        if (_tileSet.Atlas[filename] != null)
+        {
+            _tileSet = BuildTileSet();
+        }
+    }
+
+    private TileSet<int> BuildTileSet()
+    {
+        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
+        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Sand.png");
+
+        Task.WaitAll(grid, grass, sand);
+
+        TileSetParams<int> tileSetParams = new();
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One);
+        tileSetParams.Add(grass.Result, 1, new Vector2(_meshScale, _meshScale), new Vector2(_uvScale, _uvScale));
+        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One);
+        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }

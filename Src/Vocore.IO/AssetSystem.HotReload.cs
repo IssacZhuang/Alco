@@ -7,6 +7,8 @@ public sealed partial class AssetSystem
     private readonly ConcurrentDictionary<string, byte> _hotReloadSet = new();
     private readonly ConcurrentDictionary<Type, object> _hotReloaders = new();
 
+    public event Action<string, object>? OnHotReload;
+
     /// <summary>
     /// Register a hot reloader for a specific asset type
     /// </summary>
@@ -69,6 +71,7 @@ public sealed partial class AssetSystem
                     if (fileSource.TryGetData(filename, out ReadOnlySpan<byte> data))
                     {
                         HotReload(filename, data);
+                        OnHotReload?.Invoke(filename, cachedAsset);
                     }
 
                     _host.LogSuccess($"Hot reload asset {filename} success");

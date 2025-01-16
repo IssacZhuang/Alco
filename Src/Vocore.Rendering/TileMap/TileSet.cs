@@ -40,7 +40,13 @@ public class TileSet<TUserData> : AutoDisposable
         get => _spriteData;
     }
 
-    public RenderTexture Atlas
+    public TextureAtlas Atlas
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _atlas;
+    }
+
+    public RenderTexture AtlasTexture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _atlas.RenderTexture;
