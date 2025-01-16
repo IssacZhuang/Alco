@@ -16,18 +16,19 @@ public class TestShader
             //query all .hlsl files
             var files = Assets.AllFileNames.Where(x => x.EndsWith(".hlsl"));
 
+            List<Task<Shader>> tasks = new();
+
             foreach (string file in files)
             {
-                try
-                {
-                    Shader shader = Assets.Load<Shader>(file);
-                }
-                catch (Exception e)
-                {
-                    Assert.Fail($"Failed to load shader {file}: {e}");
-                }
+                tasks.Add(Assets.LoadAsyncTask<Shader>(file));
+            }
 
-
+            try{
+                Task.WaitAll(tasks);
+            }
+            catch (Exception e)
+            {
+                Assert.Fail($"Failed to compile shader: {e}");
             }
         }
     }
