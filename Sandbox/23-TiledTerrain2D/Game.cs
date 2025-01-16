@@ -21,6 +21,14 @@ public class Game : GameEngine
     private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
     private float _meshScale = 2f;
     private float _uvScale = 1f;
+
+
+    private float _brushSize = 1;
+    private Material _brushMaterial;
+    private Transform3D _brushTransform;
+    private SpriteConstant _brushConstant;
+    private List<int2> _brushCells = [];
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         
@@ -56,10 +64,25 @@ public class Game : GameEngine
         _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
         _terrainMaterial.SetBuffer("_camera", _camera);
         _terrainMaterial.BlendState = BlendState.AlphaBlend;
-        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 32, 32);
+        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 31, 31);
 
         _terrainBlock.SetTilesId(1);
         _terrainBlock.SetTilesColor(_color);
+
+        _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _brushMaterial.SetBuffer("_camera", _camera);
+        _brushMaterial.SetTexture("_texture", Rendering.TextureWhite);
+        _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+
+        _brushTransform = new Transform3D();
+        _brushTransform.scale = new Vector3(0.8f);
+        _brushConstant = new SpriteConstant
+        {
+            Color = new ColorFloat(1, 1, 1, 0.3f),
+            UvRect = new Rect(0, 0, 1, 1)
+        };
+
+        UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
     }
 
     protected override void InitializeDefaultAssetLoader(GameEngineSetting setting)
@@ -84,19 +107,9 @@ public class Game : GameEngine
             _tileSet.SetUVScale(1, new Vector2(_uvScale, _uvScale));
         }
 
-        if (DebugGUI.SliderWithText("R", ref _color.value.X, 0, 1))
+        if (DebugGUI.SliderWithText("Brush Size", ref _brushSize, 0.1f, 5f))
         {
-            _terrainBlock.SetTilesColor(_color);
-        }
-
-        if (DebugGUI.SliderWithText("G", ref _color.value.Y, 0, 1))
-        {
-            _terrainBlock.SetTilesColor(_color);
-        }
-
-        if (DebugGUI.SliderWithText("B", ref _color.value.Z, 0, 1))
-        {
-            _terrainBlock.SetTilesColor(_color);
+            UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -117,10 +130,6 @@ public class Game : GameEngine
         }
 
         Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainWindow.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
-        if(_terrainBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
-        {
-            DebugGUI.Text($"Tile Position: {tilePosition}");
-        }
 
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
         _camera.Width = _zoom * MainWindow.AspectRatio; 
@@ -132,6 +141,22 @@ public class Game : GameEngine
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _terrainBlock.Render(_renderer);
+
+        if (_terrainBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+        {
+            DebugGUI.Text($"Tile Position: {tilePosition}");
+            Vector2 tileLocalPosition = _terrainBlock.TilePositionToLocalPosition(tilePosition);
+            DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
+
+            for (int i = 0; i < _brushCells.Count; i++)
+            {
+                int2 pos = _brushCells[i];
+                _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y, 0);
+                Transform3D tmp = math.transform(_terrainBlock.Transform, _brushTransform);
+                _brushConstant.Model = tmp.Matrix;
+                _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);
+            }
+        }
         _renderer.End();
     }
 }

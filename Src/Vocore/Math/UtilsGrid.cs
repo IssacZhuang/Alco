@@ -40,8 +40,8 @@ public static class UtilsGrid
         for (int i = 0; i < RadialPatternCount; i++)
         {
             radialPattern[i] = list[i];
-            int2 vector2Int = list[i];
-            radialPatternRadii[i] = sqrt(vector2Int.x * (float)vector2Int.x + vector2Int.y * (float)vector2Int.y);
+            int2 pos = list[i];
+            radialPatternRadii[i] = sqrt(pos.x * (float)pos.x + pos.y * (float)pos.y);
         }
 
         RadialPattern = radialPattern;

@@ -33,6 +33,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     private bool _isColorDirty;
 
     public Transform3D Transform;
+    public int2 Size => _size;
 
 
     internal TiledTerrainBlock2D(
@@ -188,6 +189,11 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
         tilePosition = new int2(0, 0);
         return false;
+    }
+
+    public Vector2 TilePositionToLocalPosition(int2 tilePosition)
+    {
+        return new Vector2(tilePosition.x - (_size.x - 1) * 0.5f, -tilePosition.y + (_size.y - 1) * 0.5f);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
