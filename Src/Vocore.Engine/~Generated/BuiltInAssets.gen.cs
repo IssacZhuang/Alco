@@ -1,4 +1,4 @@
-﻿
+
 // Auto generated code
 using System;
 using Vocore.IO;
@@ -30,6 +30,10 @@ public partial class BuiltInAssets
 
     public Shader Shader_Wireframe => GetShader("Shaders/Pipelines/Common/Wireframe.hlsl");
 
+    public Shader Shader_ReinhardLuminanceTonemap => GetShader("Shaders/Pipelines/ToneMap/ReinhardLuminanceTonemap.hlsl");
+
+    public Shader Shader_Uncharted2Tonemap => GetShader("Shaders/Pipelines/ToneMap/Uncharted2Tonemap.hlsl");
+
     public Shader Shader_BloomBlit => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl");
 
     public Shader Shader_BloomClamp => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl");
@@ -37,10 +41,6 @@ public partial class BuiltInAssets
     public Shader Shader_BloomDownSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomDownSample.hlsl");
 
     public Shader Shader_BloomUpSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl");
-
-    public Shader Shader_ReinhardLuminanceTonemap => GetShader("Shaders/Pipelines/ToneMap/ReinhardLuminanceTonemap.hlsl");
-
-    public Shader Shader_Uncharted2Tonemap => GetShader("Shaders/Pipelines/ToneMap/Uncharted2Tonemap.hlsl");
 
 
 }

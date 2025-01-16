@@ -6,8 +6,6 @@ namespace Vocore.Engine;
 
 public partial class GameEngine
 {
-    private static string GraphicsLogPrefix = "[Graphics]";
-
     public Window CreateWindow(WindowSetting setting)
     {
         return _platform.CreateWindow(_graphicsDevice, setting);

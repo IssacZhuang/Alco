@@ -32,18 +32,4 @@
       <Visible>False</Visible>
     </Content>
   </ItemGroup>
-
-  <!-- Assets Compiler-->
-  <PropertyGroup>
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Generated\**\*.*" />
-    <Content Include="Generated\**" />
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)Assets\**\*.*" />
-    <ProjectReference Include="..\Vocore.Tool.AssetsCompiler\Vocore.Tool.AssetsCompiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
-  </ItemGroup>
-  
-
 </Project>
