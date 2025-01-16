@@ -205,7 +205,7 @@ public sealed partial class AssetSystem
     {
         if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
         {
-            if (fileSource.TryGetData(filename, out data))
+            if (fileSource.TryGetData(filename, out data, out string? _))
             {
                 return true;
             }

@@ -41,16 +41,18 @@ public class PackageFileSource : IFileSource
         _package.Dispose();
     }
 
-    public bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
+    public bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data, out string? failedReason)
     {
         if (_entryLookup.TryGetValue(path, out var entry))
         {
             _package.ReadEntry(entry, out byte[] fileData);
             data = fileData;
+            failedReason = string.Empty;
             return true;
         }
 
         data = ReadOnlySpan<byte>.Empty;
+        failedReason = "File not found";
         return false;
     }
 }

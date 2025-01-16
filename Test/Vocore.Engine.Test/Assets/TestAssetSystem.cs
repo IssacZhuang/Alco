@@ -117,25 +117,30 @@ public class TestAssetSystem
 
         }
 
-        public bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
+        public bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data, out string failedReason)
         {
             switch (path)
             {
                 case "test.fast":
                     data = new byte[4];
+                    failedReason = string.Empty;
                     return true;
                 case "test.slow":
                     Thread.Sleep(500);
                     data = new byte[4];
+                    failedReason = string.Empty;
                     return true;
                 case "test.empty":
                     data = Array.Empty<byte>();
+                    failedReason = string.Empty;
                     return true;
                 case "test.exception":
                     data = new byte[4];
+                    failedReason = string.Empty;
                     return true;
                 default:
                     data = default;
+                    failedReason = string.Empty;
                     return false;
             }
         }

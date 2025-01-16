@@ -24,7 +24,12 @@ public interface IFileSource : IDisposable
     /// <summary>
     /// Try get data from this file source
     /// </summary>
-    bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data);
+    bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data, out string? failureReason);
+
+    bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
+    {
+        return TryGetData(path, out data, out _);
+    }
 }
 
 
