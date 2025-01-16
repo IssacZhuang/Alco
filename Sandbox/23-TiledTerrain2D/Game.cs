@@ -22,6 +22,7 @@ public class Game : GameEngine
     private float _meshScale = 2f;
     private float _uvScale = 1f;
 
+    private uint _selectedTileId = 0;
 
     private float _brushSize = 1;
     private Material _brushMaterial;
@@ -39,21 +40,14 @@ public class Game : GameEngine
         
         Task.WaitAll(grid, grass, sand);
 
-        List<Texture2D> textures = [
-            grid.Result,
-            grass.Result,
-            sand.Result,
-            ];
+
 
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
         TileSetParams<int> tileSetParams = new();
-        Vector2 meshScale = new Vector2(_meshScale, _meshScale);
-        Vector2 uvScale = new Vector2(_uvScale, _uvScale);
-        for (int i = 0; i < textures.Count; i++)
-        {
-            tileSetParams.Add(textures[i], i, meshScale, uvScale);
-        }
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One);
+        tileSetParams.Add(grass.Result, 1, new Vector2(_meshScale, _meshScale), new Vector2(_uvScale, _uvScale));
+        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One);
         _tileSet = Rendering.CreateTileSet(blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
@@ -97,19 +91,28 @@ public class Game : GameEngine
     protected override void OnUpdate(float delta)
     {
         DebugGUI.Text(FrameRate);
+        bool isDebugClicked = false;
         if (DebugGUI.SliderWithText("Mesh Scale", ref _meshScale, 0.5f, 2))
         {
             _tileSet.SetMeshScale(1, new Vector2(_meshScale, _meshScale));
+            isDebugClicked = true;
         }
 
         if (DebugGUI.SliderWithText("UV Scale", ref _uvScale, 0.5f, 2))
         {
             _tileSet.SetUVScale(1, new Vector2(_uvScale, _uvScale));
+            isDebugClicked = true;
         }
 
         if (DebugGUI.SliderWithText("Brush Size", ref _brushSize, 0.1f, 5f))
         {
             UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+            isDebugClicked = true;
+        }
+
+        if (DebugGUI.SliderWithText("Selected Tile", ref _selectedTileId, 0, (uint)_tileSet.Count - 1))
+        {
+            isDebugClicked = true;
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -155,6 +158,10 @@ public class Game : GameEngine
                 Transform3D tmp = math.transform(_terrainBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);
+                if(Input.IsMousePressing(Mouse.Left) && !isDebugClicked)
+                {
+                    _terrainBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
+                }
             }
         }
         _renderer.End();

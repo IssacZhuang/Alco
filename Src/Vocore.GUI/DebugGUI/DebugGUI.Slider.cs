@@ -29,6 +29,22 @@ public static partial class DebugGUI
     /// <summary>
     /// Draw a slider
     /// </summary>
+    /// <param name="text">The text to display</param>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value</param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public static bool SliderWithText(string text, ref uint value, uint min, uint max)
+    {
+        bool isChnaged = Slider(ref value, min, max);
+        SameLine();
+        Text(text);
+        return isChnaged;
+    }
+
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
     /// <param name="value">The value of the slider</param>
     /// <param name="min">The min value<param>
     /// <param name="max">The max value</param>
@@ -38,8 +54,25 @@ public static partial class DebugGUI
         float minF = min;
         float maxF = max;
         float valueF = value;
-        bool isChanged = Slider(ref valueF, minF, maxF);
-        value = (int)valueF;
+        bool isChanged = Slider(ref valueF, minF, maxF,true);
+        value = (int)MathF.Round(valueF);
+        return isChanged;
+    }
+
+    /// <summary>
+    /// Draw a slider
+    /// </summary>
+    /// <param name="value">The value of the slider</param>
+    /// <param name="min">The min value<param>
+    /// <param name="max">The max value</param>
+    /// <returns><c>True</c> if the value has changed</returns>
+    public unsafe static bool Slider(ref uint value, uint min, uint max)
+    {
+        float minF = min;
+        float maxF = max;
+        float valueF = value;
+        bool isChanged = Slider(ref valueF, minF, maxF,true);
+        value = (uint)MathF.Round(valueF);
         return isChanged;
     }
 
@@ -50,10 +83,11 @@ public static partial class DebugGUI
     /// <param name="value">The value of the slider</param>
     /// <param name="min">The min value</param>
     /// <param name="max">The max value</param>
+    /// <param name="round">Round the value to the nearest integer</param>
     /// <returns><c>True</c> if the value has changed</returns>
-    public static bool SliderWithText(string text, ref float value, float min, float max)
+    public static bool SliderWithText(string text, ref float value, float min, float max, bool round = false)
     {
-        bool isChanged = Slider(ref value, min, max);
+        bool isChanged = Slider(ref value, min, max, round);
         SameLine();
         Text(text);
         return isChanged;
@@ -65,10 +99,11 @@ public static partial class DebugGUI
     /// <param name="value">The value of the slider</param>
     /// <param name="min">The min value<param>
     /// <param name="max">The max value</param>
+    /// <param name="round">Round the value to the nearest integer</param>
     /// <returns><c>True</c> if the value has changed</returns>
-    public unsafe static bool Slider(ref float value, float min, float max)
+    public unsafe static bool Slider(ref float value, float min, float max, bool round = false)
     {
-        return Slider(_style.SliderWidth, ref value, min, max);
+        return Slider(_style.SliderWidth, ref value, min, max, round);
     }
 
     /// <summary>
@@ -78,8 +113,9 @@ public static partial class DebugGUI
     /// <param name="value">The value of the slider</param>
     /// <param name="min">The min value<param>
     /// <param name="max">The max value</param>
+    /// <param name="round">Round the value to the nearest integer</param>
     /// <returns><c>True</c> if the value has changed</returns>
-    public unsafe static bool Slider(float width, ref float value, float min, float max)
+    public unsafe static bool Slider(float width, ref float value, float min, float max, bool round = false)
     {
         CheckBegin();
         //slider bar
@@ -131,7 +167,15 @@ public static partial class DebugGUI
         Vector2 textDrawPos = barDrawPos;
         textDrawPos.X += barSize.X * 0.5f;
 
-        value.TryFormat(_stringBuffer, out _stringBufferLength, ReadOnlySpan<char>.Empty, null);
+        if(round)
+        {
+            float value2 = MathF.Round(value);
+            value2.TryFormat(_stringBuffer, out _stringBufferLength, ReadOnlySpan<char>.Empty, null);
+        }
+        else
+        {
+            value.TryFormat(_stringBuffer, out _stringBufferLength, ReadOnlySpan<char>.Empty, null);
+        }
         fixed (char* str = _stringBuffer)
         {
             _renderer.DrawText(textDrawPos, 0, _style.Font, str, _stringBufferLength, _style.FontSize, _style.TextColor, Pivot.Center);
