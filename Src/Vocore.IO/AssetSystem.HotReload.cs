@@ -65,18 +65,29 @@ public sealed partial class AssetSystem
 
             if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
             {
-                //it might be IO failed because the file might be accessed by other process
+                
                 try
                 {
-                    if (fileSource.TryGetData(filename, out ReadOnlySpan<byte> data, out string? failureReason))
+                    //it might be IO failed because the file might be accessed by other process
+                    int attempt = 10;
+                    while (attempt > 0)
                     {
-                        HotReload(filename, data);
-                        OnHotReload?.Invoke(filename, cachedAsset);
-                        _host.LogSuccess($"Hot reload asset {filename} success");
+                        if (fileSource.TryGetData(filename, out ReadOnlySpan<byte> data, out string? failureReason))
+                        {
+                            HotReload(filename, data);
+                            //todo:catch event exception
+                            OnHotReload?.Invoke(filename, cachedAsset);
+                            _host.LogSuccess($"Hot reload asset {filename} success");
+                            break;
+                        }
+                        //todo: move IO to a separate thread
+                        Thread.Sleep(100);
+                        attempt--;
                     }
-                    else
+
+                    if (attempt == 0)
                     {
-                        _host.LogError($"Failed to hot reload asset {filename}: {failureReason}");
+                        _host.LogError($"Failed to hot reload asset {filename}");
                     }
                 }
                 catch (Exception ex)
