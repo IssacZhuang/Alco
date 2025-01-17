@@ -14,13 +14,21 @@ namespace Vocore.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Alloc(int size)
         {
+            void* ptr = NativeMemory.Alloc((nuint)size);
 #if DEBUG
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            AllocationTracker.AddAllocated(ptr, size, Environment.StackTrace);
-            return ptr.ToPointer();
-#else
-            return Marshal.AllocHGlobal(size).ToPointer();
+            AllocationTracker.AddAllocated((nint)ptr, size, Environment.StackTrace);
 #endif
+            return ptr;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void* Alloc(long size)
+        {
+            void* ptr = NativeMemory.Alloc((nuint)size);
+#if DEBUG
+            AllocationTracker.AddAllocated((nint)ptr, size, Environment.StackTrace);
+#endif
+            return ptr;
         }
 
         /// <summary>
@@ -33,47 +41,22 @@ namespace Vocore.Unsafe
         public static T* Alloc<T>(int count) where T : unmanaged
         {
 #if DEBUG
-            IntPtr ptr = Marshal.AllocHGlobal(sizeof(T) * count);
-            AllocationTracker.AddAllocated(ptr, sizeof(T) * count, Environment.StackTrace);
-            return (T*)ptr.ToPointer();
+            void* ptr = NativeMemory.Alloc((nuint)(sizeof(T) * count));
+            AllocationTracker.AddAllocated((nint)ptr, sizeof(T) * count, Environment.StackTrace);
+            return (T*)ptr;
 #else
-            return (T*)Marshal.AllocHGlobal(sizeof(T) * count).ToPointer();
+            return (T*)NativeMemory.Alloc((nuint)(sizeof(T) * count));
 #endif
         }
 
-        /// <summary>
-        /// Reallocates memory with the specified size.
-        /// </summary>
-        /// <param name="ptr">The pointer to the memory.</param>
-        /// <param name="size">The size of the memory to allocate.</param>
-        public static void* ReAlloc(void* ptr, int size)
-        {
-            if (ptr == null)
-            {
-                return Alloc(size);
-            }
-
-            Free(ptr);
-            return Alloc(size);
-        }
-
-        /// <summary>
-        /// Reallocates memory with the sizeof(T) * count size.
-        /// </summary>
-        /// <param name="ptr">The pointer to the memory.</param>
-        /// <param name="count">The count of the value to allocate.</param>
-        /// <typeparam name="T">The type of the value.</typeparam>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T* ReAlloc<T>(ref void* ptr, int count) where T : unmanaged
+        public static T* Alloc<T>(long count) where T : unmanaged
         {
-            if(ptr == null)
-            {
-                return Alloc<T>(count);
-            }
-
-            Free(ptr);
-            return Alloc<T>(count);
+            void* ptr = NativeMemory.Alloc((nuint)(sizeof(T) * count));
+#if DEBUG
+            AllocationTracker.AddAllocated((nint)ptr, sizeof(T) * count, Environment.StackTrace);
+#endif
+            return (T*)ptr;
         }
 
 
@@ -87,7 +70,7 @@ namespace Vocore.Unsafe
 #if DEBUG
             AllocationTracker.Remove((IntPtr)ptr);
 #endif
-            Marshal.FreeHGlobal((IntPtr)ptr);
+            NativeMemory.Free(ptr);
         }
 
         /// <summary>
@@ -100,20 +83,9 @@ namespace Vocore.Unsafe
 #if DEBUG
             AllocationTracker.Remove(ptr);
 #endif
-            Marshal.FreeHGlobal(ptr);
+            NativeMemory.Free((void*)ptr);
         }
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IntPtr ToRef<T>(T value) where T : unmanaged
-        {
-            IntPtr ptr = Marshal.AllocHGlobal(sizeof(T));
-#if DEBUG
-            AllocationTracker.AddAllocated(ptr, sizeof(T), Environment.StackTrace);
-#endif
-            Marshal.StructureToPtr(value, ptr, false);
-            return ptr;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Memset(void* ptr, long size, byte value)

@@ -10,7 +10,7 @@ namespace Vocore
         public struct PointerInfo
         {
             public IntPtr pointer;
-            public int size;
+            public long size;
             public string stackTrace;
 
             public override string ToString()
@@ -21,12 +21,12 @@ namespace Vocore
 
         private static readonly ConcurrentDictionary<IntPtr, PointerInfo> _allocated = new ConcurrentDictionary<IntPtr, PointerInfo>();
 
-        public static void AddAllocated(IntPtr ptr, int size)
+        public static void AddAllocated(IntPtr ptr, long size)
         {
             AddAllocated(ptr, size, Environment.StackTrace);
         }
 
-        public static void AddAllocated(IntPtr ptr, int size, string stackTrace)
+        public static void AddAllocated(IntPtr ptr, long size, string stackTrace)
         {
             _allocated.TryAdd(ptr, new PointerInfo { pointer = ptr, size = size, stackTrace = stackTrace });
         }
