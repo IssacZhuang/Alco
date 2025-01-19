@@ -11,41 +11,6 @@ namespace Vocore.Test
 {
     public class TestConcurrent
     {
-        [Test(Description = "Circular Working Stealing Deque Push&Pop")]
-        public void TestCircularSinglePushPop()
-        {
-            int count = 1000000;
-            CircularWorkStealingDeque<int> deque = new CircularWorkStealingDeque<int>(count);
-
-            for (int i = 0; i < count; i++)
-            {
-                //TestContext.WriteLine("Push: " + i);
-                deque.Push(i);
-            }
-            HashSet<int> result = new HashSet<int>();
-            int poped = 0;
-            for (int i = 0; i < count; i++)
-            {
-                StealingResult status = deque.TryPop(out int value);
-                if (status == StealingResult.Success)
-                {
-                    poped++;
-                    result.Add(value);
-                }
-            }
-            TestContext.WriteLine("Poped: " + poped);
-            int success = 0;
-            for (int i = 0; i < count; i++)
-            {
-                if (result.Contains(i))
-                {
-                    success++;
-                }
-            }
-            TestContext.WriteLine("success: " + success);
-            Assert.IsTrue(success == count);
-        }
-
         [Test(Description = "Circular Working Stealing Deque Single Push&Steal")]
         public void TestCircularSingleSteal()
         {
@@ -58,7 +23,7 @@ namespace Vocore.Test
                 deque.Push(i);
             }
             TestContext.WriteLine("Pushed: " + count);
-            Dictionary<int, bool> result = new Dictionary<int, bool>();
+            HashSet<int> result = new HashSet<int>();
             int poped = 0;
             for (int i = 0; i < count; i++)
             {
@@ -66,14 +31,14 @@ namespace Vocore.Test
                 if (status == StealingResult.Success)
                 {
                     poped++;
-                    result.TryAdd(value, true);
+                    result.Add(value);
                 }
             }
             TestContext.WriteLine("Poped: " + poped);
             int success = 0;
             for (int i = 0; i < count; i++)
             {
-                if (result.ContainsKey(i))
+                if (result.Contains(i))
                 {
                     success++;
                 }

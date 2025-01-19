@@ -99,37 +99,6 @@ namespace Vocore
             VolatileBottom = b + 1;
         }
 
-        /// <summary>
-        /// Pop an item from the bottom of the deque
-        /// not concurrent with itself or Push, only concurrent with TrySteal
-        /// </summary>
-        public StealingResult TryPop(out T item)
-        {
-            int b = VolatileBottom;
-            CircularArray<T> a = _array;
-            b--;
-            VolatileBottom = b;
-            int t = VolatileTop;
-            int size = b - t;
-            if (size < 0)
-            {
-                VolatileBottom = t;
-                item = DefaultValue;
-                return StealingResult.Empty;
-            }
-            item = a[b];
-            if (size > 0)
-            {
-                return StealingResult.Success;
-            }
-            if (!CASTop(t, t + 1))
-            {
-                item = DefaultValue;
-                return StealingResult.CASFailed;
-            }
-            VolatileBottom = t + 1;
-            return StealingResult.Success;
-        }
 
         /// <summary>
         /// Pop an item from the top of the deque
@@ -152,6 +121,7 @@ namespace Vocore
                 item = DefaultValue;
                 return StealingResult.CASFailed;
             }
+            a[t] = DefaultValue;
             return StealingResult.Success;
         }
     }
