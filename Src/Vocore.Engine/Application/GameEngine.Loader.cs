@@ -15,9 +15,9 @@ public partial class GameEngine
         Assets.RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
         Assets.RegisterAssetLoader(new AssetLoaderShaderHLSL(Rendering, (string includeName) =>
         {
-            if (Assets.TryLoadRaw(includeName, out ReadOnlySpan<byte> data))
+            if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
             {
-                return Encoding.UTF8.GetString(data);
+                return Encoding.UTF8.GetString(data.Span);
             }
             throw new Exception($"Can not find the include file: {includeName}");
         }));
@@ -32,9 +32,9 @@ public partial class GameEngine
 
         Assets.RegisterAssetHotReloader<Shader>(new AssetHotReloaderShaderHLSL((string includeName) =>
         {
-            if (Assets.TryLoadRaw(includeName, out ReadOnlySpan<byte> data))
+            if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
             {
-                return Encoding.UTF8.GetString(data);
+                return Encoding.UTF8.GetString(data.Span);
             }
             throw new Exception($"Can not find the include file: {includeName}");
         }));

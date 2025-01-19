@@ -72,11 +72,12 @@ public sealed partial class AssetSystem
                     int attempt = 10;
                     while (attempt > 0)
                     {
-                        if (fileSource.TryGetData(filename, out ReadOnlySpan<byte> data, out string? failureReason))
+                        if (fileSource.TryGetData(filename, out SafeMemoryHandle data, out string? failureReason))
                         {
-                            HotReload(filename, data);
+                            HotReload(filename, data.Span);
                             //todo:catch event exception
                             OnHotReload?.Invoke(filename, cachedAsset);
+                            data.Dispose();
                             _host.LogSuccess($"Hot reload asset {filename} success");
                             break;
                         }

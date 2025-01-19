@@ -174,7 +174,7 @@ public sealed partial class AssetSystem
     /// <param name="filename">The filename of the asset.</param>
     /// <param name="data">The raw data of the asset if it is loaded successfully; otherwise, <c>null</c>.</param>
     /// <returns><c>True</c> if the asset is loaded successfully.</returns>
-    public bool TryLoadRaw(string filename, [NotNullWhen(true)] out ReadOnlySpan<byte> data)
+    public bool TryLoadRaw(string filename, [NotNullWhen(true)] out SafeMemoryHandle data)
     {
 
         TryRefreshEntries();
@@ -187,7 +187,7 @@ public sealed partial class AssetSystem
         }
 
         _host.LogError($"Trying to get asset {filename} but the file does not exist");
-        data = default;
+        data = SafeMemoryHandle.Empty;
         return false;
     }
 
@@ -201,7 +201,7 @@ public sealed partial class AssetSystem
         };
     }
 
-    private bool TryLoadDataFromSource(string filename, out ReadOnlySpan<byte> data)
+    private bool TryLoadDataFromSource(string filename, out SafeMemoryHandle data)
     {
         if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
         {
@@ -210,7 +210,7 @@ public sealed partial class AssetSystem
                 return true;
             }
         }
-        data = default;
+        data = SafeMemoryHandle.Empty;
         return false;
     }
 
@@ -274,7 +274,7 @@ public sealed partial class AssetSystem
         StartProfile<TAsset>(filename);
 
         // IO
-        if (!TryLoadDataFromSource(filename, out ReadOnlySpan<byte> data))
+        if (!TryLoadDataFromSource(filename, out SafeMemoryHandle data))
         {
             failedReason = $"Trying to get asset {filename} but the file does not exist";
             asset = null;
@@ -291,7 +291,8 @@ public sealed partial class AssetSystem
 
         try
         {
-            asset = loader.CreateAsset(filename, data);
+            asset = loader.CreateAsset(filename, data.Span);
+            data.Dispose();
         }
         catch (Exception ex)
         {

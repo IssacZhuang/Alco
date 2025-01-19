@@ -40,17 +40,18 @@ public class DirectoryWatcherFileSource : IFileSource
         }
     }
 
-    public bool TryGetData(string path, [NotNullWhen(true)] out ReadOnlySpan<byte> data, out string? failureReason)
+    public unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
     {
         try
         {
-            data = File.ReadAllBytes(Path.Combine(_directoryPath, path));
+            byte* ptr = UnsafeIO.ReadFile(Path.Combine(_directoryPath, path), out int size);
+            data = new SafeMemoryHandle(ptr, size);
             failureReason = string.Empty;
             return true;
         }
         catch (Exception e)
         {
-            data = ReadOnlySpan<byte>.Empty;
+            data = SafeMemoryHandle.Empty;
             failureReason = e.ToString();
             return false;
         }
