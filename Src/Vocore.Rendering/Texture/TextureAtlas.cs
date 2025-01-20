@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Vocore.Rendering;
 
@@ -18,6 +19,11 @@ public class TextureAtlas : AutoDisposable
         RenderTexture = renderTexture;
         _sprites = sprites;
         _spritesLookup = sprites.ToFrozenDictionary(sprite => sprite.Name, sprite => sprite);
+    }
+
+    public bool TryGetSprite(string name, [NotNullWhen(true)] out Sprite? sprite)
+    {
+        return _spritesLookup.TryGetValue(name, out sprite);
     }
 
     protected override void Dispose(bool disposing)

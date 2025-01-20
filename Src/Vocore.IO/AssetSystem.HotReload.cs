@@ -1,11 +1,12 @@
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Vocore.IO;
 
 public sealed partial class AssetSystem
 {
-    private readonly ConcurrentDictionary<string, byte> _hotReloadSet = new();
     private readonly ConcurrentDictionary<Type, object> _hotReloaders = new();
+    private readonly ConcurrentDictionary<string, Task<SafeMemoryHandle?>> _hotReloadIOTask = new();
 
     public event Action<string, object>? OnHotReload;
 
@@ -19,12 +20,38 @@ public sealed partial class AssetSystem
         _hotReloaders[typeof(TAsset)] = hotReloader;
     }
 
+    /// <summary>
+    /// Enqueue a hot reload task for a specific asset
+    /// </summary>
+    /// <param name="filename">The asset filename</param>
     public void EnqueueHotReload(string filename)
     {
         string extension = Path.GetExtension(filename);
-        if (IsRecongizedExtension(extension))
+        if (!IsRecongizedExtension(extension))
         {
-            _hotReloadSet.TryAdd(filename, 0);
+            return;
+        }
+
+        // Don't start new IO task if one is already pending
+        if (_hotReloadIOTask.ContainsKey(filename))
+        {
+            return;
+        }
+
+        AssetHandle handle = GetAssetHandle(filename);
+        if (handle.CachedAsset is null)
+        {
+            return;
+        }
+
+        if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+        {
+            var task = GetHotReloadIOTask(filename, fileSource);
+            _hotReloadIOTask[filename] = task;
+        }
+        else
+        {
+            _host.LogError($"File source for {filename} not found");
         }
     }
 
@@ -34,7 +61,7 @@ public sealed partial class AssetSystem
         object? cachedAsset = handle.CachedAsset;
         if (cachedAsset is null)
         {
-            throw new Exception($"Asset {filename} is not loaded");
+            return;
         }
 
         if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out object? hotReloader))
@@ -48,13 +75,34 @@ public sealed partial class AssetSystem
         }
     }
 
+    private async Task<SafeMemoryHandle?> GetHotReloadIOTask(string filename, IFileSource fileSource)
+    {
+        int attempt = 10;
+        while (attempt > 0)
+        {
+            if (fileSource.TryGetData(filename, out SafeMemoryHandle data, out string? failureReason))
+            {
+                return data;
+            }
+            await Task.Delay(100);
+            attempt--;
+        }
+        return null;
+    }
 
     private void ProcessHotReloadQueue()
     {
-        foreach (var entry in _hotReloadSet.ToArray())
+        foreach (var entry in _hotReloadIOTask.ToArray())
         {
             string filename = entry.Key;
-            _hotReloadSet.TryRemove(filename, out _);
+            var pendingTask = entry.Value;
+
+            if (!pendingTask.IsCompleted)
+            {
+                continue;
+            }
+
+            _hotReloadIOTask.TryRemove(filename, out _);
 
             AssetHandle handle = GetAssetHandle(filename);
             object? cachedAsset = handle.CachedAsset;
@@ -63,42 +111,20 @@ public sealed partial class AssetSystem
                 continue;
             }
 
-            if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+            try
             {
-                
-                try
+                var data = pendingTask.Result;
+                if (data != null)
                 {
-                    //it might be IO failed because the file might be accessed by other process
-                    int attempt = 10;
-                    while (attempt > 0)
-                    {
-                        if (fileSource.TryGetData(filename, out SafeMemoryHandle data, out string? failureReason))
-                        {
-                            HotReload(filename, data.Span);
-                            //todo:catch event exception
-                            OnHotReload?.Invoke(filename, cachedAsset);
-                            data.Dispose();
-                            _host.LogSuccess($"Hot reload asset {filename} success");
-                            break;
-                        }
-                        //todo: move IO to a separate thread
-                        Thread.Sleep(100);
-                        attempt--;
-                    }
-
-                    if (attempt == 0)
-                    {
-                        _host.LogError($"Failed to hot reload asset {filename}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _host.LogError($"Failed to hot reload asset {filename}: {ex}");
+                    HotReload(filename, data.Span);
+                    OnHotReload?.Invoke(filename, cachedAsset);
+                    data.Dispose();
+                    _host.LogSuccess($"Hot reload asset {filename} success");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _host.LogError($"File source for {filename} not found");
+                _host.LogError($"Failed to hot reload asset {filename}: {ex}");
             }
         }
     }

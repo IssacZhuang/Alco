@@ -24,7 +24,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
     private readonly uint _length;
     private readonly int2 _size;
-    private readonly TileSet<TUserData> _tileSet;
+    private TileSet<TUserData> _tileSet;
     private readonly GraphicsArrayBuffer<ColorFloat> _colorData;
     private readonly GraphicsArrayBuffer<uint> _tileIdData;
     private readonly Material _material;
@@ -34,6 +34,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
     public Transform3D Transform;
     public int2 Size => _size;
+    public TileSet<TUserData> TileSet => _tileSet;
 
 
     internal TiledTerrainBlock2D(
@@ -155,6 +156,33 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     public TUserData GetTileUserData(int x, int y)
     {
         return _tileSet.GetUserData(GetTileId(x, y));
+    }
+
+    /// <summary>
+    /// Update the tile set and clear the tile id data
+    /// </summary>
+    /// <param name="tileSet">The new tile set</param>
+    public void SetTileSet(TileSet<TUserData> tileSet)
+    {
+        _tileSet = tileSet;
+        _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
+        //clear tile id data
+        for (int i = 0; i < _tileIdData.Length; i++)
+        {
+            _tileIdData[i] = 0;
+        }
+        _isTileIdDirty = true;
+    }
+
+    /// <summary>
+    /// Update the tile set without clearing the tile id data.
+    /// <br/>[Warning] This it might cause some unexpected behavior if the new tile set has less tiles than the old one.
+    /// </summary>
+    /// <param name="tileSet">The new tile set</param>
+    public void UnsafeSetTileSet(TileSet<TUserData> tileSet)
+    {
+        _tileSet = tileSet;
+        _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
     }
 
     public bool TryGetTilePositionByRay(Ray3D ray, out int2 tilePosition)

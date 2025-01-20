@@ -158,9 +158,10 @@ public class Game : GameEngine
 
     private void OnHotReload(string filename, object cachedAsset)
     {
-        if (_tileSet.Atlas[filename] != null)
+        if (_tileSet.Atlas.TryGetSprite(filename, out Sprite? sprite))
         {
             _tileSet = BuildTileSet();
+            _terrainBlock.UnsafeSetTileSet(_tileSet);
         }
     }
 
