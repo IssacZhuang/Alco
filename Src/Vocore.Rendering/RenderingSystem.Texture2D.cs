@@ -181,6 +181,21 @@ public partial class RenderingSystem
         );
     }
 
+    public Texture2D CreateTexture2D(
+        GPUTexture texture,
+        GPUTextureView textureView,
+        GPUSampler sampler  
+    )
+    {
+        return new Texture2D(
+            _device,
+            texture,
+            textureView,
+            sampler
+        );
+
+    }
+
     public unsafe void WriteImageFileToTexture(ReadOnlySpan<byte> file, GPUTexture texture)
     {
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);

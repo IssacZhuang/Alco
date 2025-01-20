@@ -442,7 +442,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        if (index < 0 || index >= renderTexture.EntriesColorSample.Length)
+        if (index < 0 || index >= renderTexture.ColorTextures.Length)
         {
             return false;
         }
@@ -453,7 +453,7 @@ public sealed class ShaderParameterSet
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.EntriesColorSample[index]);
+            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntrySample);
             return true;
         }
         else if (slot.type == ResourceType.TextureStorage)
@@ -461,7 +461,7 @@ public sealed class ShaderParameterSet
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.EntriesColorWrite[index]);
+            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryWriteable);
             return true;
         }
 
@@ -497,7 +497,7 @@ public sealed class ShaderParameterSet
             throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
         }
 
-        if (index < 0 || index >= renderTexture.EntriesColorSample.Length)
+        if (index < 0 || index >= renderTexture.ColorTextures.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(index), "The render texture index is out of range.");
         }
@@ -508,14 +508,14 @@ public sealed class ShaderParameterSet
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.EntriesColorSample[index]);
+            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntrySample);
         }
         else if (slot.type == ResourceType.TextureStorage)
         {
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.EntriesColorWrite[index]);
+            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryWriteable);
         }else{
             throw new InvalidOperationException($"The bind group {id} is not for a texture but {slot.type}.");
         }

@@ -4,17 +4,15 @@ namespace Vocore.Rendering;
 
 public class Sprite
 {
-    private readonly RenderTexture _renderTexture;
     public string Name { get; }
-    public GPUResourceGroup EntrySample { get; }
+    public Texture2D Texture { get; }
     public Rect UVRect { get; }
     public bool IsInAtlas { get; }
 
-    internal Sprite(string name, RenderTexture renderTexture, Rect uvRect, bool isInAtlas)
+    internal Sprite(string name, Texture2D texture, Rect uvRect, bool isInAtlas)
     {
         Name = name;
-        _renderTexture = renderTexture;
-        EntrySample = _renderTexture.EntriesColorSample[0];
+        Texture = texture;
         UVRect = uvRect;
         IsInAtlas = isInAtlas;
     }

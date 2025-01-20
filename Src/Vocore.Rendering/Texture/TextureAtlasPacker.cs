@@ -72,7 +72,7 @@ public class TextureAtlasPacker: AutoDisposable
         for (int i = 0; i < _packer.Count; i++)
         {
             var item = _packer.GetRect(i);
-            sprites.Add(new Sprite(item.Data.Name, atlasTexture, item.Rect.Normalize(atlasTexture.Width, atlasTexture.Height), true));
+            sprites.Add(new Sprite(item.Data.Name, atlasTexture.ColorTextures[0], item.Rect.Normalize(atlasTexture.Width, atlasTexture.Height), true));
         }
 
         uint width = atlasTexture.Width;

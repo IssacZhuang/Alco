@@ -59,7 +59,7 @@ public class BlitRenderer : AutoDisposable
         _command.SetGraphicsPipeline(_pipelineInfo);
         _command.SetVertexBuffer(0, _fullScreenQuad.VertexBuffer);
         _command.SetIndexBuffer(_fullScreenQuad.IndexBuffer, _fullScreenQuad.IndexFormat);
-        _command.SetGraphicsResources(_shaderId_Texture, from.EntriesColorSample[0]);
+        _command.SetGraphicsResources(_shaderId_Texture, from.ColorTextures[0].EntrySample);
         _command.DrawIndexed(_fullScreenQuad.IndexCount, 1, 0, 0, 0);
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);

@@ -11,10 +11,8 @@ public class RenderTexture : AutoDisposable
     private readonly GPUDevice _device;
     private readonly GPUSampler _sampler;
     private readonly GPUFrameBuffer _frameBuffer;
-    private GPUResourceGroup[]? _groupsColorRead;
-    private GPUResourceGroup[]? _groupsColorWrite;
-    private GPUResourceGroup[]? _groupsColorSample;
     private GPUResourceGroup? _groupDepthSample;
+    private readonly Texture2D[] _colorTextures;
 
     /// <summary>
     /// The internal GPUFrameBuffer object.
@@ -66,56 +64,6 @@ public class RenderTexture : AutoDisposable
         get => _frameBuffer.Depth != null;
     }
 
-    /// <summary>
-    /// The entries of color view for reading. Usually for read in compute shader.
-    /// </summary>
-    /// <value></value>
-    public ReadOnlySpan<GPUResourceGroup> EntriesColorRead
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_groupsColorRead == null)
-            {
-                _groupsColorRead = CreateGroupsColorRead();
-            }
-            return _groupsColorRead;
-        }
-    }
-
-    /// <summary>
-    /// The entries of color view for writing. Usually for write in compute shader.
-    /// </summary>
-    /// <value></value>
-    public ReadOnlySpan<GPUResourceGroup> EntriesColorWrite
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_groupsColorWrite == null)
-            {
-                _groupsColorWrite = CreateGroupsColorWrite();
-            }
-            return _groupsColorWrite;
-        }
-    }
-
-    /// <summary>
-    /// The entries of color view for sampling.
-    /// </summary>
-    /// <value></value>
-    public ReadOnlySpan<GPUResourceGroup> EntriesColorSample
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_groupsColorSample == null)
-            {
-                _groupsColorSample = CreateGroupsColorSample();
-            }
-            return _groupsColorSample;
-        }
-    }
 
     /// <summary>
     /// The entry of depth view for sampling.
@@ -141,6 +89,16 @@ public class RenderTexture : AutoDisposable
     }
 
     /// <summary>
+    /// The color textures
+    /// </summary>
+    /// <value></value>
+    public Span<Texture2D> ColorTextures
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorTextures;
+    }
+
+    /// <summary>
     /// The render pass of the frame buffer.
     /// </summary>
     public GPURenderPass RenderPass
@@ -151,44 +109,24 @@ public class RenderTexture : AutoDisposable
 
 
     internal RenderTexture(
-        GPUDevice device,
+        RenderingSystem renderingSystem,
         GPUFrameBuffer frameBuffer,
         GPUSampler sampler
         )
     {
-        _device = device;
+        _device = renderingSystem.GraphicsDevice;
         _frameBuffer = frameBuffer;
         _sampler = sampler;
-    }
 
-    private GPUResourceGroup[] CreateGroupsColorSample()
-    {
-        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Length];
-        for (int i = 0; i < groups.Length; i++)
+        _colorTextures = new Texture2D[_frameBuffer.Colors.Length];
+        for (int i = 0; i < _colorTextures.Length; i++)
         {
-            groups[i] = CreateGroupSample(_frameBuffer.ColorViews[i]);
+            _colorTextures[i] = renderingSystem.CreateTexture2D(
+                _frameBuffer.Colors[i],
+                _frameBuffer.ColorViews[i],
+                _sampler
+                );
         }
-        return groups;
-    }
-
-    private GPUResourceGroup[] CreateGroupsColorRead()
-    {
-        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Length];
-        for (int i = 0; i < groups.Length; i++)
-        {
-            groups[i] = CreateGroupRead(_frameBuffer.ColorViews[i]);
-        }
-        return groups;
-    }
-
-    private GPUResourceGroup[] CreateGroupsColorWrite()
-    {
-        GPUResourceGroup[] groups = new GPUResourceGroup[_frameBuffer.Colors.Length];
-        for (int i = 0; i < groups.Length; i++)
-        {
-            groups[i] = CreateGroupWrite(_frameBuffer.ColorViews[i]);
-        }
-        return groups;
     }
 
     private GPUResourceGroup CreateGroupSample(GPUTextureView view)
@@ -204,57 +142,14 @@ public class RenderTexture : AutoDisposable
         return _device.CreateResourceGroup(groupDescriptor);
     }
 
-    private GPUResourceGroup CreateGroupRead(GPUTextureView view)
-    {
-        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DRead,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, view)
-            }
-        );
-
-        return _device.CreateResourceGroup(groupDescriptor);
-    }
-
-    private GPUResourceGroup CreateGroupWrite(GPUTextureView view)
-    {
-        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DStorage,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, view)
-            }
-        );
-
-        return _device.CreateResourceGroup(groupDescriptor);
-    }
-
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             //dispose managed resources
-            if (_groupsColorRead != null)
+            foreach (var texture in _colorTextures)
             {
-                for (int i = 0; i < _groupsColorRead.Length; i++)
-                {
-                    _groupsColorRead[i].Dispose();
-                }
-            }
-
-            if (_groupsColorWrite != null)
-            {
-                for (int i = 0; i < _groupsColorWrite.Length; i++)
-                {
-                    _groupsColorWrite[i].Dispose();
-                }
-            }
-
-            if (_groupsColorSample != null)
-            {
-                for (int i = 0; i < _groupsColorSample.Length; i++)
-                {
-                    _groupsColorSample[i].Dispose();
-                }
+                texture.Dispose();
             }
 
             _groupDepthSample?.Dispose();
