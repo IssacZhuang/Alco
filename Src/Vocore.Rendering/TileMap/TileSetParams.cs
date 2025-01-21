@@ -10,6 +10,8 @@ public class TileSetParams<TUserData>
         public Vector2 MeshScale;
         public Vector2 UVScale;
         public Texture2D Texture;
+        public float BlendFactor;
+        public float BlendPriority;
     }
 
     private readonly List<Item> _items = new();
@@ -41,7 +43,9 @@ public class TileSetParams<TUserData>
             Texture = texture,
             UserData = userData,
             MeshScale = meshScale,
-            UVScale = uvScale
+            UVScale = uvScale,
+            BlendFactor = blendFactor,
+            BlendPriority = blendPriority
         });
     }
 

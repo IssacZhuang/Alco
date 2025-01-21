@@ -104,7 +104,9 @@ public class TileSet<TUserData> : AutoDisposable
             {
                 UVRect = sprite.UVRect,
                 MeshScale = item.MeshScale,
-                UVScale = item.UVScale
+                UVScale = item.UVScale,
+                BlendFactor = item.BlendFactor,
+                BlendPriority = item.BlendPriority
             };
         }
 

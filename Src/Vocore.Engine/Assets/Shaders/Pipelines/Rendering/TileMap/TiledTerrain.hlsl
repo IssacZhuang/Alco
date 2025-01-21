@@ -41,11 +41,12 @@ DEFINE_STORAGE(4, uint, _tileIdData);
 
 PUSH_CONSTANT Constants constants;
 
-float4 SampleTile(uint tileId, float2 vertexUV)
+float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
 {
     SpriteData sprite = _spriteData[tileId];
     float2 uv = frac(vertexUV * sprite.uvScale);
     uv = uv * sprite.uvRect.zw + sprite.uvRect.xy;
+    blendPriority = sprite.blendPriority;
     return SAMPLE_TEX2D(_texture, uv);
 }
 
@@ -87,11 +88,17 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     SpriteData sprite= _spriteData[tileId_center];
 
-    float4 colorCenter = SampleTile(tileId_center, input.uv) * input.color;
-    float4 colorLeft = SampleTile(tileId_left, input.uv) * input.color;
-    float4 colorRight = SampleTile(tileId_right, input.uv) * input.color;
-    float4 colorTop = SampleTile(tileId_top, input.uv) * input.color;
-    float4 colorBottom = SampleTile(tileId_bottom, input.uv) * input.color;
+    float blendPriorityCenter;
+    float blendPriorityLeft;
+    float blendPriorityRight;
+    float blendPriorityTop;
+    float blendPriorityBottom;
+
+    float4 colorCenter = SampleTile(tileId_center, input.uv, blendPriorityCenter) * input.color;
+    float4 colorLeft = SampleTile(tileId_left, input.uv, blendPriorityLeft) * input.color;
+    float4 colorRight = SampleTile(tileId_right, input.uv, blendPriorityRight) * input.color;
+    float4 colorTop = SampleTile(tileId_top, input.uv, blendPriorityTop) * input.color;
+    float4 colorBottom = SampleTile(tileId_bottom, input.uv, blendPriorityBottom) * input.color;
 
     float4 finalColor = colorCenter;
     float blendWidth = sprite.blendFactor;
@@ -99,19 +106,31 @@ float4 PixelMain(V2F input) : SV_TARGET
     // Left edge blend
     
     float tLeft = saturate(input.uv.x / blendWidth);
-    finalColor = lerp(colorLeft, finalColor, tLeft);
+    if(blendPriorityLeft > blendPriorityCenter)
+    {
+        finalColor = lerp(colorLeft, finalColor, tLeft);
+    }
 
     // Right edge blend
     float tRight = saturate((1 - input.uv.x) / blendWidth);
-    finalColor = lerp(colorRight, finalColor, tRight);
+    if(blendPriorityRight > blendPriorityCenter)
+    {
+        finalColor = lerp(colorRight, finalColor, tRight);
+    }
 
     // Top edge blend
     float tTop = saturate(input.uv.y / blendWidth);
-    finalColor = lerp(colorTop, finalColor, tTop);
+    if(blendPriorityTop > blendPriorityCenter)
+    {
+        finalColor = lerp(colorTop, finalColor, tTop);
+    }
 
     // Bottom edge blend
     float tBottom = saturate((1 - input.uv.y) / blendWidth);
-    finalColor = lerp(colorBottom, finalColor, tBottom);
+    if(blendPriorityBottom > blendPriorityCenter)
+    {
+        finalColor = lerp(colorBottom, finalColor, tBottom);
+    }
 
     return finalColor;
 }
