@@ -101,21 +101,25 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     float4 finalColor = colors[4]; // Center color
     float centerPriority = priorities[4];
-    float blendWidth = _spriteData[_tileIdData[input.instanceId]].blendFactor;
-    float cornerBlendWidth = blendWidth * 1.4142;
+    float blendFactor = _spriteData[_tileIdData[input.instanceId]].blendFactor;
+    float cornerBlendFactor = blendFactor ; // sqrt(2)
+
+    // Pre-calculate reciprocals
+    float invBlendFactor = 1.0 / blendFactor;
+    float invCornerBlendFactor = 1.0 / cornerBlendFactor;
 
     // Define blend weights for each neighbor
     float2 uv = input.uv;
     float weights[9] = {
-        saturate((uv.x + uv.y) / cornerBlendWidth),            // top-left
-        saturate(uv.y / blendWidth),                           // top
-        saturate(((1 - uv.x) + uv.y) / cornerBlendWidth),      // top-right
-        saturate(uv.x / blendWidth),                           // left
-        1.0,                                                   // center
-        saturate((1 - uv.x) / blendWidth),                     // right
-        saturate((uv.x + (1 - uv.y)) / cornerBlendWidth),      // bottom-left
-        saturate((1 - uv.y) / blendWidth),                     // bottom
-        saturate(((1 - uv.x) + (1 - uv.y)) / cornerBlendWidth) // bottom-right
+        saturate((uv.x + uv.y) * invCornerBlendFactor),            // top-left
+        saturate(uv.y * invBlendFactor),                           // top
+        saturate(((1 - uv.x) + uv.y) * invCornerBlendFactor),      // top-right
+        saturate(uv.x * invBlendFactor),                           // left
+        1.0,                                                       // center
+        saturate((1 - uv.x) * invBlendFactor),                     // right
+        saturate((uv.x + (1 - uv.y)) * invCornerBlendFactor),      // bottom-left
+        saturate((1 - uv.y) * invBlendFactor),                     // bottom
+        saturate(((1 - uv.x) + (1 - uv.y)) * invCornerBlendFactor) // bottom-right
     };
 
     // Apply blending for all neighbors in a single loop
