@@ -23,7 +23,7 @@ public class Game : GameEngine
     {
 
         //scence
-        _spriteShader = Assets.Load<Shader>("Sprite.hlsl");
+        _spriteShader = BuiltInAssets.Shader_Sprite;
        
         _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
 
