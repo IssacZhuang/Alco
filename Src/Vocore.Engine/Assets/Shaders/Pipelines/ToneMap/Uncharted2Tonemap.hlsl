@@ -18,8 +18,8 @@ float3 Uncharted2Tonemap(float3 x) {
 }
 
 
-struct Vertex2D {
-    float2 position : POSITION;
+struct Vertex {
+    float3 position : POSITION;
     float2 uv : TEXCOORD0;
 };
 
@@ -29,9 +29,9 @@ struct V2F {
 };
 
 [shader("vertex")]
-V2F MainVS(Vertex2D input) {
+V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
-    output.position = float4(input.position, 0.0f, 1.0f);
+    output.position = float4(input.position, 1.0f);
     output.uv = input.uv;
     return output;
 }

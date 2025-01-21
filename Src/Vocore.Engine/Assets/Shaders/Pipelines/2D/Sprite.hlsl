@@ -1,7 +1,7 @@
 #include "Shaders/Libs/Core.hlsli"
 
-struct Vertex2D {
-  float2 position : POSITION;
+struct Vertex {
+  float3 position : POSITION;
   float2 uv : TEXCOORD0;
 };
 
@@ -23,9 +23,9 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 PUSH_CONSTANT Constants constants;
 
 [shader("vertex")]
-V2F MainVS(Vertex2D input) {
+V2F MainVS(Vertex input) {
   V2F output = (V2F)0;
-  output.position = mul(constants.model, float4(input.position, 0.0f, 1.0f));
+  output.position = mul(constants.model, float4(input.position, 1.0f));
   output.position = mul(viewProjection, output.position);
   output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
   return output;

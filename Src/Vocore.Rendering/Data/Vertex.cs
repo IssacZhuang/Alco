@@ -4,14 +4,14 @@ using Vocore.Unsafe;
 
 namespace Vocore.Rendering;
 
-public unsafe struct Vertex3D
+public unsafe struct Vertex
 {
-    public static readonly int SizeInBytes = sizeof(Vertex3D);
+    public static readonly int SizeInBytes = sizeof(Vertex);
 
     public Vector3 position;
     public Vector2 uv;
 
-    public Vertex3D(Vector3 position, Vector2 uv)
+    public Vertex(Vector3 position, Vector2 uv)
     {
         this.position = position;
         this.uv = uv;

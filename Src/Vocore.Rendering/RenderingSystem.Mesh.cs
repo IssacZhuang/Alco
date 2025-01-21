@@ -29,10 +29,10 @@ public partial class RenderingSystem
     /// <param name="left">The left border.</param>
     /// <param name="right">The right border.</param>
     /// <returns>The mesh data.</returns>
-    public (Vertex2D[], uint[]) Make9SliceMeshData(float width, float height, float top, float bottom, float left, float right)
+    public (Vertex[], uint[]) Make9SliceMeshData(float width, float height, float top, float bottom, float left, float right)
     {
         //position, uv
-        Vertex2D[] vertices = new Vertex2D[16];
+        Vertex[] vertices = new Vertex[16];
         uint[] indices = new uint[54];
 
         //center point is 0,0
@@ -69,8 +69,8 @@ public partial class RenderingSystem
         {
             for (int x = 0; x < 4; x++)
             {
-                vertices[y * 4 + x] = new Vertex2D(
-                    new Vector2(xPos[x], yPos[y]),
+                vertices[y * 4 + x] = new Vertex(
+                    new Vector3(xPos[x], yPos[y], 0),
                     new Vector2(uvX[x], uvY[y])
                 );
             }

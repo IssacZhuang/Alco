@@ -1,7 +1,7 @@
 #include "Shaders/Libs/Core.hlsli"
 
-struct Vertex2D {
-  float2 position : POSITION;
+struct Vertex {
+  float3 position : POSITION;
   float2 uv : TEXCOORD0;
   uint instanceId : SV_INSTANCEID;
 };
@@ -40,7 +40,7 @@ DEFINE_STORAGE(4, uint, _tileIdData);
 PUSH_CONSTANT Constants constants;
 
 [shader("vertex")]
-V2F VertexMain(Vertex2D input)
+V2F VertexMain(Vertex input)
 {
   float4 color = _colorData[input.instanceId];
     uint tileId = _tileIdData[input.instanceId];
@@ -50,9 +50,9 @@ V2F VertexMain(Vertex2D input)
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
-    float2 pos2D = input.position * sprite.meshScale;
+    float3 pos2D = input.position * float3(sprite.meshScale, 1.0f);
 
-    float4 position = float4(pos2D, 0, 1);
+    float4 position = float4(pos2D, 1);
     position.xy += float2(offsetX, -offsetY);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);

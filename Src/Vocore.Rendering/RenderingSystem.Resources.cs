@@ -32,37 +32,37 @@ public partial class RenderingSystem
         }
     }
 
-    private static readonly Vertex2D[] VerticesSpriteQuad =
+    private static readonly Vertex[] VerticesSpriteQuad =
    {
-        new(new Vector2(-0.5f, 0.5f), new Vector2(0, 0)),
-        new(new Vector2(0.5f, 0.5f), new Vector2(1, 0)),
-        new(new Vector2(0.5f, -0.5f), new Vector2(1, 1)),
-        new(new Vector2(-0.5f, -0.5f), new Vector2(0, 1))
+        new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),
+        new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),
+        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),
+        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1))
     };
 
     private static readonly ushort[] IndicesSpriteQuad = { 0, 1, 2, 0, 2, 3 };
 
-    private static readonly Vertex2D[] VerticesTrueTypeQuad =
+    private static readonly Vertex[] VerticesTrueTypeQuad =
     {
-        new (new Vector2(0, 0),new Vector2(0, 0)),
-        new ( new Vector2(1, 0),  new Vector2(1, 0)),
-        new ( new Vector2(1, -1),  new Vector2(1, 1)),
-        new ( new Vector2(0, -1),  new Vector2(0, 1))
+        new (new Vector3(0, 0, 0),new Vector2(0, 0)),
+        new ( new Vector3(1, 0, 0),  new Vector2(1, 0)),
+        new ( new Vector3(1, -1, 0),  new Vector2(1, 1)),
+        new ( new Vector3(0, -1, 0),  new Vector2(0, 1))
     };
 
     private static readonly ushort[] IndicesTrueTypeQuad = { 0, 1, 2, 0, 2, 3 };
 
-    private static readonly Vertex2D[] VerticesFullScreenQuad =
+    private static readonly Vertex[] VerticesFullScreenQuad =
     {
-        new(new Vector2(-1f, 1f), new Vector2(0, 0)),
-        new(new Vector2(1f, 1f), new Vector2(1, 0)),
-        new(new Vector2(1f, -1f), new Vector2(1, 1)),
-        new(new Vector2(-1f, -1f), new Vector2(0, 1))
+        new(new Vector3(-1f, 1f, 0), new Vector2(0, 0)),
+        new(new Vector3(1f, 1f, 0), new Vector2(1, 0)),
+        new(new Vector3(1f, -1f, 0), new Vector2(1, 1)),
+        new(new Vector3(-1f, -1f, 0), new Vector2(0, 1))
     };
 
     private static readonly ushort[] IndicesFullScreenQuad = { 0, 1, 2, 0, 2, 3 };
 
-    private static readonly Vertex3D[] VerticesBox =
+    private static readonly Vertex[] VerticesBox =
     {
         new(new Vector3(-0.5f, 0.5f, 0.5f), new Vector2(0, 0)),
         new(new Vector3(0.5f, 0.5f, 0.5f), new Vector2(1, 0)),
