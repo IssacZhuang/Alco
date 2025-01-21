@@ -80,98 +80,52 @@ V2F VertexMain(Vertex input)
 [shader("pixel")]
 float4 PixelMain(V2F input) : SV_TARGET
 {
-    uint tileId_center = _tileIdData[input.instanceId];
-    uint tileId_left = _tileIdData[input.instanceId - 1];
-    uint tileId_right = _tileIdData[input.instanceId + 1];
-    uint tileId_top = _tileIdData[input.instanceId - constants.size.x];
-    uint tileId_bottom = _tileIdData[input.instanceId + constants.size.x];
-    uint tileId_topLeft = _tileIdData[input.instanceId - constants.size.x - 1];
-    uint tileId_topRight = _tileIdData[input.instanceId - constants.size.x + 1];
-    uint tileId_bottomLeft = _tileIdData[input.instanceId + constants.size.x - 1];
-    uint tileId_bottomRight = _tileIdData[input.instanceId + constants.size.x + 1];
+    // Define offsets for 3x3 neighborhood
+    static const int2 offsets[9] = {
+        int2(-1, -1), int2(0, -1), int2(1, -1), // top row
+        int2(-1, 0), int2(0, 0), int2(1, 0),    // middle row
+        int2(-1, 1), int2(0, 1), int2(1, 1)     // bottom row
+    };
 
-    SpriteData sprite= _spriteData[tileId_center];
+    // Sample all neighbors
+    float4 colors[9];
+    float priorities[9];
 
-    float blendPriorityCenter;
-    float blendPriorityLeft;
-    float blendPriorityRight;
-    float blendPriorityTop;
-    float blendPriorityBottom;
-    float blendPriorityTopLeft;
-    float blendPriorityTopRight;
-    float blendPriorityBottomLeft;
-    float blendPriorityBottomRight;
-
-    float4 colorCenter = SampleTile(tileId_center, input.uv, blendPriorityCenter) * input.color;
-    float4 colorLeft = SampleTile(tileId_left, input.uv, blendPriorityLeft) * input.color;
-    float4 colorRight = SampleTile(tileId_right, input.uv, blendPriorityRight) * input.color;
-    float4 colorTop = SampleTile(tileId_top, input.uv, blendPriorityTop) * input.color;
-    float4 colorBottom = SampleTile(tileId_bottom, input.uv, blendPriorityBottom) * input.color;
-    float4 colorTopLeft = SampleTile(tileId_topLeft, input.uv, blendPriorityTopLeft) * input.color;
-    float4 colorTopRight = SampleTile(tileId_topRight, input.uv, blendPriorityTopRight) * input.color;
-    float4 colorBottomLeft = SampleTile(tileId_bottomLeft, input.uv, blendPriorityBottomLeft) * input.color;
-    float4 colorBottomRight = SampleTile(tileId_bottomRight, input.uv, blendPriorityBottomRight) * input.color;
-
-    float4 finalColor = colorCenter;
-    float blendWidth = sprite.blendFactor;
-
-    // Left edge blend
-    float tLeft = saturate(input.uv.x / blendWidth);
-    if(blendPriorityLeft > blendPriorityCenter)
+    [unroll]
+    for (int i = 0; i < 9; i++)
     {
-        finalColor = lerp(colorLeft, finalColor, tLeft);
+        int neighborIndex = input.instanceId + offsets[i].x + offsets[i].y * constants.size.x;
+        uint tileId = _tileIdData[neighborIndex];
+        colors[i] = SampleTile(tileId, input.uv, priorities[i]) * input.color;
     }
 
-    // Right edge blend
-    float tRight = saturate((1 - input.uv.x) / blendWidth);
-    if(blendPriorityRight > blendPriorityCenter)
-    {
-        finalColor = lerp(colorRight, finalColor, tRight);
-    }
+    float4 finalColor = colors[4]; // Center color
+    float centerPriority = priorities[4];
+    float blendWidth = _spriteData[_tileIdData[input.instanceId]].blendFactor;
+    float cornerBlendWidth = blendWidth * 1.4142;
 
-    // Top edge blend
-    float tTop = saturate(input.uv.y / blendWidth);
-    if(blendPriorityTop > blendPriorityCenter)
-    {
-        finalColor = lerp(colorTop, finalColor, tTop);
-    }
+    // Define blend weights for each neighbor
+    float2 uv = input.uv;
+    float weights[9] = {
+        saturate((uv.x + uv.y) / cornerBlendWidth),            // top-left
+        saturate(uv.y / blendWidth),                           // top
+        saturate(((1 - uv.x) + uv.y) / cornerBlendWidth),      // top-right
+        saturate(uv.x / blendWidth),                           // left
+        1.0,                                                   // center
+        saturate((1 - uv.x) / blendWidth),                     // right
+        saturate((uv.x + (1 - uv.y)) / cornerBlendWidth),      // bottom-left
+        saturate((1 - uv.y) / blendWidth),                     // bottom
+        saturate(((1 - uv.x) + (1 - uv.y)) / cornerBlendWidth) // bottom-right
+    };
 
-    // Bottom edge blend
-    float tBottom = saturate((1 - input.uv.y) / blendWidth);
-    if(blendPriorityBottom > blendPriorityCenter)
+    // Apply blending for all neighbors in a single loop
+    [unroll]
+    for (int j = 0; j < 9; j++)
     {
-        finalColor = lerp(colorBottom, finalColor, tBottom);
-    }
-
-    // Corner blends
-    float cornerBlendWidth = blendWidth * 1.4142; // sqrt(2) to maintain consistent blend width diagonally
-
-    // Top-left corner blend
-    float tTopLeft = saturate((input.uv.x + input.uv.y) / ( cornerBlendWidth));
-    if (blendPriorityTopLeft > blendPriorityCenter)
-    {
-        finalColor = lerp(colorTopLeft, finalColor, tTopLeft);
-    }
-
-    // Top-right corner blend
-    float tTopRight = saturate(((1 - input.uv.x) + input.uv.y) / ( cornerBlendWidth));
-    if (blendPriorityTopRight > blendPriorityCenter)
-    {
-        finalColor = lerp(colorTopRight, finalColor, tTopRight);
-    }
-
-    // Bottom-left corner blend
-    float tBottomLeft = saturate((input.uv.x + (1 - input.uv.y)) / ( cornerBlendWidth));
-    if (blendPriorityBottomLeft > blendPriorityCenter)
-    {
-        finalColor = lerp(colorBottomLeft, finalColor, tBottomLeft);
-    }
-
-    // Bottom-right corner blend
-    float tBottomRight = saturate(((1 - input.uv.x) + (1 - input.uv.y)) / ( cornerBlendWidth));
-    if (blendPriorityBottomRight > blendPriorityCenter)
-    {
-        finalColor = lerp(colorBottomRight, finalColor, tBottomRight);
+        if (j != 4 && priorities[j] > centerPriority) // Skip center tile
+        {
+            finalColor = lerp(colors[j], finalColor, weights[j]);
+        }
     }
 
     return finalColor;
