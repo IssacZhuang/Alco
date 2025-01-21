@@ -20,6 +20,9 @@ public class TileSet<TUserData> : AutoDisposable
         public Rect UVRect;
         public Vector2 MeshScale;
         public Vector2 UVScale;
+        public float BlendFactor;
+        public float BlendPriority;
+        public Vector2 _reserved;//reserved for memory alignment
     }
 
 
@@ -130,6 +133,22 @@ public class TileSet<TUserData> : AutoDisposable
     {
         SpriteData spriteData = _spriteData[index];
         spriteData.UVScale = scale;
+        _spriteData[index] = spriteData;
+        _spriteData.UpdateBufferRanged((uint)index, 1);
+    }
+
+    public void SetBlendFactor(int index, float factor)
+    {
+        SpriteData spriteData = _spriteData[index];
+        spriteData.BlendFactor = factor;
+        _spriteData[index] = spriteData;
+        _spriteData.UpdateBufferRanged((uint)index, 1);
+    }
+
+    public void SetBlendPriority(int index, float priority)
+    {
+        SpriteData spriteData = _spriteData[index];
+        spriteData.BlendPriority = priority;
         _spriteData[index] = spriteData;
         _spriteData.UpdateBufferRanged((uint)index, 1);
     }

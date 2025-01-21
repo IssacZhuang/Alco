@@ -19,9 +19,9 @@ public class Game : GameEngine
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
-    private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
-    private float _meshScale = 2f;
-    private float _uvScale = 1f;
+    private ColorFloat _color = new ColorFloat(0.47f, 0.53f, 0.47f, 1);
+
+    private float _blendFactor = 0.1f;
 
     private uint _selectedTileId = 0;
 
@@ -81,18 +81,6 @@ public class Game : GameEngine
     {
         DebugGUI.Text(FrameRate);
         bool isDebugClicked = false;
-        if (DebugGUI.SliderWithText("Mesh Scale", ref _meshScale, 0.5f, 2))
-        {
-            _tileSet.SetMeshScale(1, new Vector2(_meshScale, _meshScale));
-            isDebugClicked = true;
-        }
-
-        if (DebugGUI.SliderWithText("UV Scale", ref _uvScale, 0.5f, 2))
-        {
-            _tileSet.SetUVScale(1, new Vector2(_uvScale, _uvScale));
-            isDebugClicked = true;
-        }
-
         if (DebugGUI.SliderWithText("Brush Size", ref _brushSize, 0.1f, 5f))
         {
             UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
@@ -102,6 +90,14 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Selected Tile", ref _selectedTileId, 0, (uint)_tileSet.Count - 1))
         {
             isDebugClicked = true;
+        }
+
+        if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
+        {
+            isDebugClicked = true;
+            _tileSet.SetBlendFactor(0, _blendFactor);
+            _tileSet.SetBlendFactor(1, _blendFactor);
+            _tileSet.SetBlendFactor(2, _blendFactor);
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -169,14 +165,14 @@ public class Game : GameEngine
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
-        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Sand.png");
+        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Dirt.png");
 
         Task.WaitAll(grid, grass, sand);
 
         TileSetParams<int> tileSetParams = new();
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One);
-        tileSetParams.Add(grass.Result, 1, new Vector2(_meshScale, _meshScale), new Vector2(_uvScale, _uvScale));
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One);
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.1f, 0);
+        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 0.1f, 1);
+        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 0.1f, 2);
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }

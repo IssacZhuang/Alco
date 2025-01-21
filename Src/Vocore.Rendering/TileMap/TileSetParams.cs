@@ -27,7 +27,14 @@ public class TileSetParams<TUserData>
         });
     }
 
-    public void Add(Texture2D texture, TUserData userData, Vector2 meshScale, Vector2 uvScale)
+    public void Add(
+        Texture2D texture, 
+        TUserData userData, 
+        Vector2 meshScale, 
+        Vector2 uvScale,
+        float blendFactor,
+        float blendPriority
+        )
     {
         _items.Add(new Item
         {
