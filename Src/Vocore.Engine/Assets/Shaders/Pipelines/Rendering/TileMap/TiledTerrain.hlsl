@@ -85,6 +85,10 @@ float4 PixelMain(V2F input) : SV_TARGET
     uint tileId_right = _tileIdData[input.instanceId + 1];
     uint tileId_top = _tileIdData[input.instanceId - constants.size.x];
     uint tileId_bottom = _tileIdData[input.instanceId + constants.size.x];
+    uint tileId_topLeft = _tileIdData[input.instanceId - constants.size.x - 1];
+    uint tileId_topRight = _tileIdData[input.instanceId - constants.size.x + 1];
+    uint tileId_bottomLeft = _tileIdData[input.instanceId + constants.size.x - 1];
+    uint tileId_bottomRight = _tileIdData[input.instanceId + constants.size.x + 1];
 
     SpriteData sprite= _spriteData[tileId_center];
 
@@ -93,18 +97,25 @@ float4 PixelMain(V2F input) : SV_TARGET
     float blendPriorityRight;
     float blendPriorityTop;
     float blendPriorityBottom;
+    float blendPriorityTopLeft;
+    float blendPriorityTopRight;
+    float blendPriorityBottomLeft;
+    float blendPriorityBottomRight;
 
     float4 colorCenter = SampleTile(tileId_center, input.uv, blendPriorityCenter) * input.color;
     float4 colorLeft = SampleTile(tileId_left, input.uv, blendPriorityLeft) * input.color;
     float4 colorRight = SampleTile(tileId_right, input.uv, blendPriorityRight) * input.color;
     float4 colorTop = SampleTile(tileId_top, input.uv, blendPriorityTop) * input.color;
     float4 colorBottom = SampleTile(tileId_bottom, input.uv, blendPriorityBottom) * input.color;
+    float4 colorTopLeft = SampleTile(tileId_topLeft, input.uv, blendPriorityTopLeft) * input.color;
+    float4 colorTopRight = SampleTile(tileId_topRight, input.uv, blendPriorityTopRight) * input.color;
+    float4 colorBottomLeft = SampleTile(tileId_bottomLeft, input.uv, blendPriorityBottomLeft) * input.color;
+    float4 colorBottomRight = SampleTile(tileId_bottomRight, input.uv, blendPriorityBottomRight) * input.color;
 
     float4 finalColor = colorCenter;
     float blendWidth = sprite.blendFactor;
 
     // Left edge blend
-    
     float tLeft = saturate(input.uv.x / blendWidth);
     if(blendPriorityLeft > blendPriorityCenter)
     {
@@ -130,6 +141,37 @@ float4 PixelMain(V2F input) : SV_TARGET
     if(blendPriorityBottom > blendPriorityCenter)
     {
         finalColor = lerp(colorBottom, finalColor, tBottom);
+    }
+
+    // Corner blends
+    float cornerBlendWidth = blendWidth * 1.4142; // sqrt(2) to maintain consistent blend width diagonally
+
+    // Top-left corner blend
+    float tTopLeft = saturate((input.uv.x + input.uv.y) / ( cornerBlendWidth));
+    if (blendPriorityTopLeft > blendPriorityCenter)
+    {
+        finalColor = lerp(colorTopLeft, finalColor, tTopLeft);
+    }
+
+    // Top-right corner blend
+    float tTopRight = saturate(((1 - input.uv.x) + input.uv.y) / ( cornerBlendWidth));
+    if (blendPriorityTopRight > blendPriorityCenter)
+    {
+        finalColor = lerp(colorTopRight, finalColor, tTopRight);
+    }
+
+    // Bottom-left corner blend
+    float tBottomLeft = saturate((input.uv.x + (1 - input.uv.y)) / ( cornerBlendWidth));
+    if (blendPriorityBottomLeft > blendPriorityCenter)
+    {
+        finalColor = lerp(colorBottomLeft, finalColor, tBottomLeft);
+    }
+
+    // Bottom-right corner blend
+    float tBottomRight = saturate(((1 - input.uv.x) + (1 - input.uv.y)) / ( cornerBlendWidth));
+    if (blendPriorityBottomRight > blendPriorityCenter)
+    {
+        finalColor = lerp(colorBottomRight, finalColor, tBottomRight);
     }
 
     return finalColor;
