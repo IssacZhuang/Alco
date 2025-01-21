@@ -141,6 +141,16 @@ public abstract class Material: AutoDisposable
     }
 
     /// <summary>
+    /// Set the defines of the shader to control the variant of the shader.
+    /// </summary>
+    /// <param name="defines">The defines to set.</param>
+    public void SetDefines(params string[] defines)
+    {
+        _pipelineContext.Defines = defines;
+        _isPipelineDirty = true;
+    }
+
+    /// <summary>
     /// Get the shader pipeline.
     /// </summary>
     /// <param name="renderPass">The render pass.</param>

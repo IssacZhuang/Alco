@@ -73,5 +73,12 @@ float4 PixelMain(V2F input) : SV_TARGET
     float2 uv = frac(input.uv);
     uv = uv * input.uvRect.zw + input.uvRect.xy;
 
-    return SAMPLE_TEX2D(_texture, uv) * input.color;
+    float4 color = SAMPLE_TEX2D(_texture, uv) * input.color;
+#if defined(ALPHA_TEST)
+  if (color.a < 0.01f)
+  {
+    discard;
+  }
+#endif
+    return color;
 }

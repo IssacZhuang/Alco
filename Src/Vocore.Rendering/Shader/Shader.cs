@@ -43,6 +43,16 @@ public class Shader : AutoDisposable
         _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
     }
 
+    /// <summary>
+    /// Gets a graphics pipeline with the specified parameters and shader defines
+    /// </summary>
+    /// <param name="renderPass">The render pass configuration</param>
+    /// <param name="depthStencil">The depth stencil state</param>
+    /// <param name="blend">The blend state</param>
+    /// <param name="rasterizer">The rasterizer state</param>
+    /// <param name="primitiveTopology">The primitive topology</param>
+    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
@@ -67,6 +77,14 @@ public class Shader : AutoDisposable
         };
     }
 
+    /// <summary>
+    /// Gets a graphics pipeline with default rasterizer state and triangle list topology
+    /// </summary>
+    /// <param name="renderPass">The render pass configuration</param>
+    /// <param name="depthStencil">The depth stencil state</param>
+    /// <param name="blend">The blend state</param>
+    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPURenderPass renderPass,
         DepthStencilState depthStencil,
@@ -84,6 +102,12 @@ public class Shader : AutoDisposable
             );
     }
 
+    /// <summary>
+    /// Gets a graphics pipeline with default states for depth, blend, rasterizer and topology
+    /// </summary>
+    /// <param name="renderPass">The render pass configuration</param>
+    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPURenderPass renderPass,
         params ReadOnlySpan<string> defines
@@ -99,7 +123,13 @@ public class Shader : AutoDisposable
             );
     }
 
-
+    /// <summary>
+    /// Attempts to update an existing pipeline context with a new render pass
+    /// </summary>
+    /// <param name="pipelineInfo">The pipeline context to update</param>
+    /// <param name="renderPass">The new render pass configuration</param>
+    /// <param name="forced">Whether to force update even if render pass hasn't changed</param>
+    /// <returns>True if the pipeline was updated, false otherwise</returns>
     public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
     {
         if (pipelineInfo.RenderPass == renderPass && !forced && !_isDirty)
@@ -125,6 +155,11 @@ public class Shader : AutoDisposable
         return true;
     }
 
+    /// <summary>
+    /// Gets a compute pipeline with the specified shader defines
+    /// </summary>
+    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <returns>A compute pipeline context containing the configured pipeline and reflection info</returns>
     public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<string> defines)
     {
         ShaderModulesInfo modulesInfo = GetShaderModules(defines);
@@ -136,6 +171,11 @@ public class Shader : AutoDisposable
         };
     }
 
+    /// <summary>
+    /// Gets the compiled shader modules for the specified defines
+    /// </summary>
+    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <returns>The compiled shader modules information</returns>
     public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
     {
         int hash = GetDefinesHash(defines);
@@ -158,6 +198,16 @@ public class Shader : AutoDisposable
 
             return modulesInfo;
         }
+    }
+
+    /// <summary>
+    /// Precompiles the shader with the specified defines
+    /// </summary>
+    /// <param name="defines">Optional shader defines to customize compilation</param>
+    public void Precompile(params ReadOnlySpan<string> defines)
+    {
+        int hash = GetDefinesHash(defines);
+        _modulesCache[hash] = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
     }
 
     private int GetDefinesHash(ReadOnlySpan<string> defines)

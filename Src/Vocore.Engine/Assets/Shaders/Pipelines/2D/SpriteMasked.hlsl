@@ -51,5 +51,12 @@ float4 MainPS(V2F input) : SV_TARGET {
     {
         discard;
     }
-  return _texture.Sample(_textureSampler, input.uv) * constants.color;
+    float4 color = _texture.Sample(_textureSampler, input.uv) * constants.color;
+#if defined(ALPHA_TEST)
+  if (color.a < 0.01f)
+  {
+    discard;
+  }
+#endif
+  return color;
 }

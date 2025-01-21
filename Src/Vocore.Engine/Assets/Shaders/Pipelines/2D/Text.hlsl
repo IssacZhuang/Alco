@@ -57,5 +57,11 @@ float4 MainPS(V2F input) : SV_TARGET {
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
   // float r = _font.Sample(_fontSampler, uv).r;
   float r = SAMPLE_TEX2D(_font, uv).r;
+#if defined(ALPHA_TEST)
+  if (r < 0.01f)
+  {
+    discard;
+  }
+#endif
   return float4(r, r, r, r) * data.color;
 }
