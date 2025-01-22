@@ -10,7 +10,7 @@ namespace Vocore.Rendering;
 /// The high performance text renderer.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
-public class TextRenderer : AutoDisposable
+public sealed class TextRenderer : AutoDisposable
 {
 
     [StructLayout(LayoutKind.Sequential)]
