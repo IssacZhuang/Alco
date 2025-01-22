@@ -6,23 +6,26 @@ namespace Vocore.Engine;
 public class PluginHDR : BaseEnginePlugin
 {
     private Shader? _shader;
-    private ColorSpaceConverter? _toneMap;
+    private Material? _material;
+    private ReinhardToneMapData _data;
 
     public override int Order => -900;
     public override void OnPostInitialize(GameEngine engine)
     {
+        _data = ReinhardToneMapData.Default;
         RenderingSystem rendering = engine.Rendering;
         _shader = engine.Assets.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
-        _toneMap = rendering.CreateReinhardLuminanceToneMap(_shader);
+        _material = rendering.CreateGraphicsMaterial(_shader);
+        _material.SetValue(ShaderResourceId.Data, _data);
 
         
-        engine.MainRenderTarget.SetRenderPass(rendering.PrefferedHDRPass, _toneMap);
+        engine.MainRenderTarget.SetRenderPass(rendering.PrefferedHDRPass, _material);
     }
 
     public override void Dispose()
     {
         _shader?.Dispose();
-        _toneMap?.Dispose();
+        _material?.Dispose();
 
     }
 }

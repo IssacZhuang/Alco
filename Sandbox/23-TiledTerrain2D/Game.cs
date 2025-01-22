@@ -19,7 +19,7 @@ public class Game : GameEngine
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
-    private ColorFloat _color = new ColorFloat(0.47f, 0.53f, 0.47f, 1);
+    private ColorFloat _color = new ColorFloat(1, 1, 1, 1);
 
     private float _blendFactor = 0.1f;
 

@@ -13,9 +13,14 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private readonly RenderingSystem _rendering;
     private readonly GPUSwapchain? _windowSwapchain;
     private readonly GPUCommandBuffer _command;
-    private ColorSpaceConverter _converter;
     private GPURenderPass _renderPass;
     private RenderTexture _renderTexture;
+
+    private MaterialRenderer _renderer;
+    private Material _blitMaterial;
+    private MaterialInstance? _overrideMaterial;
+    private Mesh _mesh;
+
 
     private bool _shouldResize = false;
     private bool _isMinimized = false;
@@ -60,28 +65,30 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _height = math.max(1, window.Size.y);
 
         _renderPass = renderPass;
-        _converter = _rendering.CreateColorSpaceConverter(blitShader);
+        _renderer = _rendering.CreateMaterialRenderer();
+        
+        _mesh = _rendering.MeshFullScreen;
+
         _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
 
-        _windowSwapchain = window.Swapchain;
-        
+        _blitMaterial = _rendering.CreateGraphicsMaterial(blitShader);
+        _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
 
-        if (_windowSwapchain != null)
-        {
-            _converter.SetInput(_renderTexture.FrameBuffer);
-        }
+        _windowSwapchain = window.Swapchain;
 
         _command = _rendering.GraphicsDevice.CreateCommandBuffer();
     }
 
-    public void SetRenderPass(GPURenderPass renderPass, ColorSpaceConverter colorSpaceConverter)
+    public void SetRenderPass(GPURenderPass renderPass, Material? overrideMaterial = null)
     {
-        _converter.Dispose();
-        _converter = colorSpaceConverter;
         _renderPass = renderPass;
         _renderTexture.Dispose();
         _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
-        _converter.SetInput(_renderTexture.FrameBuffer);
+        if (overrideMaterial != null)
+        {
+            _overrideMaterial = overrideMaterial.CreateInstance();
+            _overrideMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
+        }
     }
 
     public override void OnBeginFrame()
@@ -107,7 +114,17 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
             return;
         }
 
-        _converter.Blit(_windowSwapchain.FrameBuffer);
+        //_converter.Blit(_windowSwapchain.FrameBuffer);
+        _renderer.Begin(_windowSwapchain.FrameBuffer);
+        if (_overrideMaterial != null)
+        {
+            _renderer.Draw(_mesh, _overrideMaterial);
+        }
+        else
+        {
+            _renderer.Draw(_mesh, _blitMaterial);
+        }
+        _renderer.End();
         _windowSwapchain.Present();
 
         if (_shouldResize)
@@ -130,7 +147,12 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     {
         _renderTexture.Dispose();
         _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
-        _converter.SetInput(_renderTexture.FrameBuffer);
+
+        _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
+        if (_overrideMaterial != null)
+        {
+            _overrideMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
+        }
     }
 
     private void OnWindowResize(uint2 size)

@@ -95,8 +95,7 @@ namespace Vocore.Engine
                 Graphics = GraphicsSetting.Default,
                 Assets = AssetsSetting.Default,
                 Platform = new ConsolePlatform()
-            }.With<PluginDefaultAssets>().
-            With<PluginSDR>();
+            }.With<PluginDefaultAssets>();
         }
 
 
