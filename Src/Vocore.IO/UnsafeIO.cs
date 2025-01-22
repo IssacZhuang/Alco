@@ -5,7 +5,7 @@ namespace Vocore.IO;
 
 public static unsafe class UnsafeIO
 {
-    public static byte* ReadFile(string path, out int size)
+    public static byte* ReadFile(string path, FileShare fileShare, out int size)
     {
         byte* ptr = null;
         try
@@ -14,7 +14,7 @@ public static unsafe class UnsafeIO
                 path,
                 FileMode.Open,
                 FileAccess.Read,
-                FileShare.Read,
+                fileShare,
                 FileOptions.Asynchronous
                 );
 
@@ -46,5 +46,10 @@ public static unsafe class UnsafeIO
             }
             throw new IOException($"Failed to read file {path}", ex);
         }
+    }
+
+    public static byte* ReadFile(string path, out int size)
+    {
+        return ReadFile(path, FileShare.Read, out size);
     }
 }

@@ -44,7 +44,7 @@ public class DirectoryWatcherFileSource : IFileSource
     {
         try
         {
-            byte* ptr = UnsafeIO.ReadFile(Path.Combine(_directoryPath, path), out int size);
+            byte* ptr = UnsafeIO.ReadFile(Path.Combine(_directoryPath, path), FileShare.ReadWrite, out int size);
             data = new SafeMemoryHandle(ptr, size);
             failureReason = string.Empty;
             return true;

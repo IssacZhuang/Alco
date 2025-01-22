@@ -1,12 +1,25 @@
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Vocore.IO;
 
 public sealed partial class AssetSystem
 {
+    private readonly struct HotReloadTask
+    {
+        public readonly Task<SafeMemoryHandle?> Task;
+        public readonly CancellationTokenSource CancellationSource;
+
+        public HotReloadTask(Task<SafeMemoryHandle?> task, CancellationTokenSource cancellationSource)
+        {
+            Task = task;
+            CancellationSource = cancellationSource;
+        }
+    }
+
     private readonly ConcurrentDictionary<Type, object> _hotReloaders = new();
-    private readonly ConcurrentDictionary<string, Task<SafeMemoryHandle?>> _hotReloadIOTask = new();
+    private readonly ConcurrentDictionary<string, HotReloadTask> _hotReloadTasks = new();
 
     public event Action<string, object>? OnHotReload;
 
@@ -32,10 +45,12 @@ public sealed partial class AssetSystem
             return;
         }
 
-        // Don't start new IO task if one is already pending
-        if (_hotReloadIOTask.ContainsKey(filename))
+        // Cancel existing task if any
+        if (_hotReloadTasks.TryGetValue(filename, out var existingTask))
         {
-            return;
+            existingTask.CancellationSource.Cancel();
+            existingTask.CancellationSource.Dispose();
+            _host.LogInfo($"Hot reload task for {filename} interrupted with a new task");
         }
 
         AssetHandle handle = GetAssetHandle(filename);
@@ -46,8 +61,9 @@ public sealed partial class AssetSystem
 
         if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
         {
-            var task = GetHotReloadIOTask(filename, fileSource);
-            _hotReloadIOTask[filename] = task;
+            var cts = new CancellationTokenSource();
+            var task = GetHotReloadIOTask(filename, fileSource, cts.Token);
+            _hotReloadTasks[filename] = new HotReloadTask(task, cts);
         }
         else
         {
@@ -75,16 +91,23 @@ public sealed partial class AssetSystem
         }
     }
 
-    private async Task<SafeMemoryHandle?> GetHotReloadIOTask(string filename, IFileSource fileSource)
+    private async Task<SafeMemoryHandle?> GetHotReloadIOTask(string filename, IFileSource fileSource, CancellationToken cancellationToken)
     {
         int attempt = 10;
-        while (attempt > 0)
+        while (attempt > 0 && !cancellationToken.IsCancellationRequested)
         {
             if (fileSource.TryGetData(filename, out SafeMemoryHandle data, out string? failureReason))
             {
                 return data;
             }
-            await Task.Delay(100);
+            try
+            {
+                await Task.Delay(100, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
             attempt--;
         }
         return null;
@@ -92,17 +115,18 @@ public sealed partial class AssetSystem
 
     private void ProcessHotReloadQueue()
     {
-        foreach (var entry in _hotReloadIOTask.ToArray())
+        foreach (var entry in _hotReloadTasks.ToArray())
         {
             string filename = entry.Key;
-            var pendingTask = entry.Value;
+            var hotReloadTask = entry.Value;
 
-            if (!pendingTask.IsCompleted)
+            if (!hotReloadTask.Task.IsCompleted)
             {
                 continue;
             }
 
-            _hotReloadIOTask.TryRemove(filename, out _);
+            _hotReloadTasks.TryRemove(filename, out _);
+            hotReloadTask.CancellationSource.Dispose();
 
             AssetHandle handle = GetAssetHandle(filename);
             object? cachedAsset = handle.CachedAsset;
@@ -113,7 +137,7 @@ public sealed partial class AssetSystem
 
             try
             {
-                var data = pendingTask.Result;
+                var data = hotReloadTask.Task.Result;
                 if (data != null)
                 {
                     HotReload(filename, data.Span);
