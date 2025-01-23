@@ -12,6 +12,7 @@ public class TileSetParams<TUserData>
         public Texture2D Texture;
         public float BlendFactor;
         public float BlendPriority;
+        public Vector2 HeightOffsetFactor;
     }
 
     private readonly List<Item> _items = new();
@@ -34,9 +35,9 @@ public class TileSetParams<TUserData>
         TUserData userData, 
         Vector2 meshScale, 
         Vector2 uvScale,
-        float blendFactor,
-        float blendPriority
-        )
+        float blendFactor = 0.2f,
+        float blendPriority = 0.0f,
+        Vector2 heightOffsetFactor = default)
     {
         _items.Add(new Item
         {
@@ -45,7 +46,8 @@ public class TileSetParams<TUserData>
             MeshScale = meshScale,
             UVScale = uvScale,
             BlendFactor = blendFactor,
-            BlendPriority = blendPriority
+            BlendPriority = blendPriority,
+            HeightOffsetFactor = heightOffsetFactor
         });
     }
 

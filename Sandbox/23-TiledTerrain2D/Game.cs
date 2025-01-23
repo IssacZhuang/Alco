@@ -23,8 +23,9 @@ public class Game : GameEngine
 
     private float _blendFactor = 0.1f;
 
-    private uint _selectedTileId = 0;
+    private uint _selectedTileId = 1;
 
+    private float _hight = 0f;
     private float _brushSize = 1;
     private Material _brushMaterial;
     private Transform3D _brushTransform;
@@ -95,9 +96,15 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            _tileSet.SetBlendFactor(0, _blendFactor);
-            _tileSet.SetBlendFactor(1, _blendFactor);
-            _tileSet.SetBlendFactor(2, _blendFactor);
+            for (int i = 0; i < _tileSet.Count; i++)
+            {
+                _tileSet.SetBlendFactor(i, _blendFactor);
+            }
+        }
+
+        if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
+        {
+            isDebugClicked = true;
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -136,16 +143,28 @@ public class Game : GameEngine
             Vector2 tileLocalPosition = _terrainBlock.TilePositionToLocalPosition(tilePosition);
             DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
+
             for (int i = 0; i < _brushCells.Count; i++)
             {
+                if (isDebugClicked)
+                {
+                    continue;
+                }
                 int2 pos = _brushCells[i];
                 _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y, 0);
                 Transform3D tmp = math.transform(_terrainBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);
-                if(Input.IsMousePressing(Mouse.Left) && !isDebugClicked)
+
+
+                if (Input.IsMousePressing(Mouse.Left))
                 {
                     _terrainBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
+                    
+                }
+                else if (Input.IsMousePressing(Mouse.Right))
+                {
+                    _terrainBlock.SetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
                 }
             }
         }
@@ -170,9 +189,9 @@ public class Game : GameEngine
         Task.WaitAll(grid, grass, sand);
 
         TileSetParams<int> tileSetParams = new();
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.1f, 0);
-        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 0.1f, 1);
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 0.1f, 2);
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.1f, 0, Vector2.UnitY);
+        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 0.1f, 1, Vector2.UnitY);
+        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 0.1f, 2, Vector2.UnitY);
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }

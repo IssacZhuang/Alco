@@ -20,9 +20,19 @@ public class TileSet<TUserData> : AutoDisposable
         public Rect UVRect;
         public Vector2 MeshScale;
         public Vector2 UVScale;
+        /// <summary>
+        /// The x,y offset affected by the height.
+        /// </summary>
+        public Vector2 HeightOffsetFactor;
+        /// <summary>
+        /// the blend factor of the tile.
+        /// </summary>
         public float BlendFactor;
+        /// <summary>
+        /// The tile of lower priority blend the texture from the tile of higher priority.
+        /// </summary>
         public float BlendPriority;
-        public Vector2 _reserved;//reserved for memory alignment
+        
     }
 
 
@@ -106,7 +116,8 @@ public class TileSet<TUserData> : AutoDisposable
                 MeshScale = item.MeshScale,
                 UVScale = item.UVScale,
                 BlendFactor = item.BlendFactor,
-                BlendPriority = item.BlendPriority
+                BlendPriority = item.BlendPriority,
+                HeightOffsetFactor = item.HeightOffsetFactor
             };
         }
 
@@ -151,6 +162,14 @@ public class TileSet<TUserData> : AutoDisposable
     {
         SpriteData spriteData = _spriteData[index];
         spriteData.BlendPriority = priority;
+        _spriteData[index] = spriteData;
+        _spriteData.UpdateBufferRanged((uint)index, 1);
+    }
+
+    public void SetHeightOffsetFactor(int index, Vector2 factor)
+    {
+        SpriteData spriteData = _spriteData[index];
+        spriteData.HeightOffsetFactor = factor;
         _spriteData[index] = spriteData;
         _spriteData.UpdateBufferRanged((uint)index, 1);
     }

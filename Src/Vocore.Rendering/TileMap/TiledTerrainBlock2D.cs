@@ -32,6 +32,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     private readonly Mesh _mesh;
     private bool _isTileIdDirty;
     private bool _isColorDirty;
+    private bool _isHeightDirty;
 
     public Transform3D Transform;
     public int2 Size => _size;
@@ -48,9 +49,9 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         )
     {
         _tileSet = tileSet;
-        _colorData = new GraphicsArrayBuffer<ColorFloat>(renderingSystem, width * height, name + "_color_data");
-        _tileIdData = new GraphicsArrayBuffer<uint>(renderingSystem, width * height, name + "_sprite_index_data");
-        _heightData = new GraphicsArrayBuffer<float>(renderingSystem, width * height, name + "_height_data");
+        _colorData = renderingSystem.CreateGraphicsArrayBuffer<ColorFloat>(width * height, name + "_color_data");
+        _tileIdData = renderingSystem.CreateGraphicsArrayBuffer<uint>(width * height, name + "_sprite_index_data");
+        _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, 0,name + "_height_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
 
@@ -71,6 +72,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         _material.SetBuffer(ShaderResourceId.ColorData, _colorData);
         _material.SetBuffer(ShaderResourceId.TileIdData, _tileIdData);
         _material.SetBuffer(ShaderResourceId.SpriteData, _tileSet.SpriteDataBuffer);
+        _material.SetBuffer(ShaderResourceId.HeightData, _heightData);
 
         Transform = Transform3D.Identity;
         _size = new int2(width, height);
@@ -89,6 +91,12 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         {
             _colorData.UpdateBuffer();
             _isColorDirty = false;
+        }
+
+        if (_isHeightDirty)
+        {
+            _heightData.UpdateBuffer();
+            _isHeightDirty = false;
         }
 
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
@@ -120,6 +128,13 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     {
         _colorData[GetTileIndex(x, y)] = color;
         _isColorDirty = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetTileHeight(int x, int y, float height)
+    {
+        _heightData[GetTileIndex(x, y)] = height;
+        _isHeightDirty = true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

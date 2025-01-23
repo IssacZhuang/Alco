@@ -22,9 +22,9 @@ struct SpriteData{
     float4 uvRect;
     float2 meshScale;
     float2 uvScale;
+    float2 heightOffsetFactor;
     float blendFactor;
     float blendPriority;
-    float2 _reserved;//reserved for memory alignment
 };
 
 
@@ -66,8 +66,9 @@ V2F VertexMain(Vertex input)
     float3 pos2D = input.position * float3(sprite.meshScale, 1.0f);
 
     float4 position = float4(pos2D, 1);
-    position.z = _heightData[input.instanceId];
-    position.xy += float2(offsetX, -offsetY);
+    float height = _heightData[input.instanceId];
+    position.z = height;
+    position.xy += float2(offsetX, -offsetY) + float2(height, height) * sprite.heightOffsetFactor;
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
     output.position = position;

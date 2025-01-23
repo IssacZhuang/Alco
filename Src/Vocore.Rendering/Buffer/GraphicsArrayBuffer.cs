@@ -43,6 +43,15 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         _data = new NativeBuffer<T>(length);
     }
 
+    internal unsafe GraphicsArrayBuffer(RenderingSystem renderingSystem, int length, T defaultValue, string name = "unnamed_graphics_array_buffer") : base(renderingSystem, (uint)(length * sizeof(T)), name){
+        _data = new NativeBuffer<T>(length);
+        for (int i = 0; i < length; i++)
+        {
+            _data[i] = defaultValue;
+        }
+        UpdateBuffer();
+    }
+
     internal unsafe GraphicsArrayBuffer(RenderingSystem renderingSystem, IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") : base(renderingSystem, (uint)(initialData.Count * sizeof(T)), name)
     {
         _data = new NativeBuffer<T>(initialData.Count);

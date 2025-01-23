@@ -38,6 +38,7 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Create a graphics array buffer with a specified length.
+    /// [note]This method will not set default value to array, so it might be random value in the buffer.
     /// </summary>
     /// <param name="length">The length of the array. </param>
     /// <param name="name">The name of the buffer. </param>
@@ -46,6 +47,19 @@ public partial class RenderingSystem
     public unsafe GraphicsArrayBuffer<T> CreateGraphicsArrayBuffer<T>(int length, string name = "unnamed_graphics_array_buffer") where T : unmanaged
     {
         return new GraphicsArrayBuffer<T>(this, length, name);
+    }
+
+    /// <summary>
+    /// Create a graphics array buffer with a specified length and default value.
+    /// </summary>
+    /// <param name="length">The length of the array. </param>
+    /// <param name="defaultValue">The default value of the array. </param>
+    /// <param name="name">The name of the buffer. </param>
+    /// <typeparam name="T">The type of the value to store in the buffer. </typeparam>
+    /// <returns> The created graphics array buffer. </returns>
+    public unsafe GraphicsArrayBuffer<T> CreateGraphicsArrayBuffer<T>(int length, T defaultValue, string name = "unnamed_graphics_array_buffer") where T : unmanaged
+    {
+        return new GraphicsArrayBuffer<T>(this, length, defaultValue, name);
     }
 
     /// <summary>
