@@ -5,7 +5,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public partial class CanvasRenderer
+public sealed partial class CanvasRenderer
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct TextConstant

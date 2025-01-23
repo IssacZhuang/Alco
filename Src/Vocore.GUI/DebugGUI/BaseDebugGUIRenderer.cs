@@ -13,11 +13,16 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly CanvasRenderer _canvasRenderer;
-    private readonly BlitRenderer _blitRenderer;
+    
     private readonly Camera2D _camera;
     private readonly Texture2D _textureWhite;
     private RenderTexture _backBuffer;
     private BoundingBox2D _cameraMask;
+
+    //blit
+    private readonly MaterialRenderer _renderer;
+    private readonly Material _material;
+    private readonly Mesh _mesh;    
 
 
     public abstract Vector2 MousePosition { get; }
@@ -40,8 +45,17 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
         _canvasRenderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
         
-        _blitRenderer = _renderingSystem.CreateBlitRenderer(shaderBlit);
+       
+        
+        _renderer = _renderingSystem.CreateMaterialRenderer();
+        _mesh = _renderingSystem.MeshFullScreen;
+
         _backBuffer = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
+
+        _material = _renderingSystem.CreateGraphicsMaterial(shaderBlit);
+        _material.SetRenderTexture(ShaderResourceId.Texture, _backBuffer);
+        _material.DepthStencilState = DepthStencilState.Default;
+        _material.BlendState = BlendState.AlphaBlend;
     }
 
     public void SetResolution(float width, float height)
@@ -52,6 +66,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
         _backBuffer.Dispose();
         _backBuffer = _renderingSystem.CreateRenderTexture(_renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
+        _material.SetRenderTexture(ShaderResourceId.Texture, _backBuffer);
     }
 
     public void Begin()
@@ -68,7 +83,9 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
     public void Blit(GPUFrameBuffer frameBuffer)
     {
-        _blitRenderer.Blit(_backBuffer, frameBuffer);
+        _renderer.Begin(frameBuffer);
+        _renderer.Draw(_mesh, _material);
+        _renderer.End();
     }
 
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)

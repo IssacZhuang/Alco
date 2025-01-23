@@ -21,8 +21,8 @@ public class Game : GameEngine
     private readonly SpriteRenderer _renderer2;
 
     //hdr
-    private readonly ReinhardLuminanceToneMap _toneMap1;
-    private readonly ReinhardLuminanceToneMap _toneMap2;
+    private ReinhardToneMapData _toneMapData;
+    private readonly Material _toneMapMaterial;
 
     //bloom
     private readonly BloomSystem _bloomSystem1;
@@ -55,11 +55,12 @@ public class Game : GameEngine
         MainWindow.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
-        _toneMap1 = Rendering.CreateReinhardLuminanceToneMap(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
-        _toneMap2 = Rendering.CreateReinhardLuminanceToneMap(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
+        _toneMapData = ReinhardToneMapData.Default;
+        _toneMapMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
+        _toneMapMaterial.SetValue(ShaderResourceId.Data, _toneMapData);
 
-        MainRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMap1);
-        _windowRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMap2);
+        MainRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMapMaterial);
+        _windowRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMapMaterial);
 
         _bloomSystem1 = new BloomSystem(this, MainRenderTarget);
         AddSystem(_bloomSystem1);

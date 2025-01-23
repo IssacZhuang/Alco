@@ -25,26 +25,4 @@ public partial class RenderingSystem
     {
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);
     }
-
-    public BlitRenderer CreateBlitRenderer(Shader shaderBlit)
-    {
-        return new BlitRenderer(this, shaderBlit);
-    }
-
-    public ColorSpaceConverter CreateColorSpaceConverter(Shader shader)
-    {
-        return new ColorSpaceConverter(this, shader);
-    }
-
-
-    public Uncharted2ToneMap CreateUncharted2ToneMap(Shader shader)
-    {
-        return new Uncharted2ToneMap(this, shader);
-    }
-
-    public ReinhardLuminanceToneMap CreateReinhardLuminanceToneMap(Shader shader)
-    {
-        return new ReinhardLuminanceToneMap(this, shader);
-    }
-
 }

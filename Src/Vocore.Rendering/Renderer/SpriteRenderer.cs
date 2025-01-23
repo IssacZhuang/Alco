@@ -9,7 +9,7 @@ namespace Vocore.Rendering;
 /// The renderer to draw sprites in 2D or 3D space.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary>
-public class SpriteRenderer : AutoDisposable
+public sealed class SpriteRenderer : AutoDisposable
 {
     private class DrawTask : RenderTask
     {
