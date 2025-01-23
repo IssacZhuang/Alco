@@ -27,6 +27,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     private TileSet<TUserData> _tileSet;
     private readonly GraphicsArrayBuffer<ColorFloat> _colorData;
     private readonly GraphicsArrayBuffer<uint> _tileIdData;
+    private readonly GraphicsArrayBuffer<float> _heightData;
     private readonly Material _material;
     private readonly Mesh _mesh;
     private bool _isTileIdDirty;
@@ -49,6 +50,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         _tileSet = tileSet;
         _colorData = new GraphicsArrayBuffer<ColorFloat>(renderingSystem, width * height, name + "_color_data");
         _tileIdData = new GraphicsArrayBuffer<uint>(renderingSystem, width * height, name + "_sprite_index_data");
+        _heightData = new GraphicsArrayBuffer<float>(renderingSystem, width * height, name + "_height_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
 

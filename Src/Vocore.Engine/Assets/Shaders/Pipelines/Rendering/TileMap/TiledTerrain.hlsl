@@ -39,6 +39,8 @@ DEFINE_STORAGE(3, float4, _colorData);
 
 DEFINE_STORAGE(4, uint, _tileIdData);
 
+DEFINE_STORAGE(5, float, _heightData);
+
 PUSH_CONSTANT Constants constants;
 
 float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
@@ -64,6 +66,7 @@ V2F VertexMain(Vertex input)
     float3 pos2D = input.position * float3(sprite.meshScale, 1.0f);
 
     float4 position = float4(pos2D, 1);
+    position.z = _heightData[input.instanceId];
     position.xy += float2(offsetX, -offsetY);
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
