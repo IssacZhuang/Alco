@@ -94,6 +94,7 @@ float4 PixelMain(V2F input) : SV_TARGET
     // Sample all neighbors
     float4 colors[9];
     float priorities[9];
+    float heights[9];
 
     [unroll]
     for (int i = 0; i < 9; i++)
@@ -101,12 +102,14 @@ float4 PixelMain(V2F input) : SV_TARGET
         int neighborIndex = input.instanceId + offsets[i].x + offsets[i].y * constants.size.x;
         uint tileId = _tileIdData[neighborIndex];
         colors[i] = SampleTile(tileId, input.uv, priorities[i]) * input.color;
+        heights[i] = _heightData[neighborIndex];
     }
 
     float4 finalColor = colors[4]; // Center color
     float centerPriority = priorities[4];
+    float centerHeight = heights[4];
     float blendFactor = _spriteData[_tileIdData[input.instanceId]].blendFactor;
-    float cornerBlendFactor = blendFactor ; // sqrt(2)
+    float cornerBlendFactor = blendFactor;
 
     // Pre-calculate reciprocals
     float invBlendFactor = 1.0 / blendFactor;
@@ -130,9 +133,20 @@ float4 PixelMain(V2F input) : SV_TARGET
     [unroll]
     for (int j = 0; j < 9; j++)
     {
-        if (j != 4 && priorities[j] > centerPriority) // Skip center tile
+        if (j != 4) // Skip center tile
         {
-            finalColor = lerp(colors[j], finalColor, weights[j]);
+            float heightDiff = abs(heights[j] - centerHeight);
+            float darkening = heightDiff > 0.001f ? 0.8 : 1.0;
+            float4 neighborColor = float4(colors[j].rgb * darkening, colors[j].a);
+
+            if(heightDiff > 0.001f){
+                finalColor = lerp(finalColor, finalColor * darkening, 1.0 - weights[j]);
+            }
+            
+            if(priorities[j] > centerPriority)
+            {
+                finalColor = lerp(colors[j], finalColor, weights[j]);
+            }
         }
     }
 
