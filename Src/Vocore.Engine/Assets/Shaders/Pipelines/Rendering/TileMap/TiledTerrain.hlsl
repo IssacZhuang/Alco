@@ -22,24 +22,28 @@ struct SpriteData{
     float4 uvRect;
     float2 meshScale;
     float2 uvScale;
-    float2 heightOffsetFactor;
-    float blendFactor;
     float blendPriority;
 };
 
 
-
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_TEX2D_SAMPLE(1, _texture);
+DEFINE_UNIFORM(1, _tileSetData){
+    float2 heightOffsetFactor;
+    float blendFactor;
+    float edgeSmoothFactor;
+};
 
-DEFINE_STORAGE(2, SpriteData, _spriteData);
+DEFINE_TEX2D_SAMPLE(2, _texture);
 
-DEFINE_STORAGE(3, float4, _colorData);
+DEFINE_STORAGE(3, SpriteData, _spriteData);
 
-DEFINE_STORAGE(4, uint, _tileIdData);
+DEFINE_STORAGE(4, float4, _colorData);
 
-DEFINE_STORAGE(5, float, _heightData);
+DEFINE_STORAGE(5, uint, _tileIdData);
+
+DEFINE_STORAGE(6, float, _heightData);
+
 
 PUSH_CONSTANT Constants constants;
 
@@ -68,7 +72,7 @@ V2F VertexMain(Vertex input)
     float4 position = float4(pos2D, 1);
     float height = _heightData[input.instanceId];
     position.z = height;
-    position.xy += float2(offsetX, -offsetY) + float2(height, height) * sprite.heightOffsetFactor;
+    position.xy += float2(offsetX, -offsetY) + float2(height, height) * heightOffsetFactor;
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
     output.position = position;
@@ -108,26 +112,37 @@ float4 PixelMain(V2F input) : SV_TARGET
     float4 finalColor = colors[4]; // Center color
     float centerPriority = priorities[4];
     float centerHeight = heights[4];
-    float blendFactor = _spriteData[_tileIdData[input.instanceId]].blendFactor;
-    float cornerBlendFactor = blendFactor;
 
     // Pre-calculate reciprocals
     float invBlendFactor = 1.0 / blendFactor;
-    float invCornerBlendFactor = 1.0 / cornerBlendFactor;
+    float invEdgeSmoothFactor = 1.0 / edgeSmoothFactor;
 
     // Define blend weights for each neighbor
     float2 uv = input.uv;
     float weights[9] = {
-        saturate((uv.x + uv.y) * invCornerBlendFactor),            // top-left
+        saturate((uv.x + uv.y) * invBlendFactor),            // top-left
         saturate(uv.y * invBlendFactor),                           // top
-        saturate(((1 - uv.x) + uv.y) * invCornerBlendFactor),      // top-right
+        saturate(((1 - uv.x) + uv.y) * invBlendFactor),      // top-right
         saturate(uv.x * invBlendFactor),                           // left
         1.0,                                                       // center
         saturate((1 - uv.x) * invBlendFactor),                     // right
-        saturate((uv.x + (1 - uv.y)) * invCornerBlendFactor),      // bottom-left
+        saturate((uv.x + (1 - uv.y)) * invBlendFactor),      // bottom-left
         saturate((1 - uv.y) * invBlendFactor),                     // bottom
-        saturate(((1 - uv.x) + (1 - uv.y)) * invCornerBlendFactor) // bottom-right
+        saturate(((1 - uv.x) + (1 - uv.y)) * invBlendFactor) // bottom-right
     };
+
+    float weightsHeight[9] = {
+        saturate((uv.x + uv.y) * invEdgeSmoothFactor),            // top-left
+        saturate(uv.y * invEdgeSmoothFactor),                           // top
+        saturate(((1 - uv.x) + uv.y) * invEdgeSmoothFactor),      // top-right
+        saturate(uv.x * invEdgeSmoothFactor),                           // left
+        1.0,                                                       // center
+        saturate((1 - uv.x) * invEdgeSmoothFactor),                     // right
+        saturate((uv.x + (1 - uv.y)) * invEdgeSmoothFactor),      // bottom-left
+        saturate((1 - uv.y) * invEdgeSmoothFactor),                     // bottom
+        saturate(((1 - uv.x) + (1 - uv.y)) * invEdgeSmoothFactor) // bottom-right
+    };
+
 
     // Apply blending for all neighbors in a single loop
     [unroll]
@@ -136,11 +151,11 @@ float4 PixelMain(V2F input) : SV_TARGET
         if (j != 4) // Skip center tile
         {
             float heightDiff = abs(heights[j] - centerHeight);
-            float darkening = heightDiff > 0.001f ? 0.8 : 1.0;
+            float darkening = heightDiff > 0.001f ? (0.8) : 1.0;
             float4 neighborColor = float4(colors[j].rgb * darkening, colors[j].a);
 
             if(heightDiff > 0.001f){
-                finalColor = lerp(finalColor, finalColor * darkening, 1.0 - weights[j]);
+                finalColor = lerp(finalColor * darkening, finalColor, weightsHeight[j]);
             }
             
             if(priorities[j] > centerPriority)

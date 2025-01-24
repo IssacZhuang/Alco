@@ -21,6 +21,16 @@ public class TileSet<TUserData> : AutoDisposable
         public Vector2 MeshScale;
         public Vector2 UVScale;
         /// <summary>
+        /// The tile of lower priority blend the texture from the tile of higher priority.
+        /// </summary>
+        public float BlendPriority;
+        public Vector3 _reserved;//for memory alignment
+    }
+
+    //per tile set in GPU
+    public struct TileSetData
+    {
+        /// <summary>
         /// The x,y offset affected by the height.
         /// </summary>
         public Vector2 HeightOffsetFactor;
@@ -29,16 +39,17 @@ public class TileSet<TUserData> : AutoDisposable
         /// </summary>
         public float BlendFactor;
         /// <summary>
-        /// The tile of lower priority blend the texture from the tile of higher priority.
+        /// The factor of the edge smoothing when the tile height is different from the neighbor tile.
         /// </summary>
-        public float BlendPriority;
-        
+        public float EdgeSmoothFactor;
+
     }
 
 
     private readonly RenderingSystem _renderingSystem;
     private readonly List<TileData> _tileData;
     private readonly GraphicsArrayBuffer<SpriteData> _spriteData;
+    private readonly GraphicsValueBuffer<TileSetData> _tileSetData;
     private readonly TextureAtlas _atlas;
 
     public int Count
@@ -53,6 +64,12 @@ public class TileSet<TUserData> : AutoDisposable
         get => _spriteData;
     }
 
+    public GraphicsValueBuffer<TileSetData> TileSetDataBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _tileSetData;
+    }
+
     public TextureAtlas Atlas
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -65,6 +82,43 @@ public class TileSet<TUserData> : AutoDisposable
         get => _atlas.RenderTexture;
     }
 
+    public Vector2 HeightOffsetFactor
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _tileSetData.Value.HeightOffsetFactor;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _tileSetData.Value.HeightOffsetFactor = value;
+            _tileSetData.UpdateBuffer();
+        }
+    }
+
+    public float BlendFactor
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _tileSetData.Value.BlendFactor;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _tileSetData.Value.BlendFactor = value;
+            _tileSetData.UpdateBuffer();
+        }
+    }
+
+    public float EdgeSmoothFactor
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _tileSetData.Value.EdgeSmoothFactor;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _tileSetData.Value.EdgeSmoothFactor = value;
+            _tileSetData.UpdateBuffer();
+        }
+    }
+
+
     internal TileSet(
         RenderingSystem renderingSystem, 
         TileSetParams<TUserData> @params, 
@@ -76,7 +130,7 @@ public class TileSet<TUserData> : AutoDisposable
 
         _renderingSystem = renderingSystem;
         int tileCount = @params.Items.Count;
-        _spriteData = new GraphicsArrayBuffer<SpriteData>(renderingSystem, tileCount, name + "_sprite_data");
+        _spriteData = renderingSystem.CreateGraphicsArrayBuffer<SpriteData>(tileCount, name + "_sprite_data");
 
         Dictionary<Texture2D, int> textureToAtlasIndex = new();
         List<Texture2D> uniqueTextures = new();
@@ -115,13 +169,20 @@ public class TileSet<TUserData> : AutoDisposable
                 UVRect = sprite.UVRect,
                 MeshScale = item.MeshScale,
                 UVScale = item.UVScale,
-                BlendFactor = item.BlendFactor,
-                BlendPriority = item.BlendPriority,
-                HeightOffsetFactor = item.HeightOffsetFactor
+                BlendPriority = item.BlendPriority
             };
         }
 
         _spriteData.UpdateBuffer();
+
+        _tileSetData = renderingSystem.CreateGraphicsValueBuffer<TileSetData>(name + "_tile_set_data");
+        _tileSetData.Value = new TileSetData
+        {
+            HeightOffsetFactor = @params.HeightOffsetFactor,
+            BlendFactor = @params.BlendFactor,
+            EdgeSmoothFactor = @params.EdgeSmoothFactor
+        };
+        _tileSetData.UpdateBuffer();
     }
 
     public TUserData GetUserData(int index)
@@ -134,52 +195,12 @@ public class TileSet<TUserData> : AutoDisposable
         return _tileData[(int)index].UserData;
     }
 
-    public void SetMeshScale(int index, Vector2 scale)
-    {
-        SpriteData spriteData = _spriteData[index];
-        spriteData.MeshScale = scale;
-        _spriteData[index] = spriteData;
-        _spriteData.UpdateBufferRanged((uint)index, 1);
-    }
-
-    public void SetUVScale(int index, Vector2 scale)
-    {
-        SpriteData spriteData = _spriteData[index];
-        spriteData.UVScale = scale;
-        _spriteData[index] = spriteData;
-        _spriteData.UpdateBufferRanged((uint)index, 1);
-    }
-
-    public void SetBlendFactor(int index, float factor)
-    {
-        SpriteData spriteData = _spriteData[index];
-        spriteData.BlendFactor = factor;
-        _spriteData[index] = spriteData;
-        _spriteData.UpdateBufferRanged((uint)index, 1);
-    }
-
-    public void SetBlendPriority(int index, float priority)
-    {
-        SpriteData spriteData = _spriteData[index];
-        spriteData.BlendPriority = priority;
-        _spriteData[index] = spriteData;
-        _spriteData.UpdateBufferRanged((uint)index, 1);
-    }
-
-    public void SetHeightOffsetFactor(int index, Vector2 factor)
-    {
-        SpriteData spriteData = _spriteData[index];
-        spriteData.HeightOffsetFactor = factor;
-        _spriteData[index] = spriteData;
-        _spriteData.UpdateBufferRanged((uint)index, 1);
-    }
-
-
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             _spriteData.Dispose();
+            _tileSetData.Dispose();
         }
     }
 }

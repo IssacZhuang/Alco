@@ -97,10 +97,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            for (int i = 0; i < _tileSet.Count; i++)
-            {
-                _tileSet.SetBlendFactor(i, _blendFactor);
-            }
+            _tileSet.BlendFactor = _blendFactor;
         }
 
         if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
@@ -190,9 +187,12 @@ public class Game : GameEngine
         Task.WaitAll(grid, grass, sand);
 
         TileSetParams<int> tileSetParams = new();
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.1f, 0, Vector2.UnitY);
-        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 0.1f, 1, Vector2.UnitY);
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 0.1f, 2, Vector2.UnitY);
+        tileSetParams.HeightOffsetFactor = Vector2.UnitY;
+        tileSetParams.BlendFactor = 0.2f;
+        tileSetParams.EdgeSmoothFactor = 0.2f;
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
+        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
+        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }
