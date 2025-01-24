@@ -28,7 +28,17 @@ public abstract class BaseGPUObject : IDisposable
             //Device.Destroy will add this to a queue and dispose it at the end of the frame
             //it will cause memory leak
             //so it should be disposed immediately
-            Destroy();
+
+
+            try
+            {
+                Destroy();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error in GPUObject({GetType().Name}) finalizer: {e}");
+            }
+
         }
     }
 
