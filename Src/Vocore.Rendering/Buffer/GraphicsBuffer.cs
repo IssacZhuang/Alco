@@ -10,7 +10,7 @@ public class GraphicsBuffer : AutoDisposable
 {
     protected readonly GPUDevice _device;
     protected readonly GPUBuffer _buffer;
-    private readonly GPUResourceGroup _resourcesReadOnly; // for uniform buffer
+    private GPUResourceGroup? _resourcesReadOnly; // for uniform buffer
     private GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
 
     /// <summary>
@@ -30,12 +30,17 @@ public class GraphicsBuffer : AutoDisposable
 
     /// <summary>
     /// The entry for binding the buffer as uniform buffer.
+    /// <br/>[warning] It will throw an exception if the buffer size is larger than the limit(65536). Try use <see cref="EntryReadWrite"/> if you need to bind a large buffer.
     /// </summary>
     /// <value>The GPU resource group to bind.</value>
+    /// <exception cref="GraphicsException"></exception>
     public virtual GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _resourcesReadOnly;
+        get {
+            _resourcesReadOnly ??= CreateResourceReadonly();
+            return _resourcesReadOnly;
+        }
     }
 
     /// <summary>
@@ -75,7 +80,7 @@ public class GraphicsBuffer : AutoDisposable
 
 
         Name = name;
-        _resourcesReadOnly = CreateResourceReadonly();
+
     }
 
     /// <summary>
@@ -144,7 +149,7 @@ public class GraphicsBuffer : AutoDisposable
         {
             //dispose non-private managed resources
             _buffer.Dispose();
-            _resourcesReadOnly.Dispose();
+            _resourcesReadOnly?.Dispose();
             _resourcesReadWrite?.Dispose();
         }
         

@@ -45,17 +45,17 @@ public class Game : GameEngine
         _renderer = Rendering.CreateMaterialRenderer();
 
         _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
-        _terrainMaterial.SetBuffer("_camera", _camera);
+        _terrainMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _terrainMaterial.BlendState = BlendState.AlphaBlend;
         _terrainMaterial.DepthStencilState = DepthStencilState.Write;
-        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 31, 31);
+        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 64, 64);
 
         _terrainBlock.SetTilesId(1);
         _terrainBlock.SetTilesColor(_color);
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-        _brushMaterial.SetBuffer("_camera", _camera);
-        _brushMaterial.SetTexture("_texture", Rendering.TextureWhite);
+        _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _brushMaterial.SetTexture(ShaderResourceId.Texture, Rendering.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         _brushTransform = new Transform3D();
