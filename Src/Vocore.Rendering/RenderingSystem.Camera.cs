@@ -12,11 +12,7 @@ public partial class RenderingSystem
     /// <returns>A new 2D camera.</returns>
     public Camera2D CreateCamera2D(Vector2 size, float depth, string name = "camera_2d")
     {
-        return new Camera2D(this, name)
-        {
-            ViewSize = size,
-            Depth = depth
-        };
+        return new Camera2D(this, size, -depth, depth, name);
     }
 
     /// <summary>
@@ -28,7 +24,21 @@ public partial class RenderingSystem
     /// <returns>A new 2D camera.</returns>
     public Camera2D CreateCamera2D(float width, float height, float depth, string name = "camera_2d")
     {
-        return CreateCamera2D(new Vector2(width, height), depth, name);
+        return new Camera2D(this, new Vector2(width, height), -depth, depth, name);
+    }
+
+    /// <summary>
+    /// Create a 2D camera.
+    /// </summary>
+    /// <param name="width">The width of the camera.</param>
+    /// <param name="height">The height of the camera.</param>
+    /// <param name="near">The near plane of the camera.</param>
+    /// <param name="far">The far plane of the camera.</param>
+    /// <param name="name">The name of the camera.</param>
+    /// <returns></returns>
+    public Camera2D CreateCamera2D(float width, float height, float near, float far, string name = "camera_2d")
+    {
+        return new Camera2D(this, new Vector2(width, height), near, far, name);
     }
 
 

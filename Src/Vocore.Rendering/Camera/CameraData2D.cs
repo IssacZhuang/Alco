@@ -10,12 +10,14 @@ namespace Vocore.Rendering;
 public struct CameraData2D: ICameraData
 {
     public Transform2D transform;
-    public float depth;
+    public float near;
+    public float far;
 
     public CameraData2D()
     {
         transform = Transform2D.Identity;
-        depth = 1;
+        near = -1;
+        far = 1;
     }
 
     public Vector2 Size
@@ -35,8 +37,15 @@ public struct CameraData2D: ICameraData
     public Matrix4x4 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get =>math.matrix4scale(math.reciprocal(new Vector3(transform.scale * 0.5f, depth)));
-
+        get
+        {
+            Vector2 halfSize = transform.scale * 0.5f;
+            return Matrix4x4.CreateOrthographicOffCenter(
+                -halfSize.X, halfSize.X,    // left, right
+                -halfSize.Y, halfSize.Y,    // bottom, top
+                near, far                    // near, far 
+            );
+        }
     }
 
     public Matrix4x4 ViewProjectionMatrix

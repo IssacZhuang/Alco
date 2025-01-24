@@ -40,12 +40,13 @@ public class Game : GameEngine
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
-        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 1000);
+        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateMaterialRenderer();
 
         _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
         _terrainMaterial.SetBuffer("_camera", _camera);
         _terrainMaterial.BlendState = BlendState.AlphaBlend;
+        _terrainMaterial.DepthStencilState = DepthStencilState.Write;
         _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 31, 31);
 
         _terrainBlock.SetTilesId(1);
