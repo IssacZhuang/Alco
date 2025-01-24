@@ -13,9 +13,13 @@ public class Game : GameEngine
     private readonly MaterialRenderer _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
-    private readonly Material _terrainMaterial;
-    private TileSet<int> _tileSet;
-    private readonly TiledTerrainBlock2D<int> _terrainBlock;
+
+    private readonly Material _surfaceMaterial;
+    private readonly Material _cliffMaterial;
+    private TileSet<int> _surfaceTileSet;
+    private TileSet<int> _cliffTileSet;
+    private readonly TiledTerrainBlock2D<int> _surfaceBlock;
+    private readonly TiledTerrainBlock2D<int> _cliffBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -37,21 +41,29 @@ public class Game : GameEngine
     {
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        _tileSet = BuildTileSet();
+        _surfaceTileSet = BuildSurfaceTileSet();
+        _cliffTileSet = BuildCliffTileSet();
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateMaterialRenderer();
 
-        _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
-        _terrainMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        _terrainMaterial.BlendState = BlendState.AlphaBlend;
-        _terrainMaterial.DepthStencilState = DepthStencilState.Write;
-        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 64, 64);
+        _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
+        _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _surfaceMaterial.BlendState = BlendState.AlphaBlend;
+        _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
+        _surfaceBlock = Rendering.CreateTiledTerrainBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
 
-        _terrainBlock.SetTilesId(1);
-        _terrainBlock.SetTilesColor(_color);
+        _cliffMaterial = _surfaceMaterial.CreateInstance();
+        _cliffMaterial.SetDefines("IS_CLIFF");
+
+        _surfaceBlock.SetTilesId(1);
+        _surfaceBlock.SetTilesColor(_color);
+
+        _cliffBlock = Rendering.CreateTiledTerrainBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
+        _cliffBlock.SetTilesId(1);
+        _cliffBlock.SetTilesColor(new ColorFloat(0.9f, 0.9f, 0.9f, 1f));
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -90,7 +102,7 @@ public class Game : GameEngine
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Selected Tile", ref _selectedTileId, 0, (uint)_tileSet.Count - 1))
+        if (DebugGUI.SliderWithText("Selected Tile", ref _selectedTileId, 0, (uint)_surfaceTileSet.Count - 1))
         {
             isDebugClicked = true;
         }
@@ -98,7 +110,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            _tileSet.BlendFactor = _blendFactor;
+            _surfaceTileSet.BlendFactor = _blendFactor;
         }
 
         if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
@@ -109,7 +121,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            _tileSet.EdgeSmoothFactor = _edgeSmoothFactor;
+            _surfaceTileSet.EdgeSmoothFactor = _edgeSmoothFactor;
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -140,12 +152,14 @@ public class Game : GameEngine
 
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
-        _terrainBlock.Render(_renderer);
+        _surfaceBlock.Render(_renderer);
+        _cliffBlock.Render(_renderer);
 
-        if (_terrainBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+
+        if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
             DebugGUI.Text($"Tile Position: {tilePosition}");
-            Vector2 tileLocalPosition = _terrainBlock.TilePositionToLocalPosition(tilePosition);
+            Vector2 tileLocalPosition = _surfaceBlock.TilePositionToLocalPosition(tilePosition);
             DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
 
@@ -156,21 +170,22 @@ public class Game : GameEngine
                     continue;
                 }
                 int2 pos = _brushCells[i];
-                float height = _terrainBlock.GetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y);
+                float height = _surfaceBlock.GetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y);
                 _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y + height, 0);
-                Transform3D tmp = math.transform(_terrainBlock.Transform, _brushTransform);
+                Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);
 
 
                 if (Input.IsMousePressing(Mouse.Left))
                 {
-                    _terrainBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
-                    
+                    _surfaceBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
+                    _cliffBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
-                    _terrainBlock.SetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _surfaceBlock.SetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _cliffBlock.SetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
                 }
             }
         }
@@ -179,14 +194,14 @@ public class Game : GameEngine
 
     private void OnHotReload(string filename, object cachedAsset)
     {
-        if (_tileSet.Atlas.TryGetSprite(filename, out Sprite? sprite))
+        if (_surfaceTileSet.Atlas.TryGetSprite(filename, out Sprite? sprite))
         {
-            _tileSet = BuildTileSet();
-            _terrainBlock.UnsafeSetTileSet(_tileSet);
+            _surfaceTileSet = BuildSurfaceTileSet();
+            _surfaceBlock.UnsafeSetTileSet(_surfaceTileSet);
         }
     }
 
-    private TileSet<int> BuildTileSet()
+    private TileSet<int> BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
@@ -198,6 +213,25 @@ public class Game : GameEngine
         tileSetParams.HeightOffsetFactor = Vector2.UnitY;
         tileSetParams.BlendFactor = _blendFactor;
         tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
+        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
+        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);
+        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+    }
+
+    private TileSet<int> BuildCliffTileSet()
+    {
+        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/GrassCliff.png");
+        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/DirtCliff.png");
+
+        Task.WaitAll(grid, grass, sand);
+
+        TileSetParams<int> tileSetParams = new();
+        tileSetParams.HeightOffsetFactor = Vector2.UnitY;
+        tileSetParams.BlendFactor = _blendFactor;
+        tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
+
         tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
         tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
         tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);

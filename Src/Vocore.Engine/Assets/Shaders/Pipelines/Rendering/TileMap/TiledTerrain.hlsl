@@ -56,6 +56,7 @@ float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
     return SAMPLE_TEX2D(_texture, uv);
 }
 
+//used for standard sprite quad mesh
 [shader("vertex")]
 V2F VertexMain(Vertex input)
 {
@@ -67,11 +68,16 @@ V2F VertexMain(Vertex input)
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
-    float3 pos2D = input.position * float3(sprite.meshScale, 1.0f);
+    float3 pos = input.position * float3(sprite.meshScale, 0);
 
-    float4 position = float4(pos2D, 1);
+#if defined(IS_CLIFF)
+    offsetY += 1;
+    pos.z = pos.y - 0.5f;
+#endif
+
+    float4 position = float4(pos, 1);
     float height = _heightData[input.instanceId];
-    position.z = height;
+    position.z += height;
     position.xy += float2(offsetX, -offsetY) + float2(height, height) * heightOffsetFactor;
     position = mul(constants.model, position);
     position = mul(viewProjection, position);
@@ -152,7 +158,7 @@ float4 PixelMain(V2F input) : SV_TARGET
         if (j != 4) // Skip center tile
         {
             float heightDiff = abs(heights[j] - centerHeight);
-            float darkening = heightDiff > 0.001f ? (0.8) : 1.0;
+            float darkening = heightDiff > 0.001f ? (0.9) : 1.0;
             float4 neighborColor = float4(colors[j].rgb * darkening, colors[j].a);
 
             if(heightDiff > 0.001f){
