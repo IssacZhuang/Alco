@@ -26,7 +26,7 @@ public class Game : GameEngine
 
     private uint _selectedTileId = 1;
 
-    private float _hight = 0f;
+    private float _hight = 0.2f;
     private float _brushSize = 1;
     private Material _brushMaterial;
     private Transform3D _brushTransform;
@@ -156,7 +156,8 @@ public class Game : GameEngine
                     continue;
                 }
                 int2 pos = _brushCells[i];
-                _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y, 0);
+                float height = _terrainBlock.GetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y);
+                _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y + height, 0);
                 Transform3D tmp = math.transform(_terrainBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);

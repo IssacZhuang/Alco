@@ -178,6 +178,11 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         return _tileSet.GetUserData(GetTileId(x, y));
     }
 
+    public float GetTileHeight(int x, int y)
+    {
+        return _heightData[GetTileIndex(x, y)];
+    }
+
     /// <summary>
     /// Update the tile set and clear the tile id data
     /// </summary>
