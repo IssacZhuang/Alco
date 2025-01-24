@@ -21,7 +21,8 @@ public class Game : GameEngine
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(1, 1, 1, 1);
 
-    private float _blendFactor = 0.1f;
+    private float _blendFactor = 0.2f;
+    private float _edgeSmoothFactor = 0.1f;
 
     private uint _selectedTileId = 1;
 
@@ -103,6 +104,12 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
         {
             isDebugClicked = true;
+        }
+
+        if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
+        {
+            isDebugClicked = true;
+            _tileSet.EdgeSmoothFactor = _edgeSmoothFactor;
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -188,8 +195,8 @@ public class Game : GameEngine
 
         TileSetParams<int> tileSetParams = new();
         tileSetParams.HeightOffsetFactor = Vector2.UnitY;
-        tileSetParams.BlendFactor = 0.2f;
-        tileSetParams.EdgeSmoothFactor = 0.2f;
+        tileSetParams.BlendFactor = _blendFactor;
+        tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
         tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
         tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
         tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);
