@@ -143,6 +143,7 @@ float4 PixelMain(V2F input) : SV_TARGET
         saturate(((1 - uv.x) + (1 - uv.y)) * invEdgeSmoothFactor) // bottom-right
     };
 
+    float finalDarkening = 1;
 
     // Apply blending for all neighbors in a single loop
     [unroll]
@@ -155,15 +156,15 @@ float4 PixelMain(V2F input) : SV_TARGET
             float4 neighborColor = float4(colors[j].rgb * darkening, colors[j].a);
 
             if(heightDiff > 0.001f){
-                finalColor = lerp(finalColor * darkening, finalColor, weightsHeight[j]);
-            }
-            
-            if(priorities[j] > centerPriority)
+                finalDarkening = lerp(darkening, finalDarkening,weightsHeight[j]);
+            }else if(priorities[j] > centerPriority)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);
             }
         }
     }
+
+    finalColor *= finalDarkening;
 
     return finalColor;
 }
