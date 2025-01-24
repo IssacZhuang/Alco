@@ -125,17 +125,32 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     // Define blend weights for each neighbor
     float2 uv = input.uv;
+
+#if defined(IS_CLIFF)
+    float weights[9] = {
+        1.0,                                   // top-left
+        1.0,                                   // top
+        1.0,                                   // top-right
+        saturate(uv.x * invBlendFactor),       // left
+        1.0,                                   // center
+        saturate((1 - uv.x) * invBlendFactor), // right
+        1.0,                                   // bottom-left
+        1.0,                                   // bottom
+        1.0                                     // bottom-right
+    };
+#else
     float weights[9] = {
         saturate((uv.x + uv.y) * invBlendFactor),            // top-left
-        saturate(uv.y * invBlendFactor),                           // top
+        saturate(uv.y * invBlendFactor),                     // top
         saturate(((1 - uv.x) + uv.y) * invBlendFactor),      // top-right
-        saturate(uv.x * invBlendFactor),                           // left
-        1.0,                                                       // center
-        saturate((1 - uv.x) * invBlendFactor),                     // right
+        saturate(uv.x * invBlendFactor),                     // left
+        1.0,                                                 // center
+        saturate((1 - uv.x) * invBlendFactor),               // right
         saturate((uv.x + (1 - uv.y)) * invBlendFactor),      // bottom-left
-        saturate((1 - uv.y) * invBlendFactor),                     // bottom
+        saturate((1 - uv.y) * invBlendFactor),               // bottom
         saturate(((1 - uv.x) + (1 - uv.y)) * invBlendFactor) // bottom-right
     };
+#endif
 
     float weightsHeight[9] = {
         saturate((uv.x + uv.y) * invEdgeSmoothFactor),            // top-left
