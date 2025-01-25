@@ -132,7 +132,7 @@ public class SpanStringBuilder : AutoDisposable
 
     public override string ToString()
     {
-        return _buffer.ReadOnlySpan.ToString();
+        return new string(_buffer.ReadOnlySpan);
     }
 
     protected override void Dispose(bool disposing)
