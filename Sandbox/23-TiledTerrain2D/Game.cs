@@ -16,10 +16,13 @@ public class Game : GameEngine
 
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
+    private readonly Material _waterMaterial;
     private TileSet<int> _surfaceTileSet;
     private TileSet<int> _cliffTileSet;
+    private TileSet<int> _waterTileSet;
     private readonly TiledTerrainBlock2D<int> _surfaceBlock;
     private readonly TiledTerrainBlock2D<int> _cliffBlock;
+    private readonly TiledTerrainBlock2D<int> _waterBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -41,29 +44,42 @@ public class Game : GameEngine
     {
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        _surfaceTileSet = BuildSurfaceTileSet();
-        _cliffTileSet = BuildCliffTileSet();
+        
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateMaterialRenderer();
 
+        _surfaceTileSet = BuildSurfaceTileSet();
+        _cliffTileSet = BuildCliffTileSet();
+        _waterTileSet = BuildWaterTileSet();
+
         _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
         _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        _surfaceMaterial.BlendState = BlendState.AlphaBlend;
+        _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
-        _surfaceBlock = Rendering.CreateTiledTerrainBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
-
+       
         _cliffMaterial = _surfaceMaterial.CreateInstance();
         _cliffMaterial.SetDefines("IS_CLIFF");
 
+        _waterMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWater);
+        _waterMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _waterMaterial.BlendState = BlendState.AlphaBlend;
+        _waterMaterial.DepthStencilState = DepthStencilState.Read;
+
+        _surfaceBlock = Rendering.CreateTiledTerrainBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
         _surfaceBlock.SetTilesId(1);
         _surfaceBlock.SetTilesColor(_color);
 
         _cliffBlock = Rendering.CreateTiledTerrainBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
         _cliffBlock.SetTilesId(1);
         _cliffBlock.SetTilesColor(new ColorFloat(0.9f, 0.9f, 0.9f, 1f));
+
+        _waterBlock = Rendering.CreateTiledTerrainBlock2D(_waterTileSet, _waterMaterial, 64, 64);
+        _waterBlock.SetTilesId(1);
+        _waterBlock.SetTilesColor(new Color32(55, 176, 229, 120));
+        _waterBlock.Transform.position = new Vector3(0, -0.05f, -0.05f);
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -154,6 +170,7 @@ public class Game : GameEngine
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.Render(_renderer);
         _cliffBlock.Render(_renderer);
+        _waterBlock.Render(_renderer);
 
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
@@ -235,6 +252,19 @@ public class Game : GameEngine
         tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
         tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
         tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);
+        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+    }
+
+    private TileSet<int> BuildWaterTileSet()
+    {
+        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task.WaitAll(grid);
+        TileSetParams<int> tileSetParams = new();
+        tileSetParams.HeightOffsetFactor = Vector2.UnitY;
+        tileSetParams.BlendFactor = _blendFactor;
+        tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
+        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
+        tileSetParams.Add(Rendering.TextureWhite, 0, Vector2.One, Vector2.One, 0.0f);
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }

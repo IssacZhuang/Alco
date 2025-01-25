@@ -35,6 +35,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_TileSurface = "Shaders/Pipelines/Rendering/TileMap/TileSurface.hlsl";
 
+   public const string Shader_TileWater = "Shaders/Pipelines/Rendering/TileMap/TileWater.hlsl";
+
 
 }
 
