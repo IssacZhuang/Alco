@@ -61,7 +61,6 @@ public class Game : GameEngine
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
        
         _cliffMaterial = _surfaceMaterial.CreateInstance();
-        _cliffMaterial.SetDefines("IS_CLIFF");
 
         _waterMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWater);
         _waterMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -75,6 +74,7 @@ public class Game : GameEngine
         _cliffBlock = Rendering.CreateTiledTerrainBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
         _cliffBlock.SetTilesId(1);
         _cliffBlock.SetTilesColor(new ColorFloat(0.9f, 0.9f, 0.9f, 1f));
+        _cliffBlock.IsCliff = true;
 
         _waterBlock = Rendering.CreateTiledTerrainBlock2D(_waterTileSet, _waterMaterial, 64, 64);
         _waterBlock.SetTilesId(1);

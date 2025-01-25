@@ -14,6 +14,8 @@ namespace Vocore.Rendering;
 /// <typeparam name="TUserData">The type of the user data.</typeparam>
 public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
 {
+    public string ShaderDefine_Cliff = "IS_CLIFF";
+    
     //per block
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -33,10 +35,29 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
     private bool _isTileIdDirty;
     private bool _isColorDirty;
     private bool _isHeightDirty;
+    
+    private bool _isCliff;
 
     public Transform3D Transform;
     public int2 Size => _size;
     public SurfaceTileSet<TUserData> TileSet => _tileSet;
+
+    public bool IsCliff
+    {
+        get => _isCliff;
+        set
+        {
+            _isCliff = value;
+            if (_isCliff)
+            {
+                _material.SetDefines(ShaderDefine_Cliff);
+            }
+            else
+            {
+                _material.SetDefines([]);
+            }
+        }
+    }
 
 
     internal SurfaceTiledBlock2D(
