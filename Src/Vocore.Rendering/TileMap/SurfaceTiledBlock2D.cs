@@ -9,10 +9,10 @@ using static Vocore.math;
 namespace Vocore.Rendering;
 
 /// <summary>
-/// A 2D tiled terrain block. The top left corner is (0, 0).
+/// A fixed size 2D tiled terrain surface block. The top left corner is (0, 0).
 /// </summary>
 /// <typeparam name="TUserData">The type of the user data.</typeparam>
-public class TiledTerrainBlock2D<TUserData> : AutoDisposable
+public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
 {
     //per block
     [StructLayout(LayoutKind.Sequential)]
@@ -24,7 +24,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
     private readonly uint _length;
     private readonly int2 _size;
-    private TileSet<TUserData> _tileSet;
+    private SurfaceTileSet<TUserData> _tileSet;
     private readonly GraphicsArrayBuffer<ColorFloat> _colorData;
     private readonly GraphicsArrayBuffer<uint> _tileIdData;
     private readonly GraphicsArrayBuffer<float> _heightData;
@@ -36,12 +36,12 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
 
     public Transform3D Transform;
     public int2 Size => _size;
-    public TileSet<TUserData> TileSet => _tileSet;
+    public SurfaceTileSet<TUserData> TileSet => _tileSet;
 
 
-    internal TiledTerrainBlock2D(
+    internal SurfaceTiledBlock2D(
         RenderingSystem renderingSystem,
-        TileSet<TUserData> tileSet,
+        SurfaceTileSet<TUserData> tileSet,
         Material material,
         int width,
         int height,
@@ -51,7 +51,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         _tileSet = tileSet;
         _colorData = renderingSystem.CreateGraphicsArrayBuffer<ColorFloat>(width * height, name + "_color_data");
         _tileIdData = renderingSystem.CreateGraphicsArrayBuffer<uint>(width * height, name + "_sprite_index_data");
-        _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, 0,name + "_height_data");
+        _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, 0, name + "_height_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
 
@@ -187,7 +187,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     /// Update the tile set and clear the tile id data
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void SetTileSet(TileSet<TUserData> tileSet)
+    public void SetTileSet(SurfaceTileSet<TUserData> tileSet)
     {
         _tileSet = tileSet;
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
@@ -204,7 +204,7 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
     /// <br/>[Warning] This it might cause some unexpected behavior if the new tile set has less tiles than the old one.
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void UnsafeSetTileSet(TileSet<TUserData> tileSet)
+    public void UnsafeSetTileSet(SurfaceTileSet<TUserData> tileSet)
     {
         _tileSet = tileSet;
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);

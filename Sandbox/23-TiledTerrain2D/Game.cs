@@ -17,12 +17,12 @@ public class Game : GameEngine
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
     private readonly Material _waterMaterial;
-    private TileSet<int> _surfaceTileSet;
-    private TileSet<int> _cliffTileSet;
-    private TileSet<int> _waterTileSet;
-    private readonly TiledTerrainBlock2D<int> _surfaceBlock;
-    private readonly TiledTerrainBlock2D<int> _cliffBlock;
-    private readonly TiledTerrainBlock2D<int> _waterBlock;
+    private SurfaceTileSet<int> _surfaceTileSet;
+    private SurfaceTileSet<int> _cliffTileSet;
+    private SurfaceTileSet<int> _waterTileSet;
+    private readonly SurfaceTiledBlock2D<int> _surfaceBlock;
+    private readonly SurfaceTiledBlock2D<int> _cliffBlock;
+    private readonly SurfaceTiledBlock2D<int> _waterBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -218,7 +218,7 @@ public class Game : GameEngine
         }
     }
 
-    private TileSet<int> BuildSurfaceTileSet()
+    private SurfaceTileSet<int> BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
@@ -226,7 +226,7 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        TileSetParams<int> tileSetParams = new();
+        SurfaceTileSetParams<int> tileSetParams = new();
         tileSetParams.HeightOffsetFactor = Vector2.UnitY;
         tileSetParams.BlendFactor = _blendFactor;
         tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
@@ -236,7 +236,7 @@ public class Game : GameEngine
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 
-    private TileSet<int> BuildCliffTileSet()
+    private SurfaceTileSet<int> BuildCliffTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/GrassCliff.png");
@@ -244,7 +244,7 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        TileSetParams<int> tileSetParams = new();
+        SurfaceTileSetParams<int> tileSetParams = new();
         tileSetParams.HeightOffsetFactor = Vector2.UnitY;
         tileSetParams.BlendFactor = _blendFactor;
         tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
@@ -255,11 +255,11 @@ public class Game : GameEngine
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 
-    private TileSet<int> BuildWaterTileSet()
+    private SurfaceTileSet<int> BuildWaterTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task.WaitAll(grid);
-        TileSetParams<int> tileSetParams = new();
+        SurfaceTileSetParams<int> tileSetParams = new();
         tileSetParams.HeightOffsetFactor = Vector2.UnitY;
         tileSetParams.BlendFactor = _blendFactor;
         tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;

@@ -5,7 +5,7 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class TileSet<TUserData> : AutoDisposable
+public class SurfaceTileSet<TUserData> : AutoDisposable
 {
     private struct TileData
     {
@@ -119,10 +119,10 @@ public class TileSet<TUserData> : AutoDisposable
     }
 
 
-    internal TileSet(
-        RenderingSystem renderingSystem, 
-        TileSetParams<TUserData> @params, 
-        Material material, 
+    internal SurfaceTileSet(
+        RenderingSystem renderingSystem,
+        SurfaceTileSetParams<TUserData> @params,
+        Material material,
         GPUSampler sampler,
         string name)
     {
@@ -134,7 +134,7 @@ public class TileSet<TUserData> : AutoDisposable
 
         Dictionary<Texture2D, int> textureToAtlasIndex = new();
         List<Texture2D> uniqueTextures = new();
-        
+
         foreach (var item in @params.Items)
         {
             if (!textureToAtlasIndex.ContainsKey(item.Texture))

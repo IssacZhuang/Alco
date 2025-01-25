@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Vocore.Rendering;
 
-public class TileSetParams<TUserData>
+public class SurfaceTileSetParams<TUserData>
 {
     public struct Item
     {
