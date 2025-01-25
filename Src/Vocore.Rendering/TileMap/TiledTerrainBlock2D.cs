@@ -69,11 +69,11 @@ public class TiledTerrainBlock2D<TUserData> : AutoDisposable
         _tileIdData.UpdateBuffer();
 
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
-        _material.SetBuffer(ShaderResourceId.ColorData, _colorData);
-        _material.SetBuffer(ShaderResourceId.TileIdData, _tileIdData);
-        _material.SetBuffer(ShaderResourceId.SpriteData, _tileSet.SpriteDataBuffer);
-        _material.SetBuffer(ShaderResourceId.TileSetData, _tileSet.TileSetDataBuffer);
-        _material.SetBuffer(ShaderResourceId.HeightData, _heightData);
+        _material.TrySetBuffer(ShaderResourceId.ColorData, _colorData);
+        _material.TrySetBuffer(ShaderResourceId.TileIdData, _tileIdData);
+        _material.TrySetBuffer(ShaderResourceId.SpriteData, _tileSet.SpriteDataBuffer);
+        _material.TrySetBuffer(ShaderResourceId.TileSetData, _tileSet.TileSetDataBuffer);
+        _material.TrySetBuffer(ShaderResourceId.HeightData, _heightData);
 
 
 

@@ -49,7 +49,7 @@ public class Game : GameEngine
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateMaterialRenderer();
 
-        _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
+        _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
         _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _surfaceMaterial.BlendState = BlendState.AlphaBlend;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;

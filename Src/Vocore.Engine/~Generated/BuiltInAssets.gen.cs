@@ -38,7 +38,7 @@ public partial class BuiltInAssets
 
     public Shader Shader_TextMasked => GetShader("Shaders/Pipelines/Rendering/Text/TextMasked.hlsl");
 
-    public Shader Shader_TiledTerrain => GetShader("Shaders/Pipelines/Rendering/TileMap/TiledTerrain.hlsl");
+    public Shader Shader_TileSurface => GetShader("Shaders/Pipelines/Rendering/TileMap/TileSurface.hlsl");
 
 
 }
