@@ -20,9 +20,9 @@ public class Game : GameEngine
     private SurfaceTileSet<int> _surfaceTileSet;
     private SurfaceTileSet<int> _cliffTileSet;
     private SurfaceTileSet<int> _waterTileSet;
-    private readonly SurfaceTiledBlock2D<int> _surfaceBlock;
-    private readonly SurfaceTiledBlock2D<int> _cliffBlock;
-    private readonly SurfaceTiledBlock2D<int> _waterBlock;
+    private readonly SurfaceTileBlock2D<int> _surfaceBlock;
+    private readonly SurfaceTileBlock2D<int> _cliffBlock;
+    private readonly SurfaceTileBlock2D<int> _waterBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;

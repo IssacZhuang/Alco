@@ -138,6 +138,18 @@ float4 PixelMain(V2F input) : SV_TARGET
         1.0,                                   // bottom
         1.0                                     // bottom-right
     };
+
+    float weightsHeight[9] = {
+        1.0,                                        // top-left
+        1.0,                                        // top
+        1.0,                                        // top-right
+        saturate(uv.x * invEdgeSmoothFactor),       // left
+        1.0,                                        // center
+        saturate((1 - uv.x) * invEdgeSmoothFactor), // right
+        1.0,                                        // bottom-left
+        1.0,                                        // bottom
+        1.0                                         // bottom-right
+    };
 #else
     float weights[9] = {
         saturate((uv.x + uv.y) * invBlendFactor),            // top-left
@@ -150,31 +162,16 @@ float4 PixelMain(V2F input) : SV_TARGET
         saturate((1 - uv.y) * invBlendFactor),               // bottom
         saturate(((1 - uv.x) + (1 - uv.y)) * invBlendFactor) // bottom-right
     };
-#endif
 
-
-#if defined(IS_CLIFF)
-    float weightsHeight[9] = {
-        1.0,                                   // top-left
-        1.0,                                   // top
-        1.0,                                   // top-right
-        saturate(uv.x * invEdgeSmoothFactor),       // left
-        1.0,                                   // center
-        saturate((1 - uv.x) * invEdgeSmoothFactor), // right
-        1.0,                                   // bottom-left
-        1.0,                                   // bottom
-        1.0                                     // bottom-right
-    };
-#else
     float weightsHeight[9] = {
         saturate((uv.x + uv.y) * invEdgeSmoothFactor),            // top-left
-        saturate(uv.y * invEdgeSmoothFactor),                           // top
+        saturate(uv.y * invEdgeSmoothFactor),                     // top
         saturate(((1 - uv.x) + uv.y) * invEdgeSmoothFactor),      // top-right
-        saturate(uv.x * invEdgeSmoothFactor),                           // left
-        1.0,                                                       // center
-        saturate((1 - uv.x) * invEdgeSmoothFactor),                     // right
+        saturate(uv.x * invEdgeSmoothFactor),                     // left
+        1.0,                                                      // center
+        saturate((1 - uv.x) * invEdgeSmoothFactor),               // right
         saturate((uv.x + (1 - uv.y)) * invEdgeSmoothFactor),      // bottom-left
-        saturate((1 - uv.y) * invEdgeSmoothFactor),                     // bottom
+        saturate((1 - uv.y) * invEdgeSmoothFactor),               // bottom
         saturate(((1 - uv.x) + (1 - uv.y)) * invEdgeSmoothFactor) // bottom-right
     };
 #endif

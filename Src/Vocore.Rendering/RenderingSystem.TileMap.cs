@@ -4,7 +4,7 @@ namespace Vocore.Rendering;
 
 public partial class RenderingSystem
 {
-    public SurfaceTiledBlock2D<TUserData> CreateTiledTerrainBlock2D<TUserData>(
+    public SurfaceTileBlock2D<TUserData> CreateTiledTerrainBlock2D<TUserData>(
         SurfaceTileSet<TUserData> tileSet,
         Material material,
         int width,
@@ -12,7 +12,7 @@ public partial class RenderingSystem
         string name = "tiled_terrain_block_2d"
     )
     {
-        return new SurfaceTiledBlock2D<TUserData>(this, tileSet, material, width, height, name);
+        return new SurfaceTileBlock2D<TUserData>(this, tileSet, material, width, height, name);
     }
 
     public SurfaceTileSet<TUserData> CreateTileSet<TUserData>(

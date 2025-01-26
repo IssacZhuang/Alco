@@ -1,64 +1,26 @@
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Vocore.Graphics;
 
 using static Vocore.math;
 
 namespace Vocore.Rendering;
 
-/// <summary>
-/// A fixed size 2D tiled terrain surface block. The top left corner is (0, 0).
-/// </summary>
-/// <typeparam name="TUserData">The type of the user data.</typeparam>
-public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
+public abstract class BaseTileBlock2D<TUserData> : AutoDisposable
 {
-    public string ShaderDefine_Cliff = "IS_CLIFF";
+    protected readonly uint _length;
+    protected readonly int2 _size;
+    protected SurfaceTileSet<TUserData> _tileSet;
+    protected readonly GraphicsArrayBuffer<uint> _tileIdData;
     
-    //per block
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Constant
-    {
-        public Matrix4x4 Model;
-        public int2 Size;
-    }
-
-    private readonly uint _length;
-    private readonly int2 _size;
-    private SurfaceTileSet<TUserData> _tileSet;
-    private readonly GraphicsArrayBuffer<uint> _tileIdData;
-    private readonly GraphicsArrayBuffer<float> _heightData;
-    private readonly Material _material;
-    private readonly Mesh _mesh;
-    private bool _isTileIdDirty;
-    private bool _isHeightDirty;
-    
-    private bool _isCliff;
+    protected readonly Material _material;
+    protected readonly Mesh _mesh;
+    protected bool _isTileIdDirty;
 
     public Transform3D Transform;
     public int2 Size => _size;
     public SurfaceTileSet<TUserData> TileSet => _tileSet;
 
-    public bool IsCliff
-    {
-        get => _isCliff;
-        set
-        {
-            _isCliff = value;
-            if (_isCliff)
-            {
-                _material.SetDefines(ShaderDefine_Cliff);
-            }
-            else
-            {
-                _material.SetDefines([]);
-            }
-        }
-    }
-
-
-    internal SurfaceTiledBlock2D(
+    protected BaseTileBlock2D(
         RenderingSystem renderingSystem,
         SurfaceTileSet<TUserData> tileSet,
         Material material,
@@ -68,9 +30,8 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
         )
     {
         _tileSet = tileSet;
-    
+
         _tileIdData = renderingSystem.CreateGraphicsArrayBuffer<uint>(width * height, name + "_sprite_index_data");
-        _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, 0, name + "_height_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
 
@@ -85,38 +46,10 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
         _material.TrySetBuffer(ShaderResourceId.TileIdData, _tileIdData);
         _material.TrySetBuffer(ShaderResourceId.TileData, _tileSet.TileDataBuffer);
-        _material.TrySetBuffer(ShaderResourceId.HeightData, _heightData);
-
-
 
         Transform = Transform3D.Identity;
         _size = new int2(width, height);
         _length = (uint)(width * height);
-    }
-
-    public void Render(MaterialRenderer renderer)
-    {
-        if (_isTileIdDirty)
-        {
-            _tileIdData.UpdateBuffer();
-            _isTileIdDirty = false;
-        }
-
-        if (_isHeightDirty)
-        {
-            _heightData.UpdateBuffer();
-            _isHeightDirty = false;
-        }
-
-        renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTileHeight(int x, int y, float height)
-    {
-        _heightData[GetTileIndex(x, y)] = height;
-        _isHeightDirty = true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,10 +90,7 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
         return _tileSet.GetUserData(GetTileId(x, y));
     }
 
-    public float GetTileHeight(int x, int y)
-    {
-        return _heightData[GetTileIndex(x, y)];
-    }
+    
 
     /// <summary>
     /// Update the tile set and clear the tile id data
@@ -233,6 +163,7 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
     {
         return y * _size.x + x;
     }
+
 
     protected override void Dispose(bool disposing)
     {
