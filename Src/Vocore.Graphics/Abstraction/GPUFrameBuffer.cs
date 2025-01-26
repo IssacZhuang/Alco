@@ -40,12 +40,14 @@ public abstract class GPUFrameBuffer : BaseGPUObject
 
     /// <summary>
     /// The depth texture view of the frame buffer with aspect of depth. This view is usually used for sampling
+    /// <br/> [note] Not null if the frame buffer has a depth texture
     /// </summary>
     /// <value>The depth texture view of the frame buffer</value>
-    public abstract GPUTextureView? DepthView { get; }  
+    public abstract GPUTextureView? DepthView { get; }
 
     /// <summary>
     /// The stencil texture view of the frame buffer with aspect of stencil. This view is usually used for sampling
+    /// <br/> [note] Not null only if the pixel format is the <see cref="PixelFormat.Depth24PlusStencil8"/> and <see cref="PixelFormat.Depth32FloatStencil8"/>
     /// </summary>
     /// <value>The stencil texture view of the frame buffer</value>
     public abstract GPUTextureView? StencilView { get; }

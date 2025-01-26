@@ -203,7 +203,10 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
             _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
             _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+            if(UtilsPixelFormat.HasStencil(_depthStencilTexture.PixelFormat))
+            {
+                _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+            }
 
             _descriptor.depthStencilAttachment = _depthAttachment;
         }
@@ -254,7 +257,10 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                 );
             _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
             _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+            if(UtilsPixelFormat.HasStencil(_depthStencilTexture.PixelFormat))
+            {
+                _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+            }
             (*_depthAttachment).view = _depthStencilView.Native;
         }
     }

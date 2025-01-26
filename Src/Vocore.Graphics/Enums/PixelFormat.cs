@@ -47,7 +47,7 @@ public enum PixelFormat
     RGBA32Uint = 36,
     RGBA32Sint = 37,
     // Depth-stencil
-    Stencil8 = 38,
+    Stencil8 = 38,//not supported
     Depth16Unorm = 39,
     Depth24Plus = 40,
     Depth24PlusStencil8 = 41,

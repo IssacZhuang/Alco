@@ -33,6 +33,11 @@ public static class UtilsPixelFormat
         };
     }
 
+    public static bool HasStencil(PixelFormat format)
+    {
+        return format == PixelFormat.Depth24PlusStencil8 || format == PixelFormat.Depth32FloatStencil8;
+    }
+
     /// <summary>
     /// Try get pixel size in bytes, return 
     /// </summary>
