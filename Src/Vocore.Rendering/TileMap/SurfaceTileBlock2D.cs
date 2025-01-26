@@ -86,14 +86,23 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
 
     public float GetTileHeight(int x, int y)
     {
+        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        {
+            return 0;
+        }
         return _heightData[GetTileIndex(x, y)];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTileHeight(int x, int y, float height)
+    public bool TrySetTileHeight(int x, int y, float height)
     {
+        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        {
+            return false;
+        }
         _heightData[GetTileIndex(x, y)] = height;
         _isHeightDirty = true;
+        return true;
     }
 
     protected override void Dispose(bool disposing)

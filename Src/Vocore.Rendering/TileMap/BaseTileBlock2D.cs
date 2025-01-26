@@ -58,10 +58,15 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     public abstract void OnRender(MaterialRenderer renderer);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTileId(int x, int y, uint tileId)
+    public bool TrySetTileId(int x, int y, uint tileId)
     {
+        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        {
+            return false;
+        }
         _tileIdData[GetTileIndex(x, y)] = tileId;
         _isTileIdDirty = true;
+        return true;
     }
 
     public void SetTilesId(int2 from, int2 to, uint tileId)

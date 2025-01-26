@@ -80,7 +80,7 @@ public class Game : GameEngine
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, 64, 64);
         _waterBlock.SetTilesId(1);
-        _waterBlock.Transform.position = new Vector3(0, -0.05f, -0.05f);
+        _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
         _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
@@ -215,9 +215,9 @@ public class Game : GameEngine
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
-            DebugGUI.Text($"Tile Position: {tilePosition}");
+            //DebugGUI.Text($"Tile Position: {tilePosition}");
             Vector2 tileLocalPosition = _surfaceBlock.TilePositionToLocalPosition(tilePosition);
-            DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
+            //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
 
             for (int i = 0; i < _brushCells.Count; i++)
@@ -236,13 +236,13 @@ public class Game : GameEngine
 
                 if (Input.IsMousePressing(Mouse.Left))
                 {
-                    _surfaceBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
-                    _cliffBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    _surfaceBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    _cliffBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
-                    _surfaceBlock.SetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
-                    _cliffBlock.SetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _surfaceBlock.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _cliffBlock.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
                 }
             }
         }
