@@ -1,5 +1,6 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Libs/Noise.hlsli"
+#include "Shaders/Libs/Time.hlsli"
 
 struct Vertex {
   float3 position : POSITION;
@@ -28,14 +29,16 @@ struct TileData {
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_TEX2D_SAMPLE(1, _texture);
+DEFINE_UNIFORM(1, _timeData) { TimeData timeData; };
 
-DEFINE_STORAGE(2, TileData, _tileData);
+DEFINE_TEX2D_SAMPLE(2, _texture);
 
-DEFINE_STORAGE(3, uint, _tileIdData);
+DEFINE_STORAGE(3, TileData, _tileData);
+
+DEFINE_STORAGE(4, uint, _tileIdData);
 
 //the height of the surface, not the water
-DEFINE_STORAGE(4, float, _heightData);
+DEFINE_STORAGE(5, float, _heightData);
 
 
 PUSH_CONSTANT Constants constants;
@@ -145,6 +148,8 @@ float4 PixelMain(V2F input) : SV_TARGET
         saturate(((1 - uv.x) + (1 - uv.y)) * invEdgeSmoothFactor) // bottom-right
     };
 
+    float time = timeData.time*0.8;
+
     fnl_state state = fnlCreateState(1337);
     state.noise_type = FNL_NOISE_CELLULAR;
     state.fractal_type = FNL_FRACTAL_FBM;
@@ -153,7 +158,7 @@ float4 PixelMain(V2F input) : SV_TARGET
     state.lacunarity = 2.f;
     state.gain = .5f;
 
-    float noise = fnlGetNoise2D(state, input.worldPosition.x, input.worldPosition.y);
+    float noise = (fnlGetNoise3D(state, input.worldPosition.x, time, input.worldPosition.y)+1)*0.5;
 
     float finalDarkening = 1;
 
@@ -177,9 +182,9 @@ float4 PixelMain(V2F input) : SV_TARGET
     state2.noise_type = FNL_NOISE_VALUE;
     state2.frequency = 2;
 
-    float noise2 = (fnlGetNoise2D(state2, input.worldPosition.x, input.worldPosition.y)+1)*0.5;
+    float noise2 = (fnlGetNoise2D(state2, input.worldPosition.x + time, input.worldPosition.y + time)+1)*0.5;
 
-    finalColor.rgb += (1+noise)*0.4;
+    finalColor.rgb += noise;
     // blend with white
     float4 edgeColor = float4(1, 1, 1, 1);
     edgeColor.rgb *= (noise2)*2;

@@ -42,7 +42,8 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
             _dummyHeightData[i] = 0;
         }
         _dummyHeightData.UpdateBuffer();
-        _material.SetBuffer(ShaderResourceId.HeightData, _dummyHeightData);
+        _material.TrySetBuffer(ShaderResourceId.HeightData, _dummyHeightData);
+        _material.TrySetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
     }
 
     public override void OnRender(MaterialRenderer renderer)

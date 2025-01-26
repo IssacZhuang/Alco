@@ -196,6 +196,7 @@ IDisposable
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
         _platform = _setting.Platform ?? new Sdl3Platform();
         _rendering = new RenderingSystem(
+            this,
             _graphicsDevice,
             _renderScheduler,
             _setting.Graphics.PreferredSDRFormat,
@@ -329,9 +330,9 @@ IDisposable
             Log.Error("[Begin Frame Error]", e);
             TryErrorStop();
         }
-
         OnSystemBeginFrame();
 
+        EventOnUpdate?.Invoke(delta);
         _renderScheduler.OnEndFrame();
 
         OnSystemUpdate(delta);

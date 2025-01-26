@@ -25,7 +25,7 @@ public partial class GameEngine
 
         DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
         {
-            LoopProvider = this,
+            Host = this,
             Debug = setting.DebugInfo,
             Backend = setting.Backend,
             PreferredSurfaceFormat = setting.PreferredSurfaceFormat,

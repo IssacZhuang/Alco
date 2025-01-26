@@ -12,6 +12,7 @@ public partial class RenderingSystem
 {
 
     private readonly GPUDevice _device;
+    private readonly IRenderingSystemHost _host;
     private readonly IRenderScheduler _renderThread;
 
     //preffered
@@ -26,12 +27,20 @@ public partial class RenderingSystem
     private readonly PixelFormat _prefferedHDRFormat;
     private readonly PixelFormat _prefferedDepthStencilFormat;
 
+    private GraphicsValueBuffer<TimeData> _timeData;
+
     
 
     public GPUDevice GraphicsDevice
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _device;
+    }
+
+    public GraphicsValueBuffer<TimeData> TimeData
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _timeData;
     }
 
     public PixelFormat PrefferedSDRFormat
@@ -88,19 +97,24 @@ public partial class RenderingSystem
         get => _prefferedRTexturePass;
     }
 
-    public RenderingSystem(GPUDevice device,
-    IRenderScheduler renderScheduler,//the render thread need update every frame, so it is controlled a external object
-    PixelFormat prefferedSDRFormat, 
-    PixelFormat prefferedHDRFormat,
-    PixelFormat prefferedDepthStencilFormat
+    public RenderingSystem(
+        IRenderingSystemHost host,
+        GPUDevice device,
+        IRenderScheduler renderScheduler,//the render thread need update every frame, so it is controlled a external object
+        PixelFormat prefferedSDRFormat, 
+        PixelFormat prefferedHDRFormat,
+        PixelFormat prefferedDepthStencilFormat
     )
     {
         _device = device;
+        _host = host;
         _renderThread = renderScheduler;
 
         _prefferedSDRFormat = prefferedSDRFormat;
         _prefferedHDRFormat = prefferedHDRFormat;
         _prefferedDepthStencilFormat = prefferedDepthStencilFormat;
+
+        _timeData = CreateGraphicsValueBuffer<TimeData>();
 
         _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
@@ -143,6 +157,9 @@ public partial class RenderingSystem
             null,
             "r_texture_pass"
         ));
+
+        _host.OnUpdate += OnUpdate;
+        _host.OnDispose += OnDispose;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -150,5 +167,23 @@ public partial class RenderingSystem
     {
         _renderThread.ScheduleCommandBuffer(commandBuffer);
         //_device.Submit(commandBuffer);
+    }
+
+    private void OnUpdate(float deltaTime)
+    {
+        TimeData timeData = _timeData.Value;
+        timeData.Time += deltaTime;
+        timeData.DeltaTime = deltaTime;
+        timeData.SinTime = math.sin(timeData.Time);
+        timeData.CosTime = math.cos(timeData.Time);
+        _timeData.Value = timeData;
+        _timeData.UpdateBuffer();
+    }
+
+    private void OnDispose()
+    {
+        _timeData.Dispose();
+        _host.OnUpdate -= OnUpdate;
+        _host.OnDispose -= OnDispose;
     }
 }

@@ -1,18 +1,21 @@
 using Vocore.Audio;
 using Vocore.Graphics;
 using Vocore.IO;
+using Vocore.Rendering;
 
 namespace Vocore.Engine;
 
 public partial class GameEngine :
 IGPUDeviceHost,
 IAssetSystemHost,
+IRenderingSystemHost,
 IAudioDeviceHost
 {
     #region Host Interface
     private event Action? EventOnEndFrame;
     private event Action? EventOnHandleAssetLoaded;
     private event Action? EventOnDispose;
+    private event Action<float>? EventOnUpdate;
 
     event Action IGPUDeviceHost.OnEndFrame
     {
@@ -39,6 +42,18 @@ IAudioDeviceHost
     }
 
     event Action IAudioDeviceHost.OnDispose
+    {
+        add => EventOnDispose += value;
+        remove => EventOnDispose -= value;
+    }
+
+    event Action<float> IRenderingSystemHost.OnUpdate
+    {
+        add => EventOnUpdate += value;
+        remove => EventOnUpdate -= value;
+    }
+
+    event Action IRenderingSystemHost.OnDispose
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
