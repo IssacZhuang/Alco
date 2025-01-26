@@ -1,0 +1,154 @@
+using System.Numerics;
+using Alco.Graphics;
+using Alco.Rendering;
+
+namespace Alco.GUI;
+
+public struct CavanUIFactoryStyle
+{
+    public Font Font { get; set; }
+    public float FontSize { get; set; }
+    public ColorFloat TextColor { get; set; }
+
+
+    public Vector2 SliderSize { get; set; }
+    public Vector2 SliderHandleSize { get; set; }
+    public ColorFloat SliderColor { get; set; }
+    public ColorFloat SliderHandleColor { get; set; }
+    public ColorFloat SliderHandleHoverColor { get; set; }
+    public ColorFloat SliderHandleDragColor { get; set; }
+
+
+    public string DefaultButtonText { get; set; }
+    public Vector2 ButtonSize { get; set; }
+
+    public ColorFloat ButtonTextColor { get; set; }
+    public ColorFloat ButtonColor { get; set; }
+    public ColorFloat ButtonPressedColor { get; set; }
+    public ColorFloat ButtonHoverColor { get; set; }
+
+
+    public ColorFloat CheckBoxColor { get; set; }
+    public ColorFloat CheckBoxHoverColor { get; set; }
+    public ColorFloat CheckBoxPressedColor { get; set; }
+}
+
+public class CanvasUIFactory
+{
+    private CavanUIFactoryStyle _style;
+
+
+    public CavanUIFactoryStyle Style
+    {
+        get => _style;
+        set => _style = value;
+    }
+
+
+    public CanvasUIFactory(CavanUIFactoryStyle style)
+    {
+        if (style.Font == null)
+        {
+            throw new ArgumentNullException(nameof(style.Font));
+        }
+        _style = style;
+    }
+
+    public UIButton CreateButton()
+    {
+        return CreateButton(_style.DefaultButtonText);
+    }
+
+    public UIButton CreateButton(string str)
+    {
+        UISprite bg = new UISprite()
+        {
+            Color = _style.ButtonColor,
+            Size = _style.ButtonSize,
+            Anchor = Anchor.Stretch
+        };
+
+        UIText text = new UIText()
+        {
+            Font = _style.Font,
+            FontSize = _style.FontSize,
+            Color = _style.ButtonTextColor,
+            Text = str,
+            Anchor = Anchor.Stretch
+        };
+
+        bg.Add(text);
+
+        UIButton button = new UIButton
+        {
+            Size = _style.ButtonSize,
+            TransitionTarget = bg,
+            ColorNormal = _style.ButtonColor,
+            ColorHover = _style.ButtonHoverColor,
+            ColorPressing = _style.ButtonPressedColor,
+            TransitionMode = TransitionMode.ColorTint,
+        };
+
+        button.Add(bg);
+        return button;
+    }
+
+    public UISlider CreateSlider()
+    {
+        UINode handleParent = new UINode(){
+            Size = new Vector2(_style.SliderSize.X - _style.SliderHandleSize.X, _style.SliderSize.Y),
+            Anchor = Anchor.Stretch
+        };
+
+        UISprite bgHandle = new UISprite
+        {
+            Color = _style.SliderHandleColor,
+            Size = _style.SliderHandleSize,
+            Anchor = Anchor.Stretch
+        };
+
+        UIButton handle = new UIButton
+        {
+            Size = _style.SliderHandleSize,
+            TransitionTarget = bgHandle,
+            ColorNormal = _style.SliderHandleColor,
+            ColorHover = _style.SliderHandleHoverColor,
+            ColorPressing = _style.SliderHandleDragColor,
+            TransitionMode = TransitionMode.ColorTint,
+            Anchor = Anchor.CenterVerticalStretch
+        };
+
+        handle.Add(bgHandle);
+        handleParent.Add(handle);
+
+        UISprite bgSlider = new UISprite
+        {
+            Color = _style.SliderColor,
+            Size = _style.SliderSize,
+            Anchor = Anchor.Stretch
+        };
+
+        UIText text = new UIText
+        {
+            Font = _style.Font,
+            FontSize = _style.FontSize,
+            Color = _style.TextColor,
+            Size = _style.SliderSize,
+            Text = "0"
+        };
+
+        UISlider slider = new UISlider
+        {
+            Handle = handle,
+            ValueText = text,
+            Size = _style.SliderSize,
+            Value = 0
+        };
+
+        slider.Add(bgSlider);
+        slider.Add(handleParent);
+        slider.Add(text);
+
+        return slider;
+    }
+}

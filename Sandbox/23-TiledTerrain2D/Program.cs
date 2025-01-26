@@ -1,6 +1,6 @@
-﻿using Vocore;
-using Vocore.Engine;
-using Vocore.Graphics;
+﻿using Alco;
+using Alco.Engine;
+using Alco.Graphics;
 
 GameEngineSetting setting = new GameEngineSetting
 {
@@ -12,8 +12,8 @@ GameEngineSetting setting = new GameEngineSetting
     },
 }.
 With<PluginDefaultAssets>().
-// With<PluginHDR>().
-// With<PluginBloom>().
+With(new PluginHDR(1f, 1/2.2f)).
+//With<PluginBloom>().
 With<PluginDebugGUI>();
 
 using (Game game = new Game(setting))

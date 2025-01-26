@@ -4,7 +4,7 @@
         "Hashtable",
         "Lerp",
         "Mathf",
-        "Vocore"
+        "Alco"
     ],
     "files.exclude": {
         "**/.DS_Store": true,

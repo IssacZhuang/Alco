@@ -7,6 +7,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Src\Vocore.Engine\Vocore.Engine.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
   </ItemGroup>
 </Project>

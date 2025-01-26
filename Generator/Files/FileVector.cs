@@ -22,7 +22,7 @@ public class FileVector
         builder.AppendLine("using System.Numerics;");
         builder.AppendLine("using System.Runtime.CompilerServices;");
         builder.AppendLine();
-        builder.AppendLine("namespace Vocore");
+        builder.AppendLine("namespace Alco");
         builder.AppendLine("{");
 
         //class
@@ -303,7 +303,7 @@ public class FileVector
 // using System.Numerics;
 // using System.Runtime.CompilerServices;
 
-// namespace Vocore
+// namespace Alco
 // {
 //     public struct int2
 //     {

@@ -1,11 +1,11 @@
 using System.Numerics;
-using Vocore.Engine;
-using Vocore.Rendering;
-using Vocore;
+using Alco.Engine;
+using Alco.Rendering;
+using Alco;
 
-using Random = Vocore.Random;
-using Vocore.Graphics;
-using Vocore.GUI;
+using Random = Alco.Random;
+using Alco.Graphics;
+using Alco.GUI;
 
 public class Game : GameEngine
 {

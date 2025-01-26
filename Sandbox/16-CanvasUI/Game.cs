@@ -1,10 +1,10 @@
 using System.Numerics;
-using Vocore.Engine;
-using Vocore.Rendering;
-using Vocore;
-using Vocore.GUI;
+using Alco.Engine;
+using Alco.Rendering;
+using Alco;
+using Alco.GUI;
 using System.Diagnostics;
-using Vocore.Graphics;
+using Alco.Graphics;
 
 public class Game : GameEngine
 {

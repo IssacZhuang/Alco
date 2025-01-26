@@ -2,7 +2,7 @@
 
 public class GeneratorMath : BaseGenerator
 {
-    public override string OutputFolder => "Src/Vocore/Math/~Generated";
+    public override string OutputFolder => "Src/Alco/Math/~Generated";
 
     public override void Generate()
     {

@@ -1,10 +1,10 @@
 using System.Numerics;
-using Vocore.Engine;
-using Vocore.Rendering;
-using Vocore;
-using Vocore.GUI;
-using Vocore.Graphics;
-using Vocore.IO;
+using Alco.Engine;
+using Alco.Rendering;
+using Alco;
+using Alco.GUI;
+using Alco.Graphics;
+using Alco.IO;
 
 using SandboxUtils;
 
@@ -13,46 +13,79 @@ public class Game : GameEngine
     private readonly MaterialRenderer _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
-    private readonly Material _terrainMaterial;
-    private TileSet<int> _tileSet;
-    private readonly TiledTerrainBlock2D<int> _terrainBlock;
+
+    private readonly Material _surfaceMaterial;
+    private readonly Material _cliffMaterial;
+    private readonly Material _waterMaterial;
+    private SurfaceTileSet<int> _surfaceTileSet;
+    private SurfaceTileSet<int> _cliffTileSet;
+    private WaterTileSet<int> _waterTileSet;
+    private readonly SurfaceTileBlock2D<int> _surfaceBlock;
+    private readonly SurfaceTileBlock2D<int> _cliffBlock;
+    private readonly WaterTileBlock2D<int> _waterBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
-    private ColorFloat _color = new ColorFloat(0.47f, 0.62f, 0.34f, 1);
-    private float _meshScale = 2f;
-    private float _uvScale = 1f;
+    private ColorFloat _color = new ColorFloat(1, 1, 1, 1);
 
-    private uint _selectedTileId = 0;
+    private float _blendFactor = 0.35f;
+    private float _edgeSmoothFactor = 0.15f;
 
+    private uint _surfaceTileId = 1;
+    private uint _waterTileId = 0;
+
+    private float _hight = 0.2f;
     private float _brushSize = 1;
     private Material _brushMaterial;
     private Transform3D _brushTransform;
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
+    private Color32 _waterColor = new Color32(122, 176, 200, 100);
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        _tileSet = BuildTileSet();
-
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
-        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 1000);
+        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateMaterialRenderer();
 
-        _terrainMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TiledTerrain);
-        _terrainMaterial.SetBuffer("_camera", _camera);
-        _terrainMaterial.BlendState = BlendState.AlphaBlend;
-        _terrainBlock = Rendering.CreateTiledTerrainBlock2D(_tileSet, _terrainMaterial, 31, 31);
+        _surfaceTileSet = BuildSurfaceTileSet();
+        _surfaceTileSet.SetAllTileColor(_color);
+        _cliffTileSet = BuildCliffTileSet();
+        _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
+        _waterTileSet = BuildWaterTileSet();
+        _waterTileSet.SetAllTileColor(_waterColor);
 
-        _terrainBlock.SetTilesId(1);
-        _terrainBlock.SetTilesColor(_color);
+        _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
+        _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+        _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
+       
+        _cliffMaterial = _surfaceMaterial.CreateInstance();
+
+        _waterMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWater);
+        _waterMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _waterMaterial.BlendState = BlendState.AlphaBlend;
+        _waterMaterial.DepthStencilState = DepthStencilState.Read;
+
+        _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
+        _surfaceBlock.SetAllTilesIds(1);
+
+        _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
+        _cliffBlock.SetAllTilesIds(1);
+        _cliffBlock.IsCliff = true;
+
+        _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, 64, 64);
+        _waterBlock.SetAllTilesIds(1);
+        _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
+        _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-        _brushMaterial.SetBuffer("_camera", _camera);
-        _brushMaterial.SetTexture("_texture", Rendering.TextureWhite);
+        _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _brushMaterial.SetTexture(ShaderResourceId.Texture, Rendering.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         _brushTransform = new Transform3D();
@@ -81,27 +114,70 @@ public class Game : GameEngine
     {
         DebugGUI.Text(FrameRate);
         bool isDebugClicked = false;
-        if (DebugGUI.SliderWithText("Mesh Scale", ref _meshScale, 0.5f, 2))
-        {
-            _tileSet.SetMeshScale(1, new Vector2(_meshScale, _meshScale));
-            isDebugClicked = true;
-        }
-
-        if (DebugGUI.SliderWithText("UV Scale", ref _uvScale, 0.5f, 2))
-        {
-            _tileSet.SetUVScale(1, new Vector2(_uvScale, _uvScale));
-            isDebugClicked = true;
-        }
-
         if (DebugGUI.SliderWithText("Brush Size", ref _brushSize, 0.1f, 5f))
         {
             UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Selected Tile", ref _selectedTileId, 0, (uint)_tileSet.Count - 1))
+        if (DebugGUI.SliderWithText("Selected Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.Count - 1))
         {
             isDebugClicked = true;
+        }
+
+        if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
+        {
+            isDebugClicked = true;
+            for (int i = 0; i < _surfaceTileSet.Count; i++)
+            {
+                _surfaceTileSet.SetTileBlendFactor(i, _blendFactor);
+            }
+        }
+
+        if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
+        {
+            isDebugClicked = true;
+        }
+
+        if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
+        {
+            isDebugClicked = true;
+            for (int i = 0; i < _surfaceTileSet.Count; i++)
+            {
+                _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
+            }
+        }
+
+        uint r = _waterColor.R;
+        uint g = _waterColor.G;
+        uint b = _waterColor.B;
+        uint a = _waterColor.A;
+        if (DebugGUI.SliderWithText("Water Color R", ref r, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.R = (byte)r;
+            _waterTileSet.SetAllTileColor(_waterColor);
+        }
+
+        if (DebugGUI.SliderWithText("Water Color G", ref g, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.G = (byte)g;
+            _waterTileSet.SetAllTileColor(_waterColor);
+        }
+
+        if (DebugGUI.SliderWithText("Water Color B", ref b, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.B = (byte)b;
+            _waterTileSet.SetAllTileColor(_waterColor);
+        }
+
+        if (DebugGUI.SliderWithText("Water Color A", ref a, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.A = (byte)a;
+            _waterTileSet.SetAllTileColor(_waterColor);
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -132,24 +208,44 @@ public class Game : GameEngine
 
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
-        _terrainBlock.Render(_renderer);
+        _surfaceBlock.OnRender(_renderer);
+        _cliffBlock.OnRender(_renderer);
+        _waterBlock.OnRender(_renderer);
 
-        if (_terrainBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+
+        if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
-            DebugGUI.Text($"Tile Position: {tilePosition}");
-            Vector2 tileLocalPosition = _terrainBlock.TilePositionToLocalPosition(tilePosition);
-            DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
+            //DebugGUI.Text($"Tile Position: {tilePosition}");
+            Vector2 tileLocalPosition = _surfaceBlock.TilePositionToLocalPosition(tilePosition);
+            //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
+
 
             for (int i = 0; i < _brushCells.Count; i++)
             {
+                if (isDebugClicked)
+                {
+                    continue;
+                }
                 int2 pos = _brushCells[i];
-                _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y, 0);
-                Transform3D tmp = math.transform(_terrainBlock.Transform, _brushTransform);
+                if (!_surfaceBlock.TryGetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y, out float height))
+                {
+                    continue;
+                }
+                _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y + height, 0);
+                Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);
-                if(Input.IsMousePressing(Mouse.Left) && !isDebugClicked)
+
+
+                if (Input.IsMousePressing(Mouse.Left))
                 {
-                    _terrainBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
+                    _surfaceBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    _cliffBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                }
+                else if (Input.IsMousePressing(Mouse.Right))
+                {
+                    _surfaceBlock.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _cliffBlock.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
                 }
             }
         }
@@ -158,24 +254,75 @@ public class Game : GameEngine
 
     private void OnHotReload(string filename, object cachedAsset)
     {
-        if (_tileSet.Atlas[filename] != null)
+        if (_surfaceTileSet.Atlas.TryGetSprite(filename, out Sprite? sprite))
         {
-            _tileSet = BuildTileSet();
+            _surfaceTileSet = BuildSurfaceTileSet();
+            _surfaceBlock.UnsafeSetTileSet(_surfaceTileSet);
         }
     }
 
-    private TileSet<int> BuildTileSet()
+    private SurfaceTileSet<int> BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
-        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Sand.png");
+        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Dirt.png");
 
         Task.WaitAll(grid, grass, sand);
 
-        TileSetParams<int> tileSetParams = new();
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One);
-        tileSetParams.Add(grass.Result, 1, new Vector2(_meshScale, _meshScale), new Vector2(_uvScale, _uvScale));
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One);
-        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+        SurfaceTileSetParams<int> tileSetParams = new();
+        tileSetParams.Add(grid.Result, 0, new SurfaceTileData()
+        {
+            BlendPriority = 0,
+        });
+        tileSetParams.Add(grass.Result, 1, new SurfaceTileData()
+        {
+            BlendPriority = 1
+        });
+        tileSetParams.Add(sand.Result, 2, new SurfaceTileData()
+        {
+            BlendPriority = 2
+        });
+        return Rendering.CreateSurfaceTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+    }
+
+    private SurfaceTileSet<int> BuildCliffTileSet()
+    {
+        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/GrassCliff.png");
+        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/DirtCliff.png");
+
+        Task.WaitAll(grid, grass, sand);
+
+        SurfaceTileSetParams<int> tileSetParams = new();
+
+        tileSetParams.Add(grid.Result, 0, new SurfaceTileData()
+        {
+            BlendPriority = 0
+        });
+        tileSetParams.Add(grass.Result, 1, new SurfaceTileData()
+        {
+            BlendPriority = 1
+        });
+        tileSetParams.Add(sand.Result, 2, new SurfaceTileData()
+        {
+            BlendPriority = 2
+        });
+        return Rendering.CreateSurfaceTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+    }
+
+    private WaterTileSet<int> BuildWaterTileSet()
+    {
+        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task.WaitAll(grid);
+        WaterTileSetParams<int> tileSetParams = new();
+        tileSetParams.Add(grid.Result, 0, new WaterTileData()
+        {
+            BlendPriority = 0
+        });
+        tileSetParams.Add(Rendering.TextureWhite, 0, new WaterTileData()
+        {
+            BlendPriority = 0
+        });
+        return Rendering.CreateWaterTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }

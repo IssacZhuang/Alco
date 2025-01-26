@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Alco.Engine</RootNamespace>
+    <AssemblyName>Alco.Engine</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishSingleFile>false</PublishSingleFile>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Alco\Alco.csproj" />
+    <ProjectReference Include="..\Alco.Audio\Alco.Audio.csproj" />
+    <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />
+    <ProjectReference Include="..\Alco.Rendering\Alco.Rendering.csproj" />
+    <ProjectReference Include="..\Alco.GUI\Alco.GUI.csproj" />
+    <ProjectReference Include="..\Alco.IO\Alco.IO.csproj" />
+    <InternalsVisibleTo Include="$(AssemblyName).Test" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)Assets\**\*.*">
+      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>False</Visible>
+    </Content>
+  </ItemGroup>
+</Project>

@@ -1,6 +1,6 @@
-﻿using Vocore;
-using Vocore.Engine;
-using Vocore.Graphics;
+﻿using Alco;
+using Alco.Engine;
+using Alco.Graphics;
 
 GameEngineSetting setting = new GameEngineSetting
 {
@@ -9,8 +9,7 @@ GameEngineSetting setting = new GameEngineSetting
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
     }
-}.With<PluginDefaultAssets>().
-With<PluginSDR>();
+}.With<PluginDefaultAssets>();
 
 using (Game game = new Game(setting))
 {
