@@ -40,10 +40,11 @@ public abstract class GPUDevice
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;
-        IGPUDeviceHost loopProvider = descriptor.LoopProvider;
-        loopProvider.OnEndFrame += OnEndFrame;
-        loopProvider.OnDispose += Dispose;
-        _host = loopProvider;
+        IGPUDeviceHost host = descriptor.Host;
+
+        _host = host;
+        host.OnEndFrame += OnEndFrame;
+        host.OnDispose += Dispose;
     }
 
     // Default samplers, those are the most common samplers used in the graphics pipeline.
@@ -685,5 +686,7 @@ public abstract class GPUDevice
         DisposeCore();
 
         _host.LogInfo("GPU device closed");
+        _host.OnDispose -= Dispose;
+        _host.OnEndFrame -= OnEndFrame;
     }
 }

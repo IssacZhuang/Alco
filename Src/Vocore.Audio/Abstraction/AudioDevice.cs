@@ -42,5 +42,6 @@ public abstract class AudioDevice
     private void Dispose()
     {
         Dispose(true);
+        _host.OnDispose -= Dispose;
     }
 }

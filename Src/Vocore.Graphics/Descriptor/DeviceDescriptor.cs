@@ -17,7 +17,7 @@ public struct DeviceDescriptor
         string name = "Vocore Graphics Device"
     )
     {
-        LoopProvider = loopProvider;
+        Host = loopProvider;
         Debug = debug;
         Backend = backend;
         PushConstantsSize = pushConstantsSize;
@@ -29,7 +29,7 @@ public struct DeviceDescriptor
     /// The loop provider of the GPU
     /// </summary>
     /// <value>The loop provider of the GPU</value>
-    public IGPUDeviceHost LoopProvider { get; init; }
+    public IGPUDeviceHost Host { get; init; }
 
     /// <summary>
     /// The backend of the GPU

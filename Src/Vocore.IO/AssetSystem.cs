@@ -73,6 +73,8 @@ namespace Vocore.IO
             Profiler.Dispose();
 
             _host.LogInfo("Asset system closed");
+            _host.OnHandleAssetLoaded -= OnHandleAssetLoaded;
+            _host.OnDispose -= Dispose;
         }
 
 

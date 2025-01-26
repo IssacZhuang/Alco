@@ -53,7 +53,7 @@ internal class NoDevice : GPUDevice
     public override PixelFormat PrefferedSurfaceFomat {get;}
 
     public NoDevice(): base(new DeviceDescriptor{
-        LoopProvider = new DummyLoopProvider(),
+        Host = new DummyLoopProvider(),
         Backend = GraphicsBackend.None,
         Debug = false,
         PreferredSurfaceFormat = PixelFormat.RGBA8Unorm,
