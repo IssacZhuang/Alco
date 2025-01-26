@@ -57,6 +57,17 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public abstract void OnRender(MaterialRenderer renderer);
 
+    public bool TryGetTileId(int x, int y, out uint tileId)
+    {
+        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        {
+            tileId = 0;
+            return false;
+        }
+        tileId = _tileIdData[GetTileIndex(x, y)];
+        return true;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySetTileId(int x, int y, uint tileId)
     {
@@ -71,6 +82,9 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public void SetTilesId(int2 from, int2 to, uint tileId)
     {
+        //clamp
+        from = clamp(from, new int2(0, 0), _size - new int2(1, 1));
+        to = clamp(to, new int2(0, 0), _size - new int2(1, 1));
         for (int i = from.x; i < to.x; i++)
         {
             for (int j = from.y; j < to.y; j++)
@@ -81,7 +95,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _isTileIdDirty = true;
     }
 
-    public void SetTilesId(uint tileId)
+    public void SetAllTilesIds(uint tileId)
     {
         for (int i = 0; i < _length; i++)
         {
@@ -90,14 +104,15 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _isTileIdDirty = true;
     }
 
-    public uint GetTileId(int x, int y)
+    public bool TryGetTileUserData(int x, int y, out TUserData userData)
     {
-        return _tileIdData[GetTileIndex(x, y)];
-    }
-
-    public TUserData GetTileUserData(int x, int y)
-    {
-        return _tileSet.GetUserData(GetTileId(x, y));
+        if (!TryGetTileId(x, y, out uint tileId))
+        {
+            userData = default!;
+            return false;
+        }
+        userData = _tileSet.GetUserData(tileId);
+        return true;
     }
 
 
@@ -108,6 +123,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// <param name="tileSet">The new tile set</param>
     public void SetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
     {
+        ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
         //clear tile id data
@@ -125,6 +141,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// <param name="tileSet">The new tile set</param>
     public void UnsafeSetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
     {
+        ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
     }

@@ -84,13 +84,15 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
     }
 
-    public float GetTileHeight(int x, int y)
+    public bool TryGetTileHeight(int x, int y, out float height)
     {
         if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
         {
-            return 0;
+            height = 0;
+            return false;
         }
-        return _heightData[GetTileIndex(x, y)];
+        height = _heightData[GetTileIndex(x, y)];
+        return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -72,14 +72,14 @@ public class Game : GameEngine
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
         _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
-        _surfaceBlock.SetTilesId(1);
+        _surfaceBlock.SetAllTilesIds(1);
 
         _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
-        _cliffBlock.SetTilesId(1);
+        _cliffBlock.SetAllTilesIds(1);
         _cliffBlock.IsCliff = true;
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, 64, 64);
-        _waterBlock.SetTilesId(1);
+        _waterBlock.SetAllTilesIds(1);
         _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
         _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
@@ -227,7 +227,10 @@ public class Game : GameEngine
                     continue;
                 }
                 int2 pos = _brushCells[i];
-                float height = _surfaceBlock.GetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y);
+                if (!_surfaceBlock.TryGetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y, out float height))
+                {
+                    continue;
+                }
                 _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;

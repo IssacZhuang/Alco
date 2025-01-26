@@ -108,10 +108,6 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
         return _spriteData[(int)index].UserData;
     }
 
-
-    
-
-
     protected override void Dispose(bool disposing)
     {
         if (disposing)
