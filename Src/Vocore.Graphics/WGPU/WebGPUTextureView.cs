@@ -58,7 +58,7 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
                 mipLevelCount = descriptor.MipLevelCount,
                 baseArrayLayer = descriptor.BaseArrayLayer,
                 arrayLayerCount = descriptor.ArrayLayerCount,
-                aspect = WGPUTextureAspect.All,
+                aspect = UtilsWebGPU.TextureAspectToWebGPU(descriptor.Aspect),
             };
             _native = wgpuTextureCreateView(_texture.Native, &viewDescriptor);
         }

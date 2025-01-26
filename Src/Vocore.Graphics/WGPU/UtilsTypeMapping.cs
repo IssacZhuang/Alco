@@ -360,6 +360,16 @@ internal static partial class UtilsWebGPU
     public static readonly Func<FilterMode, WGPUMipmapFilterMode> MipmapFilterModeToWebGPU;
     public static readonly Func<WGPUMipmapFilterMode, FilterMode> MipmapFilterModeToAbstract;
 
+    private static readonly Tuple<TextureAspect, WGPUTextureAspect>[] TextureAspectCast = new Tuple<TextureAspect, WGPUTextureAspect>[]
+    {
+        new(TextureAspect.All, WGPUTextureAspect.All),
+        new(TextureAspect.StencilOnly, WGPUTextureAspect.StencilOnly),
+        new(TextureAspect.DepthOnly, WGPUTextureAspect.DepthOnly),
+    };
+
+    public static readonly Func<TextureAspect, WGPUTextureAspect> TextureAspectToWebGPU;
+    public static readonly Func<WGPUTextureAspect, TextureAspect> TextureAspectToAbstract;
+
     static UtilsWebGPU()
     {
         BackendToWebGPU = UtilsCast.GenerateCastFunc(BackendCast);
@@ -379,5 +389,6 @@ internal static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(AddressModeCast, out AddressModeToWebGPU, out AddressModeToAbstract);
         UtilsCast.GenerateCastFunc(FilterModeCast, out FilterModeToWebGPU, out FilterModeToAbstract);
         UtilsCast.GenerateCastFunc(MipmapFilterModeCast, out MipmapFilterModeToWebGPU, out MipmapFilterModeToAbstract);
+        UtilsCast.GenerateCastFunc(TextureAspectCast, out TextureAspectToWebGPU, out TextureAspectToAbstract);
     }
 }
