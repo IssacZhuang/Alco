@@ -3,8 +3,10 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Vocore;
 
+namespace Vocore.Rendering;
+
 [StructLayout(LayoutKind.Sequential)]
-public struct SurfaceTileData
+public struct SurfaceTileData : ITileData
 {
     public SurfaceTileData()
     {
@@ -37,4 +39,9 @@ public struct SurfaceTileData
     /// </summary>
     public float EdgeSmoothFactor;
     public Vector3 _reserved;//for memory alignment
+
+    public void SetUVRect(Rect rect)
+    {
+        UVRect = rect;
+    }
 }

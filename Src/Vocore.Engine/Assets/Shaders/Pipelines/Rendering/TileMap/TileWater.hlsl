@@ -22,12 +22,8 @@ struct Constants{
 struct TileData {
     float4 uvRect;
     float4 color;
-    float2 meshScale;
-    float2 uvScale;
-    float2 heightOffsetFactor;
     float blendPriority;
     float blendFactor;
-    float edgeSmoothFactor;
 };
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
@@ -44,7 +40,7 @@ PUSH_CONSTANT Constants constants;
 float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
 {
     TileData data = _tileData[tileId];
-    float2 uv = frac(vertexUV * data.uvScale);
+    float2 uv = frac(vertexUV);
     uv = uv * data.uvRect.zw + data.uvRect.xy;
     blendPriority = data.blendPriority;
     return SAMPLE_TEX2D(_texture, uv) * data.color;
@@ -61,7 +57,7 @@ V2F VertexMain(Vertex input)
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
-    float3 pos = input.position * float3(data.meshScale, 0);
+    float3 pos = input.position;
 
 #if defined(IS_CLIFF)
     offsetY += 1;
@@ -100,7 +96,6 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     TileData data = _tileData[input.instanceId];
     float blendFactor = data.blendFactor;
-    float edgeSmoothFactor = data.edgeSmoothFactor;
 
     [unroll]
     for (int i = 0; i < 9; i++)
@@ -115,7 +110,6 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     // Pre-calculate reciprocals
     float invBlendFactor = 1.0 / blendFactor;
-    float invEdgeSmoothFactor = 1.0 / edgeSmoothFactor;
 
     // Define blend weights for each neighbor
     float2 uv = input.uv;

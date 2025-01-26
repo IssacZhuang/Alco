@@ -5,109 +5,11 @@ using Vocore.Graphics;
 
 namespace Vocore.Rendering;
 
-public class SurfaceTileSet<TUserData> : AutoDisposable
+public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUserData>
 {
-    private struct SpriteData
+    public SurfaceTileSet(RenderingSystem renderingSystem, SurfaceTileSetParams<TUserData> @params, Material material, GPUSampler sampler, string name) : base(renderingSystem, @params, material, sampler, name)
     {
-        public Sprite Sprite;
-        public TUserData UserData;
     }
-
-
-    private readonly RenderingSystem _renderingSystem;
-    private readonly List<SpriteData> _spriteData;
-    private readonly GraphicsArrayBuffer<SurfaceTileData> _tileData;
-
-    private readonly TextureAtlas _atlas;
-
-    public int Count
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _spriteData.Count;
-    }
-
-    public GraphicsArrayBuffer<SurfaceTileData> TileDataBuffer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _tileData;
-    }
-
-    public TextureAtlas Atlas
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _atlas;
-    }
-
-    public RenderTexture AtlasTexture
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _atlas.RenderTexture;
-    }
-
-    internal SurfaceTileSet(
-        RenderingSystem renderingSystem,
-        SurfaceTileSetParams<TUserData> @params,
-        Material material,
-        GPUSampler sampler,
-        string name)
-    {
-        ArgumentNullException.ThrowIfNull(material);
-
-        _renderingSystem = renderingSystem;
-        int tileCount = @params.Count;
-        _tileData = renderingSystem.CreateGraphicsArrayBuffer<SurfaceTileData>(tileCount, name + "_sprite_data");
-
-        Dictionary<Texture2D, int> textureToAtlasIndex = new();
-        List<Texture2D> uniqueTextures = new();
-
-        for (int i = 0; i < tileCount; i++)
-        {
-            @params.Get(i, out Texture2D texture, out TUserData _, out SurfaceTileData _);
-            if (!textureToAtlasIndex.ContainsKey(texture))
-            {
-                textureToAtlasIndex[texture] = uniqueTextures.Count;
-                uniqueTextures.Add(texture);
-            }
-        }
-
-        using TextureAtlasPacker packer = renderingSystem.CreateTextureAtlasPacker(material, 32, 32);
-        foreach (var texture in uniqueTextures)
-        {
-            packer.AddTexture(texture.Name, texture);
-        }
-        _atlas = packer.BuildTextureAtlas(sampler);
-
-        _spriteData = new List<SpriteData>(tileCount);
-        for (int i = 0; i < tileCount; i++)
-        {
-            @params.Get(i, out Texture2D texture, out TUserData userData, out SurfaceTileData tileData);
-            int atlasIndex = textureToAtlasIndex[texture];
-            Sprite sprite = _atlas[atlasIndex];
-
-            _spriteData.Add(new SpriteData
-            {
-                Sprite = sprite,
-                UserData = userData
-            });
-
-            tileData.UVRect = sprite.UVRect;
-            _tileData[i] = tileData;
-        }
-
-        _tileData.UpdateBuffer();
-
-    }
-
-    public TUserData GetUserData(int index)
-    {
-        return _spriteData[index].UserData;
-    }
-
-    public TUserData GetUserData(uint index)
-    {
-        return _spriteData[(int)index].UserData;
-    }
-
 
     public void SetTileColor(int index, Vector4 color)
     {
@@ -172,14 +74,5 @@ public class SurfaceTileSet<TUserData> : AutoDisposable
         tileData.EdgeSmoothFactor = edgeSmoothFactor;
         _tileData[index] = tileData;
         _tileData.UpdateBufferRanged((uint)index, 1);
-    }
-
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _tileData.Dispose();
-        }
     }
 }

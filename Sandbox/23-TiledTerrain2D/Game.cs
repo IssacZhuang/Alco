@@ -19,10 +19,10 @@ public class Game : GameEngine
     private readonly Material _waterMaterial;
     private SurfaceTileSet<int> _surfaceTileSet;
     private SurfaceTileSet<int> _cliffTileSet;
-    private SurfaceTileSet<int> _waterTileSet;
+    private WaterTileSet<int> _waterTileSet;
     private readonly SurfaceTileBlock2D<int> _surfaceBlock;
     private readonly SurfaceTileBlock2D<int> _cliffBlock;
-    private readonly SurfaceTileBlock2D<int> _waterBlock;
+    private readonly WaterTileBlock2D<int> _waterBlock;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -70,14 +70,14 @@ public class Game : GameEngine
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
-        _surfaceBlock = Rendering.CreateTiledTerrainBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
+        _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
         _surfaceBlock.SetTilesId(1);
 
-        _cliffBlock = Rendering.CreateTiledTerrainBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
+        _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
         _cliffBlock.SetTilesId(1);
         _cliffBlock.IsCliff = true;
 
-        _waterBlock = Rendering.CreateTiledTerrainBlock2D(_waterTileSet, _waterMaterial, 64, 64);
+        _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, 64, 64);
         _waterBlock.SetTilesId(1);
         _waterBlock.Transform.position = new Vector3(0, -0.05f, -0.05f);
 
@@ -174,9 +174,9 @@ public class Game : GameEngine
 
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
-        _surfaceBlock.Render(_renderer);
-        _cliffBlock.Render(_renderer);
-        _waterBlock.Render(_renderer);
+        _surfaceBlock.OnRender(_renderer);
+        _cliffBlock.OnRender(_renderer);
+        _waterBlock.OnRender(_renderer);
 
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
@@ -245,7 +245,7 @@ public class Game : GameEngine
         {
             BlendPriority = 2
         });
-        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+        return Rendering.CreateSurfaceTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 
     private SurfaceTileSet<int> BuildCliffTileSet()
@@ -270,22 +270,22 @@ public class Game : GameEngine
         {
             BlendPriority = 2
         });
-        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+        return Rendering.CreateSurfaceTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 
-    private SurfaceTileSet<int> BuildWaterTileSet()
+    private WaterTileSet<int> BuildWaterTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task.WaitAll(grid);
-        SurfaceTileSetParams<int> tileSetParams = new();
-        tileSetParams.Add(grid.Result, 0, new SurfaceTileData()
+        WaterTileSetParams<int> tileSetParams = new();
+        tileSetParams.Add(grid.Result, 0, new WaterTileData()
         {
             BlendPriority = 0
         });
-        tileSetParams.Add(Rendering.TextureWhite, 0, new SurfaceTileData()
+        tileSetParams.Add(Rendering.TextureWhite, 0, new WaterTileData()
         {
             BlendPriority = 0
         });
-        return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
+        return Rendering.CreateWaterTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }
