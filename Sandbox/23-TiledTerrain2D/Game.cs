@@ -52,8 +52,11 @@ public class Game : GameEngine
         _renderer = Rendering.CreateMaterialRenderer();
 
         _surfaceTileSet = BuildSurfaceTileSet();
+        _surfaceTileSet.SetAllTileColor(_color);
         _cliffTileSet = BuildCliffTileSet();
+        _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
         _waterTileSet = BuildWaterTileSet();
+        _waterTileSet.SetAllTileColor(new Color32(55, 176, 229, 120));
 
         _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
         _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -69,16 +72,13 @@ public class Game : GameEngine
 
         _surfaceBlock = Rendering.CreateTiledTerrainBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
         _surfaceBlock.SetTilesId(1);
-        _surfaceBlock.SetTilesColor(_color);
 
         _cliffBlock = Rendering.CreateTiledTerrainBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
         _cliffBlock.SetTilesId(1);
-        _cliffBlock.SetTilesColor(new ColorFloat(0.9f, 0.9f, 0.9f, 1f));
         _cliffBlock.IsCliff = true;
 
         _waterBlock = Rendering.CreateTiledTerrainBlock2D(_waterTileSet, _waterMaterial, 64, 64);
         _waterBlock.SetTilesId(1);
-        _waterBlock.SetTilesColor(new Color32(55, 176, 229, 120));
         _waterBlock.Transform.position = new Vector3(0, -0.05f, -0.05f);
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
@@ -128,9 +128,7 @@ public class Game : GameEngine
             isDebugClicked = true;
             for (int i = 0; i < _surfaceTileSet.Count; i++)
             {
-                SurfaceTileData tileData = _surfaceTileSet.GetTileData(i);
-                tileData.BlendFactor = _blendFactor;
-                _surfaceTileSet.SetTileData(i, tileData);
+                _surfaceTileSet.SetTileBlendFactor(i, _blendFactor);
             }
         }
 
@@ -144,9 +142,7 @@ public class Game : GameEngine
             isDebugClicked = true;
             for (int i = 0; i < _surfaceTileSet.Count; i++)
             {
-                SurfaceTileData tileData = _surfaceTileSet.GetTileData(i);
-                tileData.EdgeSmoothFactor = _edgeSmoothFactor;
-                _surfaceTileSet.SetTileData(i, tileData);
+                _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
             }
         }
 

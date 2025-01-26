@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -73,5 +74,10 @@ public struct Color32
     public static implicit operator ColorFloat(Color32 color)
     {
         return new ColorFloat(color.R * Inv255, color.G * Inv255, color.B * Inv255, color.A * Inv255);
+    }
+
+    public static implicit operator Vector4(Color32 color)
+    {
+        return new Vector4(color.R * Inv255, color.G * Inv255, color.B * Inv255, color.A * Inv255);
     }
 }

@@ -8,7 +8,6 @@ struct Vertex {
 
 struct V2F {
   float4 position : SV_POSITION;
-  float4 color : COLOR;
   float2 uv : TEXCOORD0;
   uint instanceId : TEXCOORD1;
 };
@@ -20,6 +19,7 @@ struct Constants{
 
 struct TileData{
     float4 uvRect;
+    float4 color;
     float2 meshScale;
     float2 uvScale;
     float2 heightOffsetFactor;
@@ -35,11 +35,9 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 
 DEFINE_STORAGE(2, TileData, _tileData);
 
-DEFINE_STORAGE(3, float4, _colorData);
+DEFINE_STORAGE(3, uint, _tileIdData);
 
-DEFINE_STORAGE(4, uint, _tileIdData);
-
-DEFINE_STORAGE(5, float, _heightData);
+DEFINE_STORAGE(4, float, _heightData);
 
 
 PUSH_CONSTANT Constants constants;
@@ -50,14 +48,13 @@ float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
     float2 uv = frac(vertexUV * data.uvScale);
     uv = uv * data.uvRect.zw + data.uvRect.xy;
     blendPriority = data.blendPriority;
-    return SAMPLE_TEX2D(_texture, uv);
+    return SAMPLE_TEX2D(_texture, uv) * data.color;
 }
 
 //used for standard sprite quad mesh
 [shader("vertex")]
 V2F VertexMain(Vertex input)
 {
-    float4 color = _colorData[input.instanceId];
     uint tileId = _tileIdData[input.instanceId];
     TileData data = _tileData[tileId];
 
@@ -80,7 +77,6 @@ V2F VertexMain(Vertex input)
     position = mul(viewProjection, position);
     output.position = position;
 
-    output.color = color;
     output.uv = input.uv;
     output.instanceId = input.instanceId;
 
@@ -115,7 +111,7 @@ float4 PixelMain(V2F input) : SV_TARGET
     {
         int neighborIndex = input.instanceId + offsets[i].x + offsets[i].y * constants.size.x;
         uint tileId = _tileIdData[neighborIndex];
-        colors[i] = SampleTile(tileId, input.uv, priorities[i]) * input.color;
+        colors[i] = SampleTile(tileId, input.uv, priorities[i]);
         heights[i] = _heightData[neighborIndex];
     }
 

@@ -27,13 +27,11 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
     private readonly uint _length;
     private readonly int2 _size;
     private SurfaceTileSet<TUserData> _tileSet;
-    private readonly GraphicsArrayBuffer<ColorFloat> _colorData;
     private readonly GraphicsArrayBuffer<uint> _tileIdData;
     private readonly GraphicsArrayBuffer<float> _heightData;
     private readonly Material _material;
     private readonly Mesh _mesh;
     private bool _isTileIdDirty;
-    private bool _isColorDirty;
     private bool _isHeightDirty;
     
     private bool _isCliff;
@@ -70,30 +68,23 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
         )
     {
         _tileSet = tileSet;
-        _colorData = renderingSystem.CreateGraphicsArrayBuffer<ColorFloat>(width * height, name + "_color_data");
+    
         _tileIdData = renderingSystem.CreateGraphicsArrayBuffer<uint>(width * height, name + "_sprite_index_data");
         _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, 0, name + "_height_data");
         _material = material.CreateInstance();
         _mesh = renderingSystem.MeshSprite;
 
-        for (int i = 0; i < _colorData.Length; i++)
-        {
-            _colorData[i] = ColorFloat.White;
-        }
 
         for (int i = 0; i < _tileIdData.Length; i++)
         {
             _tileIdData[i] = 0;
         }
 
-        _colorData.UpdateBuffer();
         _tileIdData.UpdateBuffer();
 
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
-        _material.TrySetBuffer(ShaderResourceId.ColorData, _colorData);
         _material.TrySetBuffer(ShaderResourceId.TileIdData, _tileIdData);
         _material.TrySetBuffer(ShaderResourceId.TileData, _tileSet.TileDataBuffer);
-        //_material.TrySetBuffer(ShaderResourceId.TileSetData, _tileSet.TileSetDataBuffer);
         _material.TrySetBuffer(ShaderResourceId.HeightData, _heightData);
 
 
@@ -111,12 +102,6 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
             _isTileIdDirty = false;
         }
 
-        if (_isColorDirty)
-        {
-            _colorData.UpdateBuffer();
-            _isColorDirty = false;
-        }
-
         if (_isHeightDirty)
         {
             _heightData.UpdateBuffer();
@@ -126,33 +111,6 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
     }
 
-    public void SetTilesColor(ColorFloat color)
-    {
-        for (int i = 0; i < _length; i++)
-        {
-            _colorData[i] = color;
-        }
-        _isColorDirty = true;
-    }
-
-    public void SetTilesColor(int2 from, int2 to, ColorFloat color)
-    {
-        for (int i = from.x; i < to.x; i++)
-        {
-            for (int j = from.y; j < to.y; j++)
-            {
-                SetTileColor(i, j, color);
-            }
-        }
-        _isColorDirty = true;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTileColor(int x, int y, ColorFloat color)
-    {
-        _colorData[GetTileIndex(x, y)] = color;
-        _isColorDirty = true;
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetTileHeight(int x, int y, float height)
@@ -280,7 +238,6 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
     {
         if (disposing)
         {
-            _colorData.Dispose();
             _tileIdData.Dispose();
         }
     }

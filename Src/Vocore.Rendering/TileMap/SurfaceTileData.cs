@@ -17,6 +17,7 @@ public struct SurfaceTileData
         EdgeSmoothFactor = 0.15f;
     }
     public Rect UVRect;
+    public Vector4 Color;
     public Vector2 MeshScale;
     public Vector2 UVScale;
     /// <summary>
