@@ -21,7 +21,7 @@ public static class Utils
 
     public static string GetBuiltInAssetsPath()
     {
-        return Path.Combine(GetSolutionFolder(), "Src", "Vocore.Engine", "Assets");
+        return Path.Combine(GetSolutionFolder(), "Src", "Alco.Engine", "Assets");
     }
 
     public static string GetProjectPath([CallerFilePath] string? path = null)

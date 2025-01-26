@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseAssetsPack>false</UseAssetsPack>
+    <DefineConstants>STBSHARP_INTERNAL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Alco\Alco.csproj" />
+    <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />
+    <ProjectReference Include="..\Alco.ShaderCompiler\Alco.ShaderCompiler.csproj" />
+  </ItemGroup>
+   <ItemGroup>
+    <Content
+      Condition="'$(UseAssetsPack)' == 'false'"
+      Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
+      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

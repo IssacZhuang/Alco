@@ -2,13 +2,13 @@
 
 using System.Buffers;
 using System.Numerics;
-using Vocore;
-using Vocore.Engine;
-using Vocore.Graphics;
-using Vocore.GUI;
-using Vocore.Rendering;
+using Alco;
+using Alco.Engine;
+using Alco.Graphics;
+using Alco.GUI;
+using Alco.Rendering;
 
-using Random = Vocore.Random;
+using Random = Alco.Random;
 
 public class DropletSystem : IDisposable
 {

@@ -11,13 +11,13 @@ public class FileBuiltInAsset
     private static readonly string GenFileContentBegin = @"
 // Auto generated code
 using System;
-using Vocore.IO;
-using Vocore.GUI;
-using Vocore.Audio;
-using Vocore.Graphics;
-using Vocore.Rendering;
+using Alco.IO;
+using Alco.GUI;
+using Alco.Audio;
+using Alco.Graphics;
+using Alco.Rendering;
 
-namespace Vocore.Engine;
+namespace Alco.Engine;
 
 public partial class BuiltInAssets
 {

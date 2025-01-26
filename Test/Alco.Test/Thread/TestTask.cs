@@ -1,0 +1,72 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+namespace Alco.Test;
+
+public class TestTask
+{
+    private class TestAddTask : ReusableTask<int>
+    {
+        public int value;
+        protected override int ExecuteCore()
+        {
+            return ++value;
+        }
+
+        public void Run()
+        {
+            RunCore();
+        }
+    }
+    private class TestErrorTask : ReusableTask
+    {
+        protected override void ExecuteCore()
+        {
+            throw new Exception("Test Error");
+        }
+
+        public void Run()
+        {
+            RunCore();
+        }
+    }
+
+    [Test(Description = "Test Task")]
+    public void TestReuseableTask()
+    {
+        TestAddTask task = new TestAddTask();
+        task.Run();
+        Assert.That(task.Result, Is.EqualTo(1));
+        task.Run();
+        Assert.That(task.Result, Is.EqualTo(2));
+        task.Run();
+        Assert.That(task.Result, Is.EqualTo(3));
+
+        for (int i = 0; i < 10000; i++)
+        {
+            task.Run();
+            task.Wait();
+        }
+
+        Assert.That(task.Result, Is.EqualTo(10003));
+
+        for (int i = 0; i < 10000; i++)
+        {
+            task.Run();
+        }
+
+        Assert.That(task.Result, Is.EqualTo(20003));
+
+        for (int i = 0; i < 10000; i++)
+        {
+            task.Wait();
+        }
+
+        Assert.That(task.Result, Is.EqualTo(20003));
+
+        TestErrorTask errorTask = new TestErrorTask();
+        errorTask.Run();
+        Assert.Catch(() => errorTask.Wait());
+    }
+}

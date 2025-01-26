@@ -1,12 +1,12 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
-using Vocore.Graphics;
-using Vocore.Engine;
-using Vocore.Rendering;
-using Vocore.ShaderCompiler;
-using Vocore;
-using Vocore.IO;
+using Alco.Graphics;
+using Alco.Engine;
+using Alco.Rendering;
+using Alco.ShaderCompiler;
+using Alco;
+using Alco.IO;
 
 public class Game : GameEngine
 {

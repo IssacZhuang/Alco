@@ -22,7 +22,7 @@ public class FileMathUint
         builder.AppendLine("using System.Numerics;");
         builder.AppendLine("using System.Runtime.CompilerServices;");
         builder.AppendLine();
-        builder.AppendLine("namespace Vocore");
+        builder.AppendLine("namespace Alco");
         builder.AppendLine("{");
 
         //class

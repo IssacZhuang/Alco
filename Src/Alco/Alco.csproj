@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Alco</RootNamespace>
+    <AssemblyName>Alco</AssemblyName>
+    <TargetFramework>net9.0</TargetFramework>
+    <PublishSingleFile>false</PublishSingleFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Alco.Test" />
+  </ItemGroup>
+</Project>

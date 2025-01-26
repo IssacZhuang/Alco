@@ -1,6 +1,6 @@
-﻿using Vocore;
-using Vocore.Engine;
-using Vocore.Graphics;
+﻿using Alco;
+using Alco.Engine;
+using Alco.Graphics;
 
 GameEngineSetting setting = new GameEngineSetting
 {

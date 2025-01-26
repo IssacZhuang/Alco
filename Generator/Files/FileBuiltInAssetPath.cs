@@ -12,7 +12,7 @@ public class FileBuiltInAssetPath
 // Auto generated code
 using System;
 
-namespace Vocore.Engine;
+namespace Alco.Engine;
 
 public static partial class BuiltInAssetsPath
 {

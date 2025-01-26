@@ -2,10 +2,10 @@ using System.Text;
 
 public class BuiltInAssetGenerator : BaseGenerator
 {
-    public override string OutputFolder => "Src/Vocore.Engine/~Generated";
+    public override string OutputFolder => "Src/Alco.Engine/~Generated";
 
     private const string AssetsFolder = "Assets";
-    private const string VocoreEngineFolder = "Src/Vocore.Engine";
+    private const string AlcoEngineFolder = "Src/Alco.Engine";
     private const string AssetPathFileName = "BuiltInAssetsPath.gen.cs";
     private const string AssetFileName = "BuiltInAssets.gen.cs";
 
@@ -14,7 +14,7 @@ public class BuiltInAssetGenerator : BaseGenerator
         ClearFolder();
 
         // Get all files in Assets folder
-        string assetsPath = Path.Combine(SolutionFolder, VocoreEngineFolder, AssetsFolder);
+        string assetsPath = Path.Combine(SolutionFolder, AlcoEngineFolder, AssetsFolder);
         if (!Directory.Exists(assetsPath))
         {
             Console.WriteLine($"Assets folder not found at {assetsPath}");
