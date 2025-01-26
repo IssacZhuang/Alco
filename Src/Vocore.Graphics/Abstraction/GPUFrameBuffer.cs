@@ -27,16 +27,29 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// <value>The list of color texture views of the frame buffer</value>
     public abstract ReadOnlySpan<GPUTextureView> ColorViews { get; }
     /// <summary>
-    /// The depth texture of the frame buffer
+    /// The depth stencil texture of the frame buffer
     /// </summary>
     /// <value>The depth texture of the frame buffer</value>
-    public abstract GPUTexture? Depth { get; }
+    public abstract GPUTexture? DepthStencil { get; }
     /// <summary>
-    /// The depth texture view of the frame buffer
-    /// <br/> Not null if the frame buffer has a depth texture
+    /// The depth stencil texture view of the frame buffer with aspect of depth and stencil. This view is usually used for depth attachment
+    /// <br/> Not null if the frame buffer has a depth stencil texture
+    /// </summary>
+    /// <value>The depth stencil texture view of the frame buffer</value>
+    public abstract GPUTextureView? DepthStencilView { get; }
+
+    /// <summary>
+    /// The depth texture view of the frame buffer with aspect of depth. This view is usually used for sampling
     /// </summary>
     /// <value>The depth texture view of the frame buffer</value>
-    public abstract GPUTextureView? DepthView { get; }
+    public abstract GPUTextureView? DepthView { get; }  
+
+    /// <summary>
+    /// The stencil texture view of the frame buffer with aspect of stencil. This view is usually used for sampling
+    /// </summary>
+    /// <value>The stencil texture view of the frame buffer</value>
+    public abstract GPUTextureView? StencilView { get; }
+
     /// <summary>
     /// The width of the frame buffer
     /// </summary>

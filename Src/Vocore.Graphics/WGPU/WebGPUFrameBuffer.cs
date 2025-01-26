@@ -13,8 +13,10 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     private readonly WebGPUTexture[] _colorTextures;
     private readonly WebGPUTextureView[] _colorViews;
-    private readonly WebGPUTexture? _depthTexture;
+    private readonly WebGPUTexture? _depthStencilTexture;
+    private readonly WebGPUTextureView? _depthStencilView;
     private readonly WebGPUTextureView? _depthView;
+    private readonly WebGPUTextureView? _stencilView;
     private readonly WebGPURenderPass _renderPass;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
@@ -42,10 +44,10 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _colorTextures;
     }
 
-    public override GPUTexture? Depth
+    public override GPUTexture? DepthStencil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthTexture;
+        get => _depthStencilTexture;
     }
 
     public override uint Width
@@ -66,10 +68,22 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _colorViews;
     }
 
+    public override GPUTextureView? DepthStencilView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthStencilView;
+    }
+
     public override GPUTextureView? DepthView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depthView;
+    }
+
+    public override GPUTextureView? StencilView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _stencilView;
     }
 
     protected override void Dispose(bool disposing)
@@ -81,14 +95,16 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 view.Dispose();
             }
 
+            _depthStencilView?.Dispose();
             _depthView?.Dispose();
+            _stencilView?.Dispose();
 
             foreach (var texture in _colorTextures)
             {
                 texture.Dispose();
             }
 
-            _depthTexture?.Dispose();
+            _depthStencilTexture?.Dispose();
         }
 
 
@@ -166,18 +182,20 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         {
             WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
 
-            _depthTexture = new WebGPUTexture(
+            _depthStencilTexture = new WebGPUTexture(
                 device,
                 BuildDepthTextureDescriptor(depthInfo.format, width, height)
                 );
 
-            _depthView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthTexture));
+            _depthStencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
+            _stencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+            _depthView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
 
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
 
             *_depthAttachment = new WGPURenderPassDepthStencilAttachment
             {
-                view = _depthView.Native,
+                view = _depthStencilView.Native,
                 depthLoadOp = WGPULoadOp.Load,
                 depthStoreOp = WGPUStoreOp.Store,
                 depthClearValue = depthInfo.clearDepth,

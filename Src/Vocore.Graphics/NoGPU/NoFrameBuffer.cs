@@ -11,15 +11,19 @@ internal class NoFrameBuffer : GPUFrameBuffer
 
     public override ReadOnlySpan<GPUTexture> Colors => NoColors; // at least one element to prevent out of range exception
 
-    public override GPUTexture? Depth { get; }
+    public override GPUTexture? DepthStencil { get; }
+
+    public override GPUTextureView? DepthStencilView { get; }
+
+    public override GPUTextureView? DepthView { get; }
+
+    public override GPUTextureView? StencilView { get; }
 
     public override uint Width { get; }
 
     public override uint Height { get; }
 
     public override ReadOnlySpan<GPUTextureView> ColorViews => NoColorViews; // at least one element to prevent out of range exception
-
-    public override GPUTextureView? DepthView { get; }
 
     public NoFrameBuffer(in FrameBufferDescriptor descriptor): base("no_gpu_frame_buffer")
     {
@@ -59,11 +63,23 @@ internal class NoFrameBuffer : GPUFrameBuffer
                 "no_gpu_frame_buffer_depth_texture"
             ));
 
-            Depth = depthTexture;
+            DepthStencil = depthTexture;
+
+            DepthStencilView = new NoTextureView(new TextureViewDescriptor(
+                depthTexture,
+                TextureViewDimension.Texture2D
+                ));
 
             DepthView = new NoTextureView(new TextureViewDescriptor(
                 depthTexture,
-                TextureViewDimension.Texture2D
+                TextureViewDimension.Texture2D,
+                aspect: TextureAspect.DepthOnly
+                ));
+
+            StencilView = new NoTextureView(new TextureViewDescriptor(
+                depthTexture,
+                TextureViewDimension.Texture2D,
+                aspect: TextureAspect.StencilOnly
                 ));
         }
     }

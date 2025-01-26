@@ -61,7 +61,7 @@ public class RenderTexture : AutoDisposable
     public bool HasDepth
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _frameBuffer.Depth != null;
+        get => _frameBuffer.DepthStencil != null;
     }
 
 
@@ -81,7 +81,7 @@ public class RenderTexture : AutoDisposable
 
             if (_groupDepthSample == null)
             {
-                _groupDepthSample = CreateGroupSample(_frameBuffer.DepthView!);
+                _groupDepthSample = CreateGroupSample(_frameBuffer.DepthStencilView!);
             }
 
             return _groupDepthSample;

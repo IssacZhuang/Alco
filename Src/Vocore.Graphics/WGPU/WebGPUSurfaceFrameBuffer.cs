@@ -15,9 +15,10 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private readonly WebGPUSurfaceTexture[] _colorTextures; // the surface texture has default view
     private readonly WebGPUTextureViewWrapper[] _colorViewsWrapper; // only one element but use list for the abstraction
     private readonly WebGPURenderPass _renderPass;
-    private WebGPUTexture? _depthTexture;
-    private WGPUTextureView _depthView = WGPUTextureView.Null;
-    private readonly WebGPUTextureViewWrapper? _depthViewWrapper;
+    private WebGPUTexture? _depthStencilTexture;
+    private WebGPUTextureView? _depthStencilView;
+    private WebGPUTextureView? _depthView;
+    private WebGPUTextureView? _stencilView;
 
     private readonly WGPUTextureFormat[] _colors;
     private readonly WGPUTextureFormat? _depth;
@@ -48,10 +49,10 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _colorTextures;
     }
 
-    public override GPUTexture? Depth
+    public override GPUTexture? DepthStencil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthTexture;
+        get => _depthStencilTexture;
     }
 
     public override uint Width
@@ -72,10 +73,22 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _colorViewsWrapper;
     }
 
+    public override GPUTextureView? DepthStencilView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _depthStencilView;
+    }
+
     public override GPUTextureView? DepthView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _depthViewWrapper;
+        get => _depthView;
+    }
+
+    public override GPUTextureView? StencilView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _stencilView;
     }
 
     protected override void Dispose(bool disposing)
@@ -86,17 +99,18 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             texture.Dispose();
         }
 
-        _depthTexture?.Dispose();
-
-        if(_depthView != WGPUTextureView.Null)
-        {
-            wgpuTextureViewRelease(_depthView);
-        }
-        
         Free(_colorAttachments);
         if (_depthAttachment != null)
         {
             Free(_depthAttachment);
+        }
+
+        if (disposing)
+        {
+            _depthStencilTexture?.Dispose();
+            _depthStencilView?.Dispose();
+            _depthView?.Dispose();
+            _stencilView?.Dispose();
         }
 
     }
@@ -182,26 +196,14 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         {
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
             WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
-            _depthTexture = new WebGPUTexture(
+            _depthStencilTexture = new WebGPUTexture(
                 Device,
                 BuildDepthTextureDescriptor(depthInfo.format, _width, _height)
                 );
 
-            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
-
-            // pointer attention !!
-            *_depthAttachment = new WGPURenderPassDepthStencilAttachment
-            {
-                view = _depthView,
-                depthLoadOp = WGPULoadOp.Load,
-                depthStoreOp = WGPUStoreOp.Store,
-                depthClearValue = depthInfo.clearDepth,
-                stencilLoadOp = WGPULoadOp.Load,
-                stencilStoreOp = WGPUStoreOp.Store,
-                stencilClearValue = depthInfo.clearStencil,
-            };
-
-            _depthViewWrapper = new WebGPUTextureViewWrapper(Device, _depthTexture, _depthView);
+            _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
+            _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
+            _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
 
             _descriptor.depthStencilAttachment = _depthAttachment;
         }
@@ -242,14 +244,18 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         if (_renderPass.WebGPUDepthInfo.HasValue)
         {
             //_depthTexture?.Dispose();
-            _depthTexture?.Destroy();
-            wgpuTextureViewRelease(_depthView);
-            _depthTexture = new WebGPUTexture(
+            _depthStencilTexture?.Destroy();
+            _depthStencilView?.Dispose();
+            _depthView?.Dispose();
+            _stencilView?.Dispose();
+            _depthStencilTexture = new WebGPUTexture(
                 Device,
                 BuildDepthTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height)
                 );
-            _depthView = wgpuTextureCreateView(_depthTexture.Native, null);
-            (*_depthAttachment).view = _depthView;
+            _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
+            _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
+            _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+            (*_depthAttachment).view = _depthStencilView.Native;
         }
     }
 
