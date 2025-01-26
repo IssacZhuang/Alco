@@ -92,8 +92,8 @@ public class SurfaceTiledBlock2D<TUserData> : AutoDisposable
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
         _material.TrySetBuffer(ShaderResourceId.ColorData, _colorData);
         _material.TrySetBuffer(ShaderResourceId.TileIdData, _tileIdData);
-        _material.TrySetBuffer(ShaderResourceId.SpriteData, _tileSet.SpriteDataBuffer);
-        _material.TrySetBuffer(ShaderResourceId.TileSetData, _tileSet.TileSetDataBuffer);
+        _material.TrySetBuffer(ShaderResourceId.TileData, _tileSet.TileDataBuffer);
+        //_material.TrySetBuffer(ShaderResourceId.TileSetData, _tileSet.TileSetDataBuffer);
         _material.TrySetBuffer(ShaderResourceId.HeightData, _heightData);
 
 

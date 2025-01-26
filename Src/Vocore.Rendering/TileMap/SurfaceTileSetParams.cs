@@ -7,55 +7,40 @@ public class SurfaceTileSetParams<TUserData>
     public struct Item
     {
         public TUserData UserData;
+        public Texture2D Texture;
         public Vector2 MeshScale;
         public Vector2 UVScale;
-        public Texture2D Texture;
+        
         public float BlendPriority;
     }
 
-    private readonly List<Item> _items = new();
+    private readonly List<Texture2D> _textures = new();
+    private readonly List<TUserData> _userDatas = new();
+    private readonly List<SurfaceTileData> _surfaceTileDatas = new();
 
-    public IReadOnlyList<Item> Items => _items;
+    public int Count => _textures.Count;
 
-    public Vector2 HeightOffsetFactor;
-    public float BlendFactor;
-    public float EdgeSmoothFactor;
-
-    public void Add(Texture2D texture, TUserData userData)
+    public void Add(Texture2D texture, TUserData userData, SurfaceTileData tileData)
     {
-        _items.Add(new Item
-        {
-            Texture = texture,
-            UserData = userData,
-            MeshScale = Vector2.One,
-            UVScale = Vector2.One,
-            BlendPriority = 0.0f
-        });
+        ArgumentNullException.ThrowIfNull(texture);
+        //ArgumentNullException.ThrowIfNull(userData);
+        _textures.Add(texture);
+        _userDatas.Add(userData);
+        _surfaceTileDatas.Add(tileData);
     }
 
-    public void Add(
-        Texture2D texture, 
-        TUserData userData, 
-        Vector2 meshScale, 
-        Vector2 uvScale,
-        float blendPriority
-        )
+    public void Get(int index, out Texture2D texture, out TUserData userData, out SurfaceTileData tileData)
     {
-        _items.Add(new Item
-        {
-            Texture = texture,
-            UserData = userData,
-            MeshScale = meshScale,
-            UVScale = uvScale,
-            BlendPriority = blendPriority
-        });
+        texture = _textures[index];
+        userData = _userDatas[index];
+        tileData = _surfaceTileDatas[index];
     }
-
-
 
     public void Clear()
     {
-        _items.Clear();
+        _textures.Clear();
+        _userDatas.Clear();
+        _surfaceTileDatas.Clear();
     }
 }
 

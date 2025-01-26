@@ -28,8 +28,8 @@ public class Game : GameEngine
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(1, 1, 1, 1);
 
-    private float _blendFactor = 0.2f;
-    private float _edgeSmoothFactor = 0.1f;
+    private float _blendFactor = 0.35f;
+    private float _edgeSmoothFactor = 0.15f;
 
     private uint _selectedTileId = 1;
 
@@ -126,7 +126,12 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            _surfaceTileSet.BlendFactor = _blendFactor;
+            for (int i = 0; i < _surfaceTileSet.Count; i++)
+            {
+                SurfaceTileData tileData = _surfaceTileSet.GetTileData(i);
+                tileData.BlendFactor = _blendFactor;
+                _surfaceTileSet.SetTileData(i, tileData);
+            }
         }
 
         if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
@@ -137,7 +142,12 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            _surfaceTileSet.EdgeSmoothFactor = _edgeSmoothFactor;
+            for (int i = 0; i < _surfaceTileSet.Count; i++)
+            {
+                SurfaceTileData tileData = _surfaceTileSet.GetTileData(i);
+                tileData.EdgeSmoothFactor = _edgeSmoothFactor;
+                _surfaceTileSet.SetTileData(i, tileData);
+            }
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -227,12 +237,18 @@ public class Game : GameEngine
         Task.WaitAll(grid, grass, sand);
 
         SurfaceTileSetParams<int> tileSetParams = new();
-        tileSetParams.HeightOffsetFactor = Vector2.UnitY;
-        tileSetParams.BlendFactor = _blendFactor;
-        tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
-        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);
+        tileSetParams.Add(grid.Result, 0, new SurfaceTileData()
+        {
+            BlendPriority = 0,
+        });
+        tileSetParams.Add(grass.Result, 1, new SurfaceTileData()
+        {
+            BlendPriority = 1
+        });
+        tileSetParams.Add(sand.Result, 2, new SurfaceTileData()
+        {
+            BlendPriority = 2
+        });
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 
@@ -245,13 +261,19 @@ public class Game : GameEngine
         Task.WaitAll(grid, grass, sand);
 
         SurfaceTileSetParams<int> tileSetParams = new();
-        tileSetParams.HeightOffsetFactor = Vector2.UnitY;
-        tileSetParams.BlendFactor = _blendFactor;
-        tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
 
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
-        tileSetParams.Add(grass.Result, 1, Vector2.One, Vector2.One, 1.0f);
-        tileSetParams.Add(sand.Result, 2, Vector2.One, Vector2.One, 2.0f);
+        tileSetParams.Add(grid.Result, 0, new SurfaceTileData()
+        {
+            BlendPriority = 0
+        });
+        tileSetParams.Add(grass.Result, 1, new SurfaceTileData()
+        {
+            BlendPriority = 1
+        });
+        tileSetParams.Add(sand.Result, 2, new SurfaceTileData()
+        {
+            BlendPriority = 2
+        });
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 
@@ -260,11 +282,14 @@ public class Game : GameEngine
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task.WaitAll(grid);
         SurfaceTileSetParams<int> tileSetParams = new();
-        tileSetParams.HeightOffsetFactor = Vector2.UnitY;
-        tileSetParams.BlendFactor = _blendFactor;
-        tileSetParams.EdgeSmoothFactor = _edgeSmoothFactor;
-        tileSetParams.Add(grid.Result, 0, Vector2.One, Vector2.One, 0.0f);
-        tileSetParams.Add(Rendering.TextureWhite, 0, Vector2.One, Vector2.One, 0.0f);
+        tileSetParams.Add(grid.Result, 0, new SurfaceTileData()
+        {
+            BlendPriority = 0
+        });
+        tileSetParams.Add(Rendering.TextureWhite, 0, new SurfaceTileData()
+        {
+            BlendPriority = 0
+        });
         return Rendering.CreateTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
 }

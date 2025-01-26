@@ -20,39 +20,35 @@ struct Constants{
     int2 size;
 };
 
-struct SpriteData{
+struct TileData {
     float4 uvRect;
     float2 meshScale;
     float2 uvScale;
-    float blendPriority;
-};
-
-
-DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
-
-DEFINE_UNIFORM(1, _tileSetData){
     float2 heightOffsetFactor;
+    float blendPriority;
     float blendFactor;
     float edgeSmoothFactor;
 };
 
-DEFINE_TEX2D_SAMPLE(2, _texture);
+DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_STORAGE(3, SpriteData, _spriteData);
+DEFINE_TEX2D_SAMPLE(1, _texture);
 
-DEFINE_STORAGE(4, float4, _colorData);
+DEFINE_STORAGE(2, TileData, _tileData);
 
-DEFINE_STORAGE(5, uint, _tileIdData);
+DEFINE_STORAGE(3, float4, _colorData);
+
+DEFINE_STORAGE(4, uint, _tileIdData);
 
 
 PUSH_CONSTANT Constants constants;
 
 float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
 {
-    SpriteData sprite = _spriteData[tileId];
-    float2 uv = frac(vertexUV * sprite.uvScale);
-    uv = uv * sprite.uvRect.zw + sprite.uvRect.xy;
-    blendPriority = sprite.blendPriority;
+    TileData data = _tileData[tileId];
+    float2 uv = frac(vertexUV * data.uvScale);
+    uv = uv * data.uvRect.zw + data.uvRect.xy;
+    blendPriority = data.blendPriority;
     return SAMPLE_TEX2D(_texture, uv);
 }
 
@@ -62,13 +58,13 @@ V2F VertexMain(Vertex input)
 {
     float4 color = _colorData[input.instanceId];
     uint tileId = _tileIdData[input.instanceId];
-    SpriteData sprite = _spriteData[tileId];
+    TileData data = _tileData[tileId];
 
     V2F output;
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
-    float3 pos = input.position * float3(sprite.meshScale, 0);
+    float3 pos = input.position * float3(data.meshScale, 0);
 
 #if defined(IS_CLIFF)
     offsetY += 1;
@@ -105,6 +101,10 @@ float4 PixelMain(V2F input) : SV_TARGET
     // Sample all neighbors
     float4 colors[9];
     float priorities[9];
+
+    TileData data = _tileData[input.instanceId];
+    float blendFactor = data.blendFactor;
+    float edgeSmoothFactor = data.edgeSmoothFactor;
 
     [unroll]
     for (int i = 0; i < 9; i++)
