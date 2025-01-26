@@ -31,7 +31,8 @@ public class Game : GameEngine
     private float _blendFactor = 0.35f;
     private float _edgeSmoothFactor = 0.15f;
 
-    private uint _selectedTileId = 1;
+    private uint _surfaceTileId = 1;
+    private uint _waterTileId = 0;
 
     private float _hight = 0.2f;
     private float _brushSize = 1;
@@ -40,7 +41,7 @@ public class Game : GameEngine
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
-    private Color32 _waterColor = new Color32(55, 176, 200, 120);
+    private Color32 _waterColor = new Color32(122, 176, 200, 100);
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -119,7 +120,7 @@ public class Game : GameEngine
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Selected Tile", ref _selectedTileId, 0, (uint)_surfaceTileSet.Count - 1))
+        if (DebugGUI.SliderWithText("Selected Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.Count - 1))
         {
             isDebugClicked = true;
         }
@@ -235,8 +236,8 @@ public class Game : GameEngine
 
                 if (Input.IsMousePressing(Mouse.Left))
                 {
-                    _surfaceBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
-                    _cliffBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _selectedTileId);
+                    _surfaceBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    _cliffBlock.SetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {

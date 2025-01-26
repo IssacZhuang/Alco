@@ -115,7 +115,7 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     // Pre-calculate reciprocals
     float invBlendFactor = 1.0 / blendFactor;
-    float invEdgeSmoothFactor = 1.0 / 0.4f;//todo: make as property
+    float invEdgeSmoothFactor = 1.0 / 0.2f;//todo: make as property
 
     // Define blend weights for each neighbor
     float2 uv = input.uv;
@@ -165,7 +165,7 @@ float4 PixelMain(V2F input) : SV_TARGET
         {
             bool isAboveWater = heights[j] >= -0.001f;
             if (isAboveWater) {
-                finalDarkening = lerp(0.5, finalDarkening, weightsHeight[j]);
+                finalDarkening = lerp(0.7, finalDarkening, weightsHeight[j]);
             }else if (priorities[j] > centerPriority)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);
@@ -173,10 +173,17 @@ float4 PixelMain(V2F input) : SV_TARGET
         }
     }
 
+    fnl_state state2 = fnlCreateState(1337);
+    state2.noise_type = FNL_NOISE_VALUE;
+    state2.frequency = 2;
+
+    float noise2 = (fnlGetNoise2D(state2, input.worldPosition.x, input.worldPosition.y)+1)*0.5;
+
     finalColor.rgb += (1+noise)*0.4;
-    //blend with white
-    //finalColor *= finalDarkening;
-    finalColor = lerp(finalColor, float4(1,1,1,1), 1-finalDarkening);
+    // blend with white
+    float4 edgeColor = float4(1, 1, 1, 1);
+    edgeColor.rgb *= (noise2)*2;
+    finalColor = lerp(finalColor, edgeColor, 1-finalDarkening);
 
     return finalColor;
 }
