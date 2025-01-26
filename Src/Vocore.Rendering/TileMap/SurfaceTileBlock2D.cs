@@ -46,7 +46,11 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
         }
     }
 
-
+    public GraphicsArrayBuffer<float> HeightData
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _heightData;
+    }
 
     internal SurfaceTileBlock2D(
         RenderingSystem renderingSystem,

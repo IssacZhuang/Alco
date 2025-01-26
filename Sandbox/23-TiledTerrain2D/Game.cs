@@ -40,11 +40,11 @@ public class Game : GameEngine
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
+    private Color32 _waterColor = new Color32(55, 176, 200, 120);
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-
-        
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
@@ -56,7 +56,7 @@ public class Game : GameEngine
         _cliffTileSet = BuildCliffTileSet();
         _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
         _waterTileSet = BuildWaterTileSet();
-        _waterTileSet.SetAllTileColor(new Color32(55, 176, 229, 120));
+        _waterTileSet.SetAllTileColor(_waterColor);
 
         _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
         _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -80,6 +80,7 @@ public class Game : GameEngine
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, 64, 64);
         _waterBlock.SetTilesId(1);
         _waterBlock.Transform.position = new Vector3(0, -0.05f, -0.05f);
+        _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -144,6 +145,38 @@ public class Game : GameEngine
             {
                 _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
             }
+        }
+
+        uint r = _waterColor.R;
+        uint g = _waterColor.G;
+        uint b = _waterColor.B;
+        uint a = _waterColor.A;
+        if (DebugGUI.SliderWithText("Water Color R", ref r, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.R = (byte)r;
+            _waterTileSet.SetAllTileColor(_waterColor);
+        }
+
+        if (DebugGUI.SliderWithText("Water Color G", ref g, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.G = (byte)g;
+            _waterTileSet.SetAllTileColor(_waterColor);
+        }
+
+        if (DebugGUI.SliderWithText("Water Color B", ref b, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.B = (byte)b;
+            _waterTileSet.SetAllTileColor(_waterColor);
+        }
+
+        if (DebugGUI.SliderWithText("Water Color A", ref a, 0, 255))
+        {
+            isDebugClicked = true;
+            _waterColor.A = (byte)a;
+            _waterTileSet.SetAllTileColor(_waterColor);
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))

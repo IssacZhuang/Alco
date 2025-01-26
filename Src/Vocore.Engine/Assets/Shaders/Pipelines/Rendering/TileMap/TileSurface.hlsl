@@ -185,11 +185,9 @@ float4 PixelMain(V2F input) : SV_TARGET
         if (j != 4) // Skip center tile
         {
             float heightDiff = abs(heights[j] - centerHeight);
-            float darkening = heightDiff > 0.001f ? (0.9) : 1.0;
-            float4 neighborColor = float4(colors[j].rgb * darkening, colors[j].a);
 
             if(heightDiff > 0.001f){
-                finalDarkening = lerp(darkening, finalDarkening,weightsHeight[j]);
+                finalDarkening = lerp(0.9, finalDarkening,weightsHeight[j]);
             }else if(priorities[j] > centerPriority)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);

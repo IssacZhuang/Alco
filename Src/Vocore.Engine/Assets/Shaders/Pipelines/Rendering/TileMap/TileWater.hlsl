@@ -34,6 +34,9 @@ DEFINE_STORAGE(2, TileData, _tileData);
 
 DEFINE_STORAGE(3, uint, _tileIdData);
 
+//the height of the surface, not the water
+DEFINE_STORAGE(4, float, _heightData);
+
 
 PUSH_CONSTANT Constants constants;
 
@@ -91,6 +94,7 @@ float4 PixelMain(V2F input) : SV_TARGET
     };
 
     // Sample all neighbors
+    float heights[9];
     float4 colors[9];
     float priorities[9];
 
@@ -103,6 +107,7 @@ float4 PixelMain(V2F input) : SV_TARGET
         int neighborIndex = input.instanceId + offsets[i].x + offsets[i].y * constants.size.x;
         uint tileId = _tileIdData[neighborIndex];
         colors[i] = SampleTile(tileId, input.uv, priorities[i]);
+        heights[i] = _heightData[neighborIndex];
     }
 
     float4 finalColor = colors[4]; // Center color
@@ -110,6 +115,7 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     // Pre-calculate reciprocals
     float invBlendFactor = 1.0 / blendFactor;
+    float invEdgeSmoothFactor = 1.0 / 0.4f;//todo: make as property
 
     // Define blend weights for each neighbor
     float2 uv = input.uv;
@@ -127,6 +133,18 @@ float4 PixelMain(V2F input) : SV_TARGET
         saturate(((1 - uv.x) + (1 - uv.y)) * invBlendFactor) // bottom-right
     };
 
+    float weightsHeight[9] = {
+        saturate((uv.x + uv.y) * invEdgeSmoothFactor),            // top-left
+        saturate(uv.y * invEdgeSmoothFactor),                     // top
+        saturate(((1 - uv.x) + uv.y) * invEdgeSmoothFactor),      // top-right
+        saturate(uv.x * invEdgeSmoothFactor),                     // left
+        1.0,                                                      // center
+        saturate((1 - uv.x) * invEdgeSmoothFactor),               // right
+        saturate((uv.x + (1 - uv.y)) * invEdgeSmoothFactor),      // bottom-left
+        saturate((1 - uv.y) * invEdgeSmoothFactor),               // bottom
+        saturate(((1 - uv.x) + (1 - uv.y)) * invEdgeSmoothFactor) // bottom-right
+    };
+
     fnl_state state = fnlCreateState(1337);
     state.noise_type = FNL_NOISE_CELLULAR;
     state.fractal_type = FNL_FRACTAL_FBM;
@@ -137,7 +155,7 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     float noise = fnlGetNoise2D(state, input.worldPosition.x, input.worldPosition.y);
 
-    
+    float finalDarkening = 1;
 
     // Apply blending for all neighbors in a single loop
     [unroll]
@@ -145,7 +163,10 @@ float4 PixelMain(V2F input) : SV_TARGET
     {
         if (j != 4) // Skip center tile
         {
-            if (priorities[j] > centerPriority)
+            bool isAboveWater = heights[j] >= -0.001f;
+            if (isAboveWater) {
+                finalDarkening = lerp(0.5, finalDarkening, weightsHeight[j]);
+            }else if (priorities[j] > centerPriority)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);
             }
@@ -153,6 +174,9 @@ float4 PixelMain(V2F input) : SV_TARGET
     }
 
     finalColor.rgb += (1+noise)*0.4;
+    //blend with white
+    //finalColor *= finalDarkening;
+    finalColor = lerp(finalColor, float4(1,1,1,1), 1-finalDarkening);
 
     return finalColor;
 }
