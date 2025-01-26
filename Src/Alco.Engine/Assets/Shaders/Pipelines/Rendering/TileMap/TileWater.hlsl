@@ -43,13 +43,17 @@ DEFINE_STORAGE(5, float, _heightData);
 
 PUSH_CONSTANT Constants constants;
 
-float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
+float4 SampleTile(uint instanceId, float2 vertexUV, out float blendPriority)
 {
-    TileData data = _tileData[tileId];
+    TileData data = _tileData[_tileIdData[instanceId]];
     float2 uv = frac(vertexUV);
+    float height = _heightData[instanceId];
     uv = uv * data.uvRect.zw + data.uvRect.xy;
     blendPriority = data.blendPriority;
-    return SAMPLE_TEX2D(_texture, uv) * data.color;
+
+    float4 color = SAMPLE_TEX2D(_texture, uv) * data.color;
+    color.a = -height;
+    return color;
 }
 
 //used for standard sprite quad mesh
@@ -101,7 +105,7 @@ float4 PixelMain(V2F input) : SV_TARGET
     float4 colors[9];
     float priorities[9];
 
-    TileData data = _tileData[input.instanceId];
+    TileData data = _tileData[_tileIdData[input.instanceId]];
     float blendFactor = data.blendFactor;
 
     [unroll]
@@ -109,12 +113,13 @@ float4 PixelMain(V2F input) : SV_TARGET
     {
         int neighborIndex = input.instanceId + offsets[i].x + offsets[i].y * constants.size.x;
         uint tileId = _tileIdData[neighborIndex];
-        colors[i] = SampleTile(tileId, input.uv, priorities[i]);
+        colors[i] = SampleTile(neighborIndex, input.uv, priorities[i]);
         heights[i] = _heightData[neighborIndex];
     }
 
     float4 finalColor = colors[4]; // Center color
     float centerPriority = priorities[4];
+    float centerHeight = heights[4];
 
     // Pre-calculate reciprocals
     float invBlendFactor = 1.0 / blendFactor;
@@ -171,7 +176,9 @@ float4 PixelMain(V2F input) : SV_TARGET
             bool isAboveWater = heights[j] >= -0.001f;
             if (isAboveWater) {
                 finalDarkening = lerp(0.7, finalDarkening, weightsHeight[j]);
-            }else if (priorities[j] > centerPriority)
+            }
+            
+            if (priorities[j] > centerPriority||heights[j] < centerHeight)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);
             }
@@ -184,7 +191,7 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     float noise2 = (fnlGetNoise2D(state2, input.worldPosition.x + time, input.worldPosition.y + time)+1)*0.5;
 
-    finalColor.rgb += noise;
+    finalColor.rgba += (1-finalColor.a)*noise;
     // blend with white
     float4 edgeColor = float4(1, 1, 1, 1);
     edgeColor.rgb *= (noise2)*2;

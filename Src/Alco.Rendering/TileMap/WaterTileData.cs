@@ -10,7 +10,7 @@ public struct WaterTileData : ITileData
     {
         UVRect = new Rect(0, 0, 1, 1);
         BlendPriority = 0;
-        BlendFactor = 0.35f;
+        BlendFactor = 1f;
     }
     public Rect UVRect;
     public Vector4 Color;

@@ -31,8 +31,9 @@ public class Game : GameEngine
     private float _blendFactor = 0.35f;
     private float _edgeSmoothFactor = 0.15f;
 
+    private bool _editWater = false;
     private uint _surfaceTileId = 1;
-    private uint _waterTileId = 0;
+    private uint _waterTileId = 1;
 
     private float _hight = 0.2f;
     private float _brushSize = 1;
@@ -41,7 +42,7 @@ public class Game : GameEngine
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
-    private Color32 _waterColor = new Color32(122, 176, 200, 100);
+    private Color32 _waterColor = new Color32(128, 161, 168, 100);
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -57,7 +58,6 @@ public class Game : GameEngine
         _cliffTileSet = BuildCliffTileSet();
         _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
         _waterTileSet = BuildWaterTileSet();
-        _waterTileSet.SetAllTileColor(_waterColor);
 
         _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
         _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -120,7 +120,17 @@ public class Game : GameEngine
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Selected Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.Count - 1))
+        if (DebugGUI.SliderWithText("Surface Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.Count - 1))
+        {
+            isDebugClicked = true;
+        }
+
+        if (DebugGUI.SliderWithText("Water Tile", ref _waterTileId, 0, (uint)_waterTileSet.Count - 1))
+        {
+            isDebugClicked = true;
+        }
+
+        if (DebugGUI.CheckBoxWithText("Edit Water", ref _editWater))
         {
             isDebugClicked = true;
         }
@@ -156,28 +166,28 @@ public class Game : GameEngine
         {
             isDebugClicked = true;
             _waterColor.R = (byte)r;
-            _waterTileSet.SetAllTileColor(_waterColor);
+            _waterTileSet.SetTileColor(1, _waterColor);
         }
 
         if (DebugGUI.SliderWithText("Water Color G", ref g, 0, 255))
         {
             isDebugClicked = true;
             _waterColor.G = (byte)g;
-            _waterTileSet.SetAllTileColor(_waterColor);
+            _waterTileSet.SetTileColor(1, _waterColor);
         }
 
         if (DebugGUI.SliderWithText("Water Color B", ref b, 0, 255))
         {
             isDebugClicked = true;
             _waterColor.B = (byte)b;
-            _waterTileSet.SetAllTileColor(_waterColor);
+            _waterTileSet.SetTileColor(1, _waterColor);
         }
 
         if (DebugGUI.SliderWithText("Water Color A", ref a, 0, 255))
         {
             isDebugClicked = true;
             _waterColor.A = (byte)a;
-            _waterTileSet.SetAllTileColor(_waterColor);
+            _waterTileSet.SetTileColor(1, _waterColor);
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -239,8 +249,15 @@ public class Game : GameEngine
 
                 if (Input.IsMousePressing(Mouse.Left))
                 {
-                    _surfaceBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
-                    _cliffBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    if (_editWater)
+                    {
+                        _waterBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _waterTileId);
+                    }
+                    else
+                    {
+                        _surfaceBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                        _cliffBlock.TrySetTileId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
@@ -321,7 +338,13 @@ public class Game : GameEngine
         });
         tileSetParams.Add(Rendering.TextureWhite, 0, new WaterTileData()
         {
-            BlendPriority = 0
+            Color = _waterColor,
+            BlendPriority = 1
+        });
+        tileSetParams.Add(Rendering.TextureWhite, 0, new WaterTileData()
+        {
+            Color = new ColorFloat(1, 1, 1, 0.5f),
+            BlendPriority = 2
         });
         return Rendering.CreateWaterTileSet(_blitMaterial, tileSetParams, FilterMode.Nearest, "tile_set");
     }
