@@ -178,7 +178,7 @@ float4 PixelMain(V2F input) : SV_TARGET
                 finalDarkening = lerp(0.7, finalDarkening, weightsHeight[j]);
             }
             
-            if (priorities[j] > centerPriority||heights[j] < centerHeight)
+            if (priorities[j] > centerPriority||heights[j] > centerHeight)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);
             }
