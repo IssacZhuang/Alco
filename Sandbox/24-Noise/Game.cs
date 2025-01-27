@@ -8,6 +8,8 @@ using Alco.IO;
 
 using SandboxUtils;
 
+using FastNoiseLite;
+
 public class Game : GameEngine
 {
     
