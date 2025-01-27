@@ -5,7 +5,8 @@ namespace Alco.Rendering;
 
 
 /// <summary>
-/// The integration of the GPU pipeline state and shader resources.
+/// The integration of the GPU pipeline state and shader resources. Also create buffer for uniform buffer by default.
+/// The texture slot is white texture by default.
 /// </summary>
 public sealed class GraphicsMaterial : Material
 {

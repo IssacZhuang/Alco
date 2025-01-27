@@ -38,6 +38,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_TextMasked => GetShader("Shaders/Pipelines/Rendering/Text/TextMasked.hlsl");
 
+    public Shader Shader_SpritePlantInstancing => GetShader("Shaders/Pipelines/Rendering/TileMap/SpritePlantInstancing.hlsl");
+
     public Shader Shader_TileSurface => GetShader("Shaders/Pipelines/Rendering/TileMap/TileSurface.hlsl");
 
     public Shader Shader_TileWater => GetShader("Shaders/Pipelines/Rendering/TileMap/TileWater.hlsl");

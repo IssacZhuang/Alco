@@ -46,6 +46,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        int width = 64;
+        int height = 64;
+
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
@@ -71,14 +74,14 @@ public class Game : GameEngine
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
-        _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _surfaceMaterial, 64, 64);
+        _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _surfaceMaterial, width, height);
         _surfaceBlock.SetAllTilesIds(1);
 
-        _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _cliffMaterial, 64, 64);
+        _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _cliffMaterial, width, height);
         _cliffBlock.SetAllTilesIds(1);
         _cliffBlock.IsCliff = true;
 
-        _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, 64, 64);
+        _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, width, height);
         _waterBlock.SetAllTilesIds(1);
         _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
         _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
