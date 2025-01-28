@@ -9,9 +9,9 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 {
     protected readonly RenderingSystem _renderingSystem;
     protected readonly TUserData[] _userDataList;
-    protected readonly Dictionary<int, TileSpriteData[]> _spriteData;
+    protected readonly Dictionary<uint, TileSpriteData[]> _spriteData;
     protected readonly GraphicsArrayBuffer<TTileData> _tileData;
-    protected readonly int[] _tileIdToItemId;
+    protected readonly uint[] _tileIdToItemId;
 
     protected readonly TextureAtlas _atlas;
 
@@ -84,14 +84,14 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
         }
         _atlas = packer.BuildTextureAtlas(sampler);
 
-        _spriteData = new Dictionary<int, TileSpriteData[]>();
+        _spriteData = new Dictionary<uint, TileSpriteData[]>();
         _userDataList = new TUserData[itemCount];
-        _tileIdToItemId = new int[tileCount];
+        _tileIdToItemId = new uint[tileCount];
 
         int currentTileIndex = 0;
-        for (int i = 0; i < itemCount; i++)
+        for (uint i = 0; i < itemCount; i++)
         {
-            var item = items[i];
+            var item = items[(int)i];
             int textureCount = item.Textures.Count;
             var itemSprites = new TileSpriteData[textureCount];
 
@@ -123,17 +123,17 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 
     }
 
-    public int GetItemId(uint tileId)
+    public uint GetItemId(uint tileId)
     {
         return _tileIdToItemId[tileId];
     }
 
-    public TUserData GetUserData(int itemId)
+    public TUserData GetUserData(uint itemId)
     {
         return _userDataList[itemId];
     }
 
-    public TileSpriteData[] GetSprites(int itemId)
+    public TileSpriteData[] GetSprites(uint itemId)
     {
         return _spriteData[itemId];
     }

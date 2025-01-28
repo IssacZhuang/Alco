@@ -155,7 +155,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            for (int i = 0; i < _surfaceTileSet.ItemCount; i++)
+            for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
             {
                 _surfaceTileSet.SetTileBlendFactor(i, _blendFactor);
             }
@@ -169,7 +169,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            for (int i = 0; i < _surfaceTileSet.ItemCount; i++)
+            for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
             {
                 _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
             }
@@ -269,12 +269,12 @@ public class Game : GameEngine
                 {
                     if (_editWater)
                     {
-                        _waterBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, (int)_waterTileId);
+                        _waterBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _waterTileId);
                     }
                     else
                     {
-                        _surfaceBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, (int)_surfaceTileId);
-                        _cliffBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, (int)_surfaceTileId);
+                        _surfaceBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                        _cliffBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
@@ -314,6 +314,7 @@ public class Game : GameEngine
             BlendPriority = 1,
         }, 1);
         item2.AddTexture(grass.Result, 1);
+
 
         var item3 = new SurfaceTileItem<int>("sand", new SurfaceTileData(){
             BlendPriority = 2,

@@ -18,7 +18,7 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
 
     }
 
-    public void SetTileColor(int itemId, Vector4 color)
+    public void SetTileColor(uint itemId, Vector4 color)
     {
         TileSpriteData[] sprites = GetSprites(itemId);
         foreach (var sprite in sprites)
@@ -41,7 +41,7 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
         _tileData.UpdateBuffer();
     }
 
-    public void SetTileBlendFactor(int itemId, float blendFactor)
+    public void SetTileBlendFactor(uint itemId, float blendFactor)
     {
         TileSpriteData[] sprites = GetSprites(itemId);
         foreach (var sprite in sprites)
@@ -64,7 +64,7 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
         _tileData.UpdateBuffer();
     }
 
-    public void SetTileBlendPriority(int itemId, float blendPriority)
+    public void SetTileBlendPriority(uint itemId, float blendPriority)
     {
         TileSpriteData[] sprites = GetSprites(itemId);
         foreach (var sprite in sprites)
@@ -87,7 +87,7 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
         _tileData.UpdateBuffer();
     }
 
-    public void SetTileEdgeSmoothFactor(int itemId, float edgeSmoothFactor)
+    public void SetTileEdgeSmoothFactor(uint itemId, float edgeSmoothFactor)
     {
         TileSpriteData[] sprites = GetSprites(itemId);
         foreach (var sprite in sprites)

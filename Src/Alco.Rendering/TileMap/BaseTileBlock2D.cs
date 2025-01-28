@@ -60,7 +60,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public abstract void OnRender(MaterialRenderer renderer);
 
-    public bool TryGetItemId(int x, int y, out int itemId)
+    public bool TryGetItemId(int x, int y, out uint itemId)
     {
         if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
         {
@@ -72,7 +72,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySetItemId(int x, int y, int itemId)
+    public bool TrySetItemId(int x, int y, uint itemId)
     {
         if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
         {
@@ -86,7 +86,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         return true;
     }
 
-    public void SetItemIds(int2 from, int2 to, int itemId)
+    public void SetItemIds(int2 from, int2 to, uint itemId)
     {
         //clamp
         from = clamp(from, new int2(0, 0), _size - new int2(1, 1));
@@ -102,7 +102,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _isTileIdDirty = true;
     }
 
-    public void SetAllItemIds(int itemId)
+    public void SetAllItemIds(uint itemId)
     {
         for (int i = 0; i < _length; i++)
         {
@@ -111,10 +111,9 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _isTileIdDirty = true;
     }
 
-    //to fix
     public bool TryGetTileUserData(int x, int y, out TUserData userData)
     {
-        if (!TryGetItemId(x, y, out int itemId))
+        if (!TryGetItemId(x, y, out uint itemId))
         {
             userData = default!;
             return false;
@@ -206,7 +205,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private uint RandomTileId(int itemId)
+    private uint RandomTileId(uint itemId)
     {
         var sprites = _tileSet.GetSprites(itemId);
         if (sprites.Length <= 1)
