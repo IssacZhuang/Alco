@@ -51,7 +51,6 @@ float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
     return SAMPLE_TEX2D(_texture, uv) * data.color;
 }
 
-//used for standard sprite quad mesh
 [shader("vertex")]
 V2F VertexMain(Vertex input)
 {
@@ -62,6 +61,15 @@ V2F VertexMain(Vertex input)
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
+    // the vertex position is calculated based on the standard sprite quad mesh
+    // which is centered at the origin
+    // private static readonly Vertex[] VerticesSpriteQuad =
+    //     {
+    //         new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),
+    //         new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),
+    //         new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),
+    //         new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1))
+    //     };
     float3 pos = input.position * float3(data.meshScale, 0);
 
 #if defined(IS_CLIFF)

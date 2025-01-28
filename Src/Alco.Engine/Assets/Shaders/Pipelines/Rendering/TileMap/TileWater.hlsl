@@ -67,12 +67,16 @@ V2F VertexMain(Vertex input)
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
+    // the vertex position is calculated based on the standard sprite quad mesh
+    // which is centered at the origin
+    // private static readonly Vertex[] VerticesSpriteQuad =
+    //     {
+    //         new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),
+    //         new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),
+    //         new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),
+    //         new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1))
+    //     };
     float3 pos = input.position;
-
-#if defined(IS_CLIFF)
-    offsetY += 1;
-    pos.z = pos.y - 0.5f;
-#endif
 
     float4 position = float4(pos, 1);
     position.xy += float2(offsetX, -offsetY);

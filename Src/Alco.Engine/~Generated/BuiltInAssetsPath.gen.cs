@@ -33,7 +33,7 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_TextMasked = "Shaders/Pipelines/Rendering/Text/TextMasked.hlsl";
 
-   public const string Shader_SpritePlantInstancing = "Shaders/Pipelines/Rendering/TileMap/SpritePlantInstancing.hlsl";
+   public const string Shader_TilePlant = "Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl";
 
    public const string Shader_TileSurface = "Shaders/Pipelines/Rendering/TileMap/TileSurface.hlsl";
 
