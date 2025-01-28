@@ -3,9 +3,15 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed class WaterTileSet<TUserData> : BaseTileSet<WaterTileData, TUserData>
+public sealed class WaterTileSet<TUserData> : BaseTileSet2<WaterTileData, TUserData>
 {
-    internal WaterTileSet(RenderingSystem renderingSystem, WaterTileSetParams<TUserData> @params, Material material, GPUSampler sampler, string name) : base(renderingSystem, @params, material, sampler, name)
+    internal WaterTileSet(
+        RenderingSystem renderingSystem, 
+        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items, 
+        Material material, 
+        GPUSampler sampler, 
+        string name
+    ) : base(renderingSystem, items, material, sampler, name)
     {
     }
 

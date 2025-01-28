@@ -29,7 +29,7 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
 
     internal WaterTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet<WaterTileData, TUserData> tileSet,
+        BaseTileSet2<WaterTileData, TUserData> tileSet,
         Material material,
         int width,
         int height,

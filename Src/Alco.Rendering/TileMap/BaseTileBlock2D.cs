@@ -3,10 +3,13 @@ using System.Runtime.CompilerServices;
 using Alco.Graphics;
 using static Alco.math;
 
+using Random = Alco.Random;
+
 namespace Alco.Rendering;
 
 public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable where TTileData : unmanaged, ITileData
 {
+    protected readonly Random _random = new Random(123);
     protected readonly uint _length;
     protected readonly int2 _size;
     
@@ -16,17 +19,18 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     protected readonly Mesh _mesh;
     protected bool _isTileIdDirty;
 
-    protected BaseTileSet<TTileData, TUserData> _tileSet;
+    protected BaseTileSet2<TTileData, TUserData> _tileSet;
 
     public Transform3D Transform;
     public int2 Size => _size;
 
-    public BaseTileSet<TTileData, TUserData> TileSet => _tileSet;
+    public BaseTileSet2<TTileData, TUserData> TileSet => _tileSet;
+
 
 
     protected BaseTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet<TTileData, TUserData> tileSet,
+        BaseTileSet2<TTileData, TUserData> tileSet,
         Material material,
         int width,
         int height,
@@ -57,7 +61,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public abstract void OnRender(MaterialRenderer renderer);
 
-    public bool TryGetTileId(int x, int y, out uint tileId)
+    public bool TryGetItemId(int x, int y, out uint tileId)
     {
         if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
         {
@@ -69,57 +73,67 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySetTileId(int x, int y, uint tileId)
+    public bool TrySetItemId(int x, int y, int itemId)
     {
         if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
         {
             return false;
         }
+        //random a tile id
+        var sprites = _tileSet.GetSprites(itemId);
+        uint tileId = sprites[_random.NextUint((uint)sprites.Length)].TileId;
+
         _tileIdData[GetTileIndex(x, y)] = tileId;
         _isTileIdDirty = true;
         return true;
     }
 
-    public void SetTilesId(int2 from, int2 to, uint tileId)
+    public void SetItemIds(int2 from, int2 to, int itemId)
     {
         //clamp
         from = clamp(from, new int2(0, 0), _size - new int2(1, 1));
         to = clamp(to, new int2(0, 0), _size - new int2(1, 1));
+
+        var sprites = _tileSet.GetSprites(itemId);
+
         for (int i = from.x; i < to.x; i++)
         {
             for (int j = from.y; j < to.y; j++)
             {
+                uint tileId = sprites[_random.NextUint((uint)sprites.Length)].TileId;
                 _tileIdData[GetTileIndex(i, j)] = tileId;
             }
         }
         _isTileIdDirty = true;
     }
 
-    public void SetAllTilesIds(uint tileId)
+    public void SetAllItemIds(int itemId)
     {
+        var sprites = _tileSet.GetSprites(itemId);
         for (int i = 0; i < _length; i++)
         {
-            _tileIdData[i] = tileId;
+            _tileIdData[i] = sprites[_random.NextUint((uint)sprites.Length)].TileId;
         }
         _isTileIdDirty = true;
     }
 
-    public bool TryGetTileUserData(int x, int y, out TUserData userData)
-    {
-        if (!TryGetTileId(x, y, out uint tileId))
-        {
-            userData = default!;
-            return false;
-        }
-        if (tileId < 0)
-        {
-            userData = default!;
-            return false;
-        }
+    //to fix
+    // public bool TryGetTileUserData(int x, int y, out TUserData userData)
+    // {
+    //     if (!TryGetItemId(x, y, out uint tileId))
+    //     {
+    //         userData = default!;
+    //         return false;
+    //     }
+    //     if (tileId < 0)
+    //     {
+    //         userData = default!;
+    //         return false;
+    //     }
 
-        userData = _tileSet.GetUserData(tileId);
-        return true;
-    }
+    //     userData = _tileSet.GetUserData(tileId);
+    //     return true;
+    // }
 
 
 
@@ -127,7 +141,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// Update the tile set and clear the tile id data
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void SetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
+    public void SetTileSet(BaseTileSet2<TTileData, TUserData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;
@@ -145,7 +159,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// <br/>[Warning] This it might cause some unexpected behavior if the new tile set has less tiles than the old one.
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void UnsafeSetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
+    public void UnsafeSetTileSet(BaseTileSet2<TTileData, TUserData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;

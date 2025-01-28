@@ -5,18 +5,29 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUserData>
+public sealed class SurfaceTileSet<TUserData> : BaseTileSet2<SurfaceTileData, TUserData>
 {
-    public SurfaceTileSet(RenderingSystem renderingSystem, SurfaceTileSetParams<TUserData> @params, Material material, GPUSampler sampler, string name) : base(renderingSystem, @params, material, sampler, name)
+    public SurfaceTileSet(
+        RenderingSystem renderingSystem,
+        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items, 
+        Material material, 
+        GPUSampler sampler, 
+        string name
+        ) : base(renderingSystem, @items, material, sampler, name)
     {
+
     }
 
-    public void SetTileColor(int index, Vector4 color)
+    public void SetTileColor(int itemId, Vector4 color)
     {
-        SurfaceTileData tileData = _tileData[index];
-        tileData.Color = color;
-        _tileData[index] = tileData;
-        _tileData.UpdateBufferRanged((uint)index, 1);
+        TileSpriteData[] sprites = GetSprites(itemId);
+        foreach (var sprite in sprites)
+        {
+            SurfaceTileData tileData = _tileData[(int)sprite.TileId];
+            tileData.Color = color;
+            _tileData[(int)sprite.TileId] = tileData;
+        }
+        _tileData.UpdateBuffer();
     }
 
     public void SetAllTileColor(Vector4 color)
@@ -30,12 +41,16 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
         _tileData.UpdateBuffer();
     }
 
-    public void SetTileBlendFactor(int index, float blendFactor)
+    public void SetTileBlendFactor(int itemId, float blendFactor)
     {
-        SurfaceTileData tileData = _tileData[index];
-        tileData.BlendFactor = blendFactor;
-        _tileData[index] = tileData;
-        _tileData.UpdateBufferRanged((uint)index, 1);
+        TileSpriteData[] sprites = GetSprites(itemId);
+        foreach (var sprite in sprites)
+        {
+            SurfaceTileData tileData = _tileData[(int)sprite.TileId];
+            tileData.BlendFactor = blendFactor;
+            _tileData[(int)sprite.TileId] = tileData;
+        }
+        _tileData.UpdateBuffer();
     }
 
     public void SetAllTileBlendFactor(float blendFactor)
@@ -49,12 +64,16 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
         _tileData.UpdateBuffer();
     }
 
-    public void SetTileBlendPriority(int index, float blendPriority)
+    public void SetTileBlendPriority(int itemId, float blendPriority)
     {
-        SurfaceTileData tileData = _tileData[index];
-        tileData.BlendPriority = blendPriority;
-        _tileData[index] = tileData;
-        _tileData.UpdateBufferRanged((uint)index, 1);
+        TileSpriteData[] sprites = GetSprites(itemId);
+        foreach (var sprite in sprites)
+        {
+            SurfaceTileData tileData = _tileData[(int)sprite.TileId];
+            tileData.BlendPriority = blendPriority;
+            _tileData[(int)sprite.TileId] = tileData;
+        }
+        _tileData.UpdateBuffer();
     }
 
     public void SetAllTileBlendPriority(float blendPriority)
@@ -68,11 +87,15 @@ public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUs
         _tileData.UpdateBuffer();
     }
 
-    public void SetTileEdgeSmoothFactor(int index, float edgeSmoothFactor)
+    public void SetTileEdgeSmoothFactor(int itemId, float edgeSmoothFactor)
     {
-        SurfaceTileData tileData = _tileData[index];
-        tileData.EdgeSmoothFactor = edgeSmoothFactor;
-        _tileData[index] = tileData;
-        _tileData.UpdateBufferRanged((uint)index, 1);
+        TileSpriteData[] sprites = GetSprites(itemId);
+        foreach (var sprite in sprites)
+        {
+            SurfaceTileData tileData = _tileData[(int)sprite.TileId];
+            tileData.EdgeSmoothFactor = edgeSmoothFactor;
+            _tileData[(int)sprite.TileId] = tileData;
+        }
+        _tileData.UpdateBuffer();
     }
 }

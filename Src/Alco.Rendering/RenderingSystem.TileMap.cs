@@ -17,43 +17,43 @@ public partial class RenderingSystem
 
     public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
         Material material,
-        SurfaceTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
         string name = "tile_set"
     )
     {
         GPUSampler sampler = _device.SamplerLinearClamp;
-        return new SurfaceTileSet<TUserData>(this, @params, material, sampler, name);
+        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
         Material material,
-        SurfaceTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
         FilterMode filterMode,
         string name = "tile_set"
     ){
         GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
-        return new SurfaceTileSet<TUserData>(this, @params, material, sampler, name);
+        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
         Material material,
-        SurfaceTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
         FilterMode filterMode,
         AddressMode addressMode,
         string name = "tile_set"
     ){
         GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
-        return new SurfaceTileSet<TUserData>(this, @params, material, sampler, name);
+        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
         Material material,
-        SurfaceTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
         GPUSampler sampler,
         string name = "tile_set"
     )
     {
-        return new SurfaceTileSet<TUserData>(this, @params, material, sampler, name);
+        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
     }
 
 
@@ -70,45 +70,45 @@ public partial class RenderingSystem
 
     public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
         Material material,
-        WaterTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
         string name = "water_tile_set"
     )
     {
         GPUSampler sampler = _device.SamplerLinearClamp;
-        return new WaterTileSet<TUserData>(this, @params, material, sampler, name);
+        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
         Material material,
-        WaterTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
         FilterMode filterMode,
         string name = "water_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
-        return new WaterTileSet<TUserData>(this, @params, material, sampler, name);
+        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
         Material material,
-        WaterTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
         FilterMode filterMode,
         AddressMode addressMode,
         string name = "water_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
-        return new WaterTileSet<TUserData>(this, @params, material, sampler, name);
+        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
         Material material,
-        WaterTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
         GPUSampler sampler,
         string name = "water_tile_set"
     )
     {
-        return new WaterTileSet<TUserData>(this, @params, material, sampler, name);
+        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public PlantTileBlock2D<TUserData> CreatePlantTileBlock2D<TUserData>(
@@ -124,45 +124,45 @@ public partial class RenderingSystem
 
     public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
         Material material,
-        PlantTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
         string name = "plant_tile_set"
     )
     {
         GPUSampler sampler = _device.SamplerLinearClamp;
-        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
         Material material,
-        PlantTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
         FilterMode filterMode,
         string name = "plant_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
-        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
         Material material,
-        PlantTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
         FilterMode filterMode,
         AddressMode addressMode,
         string name = "plant_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
-        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
     }
 
     public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
         Material material,
-        PlantTileSetParams<TUserData> @params,
+        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
         GPUSampler sampler,
         string name = "plant_tile_set"
     )
     {
-        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
     }
     
 }
