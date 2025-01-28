@@ -3,15 +3,14 @@ using System.Runtime.CompilerServices;
 using Alco.Graphics;
 using static Alco.math;
 
-using Random = Alco.Random;
 
 namespace Alco.Rendering;
 
 public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable where TTileData : unmanaged, ITileData
 {
-    protected readonly Random _random = new Random(123);
     protected readonly uint _length;
     protected readonly int2 _size;
+    protected readonly System.Random _random = new System.Random(123);
     
     protected readonly GraphicsArrayBuffer<uint> _tileIdData;
     
@@ -26,7 +25,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public BaseTileSet2<TTileData, TUserData> TileSet => _tileSet;
 
-
+    
 
     protected BaseTileBlock2D(
         RenderingSystem renderingSystem,
@@ -80,8 +79,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
             return false;
         }
         //random a tile id
-        var sprites = _tileSet.GetSprites(itemId);
-        uint tileId = sprites[_random.NextUint((uint)sprites.Length)].TileId;
+        uint tileId = RandomTileId(itemId);
 
         _tileIdData[GetTileIndex(x, y)] = tileId;
         _isTileIdDirty = true;
@@ -94,14 +92,11 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         from = clamp(from, new int2(0, 0), _size - new int2(1, 1));
         to = clamp(to, new int2(0, 0), _size - new int2(1, 1));
 
-        var sprites = _tileSet.GetSprites(itemId);
-
         for (int i = from.x; i < to.x; i++)
         {
             for (int j = from.y; j < to.y; j++)
             {
-                uint tileId = sprites[_random.NextUint((uint)sprites.Length)].TileId;
-                _tileIdData[GetTileIndex(i, j)] = tileId;
+                _tileIdData[GetTileIndex(i, j)] = RandomTileId(itemId);
             }
         }
         _isTileIdDirty = true;
@@ -109,10 +104,9 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public void SetAllItemIds(int itemId)
     {
-        var sprites = _tileSet.GetSprites(itemId);
         for (int i = 0; i < _length; i++)
         {
-            _tileIdData[i] = sprites[_random.NextUint((uint)sprites.Length)].TileId;
+            _tileIdData[i] = RandomTileId(itemId);
         }
         _isTileIdDirty = true;
     }
@@ -209,6 +203,13 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     public int GetTileIndex(int x, int y)
     {
         return y * _size.x + x;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private uint RandomTileId(int itemId)
+    {
+        var sprites = _tileSet.GetSprites(itemId);
+        return sprites[_random.Next(sprites.Length)].TileId;
     }
 
     protected override void Dispose(bool disposing)

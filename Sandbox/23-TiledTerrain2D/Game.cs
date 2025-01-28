@@ -137,12 +137,12 @@ public class Game : GameEngine
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Surface Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.Count - 1))
+        if (DebugGUI.SliderWithText("Surface Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.ItemCount - 1))
         {
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Water Tile", ref _waterTileId, 0, (uint)_waterTileSet.Count - 1))
+        if (DebugGUI.SliderWithText("Water Tile", ref _waterTileId, 0, (uint)_waterTileSet.ItemCount - 1))
         {
             isDebugClicked = true;
         }
@@ -155,7 +155,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            for (int i = 0; i < _surfaceTileSet.Count; i++)
+            for (int i = 0; i < _surfaceTileSet.ItemCount; i++)
             {
                 _surfaceTileSet.SetTileBlendFactor(i, _blendFactor);
             }
@@ -169,7 +169,7 @@ public class Game : GameEngine
         if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
-            for (int i = 0; i < _surfaceTileSet.Count; i++)
+            for (int i = 0; i < _surfaceTileSet.ItemCount; i++)
             {
                 _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
             }

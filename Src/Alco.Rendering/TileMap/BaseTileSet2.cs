@@ -14,10 +14,10 @@ public abstract class BaseTileSet2<TTileData, TUserData> : AutoDisposable where 
 
     protected readonly TextureAtlas _atlas;
 
-    public int Count
+    public int ItemCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _tileData.Length;
+        get => _userDataList.Length;
     }
 
     public GraphicsArrayBuffer<TTileData> TileDataBuffer
