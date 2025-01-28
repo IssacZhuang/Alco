@@ -11,6 +11,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
     protected readonly TUserData[] _userDataList;
     protected readonly Dictionary<int, TileSpriteData[]> _spriteData;
     protected readonly GraphicsArrayBuffer<TTileData> _tileData;
+    protected readonly int[] _tileIdToItemId;
 
     protected readonly TextureAtlas _atlas;
 
@@ -85,6 +86,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 
         _spriteData = new Dictionary<int, TileSpriteData[]>();
         _userDataList = new TUserData[itemCount];
+        _tileIdToItemId = new int[tileCount];
 
         int currentTileIndex = 0;
         for (int i = 0; i < itemCount; i++)
@@ -110,6 +112,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
                 };
 
                 tileData.SetUVRect(sprite.UVRect);
+                _tileIdToItemId[currentTileIndex] = i;
                 _tileData[currentTileIndex++] = tileData;
             }
 
@@ -118,6 +121,11 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 
         _tileData.UpdateBuffer();
 
+    }
+
+    public int GetItemId(uint tileId)
+    {
+        return _tileIdToItemId[tileId];
     }
 
     public TUserData GetUserData(int itemId)

@@ -60,14 +60,14 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public abstract void OnRender(MaterialRenderer renderer);
 
-    public bool TryGetItemId(int x, int y, out uint tileId)
+    public bool TryGetItemId(int x, int y, out int itemId)
     {
         if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
         {
-            tileId = 0;
+            itemId = 0;
             return false;
         }
-        tileId = _tileIdData[GetTileIndex(x, y)];
+        itemId = _tileSet.GetItemId(_tileIdData[GetTileIndex(x, y)]);
         return true;
     }
 
@@ -112,22 +112,22 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     }
 
     //to fix
-    // public bool TryGetTileUserData(int x, int y, out TUserData userData)
-    // {
-    //     if (!TryGetItemId(x, y, out uint tileId))
-    //     {
-    //         userData = default!;
-    //         return false;
-    //     }
-    //     if (tileId < 0)
-    //     {
-    //         userData = default!;
-    //         return false;
-    //     }
+    public bool TryGetTileUserData(int x, int y, out TUserData userData)
+    {
+        if (!TryGetItemId(x, y, out int itemId))
+        {
+            userData = default!;
+            return false;
+        }
+        if (itemId < 0)
+        {
+            userData = default!;
+            return false;
+        }
 
-    //     userData = _tileSet.GetUserData(tileId);
-    //     return true;
-    // }
+        userData = _tileSet.GetUserData(itemId);
+        return true;
+    }
 
 
 
