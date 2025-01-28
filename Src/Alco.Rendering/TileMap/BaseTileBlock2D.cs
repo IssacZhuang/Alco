@@ -111,6 +111,12 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
             userData = default!;
             return false;
         }
+        if (tileId < 0)
+        {
+            userData = default!;
+            return false;
+        }
+
         userData = _tileSet.GetUserData(tileId);
         return true;
     }

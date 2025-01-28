@@ -111,4 +111,58 @@ public partial class RenderingSystem
         return new WaterTileSet<TUserData>(this, @params, material, sampler, name);
     }
 
+    public PlantTileBlock2D<TUserData> CreatePlantTileBlock2D<TUserData>(
+        PlantTileSet<TUserData> tileSet,
+        Material material,
+        int width,
+        int height,
+        string name = "plant_tile_block_2d"
+    )
+    {
+        return new PlantTileBlock2D<TUserData>(this, tileSet, material, width, height, name);
+    }
+
+    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+        Material material,
+        PlantTileSetParams<TUserData> @params,
+        string name = "plant_tile_set"
+    )
+    {
+        GPUSampler sampler = _device.SamplerLinearClamp;
+        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+    }
+
+    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+        Material material,
+        PlantTileSetParams<TUserData> @params,
+        FilterMode filterMode,
+        string name = "plant_tile_set"
+    )
+    {
+        GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
+        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+    }
+
+    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+        Material material,
+        PlantTileSetParams<TUserData> @params,
+        FilterMode filterMode,
+        AddressMode addressMode,
+        string name = "plant_tile_set"
+    )
+    {
+        GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
+        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+    }
+
+    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+        Material material,
+        PlantTileSetParams<TUserData> @params,
+        GPUSampler sampler,
+        string name = "plant_tile_set"
+    )
+    {
+        return new PlantTileSet<TUserData>(this, @params, material, sampler, name);
+    }
+    
 }

@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/Time.hlsli"
 
 struct Vertex {
   float3 position : POSITION;
@@ -27,13 +28,15 @@ struct TileData{
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_TEX2D_SAMPLE(1, _texture);
+DEFINE_UNIFORM(1, _timeData) { TimeData timeData; };
 
-DEFINE_STORAGE(2, TileData, _tileData);
+DEFINE_TEX2D_SAMPLE(2, _texture);
 
-DEFINE_STORAGE(3, uint, _tileIdData);
+DEFINE_STORAGE(3, TileData, _tileData);
 
-DEFINE_STORAGE(4, float, _heightData);
+DEFINE_STORAGE(4, uint, _tileIdData);
+
+DEFINE_STORAGE(5, float, _heightData);
 
 PUSH_CONSTANT Constants constants;
 
@@ -43,9 +46,13 @@ PUSH_CONSTANT Constants constants;
 V2F VertexMain(Vertex input)
 {
     uint tileId = _tileIdData[input.instanceId];
-    TileData data = _tileData[tileId];
-
     V2F output;
+    if (tileId <= 0) {
+        return output;
+    }
+
+    TileData data = _tileData[tileId];
+    
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
@@ -83,7 +90,12 @@ float4 PixelMain(V2F input) : SV_TARGET
     TileData data = _tileData[tileId];
     float2 uv = input.uv;
     uv = uv * data.uvRect.zw + data.uvRect.xy;
-    return SAMPLE_TEX2D(_texture, uv) * data.color;
+    float4 color = SAMPLE_TEX2D(_texture, uv) * data.color;
+    if (color.a < 0.01f)
+    {
+        discard;
+    }
+    return color;
 }
 
 
