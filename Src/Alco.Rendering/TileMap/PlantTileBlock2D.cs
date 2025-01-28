@@ -15,7 +15,7 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
 
     internal PlantTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet2<PlantTileData, TUserData> tileSet,
+        BaseTileSet<PlantTileData, TUserData> tileSet,
         Material material,
         int width,
         int height,

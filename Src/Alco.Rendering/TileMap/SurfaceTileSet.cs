@@ -5,7 +5,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed class SurfaceTileSet<TUserData> : BaseTileSet2<SurfaceTileData, TUserData>
+public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUserData>
 {
     public SurfaceTileSet(
         RenderingSystem renderingSystem,

@@ -18,18 +18,18 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     protected readonly Mesh _mesh;
     protected bool _isTileIdDirty;
 
-    protected BaseTileSet2<TTileData, TUserData> _tileSet;
+    protected BaseTileSet<TTileData, TUserData> _tileSet;
 
     public Transform3D Transform;
     public int2 Size => _size;
 
-    public BaseTileSet2<TTileData, TUserData> TileSet => _tileSet;
+    public BaseTileSet<TTileData, TUserData> TileSet => _tileSet;
 
-    
+
 
     protected BaseTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet2<TTileData, TUserData> tileSet,
+        BaseTileSet<TTileData, TUserData> tileSet,
         Material material,
         int width,
         int height,
@@ -135,7 +135,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// Update the tile set and clear the tile id data
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void SetTileSet(BaseTileSet2<TTileData, TUserData> tileSet)
+    public void SetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;
@@ -153,7 +153,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// <br/>[Warning] This it might cause some unexpected behavior if the new tile set has less tiles than the old one.
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void UnsafeSetTileSet(BaseTileSet2<TTileData, TUserData> tileSet)
+    public void UnsafeSetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;
@@ -209,6 +209,10 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     private uint RandomTileId(int itemId)
     {
         var sprites = _tileSet.GetSprites(itemId);
+        if (sprites.Length <= 1)
+        {
+            return sprites[0].TileId;
+        }
         return sprites[_random.Next(sprites.Length)].TileId;
     }
 

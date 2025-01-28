@@ -3,7 +3,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed class WaterTileSet<TUserData> : BaseTileSet2<WaterTileData, TUserData>
+public sealed class WaterTileSet<TUserData> : BaseTileSet<WaterTileData, TUserData>
 {
     internal WaterTileSet(
         RenderingSystem renderingSystem, 

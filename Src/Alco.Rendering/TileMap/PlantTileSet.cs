@@ -2,7 +2,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public class PlantTileSet<TUserData> : BaseTileSet2<PlantTileData, TUserData>
+public class PlantTileSet<TUserData> : BaseTileSet<PlantTileData, TUserData>
 {
     internal PlantTileSet(
         RenderingSystem renderingSystem, 
