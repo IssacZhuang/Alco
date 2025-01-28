@@ -4,15 +4,6 @@ namespace Alco.Rendering;
 
 public class BaseTileSetParams<TTileData, TUserData> where TTileData : unmanaged, ITileData
 {
-    public struct Item
-    {
-        public TUserData UserData;
-        public Texture2D Texture;
-        public Vector2 MeshScale;
-        public Vector2 UVScale;
-
-        public float BlendPriority;
-    }
 
     private readonly List<Texture2D> _textures = new();
     private readonly List<TUserData> _userDatas = new();

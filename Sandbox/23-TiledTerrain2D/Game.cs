@@ -97,7 +97,7 @@ public class Game : GameEngine
         _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
         _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _plantMaterial, width, height);
-        _plantBlock.SetAllTilesIds(0);
+        _plantBlock.SetAllTilesIds(1);
         _plantBlock.Transform.position = new Vector3(0, 0, 0);
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
