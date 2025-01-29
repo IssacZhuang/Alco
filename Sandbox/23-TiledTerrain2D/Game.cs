@@ -239,7 +239,7 @@ public class Game : GameEngine
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
         _cliffBlock.OnRender(_renderer);
-        _plantBlock.OnRender(_renderer);
+        //_plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
 
 
@@ -302,7 +302,11 @@ public class Game : GameEngine
     {
         Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
+        Task<Texture2D> grass2 = Assets.LoadAsyncTask<Texture2D>("Textures/Grass2.png");
+        Task<Texture2D> grass3 = Assets.LoadAsyncTask<Texture2D>("Textures/Grass3.png");
+        Task<Texture2D> grass4 = Assets.LoadAsyncTask<Texture2D>("Textures/Grass4.png");
         Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Dirt.png");
+
 
         Task.WaitAll(grid, grass, sand);
 
@@ -312,11 +316,14 @@ public class Game : GameEngine
         }, 0);
         item1.AddTexture(grid.Result, 0);
 
+
         var item2 = new SurfaceTileItem<int>("grass", new SurfaceTileData(){
             BlendPriority = 1,
         }, 1);
         item2.AddTexture(grass.Result, 1);
-
+        item2.AddTexture(grass2.Result, 1);
+        item2.AddTexture(grass3.Result, 2);
+        item2.AddTexture(grass4.Result, 3);
 
         var item3 = new SurfaceTileItem<int>("sand", new SurfaceTileData(){
             BlendPriority = 2,
