@@ -24,8 +24,7 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
         public int2 Size;
     }
 
-    private readonly GraphicsArrayBuffer<float> _heightData;
-    private bool _isHeightDirty;
+    private readonly TileMapHeightBuffer _heightData;
     
     private bool _isCliff;
 
@@ -55,14 +54,16 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
     internal SurfaceTileBlock2D(
         RenderingSystem renderingSystem,
         SurfaceTileSet<TUserData> tileSet,
+        TileMapHeightBuffer heightData,
         Material material,
         int width,
         int height,
         string name = "tiled_terrain_block_2d"
+
         ):base(renderingSystem, tileSet, material, width, height, name)
     {
 
-        _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, 0, name + "_height_data");
+        _heightData = heightData;
         _material.TrySetBuffer(ShaderResourceId.HeightData, _heightData);
 
     }
@@ -75,36 +76,10 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
             _isTileIdDirty = false;
         }
 
-        if (_isHeightDirty)
-        {
-            _heightData.UpdateBuffer();
-            _isHeightDirty = false;
-        }
+        _heightData.TryUpdateBuffer();
 
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
-    }
 
-    public bool TryGetTileHeight(int x, int y, out float height)
-    {
-        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
-        {
-            height = 0;
-            return false;
-        }
-        height = _heightData[GetTileIndex(x, y)];
-        return true;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySetTileHeight(int x, int y, float height)
-    {
-        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
-        {
-            return false;
-        }
-        _heightData[GetTileIndex(x, y)] = height;
-        _isHeightDirty = true;
-        return true;
     }
 
     protected override void Dispose(bool disposing)

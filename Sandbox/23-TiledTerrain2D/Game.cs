@@ -26,6 +26,7 @@ public class Game : GameEngine
     private readonly SurfaceTileBlock2D<int> _cliffBlock;
     private readonly WaterTileBlock2D<int> _waterBlock;
     private readonly PlantTileBlock2D<int> _plantBlock;
+    private readonly TileMapHeightBuffer _heightBuffer;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -60,6 +61,8 @@ public class Game : GameEngine
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateMaterialRenderer();
 
+        _heightBuffer = Rendering.CreateTileMapHeightBuffer(width, height);
+
         _surfaceTileSet = BuildSurfaceTileSet();
         _surfaceTileSet.SetAllTileColor(_color);
         _cliffTileSet = BuildCliffTileSet();
@@ -84,19 +87,18 @@ public class Game : GameEngine
         _plantMaterial.BlendState = BlendState.Opaque;
         _plantMaterial.DepthStencilState = DepthStencilState.Write;
 
-        _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _surfaceMaterial, width, height);
+        _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
         _surfaceBlock.SetAllItemIds(1);
 
-        _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _cliffMaterial, width, height);
+        _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
         _cliffBlock.SetAllItemIds(1);
         _cliffBlock.IsCliff = true;
 
-        _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _waterMaterial, width, height);
+        _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
         _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
-        _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
-        _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _plantMaterial, width, height);
+        _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
         _plantBlock.SetAllItemIds(0);
         _plantBlock.Transform.position = new Vector3(0, 0, 0);
 
@@ -255,7 +257,7 @@ public class Game : GameEngine
                     continue;
                 }
                 int2 pos = _brushCells[i];
-                if (!_surfaceBlock.TryGetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y, out float height))
+                if (!_heightBuffer.TryGetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y, out float height))
                 {
                     continue;
                 }
@@ -279,9 +281,9 @@ public class Game : GameEngine
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
-                    _surfaceBlock.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
-                    _cliffBlock.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _heightBuffer.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
                 }
+
             }
         }
         _renderer.End();

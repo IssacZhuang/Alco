@@ -14,7 +14,7 @@ public struct PlantTileData : ITileData
         UVRect = new Rect(0, 0, 1, 1);
         Color = new Vector4(1, 1, 1, 1);
         Scale = new Vector2(1, 1);
-        HeightOffsetFactor = new Vector2(0, 0);
+        HeightOffsetFactor = new Vector2(0, 1);
     }
 
     public void SetUVRect(Rect rect)

@@ -6,14 +6,23 @@ public partial class RenderingSystem
 {
     public SurfaceTileBlock2D<TUserData> CreateSurfaceBlock2D<TUserData>(
         SurfaceTileSet<TUserData> tileSet,
+        TileMapHeightBuffer heightData,
         Material material,
         int width,
         int height,
         string name = "tiled_terrain_block_2d"
     )
     {
-        return new SurfaceTileBlock2D<TUserData>(this, tileSet, material, width, height, name);
+        return new SurfaceTileBlock2D<TUserData>(
+            this,
+            tileSet,
+            heightData,
+            material,
+            width,
+            height,
+            name);
     }
+
 
     public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
         Material material,
@@ -59,13 +68,21 @@ public partial class RenderingSystem
 
     public WaterTileBlock2D<TUserData> CreateWaterTileBlock2D<TUserData>(
         WaterTileSet<TUserData> tileSet,
+        TileMapHeightBuffer surfaceHeightData,
         Material material,
         int width,
         int height,
         string name = "water_tile_block_2d"
     )
     {
-        return new WaterTileBlock2D<TUserData>(this, tileSet, material, width, height, name);
+        return new WaterTileBlock2D<TUserData>(
+            this,
+            tileSet,
+            surfaceHeightData,
+            material,
+            width,
+            height,
+            name);
     }
 
     public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
@@ -113,13 +130,21 @@ public partial class RenderingSystem
 
     public PlantTileBlock2D<TUserData> CreatePlantTileBlock2D<TUserData>(
         PlantTileSet<TUserData> tileSet,
+        TileMapHeightBuffer heightData,
         Material material,
         int width,
         int height,
         string name = "plant_tile_block_2d"
     )
+
     {
-        return new PlantTileBlock2D<TUserData>(this, tileSet, material, width, height, name);
+        return new PlantTileBlock2D<TUserData>(
+            this,
+            tileSet,
+            heightData,
+            material,
+            width,
+            height, name);
     }
 
     public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
@@ -164,5 +189,11 @@ public partial class RenderingSystem
     {
         return new PlantTileSet<TUserData>(this, items, material, sampler, name);
     }
-    
+
+    public TileMapHeightBuffer CreateTileMapHeightBuffer(int width, int height, string name = "tile_map_height_buffer")
+    {
+        return new TileMapHeightBuffer(this, width, height, name);
+    }
+
+
 }

@@ -11,21 +11,23 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
         public Matrix4x4 Model;
         public int2 Size;
     }
-    private readonly GraphicsArrayBuffer<float> _heightData;
+    private readonly TileMapHeightBuffer _heightData;
 
     internal PlantTileBlock2D(
         RenderingSystem renderingSystem,
         BaseTileSet<PlantTileData, TUserData> tileSet,
+        TileMapHeightBuffer heightData,
         Material material,
         int width,
         int height,
         string name = "tiled_terrain_block_2d"
         ) : base(renderingSystem, tileSet, material, width, height, name)
     {
-        _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, "height_data");
+        _heightData = heightData;
         _material.SetBuffer(ShaderResourceId.HeightData, _heightData);
         _material.SetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
     }
+
 
 
     protected override Mesh CreateMesh()
@@ -41,6 +43,9 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
             _tileIdData.UpdateBuffer();
             _isTileIdDirty = false;
         }
+
+        _heightData.TryUpdateBuffer();
+
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
     }
 }

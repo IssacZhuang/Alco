@@ -13,38 +13,26 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
         public int2 Size;
     }
 
-    private readonly GraphicsArrayBuffer<float> _dummyHeightData;
-    private GraphicsArrayBuffer<float>? _surfaceHeightData;
+    private TileMapHeightBuffer _surfaceHeightData;
 
-    public GraphicsArrayBuffer<float> SurfaceHeightData
-    {
-        get => _surfaceHeightData ?? _dummyHeightData;
-        set
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            _surfaceHeightData = value;
-            _material.SetBuffer(ShaderResourceId.HeightData, _surfaceHeightData);
-        }
-    }
 
     internal WaterTileBlock2D(
         RenderingSystem renderingSystem,
         BaseTileSet<WaterTileData, TUserData> tileSet,
+        TileMapHeightBuffer surfaceHeightData,
         Material material,
         int width,
         int height,
+
         string name = "tiled_terrain_block_2d") :
         base(renderingSystem, tileSet, material, width, height, name)
     {
-        _dummyHeightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height);
-        for (int i = 0; i < width * height; i++)
-        {
-            _dummyHeightData[i] = 0;
-        }
-        _dummyHeightData.UpdateBuffer();
-        _material.TrySetBuffer(ShaderResourceId.HeightData, _dummyHeightData);
+        _surfaceHeightData = surfaceHeightData;
+        _material.TrySetBuffer(ShaderResourceId.HeightData, _surfaceHeightData);
         _material.TrySetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
     }
+
+
 
     public override void OnRender(MaterialRenderer renderer)
     {
@@ -53,6 +41,8 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
             _tileIdData.UpdateBuffer();
             _isTileIdDirty = false;
         }
+
+        _surfaceHeightData.TryUpdateBuffer();
 
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
     }
