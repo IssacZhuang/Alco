@@ -67,7 +67,7 @@ public class Game : GameEngine
 
         //draw atlas texture
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        _materialRenderer.DrawWithConstant(Rendering.MeshSprite, _material, constant);
+        _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
 
     }

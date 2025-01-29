@@ -8,6 +8,8 @@ namespace Alco.Rendering;
 
 public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable where TTileData : unmanaged, ITileData
 {
+    protected readonly RenderingSystem _renderingSystem;
+
     protected readonly uint _length;
     protected readonly int2 _size;
     protected readonly System.Random _random = new System.Random(123);
@@ -39,7 +41,9 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _tileSet = tileSet;
         _tileIdData = renderingSystem.CreateGraphicsArrayBuffer<uint>(width * height, name + "_sprite_index_data");
         _material = material.CreateInstance();
-        _mesh = renderingSystem.MeshSprite;
+        _renderingSystem = renderingSystem;
+        _mesh = CreateMesh();
+
 
 
         for (int i = 0; i < _tileIdData.Length; i++)
@@ -57,6 +61,12 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _material.TrySetBuffer(ShaderResourceId.TileData, _tileSet.TileDataBuffer);
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
     }
+
+    protected virtual Mesh CreateMesh()
+    {
+        return _renderingSystem.MeshCenteredSprite;
+    }
+
 
     public abstract void OnRender(MaterialRenderer renderer);
 

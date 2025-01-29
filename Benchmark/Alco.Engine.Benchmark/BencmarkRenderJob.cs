@@ -37,7 +37,7 @@ public class BenchmarkRenderJob
 
         _shader = _engine.BuiltInAssets.Shader_Sprite;
         _material = renderingSystem.CreateGraphicsMaterial(_shader);
-        _mesh = renderingSystem.MeshSprite;
+        _mesh = renderingSystem.MeshCenteredSprite;
         _renderTexture = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedHDRPass, 1024, 1024);
 
         _renderJobEncode = new RenderJobDrawMesh(_renderTexture.FrameBuffer);

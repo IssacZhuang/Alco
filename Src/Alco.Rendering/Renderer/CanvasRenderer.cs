@@ -68,7 +68,7 @@ public sealed partial class CanvasRenderer : AutoDisposable
         _textShaderId_font = _pipelineInfoText.GetResourceId(ShaderResourceId.Font);
 
         //init sprite rendering
-        _meshSprite = renderingSystem.MeshSprite;
+        _meshSprite = renderingSystem.MeshCenteredSprite;
         _shaderSprite = shaderSpirte;
 
         _pipelineInfoSprite = _shaderSprite.GetGraphicsPipeline(

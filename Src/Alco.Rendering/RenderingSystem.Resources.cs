@@ -32,7 +32,7 @@ public partial class RenderingSystem
         }
     }
 
-    private static readonly Vertex[] VerticesSpriteQuad =
+    private static readonly Vertex[] VerticesCenteredSpriteQuad =
    {
         new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),
         new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),
@@ -40,7 +40,18 @@ public partial class RenderingSystem
         new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1))
     };
 
-    private static readonly ushort[] IndicesSpriteQuad = { 0, 1, 2, 0, 2, 3 };
+    private static readonly ushort[] IndicesCenteredSpriteQuad = { 0, 1, 2, 0, 2, 3 };
+
+    private static readonly Vertex[] VerticesMidUpSpriteQuad =
+    {
+        new(new Vector3(-0.5f, 1, 0), new Vector2(0, 0)),
+        new(new Vector3(0.5f, 1, 0), new Vector2(1, 0)),
+        new(new Vector3(0.5f, 0, 0), new Vector2(1, 1)),
+        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 1))
+
+    };
+
+    private static readonly ushort[] IndicesMidUpSpriteQuad = { 0, 1, 2, 0, 2, 3 };
 
     private static readonly Vertex[] VerticesTrueTypeQuad =
     {
@@ -84,22 +95,39 @@ public partial class RenderingSystem
         3, 2, 6, 3, 6, 7
     };
 
-    private Mesh? _meshSprite;
+    private Mesh? _meshCenteredSprite;
+    private Mesh? _meshMidUpSprite;
     private Mesh? _meshTrueType;
     private Mesh? _mehsFullScreen;
     private Mesh? _meshCube;
+    
 
-    public Mesh MeshSprite
+    public Mesh MeshCenteredSprite
     {
         get
         {
-            if (_meshSprite == null)
+            if (_meshCenteredSprite == null)
             {
-                _meshSprite = CreateMesh(VerticesSpriteQuad, IndicesSpriteQuad, "sprite_mesh");
+                _meshCenteredSprite = CreateMesh(VerticesCenteredSpriteQuad, IndicesCenteredSpriteQuad, "centered_sprite_mesh");
             }
-            return _meshSprite;
+            return _meshCenteredSprite;
+
         }
     }
+
+    public Mesh MeshMidUpSprite
+    {
+        get
+        {
+            if (_meshMidUpSprite == null)
+            {
+                _meshMidUpSprite = CreateMesh(VerticesMidUpSpriteQuad, IndicesMidUpSpriteQuad, "mid_up_sprite_mesh");
+            }
+            return _meshMidUpSprite;
+
+        }
+    }
+
 
     public Mesh MeshTrueType
     {

@@ -97,7 +97,7 @@ public class Game : GameEngine
         _waterBlock.SurfaceHeightData = _surfaceBlock.HeightData;
 
         _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _plantMaterial, width, height);
-        _plantBlock.SetAllItemIds(1);
+        _plantBlock.SetAllItemIds(0);
         _plantBlock.Transform.position = new Vector3(0, 0, 0);
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
@@ -237,7 +237,7 @@ public class Game : GameEngine
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
         _cliffBlock.OnRender(_renderer);
-        //_plantBlock.OnRender(_renderer);
+        _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
 
 
@@ -262,7 +262,7 @@ public class Game : GameEngine
                 _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
-                _renderer.DrawWithConstant(Rendering.MeshSprite, _brushMaterial, _brushConstant);
+                _renderer.DrawWithConstant(Rendering.MeshCenteredSprite, _brushMaterial, _brushConstant);
 
 
                 if (Input.IsMousePressing(Mouse.Left))
@@ -426,13 +426,8 @@ public class Game : GameEngine
         {
         }, 0);
         item1.AddTexture(highGrass1.Result, 0);
+        item1.AddTexture(highGrass2.Result, 1);
         items.Add(item1);
-
-        var item2 = new BaseTileItem<PlantTileData, int>("highGrass2", new PlantTileData()
-        {
-        }, 1);
-        item2.AddTexture(highGrass2.Result, 1);
-        items.Add(item2);
 
         return Rendering.CreatePlantTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
     }

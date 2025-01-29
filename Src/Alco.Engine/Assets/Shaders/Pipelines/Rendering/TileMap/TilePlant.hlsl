@@ -47,9 +47,9 @@ V2F VertexMain(Vertex input)
 {
     uint tileId = _tileIdData[input.instanceId];
     V2F output;
-    if (tileId <= 0) {
-        return output;
-    }
+    // if (tileId <= 0) {
+    //     return output;
+    // }
 
     TileData data = _tileData[tileId];
     
@@ -66,9 +66,14 @@ V2F VertexMain(Vertex input)
     //         new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1))
     //     };
     float3 pos = input.position * float3(data.scale, 0);
-    pos.z = pos.y + 0.5f;
+    float waveOffeetX = pos.y * (sin((timeData.time + pos.x + offsetX * offsetY) * 8) * 0.02);
+    float waveOffeetY = cos((timeData.time + pos.y + offsetX * offsetY) * 8) * 0.02;
+    pos.x += waveOffeetX;
+    pos.y *= (1+waveOffeetY);
+    pos.z = pos.y;
 
     float4 position = float4(pos, 1);
+
     float height = _heightData[input.instanceId];
     position.z += height;
     position.xy += float2(offsetX, -offsetY) + float2(height, height) * data.heightOffsetFactor;

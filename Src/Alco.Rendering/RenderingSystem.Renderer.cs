@@ -13,7 +13,7 @@ public partial class RenderingSystem
 
     public SpriteRenderer CreateSpriteRenderer(GraphicsBuffer camera, Shader shader)
     {
-        return new SpriteRenderer(this, MeshSprite, camera, shader);
+        return new SpriteRenderer(this, MeshCenteredSprite, camera, shader);
     }
 
     public MaterialRenderer CreateMaterialRenderer()

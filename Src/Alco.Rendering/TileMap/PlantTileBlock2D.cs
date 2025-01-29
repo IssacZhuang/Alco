@@ -24,7 +24,15 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
     {
         _heightData = renderingSystem.CreateGraphicsArrayBuffer<float>(width * height, "height_data");
         _material.SetBuffer(ShaderResourceId.HeightData, _heightData);
+        _material.SetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
     }
+
+
+    protected override Mesh CreateMesh()
+    {
+        return _renderingSystem.MeshMidUpSprite;
+    }
+
 
     public override void OnRender(MaterialRenderer renderer)
     {
