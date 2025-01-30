@@ -35,10 +35,12 @@ public class Game : GameEngine
     private float _blendFactor = 0.35f;
     private float _edgeSmoothFactor = 0.15f;
 
+    private bool _editSurface = true;
     private bool _editWater = false;
     private bool _editPlant = false;
     private uint _surfaceTileId = 1;
     private uint _waterTileId = 1;
+    private uint _plantTileId = 0;
 
     private float _hight = 0.2f;
     private float _brushSize = 1;
@@ -149,9 +151,47 @@ public class Game : GameEngine
             isDebugClicked = true;
         }
 
-        if (DebugGUI.CheckBoxWithText("Edit Water", ref _editWater))
+        if (DebugGUI.SliderWithText("Plant Tile", ref _plantTileId, 0, (uint)_plantTileSet.ItemCount - 1))
         {
             isDebugClicked = true;
+        }
+
+        if (DebugGUI.Button("Edit Water"))
+        {
+            _editWater = true;
+            _editSurface = false;
+            _editPlant = false;
+            isDebugClicked = true;
+        }
+
+        DebugGUI.SameLine();
+        if (DebugGUI.Button("Edit Surface"))
+        {
+            _editWater = false;
+            _editSurface = true;
+            _editPlant = false;
+            isDebugClicked = true;
+        }
+
+        DebugGUI.SameLine();
+        if (DebugGUI.Button("Edit Plant"))
+        {
+            _editWater = false;
+            _editSurface = false;
+            _editPlant = true;
+            isDebugClicked = true;
+        }
+
+        DebugGUI.SameLine();
+        if(_editWater)
+        {
+            DebugGUI.Text("Edit Water");
+        }else if(_editSurface)
+        {
+            DebugGUI.Text("Edit Surface");
+        }else if(_editPlant)
+        {
+            DebugGUI.Text("Edit Plant");
         }
 
         if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
@@ -177,37 +217,6 @@ public class Game : GameEngine
             }
         }
 
-        // uint r = _waterColor.R;
-        // uint g = _waterColor.G;
-        // uint b = _waterColor.B;
-        // uint a = _waterColor.A;
-        // if (DebugGUI.SliderWithText("Water Color R", ref r, 0, 255))
-        // {
-        //     isDebugClicked = true;
-        //     _waterColor.R = (byte)r;
-        //     _waterTileSet.SetTileColor(1, _waterColor);
-        // }
-
-        // if (DebugGUI.SliderWithText("Water Color G", ref g, 0, 255))
-        // {
-        //     isDebugClicked = true;
-        //     _waterColor.G = (byte)g;
-        //     _waterTileSet.SetTileColor(1, _waterColor);
-        // }
-
-        // if (DebugGUI.SliderWithText("Water Color B", ref b, 0, 255))
-        // {
-        //     isDebugClicked = true;
-        //     _waterColor.B = (byte)b;
-        //     _waterTileSet.SetTileColor(1, _waterColor);
-        // }
-
-        // if (DebugGUI.SliderWithText("Water Color A", ref a, 0, 255))
-        // {
-        //     isDebugClicked = true;
-        //     _waterColor.A = (byte)a;
-        //     _waterTileSet.SetTileColor(1, _waterColor);
-        // }
 
         if (Input.IsKeyDown(KeyCode.Escape))
         {
@@ -239,7 +248,7 @@ public class Game : GameEngine
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
         _cliffBlock.OnRender(_renderer);
-        //_plantBlock.OnRender(_renderer);
+        _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
 
 
@@ -273,10 +282,14 @@ public class Game : GameEngine
                     {
                         _waterBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _waterTileId);
                     }
-                    else
+                    else if (_editSurface)
                     {
                         _surfaceBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
                         _cliffBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                    }
+                    else if (_editPlant)
+                    {
+                        _plantBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _plantTileId);
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
@@ -431,6 +444,14 @@ public class Game : GameEngine
         // });
 
         List<BaseTileItem<PlantTileData, int>> items = new();
+        //add empty item
+        var item0 = new BaseTileItem<PlantTileData, int>("empty", new PlantTileData()
+        {
+            HasContent = 0
+        }, 0);
+        items.Add(item0);
+        item0.AddTexture(Rendering.TextureWhite, 0);
+
         var item1 = new BaseTileItem<PlantTileData, int>("highGrass1", new PlantTileData()
         {
         }, 0);

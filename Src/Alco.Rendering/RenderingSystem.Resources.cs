@@ -48,7 +48,6 @@ public partial class RenderingSystem
         new(new Vector3(0.5f, 1, 0), new Vector2(1, 0)),
         new(new Vector3(0.5f, 0, 0), new Vector2(1, 1)),
         new(new Vector3(-0.5f, 0, 0), new Vector2(0, 1))
-
     };
 
     private static readonly ushort[] IndicesMidUpSpriteQuad = { 0, 1, 2, 0, 2, 3 };

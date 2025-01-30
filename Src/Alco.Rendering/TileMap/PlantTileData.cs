@@ -8,6 +8,10 @@ public struct PlantTileData : ITileData
     public Vector4 Color;
     public Vector2 Scale;
     public Vector2 HeightOffsetFactor;
+    public float HasContent;
+    public float RandomOffsetFactor;
+    private Vector2 _reserved;
+    
 
     public PlantTileData()
     {
@@ -15,6 +19,8 @@ public struct PlantTileData : ITileData
         Color = new Vector4(1, 1, 1, 1);
         Scale = new Vector2(1, 1);
         HeightOffsetFactor = new Vector2(0, 1);
+        HasContent = 1;
+        RandomOffsetFactor = 0.2f;
     }
 
     public void SetUVRect(Rect rect)

@@ -23,6 +23,8 @@ struct TileData{
     float4 color;
     float2 scale;
     float2 heightOffsetFactor;
+    float hasContent;
+    float randomOffsetFactor;
 };
 
 
@@ -46,25 +48,30 @@ PUSH_CONSTANT Constants constants;
 V2F VertexMain(Vertex input)
 {
     uint tileId = _tileIdData[input.instanceId];
-    V2F output;
-    // if (tileId <= 0) {
-    //     return output;
-    // }
-
     TileData data = _tileData[tileId];
+    V2F output;
+    if (data.hasContent <= 0) {
+        return output;
+    }
+    
     
     float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
     float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
 
+    float hash = offsetX*17 + offsetY*23;
+    float randomOffsetFactor = data.randomOffsetFactor;
+    offsetX += sin(hash)*randomOffsetFactor;
+    offsetY += cos(hash)*randomOffsetFactor;
+
     // the vertex position is calculated based on the standard sprite quad mesh
     // which is centered at the origin
-    // private static readonly Vertex[] VerticesSpriteQuad =
-    //     {
-    //         new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),
-    //         new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),
-    //         new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),
-    //         new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1))
-    //     };
+    // private static readonly Vertex[] VerticesMidUpSpriteQuad =
+    // {
+    //     new(new Vector3(-0.5f, 1, 0), new Vector2(0, 0)),
+    //     new(new Vector3(0.5f, 1, 0), new Vector2(1, 0)),
+    //     new(new Vector3(0.5f, 0, 0), new Vector2(1, 1)),
+    //     new(new Vector3(-0.5f, 0, 0), new Vector2(0, 1))
+    // };
     float3 pos = input.position * float3(data.scale, 0);
     float waveOffeetX = pos.y * (sin((timeData.time + pos.x + offsetX * offsetY) * 8) * 0.02);
     float waveOffeetY = cos((timeData.time + pos.y + offsetX * offsetY) * 8) * 0.02;
