@@ -326,22 +326,17 @@ public class Game : GameEngine
         List<SurfaceTileItem<int>> items = new();
         var item1 = new SurfaceTileItem<int>("grid", new SurfaceTileData(){
             BlendPriority = 0,
-        }, 0);
-        item1.AddTexture(grid.Result, 0);
+        }, 0, grid.Result);
 
 
         var item2 = new SurfaceTileItem<int>("grass", new SurfaceTileData(){
             BlendPriority = 1,
-        }, 1);
-        item2.AddTexture(grass.Result, 1);
-        item2.AddTexture(grass2.Result, 1);
-        item2.AddTexture(grass3.Result, 2);
-        item2.AddTexture(grass4.Result, 3);
+        }, 1, grass.Result, grass2.Result, grass3.Result, grass4.Result);
+
 
         var item3 = new SurfaceTileItem<int>("sand", new SurfaceTileData(){
             BlendPriority = 2,
-        }, 2);
-        item3.AddTexture(sand.Result, 2);
+        }, 2, sand.Result);
 
         items.Add(item1);
         items.Add(item2);
@@ -360,18 +355,15 @@ public class Game : GameEngine
         List<SurfaceTileItem<int>> items = new();
         var item1 = new SurfaceTileItem<int>("grid", new SurfaceTileData(){
             BlendPriority = 0,
-        }, 0);
-        item1.AddTexture(grid.Result, 0);
+        }, 0, grid.Result);
 
         var item2 = new SurfaceTileItem<int>("grass", new SurfaceTileData(){
             BlendPriority = 1,
-        }, 1);
-        item2.AddTexture(grass.Result, 1);
+        }, 1, grass.Result);
 
         var item3 = new SurfaceTileItem<int>("sand", new SurfaceTileData(){
             BlendPriority = 2,
-        }, 2);
-        item3.AddTexture(sand.Result, 2);
+        }, 2, sand.Result);
 
         items.Add(item1);
         items.Add(item2);
@@ -400,28 +392,25 @@ public class Game : GameEngine
         //     BlendPriority = 2
         // });
 
-        List<BaseTileItem<WaterTileData, int>> items = new();
-        var item1 = new BaseTileItem<WaterTileData, int>("grid", new WaterTileData()
+        List<WaterTileItem<int>> items = new();
+        var item1 = new WaterTileItem<int>("grid", new WaterTileData()
         {
             BlendPriority = 0
-        }, 0);
-        item1.AddTexture(grid.Result, 0);
+        }, 0, grid.Result);
         items.Add(item1);
 
-        var item2 = new BaseTileItem<WaterTileData, int>("water", new WaterTileData()
+        var item2 = new WaterTileItem<int>("water", new WaterTileData()
         {
             Color = _waterColor,
             BlendPriority = 1
-        }, 1);
-        item2.AddTexture(Rendering.TextureWhite, 1);
+        }, 1, Rendering.TextureWhite);
         items.Add(item2);
 
-        var item3 = new BaseTileItem<WaterTileData, int>("water2", new WaterTileData()
+        var item3 = new WaterTileItem<int>("water2", new WaterTileData()
         {
             Color = new ColorFloat(1, 1, 1, 0.5f),
             BlendPriority = 2
-        }, 2);
-        item3.AddTexture(Rendering.TextureWhite, 2);
+        }, 2, Rendering.TextureWhite);
         items.Add(item3);
 
         return Rendering.CreateWaterTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
@@ -443,20 +432,17 @@ public class Game : GameEngine
             
         // });
 
-        List<BaseTileItem<PlantTileData, int>> items = new();
+        List<PlantTileItem<int>> items = new();
         //add empty item
-        var item0 = new BaseTileItem<PlantTileData, int>("empty", new PlantTileData()
+        var item0 = new PlantTileItem<int>("empty", new PlantTileData()
         {
             HasContent = 0
-        }, 0);
+        }, 0, Rendering.TextureWhite);
         items.Add(item0);
-        item0.AddTexture(Rendering.TextureWhite, 0);
 
-        var item1 = new BaseTileItem<PlantTileData, int>("highGrass1", new PlantTileData()
+        var item1 = new PlantTileItem<int>("highGrass1", new PlantTileData()
         {
-        }, 0);
-        item1.AddTexture(highGrass1.Result, 0);
-        item1.AddTexture(highGrass2.Result, 1);
+        }, 0, highGrass1.Result, highGrass2.Result);
         items.Add(item1);
 
         return Rendering.CreatePlantTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");

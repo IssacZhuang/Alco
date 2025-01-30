@@ -65,8 +65,8 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 
             for (int j = 0; j < textureCount; j++)
             {
-                var textureItem = item.Textures[j];
-                Texture2D texture = textureItem.Texture;
+
+                Texture2D texture = item.Textures[j];
                 if (!textureToAtlasIndex.ContainsKey(texture))
                 {
                     textureToAtlasIndex[texture] = uniqueTextures.Count;
@@ -100,8 +100,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 
             for (int j = 0; j < textureCount; j++)
             {
-                var textureItem = item.Textures[j];
-                Texture2D texture = textureItem.Texture;
+                Texture2D texture = item.Textures[j];
                 int atlasIndex = textureToAtlasIndex[texture];
                 Sprite sprite = _atlas[atlasIndex];
 
