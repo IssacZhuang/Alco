@@ -142,7 +142,7 @@ namespace Alco.Test
 
             box = new ShapeBox3D(Vector3.Zero, new Vector3(1f), math.euler(math.radians(new Vector3(0, 0, 45))));
             TestContext.WriteLine(box.GetBoundingBox());
-            float pos = math.sqrt(2)*0.5f*0.5f;
+            float pos = math.sqrt(2f)*0.5f*0.5f;
             TestContext.WriteLine(pos);
             point = new Vector3(pos + 0.1f, pos + 0.1f, 0);
 

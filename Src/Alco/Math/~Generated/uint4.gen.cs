@@ -100,7 +100,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector4(uint4 a)
         {
-            return new Vector4(a.x, a.y, a.z, a.w);
+            return new Vector4((float)a.x, (float)a.y, (float)a.z, (float)a.w);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -22,6 +22,7 @@ public partial class RenderingSystem
     private readonly GPURenderPass _prefferedHDRPassWithoutDepth;
     private readonly GPURenderPass _prefferedRGBATexturePass;
     private readonly GPURenderPass _prefferedRTexturePass;
+    private readonly GPURenderPass _prefferedLightMapPass;
 
     private readonly PixelFormat _prefferedSDRFormat;
     private readonly PixelFormat _prefferedHDRFormat;
@@ -97,11 +98,18 @@ public partial class RenderingSystem
         get => _prefferedRTexturePass;
     }
 
+    public GPURenderPass PrefferedLightMapPass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _prefferedLightMapPass;
+    }
+
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
         IRenderScheduler renderScheduler,//the render thread need update every frame, so it is controlled a external object
         PixelFormat prefferedSDRFormat, 
+
         PixelFormat prefferedHDRFormat,
         PixelFormat prefferedDepthStencilFormat
     )
@@ -158,8 +166,16 @@ public partial class RenderingSystem
             "r_texture_pass"
         ));
 
+        _prefferedLightMapPass = device.CreateRenderPass(new RenderPassDescriptor
+        (
+            [new(PixelFormat.RGBA16Float)],
+            null,
+            "light_map_pass"
+        ));
+
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;
+
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -197,7 +197,7 @@ public class FileVector
         builder.Append($"            return new Vector{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"a.{FieldsLowerCase[i]}");
+            builder.Append($"(float)a.{FieldsLowerCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");

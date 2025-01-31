@@ -70,7 +70,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector2(uint2 a)
         {
-            return new Vector2(a.x, a.y);
+            return new Vector2((float)a.x, (float)a.y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

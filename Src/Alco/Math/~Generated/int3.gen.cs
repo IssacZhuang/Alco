@@ -84,7 +84,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector3(int3 a)
         {
-            return new Vector3(a.x, a.y, a.z);
+            return new Vector3((float)a.x, (float)a.y, (float)a.z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
