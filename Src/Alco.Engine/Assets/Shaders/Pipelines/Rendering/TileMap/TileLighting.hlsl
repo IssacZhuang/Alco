@@ -19,10 +19,8 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     }
 
     float4 colors[9];
-    [unroll]
 
     for(int i = -1; i <= 1; i++) {
-        [unroll]
         for(int j = -1; j <= 1; j++) {
             colors[i * 3 + j] = _texture[id.xy + int2(i, j)];
         }
