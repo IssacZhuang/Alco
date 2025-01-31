@@ -21,6 +21,7 @@
 #define DEFINE_TEX2D_SAMPLE(index, name) SLOT(index, 0) Texture2D name; SLOT(index, 1) SamplerState name##Sampler
 #define DEFINE_TEX2D_WRITE(index, name, format) SLOT(index, 0) writeonly IMAGE_FORMAT(format) RWTexture2D<float4> name
 #define DEFINE_TEX2D_READ(index, name) SLOT(index, 0) Texture2D name
+#define DEFINE_TEX2D_READ_WRITE(index, name, format) SLOT(index, 0) IMAGE_FORMAT(format) RWTexture2D<float4> name
 
 #define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
 #define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))

@@ -10,7 +10,7 @@ public struct PlantTileData : ITileData
     public Vector2 HeightOffsetFactor;
     public float HasContent;
     public float RandomOffsetFactor;
-    private Vector2 _reserved;
+    public Vector2 _reserved;//for memory alignment
     
 
     public PlantTileData()
