@@ -206,7 +206,7 @@ public static class UtilsShaderRelfection
                 break;
             case BindingType.StorageTexture:
                 storageTextureBindingInfo = new StorageTextureBindingInfo(
-                    AccessMode.Write,
+                    AccessMode.ReadWrite,
                     UtilsRelfectType.ConvertTextureViewDimension(input.Image),
                     UtilsRelfectType.ConvertImageFormat(input.Image.ImageFormat)
                     );

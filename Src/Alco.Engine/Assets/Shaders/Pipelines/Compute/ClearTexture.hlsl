@@ -4,7 +4,7 @@ struct Constants{
     float4 color;
 };
 
-DEFINE_TEX2D_READ_WRITE(0, _texture, "rgba16f");
+DEFINE_TEX2D_STORAGE(0, _texture, "rgba16f");
 PUSH_CONSTANT Constants constants;
 
 [shader("compute")]

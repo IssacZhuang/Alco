@@ -1,7 +1,7 @@
 #include "Shaders/Libs/Core.hlsli"
 
-//light map texture
-DEFINE_TEX2D_READ_WRITE(0, _texture, "rgba16f");
+// light map texture
+DEFINE_TEX2D_STORAGE(0, _texture, "rgba16f");
 
 bool IsObstacle(uint2 pos) {
     // todo: light will be blocked by wall
@@ -10,11 +10,11 @@ bool IsObstacle(uint2 pos) {
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void MainCS(uint3 dispatchThreadId: SV_DispatchThreadID) {
-    uint2 pos = dispatchThreadId.xy;
+void MainCS(uint3 id: SV_DispatchThreadID) {
+    uint2 pos = id.xy;
 
     if(IsObstacle(pos)) {
-        _texture[dispatchThreadId.xy] = float4(0, 0, 0, 1);
+        _texture[id.xy] = float4(0, 0, 0, 1);
         return;
     }
 
@@ -24,7 +24,7 @@ void MainCS(uint3 dispatchThreadId: SV_DispatchThreadID) {
     for(int i = -1; i <= 1; i++) {
         [unroll]
         for(int j = -1; j <= 1; j++) {
-            colors[i * 3 + j] = _texture[dispatchThreadId.xy + int2(i, j)];
+            colors[i * 3 + j] = _texture[id.xy + int2(i, j)];
         }
     }
 
@@ -47,7 +47,7 @@ void MainCS(uint3 dispatchThreadId: SV_DispatchThreadID) {
 
     float4 color = float4(result * inv9, 1);
 
-    _texture[dispatchThreadId.xy] = color;
+    _texture[id.xy] = color;
 }
 
 

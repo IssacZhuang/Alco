@@ -402,6 +402,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
 
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
+        featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TextureAdapterSpecificFormatFeatures);
 
         WGPUFeatureName* features = stackalloc WGPUFeatureName[featuresList.Count];
         for (int i = 0; i < featuresList.Count; i++)
@@ -514,7 +515,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             Name = "default_bind_group_storage_texture",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.Write, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
             },
         });
     }
