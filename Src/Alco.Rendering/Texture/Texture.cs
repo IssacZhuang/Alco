@@ -20,9 +20,7 @@ public abstract class Texture : AutoDisposable
 
     public string Name { get; }
 
-    public abstract bool IsReadOnly { get; }
-
-    
+    public bool IsWriteable => _texture.IsWriteable;
 
 
     public uint Width
@@ -68,10 +66,10 @@ public abstract class Texture : AutoDisposable
 
     public unsafe void SetPixels(Color32* data, uint length)
     {
-
-        if (IsReadOnly)
+        if (!IsWriteable)
         {
             throw new InvalidOperationException("Can not set pixels to a readonly texture");
+
         }
 
         if (length != _texture.Width * _texture.Height)
@@ -84,7 +82,7 @@ public abstract class Texture : AutoDisposable
 
     public unsafe void SetPixels(byte* data, uint size, uint pixelSize)
     {
-        if (IsReadOnly)
+        if (!IsWriteable)
         {
             throw new InvalidOperationException("Can not set pixels to a readonly texture");
         }

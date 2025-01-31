@@ -6,15 +6,28 @@ using Alco.Graphics;
 
 public class Game : GameEngine
 {
+    private readonly uint2 _size = new uint2(65, 65);
     private readonly RenderTexture _lightMap;
+    private readonly BitmapFloat16RGBA _lightMapCPU;
     private readonly MaterialRenderer _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
     private readonly ComputeDispatcher _computeClearTexture;
     private readonly ComputeDispatcher _computeFloodFill;
     public Game(GameEngineSetting setting) : base(setting)
+
     {
-        _lightMap = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, 65, 65);
+        _lightMap = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y);
+        _lightMapCPU = new BitmapFloat16RGBA(_size.x, _size.y);
+        for (int i = 0; i < _lightMapCPU.Width; i++)
+        {
+            for (int j = 0; j < _lightMapCPU.Height; j++)
+            {
+                _lightMapCPU[i, j] = new Half4(1, 1, 1, 1);
+            }
+        }
+
+        _lightMap.ColorTextures[0].SetPixels(_lightMapCPU);
 
 
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);

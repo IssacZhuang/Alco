@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Alco.Graphics;
 
 /// <summary>
@@ -8,10 +10,16 @@ public abstract class GPUTexture : BaseGPUObject
     //it might be a dynamic texture so the width, height and pixel format might be changed
 
     /// <summary>
+    /// The usage of the texture
+    /// </summary>
+    public TextureUsage Usage { get; }
+
+    /// <summary>
     /// The width of the texture    
     /// </summary>
     /// <value>The width of the texture</value>
     public abstract uint Width { get; }
+
     /// <summary>
     /// The height of the texture
     /// </summary>
@@ -32,6 +40,16 @@ public abstract class GPUTexture : BaseGPUObject
     /// </summary>
     /// <value>The pixel format of the texture</value>
     public abstract PixelFormat PixelFormat { get; }
+
+    /// <summary>
+    /// Whether the texture is writeable. The <see cref="TextureUsage.Write"/> must be set in the <see cref="Usage"/> if you want to write to the texture.
+    /// <br/>Use <see cref="GPUDevice.WriteTexture"/> to write to the texture.
+    /// </summary>
+    public bool IsWriteable
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (Usage & TextureUsage.Write) != 0;
+    }
 
     /// <summary>
     /// Get the width of the texture at the specified mip level. level zero is the base level
@@ -76,5 +94,7 @@ public abstract class GPUTexture : BaseGPUObject
             throw new ArgumentException("Depth cannot be less than or equal to 0", nameof(descriptor));
         if (descriptor.MipLevels <= 0)
             throw new ArgumentException("MipLevels cannot be less than or equal to 0", nameof(descriptor));
+
+        Usage = descriptor.Usage;
     }
 }

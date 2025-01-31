@@ -6,8 +6,16 @@ namespace Alco.Graphics;
 /// </surmmary>
 public abstract class GPUFrameBuffer : BaseGPUObject
 {
-    public static readonly TextureUsage ColorAttachmentUsage = TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.StorageBinding | TextureUsage.Read;
-    public static readonly TextureUsage DepthAttachmentUsage = TextureUsage.ColorAttachment | TextureUsage.TextureBinding | TextureUsage.Read;
+    public static readonly TextureUsage ColorAttachmentUsage =
+    TextureUsage.ColorAttachment |
+    TextureUsage.TextureBinding |
+    TextureUsage.StorageBinding |
+    TextureUsage.Write |
+    TextureUsage.Read;
+    public static readonly TextureUsage DepthAttachmentUsage =
+    TextureUsage.ColorAttachment |
+    TextureUsage.TextureBinding |
+    TextureUsage.Read;
 
     //it might be a dynamic frame buffer so the width and height might be changed
 

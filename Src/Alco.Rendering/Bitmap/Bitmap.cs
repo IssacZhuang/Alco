@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A bitmap is a 2D array of pixels.
+/// A bitmap is a 2D array of pixels only on CPU.
 /// </summary>
 /// <typeparam name="T">The type of the pixel.</typeparam>
 public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
@@ -54,9 +54,15 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data = new GridMap<T>(width, height);
     }
 
+    public Bitmap(uint width, uint height)
+    {
+        _data = new GridMap<T>((int)width, (int)height);
+    }
+
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
+
     {
         _data.Dispose();
     }

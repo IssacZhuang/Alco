@@ -7,26 +7,21 @@ internal static partial class UtilsWebGPU
 {
     public static WGPUStorageTextureAccess ConvertAccessMode(AccessMode access)
     {
-        // has write and no read
-        if ((access & AccessMode.Write) != 0 && (access & AccessMode.Read) == 0)
+        switch (access)
         {
-            return WGPUStorageTextureAccess.WriteOnly;
+            case AccessMode.None:
+                return WGPUStorageTextureAccess.Undefined;
+            case AccessMode.Read:
+                return WGPUStorageTextureAccess.ReadOnly;
+            case AccessMode.Write:
+                return WGPUStorageTextureAccess.WriteOnly;
+            case AccessMode.ReadWrite:
+                return WGPUStorageTextureAccess.ReadWrite;
+            default:
+                throw new ArgumentException($"Invalid access mode: {access}");
         }
-
-        // has read and no write
-        if ((access & AccessMode.Read) != 0 && (access & AccessMode.Write) == 0)
-        {
-            return WGPUStorageTextureAccess.ReadOnly;
-        }
-
-        // has read and write
-        if ((access & AccessMode.Read) != 0 && (access & AccessMode.Write) != 0)
-        {
-            return WGPUStorageTextureAccess.ReadWrite;
-        }
-
-        return WGPUStorageTextureAccess.Undefined;
     }
+
 
     public static WGPUTextureUsage ConvertTextureUsage(TextureUsage usage)
     {

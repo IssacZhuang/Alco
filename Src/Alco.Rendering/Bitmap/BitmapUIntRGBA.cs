@@ -6,5 +6,10 @@ namespace Alco.Rendering
         public BitmapUIntRGBA(int width, int height) : base(width, height)
         {
         }
+
+        public BitmapUIntRGBA(uint width, uint height) : base(width, height)
+        {
+        }
     }
 }
+

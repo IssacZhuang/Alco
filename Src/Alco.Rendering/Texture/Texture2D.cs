@@ -14,12 +14,6 @@ public class Texture2D : Texture
     private GPUResourceGroup? _resourcesRead;
     private GPUResourceGroup? _resourcesStorage;
 
-    public override bool IsReadOnly
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => true;
-    }
-
     public GPUResourceGroup EntrySample
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -65,6 +59,22 @@ public class Texture2D : Texture
     internal Texture2D(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler) : base(device, texture, textureView, sampler)
     {
 
+    }
+
+    public unsafe void SetPixels<T>(Bitmap<T> bitmap) where T : unmanaged
+    {
+        if (!IsWriteable)
+        {
+            throw new InvalidOperationException("The texture is not writeable");
+        }
+
+
+        if (bitmap.Width != Width || bitmap.Height != Height)
+        {
+            throw new ArgumentException("The size of the bitmap does not match the size of the texture");
+        }
+
+        _device.WriteTexture(_texture, bitmap);;
     }
 
     public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)

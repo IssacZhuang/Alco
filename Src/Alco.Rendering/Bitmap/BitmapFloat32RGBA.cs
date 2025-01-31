@@ -7,5 +7,9 @@ namespace Alco.Rendering
         public BitmapFloat32RGBA(int width, int height) : base(width, height)
         {
         }
+
+        public BitmapFloat32RGBA(uint width, uint height) : base(width, height)
+        {
+        }
     }
 }
