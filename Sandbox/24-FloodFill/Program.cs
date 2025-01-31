@@ -5,16 +5,16 @@ using Alco.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Noise"),
+    Window = new WindowSetting(640, 360, "Flood Fill"),
     Graphics = GraphicsSetting.Default with
     {
         Backend = GraphicsBackend.Vulkan
     },
 }.
 With<PluginDefaultAssets>().
-With(new PluginHDR(1f, 1 / 2.2f)).
-// With<PluginBloom>().
-With<PluginDebugGUI>();
+With<PluginHDR>();
+//With<PluginBloom>().
+// With<PluginDebugGUI>();
 
 using (Game game = new Game(setting))
 {
