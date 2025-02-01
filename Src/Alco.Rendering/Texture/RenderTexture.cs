@@ -64,6 +64,15 @@ public class RenderTexture : AutoDisposable
         get => _frameBuffer.DepthStencil != null;
     }
 
+    /// <summary>
+    /// The name of the render texture.
+    /// </summary>
+    public string Name
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _frameBuffer.Name;
+    }
+
 
     /// <summary>
     /// The entry of depth view for sampling.

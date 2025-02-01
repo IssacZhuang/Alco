@@ -11,11 +11,15 @@ public static class ShaderResourceId
     public const string Font = "_font";
     public const string TextBuffer = "_textBuffer";
 
+    public const string FrontBuffer = "_frontBuffer";
+    public const string BackBuffer = "_backBuffer";
+
     public const string TimeData = "_timeData";
     public const string SpriteData = "_spriteData";
     public const string TileData = "_tileData";
     public const string ColorData = "_colorData";
     public const string HeightData = "_heightData";
+
     public const string PositionData = "_positionData";
     public const string TileIdData = "_tileIdData";
     public const string TileSetData = "_tileSetData";

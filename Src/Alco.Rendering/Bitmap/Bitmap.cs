@@ -49,14 +49,28 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
     /// </summary>
     /// <param name="width">The width of the bitmap.</param>
     /// <param name="height">The height of the bitmap.</param>
-    public Bitmap(int width, int height)
+    public Bitmap(int width, int height, bool clear = true)
     {
         _data = new GridMap<T>(width, height);
+        if (clear)
+        {
+            for (int i = 0; i < width * height; i++)
+            {
+                UnsafePointer[i] = default;
+            }
+        }
     }
 
-    public Bitmap(uint width, uint height)
+    public Bitmap(uint width, uint height, bool clear = true)
     {
         _data = new GridMap<T>((int)width, (int)height);
+        if (clear)
+        {
+            for (int i = 0; i < width * height; i++)
+            {
+                UnsafePointer[i] = default;
+            }
+        }
     }
 
 

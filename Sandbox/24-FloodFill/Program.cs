@@ -12,9 +12,10 @@ GameEngineSetting setting = new GameEngineSetting
     },
 }.
 With<PluginDefaultAssets>().
-With<PluginHDR>();
+With<PluginHDR>().
 //With<PluginBloom>().
-// With<PluginDebugGUI>();
+With<PluginDebugGUI>();
+
 
 using (Game game = new Game(setting))
 {
