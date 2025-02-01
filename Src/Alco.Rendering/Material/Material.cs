@@ -146,6 +146,7 @@ public abstract class Material: AutoDisposable
     /// <param name="defines">The defines to set.</param>
     public void SetDefines(params string[] defines)
     {
+        ArgumentNullException.ThrowIfNull(defines);
         _pipelineContext.Defines = defines;
         _isPipelineDirty = true;
     }
@@ -167,6 +168,7 @@ public abstract class Material: AutoDisposable
                 PushConstantsStages = _pipelineContext.ReflectionInfo!.PushConstantsStages,
                 PushConstantsSize = _pipelineContext.ReflectionInfo!.PushConstantsSize
             };
+            _parameters.SetReflectionInfo(_pipelineContext.ReflectionInfo!);
             _isPipelineDirty = false;
         }
 

@@ -46,7 +46,7 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
         result += colors[i].xyz * guassian[i] * multiplier;
     }
 
-    float inv9 = 1.0f/9;
+    float inv9 = 1.0f;
 
     float4 color = float4(result * inv9, 1);
 

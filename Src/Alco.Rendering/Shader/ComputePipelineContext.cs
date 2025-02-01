@@ -5,8 +5,18 @@ namespace Alco.Rendering;
 
 public struct ComputePipelineContext
 {
-    public GPUPipeline Pipeline;
-    public ShaderReflectionInfo ReflectionInfo;
+    public GPUPipeline? Pipeline;
+    public ShaderReflectionInfo? ReflectionInfo;
+    public string[] Defines;
+    public uint Version;
+
+    public static readonly ComputePipelineContext Default = new ComputePipelineContext();
+
+    public ComputePipelineContext()
+    {
+        Defines = Array.Empty<string>();
+        Version = 0;
+    }
 
     /// <summary>
     /// Tries to get the resource ID associated with the given name.
@@ -17,6 +27,11 @@ public struct ComputePipelineContext
     /// <returns>True if the resource sID was found, false otherwise.</returns>
     public readonly bool TryGetResourceId(string name, out uint resourceId)
     {
+        if (ReflectionInfo == null)
+        {
+            resourceId = 0;
+            return false;
+        }
         return ReflectionInfo.TryGetResourceId(name, out resourceId);
     }
 
@@ -29,16 +44,14 @@ public struct ComputePipelineContext
     /// <returns>The resource ID.</returns>
     public readonly uint GetResourceId(string name)
     {
+        if (ReflectionInfo == null)
+        {
+            throw new Exception("ReflectionInfo is null");
+        }
         if (ReflectionInfo.TryGetResourceId(name, out uint resourceId))
         {
             return resourceId;
         }
         throw new KeyNotFoundException($"Resource '{name}' not found in shader");
-    }
-
-    public int BindGroupCount
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ReflectionInfo.BindGroups.Count;
     }
 }

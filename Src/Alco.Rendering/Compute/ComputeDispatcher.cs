@@ -10,13 +10,15 @@ public class ComputeDispatcher
     private readonly ShaderParameterSet _parameterSet;
     private ComputePipelineContext _pipelineInfo;
 
+    private bool _isPipelineDirty = true;
+
 
     internal ComputeDispatcher(RenderingSystem system, Shader shader)
     {
         _device = system.GraphicsDevice;
         _shader = shader;
         _pipelineInfo = shader.GetComputePipelineInfo();
-        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo);
+        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
     }
 
     internal ComputeDispatcher(RenderingSystem system, Shader shader, ReadOnlySpan<string> defines)
@@ -24,7 +26,7 @@ public class ComputeDispatcher
         _device = system.GraphicsDevice;
         _shader = shader;
         _pipelineInfo = shader.GetComputePipelineInfo(defines);
-        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo);
+        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
     }
 
     public void Dispatch(GPUCommandBuffer command, uint x, uint y, uint z)
@@ -39,7 +41,13 @@ public class ComputeDispatcher
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
 
-        command.SetComputePipeline(_pipelineInfo.Pipeline);
+        if (_shader.TryUpdateComputePipelineContext(ref _pipelineInfo, _isPipelineDirty))
+        {
+            _parameterSet.SetReflectionInfo(_pipelineInfo.ReflectionInfo!);
+            _isPipelineDirty = false;
+        }
+
+        command.SetComputePipeline(_pipelineInfo.Pipeline!);
 
         ReadOnlySpan<GPUResourceGroup?> resourceGroups = _parameterSet.ResourceGroups;
         for (int i = 0; i < resourceGroups.Length; i++)
@@ -49,12 +57,19 @@ public class ComputeDispatcher
             {
                 command.SetComputeResources((uint)i, resourceGroup);
             }else{
-                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineInfo.ReflectionInfo.GetResourceName((uint)i)}");
+                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineInfo.ReflectionInfo!.GetResourceName((uint)i)}");
             }
         }
 
         command.DispatchCompute(x, y, z);
 
+    }
+
+    public void SetDefines(params string[] defines)
+    {
+        ArgumentNullException.ThrowIfNull(defines);
+        _pipelineInfo.Defines = defines;
+        _isPipelineDirty = true;
     }
 
     #region Set Buffer

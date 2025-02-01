@@ -19,7 +19,8 @@ public class Shader : AutoDisposable
     private readonly Lock _lockCreateComputePipeline = new Lock();
     private readonly Lock _lockCreateModules = new Lock();
     private string _shaderText;
-    private bool _isDirty = false;
+    //for hot reload
+    private uint _version = 0;
 
     /// <summary>
     /// The name of the shader
@@ -132,7 +133,7 @@ public class Shader : AutoDisposable
     /// <returns>True if the pipeline was updated, false otherwise</returns>
     public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
     {
-        if (pipelineInfo.RenderPass == renderPass && !forced && !_isDirty)
+        if (pipelineInfo.RenderPass == renderPass && !forced && pipelineInfo.Version == _version)
         {
             return false;
         }
@@ -151,7 +152,23 @@ public class Shader : AutoDisposable
         pipelineInfo.Pipeline = pipeline;
         pipelineInfo.RenderPass = renderPass;
         pipelineInfo.ReflectionInfo = modulesInfo.ReflectionInfo;
+        pipelineInfo.Version = _version;
 
+        return true;
+    }
+
+    public bool TryUpdateComputePipelineContext(ref ComputePipelineContext pipelineInfo, bool forced = false)
+    {
+        if (pipelineInfo.Version == _version && !forced)
+        {
+            return false;
+        }
+
+        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
+        GPUPipeline pipeline = GetComputePipeline(modulesInfo);
+        pipelineInfo.Pipeline = pipeline;
+        pipelineInfo.ReflectionInfo = modulesInfo.ReflectionInfo;
+        pipelineInfo.Version = _version;
         return true;
     }
 
@@ -398,7 +415,7 @@ public class Shader : AutoDisposable
         //recompile
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
         _modulesCache[hash] = shaderModule;
-        _isDirty = true;
+        Interlocked.Increment(ref _version);
     }
 
 

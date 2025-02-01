@@ -17,6 +17,7 @@ public struct GraphicsPipelineContext
     public RasterizerState Rasterizer;
     public PrimitiveTopology PrimitiveTopology;
     public string[] Defines;
+    public uint Version;
 
     public static readonly GraphicsPipelineContext Default = new GraphicsPipelineContext();
 
@@ -30,6 +31,7 @@ public struct GraphicsPipelineContext
         Rasterizer = RasterizerState.CullNone;
         PrimitiveTopology = PrimitiveTopology.TriangleList;
         Defines = Array.Empty<string>();
+        Version = 0;
     }
 
     public GraphicsPipelineContext(
@@ -44,6 +46,7 @@ public struct GraphicsPipelineContext
         Rasterizer = rasterizer;
         PrimitiveTopology = primitiveTopology;
         Defines = defines;
+        Version = 0;
     }
 
     public GraphicsPipelineContext(
@@ -57,6 +60,7 @@ public struct GraphicsPipelineContext
         Rasterizer = rasterizer;
         PrimitiveTopology = primitiveTopology;
         Defines = Array.Empty<string>();
+        Version = 0;
     }
 
 
