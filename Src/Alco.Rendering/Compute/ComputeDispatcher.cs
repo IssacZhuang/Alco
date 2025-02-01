@@ -48,6 +48,8 @@ public class ComputeDispatcher
             if (resourceGroup!= null)
             {
                 command.SetComputeResources((uint)i, resourceGroup);
+            }else{
+                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineInfo.ReflectionInfo.GetResourceName((uint)i)}");
             }
         }
 

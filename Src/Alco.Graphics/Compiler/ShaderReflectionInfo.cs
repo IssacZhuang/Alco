@@ -9,6 +9,7 @@ namespace Alco.Graphics;
 public class ShaderReflectionInfo
 {
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
+    private readonly string[] _idToName;
 
     /// <summary>
     /// The vertex input layouts for the shader
@@ -58,12 +59,19 @@ public class ShaderReflectionInfo
         PushConstantsSize = pushConstantsSize;
 
         BuildResourceIndex();
+
+        _idToName = new string[BindGroups.Count];
+        for (int i = 0; i < BindGroups.Count; i++)
+        {
+            _idToName[i] = BindGroups[i].Bindings[0].Entry.Name;
+        }
     }
 
     /// <summary>
     /// Tries to get the resource ID associated with the given name.
     /// <br/> <c>thread safe.</c>
     /// </summary>
+
     /// <param name="name">The name of the resource.</param>
     /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
     /// <returns>True if the resource sID was found, false otherwise.</returns>
@@ -88,7 +96,40 @@ public class ShaderReflectionInfo
         throw new KeyNotFoundException($"Resource '{name}' not found in shader");
     }
 
+    /// <summary>
+    /// Get the resource name associated with the given shader resource ID.
+    /// </summary>
+    /// <param name="id">The shader resource ID.</param>
+    /// <returns>The resource name.</returns>
+    public string GetResourceName(uint id)
+
+    {
+        return _idToName[id];
+    }
+
+    /// <summary>
+    /// Tries to get the resource name associated with the given shader resource ID.
+    /// </summary>
+    /// <param name="id">The shader resource ID.</param>
+    /// <param name="name">The resource name if found, otherwise an empty string.</param>
+    /// <returns>True if the resource name was found, false otherwise.</returns>
+    public bool TryGetResourceName(uint id, out string name)
+
+    {
+        if (id < _idToName.Length)
+        {
+            name = _idToName[id];
+            return true;
+        }
+
+        name = string.Empty;
+        return false;
+    }
+
+
     private void BuildResourceIndex()
+
+
     {
         Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
         resourceIds.Clear();

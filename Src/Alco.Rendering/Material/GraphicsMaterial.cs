@@ -32,7 +32,7 @@ public sealed class GraphicsMaterial : Material
             {
                 context.SetGraphicsResources(i, resources[(int)i]!);
             }else{
-                throw new InvalidOperationException($"Resource group {i} is null");
+                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)}");
             }
         }
     }

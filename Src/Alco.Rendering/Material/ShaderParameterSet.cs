@@ -33,6 +33,12 @@ public sealed class ShaderParameterSet
     private ShaderReflectionInfo _reflectionInfo;
 
     /// <summary>
+    /// Get the reflection information of the shader.
+    /// </summary>
+    public ShaderReflectionInfo ReflectionInfo => _reflectionInfo;
+
+
+    /// <summary>
     /// The resource groups of the shader.
     /// </summary>
     public ReadOnlySpan<GPUResourceGroup?> ResourceGroups

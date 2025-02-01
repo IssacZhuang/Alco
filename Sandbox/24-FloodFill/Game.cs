@@ -14,20 +14,25 @@ public class Game : GameEngine
     private readonly Material _material;
     private readonly ComputeDispatcher _computeClearTexture;
     private readonly ComputeDispatcher _computeFloodFill;
+    private readonly GPUCommandBuffer _command;
     public Game(GameEngineSetting setting) : base(setting)
 
     {
+        _command = GraphicsDevice.CreateCommandBuffer();
         _lightMap = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y);
         _lightMapCPU = new BitmapFloat16RGBA(_size.x, _size.y);
-        for (int i = 0; i < _lightMapCPU.Width; i++)
-        {
-            for (int j = 0; j < _lightMapCPU.Height; j++)
-            {
-                _lightMapCPU[i, j] = new Half4(1, 1, 1, 1);
-            }
-        }
+        // for (int i = 0; i < _lightMapCPU.Width; i++)
+        // {
+        //     for (int j = 0; j < _lightMapCPU.Height; j++)
+        //     {
+        //         _lightMapCPU[i, j] = new Half4(1, 1, 1, 1);
+        //     }
+        // }
+        //set center pixel to 1
+        _lightMapCPU[(int)_size.x / 2, (int)_size.y / 2] = new Half4(1, 1, 1, 1);
 
-        _lightMap.ColorTextures[0].SetPixels(_lightMapCPU);
+        
+
 
 
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
@@ -43,6 +48,7 @@ public class Game : GameEngine
 
         Shader shaderFloodFill = BuiltInAssets.Shader_TileLighting;
         _computeFloodFill = Rendering.CreateComputeDispatcher(shaderFloodFill);
+        _computeFloodFill.SetRenderTexture(ShaderResourceId.Texture, _lightMap);
     }
 
 
@@ -65,6 +71,14 @@ public class Game : GameEngine
             Color = new ColorFloat(1, 1, 1, 1),
             UvRect = new Rect(0, 0, 1, 1)
         };
+
+        _lightMap.ColorTextures[0].SetPixels(_lightMapCPU);
+
+        _command.Begin();
+        _computeFloodFill.Dispatch(_command, 5, 5, 1);
+        _command.End();
+        GraphicsDevice.Submit(_command);
+
 
         //draw atlas texture
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);

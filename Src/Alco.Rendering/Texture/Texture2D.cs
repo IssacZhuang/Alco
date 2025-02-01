@@ -12,7 +12,10 @@ public class Texture2D : Texture
 
     // bind gorup only include texture
     private GPUResourceGroup? _resourcesRead;
-    private GPUResourceGroup? _resourcesStorage;
+
+    private GPUBindGroup? _bindGroupStorage;
+    private GPUResourceGroup? _resourcesStorage;//todo: make it shared
+
 
     public GPUResourceGroup EntrySample
     {
@@ -115,12 +118,27 @@ public class Texture2D : Texture
 
     private GPUResourceGroup CreateResourceGroupStorage()
     {
+        _bindGroupStorage = _device.CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = $"{Name}_bind_group_storage_texture",
+            Bindings = new BindGroupEntry[]{
+                    new BindGroupEntry(
+                        0,
+                        ShaderStage.Standard,
+                        BindingType.StorageTexture,
+                        null,
+                        new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D,_texture.PixelFormat)),
+                }
+        });
+
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DStorage,
+            _bindGroupStorage,
             new ResourceBindingEntry[]{
+
                 new ResourceBindingEntry(0, _textureView),
             }
         );
+
 
         return _device.CreateResourceGroup(descriptor);
     }
@@ -133,6 +151,7 @@ public class Texture2D : Texture
             //dispose non-private managed resources
             _resourcesSample?.Dispose();
             _resourcesRead?.Dispose();
+            _bindGroupStorage?.Dispose();
             _resourcesStorage?.Dispose();
         }
 

@@ -506,7 +506,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             Name = "default_bind_group_texture_read",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
             },
         });
 
@@ -515,7 +515,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             Name = "default_bind_group_storage_texture",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D,PixelFormat.RGBA8Unorm)),
             },
         });
     }
