@@ -16,6 +16,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_ClearTexture => GetShader("Shaders/Pipelines/Compute/ClearTexture.hlsl");
 
+    public Shader Shader_FloodFillLighting => GetShader("Shaders/Pipelines/Compute/FloodFillLighting.hlsl");
+
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
 
     public Shader Shader_BloomBlit => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl");
@@ -39,8 +41,6 @@ public partial class BuiltInAssets
     public Shader Shader_Text => GetShader("Shaders/Pipelines/Rendering/Text/Text.hlsl");
 
     public Shader Shader_TextMasked => GetShader("Shaders/Pipelines/Rendering/Text/TextMasked.hlsl");
-
-    public Shader Shader_TileLighting => GetShader("Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl");
 
     public Shader Shader_TilePlant => GetShader("Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl");
 

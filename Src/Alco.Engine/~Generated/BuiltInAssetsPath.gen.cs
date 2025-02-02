@@ -11,6 +11,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_ClearTexture = "Shaders/Pipelines/Compute/ClearTexture.hlsl";
 
+   public const string Shader_FloodFillLighting = "Shaders/Pipelines/Compute/FloodFillLighting.hlsl";
+
    public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
 
    public const string Shader_BloomBlit = "Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl";
@@ -34,8 +36,6 @@ public static partial class BuiltInAssetsPath
    public const string Shader_Text = "Shaders/Pipelines/Rendering/Text/Text.hlsl";
 
    public const string Shader_TextMasked = "Shaders/Pipelines/Rendering/Text/TextMasked.hlsl";
-
-   public const string Shader_TileLighting = "Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl";
 
    public const string Shader_TilePlant = "Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl";
 

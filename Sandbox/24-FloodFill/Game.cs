@@ -10,7 +10,6 @@ using SandboxUtils;
 public class Game : GameEngine
 {
     private struct Data {
-        public float attenuationCenter;
         public float attenuationSide;
         public float attenuationCorner;
     }
@@ -56,7 +55,6 @@ public class Game : GameEngine
         _material.SetRenderTexture(ShaderResourceId.Texture, _lightMap1);
 
         _dataBuffer = Rendering.CreateGraphicsValueBuffer<Data>("data_buffer");
-        _dataBuffer.Value.attenuationCenter = 0f;
         _dataBuffer.Value.attenuationSide = 0.1f;
         _dataBuffer.Value.attenuationCorner = 0.141414f;
         _dataBuffer.UpdateBuffer();
@@ -64,10 +62,11 @@ public class Game : GameEngine
 
 
 
+
         Shader shaderClearTexture = BuiltInAssets.Shader_ClearTexture;
         _computeClearTexture = Rendering.CreateComputeDispatcher(shaderClearTexture);
 
-        Shader shaderFloodFill = BuiltInAssets.Shader_TileLighting;
+        Shader shaderFloodFill = BuiltInAssets.Shader_FloodFillLighting;
         _computeFloodFill = Rendering.CreateComputeDispatcher(shaderFloodFill);
         _computeFloodFill.SetBuffer(ShaderResourceId.Data, _dataBuffer);
     }
@@ -93,14 +92,11 @@ public class Game : GameEngine
         DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100);
         DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
         if(DebugGUI.Button("Reset")) {
-            _dataBuffer.Value.attenuationCenter = 0f;
             _dataBuffer.Value.attenuationSide = 0f;
             _dataBuffer.Value.attenuationCorner = 0f;
             _dataBuffer.UpdateBuffer();
 
-        }
-        if(DebugGUI.SliderWithText("Attenuation Center", ref _dataBuffer.Value.attenuationCenter, 0, 2)){
-            _dataBuffer.UpdateBuffer();
+
         }
 
         if(DebugGUI.SliderWithText("Attenuation Side", ref _dataBuffer.Value.attenuationSide, 0, 2)){
