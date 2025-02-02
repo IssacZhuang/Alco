@@ -9,6 +9,11 @@ using SandboxUtils;
 
 public class Game : GameEngine
 {
+    private struct Data {
+        public float guassianCenter;
+        public float guassianSide;
+        public float guassianCorner;
+    }
     private readonly uint2 _size = new uint2(65, 65);
     private readonly RenderTexture _lightMap1;
     private readonly RenderTexture _lightMap2;
@@ -21,8 +26,11 @@ public class Game : GameEngine
     private readonly ComputeDispatcher _computeFloodFill;
 
     private readonly GPUCommandBuffer _command;
+    private readonly GraphicsValueBuffer<Data> _dataBuffer;
 
-    private int _iterations = 16;
+    private float _intensity = 1;
+
+    private int _iterations = 32;
     public Game(GameEngineSetting setting) : base(setting)
 
     {
@@ -36,7 +44,7 @@ public class Game : GameEngine
         _lightMapCPU = new BitmapFloat16RGBA(_size.x, _size.y);
 
         //set center pixel to 1
-        _lightMapCPU[(int)_size.x / 2, (int)_size.y / 2] = new Half4(1, 1, 1, 1);
+        _lightMapCPU[(int)_size.x / 2, (int)_size.y / 2] = new Half4(_intensity, _intensity, _intensity, 1);
 
         Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
@@ -46,13 +54,19 @@ public class Game : GameEngine
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
         _material.SetRenderTexture(ShaderResourceId.Texture, _lightMap1);
 
+        _dataBuffer = Rendering.CreateGraphicsValueBuffer<Data>("data_buffer");
+        _dataBuffer.Value.guassianCenter = 0.25f;
+        _dataBuffer.Value.guassianSide = 0.05f;
+        _dataBuffer.Value.guassianCorner = 0.0125f;
+        _dataBuffer.UpdateBuffer();
+
 
         Shader shaderClearTexture = BuiltInAssets.Shader_ClearTexture;
         _computeClearTexture = Rendering.CreateComputeDispatcher(shaderClearTexture);
 
         Shader shaderFloodFill = BuiltInAssets.Shader_TileLighting;
         _computeFloodFill = Rendering.CreateComputeDispatcher(shaderFloodFill);
-        
+        _computeFloodFill.SetBuffer(ShaderResourceId.Data, _dataBuffer);
     }
 
 
@@ -72,6 +86,24 @@ public class Game : GameEngine
 
         DebugGUI.Text(FrameRate);
         DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100);
+        DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
+        if(DebugGUI.Button("Reset")) {
+            _dataBuffer.Value.guassianCenter = 0.25f;
+            _dataBuffer.Value.guassianSide = 0.05f;
+            _dataBuffer.Value.guassianCorner = 0.0125f;
+            _dataBuffer.UpdateBuffer();
+        }
+        if(DebugGUI.SliderWithText("Guassian Center", ref _dataBuffer.Value.guassianCenter, 0, 2)){
+            _dataBuffer.UpdateBuffer();
+        }
+        if(DebugGUI.SliderWithText("Guassian Side", ref _dataBuffer.Value.guassianSide, 0, 2)){
+            _dataBuffer.UpdateBuffer();
+        }
+        if(DebugGUI.SliderWithText("Guassian Corner", ref _dataBuffer.Value.guassianCorner, 0, 2)){
+            _dataBuffer.UpdateBuffer();
+        }
+
+
 
         Transform2D transform = Transform2D.Identity;
         float scale = MainWindow.Width / _lightMap1.Width;
@@ -85,6 +117,7 @@ public class Game : GameEngine
             UvRect = new Rect(0, 0, 1, 1)
         };
 
+        _lightMapCPU[(int)_size.x / 2, (int)_size.y / 2] = new Half4(_intensity, _intensity, _intensity, 1);
         _lightMap1.ColorTextures[0].SetPixels(_lightMapCPU);
         _lightMap.Reset();
 

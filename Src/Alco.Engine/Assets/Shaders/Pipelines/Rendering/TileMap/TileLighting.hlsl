@@ -1,8 +1,20 @@
 #include "Shaders/Libs/Core.hlsli"
 
+struct Constants {
+    float guassianCenter;
+    float guassianSide;
+    float guassianCorner;
+};
+
 // light map texture
 DEFINE_TEX2D_STORAGE(0, _frontBuffer, "rgba16f");
 DEFINE_TEX2D_STORAGE(1, _backBuffer, "rgba16f");
+DEFINE_UNIFORM(2, _data) {
+    float guassianCenter;
+    float guassianSide;
+    float guassianCorner;
+};
+
 
 
 bool IsObstacle(uint2 pos) {
@@ -29,12 +41,6 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
         }
     }
 
-    float multiplier = 1;
-
-    float guassianCenter = 0.25f;   
-    float guassianSide = 0.125f;
-    float guassianCorner = 0.0625f;
-
     float guassian[9] = {
         guassianCorner, guassianSide, guassianCorner,
         guassianSide, guassianCenter, guassianSide,
@@ -43,12 +49,13 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
 
     float3 result = float3(0, 0, 0);
     for(int i = 0; i < 9; i++) {
-        result += colors[i].xyz * guassian[i] * multiplier;
+        result += colors[i].xyz * guassian[i];
     }
 
-    float inv9 = 1.0f;
+    float inv9 = 1.0f/9;
 
     float4 color = float4(result * inv9, 1);
+    color = max(color, colors[4]);
 
     _backBuffer[id.xy] = color;
 }
