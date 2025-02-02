@@ -73,6 +73,14 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         }
     }
 
+    public void Clear(T value = default)
+    {
+        for (int i = 0; i < _data.Width * _data.Height; i++)
+        {
+            UnsafePointer[i] = value;
+        }
+    }
+
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
