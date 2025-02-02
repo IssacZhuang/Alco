@@ -1,19 +1,15 @@
 #include "Shaders/Libs/Core.hlsli"
 
-struct Constants {
-    float guassianCenter;
-    float guassianSide;
-    float guassianCorner;
-};
 
 // light map texture
 DEFINE_TEX2D_STORAGE(0, _frontBuffer, "rgba16f");
 DEFINE_TEX2D_STORAGE(1, _backBuffer, "rgba16f");
 DEFINE_UNIFORM(2, _data) {
-    float guassianCenter;
-    float guassianSide;
-    float guassianCorner;
+    float attenuationCenter;
+    float attenuationSide;
+    float attenuationCorner;
 };
+
 
 
 
@@ -41,15 +37,16 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
         }
     }
 
-    float guassian[9] = {
-        guassianCorner, guassianSide, guassianCorner,
-        guassianSide, guassianCenter, guassianSide,
-        guassianCorner, guassianSide, guassianCorner,
+    float attenuation[9] = {
+        attenuationCorner, attenuationSide, attenuationCorner,
+        attenuationSide, attenuationCenter, attenuationSide,
+        attenuationCorner, attenuationSide, attenuationCorner,
     };
 
+
     float3 result = float3(0, 0, 0);
-    for(int i = 0; i < 9; i++) {
-        result += colors[i].xyz * guassian[i];
+    for (int i = 0; i < 9; i++) {
+        result += colors[i].xyz - attenuation[i];
     }
 
     float inv9 = 1.0f/9;

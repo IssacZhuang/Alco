@@ -10,10 +10,11 @@ using SandboxUtils;
 public class Game : GameEngine
 {
     private struct Data {
-        public float guassianCenter;
-        public float guassianSide;
-        public float guassianCorner;
+        public float attenuationCenter;
+        public float attenuationSide;
+        public float attenuationCorner;
     }
+
     private readonly uint2 _size = new uint2(65, 65);
     private readonly RenderTexture _lightMap1;
     private readonly RenderTexture _lightMap2;
@@ -35,8 +36,8 @@ public class Game : GameEngine
 
     {
         _command = GraphicsDevice.CreateCommandBuffer();
-        _lightMap1 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, "light_map_1");
-        _lightMap2 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, "light_map_2");
+        _lightMap1 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, FilterMode.Nearest, "light_map_1");
+        _lightMap2 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, FilterMode.Nearest, "light_map_2");
 
 
         _lightMap = new DoubleBuffer<RenderTexture>(_lightMap1, _lightMap2);
@@ -55,10 +56,11 @@ public class Game : GameEngine
         _material.SetRenderTexture(ShaderResourceId.Texture, _lightMap1);
 
         _dataBuffer = Rendering.CreateGraphicsValueBuffer<Data>("data_buffer");
-        _dataBuffer.Value.guassianCenter = 0.25f;
-        _dataBuffer.Value.guassianSide = 0.05f;
-        _dataBuffer.Value.guassianCorner = 0.0125f;
+        _dataBuffer.Value.attenuationCenter = 0f;
+        _dataBuffer.Value.attenuationSide = 0f;
+        _dataBuffer.Value.attenuationCorner = 0f;
         _dataBuffer.UpdateBuffer();
+
 
 
         Shader shaderClearTexture = BuiltInAssets.Shader_ClearTexture;
@@ -88,22 +90,28 @@ public class Game : GameEngine
         DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100);
         DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
         if(DebugGUI.Button("Reset")) {
-            _dataBuffer.Value.guassianCenter = 0.25f;
-            _dataBuffer.Value.guassianSide = 0.05f;
-            _dataBuffer.Value.guassianCorner = 0.0125f;
+            _dataBuffer.Value.attenuationCenter = 0f;
+            _dataBuffer.Value.attenuationSide = 0f;
+            _dataBuffer.Value.attenuationCorner = 0f;
+            _dataBuffer.UpdateBuffer();
+
+        }
+        if(DebugGUI.SliderWithText("Attenuation Center", ref _dataBuffer.Value.attenuationCenter, 0, 2)){
             _dataBuffer.UpdateBuffer();
         }
-        if(DebugGUI.SliderWithText("Guassian Center", ref _dataBuffer.Value.guassianCenter, 0, 2)){
-            _dataBuffer.UpdateBuffer();
-        }
-        if(DebugGUI.SliderWithText("Guassian Side", ref _dataBuffer.Value.guassianSide, 0, 2)){
-            _dataBuffer.UpdateBuffer();
-        }
-        if(DebugGUI.SliderWithText("Guassian Corner", ref _dataBuffer.Value.guassianCorner, 0, 2)){
+
+        if(DebugGUI.SliderWithText("Attenuation Side", ref _dataBuffer.Value.attenuationSide, 0, 2)){
             _dataBuffer.UpdateBuffer();
         }
 
 
+
+        if(DebugGUI.SliderWithText("Attenuation Corner", ref _dataBuffer.Value.attenuationCorner, 0, 2)){
+            _dataBuffer.UpdateBuffer();
+        }
+
+        _camera.ViewSize = MainWindow.Size;
+        _camera.UpdateMatrixToGPU();
 
         Transform2D transform = Transform2D.Identity;
         float scale = MainWindow.Width / _lightMap1.Width;
@@ -136,6 +144,5 @@ public class Game : GameEngine
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
         _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
-
     }
 }
