@@ -28,9 +28,10 @@ public sealed class GraphicsMaterial : Material
         ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
         for (uint i = 0; i < resources.Length; i++)
         {
-            if (resources[(int)i] != null)
+            GPUResourceGroup? resource = resources[(int)i];
+            if (resource != null)
             {
-                context.SetGraphicsResources(i, resources[(int)i]!);
+                context.SetGraphicsResources(i, resource);
             }else{
                 throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)}");
             }

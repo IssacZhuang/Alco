@@ -104,10 +104,10 @@ public abstract class Material: AutoDisposable
     }
 
     /// <summary>
-    /// Get the resource group by index.
+    /// Gets the resource group at the specified index.
     /// </summary>
     /// <param name="index">The index of the resource group.</param>
-    /// <returns>The resource group.</returns>
+    /// <returns>The resource group at the specified index.</returns>
     public virtual GPUResourceGroup? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -345,7 +345,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="name">The shader resource name of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
-    /// <param name="renderTextureIndex">The index of the render texture.</param>
+    /// <param name="renderTextureIndex">The index of the color attachment in the render texture.</param>
     /// <returns>True if the render texture is set successfully, otherwise false.</returns>
     public bool TrySetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
@@ -357,7 +357,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="id">The shader resource id of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
-    /// <param name="renderTextureIndex">The index of the render texture.</param>
+    /// <param name="renderTextureIndex">The index of the color attachment in the render texture.</param>
     /// <returns>True if the render texture is set successfully, otherwise false.</returns>
     public bool TrySetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
@@ -369,7 +369,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="name">The shader resource name of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
-    /// <param name="renderTextureIndex">The index of the render texture.</param>
+    /// <param name="renderTextureIndex">The index of the color attachment in the render texture.</param>
     public void SetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
         _parameters.SetRenderTexture(name, renderTexture, renderTextureIndex);
@@ -380,50 +380,54 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="id">The shader resource id of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
-    /// <param name="renderTextureIndex">The index of the render texture.</param>
+    /// <param name="renderTextureIndex">The index of the color attachment in the render texture.</param>
     public void SetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
         _parameters.SetRenderTexture(id, renderTexture, renderTextureIndex);
     }
 
     /// <summary>
-    /// Try to set the render texture depth.
+    /// Tries to set the depth attachment of a render texture resource by name.
     /// </summary>
     /// <param name="name">The shader resource name of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
-    /// <returns>True if the render texture is set successfully, otherwise false.</returns>
+    /// <returns>True if the render texture depth was set successfully, otherwise false.</returns>
     public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
+
     {
         return _parameters.TrySetRenderTextureDepth(name, renderTexture);
     }
 
     /// <summary>
-    /// Try to set the render texture depth.
+    /// Tries to set the depth attachment of a render texture resource by index.
     /// </summary>
     /// <param name="id">The shader resource id of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
-    /// <returns>True if the render texture is set successfully, otherwise false.</returns>
+    /// <returns>True if the render texture depth was set successfully, otherwise false.</returns>
     public bool TrySetRenderTextureDepth(uint id, RenderTexture renderTexture)
+
     {
         return _parameters.TrySetRenderTextureDepth(id, renderTexture);
     }
 
     /// <summary>
-    /// Set the render texture depth.
+    /// Sets the depth attachment of a render texture resource by name.
     /// </summary>
     /// <param name="name">The shader resource name of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
     public void SetRenderTextureDepth(string name, RenderTexture renderTexture)
+
     {
         _parameters.SetRenderTextureDepth(name, renderTexture);
     }
 
     /// <summary>
-    /// Set the render texture depth.
+    /// Sets the depth attachment of a render texture resource by index.
     /// </summary>
     /// <param name="id">The shader resource id of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
     public void SetRenderTextureDepth(uint id, RenderTexture renderTexture)
+
     {
         _parameters.SetRenderTextureDepth(id, renderTexture);
     }
