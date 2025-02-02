@@ -36,8 +36,8 @@ public class Game : GameEngine
 
     {
         _command = GraphicsDevice.CreateCommandBuffer();
-        _lightMap1 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, FilterMode.Nearest, "light_map_1");
-        _lightMap2 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, FilterMode.Nearest, "light_map_2");
+        _lightMap1 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, FilterMode.Linear, "light_map_1");
+        _lightMap2 = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, _size.x, _size.y, FilterMode.Linear, "light_map_2");
 
 
         _lightMap = new DoubleBuffer<RenderTexture>(_lightMap1, _lightMap2);
@@ -47,7 +47,7 @@ public class Game : GameEngine
         //set center pixel to 1
         _lightMapCPU[(int)_size.x / 2, (int)_size.y / 2] = new Half4(_intensity, _intensity, _intensity, 1);
 
-        Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        Material blitMaterial = Rendering.CreateGraphicsMaterial(Assets.Load<Shader>("InverserGamma.hlsl"));
 
         _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
         _materialRenderer = Rendering.CreateMaterialRenderer();
@@ -57,9 +57,10 @@ public class Game : GameEngine
 
         _dataBuffer = Rendering.CreateGraphicsValueBuffer<Data>("data_buffer");
         _dataBuffer.Value.attenuationCenter = 0f;
-        _dataBuffer.Value.attenuationSide = 0f;
-        _dataBuffer.Value.attenuationCorner = 0f;
+        _dataBuffer.Value.attenuationSide = 0.1f;
+        _dataBuffer.Value.attenuationCorner = 0.141414f;
         _dataBuffer.UpdateBuffer();
+
 
 
 
@@ -77,6 +78,8 @@ public class Game : GameEngine
         base.InitializeDefaultAssetLoader(setting);
         DirectoryWatcherFileSource fileSource1 = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), Assets);
         Assets.AddFileSource(fileSource1);
+        DirectoryWatcherFileSource fileSource2 = new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), Assets);
+        Assets.AddFileSource(fileSource2);
     }
 
     protected override void OnUpdate(float delta)
