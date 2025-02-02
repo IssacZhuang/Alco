@@ -4,24 +4,41 @@ namespace Alco.Rendering;
 
 public class TileLightMap : AutoDisposable
 {
-    private readonly RenderTexture _lightMap;
+    private readonly RenderTexture _lightMapFront;
+    private readonly RenderTexture _lightMapBack;
+    private readonly DoubleBuffer<RenderTexture> _lightMap;
     private readonly BitmapFloat16RGBA _lightMapCPU;
     private readonly TileMapHeightBuffer _heightBuffer;
+    private readonly ComputeMaterial _computeDispatcher;
 
-    public uint Width => _lightMap.Width;
-    public uint Height => _lightMap.Height;
+    private uint _shaderid_front;
+    private uint _shaderid_back;
+
+    public int Width => _lightMapCPU.Width;
+    public int Height => _lightMapCPU.Height;
+
 
     internal TileLightMap(
         RenderingSystem renderingSystem,
         TileMapHeightBuffer heightBuffer,
+        ComputeMaterial computeDispatcher,
         int width,
         int height
         )
     {
-        _lightMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
+        _lightMapFront = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
+        _lightMapBack = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
+        _lightMap = new DoubleBuffer<RenderTexture>(_lightMapFront, _lightMapBack);
         _lightMapCPU = new BitmapFloat16RGBA(width, height);
         _heightBuffer = heightBuffer;
+        _computeDispatcher = computeDispatcher.CreateInstance();
+
+        _shaderid_front = _computeDispatcher.GetResourceId(ShaderResourceId.FrontBuffer);
+        _shaderid_back = _computeDispatcher.GetResourceId(ShaderResourceId.BackBuffer);
+
     }
+
+
 
     public void Reset()
     {
@@ -38,7 +55,8 @@ public class TileLightMap : AutoDisposable
     {
         if (disposing)
         {
-            _lightMap.Dispose();
+            _lightMapFront.Dispose();
+            _lightMapBack.Dispose();
             _lightMapCPU.Dispose();
         }
     }

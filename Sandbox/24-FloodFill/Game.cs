@@ -22,8 +22,8 @@ public class Game : GameEngine
     private readonly MaterialRenderer _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
-    private readonly ComputeDispatcher _computeClearTexture;
-    private readonly ComputeDispatcher _computeFloodFill;
+    private readonly ComputeMaterial _computeClearTexture;
+    private readonly ComputeMaterial _computeFloodFill;
 
     private readonly GPUCommandBuffer _command;
     private readonly GraphicsValueBuffer<Data> _dataBuffer;
@@ -64,10 +64,10 @@ public class Game : GameEngine
 
 
         Shader shaderClearTexture = BuiltInAssets.Shader_ClearTexture;
-        _computeClearTexture = Rendering.CreateComputeDispatcher(shaderClearTexture);
+        _computeClearTexture = Rendering.CreateComputeMaterial(shaderClearTexture);
 
         Shader shaderFloodFill = BuiltInAssets.Shader_FloodFillLighting;
-        _computeFloodFill = Rendering.CreateComputeDispatcher(shaderFloodFill);
+        _computeFloodFill = Rendering.CreateComputeMaterial(shaderFloodFill);
         _computeFloodFill.SetBuffer(ShaderResourceId.Data, _dataBuffer);
     }
 

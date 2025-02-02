@@ -7,12 +7,13 @@ namespace Alco.Rendering;
 /// The integration of the GPU compute pipeline state and shader resources.
 /// Provides functionality to dispatch compute shaders and manage their resources.
 /// </summary>
-public class ComputeDispatcher
+public class ComputeMaterial
 {
-    protected readonly GPUDevice _device;
+    protected readonly RenderingSystem _system;
     protected readonly Shader _shader;
     protected readonly ShaderParameterSet _parameterSet;
     protected ComputePipelineContext _pipelineInfo;
+
 
     protected bool _isPipelineDirty = true;
 
@@ -42,21 +43,23 @@ public class ComputeDispatcher
     }
 
 
-    internal ComputeDispatcher(RenderingSystem system, Shader shader)
+    internal ComputeMaterial(RenderingSystem system, Shader shader)
     {
-        _device = system.GraphicsDevice;
+        _system = system;
         _shader = shader;
         _pipelineInfo = shader.GetComputePipelineInfo();
         _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
     }
 
-    internal ComputeDispatcher(RenderingSystem system, Shader shader, ReadOnlySpan<string> defines)
+
+    internal ComputeMaterial(RenderingSystem system, Shader shader, ReadOnlySpan<string> defines)
     {
-        _device = system.GraphicsDevice;
+        _system = system;
         _shader = shader;
         _pipelineInfo = shader.GetComputePipelineInfo(defines);
         _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
     }
+
 
     /// <summary>
     /// Dispatches the compute shader with the specified thread group counts.
@@ -316,4 +319,34 @@ public class ComputeDispatcher
     }
 
     #endregion
+
+    public ComputeMaterialInstance CreateInstance()
+    {
+        return new ComputeMaterialInstance(_system, this);
+    }
+
+    /// <summary>
+    /// Get the resource id of the shader.
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <returns>The resource id of the shader.</returns>
+    public uint GetResourceId(string name)
+
+    {
+        return _pipelineInfo.GetResourceId(name);
+    }
+
+    /// <summary>
+    /// Try to get the resource id of the shader.
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <param name="id">The resource id of the shader.</param>
+    /// <returns>True if the resource id is found, otherwise false.</returns>
+    public bool TryGetResourceId(string name, out uint id)
+
+    {
+        return _pipelineInfo.TryGetResourceId(name, out id);
+    }
+
+
 }

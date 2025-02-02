@@ -4,12 +4,12 @@ using System.Runtime.CompilerServices;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The instance of the <see cref="ComputeDispatcher"/> which used to override the parameters of the parent compute dispatcher.
+/// The instance of the <see cref="ComputeMaterial"/> which used to override the parameters of the parent compute dispatcher.
 /// This allows for creating variations of a compute dispatcher while sharing resources with the parent.
 /// </summary>
-public sealed class ComputeDispatcherInstance : ComputeDispatcher
+public sealed class ComputeMaterialInstance : ComputeMaterial
 {
-    private readonly ComputeDispatcher _parent;
+    private readonly ComputeMaterial _parent;
 
     /// <summary>
     /// Gets the resource group at the specified index. If the resource group is not set in this instance,
@@ -23,7 +23,7 @@ public sealed class ComputeDispatcherInstance : ComputeDispatcher
         get => _parameterSet.ResourceGroups[index] ?? _parent[index];
     }
 
-    internal ComputeDispatcherInstance(RenderingSystem system, ComputeDispatcher parent) : base(system, parent.Shader)
+    internal ComputeMaterialInstance(RenderingSystem system, ComputeMaterial parent) : base(system, parent.Shader)
     {
         _parent = parent;
     }

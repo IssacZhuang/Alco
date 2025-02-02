@@ -463,4 +463,27 @@ public abstract class Material: AutoDisposable
         return new MaterialInstance(_system, this);
     }
 
+    /// <summary>
+    /// Get the resource id of the shader.
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <returns>The resource id of the shader.</returns>
+    public uint GetResourceId(string name)
+    {
+        return _pipelineContext.GetResourceId(name);
+    }
+
+    /// <summary>
+    /// Try to get the resource id of the shader.
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <param name="id">The resource id of the shader.</param>
+    /// <returns>True if the resource id is found, otherwise false.</returns>
+    public bool TryGetResourceId(string name, out uint id)
+
+    {
+        return _pipelineContext.TryGetResourceId(name, out id);
+    }
+
+
 }

@@ -3,15 +3,15 @@ using System.Numerics;
 namespace Alco.Rendering;
 
 public partial class RenderingSystem
-{ 
-    public ComputeDispatcher CreateComputeDispatcher(Shader shader)
+{
+    public ComputeMaterial CreateComputeMaterial(Shader shader)
     {
-        return new ComputeDispatcher(this, shader);
+        return new ComputeMaterial(this, shader);
     }
 
-    public ComputeDispatcher CreateComputeDispatcher(Shader shader, ReadOnlySpan<string> defines)
+    public ComputeMaterial CreateComputeMaterial(Shader shader, ReadOnlySpan<string> defines)
     {
-        return new ComputeDispatcher(this, shader, defines);
+        return new ComputeMaterial(this, shader, defines);
     }
 
 
