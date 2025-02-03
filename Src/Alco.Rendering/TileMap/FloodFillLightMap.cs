@@ -5,17 +5,12 @@ namespace Alco.Rendering;
 
 public class FloodFillLightMap : AutoDisposable
 {
-    private struct Data
-    {
-        public float attenuationSide;
-        public float attenuationCorner;
-    }
     private readonly GPUDevice _device;
     private readonly RenderTexture _lightMapFront;
     private readonly RenderTexture _lightMapBack;
     private readonly DoubleBuffer<RenderTexture> _lightMaps;
     private readonly BitmapFloat16RGBA _lightMapCPU;
-    private readonly GraphicsValueBuffer<Data> _dataBuffer;
+    private readonly GraphicsValueBuffer<FloodFillLightingData> _dataBuffer;
     private readonly ComputeMaterial _material;
     private readonly GPUCommandBuffer _command;
     private bool _isDirty = true;
@@ -27,18 +22,18 @@ public class FloodFillLightMap : AutoDisposable
     public int Iteration { get; set; } = 32;
     public float AttenuationSide
     {
-        get => _dataBuffer.Value.attenuationSide;
+        get => _dataBuffer.Value.AttenuationSide;
         set {
-            _dataBuffer.Value.attenuationSide = value;
+            _dataBuffer.Value.AttenuationSide = value;
             _isDirty = true;
         }
     }
 
     public float AttenuationCorner
     {
-        get => _dataBuffer.Value.attenuationCorner;
+        get => _dataBuffer.Value.AttenuationCorner;
         set {
-            _dataBuffer.Value.attenuationCorner = value;
+            _dataBuffer.Value.AttenuationCorner = value;
             _isDirty = true;
         }
     }
@@ -67,9 +62,10 @@ public class FloodFillLightMap : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();
 
-        _dataBuffer = renderingSystem.CreateGraphicsValueBuffer<Data>();
-        _dataBuffer.Value.attenuationSide = 0.1f;
-        _dataBuffer.Value.attenuationCorner = 0.14141414f;
+        _dataBuffer = renderingSystem.CreateGraphicsValueBuffer<FloodFillLightingData>();
+        _dataBuffer.Value.AttenuationSide = 0.1f;
+        _dataBuffer.Value.AttenuationCorner = 0.14141414f;
+        _dataBuffer.Value.Size = new int2(width, height);
         _dataBuffer.UpdateBuffer();
         _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
 
