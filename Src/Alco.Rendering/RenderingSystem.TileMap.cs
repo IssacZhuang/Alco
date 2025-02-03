@@ -195,9 +195,9 @@ public partial class RenderingSystem
         return new TileMapHeightBuffer(this, width, height, name);
     }
 
-    public TileLightMap CreateTileLightMap(TileMapHeightBuffer heightBuffer, ComputeMaterial material, int width, int height, string name = "tile_light_map")
+    public FloodFillLightMap CreateTileLightMap(ComputeMaterial material, int width, int height, string name = "tile_light_map")
     {
-        return new TileLightMap(this, heightBuffer, material, width, height, name);
+        return new FloodFillLightMap(this, material, width, height, name);
     }
 
 

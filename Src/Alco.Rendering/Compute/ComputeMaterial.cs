@@ -42,8 +42,15 @@ public class ComputeMaterial
         get => _shader;
     }
 
+    public ShaderReflectionInfo ReflectionInfo
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _parameterSet.ReflectionInfo;
+    }
+
 
     internal ComputeMaterial(RenderingSystem system, Shader shader)
+
     {
         _system = system;
         _shader = shader;
@@ -60,27 +67,14 @@ public class ComputeMaterial
         _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
     }
 
-
-    /// <summary>
-    /// Dispatches the compute shader with the specified thread group counts.
-    /// </summary>
-    /// <param name="command">The command buffer to record the dispatch command to.</param>
-    /// <param name="x">The number of thread groups in the X dimension.</param>
-    /// <param name="y">The number of thread groups in the Y dimension.</param>
-    /// <param name="z">The number of thread groups in the Z dimension.</param>
-    /// <exception cref="InvalidOperationException">Thrown when the command buffer is not in recording state or when a required resource group is null.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when any of the dispatch dimensions is zero.</exception>
-    public void Dispatch(GPUCommandBuffer command, uint x, uint y, uint z)
+    private void SetPipelineResources(GPUCommandBuffer command)
     {
         if (!command.IsRecording)
         {
             throw new InvalidOperationException("The command buffer is not in recording. Try uses GPUCommandBuffer.Begin()");
         }
 
-        if (x == 0 || y == 0 || z == 0)
-        {
-            throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
-        }
+        
 
         if (_shader.TryUpdateComputePipelineContext(ref _pipelineInfo, _isPipelineDirty))
         {
@@ -103,10 +97,40 @@ public class ComputeMaterial
                 throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineInfo.ReflectionInfo!.GetResourceName((uint)i)}");
             }
         }
-
-        command.DispatchCompute(x, y, z);
-
     }
+
+
+    /// <summary>
+    /// Dispatches the compute shader with the specified thread group counts.
+    /// </summary>
+    /// <param name="command">The command buffer to record the dispatch command to.</param>
+    /// <param name="x">The number of thread groups in the X dimension.</param>
+    /// <param name="y">The number of thread groups in the Y dimension.</param>
+    /// <param name="z">The number of thread groups in the Z dimension.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the command buffer is not in recording state or when a required resource group is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when any of the dispatch dimensions is zero.</exception>
+    public void DispatchByGroup(GPUCommandBuffer command, uint x, uint y, uint z)
+    {
+        if (x == 0 || y == 0 || z == 0)
+        {
+            throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
+        }
+        SetPipelineResources(command);
+        command.DispatchCompute(x, y, z);
+    }
+
+    public void DispatchBySize(GPUCommandBuffer command, uint x, uint y, uint z)
+    {
+        if (x == 0 || y == 0 || z == 0)
+        {
+            throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
+        }
+        SetPipelineResources(command);
+        ThreadGroupSize threadGroupSize = _parameterSet.ReflectionInfo.Size;
+        threadGroupSize.GetDispatchCount(x, y, z, out uint groupX, out uint groupY, out uint groupZ);
+        command.DispatchCompute(groupX, groupY, groupZ);
+    }
+
 
     /// <summary>
     /// Sets the shader defines to control the variant of the compute shader.

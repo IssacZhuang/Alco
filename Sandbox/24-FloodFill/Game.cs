@@ -18,8 +18,7 @@ public class Game : GameEngine
     private readonly MaterialRenderer _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
-    private readonly TileMapHeightBuffer _heightBuffer;
-    private readonly TileLightMap _tileLightMap;
+    private readonly FloodFillLightMap _tileLightMap;
 
     private readonly GraphicsValueBuffer<Data> _dataBuffer;
 
@@ -42,12 +41,10 @@ public class Game : GameEngine
         _dataBuffer.Value.attenuationCorner = 0.141414f;
         _dataBuffer.UpdateBuffer();
 
-
-        _heightBuffer = Rendering.CreateTileMapHeightBuffer((int)_size.x, (int)_size.y, "height_buffer");
-
         ComputeMaterial computeMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_FloodFillLighting);
 
-        _tileLightMap = Rendering.CreateTileLightMap(_heightBuffer, computeMaterial, (int)_size.x, (int)_size.y, "tile_light_map");
+        _tileLightMap = Rendering.CreateTileLightMap(computeMaterial, (int)_size.x, (int)_size.y, "tile_light_map");
+
 
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.LightMap);
     }

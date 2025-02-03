@@ -3,7 +3,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public class TileLightMap : AutoDisposable
+public class FloodFillLightMap : AutoDisposable
 {
     private struct Data
     {
@@ -15,7 +15,6 @@ public class TileLightMap : AutoDisposable
     private readonly RenderTexture _lightMapBack;
     private readonly DoubleBuffer<RenderTexture> _lightMaps;
     private readonly BitmapFloat16RGBA _lightMapCPU;
-    private readonly TileMapHeightBuffer _heightBuffer;
     private readonly GraphicsValueBuffer<Data> _dataBuffer;
     private readonly ComputeMaterial _material;
     private readonly GPUCommandBuffer _command;
@@ -51,9 +50,8 @@ public class TileLightMap : AutoDisposable
     public string Name { get; }
 
 
-    internal TileLightMap(
+    internal FloodFillLightMap(
         RenderingSystem renderingSystem,
-        TileMapHeightBuffer heightBuffer,
         ComputeMaterial computeDispatcher,
         int width,
         int height,
@@ -64,7 +62,6 @@ public class TileLightMap : AutoDisposable
         _lightMapBack = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
         _lightMaps = new DoubleBuffer<RenderTexture>(_lightMapFront, _lightMapBack);
         _lightMapCPU = new BitmapFloat16RGBA(width, height);
-        _heightBuffer = heightBuffer;
         _material = computeDispatcher.CreateInstance();
 
         _device = renderingSystem.GraphicsDevice;
@@ -109,11 +106,12 @@ public class TileLightMap : AutoDisposable
         _lightMaps.Reset();
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
         _command.Begin();
+        _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
         for (int i = 0; i < Iteration; i++)
         {
             _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
             _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-            _material.Dispatch(_command, 5, 5, 1);
+            _material.DispatchByGroup(_command, groupX, groupY, groupZ);
             _lightMaps.Swap();
         }
         _command.End();
