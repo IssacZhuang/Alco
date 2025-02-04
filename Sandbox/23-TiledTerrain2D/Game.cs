@@ -110,10 +110,16 @@ public class Game : GameEngine
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
         _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
+        _waterBlock.UseLightMap = true;
+        _waterBlock.LightMap = _lightMap.Texture;
+
 
         _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
         _plantBlock.SetAllItemIds(0);
         _plantBlock.Transform.position = new Vector3(0, 0, 0);
+        _plantBlock.UseLightMap = true;
+        _plantBlock.LightMap = _lightMap.Texture;
+
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);

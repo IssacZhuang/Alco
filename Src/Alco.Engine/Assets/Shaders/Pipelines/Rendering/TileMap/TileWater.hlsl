@@ -12,8 +12,14 @@ struct V2F {
   float4 position : SV_POSITION;
   float4 worldPosition : TEXCOORD0;
   float2 uv : TEXCOORD1;
+#if defined(USE_LIGHT_MAP)
+  float2 lightMapUV : TEXCOORD2;
+  uint instanceId : TEXCOORD3;
+#else
   uint instanceId : TEXCOORD2;
+#endif
 };
+
 
 struct Constants{
     float4x4 model;
@@ -40,6 +46,8 @@ DEFINE_STORAGE(4, uint, _tileIdData);
 //the height of the surface, not the water
 DEFINE_STORAGE(5, float, _heightData);
 
+DEFINE_TEX2D_SAMPLE(6, _lightMap);
+
 
 PUSH_CONSTANT Constants constants;
 
@@ -64,8 +72,11 @@ V2F VertexMain(Vertex input)
     TileData data = _tileData[tileId];
 
     V2F output;
-    float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
-    float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
+    float gridX = input.instanceId % constants.size.x;
+    float gridY = input.instanceId / constants.size.x;
+    float offsetX = gridX - (constants.size.x-1) *0.5f;
+    float offsetY = gridY - (constants.size.y-1) *0.5f;
+
 
     // the vertex position is calculated based on the standard sprite quad mesh
     // which is centered at the origin
@@ -90,11 +101,16 @@ V2F VertexMain(Vertex input)
     output.uv = input.uv;
     output.instanceId = input.instanceId;
 
+#if defined(USE_LIGHT_MAP)
+    output.lightMapUV = float2(gridX + input.position.x, gridY - input.position.y) / float2(constants.size.x, constants.size.y) ;
+#endif
+
     return output;
 }
 
 
 [shader("pixel")]
+
 float4 PixelMain(V2F input) : SV_TARGET
 {
     // Define offsets for 3x3 neighborhood
@@ -201,6 +217,11 @@ float4 PixelMain(V2F input) : SV_TARGET
     edgeColor.rgb *= (noise2)*2;
     finalColor = lerp(finalColor, edgeColor, 1-finalDarkening);
 
+#if defined(USE_LIGHT_MAP)
+    finalColor.rgb *= SAMPLE_TEX2D(_lightMap, input.lightMapUV).rgb;
+#endif
+
     return finalColor;
+
 }
 

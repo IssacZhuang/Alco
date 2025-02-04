@@ -5,6 +5,8 @@ namespace Alco.Rendering;
 
 public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData, TUserData>
 {
+    public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
+
     //per block
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -13,8 +15,28 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
         public int2 Size;
     }
 
-    private TileMapHeightBuffer _surfaceHeightData;
+    private readonly TileMapHeightBuffer _surfaceHeightData;
+    private readonly List<string> _defines = new();
+    private bool _useLightMap;
 
+    public RenderTexture LightMap
+    {
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _material.SetRenderTexture(ShaderResourceId.LightMap, value);
+        }
+    }
+
+    public bool UseLightMap
+    {
+        get => _useLightMap;
+        set
+        {
+            _useLightMap = value;
+            UpdateDefines();
+        }
+    }
 
     internal WaterTileBlock2D(
         RenderingSystem renderingSystem,
@@ -45,5 +67,15 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
         _surfaceHeightData.TryUpdateBuffer();
 
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
+    }
+
+    private void UpdateDefines()
+    {
+        _defines.Clear();
+        if (_useLightMap)
+        {
+            _defines.Add(ShaderDefine_LightMap);
+        }
+        _material.SetDefines(_defines.ToArray());
     }
 }

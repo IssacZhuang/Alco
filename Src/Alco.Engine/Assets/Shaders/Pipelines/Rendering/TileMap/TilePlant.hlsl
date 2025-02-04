@@ -10,8 +10,14 @@ struct Vertex {
 struct V2F {
   float4 position : SV_POSITION;
   float2 uv : TEXCOORD0;
+#if defined(USE_LIGHT_MAP)
+  float2 lightMapUV : TEXCOORD1;
+  uint instanceId : TEXCOORD2;
+#else
   uint instanceId : TEXCOORD1;
+#endif
 };
+
 
 struct Constants{
     float4x4 model;
@@ -40,6 +46,8 @@ DEFINE_STORAGE(4, uint, _tileIdData);
 
 DEFINE_STORAGE(5, float, _heightData);
 
+DEFINE_TEX2D_SAMPLE(6, _lightMap);
+
 PUSH_CONSTANT Constants constants;
 
 
@@ -54,9 +62,10 @@ V2F VertexMain(Vertex input)
         return output;
     }
     
-    
-    float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
-    float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
+    float gridX = input.instanceId % constants.size.x;
+    float gridY = input.instanceId / constants.size.x;
+    float offsetX = gridX - (constants.size.x-1) *0.5f;
+    float offsetY = gridY - (constants.size.y-1) *0.5f;
 
     float hash = offsetX*17 + offsetY*23;
     float randomOffsetFactor = data.randomOffsetFactor;
@@ -91,11 +100,16 @@ V2F VertexMain(Vertex input)
     output.uv = input.uv;
     output.instanceId = input.instanceId;
 
+#if defined(USE_LIGHT_MAP)
+    output.lightMapUV = float2(gridX + input.position.x, gridY - input.position.y) * data.scale / float2(constants.size.x, constants.size.y) ;
+#endif
+
     return output;
 }
 
 
 [shader("pixel")]
+
 float4 PixelMain(V2F input) : SV_TARGET
 {
     uint tileId = _tileIdData[input.instanceId];
@@ -107,6 +121,10 @@ float4 PixelMain(V2F input) : SV_TARGET
     {
         discard;
     }
+
+#if defined(USE_LIGHT_MAP)
+    color.rgb *= SAMPLE_TEX2D(_lightMap, input.lightMapUV).rgb;
+#endif
     return color;
 }
 

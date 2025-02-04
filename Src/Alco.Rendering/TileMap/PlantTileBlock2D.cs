@@ -5,6 +5,8 @@ namespace Alco.Rendering;
 
 public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserData>
 {
+    public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
@@ -12,6 +14,27 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
         public int2 Size;
     }
     private readonly TileMapHeightBuffer _heightData;
+    private readonly List<string> _defines = new();
+    private bool _useLightMap;
+
+    public RenderTexture LightMap
+    {
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _material.SetRenderTexture(ShaderResourceId.LightMap, value);
+        }
+    }
+
+    public bool UseLightMap
+    {
+        get => _useLightMap;
+        set
+        {
+            _useLightMap = value;
+            UpdateDefines();
+        }
+    }
 
     internal PlantTileBlock2D(
         RenderingSystem renderingSystem,
@@ -47,5 +70,15 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
         _heightData.TryUpdateBuffer();
 
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
+    }
+
+    private void UpdateDefines()
+    {
+        _defines.Clear();
+        if (_useLightMap)
+        {
+            _defines.Add(ShaderDefine_LightMap);
+        }
+        _material.SetDefines(_defines.ToArray());
     }
 }
