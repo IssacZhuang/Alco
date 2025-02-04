@@ -14,8 +14,10 @@ namespace Alco.Rendering;
 /// <typeparam name="TUserData">The type of the user data.</typeparam>
 public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileData, TUserData>
 {
-    public string ShaderDefine_Cliff = "IS_CLIFF";
-    
+    public const string ShaderDefine_Cliff = "IS_CLIFF";
+    public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
+
+
     //per block
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -25,8 +27,31 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
     }
 
     private readonly TileMapHeightBuffer _heightData;
-    
+
+    private readonly List<string> _defines = new();
     private bool _isCliff;
+    private bool _useLightMap;
+
+    public RenderTexture LightMap
+    {
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _material.SetRenderTexture(ShaderResourceId.LightMap, value);
+        }
+    }
+
+
+
+    public bool UseLightMap
+    {
+        get => _useLightMap;
+        set
+        {
+            _useLightMap = value;
+            UpdateDefines();
+        }
+    }
 
     public bool IsCliff
     {
@@ -34,14 +59,7 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
         set
         {
             _isCliff = value;
-            if (_isCliff)
-            {
-                _material.SetDefines(ShaderDefine_Cliff);
-            }
-            else
-            {
-                _material.SetDefines([]);
-            }
+            UpdateDefines();
         }
     }
 
@@ -81,6 +99,21 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
 
     }
+
+    private void UpdateDefines()
+    {
+        _defines.Clear();
+        if (_isCliff)
+        {
+            _defines.Add(ShaderDefine_Cliff);
+        }
+        if (_useLightMap)
+        {
+            _defines.Add(ShaderDefine_LightMap);
+        }
+        _material.SetDefines(_defines.ToArray());
+    }
+
 
     protected override void Dispose(bool disposing)
     {

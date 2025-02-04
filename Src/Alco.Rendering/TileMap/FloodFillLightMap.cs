@@ -38,7 +38,7 @@ public class FloodFillLightMap : AutoDisposable
         }
     }
 
-    public RenderTexture LightMap => _lightMaps.Front;
+    public RenderTexture Texture => _lightMaps.Front;
 
     public int Width => _lightMapCPU.Width;
     public int Height => _lightMapCPU.Height;

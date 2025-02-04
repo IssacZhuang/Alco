@@ -26,6 +26,7 @@ public class Game : GameEngine
     private readonly SurfaceTileBlock2D<int> _cliffBlock;
     private readonly WaterTileBlock2D<int> _waterBlock;
     private readonly PlantTileBlock2D<int> _plantBlock;
+    private readonly FloodFillLightMap _lightMap;
     private readonly TileMapHeightBuffer _heightBuffer;
     private float _zoom = 4f;
     private float _targetZoom = 4f;
@@ -65,6 +66,12 @@ public class Game : GameEngine
 
         _heightBuffer = Rendering.CreateTileMapHeightBuffer(width, height);
 
+        ComputeMaterial computeMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_TileLighting);
+        computeMaterial.SetBuffer(ShaderResourceId.HeightData, _heightBuffer);
+        _lightMap = Rendering.CreateTileLightMap(computeMaterial, width, height);
+        _lightMap.SetLight((int)width / 2, (int)height / 2, new Half4(1, 1, 1, 1));
+        _lightMap.Render();
+
         _surfaceTileSet = BuildSurfaceTileSet();
         _surfaceTileSet.SetAllTileColor(_color);
         _cliffTileSet = BuildCliffTileSet();
@@ -90,11 +97,15 @@ public class Game : GameEngine
         _plantMaterial.DepthStencilState = DepthStencilState.Write;
 
         _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
+        _surfaceBlock.UseLightMap = true;
         _surfaceBlock.SetAllItemIds(1);
+        _surfaceBlock.LightMap = _lightMap.Texture;
 
         _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
+        _cliffBlock.UseLightMap = true;
         _cliffBlock.SetAllItemIds(1);
         _cliffBlock.IsCliff = true;
+        _cliffBlock.LightMap = _lightMap.Texture;
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
@@ -108,6 +119,8 @@ public class Game : GameEngine
         _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _brushMaterial.SetTexture(ShaderResourceId.Texture, Rendering.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+
+
 
         _brushTransform = new Transform3D();
         _brushTransform.scale = new Vector3(0.8f);

@@ -9,10 +9,6 @@ using SandboxUtils;
 
 public class Game : GameEngine
 {
-    private struct Data {
-        public float attenuationSide;
-        public float attenuationCorner;
-    }
 
     private readonly uint2 _size = new uint2(65, 65);
     private readonly MaterialRenderer _materialRenderer;
@@ -20,7 +16,6 @@ public class Game : GameEngine
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
 
-    private readonly GraphicsValueBuffer<Data> _dataBuffer;
 
     private float _intensity = 1;
 
@@ -36,17 +31,12 @@ public class Game : GameEngine
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 
 
-        _dataBuffer = Rendering.CreateGraphicsValueBuffer<Data>("data_buffer");
-        _dataBuffer.Value.attenuationSide = 0.1f;
-        _dataBuffer.Value.attenuationCorner = 0.141414f;
-        _dataBuffer.UpdateBuffer();
-
         ComputeMaterial computeMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_FloodFillLighting);
 
         _tileLightMap = Rendering.CreateTileLightMap(computeMaterial, (int)_size.x, (int)_size.y, "tile_light_map");
 
 
-        _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.LightMap);
+        _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
     }
 
 
@@ -70,22 +60,23 @@ public class Game : GameEngine
         DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100);
         DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
         if(DebugGUI.Button("Reset")) {
-            _dataBuffer.Value.attenuationSide = 0f;
-            _dataBuffer.Value.attenuationCorner = 0f;
-            _dataBuffer.UpdateBuffer();
-
-
+            _tileLightMap.AttenuationCorner = 0.1f;
+            _tileLightMap.AttenuationSide = 0.141414f;
         }
 
-        if(DebugGUI.SliderWithText("Attenuation Side", ref _dataBuffer.Value.attenuationSide, 0, 2)){
-            _dataBuffer.UpdateBuffer();
+        float attenuationSide = _tileLightMap.AttenuationSide;
+        if(DebugGUI.SliderWithText("Attenuation Side", ref attenuationSide, 0, 2)){
+            _tileLightMap.AttenuationSide = attenuationSide;
         }
 
 
 
-        if(DebugGUI.SliderWithText("Attenuation Corner", ref _dataBuffer.Value.attenuationCorner, 0, 2)){
-            _dataBuffer.UpdateBuffer();
+
+        float attenuationCorner = _tileLightMap.AttenuationCorner;
+        if(DebugGUI.SliderWithText("Attenuation Corner", ref attenuationCorner, 0, 2)){
+            _tileLightMap.AttenuationCorner = attenuationCorner;
         }
+
 
         _camera.ViewSize = MainWindow.Size;
         _camera.UpdateMatrixToGPU();

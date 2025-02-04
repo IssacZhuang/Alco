@@ -1,23 +1,32 @@
 #include "Shaders/Libs/Core.hlsli"
 
-struct Vertex {
-  float3 position : POSITION;
-  float2 uv : TEXCOORD0;
-  uint instanceId : SV_INSTANCEID;
+struct Vertex
+{
+    float3 position : POSITION;
+    float2 uv : TEXCOORD0;
+    uint instanceId : SV_INSTANCEID;
 };
 
-struct V2F {
-  float4 position : SV_POSITION;
-  float2 uv : TEXCOORD0;
-  uint instanceId : TEXCOORD1;
+struct V2F
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+#if defined(USE_LIGHT_MAP)
+    float2 lightMapUV : TEXCOORD1;
+    uint instanceId : TEXCOORD2;
+#else
+    uint instanceId : TEXCOORD1;
+#endif
 };
 
-struct Constants{
+struct Constants
+{
     float4x4 model;
     int2 size;
 };
 
-struct TileData{
+struct TileData
+{
     float4 uvRect;
     float4 color;
     float2 meshScale;
@@ -28,8 +37,10 @@ struct TileData{
     float edgeSmoothFactor;
 };
 
-
-DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
+DEFINE_UNIFORM(0, _camera)
+{
+    float4x4 viewProjection;
+};
 
 DEFINE_TEX2D_SAMPLE(1, _texture);
 
@@ -39,6 +50,7 @@ DEFINE_STORAGE(3, uint, _tileIdData);
 
 DEFINE_STORAGE(4, float, _heightData);
 
+DEFINE_TEX2D_SAMPLE(5, _lightMap);
 
 PUSH_CONSTANT Constants constants;
 
@@ -58,8 +70,11 @@ V2F VertexMain(Vertex input)
     TileData data = _tileData[tileId];
 
     V2F output;
-    float offsetX = (input.instanceId % constants.size.x) - (constants.size.x-1) *0.5f;
-    float offsetY = (input.instanceId / constants.size.x) - (constants.size.y-1) *0.5f;
+    float gridX = input.instanceId % constants.size.x;
+    float gridY = input.instanceId / constants.size.x;
+    float offsetX = gridX - (constants.size.x - 1) * 0.5f;
+    float offsetY = gridY - (constants.size.y - 1) * 0.5f;
+
 
     // the vertex position is calculated based on the standard sprite quad mesh
     // which is centered at the origin
@@ -74,6 +89,7 @@ V2F VertexMain(Vertex input)
 
 #if defined(IS_CLIFF)
     offsetY += 1;
+    gridY += 1;
     pos.z = pos.y - 0.5f;
 #endif
 
@@ -88,12 +104,19 @@ V2F VertexMain(Vertex input)
     output.uv = input.uv;
     output.instanceId = input.instanceId;
 
+#if defined(USE_LIGHT_MAP)
+    output.lightMapUV = float2(gridX + input.position.x, gridY - input.position.y) * data.meshScale / float2(constants.size.x, constants.size.y) ;
+#endif
+
+
     return output;
+
 }
 
-
 [shader("pixel")]
-float4 PixelMain(V2F input) : SV_TARGET
+float4 PixelMain(V2F input)
+
+    : SV_TARGET
 {
     // Define offsets for 3x3 neighborhood
     static const int2 offsets[9] = {
@@ -111,8 +134,6 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     float edgeSmoothFactor = data.edgeSmoothFactor;
     float blendFactor = data.blendFactor;
-
-
 
     [unroll]
     for (int i = 0; i < 9; i++)
@@ -144,7 +165,7 @@ float4 PixelMain(V2F input) : SV_TARGET
         saturate((1 - uv.x) * invBlendFactor), // right
         1.0,                                   // bottom-left
         1.0,                                   // bottom
-        1.0                                     // bottom-right
+        1.0                                    // bottom-right
     };
 
     float weightsHeight[9] = {
@@ -194,9 +215,11 @@ float4 PixelMain(V2F input) : SV_TARGET
         {
             float heightDiff = abs(heights[j] - centerHeight);
 
-            if(heightDiff > 0.001f){
-                finalDarkening = lerp(0.9, finalDarkening,weightsHeight[j]);
-            }else if(priorities[j] > centerPriority)
+            if (heightDiff > 0.001f)
+            {
+                finalDarkening = lerp(0.9, finalDarkening, weightsHeight[j]);
+            }
+            else if (priorities[j] > centerPriority)
             {
                 finalColor = lerp(colors[j], finalColor, weights[j]);
             }
@@ -205,6 +228,12 @@ float4 PixelMain(V2F input) : SV_TARGET
 
     finalColor *= finalDarkening;
 
+#if defined(USE_LIGHT_MAP)
+    //finalColor *= SAMPLE_TEX2D(_lightMap, input.lightMapUV);
+    finalColor.rgb *= SAMPLE_TEX2D(_lightMap, input.lightMapUV).rgb;
+#endif
+
     return finalColor;
+
 }
 
