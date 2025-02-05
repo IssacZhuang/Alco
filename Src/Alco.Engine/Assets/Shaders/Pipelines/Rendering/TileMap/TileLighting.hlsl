@@ -2,8 +2,8 @@
 
 
 // light map texture
-DEFINE_TEX2D_STORAGE(0, _frontBuffer, "rgba16f");
-DEFINE_TEX2D_STORAGE(1, _backBuffer, "rgba16f");
+DEFINE_TEX2D_STORAGE(0, _frontBuffer, float4, "rgba16f");
+DEFINE_TEX2D_STORAGE(1, _backBuffer, float4, "rgba16f");
 DEFINE_STORAGE(2, float, _heightData);
 DEFINE_UNIFORM(3, _data) {
     float attenuationSide;

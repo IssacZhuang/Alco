@@ -1,18 +1,21 @@
+#include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Libs/BCCompress.hlsli"
 #include "Shaders/Libs/UtilsCompress.hlsli"
 
+DEFINE_TEX2D_STORAGE(0, _output, uint4, "rgba32ui");
+DEFINE_TEX2D_SAMPLE(1, _input);
+DEFINE_UNIFORM(2, _data) {
+    uint4 DestRect;
+};
 
-RWTexture2D<uint4> Result;
-Texture2D<float4> RenderTexture0;
-SamplerState samplerRenderTexture0;
-uint4 DestRect;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void CSMainBC3_8(uint3 ThreadId : SV_DispatchThreadID)
+void MainCS(uint3 id : SV_DispatchThreadID)
 {
-    uint2 SamplePos = ThreadId.xy * 4;
+    uint2 SamplePos = id.xy * 4;
     if (any(SamplePos >= DestRect.zw))
+
         return;
 
     float2 TexelUVSize = 1.f / float2(DestRect.zw);
@@ -20,7 +23,8 @@ void CSMainBC3_8(uint3 ThreadId : SV_DispatchThreadID)
 
     float3 BlockBaseColor[16];
     float BlockA[16];
-    ReadBlockRGBA(RenderTexture0, samplerRenderTexture0, SampleUV, TexelUVSize, BlockBaseColor, BlockA);
+    ReadBlockRGBA(_input, _inputSampler, SampleUV, TexelUVSize, BlockBaseColor, BlockA);
 
-    Result[ThreadId.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockA);
+
+    _output[id.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockA);
 }
