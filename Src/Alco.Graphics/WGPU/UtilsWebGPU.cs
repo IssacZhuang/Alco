@@ -15,8 +15,14 @@ internal static partial class UtilsWebGPU
         }
 
         //compressed formats
-        //todo: implement compressed formats
-        throw new NotImplementedException("Compressed formats are not supported yet");
+        if (UtilsPixelFormat.TryGetCompressedBlockSize(pixelFormat, out var blockSize))
+        {
+            // BC formats use 4x4 pixel blocks
+            uint blocksPerRow = (width + 3) / 4;
+            return blocksPerRow * blockSize;
+        }
+
+        throw new NotImplementedException($"Format {pixelFormat} is not supported yet");
     }
 
 }

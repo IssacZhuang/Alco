@@ -120,7 +120,39 @@ public static class UtilsPixelFormat
         }
     }
 
-    
+    /// <summary>
+    /// Try get block size in bytes for compressed formats
+    /// </summary>
+    /// <param name="format">The pixel format to check</param>
+    /// <param name="blockSize">The size of a compressed block in bytes</param>
+    /// <returns>True if the format is a compressed format and block size was retrieved, false otherwise</returns>
+    public static bool TryGetCompressedBlockSize(PixelFormat format, out uint blockSize)
+    {
+        blockSize = format switch
+        {
+            // BC1 and BC4 formats use 8 bytes per 4x4 block
+            PixelFormat.BC1RGBAUnorm or
+            PixelFormat.BC1RGBAUnormSrgb or
+            PixelFormat.BC4RUnorm or
+            PixelFormat.BC4RSnorm => 8,
+
+            // BC2, BC3, BC5, BC6H and BC7 formats use 16 bytes per 4x4 block
+            PixelFormat.BC2RGBAUnorm or
+            PixelFormat.BC2RGBAUnormSrgb or
+            PixelFormat.BC3RGBAUnorm or
+            PixelFormat.BC3RGBAUnormSrgb or
+            PixelFormat.BC5RGUnorm or
+            PixelFormat.BC5RGSnorm or
+            PixelFormat.BC6HRGBUfloat or
+            PixelFormat.BC6HRGBFloat or
+            PixelFormat.BC7RGBAUnorm or
+            PixelFormat.BC7RGBAUnormSrgb => 16,
+
+            _ => 0
+        };
+
+        return blockSize != 0;
+    }
 
 }
 
