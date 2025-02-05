@@ -16,6 +16,48 @@ mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
     <StreamGeometry x:Key="extension_regular">M21 6.5C21 8.43 19.43 10 17.5 10C15.57 10 14 8.43 14 6.5C14 4.57 15.57 3 17.5 3C19.43 3 21 4.57 21 6.5ZM19 6.5C19 5.67 18.33 5 17.5 5C16.67 5 16 5.67 16 6.5C16 7.33 16.67 8 17.5 8C18.33 8 19 7.33 19 6.5ZM10.5 21C8.57 21 7 19.43 7 17.5C7 15.57 8.57 14 10.5 14C12.43 14 14 15.57 14 17.5C14 19.43 12.43 21 10.5 21ZM10.5 16C9.67 16 9 16.67 9 17.5C9 18.33 9.67 19 10.5 19C11.33 19 12 18.33 12 17.5C12 16.67 11.33 16 10.5 16ZM6.5 10C4.57 10 3 8.43 3 6.5C3 4.57 4.57 3 6.5 3C8.43 3 10 4.57 10 6.5C10 8.43 8.43 10 6.5 10ZM6.5 5C5.67 5 5 5.67 5 6.5C5 7.33 5.67 8 6.5 8C7.33 8 8 7.33 8 6.5C8 5.67 7.33 5 6.5 5Z</StreamGeometry>
 </Window.Resources>
 
+<Window.Styles>
+    <!-- 基础样式 -->
+    <Style Selector="Menu > MenuItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#D1D1D1"/>
+    </Style>
+
+    <!-- 二级菜单样式 -->
+    <Style Selector="MenuItem MenuItem">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="Foreground" Value="Black"/>
+    </Style>
+
+    <!-- 按钮基础样式 -->
+    <Style Selector="Button">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="PathIcon">
+        <Setter Property="Foreground" Value="#D1D1D1"/>
+    </Style>
+
+    <!-- 顶级菜单项交互状态 -->
+    <Style Selector="Menu > MenuItem:pointerover /template/ Border#PART_LayoutRoot,
+                     Menu > MenuItem:pressed /template/ Border#PART_LayoutRoot,
+                     Menu > MenuItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="#3E3E42"/>
+    </Style>
+
+    <!-- 顶级菜单项文字交互状态 -->
+    <Style Selector="Menu > MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter,
+                     Menu > MenuItem:pressed /template/ ContentPresenter#PART_HeaderPresenter,
+                     Menu > MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="TextBlock.Foreground" Value="#D1D1D1"/>
+    </Style>
+
+    <!-- 二级菜单项交互状态 -->
+    <Style Selector="MenuItem MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="#E5E5E5"/>
+    </Style>
+</Window.Styles>
+
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
@@ -60,16 +102,16 @@ mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
 
         <!-- Activity Bar (Left Icon Bar) -->
         <StackPanel Grid.Column="0" Background="#333333">
-            <Button Width="48" Height="48" Margin="0,5">
+            <Button Width="48" Height="48" Margin="0,5" Background="Transparent">
                 <PathIcon Data="{StaticResource document_regular}"/>
             </Button>
-            <Button Width="48" Height="48" Margin="0,5">
+            <Button Width="48" Height="48" Margin="0,5" Background="Transparent">
                 <PathIcon Data="{StaticResource search_regular}"/>
             </Button>
-            <Button Width="48" Height="48" Margin="0,5">
+            <Button Width="48" Height="48" Margin="0,5" Background="Transparent">
                 <PathIcon Data="{StaticResource branch_regular}"/>
             </Button>
-            <Button Width="48" Height="48" Margin="0,5">
+            <Button Width="48" Height="48" Margin="0,5" Background="Transparent">
                 <PathIcon Data="{StaticResource extension_regular}"/>
             </Button>
         </StackPanel>
