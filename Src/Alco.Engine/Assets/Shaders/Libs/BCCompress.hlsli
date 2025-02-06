@@ -186,11 +186,8 @@ uint2 CompressBC1Block(in float3 Block[16])
 // We expect linear colors as input and convert internally
 uint2 CompressBC1Block_SRGB(in float3 Block[16])
 {
-#if defined(USE_LINEAR_COLOR)
-	// mobile uses linear color for RVT
-    return CompressBC1Block(Block);
-#endif
-	
+    //srgb
+#if defined(IS_SRGB)
     float3 MinColor, MaxColor;
     GetMinMax(Block, MinColor, MaxColor);
 
@@ -204,6 +201,12 @@ uint2 CompressBC1Block_SRGB(in float3 Block[16])
     }
 
     return uint2((MinColor565 << 16) | MaxColor565, Indices);
+#endif
+
+    // linear
+    return CompressBC1Block(Block);
+
+
 }
 
 // Compress a BC3 block
@@ -240,13 +243,11 @@ uint4 CompressBC3Block(in float3 BlockRGB[16], in float BlockA[16])
 // We expect linear colors as input and convert internally
 uint4 CompressBC3Block_SRGB(in float3 BlockRGB[16], in float BlockA[16])
 {
-#if defined(USE_LINEAR_COLOR)
-    // mobile uses linear color for RVT
-    return CompressBC3Block(BlockRGB, BlockA);
-#endif
-		
+    //srgb
+#if defined(IS_SRGB)
     float3 MinColor, MaxColor;
     GetMinMax(BlockRGB, MinColor, MaxColor);
+
 
     uint MinColor565 = Float3ToUint565(LinearToSrgb(MinColor));
     uint MaxColor565 = Float3ToUint565(LinearToSrgb(MaxColor));
@@ -254,8 +255,8 @@ uint4 CompressBC3Block_SRGB(in float3 BlockRGB[16], in float BlockA[16])
     float MinAlpha, MaxAlpha;
     GetMinMax(BlockA, MinAlpha, MaxAlpha);
 
-    uint MinAlphaUint = (uint) round(MinAlpha * 255.f);
-    uint MaxAlphaUint = (uint) round(MaxAlpha * 255.f);
+    uint MinAlphaUint = (uint)round(MinAlpha * 255.f);
+    uint MaxAlphaUint = (uint)round(MaxAlpha * 255.f);
 
     uint ColorIndices = 0;
     if (MinColor565 < MaxColor565)
@@ -270,6 +271,9 @@ uint4 CompressBC3Block_SRGB(in float3 BlockRGB[16], in float BlockA[16])
     }
 
     return uint4((MinAlphaUint << 8) | MaxAlphaUint | AlphaIndices.x, AlphaIndices.y, (MinColor565 << 16) | MaxColor565, ColorIndices);
+#endif
+    // linear
+    return CompressBC3Block(BlockRGB, BlockA);
 }
 
 // Compress a BC4 block

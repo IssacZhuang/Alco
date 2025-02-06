@@ -15,7 +15,7 @@ public class TextureCompressorBC3 : AutoDisposable
     private readonly GPUCommandBuffer _commandCompress;
     private readonly GPUCommandBuffer _commandCopy;
 
-    private readonly GraphicsValueBuffer<uint4> _data;
+    private readonly GraphicsValueBuffer<uint2> _data;
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
 
 
@@ -31,7 +31,7 @@ public class TextureCompressorBC3 : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _commandCompress = _device.CreateCommandBuffer("texture_compressor_command_buffer");
         _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
-        _data = renderingSystem.CreateGraphicsValueBuffer<uint4>("texture_compressor_data");
+        _data = renderingSystem.CreateGraphicsValueBuffer<uint2>("texture_compressor_data");
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _blocks.UpdateBuffer();
         _material.TrySetBuffer(ShaderResourceId.Data, _data);
@@ -92,9 +92,6 @@ public class TextureCompressorBC3 : AutoDisposable
             throw new InvalidOperationException("Texture width and height must be divisible by 4");
         }
 
-        uint blocksX = source.Width / 4;
-        uint blocksY = source.Height / 4;
-
         var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, source.Sampler, ImageLoadOption.Default with
         {
             Format = PixelFormat.BC3RGBAUnorm
@@ -102,38 +99,14 @@ public class TextureCompressorBC3 : AutoDisposable
 
 
 
-        EnsureBufferSize(blocksX, blocksY);
-
-        _material.SetTexture(ShaderResourceId.Input, source);
-
-        _data.UpdateBuffer(new uint4(0, 0, blocksX, blocksY));
-
-        _commandCompress.Begin();
-        _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);
-        _commandCompress.End();
-        _device.Submit(_commandCompress);
-
-        _commandCopy.Begin();
-        _commandCopy.CopyBufferToTexture(_blocks.NativeBuffer, texture.NativeTexture, 0, TextureAspect.All);
-        _commandCopy.End();
-        _device.Submit(_commandCopy);
+        CompressToTextureCore(source, texture);
 
 
         return texture;
     }
 
-    public void DebugCompress(Texture2D source, Texture2D target){
-        if (!_device.TextureCompressBC3Supported)
-        {
-            throw new InvalidOperationException("Texture compression BC3 is not supported");
-
-        }
-
-        if (source.Width % 4 != 0 || source.Height % 4 != 0)
-        {
-            throw new InvalidOperationException("Texture width and height must be divisible by 4");
-        }
-
+    private void CompressToTextureCore(Texture2D source, Texture2D target)
+    {
         uint blocksX = source.Width / 4;
         uint blocksY = source.Height / 4;
 
@@ -141,12 +114,14 @@ public class TextureCompressorBC3 : AutoDisposable
 
         _material.SetTexture(ShaderResourceId.Input, source);
 
-        _data.UpdateBuffer(new uint4(0, 0, blocksX, blocksY));
+        _data.UpdateBuffer(new uint2(blocksX, blocksY));
+    
 
         _commandCompress.Begin();
         _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);
         _commandCompress.End();
         _device.Submit(_commandCompress);
+
 
         _commandCopy.Begin();
         _commandCopy.CopyBufferToTexture(_blocks.NativeBuffer, target.NativeTexture, 0, TextureAspect.All);
