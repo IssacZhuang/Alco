@@ -59,6 +59,8 @@ public class Texture2D : Texture
         }
     }
 
+    public GPUSampler Sampler => _sampler;
+
     internal Texture2D(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler) : base(device, texture, textureView, sampler)
     {
 

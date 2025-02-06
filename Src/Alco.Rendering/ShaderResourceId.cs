@@ -24,4 +24,7 @@ public static class ShaderResourceId
     public const string PositionData = "_positionData";
     public const string TileIdData = "_tileIdData";
     public const string TileSetData = "_tileSetData";
+
+    public const string Input = "_input";
+    public const string Output = "_output";
 }
