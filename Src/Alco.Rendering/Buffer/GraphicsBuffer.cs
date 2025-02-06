@@ -61,7 +61,7 @@ public class GraphicsBuffer : AutoDisposable
     /// The internal abstracted GPU buffer object.
     /// </summary>
     /// <value></value>
-    public GPUBuffer Buffer
+    public GPUBuffer NativeBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer;
@@ -73,7 +73,7 @@ public class GraphicsBuffer : AutoDisposable
 
         _buffer = _device.CreateBuffer(new BufferDescriptor
         {
-            Usage = BufferUsage.Uniform | BufferUsage.Storage | BufferUsage.CopyDst | BufferUsage.Indirect,
+            Usage = BufferUsage.Uniform | BufferUsage.Storage | BufferUsage.CopySrc| BufferUsage.CopyDst | BufferUsage.Indirect,
             Size = size,
             Name = name
         });

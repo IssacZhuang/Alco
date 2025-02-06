@@ -41,6 +41,8 @@ public abstract class Texture : AutoDisposable
         get => _texture.Depth;
     }
 
+    public GPUTexture NativeTexture => _texture;
+
     internal Texture(
         GPUDevice device,
         GPUTexture texture,

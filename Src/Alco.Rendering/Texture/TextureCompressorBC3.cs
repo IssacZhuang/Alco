@@ -12,22 +12,30 @@ public class TextureCompressorBC3 : AutoDisposable
     private readonly ComputeMaterial _material;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _commandBuffer;
+    private readonly GPUCommandBuffer _commandCompress;
+    private readonly GPUCommandBuffer _commandCopy;
+
     private readonly GraphicsValueBuffer<uint4> _data;
+    private GraphicsArrayBuffer<uint4> _blocks;//resizeable
+
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TextureCompressorBC3"/> class.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
     /// <param name="material">The compute material containing the BC3 compression shader.</param>
-    internal TextureCompressorBC3(RenderingSystem renderingSystem, ComputeMaterial material)
+    internal TextureCompressorBC3(RenderingSystem renderingSystem, ComputeMaterial material, int defaultBufferSize = 256 * 256)
     {
         _renderingSystem = renderingSystem;
         _material = material.CreateInstance();
         _device = renderingSystem.GraphicsDevice;
-        _commandBuffer = _device.CreateCommandBuffer("texture_compressor_command_buffer");
+        _commandCompress = _device.CreateCommandBuffer("texture_compressor_command_buffer");
+        _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
         _data = renderingSystem.CreateGraphicsValueBuffer<uint4>("texture_compressor_data");
+        _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _material.TrySetBuffer(ShaderResourceId.Data, _data);
+
+        _material.TrySetBuffer(ShaderResourceId.Output, _blocks);
     }
 
     /// <summary>
@@ -71,23 +79,59 @@ public class TextureCompressorBC3 : AutoDisposable
             throw new InvalidOperationException("Texture compression BC3 is not supported");
         }
 
-        var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, source.Sampler, ImageLoadOption.Default with
+        if (source.Width % 4 != 0 || source.Height % 4 != 0)
+        {
+            throw new InvalidOperationException("Texture width and height must be divisible by 4");
+        }
+
+        uint blocksX = source.Width / 4;
+        uint blocksY = source.Height / 4;
+
+
+
+        var texture = _renderingSystem.CreateTexture2D(blocksX, blocksY, source.Sampler, ImageLoadOption.Default with
         {
             Format = PixelFormat.BC3RGBAUnorm
         });
 
+        EnsureBufferSize(blocksX, blocksY);
+
         _material.SetTexture(ShaderResourceId.Input, source);
-        _material.SetTexture(ShaderResourceId.Output, texture);
 
         _data.UpdateBuffer(new uint4(0, 0, source.Width, source.Height));
 
-        _commandBuffer.Begin();
-        _material.DispatchBySize(_commandBuffer, source.Width, source.Height, 1);
-        _commandBuffer.End();
-        _device.Submit(_commandBuffer);
+        _commandCompress.Begin();
+        _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);
+        _commandCompress.End();
+        _device.Submit(_commandCompress);
+
+        _commandCopy.Begin();
+        _commandCopy.CopyBufferToTexture(_blocks.NativeBuffer, texture.NativeTexture, 0, TextureAspect.All);
+        _commandCopy.End();
+        _device.Submit(_commandCopy);
+
 
         return texture;
+
     }
+
+    private void EnsureBufferSize(uint blocksX, uint blocksY)
+    {
+        uint requiredSize = blocksX * blocksY;
+        if (_blocks.Length < requiredSize)
+        {
+            uint newSize = _blocks.Size * 2;
+
+            _blocks.Dispose();
+            while (newSize < requiredSize)
+            {
+                newSize *= 2;
+            }
+
+            _blocks = _renderingSystem.CreateGraphicsArrayBuffer<uint4>((int)newSize);
+        }
+    }
+
 
     /// <summary>
     /// Releases the unmanaged resources used by the TextureCompressorBC3 and optionally releases the managed resources.
@@ -97,7 +141,7 @@ public class TextureCompressorBC3 : AutoDisposable
     {
         if (disposing)
         {
-            _commandBuffer.Dispose();
+            _commandCompress.Dispose();
             _data.Dispose();
         }
     }

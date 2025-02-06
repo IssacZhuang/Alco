@@ -2,16 +2,21 @@
 #include "Shaders/Libs/BCCompress.hlsli"
 #include "Shaders/Libs/UtilsCompress.hlsli"
 
-DEFINE_TEX2D_STORAGE(0, _output, uint4, "rgba32ui");
+DEFINE_STORAGE(0, uint4, _output);
 DEFINE_TEX2D_READ(1, _input);
 DEFINE_UNIFORM(2, _data) {
     uint4 DestRect;
 };
 
+uint GetOutputIndex(uint2 pos)
+{
+    return pos.y * DestRect.z + pos.x;
+}
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void MainCS(uint3 id : SV_DispatchThreadID)
+
 {
     uint2 SamplePos = id.xy * 4;
     if (any(SamplePos >= DestRect.zw))
@@ -26,5 +31,5 @@ void MainCS(uint3 id : SV_DispatchThreadID)
     ReadBlockRGBA(_input, SamplePos, BlockBaseColor, BlockA);
 
 
-    _output[id.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockA);
+    _output[GetOutputIndex(id.xy)] = CompressBC3Block_SRGB(BlockBaseColor, BlockA);
 }

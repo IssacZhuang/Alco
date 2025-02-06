@@ -320,6 +320,62 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         wgpuComputePassEncoderDispatchWorkgroupsIndirect(_computePass, nativeBuffer.Native, offset);
     }
 
+    protected override void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
+    {
+        WebGPUBuffer nativeSrc = (WebGPUBuffer)src;
+        WebGPUBuffer nativeDst = (WebGPUBuffer)dst;
+        wgpuCommandEncoderCopyBufferToBuffer(_encoder, nativeSrc.Native, srcOffset, nativeDst.Native, dstOffset, size);
+    }
+
+
+    protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint offset, TextureAspect aspect)
+    {
+        WebGPUBuffer nativeSrc = (WebGPUBuffer)src;
+        WebGPUTexture nativeDst = (WebGPUTexture)dst;
+        WGPUExtent3D extent = new WGPUExtent3D
+        {
+            width = nativeDst.Width,
+            height = nativeDst.Height,
+            depthOrArrayLayers = nativeDst.Depth
+        };
+
+        WGPUTexture nativeTexture = nativeDst.Native;
+        WGPUBuffer nativeBuffer = nativeSrc.Native;
+        WGPUImageCopyBuffer imageCopyBuffer = new WGPUImageCopyBuffer
+        {
+            buffer = nativeBuffer,
+            layout = new WGPUTextureDataLayout
+            {
+                offset = 0,
+                bytesPerRow = UtilsWebGPU.GetTextureBytesPerRow(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height),
+                rowsPerImage = nativeDst.Height
+
+            }
+        };
+
+        WGPUImageCopyTexture imageCopyTexture = new WGPUImageCopyTexture
+        {
+            texture = nativeTexture,
+            mipLevel = 0,
+            origin = new WGPUOrigin3D
+            {
+                x = 0,
+                y = 0,
+                z = 0
+            },
+            aspect = UtilsWebGPU.TextureAspectToWebGPU(aspect)
+        };
+
+
+        wgpuCommandEncoderCopyBufferToTexture(_encoder, &imageCopyBuffer, &imageCopyTexture, &extent);
+
+
+    }
+
+
+
+
+
     #endregion
 
     #region WebGPU Implementation

@@ -34,5 +34,5 @@ public enum TextureUsage
     /// <summary>
     /// Write | TextureBinding | RenderAttachment
     /// </summary>
-    ComputeWrite = Write | TextureBinding | StorageBinding,
+    ComputeWrite = Read | Write | TextureBinding | StorageBinding,
 }

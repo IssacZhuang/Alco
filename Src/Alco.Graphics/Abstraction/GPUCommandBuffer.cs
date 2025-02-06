@@ -175,11 +175,39 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         PushConstants(stage, 0, data);
     }
 
+
+    public void CopyBuffer(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        CopyBufferCore(src, dst, srcOffset, dstOffset, size);
+    }
+
+    public void CopyBuffer(GPUBuffer src, GPUBuffer dst, ulong size)
+    {
+        CopyBuffer(src, dst, 0, 0, size);
+    }
+
+
+    public void CopyBuffer(GPUBuffer src, GPUBuffer dst)    
+    {
+        CopyBuffer(src, dst, 0, 0, src.Size);
+    }
+
+    public void CopyBufferToTexture(GPUBuffer src, GPUTexture dst, uint offset = 0, TextureAspect aspect = TextureAspect.All)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBufferToTexture, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        CopyBufferToTextureCore(src, dst, offset, aspect);
+    }
+
+
     // need to be implemented for each backend
     protected abstract void BeginCore();
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
     protected abstract void ClearColorCore(ColorFloat color, uint index);
+
+
+
     protected abstract void ClearDepthCore(float depth);
     protected abstract void ClearStencilCore(uint stencil);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
@@ -199,4 +227,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
     /// </summary>
     protected abstract unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
+
+    protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
+    protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint offset, TextureAspect aspect);
 }
