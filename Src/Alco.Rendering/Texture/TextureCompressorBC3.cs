@@ -106,7 +106,7 @@ public class TextureCompressorBC3 : AutoDisposable
 
         _material.SetTexture(ShaderResourceId.Input, source);
 
-        _data.UpdateBuffer(new uint4(0, 0, source.Width, source.Height));
+        _data.UpdateBuffer(new uint4(0, 0, blocksX, blocksY));
 
         _commandCompress.Begin();
         _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);
@@ -137,12 +137,11 @@ public class TextureCompressorBC3 : AutoDisposable
         uint blocksX = source.Width / 4;
         uint blocksY = source.Height / 4;
 
-
         EnsureBufferSize(blocksX, blocksY);
 
         _material.SetTexture(ShaderResourceId.Input, source);
 
-        _data.UpdateBuffer(new uint4(0, 0, source.Width, source.Height));
+        _data.UpdateBuffer(new uint4(0, 0, blocksX, blocksY));
 
         _commandCompress.Begin();
         _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);

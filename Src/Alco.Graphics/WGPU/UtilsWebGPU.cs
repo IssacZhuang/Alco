@@ -29,7 +29,7 @@ internal static partial class UtilsWebGPU
             {
                 offset = 0,
                 bytesPerRow = blocksPerRow * blockSize,
-                rowsPerImage = height / 4
+                rowsPerImage = height/4
             };
         }
 

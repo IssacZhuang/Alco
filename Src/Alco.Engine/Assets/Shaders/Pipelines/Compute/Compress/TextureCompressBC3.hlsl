@@ -19,12 +19,9 @@ void MainCS(uint3 id : SV_DispatchThreadID)
 
 {
     uint2 SamplePos = id.xy * 4;
-    if (any(SamplePos >= DestRect.zw))
-
+    if (any(SamplePos >= DestRect.zw)) {
         return;
-
-    float2 TexelUVSize = 1.f / float2(DestRect.zw);
-    float2 SampleUV = (float2(SamplePos)+0.5f) * TexelUVSize;
+    }
 
     float3 BlockBaseColor[16];
     float BlockA[16];
