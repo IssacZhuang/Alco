@@ -33,8 +33,8 @@ public class TextureCompressorBC3 : AutoDisposable
         _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
         _data = renderingSystem.CreateGraphicsValueBuffer<uint4>("texture_compressor_data");
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
+        _blocks.UpdateBuffer();
         _material.TrySetBuffer(ShaderResourceId.Data, _data);
-
         _material.TrySetBuffer(ShaderResourceId.Output, _blocks);
     }
 
@@ -56,8 +56,16 @@ public class TextureCompressorBC3 : AutoDisposable
             return false;
         }
 
+        if (source.Width % 4 != 0 || source.Height % 4 != 0)
+        {
+            texture = null;
+            return false;
+        }
+
+
         texture = Compress(source);
         return true;
+
     }
 
     /// <summary>
@@ -87,12 +95,12 @@ public class TextureCompressorBC3 : AutoDisposable
         uint blocksX = source.Width / 4;
         uint blocksY = source.Height / 4;
 
-
-
-        var texture = _renderingSystem.CreateTexture2D(blocksX, blocksY, source.Sampler, ImageLoadOption.Default with
+        var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, source.Sampler, ImageLoadOption.Default with
         {
             Format = PixelFormat.BC3RGBAUnorm
         });
+
+
 
         EnsureBufferSize(blocksX, blocksY);
 
@@ -112,10 +120,44 @@ public class TextureCompressorBC3 : AutoDisposable
 
 
         return texture;
+    }
+
+    public void DebugCompress(Texture2D source, Texture2D target){
+        if (!_device.TextureCompressBC3Supported)
+        {
+            throw new InvalidOperationException("Texture compression BC3 is not supported");
+
+        }
+
+        if (source.Width % 4 != 0 || source.Height % 4 != 0)
+        {
+            throw new InvalidOperationException("Texture width and height must be divisible by 4");
+        }
+
+        uint blocksX = source.Width / 4;
+        uint blocksY = source.Height / 4;
+
+
+        EnsureBufferSize(blocksX, blocksY);
+
+        _material.SetTexture(ShaderResourceId.Input, source);
+
+        _data.UpdateBuffer(new uint4(0, 0, source.Width, source.Height));
+
+        _commandCompress.Begin();
+        _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);
+        _commandCompress.End();
+        _device.Submit(_commandCompress);
+
+        _commandCopy.Begin();
+        _commandCopy.CopyBufferToTexture(_blocks.NativeBuffer, target.NativeTexture, 0, TextureAspect.All);
+        _commandCopy.End();
+        _device.Submit(_commandCopy);
 
     }
 
     private void EnsureBufferSize(uint blocksX, uint blocksY)
+
     {
         uint requiredSize = blocksX * blocksY;
         if (_blocks.Length < requiredSize)

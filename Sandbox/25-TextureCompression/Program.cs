@@ -11,10 +11,10 @@ GameEngineSetting setting = new GameEngineSetting
         Backend = GraphicsBackend.Vulkan
     },
 }.
-With<PluginDefaultAssets>();
+With<PluginDefaultAssets>().
 // With<PluginHDR>().
 // With<PluginBloom>().
-// With<PluginDebugGUI>();
+With<PluginDebugGUI>();
 
 using (Game game = new Game(setting))
 {

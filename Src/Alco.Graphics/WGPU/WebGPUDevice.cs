@@ -247,12 +247,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             aspect = WGPUTextureAspect.All,
         };
 
-        WGPUTextureDataLayout textureDataLayout = new WGPUTextureDataLayout
-        {
-            offset = 0,
-            bytesPerRow = UtilsWebGPU.GetTextureBytesPerRow(texture.PixelFormat, texture.Width, texture.Height),
-            rowsPerImage = texture.Height,
-        };
+        WGPUTextureDataLayout textureDataLayout = UtilsWebGPU.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
 
         WGPUExtent3D writeSize = new WGPUExtent3D
         {
@@ -293,12 +288,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUImageCopyBuffer destBuffer = new WGPUImageCopyBuffer
         {
             buffer = tmpBuffer,
-            layout = new WGPUTextureDataLayout
-            {
-                offset = 0,
-                bytesPerRow = UtilsWebGPU.GetTextureBytesPerRow(texture.PixelFormat, texture.Width, texture.Height),
-                rowsPerImage = texture.Height,
-            },
+            layout = UtilsWebGPU.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height),
         };
 
         WGPUExtent3D copySize = new WGPUExtent3D

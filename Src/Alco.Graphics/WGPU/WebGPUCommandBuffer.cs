@@ -344,13 +344,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         WGPUImageCopyBuffer imageCopyBuffer = new WGPUImageCopyBuffer
         {
             buffer = nativeBuffer,
-            layout = new WGPUTextureDataLayout
-            {
-                offset = 0,
-                bytesPerRow = UtilsWebGPU.GetTextureBytesPerRow(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height),
-                rowsPerImage = nativeDst.Height
-
-            }
+            layout = UtilsWebGPU.GetTextureDataLayout(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height),
         };
 
         WGPUImageCopyTexture imageCopyTexture = new WGPUImageCopyTexture

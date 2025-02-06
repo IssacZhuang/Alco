@@ -44,6 +44,8 @@ public class Game : GameEngine
             Stop();
         }
 
+        DebugGUI.Text(FrameRate);
+
 
         Transform2D transform = Transform2D.Identity;
         transform.scale = new Vector2(_texture.Width, _texture.Height);
@@ -55,6 +57,8 @@ public class Game : GameEngine
             Color = new ColorFloat(1, 1, 1, 1),
             UvRect = new Rect(0, 0, 1, 1)
         };
+
+        _compressor.DebugCompress(_texture, _compressedTexture);
 
         //draw atlas texture
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
