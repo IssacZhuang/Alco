@@ -33,9 +33,10 @@ public abstract class GPUDevice
 
     protected readonly IGPUDeviceHost _host;
 
-    private uint _disposeDelay = 1;
+    private readonly uint _disposeDelay = 1;
 
     public abstract PixelFormat PrefferedSurfaceFomat { get; }
+    public abstract bool TextureCompressBC3Supported { get; }
 
     public GPUDevice(in DeviceDescriptor descriptor)
     {

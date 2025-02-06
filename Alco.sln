@@ -97,6 +97,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Editor", "Editor", "{282514
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alco.Editor", "Editor\Alco.Editor\Alco.Editor.csproj", "{EE86CF87-767A-4807-BFF3-DF0710A37BD0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "25-TextureCompression", "Sandbox\25-TextureCompression\25-TextureCompression.csproj", "{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -267,6 +269,10 @@ Global
 		{EE86CF87-767A-4807-BFF3-DF0710A37BD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EE86CF87-767A-4807-BFF3-DF0710A37BD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EE86CF87-767A-4807-BFF3-DF0710A37BD0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -313,5 +319,6 @@ Global
 		{98F36F63-E938-4102-847B-2CC3B1934266} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{C299FD31-E25A-4324-BBC7-BE350E1D2D52} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{EE86CF87-767A-4807-BFF3-DF0710A37BD0} = {28251423-8E50-9DF4-F913-DC1FAAA673F1}
+		{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 	EndGlobalSection
 EndGlobal

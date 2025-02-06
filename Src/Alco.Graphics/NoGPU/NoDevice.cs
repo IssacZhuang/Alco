@@ -52,6 +52,8 @@ internal class NoDevice : GPUDevice
 
     public override PixelFormat PrefferedSurfaceFomat {get;}
 
+    public override bool TextureCompressBC3Supported => false;
+
     public NoDevice(): base(new DeviceDescriptor{
         Host = new DummyLoopProvider(),
         Backend = GraphicsBackend.None,

@@ -79,7 +79,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
 
+    public override bool TextureCompressBC3Supported { get; }
+
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
+
     {
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).TakeBuffer();
         wgpuQueueSubmit(Queue, 1, &buffer);//add reference count
@@ -400,6 +403,14 @@ internal sealed partial class WebGPUDevice : GPUDevice
         {
             throw new GraphicsException("Push constants are not supported which is required");
         }
+
+        if(IsFeatureSupported(WGPUFeatureName.TextureCompressionBC, supportedFeatures, supportedFeaturesCount))
+        {
+            TextureCompressBC3Supported = true;
+            featuresList.Add(WGPUFeatureName.TextureCompressionBC);
+            _host.LogInfo("Texture compression BC is supported");
+        }
+
 
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TextureAdapterSpecificFormatFeatures);
