@@ -15,6 +15,7 @@ public sealed class ShaderParameterSet
     {
         Unavailable,
         TextureWithSampler,
+        TextureRead,
         TextureStorage,
         UniformBuffer,
         StorageBuffer
@@ -294,6 +295,12 @@ public sealed class ShaderParameterSet
             _resourceGroups.Set(id, texture.EntryWriteable);
             return true;
         }
+        else if (slot.type == ResourceType.TextureRead)
+        {
+            slot.texture = texture;
+            _resourceGroups.Set(id, texture.EntryReadonly);
+            return true;
+        }
 
         return false;
     }
@@ -331,10 +338,16 @@ public sealed class ShaderParameterSet
             slot.texture = texture;
             _resourceGroups.Set(id, texture.EntryWriteable);
         }
+        else if (slot.type == ResourceType.TextureRead)
+        {
+            slot.texture = texture;
+            _resourceGroups.Set(id, texture.EntryReadonly);
+        }
         else
         {
             throw new InvalidOperationException($"The bind group {id} is not for a texture but {slot.type}.");
         }
+
     }
 
     #endregion
@@ -367,7 +380,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage)
+        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             texture = slot.texture;
             return texture != null;
@@ -405,7 +418,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage)
+        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             return slot.texture;
         }
@@ -470,6 +483,16 @@ public sealed class ShaderParameterSet
             _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryWriteable);
             return true;
         }
+        else if (slot.type == ResourceType.TextureRead)
+        {
+            slot.texture = null;
+            slot.renderTexture = renderTexture;
+            slot.renderTextureIndex = index;
+            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryReadonly);
+            return true;
+        }
+
+
 
         return false;
     }
@@ -522,7 +545,16 @@ public sealed class ShaderParameterSet
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
             _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryWriteable);
-        }else{
+        }
+        else if (slot.type == ResourceType.TextureRead)
+        {
+            slot.texture = null;
+            slot.renderTexture = renderTexture;
+            slot.renderTextureIndex = index;
+            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryReadonly);
+        }
+        else
+        {
             throw new InvalidOperationException($"The bind group {id} is not for a texture but {slot.type}.");
         }
     }
@@ -661,7 +693,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage)
+        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             renderTexture = slot.renderTexture;
             return renderTexture != null;
@@ -699,7 +731,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage)
+        if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             return slot.renderTexture;
         }
@@ -738,10 +770,15 @@ public sealed class ShaderParameterSet
             {
                 slot.type = ResourceType.TextureWithSampler;
             }
+            else if (UtilsMaterial.IsTextureReadGroup(bindGroupLayout.Bindings))
+            {
+                slot.type = ResourceType.TextureRead;
+            }
             else
             {
                 slot.type = ResourceType.Unavailable;
             }
+
         }
 
         if (reset)

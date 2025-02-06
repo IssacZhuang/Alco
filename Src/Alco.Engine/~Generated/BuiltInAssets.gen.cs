@@ -20,6 +20,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
 
+    public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
+
     public Shader Shader_BloomBlit => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl");
 
     public Shader Shader_BloomClamp => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl");

@@ -227,6 +227,10 @@ public partial class RenderingSystem
         textureView = _device.CreateTextureView(textureViewDescriptor);
     }
 
-    
+
+    public TextureCompressorBC3 CreateTextureCompressorBC3(ComputeMaterial material)
+    {
+        return new TextureCompressorBC3(this, material);
+    }
 
 }

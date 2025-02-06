@@ -156,10 +156,62 @@ public static class UtilsMaterial
     }
 
     /// <summary>
+    /// Check if the bind group layout is a texture read group.
+    /// /// The binding 0 must be a texture.
+    /// </summary>
+    /// <param name="bindings">The bindings to check</param>
+    /// <returns>True if the bind group layout is a texture read group, false otherwise</returns>
+    public static bool IsTextureReadGroup(Span<BindGroupEntryInfo> bindings)
+
+    {
+        if (bindings.Length != 1)
+        {
+            return false;
+        }
+
+        return bindings[0].Entry.Type == BindingType.Texture;
+    }
+
+    /// <summary>
+    /// Check if the bind group layout is a texture read group.
+    /// /// /// The binding 0 must be a texture.
+    /// </summary>
+    /// <param name="bindings">The bindings to check</param>
+    /// <returns>True if the bind group layout is a texture read group, false otherwise</returns>
+    public static bool IsTextureReadGroup(IReadOnlyList<BindGroupEntryInfo> bindings)
+
+    {
+        if (bindings.Count != 1)
+        {
+            return false;
+        }
+
+        return bindings[0].Entry.Type == BindingType.Texture;
+    }
+
+    /// <summary>
+    /// Check if the bind group layout is a texture read group.
+    /// /// /// /// The binding 0 must be a texture.
+    /// </summary>
+    /// <param name="bindings">The bindings to check</param>
+    /// <returns>True if the bind group layout is a texture read group, false otherwise</returns>
+    public static bool IsTextureReadGroup(Span<BindGroupEntry> bindings)
+
+    {
+        if (bindings.Length != 1)
+        {
+            return false;
+        }
+
+        return bindings[0].Type == BindingType.Texture;
+    }
+
+    /// <summary>
     /// Check if the bind group layout is a storage texture group.
     /// The binding 0 must be a storage texture.
     /// </summary>
     /// <param name="bindings">The bindings to check</param>
+
     /// <returns>True if the bind group layout is a storage texture group, false otherwise</returns>
     public static bool IsStorageTextureGroup(Span<BindGroupEntryInfo> bindings)
     {

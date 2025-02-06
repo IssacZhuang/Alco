@@ -3,7 +3,7 @@
 #include "Shaders/Libs/UtilsCompress.hlsli"
 
 DEFINE_TEX2D_STORAGE(0, _output, uint4, "rgba32ui");
-DEFINE_TEX2D_SAMPLE(1, _input);
+DEFINE_TEX2D_READ(1, _input);
 DEFINE_UNIFORM(2, _data) {
     uint4 DestRect;
 };
@@ -23,7 +23,7 @@ void MainCS(uint3 id : SV_DispatchThreadID)
 
     float3 BlockBaseColor[16];
     float BlockA[16];
-    ReadBlockRGBA(_input, _inputSampler, SampleUV, TexelUVSize, BlockBaseColor, BlockA);
+    ReadBlockRGBA(_input, SamplePos, BlockBaseColor, BlockA);
 
 
     _output[id.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockA);

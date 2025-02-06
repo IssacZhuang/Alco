@@ -13,6 +13,9 @@ public class Game : GameEngine
     private readonly Camera2D _camera;
     private readonly Material _material;
     private readonly Texture2D _texture;
+    private readonly Texture2D _compressedTexture;
+    private readonly ComputeMaterial _compressMaterial;
+    private readonly TextureCompressorBC3 _compressor;
     public Game(GameEngineSetting setting) : base(setting)
     {
         _texture = Assets.Load<Texture2D>("test.png");
@@ -21,10 +24,15 @@ public class Game : GameEngine
         _materialRenderer = Rendering.CreateMaterialRenderer();
         _material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _material.DepthStencilState = DepthStencilState.Default;
-        _material.BlendState = BlendState.Additive;
+        _material.BlendState = BlendState.AlphaBlend;
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
         _material.SetTexture(ShaderResourceId.Texture, _texture);
+
+        _compressMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_TextureCompressBC3);
+        _compressor = Rendering.CreateTextureCompressorBC3(_compressMaterial);
+        _compressedTexture = _compressor.Compress(_texture);
     }
+
 
     protected override void OnUpdate(float delta)
     {
