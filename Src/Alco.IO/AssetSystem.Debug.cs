@@ -19,13 +19,18 @@ public sealed partial class AssetSystem
             Start(assetName);
         }
 
-        public void EndProfile()
+        public void EndProfile(bool print = true)
         {
             ProfilerBlock result = End();
-            _builder.Append(" ");
-            _builder.Append(result.Miliseconds);
-            _builder.Append("ms");
-            Log.Print(_builder.Buffer, ConsoleColor.Green);
+            if (print)
+            {
+                _builder.Append(" ");
+                _builder.Append(result.Miliseconds);
+                _builder.Append("ms");
+            
+                Log.Print(_builder.Buffer, ConsoleColor.Green);
+            }
+
         }
 
         public void Dispose()
@@ -45,13 +50,14 @@ public sealed partial class AssetSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void EndProfile()
+    private void EndProfile(bool print = true)
     {
         if (IsProfileEnabled)
         {
-            Profiler.Value!.EndProfile();
+            Profiler.Value!.EndProfile(print);
         }
     }
+
 
     // for unit test only
 

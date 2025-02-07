@@ -278,6 +278,7 @@ public sealed partial class AssetSystem
         {
             failedReason = $"Trying to get asset {filename} but the file does not exist";
             asset = null;
+            EndProfile(false);
             return false;
         }
 
@@ -298,6 +299,7 @@ public sealed partial class AssetSystem
         {
             failedReason = $"Exception occurred while creating asset {filename}: {ex}";
             asset = null;
+            EndProfile(false);
             return false;
         }
 
