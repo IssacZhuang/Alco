@@ -328,7 +328,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     }
 
 
-    protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint offset, TextureAspect aspect)
+    protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect)
     {
         WebGPUBuffer nativeSrc = (WebGPUBuffer)src;
         WebGPUTexture nativeDst = (WebGPUTexture)dst;
@@ -350,13 +350,14 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         WGPUImageCopyTexture imageCopyTexture = new WGPUImageCopyTexture
         {
             texture = nativeTexture,
-            mipLevel = 0,
+            mipLevel = mipLevel,
             origin = new WGPUOrigin3D
             {
                 x = 0,
                 y = 0,
                 z = 0
             },
+
             aspect = UtilsWebGPU.TextureAspectToWebGPU(aspect)
         };
 

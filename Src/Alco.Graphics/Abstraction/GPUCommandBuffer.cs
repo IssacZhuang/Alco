@@ -193,11 +193,12 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         CopyBuffer(src, dst, 0, 0, src.Size);
     }
 
-    public void CopyBufferToTexture(GPUBuffer src, GPUTexture dst, uint offset = 0, TextureAspect aspect = TextureAspect.All)
+    public void CopyBufferToTexture(GPUBuffer src, GPUTexture dst, uint mipLevel = 0, uint offset = 0, TextureAspect aspect = TextureAspect.All)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBufferToTexture, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        CopyBufferToTextureCore(src, dst, offset, aspect);
+        CopyBufferToTextureCore(src, dst, mipLevel, offset, aspect);
     }
+
 
 
     // need to be implemented for each backend
@@ -229,5 +230,5 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
-    protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint offset, TextureAspect aspect);
+    protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);
 }

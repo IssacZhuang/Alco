@@ -139,7 +139,7 @@ public class TextureCompressorBC3 : AutoDisposable
 
 
         _commandCopy.Begin();
-        _commandCopy.CopyBufferToTexture(_blocks.NativeBuffer, target.NativeTexture, 0, TextureAspect.All);
+        _commandCopy.CopyBufferToTexture(_blocks.NativeBuffer, target.NativeTexture, 0, 0, TextureAspect.All);
         _commandCopy.End();
         _device.Submit(_commandCopy);
 

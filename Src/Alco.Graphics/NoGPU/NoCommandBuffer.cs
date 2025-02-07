@@ -120,7 +120,8 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
-    protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint offset, TextureAspect aspect)
+    protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect)
+
     {
         
     }
