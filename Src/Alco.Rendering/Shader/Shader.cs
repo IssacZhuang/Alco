@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
+using System.Text.RegularExpressions;
 
 namespace Alco.Rendering;
 
@@ -432,4 +433,84 @@ public class Shader : AutoDisposable
             _modulesCache.Clear();
         }
     }
+
+    //visible in Alco.Engine.Test
+    internal void TestAllDefines(Action<string, string[], Exception> onError, Action<string, string[]> onSuccess)
+    {
+        //get defines from the shader text
+        //like #if defined(TEST)
+        var defineRegex = new Regex(@"#if\s+defined\s*\(\s*(\w+)\s*\)", RegexOptions.Compiled);
+        var matches = defineRegex.Matches(_shaderText);
+
+        // Extract unique define names
+        HashSet<string> defines = new HashSet<string>();
+        foreach (Match match in matches)
+        {
+            defines.Add(match.Groups[1].Value);
+        }
+
+        if (defines.Count == 0)
+        {
+            return; // No defines to test
+        }
+
+        // Convert defines to array for permutations
+        string[] definesArray = defines.ToArray();
+
+        // Test empty combination first
+        try
+        {
+            GetShaderModules(Array.Empty<string>());
+        }
+        catch (Exception ex)
+        {
+            onError(Name, Array.Empty<string>(), ex);
+        }
+
+        //default render pass 
+        GPURenderPass renderPass = _renderingSystem.PrefferedHDRPass;
+
+        // Generate and test all non-empty combinations
+        for (int length = 1; length <= definesArray.Length; length++)
+        {
+            // Create array of first 'length' defines to generate permutations
+            string[] subset = new string[length];
+            Array.Copy(definesArray, subset, length);
+
+            // Get all permutations of the current subset
+            string[][] combinations = UtilsCollection.GetCombinations(subset);
+
+            // Test each permutation
+            foreach (string[] combination in combinations)
+            {
+                try
+                {
+                    var modulesInfo = GetShaderModules(combination);
+                    if (modulesInfo.IsGraphicsShader)
+                    {
+                        var pipeline = GetGraphicsPipeline(
+                        renderPass,
+                            DepthStencilState.Default,
+                            BlendState.Opaque,
+                            RasterizerState.CullNone,
+                            PrimitiveTopology.TriangleList,
+                            combination);
+                    }
+                    else
+                    {
+                        var pipeline = GetComputePipeline(modulesInfo);
+                    }
+
+
+
+                }
+                catch (Exception ex)
+                {
+                    onError(Name, combination, ex);
+                }
+                onSuccess(Name, combination);
+            }
+        }
+    }
+
 }
