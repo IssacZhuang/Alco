@@ -12,7 +12,7 @@ public class ComputeMaterial
     protected readonly RenderingSystem _system;
     protected readonly Shader _shader;
     protected readonly ShaderParameterSet _parameterSet;
-    protected ComputePipelineContext _pipelineInfo;
+    protected ComputePipelineContext _pipelineContext;
 
 
     protected bool _isPipelineDirty = true;
@@ -20,7 +20,7 @@ public class ComputeMaterial
     /// <summary>
     /// Gets the number of resource groups in the compute pipeline.
     /// </summary>
-    public int ResourceGroupCount => _pipelineInfo.ReflectionInfo!.BindGroups.Count;
+    public int ResourceGroupCount => _pipelineContext.ReflectionInfo!.BindGroups.Count;
 
     /// <summary>
     /// Gets the resource group at the specified index.
@@ -48,14 +48,21 @@ public class ComputeMaterial
         get => _parameterSet.ReflectionInfo;
     }
 
+    public string[] Defines
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _pipelineContext.Defines;
+    }
+
 
     internal ComputeMaterial(RenderingSystem system, Shader shader)
+
 
     {
         _system = system;
         _shader = shader;
-        _pipelineInfo = shader.GetComputePipelineInfo();
-        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
+        _pipelineContext = shader.GetComputePipelineInfo();
+        _parameterSet = new ShaderParameterSet(_pipelineContext.ReflectionInfo!);
     }
 
 
@@ -63,8 +70,8 @@ public class ComputeMaterial
     {
         _system = system;
         _shader = shader;
-        _pipelineInfo = shader.GetComputePipelineInfo(defines);
-        _parameterSet = new ShaderParameterSet(_pipelineInfo.ReflectionInfo!);
+        _pipelineContext = shader.GetComputePipelineInfo(defines);
+        _parameterSet = new ShaderParameterSet(_pipelineContext.ReflectionInfo!);
     }
 
     private void SetPipelineResources(GPUCommandBuffer command)
@@ -76,13 +83,13 @@ public class ComputeMaterial
 
         
 
-        if (_shader.TryUpdateComputePipelineContext(ref _pipelineInfo, _isPipelineDirty))
+        if (_shader.TryUpdateComputePipelineContext(ref _pipelineContext, _isPipelineDirty))
         {
-            _parameterSet.SetReflectionInfo(_pipelineInfo.ReflectionInfo!);
+            _parameterSet.SetReflectionInfo(_pipelineContext.ReflectionInfo!);
             _isPipelineDirty = false;
         }
 
-        command.SetComputePipeline(_pipelineInfo.Pipeline!);
+        command.SetComputePipeline(_pipelineContext.Pipeline!);
 
         int length = ResourceGroupCount;
         for (int i = 0; i < length; i++)
@@ -94,7 +101,7 @@ public class ComputeMaterial
             }
             else
             {
-                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineInfo.ReflectionInfo!.GetResourceName((uint)i)}");
+                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineContext.ReflectionInfo!.GetResourceName((uint)i)}");
             }
         }
     }
@@ -140,7 +147,7 @@ public class ComputeMaterial
     public void SetDefines(params string[] defines)
     {
         ArgumentNullException.ThrowIfNull(defines);
-        _pipelineInfo.Defines = defines;
+        _pipelineContext.Defines = defines;
         _isPipelineDirty = true;
     }
 
@@ -357,7 +364,7 @@ public class ComputeMaterial
     public uint GetResourceId(string name)
 
     {
-        return _pipelineInfo.GetResourceId(name);
+        return _pipelineContext.GetResourceId(name);
     }
 
     /// <summary>
@@ -369,7 +376,7 @@ public class ComputeMaterial
     public bool TryGetResourceId(string name, out uint id)
 
     {
-        return _pipelineInfo.TryGetResourceId(name, out id);
+        return _pipelineContext.TryGetResourceId(name, out id);
     }
 
 

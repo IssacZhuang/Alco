@@ -18,11 +18,18 @@ public struct ComputePipelineContext
         Version = 0;
     }
 
+    public ComputePipelineContext(string[] defines)
+    {
+        Defines = defines;
+        Version = 0;
+    }
+
     /// <summary>
     /// Tries to get the resource ID associated with the given name.
     /// <br/> <c>thread safe.</c>
     /// </summary>
     /// <param name="name">The name of the resource.</param>
+
     /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
     /// <returns>True if the resource sID was found, false otherwise.</returns>
     public readonly bool TryGetResourceId(string name, out uint resourceId)

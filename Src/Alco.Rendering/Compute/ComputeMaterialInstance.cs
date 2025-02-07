@@ -26,6 +26,6 @@ public sealed class ComputeMaterialInstance : ComputeMaterial
     internal ComputeMaterialInstance(RenderingSystem system, ComputeMaterial parent) : base(system, parent.Shader)
     {
         _parent = parent;
+        _pipelineContext = new ComputePipelineContext(parent.Defines);
     }
 }
-
