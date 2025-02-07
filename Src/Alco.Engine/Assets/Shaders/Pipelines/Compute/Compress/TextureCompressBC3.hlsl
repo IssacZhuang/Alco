@@ -1,6 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
-#include "Shaders/Libs/BCCompress.hlsli"
-#include "Shaders/Libs/UtilsCompress.hlsli"
+#include "Shaders/Libs/CompressionBC.hlsli"
 
 DEFINE_STORAGE(0, uint4, _output);
 DEFINE_TEX2D_READ(1, _input);

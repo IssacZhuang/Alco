@@ -157,6 +157,7 @@ public class Shader : AutoDisposable
         return true;
     }
 
+
     public bool TryUpdateComputePipelineContext(ref ComputePipelineContext pipelineInfo, bool forced = false)
     {
         if (pipelineInfo.Version == _version && !forced)

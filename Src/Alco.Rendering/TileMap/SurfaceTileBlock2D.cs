@@ -14,8 +14,8 @@ namespace Alco.Rendering;
 /// <typeparam name="TUserData">The type of the user data.</typeparam>
 public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileData, TUserData>
 {
-    public const string ShaderDefine_Cliff = "IS_CLIFF";
-    public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
+    public const string ShaderDefine_IS_Cliff = "IS_CLIFF";
+    public const string ShaderDefine_USE_LIGHT_MAP = "USE_LIGHT_MAP";
 
 
     //per block
@@ -105,11 +105,11 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
         _defines.Clear();
         if (_isCliff)
         {
-            _defines.Add(ShaderDefine_Cliff);
+            _defines.Add(ShaderDefine_IS_Cliff);
         }
         if (_useLightMap)
         {
-            _defines.Add(ShaderDefine_LightMap);
+            _defines.Add(ShaderDefine_USE_LIGHT_MAP);
         }
         _material.SetDefines(_defines.ToArray());
     }

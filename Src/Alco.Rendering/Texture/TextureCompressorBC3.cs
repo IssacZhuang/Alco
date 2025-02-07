@@ -9,6 +9,8 @@ namespace Alco.Rendering;
 /// </summary>
 public class TextureCompressorBC3 : AutoDisposable
 {
+    public const string ShaderDefine_IS_SRGB = "IS_SRGB";
+
     private readonly ComputeMaterial _material;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
@@ -17,6 +19,19 @@ public class TextureCompressorBC3 : AutoDisposable
 
     private readonly GraphicsValueBuffer<uint2> _data;
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
+
+    private readonly List<string> _defines = new();
+    private bool _isSRGB;
+
+    public bool IsSRGB
+    {
+        get => _isSRGB;
+        set
+        {
+            _isSRGB = value;
+            UpdateDefines();
+        }
+    }
 
 
     /// <summary>
@@ -148,6 +163,15 @@ public class TextureCompressorBC3 : AutoDisposable
         }
     }
 
+    private void UpdateDefines()
+    {
+        _defines.Clear();
+        if (_isSRGB)
+        {
+            _defines.Add(ShaderDefine_IS_SRGB);
+        }
+        _material.SetDefines(_defines.ToArray());
+    }
 
     /// <summary>
     /// Releases the unmanaged resources used by the TextureCompressorBC3 and optionally releases the managed resources.
