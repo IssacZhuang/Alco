@@ -45,5 +45,9 @@
         "ProjectSettings/": true,
         "temp/": true,
         "Temp/": true
-    }
+    },
+    "slang.additionalSearchPaths": [
+        "Src/Alco.Engine/Assets"
+    ],
+    "slang.searchInAllWorkspaceDirectories": false
 }
