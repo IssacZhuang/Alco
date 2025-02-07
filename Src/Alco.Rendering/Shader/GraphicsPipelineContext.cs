@@ -35,12 +35,15 @@ public struct GraphicsPipelineContext
     }
 
     public GraphicsPipelineContext(
+        ShaderReflectionInfo? reflectionInfo,
         DepthStencilState depthStencil,
         BlendState blendState,
         RasterizerState rasterizer,
         PrimitiveTopology primitiveTopology,
         string[] defines)
+
     {
+        ReflectionInfo = reflectionInfo;
         DepthStencil = depthStencil;
         BlendState = blendState;
         Rasterizer = rasterizer;
@@ -89,8 +92,5 @@ public struct GraphicsPipelineContext
         throw new KeyNotFoundException($"Resource '{name}' not found in shader {Pipeline!.Name}");
     }
 
-    public readonly GraphicsPipelineContext Clone()
-    {
-        return new GraphicsPipelineContext(DepthStencil, BlendState, Rasterizer, PrimitiveTopology, Defines);
-    }
+
 }

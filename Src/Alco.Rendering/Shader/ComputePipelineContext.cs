@@ -18,8 +18,12 @@ public struct ComputePipelineContext
         Version = 0;
     }
 
-    public ComputePipelineContext(string[] defines)
+    public ComputePipelineContext(
+        ShaderReflectionInfo reflectionInfo,
+        string[] defines
+        )
     {
+        ReflectionInfo = reflectionInfo;
         Defines = defines;
         Version = 0;
     }

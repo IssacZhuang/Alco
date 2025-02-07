@@ -20,6 +20,7 @@ public sealed class MaterialInstance : Material
     {
         _parent = parent;
         _pipelineContext = new GraphicsPipelineContext(
+            parent.ReflectionInfo,
             parent.DepthStencilState,
             parent.BlendState,
             parent.RasterizerState,
