@@ -113,7 +113,7 @@ public sealed partial class AssetSystem
     /// <param name="filename">The filename of the asset to load.</param>
     /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
     /// <returns>The loaded asset as a task.</returns>
-    public Task<TAsset> LoadAsyncTask<TAsset>(string filename, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    public Task<TAsset> LoadAsync<TAsset>(string filename, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
     {
         return Task.Run(() => Load<TAsset>(filename, cacheMode));
     }

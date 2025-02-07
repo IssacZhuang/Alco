@@ -20,7 +20,7 @@ public class TestShader
 
             foreach (string file in files)
             {
-                tasks.Add(Assets.LoadAsyncTask<Shader>(file));
+                tasks.Add(Assets.LoadAsync<Shader>(file));
             }
 
             try{

@@ -300,20 +300,20 @@ public class TestAssetSystem
         assetSystem.RegisterAssetLoader(new TestExceptionAssetLoader());
         assetSystem.AddFileSource(new TestFileSource());
 
-        var fastAsset = await assetSystem.LoadAsyncTask<TestFastAsset>("test.fast");
+        var fastAsset = await assetSystem.LoadAsync<TestFastAsset>("test.fast");
         Assert.NotNull(fastAsset);
 
-        var slowAsset = await assetSystem.LoadAsyncTask<TestSlowAsset>("test.slow");
+        var slowAsset = await assetSystem.LoadAsync<TestSlowAsset>("test.slow");
         Assert.NotNull(slowAsset);
 
         Assert.CatchAsync<AssetLoadException>(async () =>
         {
-            await assetSystem.LoadAsyncTask<TestFastAsset>("test.empty");
+            await assetSystem.LoadAsync<TestFastAsset>("test.empty");
         });
 
         Assert.CatchAsync<AssetLoadException>(async () =>
         {
-            await assetSystem.LoadAsyncTask<TestFastAsset>("test.exception");
+            await assetSystem.LoadAsync<TestFastAsset>("test.exception");
         });
     }
 

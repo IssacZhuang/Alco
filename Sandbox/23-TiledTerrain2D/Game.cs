@@ -332,12 +332,12 @@ public class Game : GameEngine
 
     private SurfaceTileSet<int> BuildSurfaceTileSet()
     {
-        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
-        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/Grass.png");
-        Task<Texture2D> grass2 = Assets.LoadAsyncTask<Texture2D>("Textures/Grass2.png");
-        Task<Texture2D> grass3 = Assets.LoadAsyncTask<Texture2D>("Textures/Grass3.png");
-        Task<Texture2D> grass4 = Assets.LoadAsyncTask<Texture2D>("Textures/Grass4.png");
-        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/Dirt.png");
+        Task<Texture2D> grid = Assets.LoadAsync<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grass = Assets.LoadAsync<Texture2D>("Textures/Grass.png");
+        Task<Texture2D> grass2 = Assets.LoadAsync<Texture2D>("Textures/Grass2.png");
+        Task<Texture2D> grass3 = Assets.LoadAsync<Texture2D>("Textures/Grass3.png");
+        Task<Texture2D> grass4 = Assets.LoadAsync<Texture2D>("Textures/Grass4.png");
+        Task<Texture2D> sand = Assets.LoadAsync<Texture2D>("Textures/Dirt.png");
 
 
         Task.WaitAll(grid, grass, sand);
@@ -365,9 +365,9 @@ public class Game : GameEngine
 
     private SurfaceTileSet<int> BuildCliffTileSet()
     {
-        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
-        Task<Texture2D> grass = Assets.LoadAsyncTask<Texture2D>("Textures/GrassCliff.png");
-        Task<Texture2D> sand = Assets.LoadAsyncTask<Texture2D>("Textures/DirtCliff.png");
+        Task<Texture2D> grid = Assets.LoadAsync<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grass = Assets.LoadAsync<Texture2D>("Textures/GrassCliff.png");
+        Task<Texture2D> sand = Assets.LoadAsync<Texture2D>("Textures/DirtCliff.png");
 
         Task.WaitAll(grid, grass, sand);
 
@@ -393,7 +393,7 @@ public class Game : GameEngine
 
     private WaterTileSet<int> BuildWaterTileSet()
     {
-        Task<Texture2D> grid = Assets.LoadAsyncTask<Texture2D>("Textures/Grid.png");
+        Task<Texture2D> grid = Assets.LoadAsync<Texture2D>("Textures/Grid.png");
         Task.WaitAll(grid);
         // WaterTileSetParams<int> tileSetParams = new();
         // tileSetParams.Add(grid.Result, 0, new WaterTileData()
@@ -438,8 +438,8 @@ public class Game : GameEngine
 
     private PlantTileSet<int> BuildPlantTileSet()
     {
-        Task<Texture2D> highGrass1 = Assets.LoadAsyncTask<Texture2D>("Textures/HighGrass1.png");
-        Task<Texture2D> highGrass2 = Assets.LoadAsyncTask<Texture2D>("Textures/HighGrass2.png");
+        Task<Texture2D> highGrass1 = Assets.LoadAsync<Texture2D>("Textures/HighGrass1.png");
+        Task<Texture2D> highGrass2 = Assets.LoadAsync<Texture2D>("Textures/HighGrass2.png");
         Task.WaitAll(highGrass1, highGrass2);
         // PlantTileSetParams<int> tileSetParams = new();
         // tileSetParams.Add(highGrass1.Result, 0, new PlantTileData()
