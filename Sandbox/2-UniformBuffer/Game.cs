@@ -117,21 +117,21 @@ public class Game : GameEngine
         string appPath = Environment.CurrentDirectory;
 
         //dxc
-        // ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
-        // ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
-        // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.dxc.vert.spv");
-        // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.dxc.frag.spv");
+        ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
+        ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
+        string filePathVetex = Path.Combine(appPath, "spirv", "Shader.dxc.vert.spv");
+        string filePathFragment = Path.Combine(appPath, "spirv", "Shader.dxc.frag.spv");
 
         //shaderc
         // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
         // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
 
         //slang
-        ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.hlsl");
-        ShaderModule vertexShader = shaderModules[0];
-        ShaderModule fragmentShader = shaderModules[1];
-        string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
-        string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
+        // ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.hlsl");
+        // ShaderModule vertexShader = shaderModules[0];
+        // ShaderModule fragmentShader = shaderModules[1];
+        // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
+        // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
 
         Log.Info(UtilsShaderRelfection.GetSpirvReflection(vertexShader.Source));
 
