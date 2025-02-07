@@ -75,6 +75,8 @@ namespace Alco.IO
             _host.LogInfo("Asset system closed");
             _host.OnHandleAssetLoaded -= OnHandleAssetLoaded;
             _host.OnDispose -= Dispose;
+
+            _httpClient?.Dispose();
         }
 
 
