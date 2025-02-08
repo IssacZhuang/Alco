@@ -42,6 +42,48 @@ public partial class RenderingSystem
 
     private static readonly ushort[] IndicesCenteredSpriteQuad = { 0, 1, 2, 0, 2, 3 };
 
+    private static readonly Vertex[] Vertices9SliceSpriteQuad =
+    {
+        new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),    //[0,0] top left
+        new(new Vector3(0, 0.5f, 0), new Vector2(1, 0)),        //[1,0]
+        new(new Vector3(0, 0.5f, 0), new Vector2(1, 0)),        //[2,0]
+        new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),     //[3,0] top right
+        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0)),       //[0,1]
+        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[1,1]
+        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[2,1]
+        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0)),        //[3,1]
+        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0)),       //[0,2]
+        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[1,2]
+        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[2,2]
+        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0)),        //[3,2]
+        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 0)),   //[0,3] bottom left
+        new(new Vector3(0, -0.5f, 0), new Vector2(1, 0)),       //[1,3]
+        new(new Vector3(0, -0.5f, 0), new Vector2(1, 0)),       //[2,3]
+        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 0)),    //[3,3] bottom right
+    };
+
+    private static readonly ushort[] Indices9SliceSpriteQuad =
+    {
+        // Top-left section
+        0, 1, 5, 0, 5, 4,
+        // Top-middle section
+        1, 2, 6, 1, 6, 5,
+        // Top-right section
+        2, 3, 7, 2, 7, 6,
+        // Middle-left section
+        4, 5, 9, 4, 9, 8,
+        // Middle-middle section
+        5, 6, 10, 5, 10, 9,
+        // Middle-right section
+        6, 7, 11, 6, 11, 10,
+        // Bottom-left section
+        8, 9, 13, 8, 13, 12,
+        // Bottom-middle section
+        9, 10, 14, 9, 14, 13,
+        // Bottom-right section
+        10, 11, 15, 10, 15, 14
+    };
+
     private static readonly Vertex[] VerticesMidUpSpriteQuad =
     {
         new(new Vector3(-0.5f, 1, 0), new Vector2(0, 0)),
@@ -95,6 +137,7 @@ public partial class RenderingSystem
     };
 
     private Mesh? _meshCenteredSprite;
+    private Mesh? _mesh9SliceSprite;
     private Mesh? _meshMidUpSprite;
     private Mesh? _meshTrueType;
     private Mesh? _mehsFullScreen;
@@ -113,6 +156,19 @@ public partial class RenderingSystem
 
         }
     }
+
+    public Mesh Mesh9SliceSprite
+    {
+        get
+        {
+            if (_mesh9SliceSprite == null)
+            {
+                _mesh9SliceSprite = CreateMesh(Vertices9SliceSpriteQuad, Indices9SliceSpriteQuad, "9_slice_sprite_mesh");
+            }
+            return _mesh9SliceSprite;
+        }
+    }
+
 
     public Mesh MeshMidUpSprite
     {
