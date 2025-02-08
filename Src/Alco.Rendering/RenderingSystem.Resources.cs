@@ -45,21 +45,21 @@ public partial class RenderingSystem
     private static readonly Vertex[] Vertices9SliceSpriteQuad =
     {
         new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),    //[0,0] top left
-        new(new Vector3(0, 0.5f, 0), new Vector2(1, 0)),        //[1,0]
-        new(new Vector3(0, 0.5f, 0), new Vector2(1, 0)),        //[2,0]
+        new(new Vector3(0, 0.5f, 0), new Vector2(0.5f, 0)),        //[1,0]
+        new(new Vector3(0, 0.5f, 0), new Vector2(0.5f, 0)),        //[2,0]
         new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),     //[3,0] top right
-        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0)),       //[0,1]
-        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[1,1]
-        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[2,1]
-        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0)),        //[3,1]
-        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0)),       //[0,2]
-        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[1,2]
-        new(new Vector3(0, 0, 0), new Vector2(1, 0)),           //[2,2]
-        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0)),        //[3,2]
-        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 0)),   //[0,3] bottom left
-        new(new Vector3(0, -0.5f, 0), new Vector2(1, 0)),       //[1,3]
-        new(new Vector3(0, -0.5f, 0), new Vector2(1, 0)),       //[2,3]
-        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 0)),    //[3,3] bottom right
+        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0.5f)),       //[0,1]
+        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[1,1]
+        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[2,1]
+        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0.5f)),        //[3,1]
+        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0.5f)),       //[0,2]
+        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[1,2]
+        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[2,2]
+        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0.5f)),        //[3,2]
+        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1)),   //[0,3] bottom left
+        new(new Vector3(0, -0.5f, 0), new Vector2(0.5f, 1)),       //[1,3]
+        new(new Vector3(0, -0.5f, 0), new Vector2(0.5f, 1)),       //[2,3]
+        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),    //[3,3] bottom right
     };
 
     private static readonly ushort[] Indices9SliceSpriteQuad =
