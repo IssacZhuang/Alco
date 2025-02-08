@@ -15,6 +15,17 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
+    /// Check if the file exists
+    /// /// </summary>
+    /// <param name="filename">The filename to check</param>
+    /// <returns>True if the file exists</returns>
+    public bool IsFileExist(string filename)
+
+    {
+        return _fileEntries.ContainsKey(filename);
+    }
+
+    /// <summary>
     /// Add the file source to the asset manager
     /// </summary>
     /// <param name="fileSource">The file source to add</param>
