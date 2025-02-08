@@ -44,21 +44,28 @@ public partial class RenderingSystem
 
     private static readonly Vertex[] Vertices9SliceSpriteQuad =
     {
+        // top row
         new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),    //[0,0] top left
-        new(new Vector3(0, 0.5f, 0), new Vector2(0.5f, 0)),        //[1,0]
-        new(new Vector3(0, 0.5f, 0), new Vector2(0.5f, 0)),        //[2,0]
+        new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),        //[1,0] take offset left
+        new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),        //[2,0] take offset right
         new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),     //[3,0] top right
-        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0.5f)),       //[0,1]
-        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[1,1]
-        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[2,1]
-        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0.5f)),        //[3,1]
-        new(new Vector3(-0.5f, 0, 0), new Vector2(0, 0.5f)),       //[0,2]
-        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[1,2]
-        new(new Vector3(0, 0, 0), new Vector2(0.5f, 0.5f)),           //[2,2]
-        new(new Vector3(0.5f, 0, 0), new Vector2(1, 0.5f)),        //[3,2]
+
+        // middle row
+        new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),       //[0,1] take offset top 
+        new(new Vector3(-0.5f, 0.5f, 0), new Vector2(0, 0)),           //[1,1] take offset top left
+        new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),           //[2,1] take offset top right
+        new(new Vector3(0.5f, 0.5f, 0), new Vector2(1, 0)),        //[3,1] take offset top
+
+        // middle row 2
+        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1)),       //[0,2] take offset bottom
+        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1)),           //[1,2] take offset bottom left
+        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),           //[2,2] take offset bottom right
+        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),        //[3,2] take offset bottom
+
+        // bottom row
         new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1)),   //[0,3] bottom left
-        new(new Vector3(0, -0.5f, 0), new Vector2(0.5f, 1)),       //[1,3]
-        new(new Vector3(0, -0.5f, 0), new Vector2(0.5f, 1)),       //[2,3]
+        new(new Vector3(-0.5f, -0.5f, 0), new Vector2(0, 1)),       //[1,3] take offset left
+        new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),       //[2,3] take offset right
         new(new Vector3(0.5f, -0.5f, 0), new Vector2(1, 1)),    //[3,3] bottom right
     };
 
