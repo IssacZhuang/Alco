@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace Alco;
@@ -24,6 +25,11 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     /// </summary>
     public int Length;
 
+    /// <summary>
+    /// Gets or sets a character at the specified index in the fixed string.
+    /// </summary>
+    /// <param name="index">The zero-based index of the character to get or set.</param>
+    /// <returns>The character at the specified index.</returns>
     public char this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -108,84 +114,36 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     }
 
     /// <summary>
-    /// Appends a single character to the end of the current content.
-    /// If the buffer is full, the operation is ignored.
+    /// Returns a span representing the characters in the fixed string.
     /// </summary>
-    /// <param name="value">The character to append.</param>
-    public void Append(char value)
+    /// <returns>A span containing the characters in the fixed string.</returns>
+    public Span<char> AsSpan()
     {
-        if (Length >= MaxLength)
+        fixed (char* ptr = Buffer)
         {
-            return;
-        }
-
-        Buffer[Length] = value;
-        Length++;
-    }
-
-    /// <summary>
-    /// Appends a string to the end of the current content.
-    /// If the resulting length would exceed MaxLength, the operation is ignored.
-    /// </summary>
-    /// <param name="value">The string to append.</param>
-    /// <exception cref="ArgumentNullException">Thrown when value is null.</exception>
-    public void Append(string value)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-        fixed (char* ptr = value)
-        {
-            Append(ptr, value.Length);
+            return new Span<char>(ptr, Length);
         }
     }
 
     /// <summary>
-    /// Appends a character span to the end of the current content.
-    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// Returns a read-only span representing the characters in the fixed string.
     /// </summary>
-    /// <param name="value">The character span to append.</param>
-    public void Append(ReadOnlySpan<char> value)
+    /// <returns>A read-only span containing the characters in the fixed string.</returns>
+    public ReadOnlySpan<char> AsReadOnlySpan()
     {
-        fixed (char* ptr = value)
+        fixed (char* ptr = Buffer)
         {
-            Append(ptr, value.Length);
+            return new ReadOnlySpan<char>(ptr, Length);
         }
     }
 
-    /// <summary>
-    /// Appends characters from a pointer to the end of the current content.
-    /// If the resulting length would exceed MaxLength, only the characters that fit will be appended.
-    /// </summary>
-    /// <param name="str">Pointer to the character array to append.</param>
-    /// <param name="length">The length of the character array.</param>
-    public void Append(char* str, int length)
-    {
-        if (Length + length > MaxLength)
-        {
-            return;
-        }
-
-        int lengthToAppend = Math.Min(length, MaxLength - Length);
-
-        for (int i = 0; i < lengthToAppend; i++)
-        {
-            Buffer[Length + i] = str[i];
-        }
-        Length += lengthToAppend;
-    }
-
-    /// <summary>
-    /// Clears the content of the fixed string, setting its length to 0.
-    /// </summary>
-    public void Clear()
-    {
-        Length = 0;
-    }
 
     /// <summary>
     /// Converts the fixed string to a regular string.
     /// </summary>
     /// <returns>A new string containing the characters from this fixed string.</returns>
     public override string ToString()
+
     {
         fixed (char* buffer = Buffer)
         {
@@ -298,9 +256,197 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
         return !(left == right);
     }
 
-    #region Trim
+    #region String Builder
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a single character to the end of the current content.
+    /// If the buffer is full, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The character to append.</param>
+    public void Append(char value)
+    {
+        if (Length >= MaxLength)
+        {
+            return;
+        }
+
+        Buffer[Length] = value;
+        Length++;
+    }
 
     /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a string to the end of the current content.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The string to append.</param>
+    /// <exception cref="ArgumentNullException">Thrown when value is null.</exception>
+    public void Append(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        fixed (char* ptr = value)
+        {
+            Append(ptr, value.Length);
+        }
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a character span to the end of the current content.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The character span to append.</param>
+    public void Append(ReadOnlySpan<char> value)
+    {
+        fixed (char* ptr = value)
+        {
+            Append(ptr, value.Length);
+        }
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends characters from a pointer to the end of the current content.
+    /// If the resulting length would exceed MaxLength, only the characters that fit will be appended.
+    /// </summary>
+    /// <param name="str">Pointer to the character array to append.</param>
+    /// <param name="length">The length of the character array.</param>
+    public void Append(char* str, int length)
+    {
+        if (Length + length > MaxLength)
+        {
+            return;
+        }
+
+        int lengthToAppend = Math.Min(length, MaxLength - Length);
+
+        for (int i = 0; i < lengthToAppend; i++)
+        {
+            Buffer[Length + i] = str[i];
+        }
+        Length += lengthToAppend;
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Clear"/><br/>
+    /// Clears the content of the fixed string, setting its length to 0.
+    /// </summary>
+    public void Clear()
+    {
+        Length = 0;
+    }
+
+    #endregion
+
+    #region Substring
+
+    /// <summary>
+    /// Returns a substring from the specified index to the end of the fixed string.
+    /// </summary>
+    /// <param name="startIndex">The zero-based starting index of the substring.</param>
+    /// <returns>A new FixedString8 that is equivalent to the substring that begins at startIndex.</returns>
+    public FixedString8 Substring(int startIndex)
+    {
+        if (startIndex == 0)
+        {
+            return this;
+        }
+
+        int length = Length - startIndex;
+        if (length == 0)
+        {
+            return new FixedString8();
+        }
+
+        return AsReadOnlySpan().Slice(startIndex);
+    }
+
+    /// <summary>
+    /// Returns a substring that has the specified length and starts at the specified index.
+    /// </summary>
+    /// <param name="startIndex">The zero-based starting index of the substring.</param>
+    /// <param name="length">The number of characters in the substring.</param>
+    /// <returns>A new FixedString8 that is equivalent to the substring of length that begins at startIndex.</returns>
+    public FixedString8 Substring(int startIndex, int length)
+    {
+        return AsReadOnlySpan().Slice(startIndex, length);
+    }
+
+
+    #endregion
+
+    #region Case
+
+    /// <summary>
+    /// Returns a copy of this string converted to lowercase using the specified culture.
+    /// </summary>
+    /// <param name="culture">The culture-specific information for the conversion. If null, uses the current culture.</param>
+    /// <returns>A new FixedString8 with all characters converted to lowercase.</returns>
+    public FixedString8 ToLower(CultureInfo? culture)
+    {
+        FixedString8 result = new FixedString8();
+        AsReadOnlySpan().ToLower(result.AsSpan(), culture);
+        return result;
+    }
+
+    /// <summary>
+    /// Returns a copy of this string converted to lowercase using the current culture.
+    /// </summary>
+    /// <returns>A new FixedString8 with all characters converted to lowercase.</returns>
+    public FixedString8 ToLower()
+    {
+        return ToLower(null);
+    }
+
+    /// <summary>
+    /// Returns a copy of this string converted to lowercase using the invariant culture.
+    /// </summary>
+    /// <returns>A new FixedString8 with all characters converted to lowercase using the invariant culture.</returns>
+    public FixedString8 ToLowerInvariant()
+    {
+        return ToLower(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Returns a copy of this string converted to uppercase using the specified culture.
+    /// </summary>
+    /// <param name="culture">The culture-specific information for the conversion. If null, uses the current culture.</param>
+    /// <returns>A new FixedString8 with all characters converted to uppercase.</returns>
+    public FixedString8 ToUpper(CultureInfo? culture)
+
+    {
+        FixedString8 result = new FixedString8();
+        AsReadOnlySpan().ToUpper(result.AsSpan(), culture);
+        return result;
+    }
+
+    /// <summary>
+    /// Returns a copy of this string converted to uppercase using the current culture.
+    /// </summary>
+    /// <returns>A new FixedString8 with all characters converted to uppercase.</returns>
+    public FixedString8 ToUpper()
+    {
+        return ToUpper(null);
+    }
+
+    /// <summary>
+    /// Returns a copy of this string converted to uppercase using the invariant culture.
+    /// </summary>
+    /// <returns>A new FixedString8 with all characters converted to uppercase using the invariant culture.</returns>
+    public FixedString8 ToUpperInvariant()
+    {
+        return ToUpper(CultureInfo.InvariantCulture);
+    }
+
+
+    #endregion
+
+    #region Trim
+
+
+
+    /// <summary>
+
     /// Removes all leading and trailing white-space characters from the current string.
     /// </summary>
     /// <returns>A new string with all leading and trailing white-space characters removed.</returns>
@@ -491,6 +637,7 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     #endregion
 
 }
+
 
 
 
