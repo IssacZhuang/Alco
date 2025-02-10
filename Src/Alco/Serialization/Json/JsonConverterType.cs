@@ -14,35 +14,32 @@ namespace Alco;
 /// </summary>
 public class JsonConverterType : JsonConverter<Type>
 {
-    private readonly ConcurrentDictionary<string, Type> _typeCache = new ConcurrentDictionary<string, Type>();
-    private readonly HashSet<Assembly> _assemblies = new HashSet<Assembly>();
+    private readonly TypeHelper _typeHelper;
 
     public JsonConverterType()
     {
-        // Add current assembly by default
-        _assemblies.Add(typeof(JsonConverterType).Assembly);
-        // assembly of System
-        _assemblies.Add(typeof(int).Assembly);
+        _typeHelper = new TypeHelper();
     }
 
-    public JsonConverterType(params ReadOnlySpan<Assembly> assemblies) : this()
+    public JsonConverterType(TypeHelper typeHelper)
     {
-        AddAssemblies(assemblies);
+        _typeHelper = typeHelper;
     }
 
+    public JsonConverterType(params Assembly[] assemblies) : this()
+
+    {
+        _typeHelper.AddAssemblies(assemblies);
+    }
 
     /// <summary>
     /// Add assemblies to search for types.
     /// </summary>
     /// <param name="assemblies">The assemblies to add.</param>
-    public void AddAssemblies(params ReadOnlySpan<Assembly> assemblies)
+    public void AddAssemblies(params Assembly[] assemblies)
     {
-        for (int i = 0; i < assemblies.Length; i++)
-        {
-            _assemblies.Add(assemblies[i]);
-        }
+        _typeHelper.AddAssemblies(assemblies);
     }
-
 
     /// <summary>
     /// Reads a JSON string and converts it to a Type.
@@ -60,29 +57,20 @@ public class JsonConverterType : JsonConverter<Type>
         }
 
         string? typeName = reader.GetString();
+
         if (string.IsNullOrEmpty(typeName))
         {
-            return null;
+            throw new JsonException("Expected string value for Type");
         }
 
-        // Try to get from cache first
-        if (_typeCache.TryGetValue(typeName, out Type? cachedType))
+        Type? type = _typeHelper.FindType(typeName);
+
+        if (type == null && !string.IsNullOrEmpty(typeName))
         {
-            return cachedType;
+            throw new JsonException($"Type '{typeName}' could not be found in any loaded assemblies");
         }
 
-        // Search in registered assemblies
-        foreach (var assembly in _assemblies)
-        {
-            Type? type = assembly.GetType(typeName);
-            if (type != null)
-            {
-                _typeCache.TryAdd(typeName, type);
-                return type;
-            }
-        }
-
-        throw new JsonException($"Type '{typeName}' could not be found in any loaded assemblies");
+        return type;
     }
 
     /// <summary>

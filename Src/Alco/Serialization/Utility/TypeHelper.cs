@@ -1,208 +1,81 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 
-namespace Alco
+namespace Alco;
+
+public class TypeHelper
 {
-    public class TypeHelper
+    private readonly ConcurrentDictionary<string, Type> _typeCache = new ConcurrentDictionary<string, Type>();
+    private readonly HashSet<Assembly> _assemblies = new HashSet<Assembly>();
+
+    public TypeHelper()
     {
-        public static readonly TypeHelper Default = new TypeHelper();
-        private readonly Dictionary<Type, bool> _isListCache = new Dictionary<Type, bool>();
-        private readonly object _lockListCache = new object();
-        private readonly Dictionary<Type, bool> _isDictionaryCache = new Dictionary<Type, bool>();
-        private readonly object _lockDictionaryCache = new object();
-        private readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
-        private readonly object _lockTypeCache = new object();
+        // Add System assembly by default
+        _assemblies.Add(typeof(int).Assembly);
+        //add self assembly by default
+        _assemblies.Add(typeof(TypeHelper).Assembly);
+    }
 
-        private readonly List<string> defaultNamespaces = new List<string>{
-            string.Empty,
-            "Alco",
-            "Alco.Framework",
-            "Alco.Test",
-            "System"
-        };
-        private readonly object _lockDefaultNamespaces = new object();
+    public TypeHelper(params Assembly[] assemblies) : this()
+    {
+        AddAssemblies(assemblies);
+    }
 
-        /// <summary>
-        /// Check if a type is a generic type of another type.
-        /// </summary>
-        public bool IsGenericTypeOf(Type type, Type genericType)
+    /// <summary>
+    /// Add assemblies to search for types.
+    /// </summary>
+    /// <param name="assemblies">The assemblies to add.</param>
+    public void AddAssemblies(params Assembly[] assemblies)
+    {
+        foreach (var assembly in assemblies)
         {
-            if (type == null || genericType == null)
-            {
-                return false;
-            }
-
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == genericType)
-            {
-                return true;
-            }
-
-            return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == genericType);
+            _assemblies.Add(assembly);
         }
+    }
 
-
-        /// <summary>
-        /// Check if a type is a list.
-        /// </summary>
-        public bool IsList(Type type)
+    /// <summary>
+    /// Tries to find a type by its name in the registered assemblies.
+    /// </summary>
+    /// <param name="typeName">The full name of the type to find.</param>
+    /// <returns>The found Type, or null if not found.</returns>
+    public Type? FindType(string typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
         {
-            bool result;
-            if (_isListCache.TryGetValue(type, out result))
-            {
-                return result;
-            }
-            result = IsGenericTypeOf(type, typeof(List<>));
-            AddIsListCache(type, result);
-            return result;
-        }
-
-
-        /// <summary>
-        /// Check if a type is a dictionary.
-        /// </summary>
-        public bool IsDictionary(Type type)
-        {
-            bool result;
-            if (_isDictionaryCache.TryGetValue(type, out result))
-            {
-                return result;
-            }
-            result = IsGenericTypeOf(type, typeof(Dictionary<,>));
-            AddIsDictionaryCache(type, result);
-            return result;
-        }
-
-        public object? CreateKeyValuePair(Type keyType, Type valueType, object key, object value)
-        {
-            return Activator.CreateInstance(typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType), new object[] { key, value });
-        }
-
-        public object? CreateDictionaty(Type keyType, Type valueType)
-        {
-            return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType));
-        }
-
-        /// <summary>
-        /// Get the type from all loaded assemblies.
-        /// </summary>
-        public Type? GetTypeFromAllAssemblies(string typeName)
-        {
-            if (_typeCache.TryGetValue(typeName, out Type? type))
-            {
-                return type;
-            }
-
-            AppDomain appDomain = AppDomain.CurrentDomain;
-            var types = appDomain.GetAssemblies().SelectMany<Assembly, Type>((Assembly asm) => asm.GetTypes()).AsParallel().Where(t => t.FullName == typeName || (t.Name == typeName && defaultNamespaces.Contains(t.Namespace ?? string.Empty)));
-
-            if (types.Count() > 1)
-            {
-                string error = "Duplicated types found for " + typeName + " : ";
-
-                foreach (var item in types)
-                {
-                    error += item.FullName + ", ";
-                }
-                throw new Exception(error);
-            }
-
-            Type? first = types.FirstOrDefault();
-            if (first != null)
-            {
-                AddTypeCache(typeName, first);
-                return first;
-            }
-
             return null;
         }
 
-
-        /// <summary>
-        /// Add a default namespace to search for types. This is used when the type name is not fully qualified.
-        /// </summary>
-        public bool AddDefaultNamespace(string nameSpace)
+        // Try to get from cache first
+        if (_typeCache.TryGetValue(typeName, out Type? cachedType))
         {
-            lock (_lockDefaultNamespaces)
-            {
-                if (!defaultNamespaces.Contains(nameSpace))
-                {
-                    defaultNamespaces.Add(nameSpace);
-                    return true;
-                }
-            }
-            return false;
+            return cachedType;
         }
 
-        /// <summary>
-        /// Clear the cache including the default namespaces, the type cache, the list cache and the dictionary cache.
-        /// </summary>
-        public void ClearCache()
+        // Search in registered assemblies
+        foreach (var assembly in _assemblies)
         {
-            lock (_lockListCache)
+            Type? type = assembly.GetType(typeName);
+            if (type != null)
             {
-                _isListCache.Clear();
-            }
-            lock (_lockDictionaryCache)
-            {
-                _isDictionaryCache.Clear();
-            }
-            lock (_lockTypeCache)
-            {
-                _typeCache.Clear();
-            }
-            lock (_lockDefaultNamespaces)
-            {
-                defaultNamespaces.Clear();
-                defaultNamespaces.Add(string.Empty);
-                defaultNamespaces.Add("Alco");
-                defaultNamespaces.Add("Alco.Framework");
-                defaultNamespaces.Add("Alco.Test");
-                defaultNamespaces.Add("System");
+                _typeCache.TryAdd(typeName, type);
+                return type;
             }
         }
 
-        private bool AddIsListCache(Type type, bool result)
-        {
-            lock (_lockListCache)
-            {
-                if (!_isListCache.ContainsKey(type))
-                {
-                    _isListCache.Add(type, result);
-                    return true;
-                }
-            }
-            return false;
-        }
+        return null;
+    }
 
-        private bool AddIsDictionaryCache(Type type, bool result)
-        {
-            lock (_lockDictionaryCache)
-            {
-                if (!_isDictionaryCache.ContainsKey(type))
-                {
-                    _isDictionaryCache.Add(type, result);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private bool AddTypeCache(string typeName, Type type)
-        {
-            lock (_lockTypeCache)
-            {
-                if (!_typeCache.ContainsKey(typeName))
-                {
-                    _typeCache.Add(typeName, type);
-                    return true;
-                }
-            }
-            return false;
-        }
-
+    /// <summary>
+    /// Clears the type cache.
+    /// </summary>
+    public void ClearCache()
+    {
+        _typeCache.Clear();
     }
 }
+
 
 
