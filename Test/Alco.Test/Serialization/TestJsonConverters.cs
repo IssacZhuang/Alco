@@ -301,4 +301,124 @@ public class TestJsonConverters
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("[1,2,3]", options));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("\"NonExistentType\"", options));
     }
+
+    private class TestConfig : IJsonConfig
+    {
+        public string Name { get; set; }
+        public int Value { get; set; }
+
+        public TestConfig()
+        {
+            Name = string.Empty;
+        }
+    }
+
+    private class NestedConfig : IJsonConfig
+    {
+        public TestConfig Child { get; set; }
+        public string Description { get; set; }
+
+        public NestedConfig()
+        {
+            Child = new TestConfig();
+            Description = string.Empty;
+        }
+    }
+
+    [Test(Description = "Test JsonConverterConfig basic serialization")]
+    public void TestConfigConversion()
+    {
+        var converter = new JsonConverterConfig();
+        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var options = new JsonSerializerOptions
+        {
+            Converters = { converter }
+        };
+
+        var original = new TestConfig
+        {
+            Name = "test",
+            Value = 42
+        };
+
+        string json = JsonSerializer.Serialize<IJsonConfig>(original, options);
+        TestContext.WriteLine($"Config JSON: {json}");
+
+        var deserialized = JsonSerializer.Deserialize<IJsonConfig>(json, options) as TestConfig;
+
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized!.Name, Is.EqualTo(original.Name));
+            Assert.That(deserialized.Value, Is.EqualTo(original.Value));
+        });
+    }
+
+    [Test(Description = "Test JsonConverterConfig with nested config")]
+    public void TestNestedConfigConversion()
+    {
+        var converter = new JsonConverterConfig();
+        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var options = new JsonSerializerOptions
+        {
+            Converters = { converter }
+        };
+
+        var original = new NestedConfig
+        {
+            Child = new TestConfig
+            {
+                Name = "child",
+                Value = 123
+            },
+            Description = "parent"
+        };
+
+        string json = JsonSerializer.Serialize<IJsonConfig>(original, options);
+        TestContext.WriteLine($"Nested Config JSON: {json}");
+
+        var deserialized = JsonSerializer.Deserialize<IJsonConfig>(json, options) as NestedConfig;
+
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized!.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.Child.Name, Is.EqualTo(original.Child.Name));
+            Assert.That(deserialized.Child.Value, Is.EqualTo(original.Child.Value));
+        });
+    }
+
+    [Test(Description = "Test JsonConverterConfig with null value")]
+    public void TestConfigNull()
+    {
+        var converter = new JsonConverterConfig();
+        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var options = new JsonSerializerOptions
+        {
+            Converters = { converter }
+        };
+
+        IJsonConfig original = null;
+        string json = JsonSerializer.Serialize<IJsonConfig>(original, options);
+        TestContext.WriteLine($"Null Config JSON: {json}");
+
+        var deserialized = JsonSerializer.Deserialize<IJsonConfig>(json, options);
+        Assert.That(deserialized, Is.Null);
+    }
+
+    [Test(Description = "Test JsonConverterConfig with invalid type")]
+    public void TestConfigInvalidType()
+    {
+        var converter = new JsonConverterConfig();
+        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var options = new JsonSerializerOptions
+        {
+            Converters = { converter }
+        };
+
+        string invalidJson = @"{""$type"":""NonExistentType"",""name"":""test""}";
+
+        Assert.Throws<JsonException>(() =>
+            JsonSerializer.Deserialize<IJsonConfig>(invalidJson, options));
+    }
 }

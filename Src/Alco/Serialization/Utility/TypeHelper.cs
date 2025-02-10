@@ -19,7 +19,7 @@ public class TypeHelper
         _assemblies.Add(typeof(TypeHelper).Assembly);
     }
 
-    public TypeHelper(params Assembly[] assemblies) : this()
+    public TypeHelper(params ReadOnlySpan<Assembly> assemblies) : this()
     {
         AddAssemblies(assemblies);
     }
@@ -28,7 +28,7 @@ public class TypeHelper
     /// Add assemblies to search for types.
     /// </summary>
     /// <param name="assemblies">The assemblies to add.</param>
-    public void AddAssemblies(params Assembly[] assemblies)
+    public void AddAssemblies(params ReadOnlySpan<Assembly> assemblies)
     {
         foreach (var assembly in assemblies)
         {
