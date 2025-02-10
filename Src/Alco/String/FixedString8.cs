@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Alco;
 
@@ -22,6 +23,16 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     /// Gets or sets the current length of the string stored in the buffer.
     /// </summary>
     public int Length;
+
+    public char this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Buffer[index];
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Buffer[index] = value;
+    }
+
+
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FixedString8"/> struct with the specified string value.
@@ -286,5 +297,200 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     {
         return !(left == right);
     }
+
+    #region Trim
+
+    /// <summary>
+    /// Removes all leading and trailing white-space characters from the current string.
+    /// </summary>
+    /// <returns>A new string with all leading and trailing white-space characters removed.</returns>
+    public FixedString8 Trim()
+    {
+        return TrimWhiteSpaceHelper(TrimType.Both);
+    }
+
+    /// <summary>
+    /// Removes all leading and trailing instances of a specified character from the current string.
+    /// </summary>
+    /// <param name="trimChar">The character to remove from the start and end of the string.</param>
+    /// <returns>A new string with all leading and trailing instances of the specified character removed.</returns>
+    public FixedString8 Trim(char trimChar)
+    {
+        return TrimHelper(new ReadOnlySpan<char>(&trimChar, 1), TrimType.Both);
+    }
+
+    /// <summary>
+    /// Removes all leading and trailing occurrences of a set of characters from the current string.
+    /// </summary>
+    /// <param name="trimChars">An array of characters to remove from the start and end of the string. 
+    /// If null or empty, white-space characters are removed instead.</param>
+    /// <returns>A new string with all leading and trailing specified characters removed.</returns>
+    public FixedString8 Trim(params char[] trimChars)
+    {
+        if (trimChars == null || trimChars.Length == 0)
+        {
+            return TrimWhiteSpaceHelper(TrimType.Head);
+        }
+        return TrimHelper(trimChars, TrimType.Both);
+    }
+
+    /// <summary>
+    /// Removes all leading and trailing occurrences of a set of characters specified in a span from the current string.
+    /// </summary>
+    /// <param name="trimChars">A span of characters to remove from the start and end of the string.
+    /// If empty, white-space characters are removed instead.</param>
+    /// <returns>A new string with all leading and trailing specified characters removed.</returns>
+    public unsafe string Trim(params ReadOnlySpan<char> trimChars)
+    {
+        if (trimChars.IsEmpty)
+        {
+            return TrimWhiteSpaceHelper(TrimType.Both);
+        }
+
+        return TrimHelper(trimChars, TrimType.Both);
+    }
+
+    /// <summary>
+    /// Removes all leading white-space characters from the current string.
+    /// </summary>
+    /// <returns>A new string with all leading white-space characters removed.</returns>
+    public FixedString8 TrimStart()
+    {
+        return TrimWhiteSpaceHelper(TrimType.Head);
+    }
+
+    /// <summary>
+    /// Removes all leading instances of a specified character from the current string.
+    /// </summary>
+    /// <param name="trimChar">The character to remove from the start of the string.</param>
+    /// <returns>A new string with all leading instances of the specified character removed.</returns>
+    public FixedString8 TrimStart(char trimChar)
+    {
+        return TrimHelper(new ReadOnlySpan<char>(&trimChar, 1), TrimType.Head);
+    }
+
+    /// <summary>
+    /// Removes all leading occurrences of a set of characters from the current string.
+    /// </summary>
+    /// <param name="trimChars">An array of characters to remove from the start of the string.
+    /// If null or empty, white-space characters are removed instead.</param>
+    /// <returns>A new string with all leading specified characters removed.</returns>
+    public FixedString8 TrimStart(params char[] trimChars)
+    {
+        if (trimChars == null || trimChars.Length == 0)
+        {
+            return TrimWhiteSpaceHelper(TrimType.Head);
+        }
+        return TrimHelper(trimChars, TrimType.Head);
+    }
+
+    /// <summary>
+    /// Removes all leading occurrences of a set of characters specified in a span from the current string.
+    /// </summary>
+    /// <param name="trimChars">A span of characters to remove from the start of the string.
+    /// If empty, white-space characters are removed instead.</param>
+    /// <returns>A new string with all leading specified characters removed.</returns>
+    public unsafe string TrimStart(params ReadOnlySpan<char> trimChars)
+    {
+        if (trimChars.IsEmpty)
+        {
+            return TrimWhiteSpaceHelper(TrimType.Head);
+        }
+        return TrimHelper(trimChars, TrimType.Head);
+    }
+
+    /// <summary>
+    /// Removes all trailing white-space characters from the current string.
+    /// </summary>
+    /// <returns>A new string with all trailing white-space characters removed.</returns>
+    public FixedString8 TrimEnd()
+    {
+        return TrimWhiteSpaceHelper(TrimType.Tail);
+    }
+
+    /// <summary>
+    /// Removes all trailing instances of a specified character from the current string.
+    /// </summary>
+    /// <param name="trimChar">The character to remove from the end of the string.</param>
+    /// <returns>A new string with all trailing instances of the specified character removed.</returns>
+    public FixedString8 TrimEnd(char trimChar)
+    {
+        return TrimHelper(new ReadOnlySpan<char>(&trimChar, 1), TrimType.Tail);
+    }
+
+    /// <summary>
+    /// Removes all trailing occurrences of a set of characters from the current string.
+    /// </summary>
+    /// <param name="trimChars">An array of characters to remove from the end of the string.
+    /// If null or empty, white-space characters are removed instead.</param>
+    /// <returns>A new string with all trailing specified characters removed.</returns>
+    public FixedString8 TrimEnd(params char[] trimChars)
+    {
+        if (trimChars == null || trimChars.Length == 0)
+        {
+            return TrimWhiteSpaceHelper(TrimType.Tail);
+        }
+        return TrimHelper(trimChars, TrimType.Tail);
+    }
+
+    /// <summary>
+    /// Removes all trailing occurrences of a set of characters specified in a span from the current string.
+    /// </summary>
+    /// <param name="trimChars">A span of characters to remove from the end of the string.
+    /// If empty, white-space characters are removed instead.</param>
+    /// <returns>A new string with all trailing specified characters removed.</returns>
+    public unsafe string TrimEnd(params ReadOnlySpan<char> trimChars)
+    {
+        if (trimChars.IsEmpty)
+        {
+            return TrimWhiteSpaceHelper(TrimType.Tail);
+        }
+        return TrimHelper(trimChars, TrimType.Tail);
+    }
+
+    /// <summary>
+    /// Creates a new string containing the characters from the specified range of the current string.
+    /// </summary>
+    /// <param name="start">The starting index of the range to include.</param>
+    /// <param name="end">The ending index of the range to include.</param>
+    /// <returns>A new string containing only the characters from the specified range.</returns>
+    private FixedString8 CreateTrimmedString(int start, int end)
+    {
+        int len = end - start + 1;
+        fixed (char* ptr = Buffer)
+        {
+            return
+                len == Length ? this :
+                len == 0 ? new FixedString8() : new FixedString8(new ReadOnlySpan<char>(ptr + start, len));
+        }
+    }
+
+    /// <summary>
+    /// Helper method that removes white-space characters based on the specified trim type.
+    /// </summary>
+    /// <param name="trimType">Specifies whether to trim from the start, end, or both.</param>
+    /// <returns>A new string with white-space characters removed according to the trim type.</returns>
+    private FixedString8 TrimWhiteSpaceHelper(TrimType trimType)
+    {
+        UtilsFixedString.GetTrimIndex(this, trimType, out int start, out int end);
+        return CreateTrimmedString(start, end);
+    }
+
+    /// <summary>
+    /// Helper method that removes specified characters based on the trim type.
+    /// </summary>
+    /// <param name="trimChars">The characters to remove.</param>
+    /// <param name="trimType">Specifies whether to trim from the start, end, or both.</param>
+    /// <returns>A new string with specified characters removed according to the trim type.</returns>
+    private FixedString8 TrimHelper(ReadOnlySpan<char> trimChars, TrimType trimType)
+    {
+        UtilsFixedString.GetTrimIndex(this, trimChars, trimType, out int start, out int end);
+        return CreateTrimmedString(start, end);
+    }
+
+    #endregion
+
 }
+
+
 
