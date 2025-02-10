@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using System.Text.Json;
 using System.Collections.Generic;
+using NUnit.Framework;
 
 namespace Alco.Test;
 
@@ -38,6 +39,7 @@ public class TestJsonConverters
     {
         var original = new Vector2(1.5f, 2.5f);
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Vector2 JSON: {json}");
         Assert.That(json, Is.EqualTo("[1.5,2.5]"));
 
         var deserialized = JsonSerializer.Deserialize<Vector2>(json, _options);
@@ -53,6 +55,7 @@ public class TestJsonConverters
     {
         var original = new Vector3(1.5f, 2.5f, 3.5f);
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Vector3 JSON: {json}");
         Assert.That(json, Is.EqualTo("[1.5,2.5,3.5]"));
 
         var deserialized = JsonSerializer.Deserialize<Vector3>(json, _options);
@@ -69,6 +72,7 @@ public class TestJsonConverters
     {
         var original = new Vector4(1.5f, 2.5f, 3.5f, 4.5f);
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Vector4 JSON: {json}");
         Assert.That(json, Is.EqualTo("[1.5,2.5,3.5,4.5]"));
 
         var deserialized = JsonSerializer.Deserialize<Vector4>(json, _options);
@@ -86,6 +90,7 @@ public class TestJsonConverters
     {
         var original = new Quaternion(1.5f, 2.5f, 3.5f, 4.5f);
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Quaternion JSON: {json}");
         Assert.That(json, Is.EqualTo("[1.5,2.5,3.5,4.5]"));
 
         var deserialized = JsonSerializer.Deserialize<Quaternion>(json, _options);
@@ -141,6 +146,7 @@ public class TestJsonConverters
         };
 
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Vector3 List JSON: {json}");
         Assert.That(json, Is.EqualTo("[[1.5,2.5,3.5],[4.5,5.5,6.5],[7.5,8.5,9.5]]"));
 
         var deserialized = JsonSerializer.Deserialize<List<Vector3>>(json, _options);
@@ -168,6 +174,7 @@ public class TestJsonConverters
         };
 
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Vector3 Dictionary JSON: {json}");
         Assert.That(json, Is.EqualTo("{\"position1\":[1.5,2.5,3.5],\"position2\":[4.5,5.5,6.5],\"position3\":[7.5,8.5,9.5]}"));
 
         var deserialized = JsonSerializer.Deserialize<Dictionary<string, Vector3>>(json, _options);
@@ -197,6 +204,7 @@ public class TestJsonConverters
         };
 
         string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"Complex Object JSON: {json}");
         Assert.That(json, Is.EqualTo("{\"Position2D\":[1.5,2.5],\"Position3D\":[3.5,4.5,5.5],\"Color\":[0.1,0.2,0.3,1],\"Rotation\":[0.5,0.5,0.5,1]}"));
 
         var deserialized = JsonSerializer.Deserialize<TestObject>(json, _options);
@@ -225,4 +233,72 @@ public class TestJsonConverters
         });
     }
 
+    private class TestTypeObject
+    {
+        public Type SystemType { get; set; }
+        public Type CustomType { get; set; }
+    }
+
+    [Test(Description = "Test Type JSON conversion")]
+    public void TestTypeConversion()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters = { new JsonConverterType() }
+        };
+
+        var original = new TestTypeObject
+        {
+            SystemType = typeof(int),
+            CustomType = typeof(JsonConverterType)
+        };
+
+        string json = JsonSerializer.Serialize(original, options);
+        TestContext.WriteLine($"Type Object JSON: {json}");
+        var deserialized = JsonSerializer.Deserialize<TestTypeObject>(json, options);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.SystemType, Is.EqualTo(typeof(int)));
+            Assert.That(deserialized.CustomType, Is.EqualTo(typeof(JsonConverterType)));
+        });
+    }
+
+    [Test(Description = "Test Type JSON null handling")]
+    public void TestTypeNullHandling()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters = { new JsonConverterType() }
+        };
+
+        var original = new TestTypeObject
+        {
+            SystemType = null,
+            CustomType = null
+        };
+
+        string json = JsonSerializer.Serialize(original, options);
+        TestContext.WriteLine($"Null Type Object JSON: {json}");
+        var deserialized = JsonSerializer.Deserialize<TestTypeObject>(json, options);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.SystemType, Is.Null);
+            Assert.That(deserialized.CustomType, Is.Null);
+        });
+    }
+
+    [Test(Description = "Test Type JSON invalid format")]
+    public void TestTypeInvalidFormat()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters = { new JsonConverterType() }
+        };
+
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("123", options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("[1,2,3]", options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("\"NonExistentType\"", options));
+    }
 }
