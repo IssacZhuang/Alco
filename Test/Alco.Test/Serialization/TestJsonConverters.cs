@@ -328,11 +328,11 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig basic serialization")]
     public void TestConfigConversion()
     {
-        var converter = new JsonConverterConfig();
-        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var typeResolver = new ConfigJsonTypeResolver();
+        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
-            Converters = { converter }
+            TypeInfoResolver = typeResolver
         };
 
         var original = new TestConfig
@@ -357,11 +357,11 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with nested config")]
     public void TestNestedConfigConversion()
     {
-        var converter = new JsonConverterConfig();
-        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var typeResolver = new ConfigJsonTypeResolver();
+        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
-            Converters = { converter }
+            TypeInfoResolver = typeResolver
         };
 
         var original = new NestedConfig
@@ -391,11 +391,11 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with null value")]
     public void TestConfigNull()
     {
-        var converter = new JsonConverterConfig();
-        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var typeResolver = new ConfigJsonTypeResolver();
+        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
-            Converters = { converter }
+            TypeInfoResolver = typeResolver
         };
 
         IJsonConfig original = null;
@@ -409,11 +409,11 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with invalid type")]
     public void TestConfigInvalidType()
     {
-        var converter = new JsonConverterConfig();
-        converter.AddAssemblies(typeof(TestConfig).Assembly);
+        var typeResolver = new ConfigJsonTypeResolver();
+        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
-            Converters = { converter }
+            TypeInfoResolver = typeResolver
         };
 
         string invalidJson = @"{""$type"":""NonExistentType"",""name"":""test""}";
