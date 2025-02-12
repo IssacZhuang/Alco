@@ -11,6 +11,13 @@ namespace Alco;
 public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
 {
     private readonly List<Assembly> _assemblies = new List<Assembly>();
+    private readonly IConfigReferenceResolver _configResolver;
+
+    public ConfigJsonTypeResolver(IConfigReferenceResolver configResolver)
+    {
+        ArgumentNullException.ThrowIfNull(configResolver);
+        _configResolver = configResolver;
+    }
 
     public void AddAssemblies(params ReadOnlySpan<Assembly> assemblies)
     {
@@ -20,12 +27,30 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
     {
         var typeInfo = base.GetTypeInfo(type, options);
-        if (typeInfo.Type != typeof(IJsonConfig))
+        if (typeInfo.Type == typeof(IConfig))
         {
+            SetAllDerivedType(typeInfo);
             return typeInfo;
         }
 
+        SetPropertiesToUseReferenceConverter(typeInfo);
 
+        return typeInfo;
+    }
+
+    private void SetPropertiesToUseReferenceConverter(JsonTypeInfo typeInfo)
+    {
+        foreach (var property in typeInfo.Properties)
+        {
+            if (IsImplementsIConfig(property.PropertyType))
+            {
+                property.CustomConverter = new JsonConverterConfigReference(_configResolver);
+            }
+        }
+    }
+
+    private void SetAllDerivedType(JsonTypeInfo typeInfo)
+    {
         typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
         {
             TypeDiscriminatorPropertyName = "$type",
@@ -45,7 +70,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
                     return Array.Empty<Type>();
                 }
             })
-            .Where(t => typeof(IJsonConfig).IsAssignableFrom(t) &&
+            .Where(t => typeof(IConfig).IsAssignableFrom(t) &&
                        !t.IsInterface &&
                        !t.IsAbstract)
             .ToArray();
@@ -54,7 +79,12 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         {
             typeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(derivedType, derivedType.FullName ?? derivedType.Name));
         }
+    }
 
-        return typeInfo;
+    private static bool IsImplementsIConfig(Type type)
+    {
+        return type.IsAssignableTo(typeof(IConfig)) &&
+               !type.IsInterface &&
+               !type.IsAbstract;
     }
 }
