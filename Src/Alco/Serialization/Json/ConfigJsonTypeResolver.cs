@@ -34,7 +34,6 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         }
 
         SetPropertiesToUseReferenceConverter(typeInfo);
-
         return typeInfo;
     }
 
@@ -42,7 +41,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
     {
         foreach (var property in typeInfo.Properties)
         {
-            if (IsImplementsIConfig(property.PropertyType))
+            if (property.PropertyType.IsAssignableTo(typeof(IConfig)))
             {
                 property.CustomConverter = new JsonConverterConfigReference(_configResolver);
             }
@@ -79,12 +78,5 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         {
             typeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(derivedType, derivedType.FullName ?? derivedType.Name));
         }
-    }
-
-    private static bool IsImplementsIConfig(Type type)
-    {
-        return type.IsAssignableTo(typeof(IConfig)) &&
-               !type.IsInterface &&
-               !type.IsAbstract;
     }
 }
