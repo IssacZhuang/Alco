@@ -4,7 +4,7 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 
-public class TestShader
+public class ValidateShader
 {
     //used to check engine built-in shader
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
@@ -17,8 +17,8 @@ public class TestShader
         }
     }
 
-    [Test(Description = "Test all shaders")]
-    public void TestAllShaders()
+    [Test(Description = "Validate all shaders")]
+    public void ValidateAllShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
         var assets = engine.Assets;

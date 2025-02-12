@@ -109,7 +109,6 @@ public partial class RenderingSystem
         GPUDevice device,
         IRenderScheduler renderScheduler,//the render thread need update every frame, so it is controlled a external object
         PixelFormat prefferedSDRFormat, 
-
         PixelFormat prefferedHDRFormat,
         PixelFormat prefferedDepthStencilFormat
     )

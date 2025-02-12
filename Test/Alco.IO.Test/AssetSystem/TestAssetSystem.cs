@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using Alco.IO;
 
-namespace Alco.Engine.Test;
+namespace Alco.IO.Test;
 
 public class TestAssetSystem
 {

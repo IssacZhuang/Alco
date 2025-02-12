@@ -3,7 +3,7 @@ using Alco.Graphics;
 using Alco.Rendering;
 using Alco.ShaderCompiler;
 
-namespace Alco.Engine.Test;
+namespace Alco.Rendering.Test;
 
 public class TestShaderCompiler
 {
