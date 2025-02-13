@@ -121,37 +121,40 @@ namespace Alco.Editor.Views
 
         private void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
         {
-            // Find the TreeViewItem by traversing up the visual tree
-            var element = e.Source as Control;
-            TreeViewItem? treeViewItem = null;
+            var treeViewItem = FindTreeViewItem(e.Source as Control);
+            if (treeViewItem?.Tag is not string filePath) return;
+
+            OpenFileIfExists(filePath);
+        }
+
+        private static TreeViewItem? FindTreeViewItem(Control? element)
+        {
             while (element != null)
             {
                 if (element is TreeViewItem item)
                 {
-                    treeViewItem = item;
-                    break;
+                    return item;
                 }
                 element = element.Parent as Control;
             }
+            return null;
+        }
 
-            if (treeViewItem?.Tag is string filePath)
+        private void OpenFileIfExists(string filePath)
+        {
+            var fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists) return;
+
+            var extension = fileInfo.Extension;
+            var supportedEditor = _fileEditorMetas.Find(meta => meta.IsSupported(extension));
+
+            if (supportedEditor != null)
             {
-                var fileInfo = new FileInfo(filePath);
-                if (!fileInfo.Exists) return;
-
-                var extension = fileInfo.Extension;
-                foreach (var meta in _fileEditorMetas)
-                {
-                    if (meta.IsSupported(extension))
-                    {
-                        CleanupCurrentEditor();
-                        var editor = meta.CreateInstance();
-                        SetupEditor(editor);
-                        editor.OnOpenFile(fileInfo);
-                        FileEditorCreated?.Invoke(this, editor);
-                        break;
-                    }
-                }
+                CleanupCurrentEditor();
+                var editor = supportedEditor.CreateInstance();
+                SetupEditor(editor);
+                editor.OnOpenFile(fileInfo);
+                FileEditorCreated?.Invoke(this, editor);
             }
         }
 
