@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Alco.Editor.Views;
 
 namespace Alco.Editor.Models
 {
@@ -12,33 +13,7 @@ namespace Alco.Editor.Models
 
         protected override UserControl CreateContent()
         {
-            // 创建Explorer页面的内容
-            var content = new DockPanel();
-
-            // 添加工具栏
-            var toolbar = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(10),
-                Spacing = 10
-            };
-            DockPanel.SetDock(toolbar, Dock.Top);
-
-            toolbar.Children.Add(new Button { Content = "New File" });
-            toolbar.Children.Add(new Button { Content = "New Folder" });
-            toolbar.Children.Add(new Button { Content = "Refresh" });
-
-            content.Children.Add(toolbar);
-
-            // 添加文件树
-            var treeView = new TreeView
-            {
-                Background = new SolidColorBrush(Color.Parse("#252526"))
-            };
-
-            content.Children.Add(treeView);
-
-            return new UserControl { Content = content };
+            return new ExplorerPageView();
         }
 
         public override void OnActivated()
