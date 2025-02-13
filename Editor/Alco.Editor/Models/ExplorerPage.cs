@@ -15,7 +15,17 @@ namespace Alco.Editor.Models
 
         protected override UserControl CreateContent()
         {
-            return new ExplorerPageView();
+            var explorerView = new ExplorerPageView(
+                new FileEditorMeta(typeof(JsonFileEditor), ".json")
+            );
+            explorerView.FileEditorCreated += OnFileEditorCreated;
+            return explorerView;
+        }
+
+        private void OnFileEditorCreated(object? sender, FileEditor editor)
+        {
+            // TODO: 这里需要你根据你的应用程序架构来处理新创建的编辑器
+            // 比如将编辑器添加到主窗口的某个面板中
         }
 
         public override void OnActivated()

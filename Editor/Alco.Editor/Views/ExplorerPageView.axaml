@@ -21,7 +21,8 @@
 
                 <!-- File tree view - initially hidden -->
                 <TreeView x:Name="FileTreeView"
-                    IsVisible="False">
+                    IsVisible="False"
+                    DoubleTapped="OnFileTreeViewDoubleTapped">
                 </TreeView>
             </Grid>
         </Border>
@@ -36,7 +37,7 @@
         <Border Grid.Column="2"
             BorderBrush="{DynamicResource SystemControlHighlightBaseMediumLowBrush}"
             BorderThickness="0,0,1,0">
-            <TextBlock Text="Edit area" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <ContentControl x:Name="EditArea" />
         </Border>
 
         <!-- Splitter between edit area and preview -->
@@ -47,7 +48,7 @@
 
         <!-- Preview area -->
         <Border Grid.Column="4">
-            <TextBlock Text="Preview area" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <ContentControl x:Name="PreviewArea" />
         </Border>
     </Grid>
 </UserControl> 

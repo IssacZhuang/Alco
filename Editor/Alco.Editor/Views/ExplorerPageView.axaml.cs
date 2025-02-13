@@ -16,6 +16,9 @@ namespace Alco.Editor.Views
     {
         private readonly ObservableCollection<TreeViewItem> _rootItems;
         private readonly List<FileEditorMeta> _fileEditorMetas = new();
+        private FileEditor? _currentEditor;
+
+        public event EventHandler<FileEditor>? FileEditorCreated;
 
         public ExplorerPageView(params FileEditorMeta[] fileEditorMetas)
         {
@@ -114,6 +117,47 @@ namespace Alco.Editor.Views
                 var items = new ObservableCollection<TreeViewItem> { errorItem };
                 parentItem.ItemsSource = items;
             }
+        }
+
+        private void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
+        {
+            if (e.Source is TreeViewItem treeViewItem && treeViewItem.Tag is string filePath)
+            {
+                var fileInfo = new FileInfo(filePath);
+                if (!fileInfo.Exists) return;
+
+                var extension = fileInfo.Extension;
+                foreach (var meta in _fileEditorMetas)
+                {
+                    if (meta.IsSupported(extension))
+                    {
+                        CleanupCurrentEditor();
+                        var editor = meta.CreateInstance();
+                        editor.OnOpenFile(fileInfo);
+                        SetupEditor(editor);
+                        FileEditorCreated?.Invoke(this, editor);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void CleanupCurrentEditor()
+        {
+            if (_currentEditor != null)
+            {
+                EditArea.Content = null;
+                PreviewArea.Content = null;
+                _currentEditor.OnCloseFile();
+                _currentEditor = null;
+            }
+        }
+
+        private void SetupEditor(FileEditor editor)
+        {
+            _currentEditor = editor;
+            EditArea.Content = editor.EditControl;
+            PreviewArea.Content = editor.PreviewControl;
         }
     }
 } 
