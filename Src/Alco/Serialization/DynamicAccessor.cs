@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 
 namespace Alco;
 
@@ -17,8 +18,30 @@ namespace Alco;
 /// </remarks>
 public static class DynamicAccessor<T>
 {
-    private static readonly FrozenDictionary<string, Func<T, object>> _getters;
-    private static readonly FrozenDictionary<string, Action<T, object>> _setters;
+    private struct Getter
+    {
+        public Getter(Type type, Func<T, object> method)
+        {
+            Type = type;
+            Method = method;
+        }
+        public Type Type;
+        public Func<T, object> Method;
+    }
+
+    private struct Setter
+    {
+        public Setter(Type type, Action<T, object> method)
+        {
+            Type = type;
+            Method = method;
+        }
+        public Type Type;
+        public Action<T, object> Method;
+    }
+
+    private static readonly FrozenDictionary<string, Getter> _getters;
+    private static readonly FrozenDictionary<string, Setter> _setters;
     private static readonly string[] _propertyNames;
     private static readonly string[] _fieldNames;
 
@@ -27,26 +50,27 @@ public static class DynamicAccessor<T>
 
     static DynamicAccessor()
     {
-        //getter
         Type type = typeof(T);
-        Dictionary<string, Func<T, object>> getters = new Dictionary<string, Func<T, object>>();
-        Dictionary<string, Action<T, object>> setters = new Dictionary<string, Action<T, object>>();
+        Dictionary<string, Getter> getters = new Dictionary<string, Getter>();
+        Dictionary<string, Setter> setters = new Dictionary<string, Setter>();
         List<string> propertyNames = new List<string>();
         List<string> fieldNames = new List<string>();
 
-        var properties = type.GetProperties();
-        var fields = type.GetFields();
+        const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+        var properties = type.GetProperties(bindingFlags);
+        var fields = type.GetFields(bindingFlags);
+
         foreach (var field in fields)
         {
-            getters[field.Name] = CreateFieldGetter(field.Name);
-            setters[field.Name] = CreateFieldSetter(field.Name);
+            getters[field.Name] = CreateFieldGetter(field);
+            setters[field.Name] = CreateFieldSetter(field);
             fieldNames.Add(field.Name);
         }
 
         foreach (var property in properties)
         {
-            getters[property.Name] = CreatePropertyGetter(property.Name);
-            setters[property.Name] = CreatePropertySetter(property.Name);
+            getters[property.Name] = CreatePropertyGetter(property);
+            setters[property.Name] = CreatePropertySetter(property);
             propertyNames.Add(property.Name);
         }
 
@@ -66,16 +90,27 @@ public static class DynamicAccessor<T>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGetValue(T obj, string name, [MaybeNullWhen(false)] out object value)
     {
-        if (obj == null)
-            throw new ArgumentNullException(nameof(obj));
-
         if (_getters.TryGetValue(name, out var getter))
         {
-            value = getter(obj);
+            value = getter.Method(obj);
             return true;
         }
         value = null;
         return false;
+    }
+
+    /// <summary>
+    /// Gets the value of a property or field by name.
+    /// </summary>
+    /// <param name="obj">The object to get the value from.</param>
+    /// <param name="name">The name of the property or field.</param>
+    /// <returns>The value of the property or field.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object GetValue(T obj, string name)
+    {
+        if (!_getters.TryGetValue(name, out var getter))
+            throw new ArgumentException($"Property or field '{name}' not found on type {typeof(T)}");
+        return getter.Method(obj);
     }
 
     /// <summary>
@@ -88,70 +123,73 @@ public static class DynamicAccessor<T>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TrySetValue(T obj, string name, object value)
     {
-        if (obj == null)
-            throw new ArgumentNullException(nameof(obj));
-
-        if (_setters.TryGetValue(name, out var setter))
+        if (!_setters.TryGetValue(name, out var setter))
         {
-            setter(obj, value);
+            return false;
+        }
+
+        if (setter.Type.IsAssignableFrom(value.GetType()))
+        {
+            setter.Method(obj, value);
             return true;
         }
         return false;
     }
 
     /// <summary>
-    /// Creates a compiled expression for getting a property value.
+    /// Sets the value of a property or field by name.
     /// </summary>
-    /// <param name="propertyName">The name of the property to access.</param>
-    /// <returns>A compiled function that gets the property value.</returns>
-    private static Func<T, object> CreatePropertyGetter(string propertyName)
+    /// <param name="obj">The object to set the value on.</param>
+    /// <param name="name">The name of the property or field.</param>
+    /// <param name="value">The value to set.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void SetValue(T obj, string name, object value)
     {
-        var parameter = Expression.Parameter(typeof(T), "obj");
-        var property = Expression.Property(parameter, propertyName);
-        var convert = Expression.Convert(property, typeof(object));
-        return Expression.Lambda<Func<T, object>>(convert, parameter).Compile();
+        if (!_setters.TryGetValue(name, out var setter))
+        {
+            throw new ArgumentException($"Property or field '{name}' not found on type {typeof(T)}");
+        }
+
+        if (!setter.Type.IsAssignableFrom(value.GetType()))
+        {
+            throw new ArgumentException($"Value type {value.GetType()} is not assignable to setter type {setter.Type}");
+        }
+        setter.Method(obj, value);
     }
 
-    /// <summary>
-    /// Creates a compiled expression for setting a property value.
-    /// </summary>
-    /// <param name="propertyName">The name of the property to set.</param>
-    /// <returns>A compiled action that sets the property value.</returns>
-    private static Action<T, object> CreatePropertySetter(string propertyName)
+    private static Getter CreatePropertyGetter(PropertyInfo property)
+    {
+        var parameter = Expression.Parameter(typeof(T), "obj");
+        var propertyAccess = Expression.Property(parameter, property);
+        var convert = Expression.Convert(propertyAccess, typeof(object));
+        return new Getter(property.PropertyType, Expression.Lambda<Func<T, object>>(convert, parameter).Compile());
+    }
+
+    private static Setter CreatePropertySetter(PropertyInfo property)
     {
         var objParameter = Expression.Parameter(typeof(T), "obj");
         var valueParameter = Expression.Parameter(typeof(object), "value");
-        var property = Expression.Property(objParameter, propertyName);
-        var convertedValue = Expression.Convert(valueParameter, property.Type);
-        var assign = Expression.Assign(property, convertedValue);
-        return Expression.Lambda<Action<T, object>>(assign, objParameter, valueParameter).Compile();
+        var propertyAccess = Expression.Property(objParameter, property);
+        var convertedValue = Expression.Convert(valueParameter, property.PropertyType);
+        var assign = Expression.Assign(propertyAccess, convertedValue);
+        return new Setter(property.PropertyType, Expression.Lambda<Action<T, object>>(assign, objParameter, valueParameter).Compile());
     }
 
-    /// <summary>
-    /// Creates a compiled expression for getting a field value.
-    /// </summary>
-    /// <param name="fieldName">The name of the field to access.</param>
-    /// <returns>A compiled function that gets the field value.</returns>
-    private static Func<T, object> CreateFieldGetter(string fieldName)
+    private static Getter CreateFieldGetter(FieldInfo field)
     {
         var parameter = Expression.Parameter(typeof(T), "obj");
-        var field = Expression.Field(parameter, fieldName);
-        var convert = Expression.Convert(field, typeof(object));
-        return Expression.Lambda<Func<T, object>>(convert, parameter).Compile();
+        var fieldAccess = Expression.Field(parameter, field);
+        var convert = Expression.Convert(fieldAccess, typeof(object));
+        return new Getter(field.FieldType, Expression.Lambda<Func<T, object>>(convert, parameter).Compile());
     }
 
-    /// <summary>
-    /// Creates a compiled expression for setting a field value.
-    /// </summary>
-    /// <param name="fieldName">The name of the field to set.</param>
-    /// <returns>A compiled action that sets the field value.</returns>
-    private static Action<T, object> CreateFieldSetter(string fieldName)
+    private static Setter CreateFieldSetter(FieldInfo field)
     {
         var objParameter = Expression.Parameter(typeof(T), "obj");
         var valueParameter = Expression.Parameter(typeof(object), "value");
-        var field = Expression.Field(objParameter, fieldName);
-        var convertedValue = Expression.Convert(valueParameter, field.Type);
-        var assign = Expression.Assign(field, convertedValue);
-        return Expression.Lambda<Action<T, object>>(assign, objParameter, valueParameter).Compile();
+        var fieldAccess = Expression.Field(objParameter, field);
+        var convertedValue = Expression.Convert(valueParameter, field.FieldType);
+        var assign = Expression.Assign(fieldAccess, convertedValue);
+        return new Setter(field.FieldType, Expression.Lambda<Action<T, object>>(assign, objParameter, valueParameter).Compile());
     }
 }
