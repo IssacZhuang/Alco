@@ -4,36 +4,41 @@ using Avalonia.Controls.Primitives;
 using Avalonia;
 using Alco.Editor.Models;
 using System.Collections.Generic;
+using Alco.Editor.ViewModels;
+using System;
 
 namespace Alco.Editor.Views
 {
     public partial class MainWindow : Window
     {
-     
-        private readonly List<Page> _pages;
         private Page? _currentPage;
+        private MainWindowViewModel? _viewModel;
+
+        public MainWindowViewModel ViewModel => _viewModel ??= (DataContext as MainWindowViewModel)!;
 
         public MainWindow()
         {
             InitializeComponent();
-            InitializeMenu();
+            
+        }
 
-            _pages = new List<Page>
+        protected override void OnDataContextChanged(EventArgs e)
+        {
+            SetupMenu();
+            SetupActivityBar();
+
+            if (ViewModel.Pages.Count > 0)
             {
-                new ExplorerPage(),
-            };
-
-            InitializeActivityBar();
-
-            if (_pages.Count > 0)
-            {
-                SwitchToPage(_pages[0]);
+                SwitchToPage(ViewModel.Pages[0]);
             }
         }
 
-        private void InitializeActivityBar()
+        private void SetupActivityBar()
         {
-            foreach (var page in _pages)
+            //clear all children
+            ActivityBar.Children.Clear();
+
+            foreach (var page in ViewModel.Pages)
             {
                 var button = new Button
                 {
@@ -85,8 +90,11 @@ namespace Alco.Editor.Views
             }
         }
 
-        private void InitializeMenu()
+        private void SetupMenu()
         {
+            //clear all children
+            MainMenu.Items.Clear();
+
             // File Menu
             var fileMenu = new MenuItem { Header = "_File" };
             fileMenu.Items.Add(new MenuItem { Header = "_New" });
