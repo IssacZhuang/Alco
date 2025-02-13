@@ -6,18 +6,25 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using System.Collections.Generic;
+
+using Alco.Editor.Models;
 
 namespace Alco.Editor.Views
 {
     public partial class ExplorerPageView : UserControl
     {
         private readonly ObservableCollection<TreeViewItem> _rootItems;
+        private readonly List<FileEditorMeta> _fileEditorMetas = new();
 
-        public ExplorerPageView()
+        public ExplorerPageView(params FileEditorMeta[] fileEditorMetas)
         {
+            _fileEditorMetas.AddRange(fileEditorMetas);
+
             InitializeComponent();
             _rootItems = new ObservableCollection<TreeViewItem>();
             FileTreeView.ItemsSource = _rootItems;
+            
         }
 
         private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
