@@ -20,7 +20,15 @@ namespace Alco.Editor.Views
         public MainWindow()
         {
             InitializeComponent();
-            
+            Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
+        {
+            if (_viewModel != null)
+            {
+                _viewModel.Dispose();
+            }
         }
 
         protected override void OnDataContextChanged(EventArgs e)

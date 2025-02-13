@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using Alco.Editor.Attributes;
 using Alco.Editor.Models;
+using Alco.Engine;
 using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels
@@ -12,14 +13,17 @@ namespace Alco.Editor.ViewModels
     public class MenuItemViewModel
     {
         public string Header { get; set; } = string.Empty;
-        public Action<Window>? Action { get; set; }
+        public Action<Avalonia.Controls.Window>? Action { get; set; }
         public Dictionary<string, MenuItemViewModel> Child { get; set; } = new();
     }
 
-    public partial class MainWindowViewModel : ViewModelBase
+    public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
+        private bool _disposed;
         private readonly HashSet<Assembly> _assemblies = new();
         private readonly HashSet<string> _menuItemPaths = new();
+        public GameEngine Engine {get;}
+
         public string Greeting { get; } = "Welcome to Avalonia!";
         public List<Page> Pages { get; } = [];
         public List<MenuItemViewModel> MainMenuItems { get; } = [];
@@ -32,6 +36,8 @@ namespace Alco.Editor.ViewModels
             {
                 _assemblies.Add(assembly);
             }
+
+            Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
 
             SetupPages();
             SetupMainMenu();
@@ -104,6 +110,29 @@ namespace Alco.Editor.ViewModels
                    from method in type.GetMethods()
                    where method.GetCustomAttributes(typeof(MenuItemAttribute), false).Length > 0
                    select (method, method.GetCustomAttribute<MenuItemAttribute>()!);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+
+            if (disposing)
+            {
+                Engine.Dispose();
+            }
+
+            _disposed = true;
+        }
+
+        ~MainWindowViewModel()
+        {
+            Dispose(false);
         }
     }
 }

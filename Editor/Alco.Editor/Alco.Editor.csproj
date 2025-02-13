@@ -26,5 +26,11 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <PackageReference Include="AvaloniaEdit.TextMate" Version="11.1.0" />
+  
+  
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
   </ItemGroup>
 </Project>
