@@ -4,10 +4,6 @@ using SDL3;
 using static SDL3.SDL3;
 using System.Runtime.CompilerServices;
 
-#if DIAGHUB_ENABLE_TRACE_SYSTEM
-using Microsoft.DiagnosticsHub;
-#endif
-
 namespace Alco.Engine;
 
 public unsafe class Sdl3Platform : Platform
@@ -18,11 +14,8 @@ public unsafe class Sdl3Platform : Platform
     private NativeBuffer<SDL_Event> _events;
     private EngineTimer _timer;
     private bool _isStopped = false;
-
-#if DIAGHUB_ENABLE_TRACE_SYSTEM
-    private uint _captureId;
     private bool _shouldCapture = false;
-#endif
+    private uint _captureId = 0;
 
     public Sdl3Platform()
     {
@@ -71,15 +64,13 @@ public unsafe class Sdl3Platform : Platform
         _input.Init();
         while (!_isStopped)
         {
-#if DIAGHUB_ENABLE_TRACE_SYSTEM
-            UserMarkRange? diagHub = null;
+            VisualStudioProfiler? profiler = null;
             if (_shouldCapture)
             {
-                diagHub = new UserMarkRange($"GameEngine.Capture_{_captureId}");
+                profiler = new VisualStudioProfiler($"GameEngine.Capture_{_captureId}");
                 _captureId++;
                 _shouldCapture = false;
             }
-#endif
 
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
 
@@ -103,9 +94,7 @@ public unsafe class Sdl3Platform : Platform
 
             _input.Update();
 
-#if DIAGHUB_ENABLE_TRACE_SYSTEM
-            diagHub?.Dispose();
-#endif
+            profiler?.Dispose();
         }
     }
 
@@ -132,15 +121,11 @@ public unsafe class Sdl3Platform : Platform
     {
         switch (e.type)
         {
-
             case SDL_EventType.KeyDown:
-#if DIAGHUB_ENABLE_TRACE_SYSTEM
-                //f12 to capture
                 if (e.key.key == SDL_Keycode.F12)
                 {
                     _shouldCapture = true;
                 }
-#endif
                 _input.OnSdlKeyDown(e.key.key);
                 break;
             case SDL_EventType.KeyUp:
@@ -174,7 +159,6 @@ public unsafe class Sdl3Platform : Platform
                 Sdl3Window windo3 = _windows[e.window.windowID];
                 windo3.DoRestore();
                 break;
-            
         }
     }
 }
