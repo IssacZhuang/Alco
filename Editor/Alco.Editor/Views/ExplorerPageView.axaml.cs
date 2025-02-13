@@ -121,7 +121,20 @@ namespace Alco.Editor.Views
 
         private void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
         {
-            if (e.Source is TreeViewItem treeViewItem && treeViewItem.Tag is string filePath)
+            // Find the TreeViewItem by traversing up the visual tree
+            var element = e.Source as Control;
+            TreeViewItem? treeViewItem = null;
+            while (element != null)
+            {
+                if (element is TreeViewItem item)
+                {
+                    treeViewItem = item;
+                    break;
+                }
+                element = element.Parent as Control;
+            }
+
+            if (treeViewItem?.Tag is string filePath)
             {
                 var fileInfo = new FileInfo(filePath);
                 if (!fileInfo.Exists) return;
@@ -133,8 +146,8 @@ namespace Alco.Editor.Views
                     {
                         CleanupCurrentEditor();
                         var editor = meta.CreateInstance();
-                        editor.OnOpenFile(fileInfo);
                         SetupEditor(editor);
+                        editor.OnOpenFile(fileInfo);
                         FileEditorCreated?.Invoke(this, editor);
                         break;
                     }

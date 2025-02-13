@@ -7,20 +7,20 @@ namespace Alco.Editor.Models;
 
 public abstract class FileEditor
 {
-    private UserControl? _editControl;
-    private UserControl? _previewControl;
+    private Control? _editControl;
+    private Control? _previewControl;
     private FileInfo? _currentFile;
 
     public FileInfo? CurrentFile => _currentFile;
 
-    public UserControl EditControl => _editControl ??= CreateEditControl();
+    public Control EditControl => _editControl ??= CreateEditControl();
 
-    public UserControl PreviewControl => _previewControl ??= CreatePreviewControl();
+    public Control PreviewControl => _previewControl ??= CreatePreviewControl();
 
 
-    protected abstract UserControl CreateEditControl();
+    protected abstract Control CreateEditControl();
 
-    protected abstract UserControl CreatePreviewControl();
+    protected abstract Control CreatePreviewControl();
 
     public virtual void OnOpenFile(FileInfo fileInfo)
     {
