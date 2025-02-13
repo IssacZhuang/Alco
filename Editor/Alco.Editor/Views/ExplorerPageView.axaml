@@ -6,12 +6,24 @@
         <Border Grid.Column="0"
             BorderBrush="{DynamicResource SystemControlHighlightBaseMediumLowBrush}"
             BorderThickness="0,0,1,0">
-            <TreeView x:Name="FileTreeView">
-                <TreeViewItem Header="项目">
-                    <TreeViewItem Header="文件夹 1" />
-                    <TreeViewItem Header="文件夹 2" />
-                </TreeViewItem>
-            </TreeView>
+            <Grid>
+                <!-- Initial state - Open Folder button -->
+                <StackPanel x:Name="NoFolderPanel"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Spacing="10">
+                    <TextBlock Text="No folder opened"
+                        HorizontalAlignment="Center" />
+                    <Button x:Name="OpenFolderButton"
+                        Content="Open Folder"
+                        Click="OnOpenFolderClick" />
+                </StackPanel>
+
+                <!-- File tree view - initially hidden -->
+                <TreeView x:Name="FileTreeView"
+                    IsVisible="False">
+                </TreeView>
+            </Grid>
         </Border>
 
         <!-- Splitter between file browser and edit area -->
