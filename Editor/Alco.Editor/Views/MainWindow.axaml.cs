@@ -6,6 +6,7 @@ using Alco.Editor.Models;
 using System.Collections.Generic;
 using Alco.Editor.ViewModels;
 using System;
+using Avalonia.Interactivity;
 
 namespace Alco.Editor.Views
 {
@@ -92,36 +93,21 @@ namespace Alco.Editor.Views
 
         private void SetupMenu()
         {
-            //clear all children
             MainMenu.Items.Clear();
 
-            // File Menu
-            var fileMenu = new MenuItem { Header = "_File" };
-            fileMenu.Items.Add(new MenuItem { Header = "_New" });
-            fileMenu.Items.Add(new MenuItem { Header = "_Open..." });
-            fileMenu.Items.Add(new MenuItem { Header = "_Save" });
-            fileMenu.Items.Add(new Separator());
-            fileMenu.Items.Add(new MenuItem { Header = "_Exit" });
+            foreach (var menuItem in ViewModel.MainMenuItems)
+            {
+                var topLevelMenu = new MenuItem { Header = menuItem.Header };
 
-            // Edit Menu
-            var editMenu = new MenuItem { Header = "_Edit" };
-            editMenu.Items.Add(new MenuItem { Header = "_Undo" });
-            editMenu.Items.Add(new MenuItem { Header = "_Redo" });
-            editMenu.Items.Add(new Separator());
-            editMenu.Items.Add(new MenuItem { Header = "Cu_t" });
-            editMenu.Items.Add(new MenuItem { Header = "_Copy" });
-            editMenu.Items.Add(new MenuItem { Header = "_Paste" });
+                foreach (var subItem in menuItem.Child)
+                {
+                    var subMenuItem = new MenuItem { Header = subItem.Value.Header };
+                    subMenuItem.Click += (s, e) => subItem.Value.Action?.Invoke(this);
+                    topLevelMenu.Items.Add(subMenuItem);
+                }
 
-            // View Menu
-            var viewMenu = new MenuItem { Header = "_View" };
-            viewMenu.Items.Add(new MenuItem { Header = "_Explorer" });
-            viewMenu.Items.Add(new MenuItem { Header = "_Search" });
-            viewMenu.Items.Add(new MenuItem { Header = "_Extensions" });
-
-            // Add all menus to the main menu
-            MainMenu.Items.Add(fileMenu);
-            MainMenu.Items.Add(editMenu);
-            MainMenu.Items.Add(viewMenu);
+                MainMenu.Items.Add(topLevelMenu);
+            }
         }
     }
 }
