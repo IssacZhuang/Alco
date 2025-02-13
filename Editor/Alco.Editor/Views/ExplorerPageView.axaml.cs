@@ -20,11 +20,6 @@ namespace Alco.Editor.Views
             FileTreeView.ItemsSource = _rootItems;
         }
 
-        private void InitializeComponent()
-        {
-            AvaloniaXamlLoader.Load(this);
-        }
-
         private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
         {
             var topLevel = TopLevel.GetTopLevel(this);
