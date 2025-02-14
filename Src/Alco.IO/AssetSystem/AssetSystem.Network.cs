@@ -9,8 +9,17 @@ public sealed partial class AssetSystem
 {
     private HttpClient? _httpClient;
     //lazy init
-    private HttpClient HttpClient => _httpClient ??= new HttpClient();
+    private HttpClient HttpClient => _httpClient ??= CreateHttpClient();
 
+    private HttpClient CreateHttpClient()
+    {
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+        };
+        return new HttpClient(handler);
+    }
 
     /// <summary>
     /// Attempts to load a remote asset from a URL with error handling and caching support.
