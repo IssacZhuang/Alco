@@ -11,7 +11,7 @@ namespace Alco.Engine;
 /// <summary>
 /// Represents an asset loader for Texture2D assets.
 /// </summary>
-public class AssetLoaderTexture2D : IAssetLoader
+public class AssetLoaderTexture2D : BaseAssetLoader
 {
     private static readonly string[] Extensions = new string[] {
         FileExt.ImagePNG,
@@ -24,22 +24,22 @@ public class AssetLoaderTexture2D : IAssetLoader
 
     private readonly RenderingSystem _renderingSystem;
 
-    public string Name => "AssetLoader.Texture2D";
+    public override string Name => "AssetLoader.Texture2D";
 
-    public IReadOnlyList<string> FileExtensions => Extensions;
+    public override IReadOnlyList<string> FileExtensions => Extensions;
 
     public AssetLoaderTexture2D(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
     }
 
-    public bool CanHandleType(Type type)
+    public override bool CanHandleType(Type type)
     {
         return type == typeof(Texture2D) || type == typeof(Sprite);
     }
 
     /// <inheritdoc/>
-    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    public override object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
     {
         if (targetType == typeof(Texture2D))
         {

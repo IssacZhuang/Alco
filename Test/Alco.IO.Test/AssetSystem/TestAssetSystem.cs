@@ -57,70 +57,70 @@ public class TestAssetSystem
         }
     }
 
-    private class TestFastAssetLoader : IAssetLoader
+    private class TestFastAssetLoader : BaseAssetLoader
     {
-        public string Name => "TestFastAssetLoader";
+        public override string Name => "TestFastAssetLoader";
 
-        public IReadOnlyList<string> FileExtensions => [".fast"];
+        public override IReadOnlyList<string> FileExtensions => [".fast"];
 
-        public bool CanHandleType(Type type)
+        public override bool CanHandleType(Type type)
         {
             return type == typeof(TestFastAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             return new TestFastAsset();
         }
     }
 
-    private class TestSlowAssetLoader : IAssetLoader
+    private class TestSlowAssetLoader : BaseAssetLoader
     {
-        public string Name => "TestSlowAssetLoader";
+        public override string Name => "TestSlowAssetLoader";
 
-        public IReadOnlyList<string> FileExtensions => [".slow"];
+        public override IReadOnlyList<string> FileExtensions => [".slow"];
 
-        public bool CanHandleType(Type type)
+        public override bool CanHandleType(Type type)
         {
             return type == typeof(TestSlowAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             return new TestSlowAsset();
         }
     }
 
     //used for test error handling
-    private class TestEmptyAssetLoader : IAssetLoader
+    private class TestEmptyAssetLoader : BaseAssetLoader
     {
-        public string Name => "TestEmptyAssetLoader";
+        public override string Name => "TestEmptyAssetLoader";
 
-        public IReadOnlyList<string> FileExtensions => [".empty"];
+        public override IReadOnlyList<string> FileExtensions => [".empty"];
 
-        public bool CanHandleType(Type type)
+        public override bool CanHandleType(Type type)
         {
             return type == typeof(TestFastAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             return null;
         }
     }
 
-    private class TestExceptionAssetLoader : IAssetLoader
+    private class TestExceptionAssetLoader : BaseAssetLoader
     {
-        public string Name => "TestExceptionAssetLoader";
+        public override string Name => "TestExceptionAssetLoader";
 
-        public IReadOnlyList<string> FileExtensions => [".exception"];
+        public override IReadOnlyList<string> FileExtensions => [".exception"];
 
-        public bool CanHandleType(Type type)
+        public override bool CanHandleType(Type type)
         {
             return type == typeof(TestFastAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             throw new Exception("Test Exception");
         }

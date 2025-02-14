@@ -1,6 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using Alco.Rendering;
 using Alco.IO;
 
 namespace Alco.Engine;
@@ -8,24 +6,19 @@ namespace Alco.Engine;
 /// <summary>
 /// Represents an asset loader for HLSL include files.
 /// </summary>
-public class AssetLoaderShaderHLSLInclude : IAssetLoader
+public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string>
 {
     private static readonly string[] Extensions = new string[] { FileExt.ShaderHLSLInclude };
 
     /// <inheritdoc/>
-    public string Name => "AssetLoader.Shader.HLSLInclude";
+    public override string Name => "AssetLoader.Shader.HLSLInclude";
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> FileExtensions => Extensions;
-
-    public bool CanHandleType(Type type)
-    {
-        return type == typeof(string);
-    }
+    public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
     {
-        return Encoding.UTF8.GetString(file);
+        return Encoding.UTF8.GetString(data);
     }
 }

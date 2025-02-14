@@ -9,15 +9,15 @@ namespace Alco.Engine;
 /// <summary>
 /// Convert a shader text file to a shader object. This loader will compile the shader to SPIR-V and create a GPU shader object from it
 /// </summary>
-public class AssetLoaderShaderHLSL : IAssetLoader
+public class AssetLoaderShaderHLSL : BaseAssetLoader
 {
     private static readonly string[] Extensions = [FileExt.ShaderHLSL];
     private readonly Func<string, string>? _includeResolver;
     private readonly RenderingSystem _renderingSystem;
 
-    public string Name => "AssetLoader.Shader.HLSL";
+    public override string Name => "AssetLoader.Shader.HLSL";
 
-    public IReadOnlyList<string> FileExtensions => Extensions;
+    public override IReadOnlyList<string> FileExtensions => Extensions;
 
     public AssetLoaderShaderHLSL(RenderingSystem renderingSystem, Func<string, string>? includeResolver = null)
     {
@@ -25,13 +25,13 @@ public class AssetLoaderShaderHLSL : IAssetLoader
         _renderingSystem = renderingSystem;
     }
 
-    public bool CanHandleType(Type type)
+    public override bool CanHandleType(Type type)
     {
         return type == typeof(Shader) || type == typeof(string);
     }
 
     /// <inheritdoc/>
-    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    public override object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
     {
         if (targetType == typeof(Shader))
         {

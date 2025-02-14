@@ -5,27 +5,22 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// The loader for ogg audio
+/// The loader for wave audio
 /// </summary>
-public class AssetLoaderAudioWave : IAssetLoader
+public class AssetLoaderAudioWave : BaseAssetLoader<AudioClip>
 {
     private readonly AudioDevice _device;
 
-    public string Name => "AssetLoader.Audio.Vorbis";
+    public override string Name => "AssetLoader.Audio.Wave";
 
-    public IReadOnlyList<string> FileExtensions { get; } = [FileExt.AudioWav];
+    public override IReadOnlyList<string> FileExtensions { get; } = [FileExt.AudioWav];
 
     public AssetLoaderAudioWave(AudioDevice device)
     {
         _device = device;
     }
 
-    public bool CanHandleType(Type type)
-    {
-        return type == typeof(AudioClip);
-    }
-
-    public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+    public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
     {
         return _device.CreateAudioClipFromWave(data);
     }

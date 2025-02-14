@@ -7,25 +7,20 @@ namespace Alco.Engine;
 /// <summary>
 /// The loader for ogg audio
 /// </summary>
-public class AssetLoaderAudioFlac : IAssetLoader
+public class AssetLoaderAudioFlac : BaseAssetLoader<AudioClip>
 {
     private readonly AudioDevice _device;
 
-    public string Name => "AssetLoader.Audio.Vorbis";
+    public override string Name => "AssetLoader.Audio.Flac";
 
-    public IReadOnlyList<string> FileExtensions { get; } = [FileExt.AudioFlac];
+    public override IReadOnlyList<string> FileExtensions => [FileExt.AudioFlac];
 
     public AssetLoaderAudioFlac(AudioDevice device)
     {
         _device = device;
     }
 
-    public bool CanHandleType(Type type)
-    {
-        return type == typeof(AudioClip);
-    }
-
-    public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+    public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
     {
         return _device.CreateAudioClipFromFlac(data);
     }
