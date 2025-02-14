@@ -16,7 +16,7 @@ namespace Alco.IO
         private const int FetchJobAttempCount = 20;
         private readonly ConcurrentDictionary<string, AssetHandle> _assetLookup = new ConcurrentDictionary<string, AssetHandle>();
         // key: extension, value: asset loader
-        private readonly Dictionary<string, IBaseAssetHandler> _assetLoaders = new Dictionary<string, IBaseAssetHandler>();
+        private readonly Dictionary<string, IAssetLoader> _assetLoaders = new Dictionary<string, IAssetLoader>();
         // key: filename, value: file source
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Priority.CompareTo(b.Priority));

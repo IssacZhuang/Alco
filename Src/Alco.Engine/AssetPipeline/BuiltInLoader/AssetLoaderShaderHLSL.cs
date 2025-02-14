@@ -9,7 +9,7 @@ namespace Alco.Engine;
 /// <summary>
 /// Convert a shader text file to a shader object. This loader will compile the shader to SPIR-V and create a GPU shader object from it
 /// </summary>
-public class AssetLoaderShaderHLSL : IAssetLoader<Shader>
+public class AssetLoaderShaderHLSL : IAssetLoader
 {
     private static readonly string[] Extensions = [FileExt.ShaderHLSL];
     private readonly Func<string, string>? _includeResolver;
@@ -25,8 +25,26 @@ public class AssetLoaderShaderHLSL : IAssetLoader<Shader>
         _renderingSystem = renderingSystem;
     }
 
+    public bool CanHandleType(Type type)
+    {
+        return type == typeof(Shader) || type == typeof(string);
+    }
+
     /// <inheritdoc/>
-    public Shader CreateAsset(string filename, ReadOnlySpan<byte> file)
+    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    {
+        if (targetType == typeof(Shader))
+        {
+            return CreateShader(filename, file);
+        }
+        else if (targetType == typeof(string))
+        {
+            return Encoding.UTF8.GetString(file);
+        }
+        throw new InvalidOperationException($"Cannot create asset of type {targetType.Name}");
+    }
+
+    private object CreateShader(string filename, ReadOnlySpan<byte> file)
     {
         //ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         IncludeHelper includeHelper = new IncludeHelper();

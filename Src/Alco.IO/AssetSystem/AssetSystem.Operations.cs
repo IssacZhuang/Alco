@@ -39,7 +39,7 @@ public sealed partial class AssetSystem
 
 
                 // check the asset loader
-                if (!TryGetLoader(filename, out IAssetLoader<TAsset>? loader))
+                if (!TryGetLoader<TAsset>(filename, out IAssetLoader? loader))
                 {
                     asset = null;
                     failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
@@ -267,7 +267,7 @@ public sealed partial class AssetSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryLoadAssetCore<TAsset>(string filename, AssetHandle handle, IAssetLoader<TAsset> loader, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason) where TAsset : class
+    private bool TryLoadAssetCore<TAsset>(string filename, AssetHandle handle, IAssetLoader loader, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason) where TAsset : class
     {
         // assume the handle is locked
         // profile
@@ -290,9 +290,10 @@ public sealed partial class AssetSystem
         //     return false;
         // }
 
+        object? tmpAsset = null;
         try
         {
-            asset = loader.CreateAsset(filename, data.Span);
+            tmpAsset = loader.CreateAsset(filename, data.Span, typeof(TAsset));
             data.Dispose();
         }
         catch (Exception ex)
@@ -300,6 +301,13 @@ public sealed partial class AssetSystem
             failedReason = $"Exception occurred while creating asset {filename}: {ex}";
             asset = null;
             EndProfile(false);
+            return false;
+        }
+
+        asset = tmpAsset as TAsset;
+        if (asset == null)
+        {
+            failedReason = $"The asset loader {loader.Name} returned an asset of type {tmpAsset?.GetType().Name} instead of {typeof(TAsset).Name}";
             return false;
         }
 

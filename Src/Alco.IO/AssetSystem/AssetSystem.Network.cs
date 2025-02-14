@@ -54,7 +54,7 @@ public sealed partial class AssetSystem
                 handle.IsLoading = true;
 
                 // Get appropriate loader
-                if (!TryGetLoader(extension, out IAssetLoader<TAsset>? loader))
+                if (!TryGetLoader<TAsset>(url, out IAssetLoader? loader))
                 {
                     handle.IsLoading = false;
                     failedReason = $"No asset loader found for the URL '{url}' to type {typeof(TAsset).Name}";
@@ -80,10 +80,12 @@ public sealed partial class AssetSystem
 
                 var safeMemory = new SafeMemoryHandle(data);
 
+
+                object? tmpAsset = null;
                 // Create the asset
                 try
                 {
-                    asset = loader.CreateAsset(url, safeMemory.Span);
+                    tmpAsset = loader.CreateAsset(url, safeMemory.Span, typeof(TAsset));
                     safeMemory.Dispose();
                 }
                 catch (Exception ex)
@@ -91,6 +93,13 @@ public sealed partial class AssetSystem
                     handle.IsLoading = false;
                     EndProfile(false);
                     failedReason = $"Exception occurred while creating asset {url}: {ex}";
+                    return false;
+                }
+
+                asset = tmpAsset as TAsset;
+                if (asset == null)
+                {
+                    failedReason = $"The asset loader {loader.Name} returned an asset of type {tmpAsset?.GetType().Name} instead of {typeof(TAsset).Name}";
                     return false;
                 }
 

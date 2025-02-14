@@ -57,50 +57,70 @@ public class TestAssetSystem
         }
     }
 
-    private class TestFastAssetLoader : IAssetLoader<TestFastAsset>
+    private class TestFastAssetLoader : IAssetLoader
     {
         public string Name => "TestFastAssetLoader";
 
         public IReadOnlyList<string> FileExtensions => [".fast"];
 
-        public TestFastAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
+        public bool CanHandleType(Type type)
+        {
+            return type == typeof(TestFastAsset);
+        }
+
+        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             return new TestFastAsset();
         }
     }
 
-    private class TestSlowAssetLoader : IAssetLoader<TestSlowAsset>
+    private class TestSlowAssetLoader : IAssetLoader
     {
         public string Name => "TestSlowAssetLoader";
 
         public IReadOnlyList<string> FileExtensions => [".slow"];
 
-        public TestSlowAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
+        public bool CanHandleType(Type type)
+        {
+            return type == typeof(TestSlowAsset);
+        }
+
+        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             return new TestSlowAsset();
         }
     }
 
     //used for test error handling
-    private class TestEmptyAssetLoader : IAssetLoader<TestFastAsset>
+    private class TestEmptyAssetLoader : IAssetLoader
     {
         public string Name => "TestEmptyAssetLoader";
 
         public IReadOnlyList<string> FileExtensions => [".empty"];
 
-        public TestFastAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
+        public bool CanHandleType(Type type)
+        {
+            return type == typeof(TestFastAsset);
+        }
+
+        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             return null;
         }
     }
 
-    private class TestExceptionAssetLoader : IAssetLoader<TestFastAsset>
+    private class TestExceptionAssetLoader : IAssetLoader
     {
         public string Name => "TestExceptionAssetLoader";
 
         public IReadOnlyList<string> FileExtensions => [".exception"];
 
-        public TestFastAsset CreateAsset(string filename, ReadOnlySpan<byte> data)
+        public bool CanHandleType(Type type)
+        {
+            return type == typeof(TestFastAsset);
+        }
+
+        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
         {
             throw new Exception("Test Exception");
         }

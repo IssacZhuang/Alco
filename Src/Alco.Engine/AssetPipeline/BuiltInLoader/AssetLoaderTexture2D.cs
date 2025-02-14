@@ -11,7 +11,7 @@ namespace Alco.Engine;
 /// <summary>
 /// Represents an asset loader for Texture2D assets.
 /// </summary>
-public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
+public class AssetLoaderTexture2D : IAssetLoader
 {
     private static readonly string[] Extensions = new string[] {
         FileExt.ImagePNG,
@@ -33,12 +33,26 @@ public class AssetLoaderTexture2D : IAssetLoader<Texture2D>
         _renderingSystem = renderingSystem;
     }
 
-    /// <inheritdoc/>
-    public Texture2D CreateAsset(string filename, ReadOnlySpan<byte> file)
+    public bool CanHandleType(Type type)
     {
-        return _renderingSystem.CreateTexture2DFromFile(file, ImageLoadOption.Default with
-        {
-            Name = filename
-        });
+        return type == typeof(Texture2D) || type == typeof(Sprite);
     }
+
+    /// <inheritdoc/>
+    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    {
+        if (targetType == typeof(Texture2D))
+        {
+            return _renderingSystem.CreateTexture2DFromFile(file, ImageLoadOption.Default with
+            {
+                Name = filename
+            });
+        }
+        //todo: create sprite
+
+        throw new InvalidOperationException($"Cannot create asset of type {targetType.Name}");
+    }
+
+    
+
 }

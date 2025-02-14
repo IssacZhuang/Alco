@@ -7,10 +7,9 @@ public sealed partial class AssetSystem
     /// <summary>
     /// Register the asset loader to the asset manager
     /// </summary>
-    /// <typeparam name="TAsset">The type of asset</typeparam>
     /// <param name="assetLoader">The asset loader to register</param>
     /// <exception cref="Exception">Thrown when the asset loader for the extension already exists</exception>
-    public void RegisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
+    public void RegisterAssetLoader(IAssetLoader assetLoader)
     {
         foreach (var extension in assetLoader.FileExtensions)
         {
@@ -28,9 +27,8 @@ public sealed partial class AssetSystem
     /// <summary>
     /// Unregister the asset loader from the asset manager
     /// </summary>
-    /// <typeparam name="TAsset">The type of asset</typeparam>
     /// <param name="assetLoader">The asset loader to unregister</param>
-    public void UnregisterAssetLoader<TAsset>(IAssetLoader<TAsset> assetLoader) where TAsset : class
+    public void UnregisterAssetLoader(IAssetLoader assetLoader)
     {
         foreach (var extension in assetLoader.FileExtensions)
         {
@@ -46,24 +44,24 @@ public sealed partial class AssetSystem
         _isEntryDirty = true;
     }
 
-    private bool TryGetLoader<TAsset>(string filename, [NotNullWhen(true)] out IAssetLoader<TAsset>? loader) where TAsset : class
+    private bool TryGetLoader<TAsset>(string filename, [NotNullWhen(true)] out IAssetLoader? loader)
     {
         string extension = Path.GetExtension(filename);
-        if (!_assetLoaders.TryGetValue(extension, out IBaseAssetHandler? assetLoader))
+        if (!_assetLoaders.TryGetValue(extension, out IAssetLoader? assetLoader))
         {
             _host.LogError($"Trying to get asset {filename} but the asset loader does not exist");
             loader = null;
             return false;
         }
 
-        if (assetLoader is not IAssetLoader<TAsset> assetLoaderT)
+        if (!assetLoader.CanHandleType(typeof(TAsset)))
         {
             _host.LogError($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset loader does not support this type");
             loader = null;
             return false;
         }
 
-        loader = assetLoaderT;
+        loader = assetLoader;
         return true;
     }
 

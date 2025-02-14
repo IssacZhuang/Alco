@@ -7,7 +7,7 @@ namespace Alco.Engine;
 /// <summary>
 /// The loader for ogg audio
 /// </summary>
-public class AssetLoaderAudioVorbis : IAssetLoader<AudioClip>
+public class AssetLoaderAudioVorbis : IAssetLoader
 {
     private readonly AudioDevice _device;
 
@@ -20,7 +20,12 @@ public class AssetLoaderAudioVorbis : IAssetLoader<AudioClip>
         _device = device;
     }
 
-    public AudioClip CreateAsset(string filename, ReadOnlySpan<byte> data)
+    public bool CanHandleType(Type type)
+    {
+        return type == typeof(AudioClip);
+    }
+
+    public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
     {
         return _device.CreateAudioClipFromOgg(data);
     }

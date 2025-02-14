@@ -8,7 +8,7 @@ namespace Alco.Engine;
 /// <summary>
 /// The loader for true type font file
 /// </summary>
-public class AssetLoaderFontTTF : IAssetLoader<Font>
+public class AssetLoaderFontTTF : IAssetLoader
 {
     private static readonly string[] Extensions = [FileExt.FontTrueType];
     private readonly RenderingSystem _renderingSystem;
@@ -20,7 +20,11 @@ public class AssetLoaderFontTTF : IAssetLoader<Font>
     {
         _renderingSystem = renderingSystem;
     }
-    public Font CreateAsset(string filename, ReadOnlySpan<byte> file)
+    public bool CanHandleType(Type type)
+    {
+        return type == typeof(Font);
+    }
+    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
     {
 
         using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
