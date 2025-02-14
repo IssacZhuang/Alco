@@ -58,8 +58,10 @@ public sealed partial class AssetSystem
                 handle.SetCache(newAsset, cacheMode);
 
                 handle.IsLoading = false;
-
                 asset = newAsset;
+
+                //post-process
+                loader.OnAssetLoaded(newAsset);
                 return true;
             }
         }

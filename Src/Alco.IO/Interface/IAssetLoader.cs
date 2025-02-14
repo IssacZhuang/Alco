@@ -37,6 +37,14 @@ public interface IAssetLoader
     /// <param name="targetType">The type of the asset.</param>
     /// <returns>The created asset.</returns>
     object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType);
+
+    /// <summary>
+    /// Called when the asset is loaded. At this point, the asset is already created and put into the cache.
+    /// <br/>
+    /// You can do some post-processing here like resolving cross-references.
+    /// </summary>
+    /// <param name="asset">The asset that is loaded.</param>
+    void OnAssetLoaded(object asset);
 }
 
 

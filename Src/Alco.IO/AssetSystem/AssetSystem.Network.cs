@@ -36,7 +36,6 @@ public sealed partial class AssetSystem
             return false;
         }
 
-        string extension = Path.GetExtension(url);
         AssetHandle handle = GetAssetHandle(url);
 
         try
@@ -53,15 +52,15 @@ public sealed partial class AssetSystem
 
                 handle.IsLoading = true;
 
+                StartProfile<TAsset>(url);
+
                 // Get appropriate loader
                 if (!TryGetLoader<TAsset>(url, out IAssetLoader? loader))
                 {
-                    handle.IsLoading = false;
                     failedReason = $"No asset loader found for the URL '{url}' to type {typeof(TAsset).Name}";
-                    return false;
+                    return FailWithCleanup();
                 }
 
-                StartProfile<TAsset>(url);
 
                 // Download the data
                 byte[] data;
@@ -70,12 +69,9 @@ public sealed partial class AssetSystem
                     data = HttpClient.GetByteArrayAsync(url).Result;
                 }
                 catch (Exception ex)
-
                 {
-                    handle.IsLoading = false;
-                    EndProfile(false);
                     failedReason = $"Failed to download remote asset '{url}': {ex.Message}";
-                    return false;
+                    return FailWithCleanup();
                 }
 
                 var safeMemory = new SafeMemoryHandle(data);
@@ -90,22 +86,30 @@ public sealed partial class AssetSystem
                 }
                 catch (Exception ex)
                 {
-                    handle.IsLoading = false;
-                    EndProfile(false);
                     failedReason = $"Exception occurred while creating asset {url}: {ex}";
-                    return false;
+                    return FailWithCleanup();
                 }
 
                 asset = tmpAsset as TAsset;
                 if (asset == null)
                 {
                     failedReason = $"The asset loader {loader.Name} returned an asset of type {tmpAsset?.GetType().Name} instead of {typeof(TAsset).Name}";
-                    return false;
+                    return FailWithCleanup();
                 }
 
                 // Cache the result
                 handle.SetCache(asset, cacheMode);
                 handle.IsLoading = false;
+
+                try
+                {
+                    loader.OnAssetLoaded(asset);
+                }
+                catch (Exception ex)
+                {
+                    failedReason = $"Failed to post-process asset {url}: {ex}";
+                    return FailWithCleanup();
+                }
 
                 EndProfile();
 
@@ -115,6 +119,13 @@ public sealed partial class AssetSystem
         catch (Exception ex)
         {
             failedReason = $"Failed to load remote asset '{url}': {ex.Message}";
+            return false;
+        }
+
+        bool FailWithCleanup()
+        {
+            handle.IsLoading = false;
+            EndProfile(false);
             return false;
         }
     }
