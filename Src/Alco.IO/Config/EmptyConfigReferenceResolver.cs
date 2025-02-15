@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Alco;
+namespace Alco.IO;
 
 public class EmptyConfigReferenceResolver : IConfigReferenceResolver
 {

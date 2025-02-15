@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Alco;
+namespace Alco.IO;
 
 /// <summary>
 /// JSON converter for System.Type.

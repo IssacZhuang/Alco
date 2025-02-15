@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Alco;
+namespace Alco.IO;
 
 public class JsonConverterConfigReference : JsonConverter<IConfig>
 {

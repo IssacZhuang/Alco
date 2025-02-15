@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Alco;
+namespace Alco.IO;
 
 /// <summary>
 /// Json converter for VectorN.

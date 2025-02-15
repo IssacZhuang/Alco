@@ -1,4 +1,4 @@
-namespace Alco;
+namespace Alco.IO;
 
 public interface IConfig
 {

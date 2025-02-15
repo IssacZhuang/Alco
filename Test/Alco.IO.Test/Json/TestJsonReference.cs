@@ -2,9 +2,8 @@ using System;
 using System.Text.Json;
 using System.Collections.Generic;
 using NUnit.Framework;
-using System.Text.Json.Serialization;
 
-namespace Alco.Test;
+namespace Alco.IO.Test;
 
 [TestFixture]
 public class TestJsonReference

@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Alco;
+namespace Alco.IO;
 
 public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
 {

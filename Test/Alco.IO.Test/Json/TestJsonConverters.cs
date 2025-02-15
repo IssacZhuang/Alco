@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Collections.Generic;
 using NUnit.Framework;
 
-namespace Alco.Test;
+namespace Alco.IO.Test;
 
 
 
@@ -246,13 +246,13 @@ public class TestJsonConverters
     {
         var options = new JsonSerializerOptions
         {
-            Converters = { new JsonConverterType() }
+            Converters = { new JsonConverterType(typeof(TestTypeObject).Assembly) }
         };
 
         var original = new TestTypeObject
         {
             SystemType = typeof(int),
-            CustomType = typeof(JsonConverterType)
+            CustomType = typeof(TestTypeObject)
         };
 
         string json = JsonSerializer.Serialize(original, options);
@@ -262,7 +262,7 @@ public class TestJsonConverters
         Assert.Multiple(() =>
         {
             Assert.That(deserialized.SystemType, Is.EqualTo(typeof(int)));
-            Assert.That(deserialized.CustomType, Is.EqualTo(typeof(JsonConverterType)));
+            Assert.That(deserialized.CustomType, Is.EqualTo(typeof(TestTypeObject)));
         });
     }
 
