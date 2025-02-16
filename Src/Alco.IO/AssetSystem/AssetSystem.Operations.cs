@@ -9,13 +9,12 @@ public sealed partial class AssetSystem
     /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
     /// <br/>This method is thread safe.
     /// </summary>
-    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
     /// <param name="filename">The filename of the asset to load.</param>
     /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
     /// <param name="failedReason">When this method returns, contains the reason why the asset failed to load if unsuccessful; otherwise, <c>null</c>.</param>
     /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
     /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
-    public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    public bool TryLoad(string filename, Type type, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
     {
         TryRefreshEntries();
         filename = ParseEntry(filename);
@@ -28,9 +27,9 @@ public sealed partial class AssetSystem
             lock (handle)
             {
                 object? cachedAsset = handle.CachedAsset;
-                if (cachedAsset is TAsset cached)
+                if (cachedAsset != null && type.IsInstanceOfType(cachedAsset))
                 {
-                    asset = cached;
+                    asset = cachedAsset;
                     return true;
                 }
 
@@ -39,16 +38,16 @@ public sealed partial class AssetSystem
 
 
                 // check the asset loader
-                if (!TryGetLoader<TAsset>(filename, out IAssetLoader? loader))
+                if (!TryGetLoader(filename, type, out IAssetLoader? loader))
                 {
                     asset = null;
-                    failedReason = $"No asset loader found for the file '{filename}' to type {typeof(TAsset).Name}";
+                    failedReason = $"No asset loader found for the file '{filename}' to type {type.Name}";
                     return false;
                 }
 
                 // // profile
                 // EndProfile();
-                if (!TryLoadAssetCore(filename, handle, loader, out TAsset? newAsset, out failedReason))
+                if (!TryLoadAssetCore(filename, type, handle, loader, out object? newAsset, out failedReason))
                 {
                     asset = null;
                     return false;
@@ -71,7 +70,42 @@ public sealed partial class AssetSystem
             asset = null;
             return false;
         }
+    }
 
+    /// <summary>
+    /// Tries to load an asset from the specified filename. The type of the asset is determined by the type parameter.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="type">The type of the asset to load.</param>
+    /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
+    public bool TryLoad(string filename, Type type, [NotNullWhen(true)] out object? asset, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
+    {
+        return TryLoad(filename, type, out asset, out _, cacheMode);
+    }
+
+    /// <summary>
+    /// Tries to load an asset of type <typeparamref name="TAsset"/> from the specified filename.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="asset">When this method returns, contains the loaded asset if successful; otherwise, <c>null</c>.</param>
+    /// <param name="failedReason">When this method returns, contains the reason why the asset failed to load if unsuccessful; otherwise, <c>null</c>.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns></returns>
+    public bool TryLoad<TAsset>(string filename, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
+    {
+        bool result = TryLoad(filename, typeof(TAsset), out object? assetObject, out failedReason, cacheMode);
+        if (result)
+        {
+            asset = (TAsset)assetObject!;
+            return true;
+        }
+        asset = default;
+        return false;
     }
 
     /// <summary>
@@ -106,6 +140,15 @@ public sealed partial class AssetSystem
         throw new AssetLoadException(failedReason);
     }
 
+    public object Load(string filename, Type type, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
+    {
+        if (TryLoad(filename, type, out object? asset, out string? failedReason, cacheMode))
+        {
+            return asset;
+        }
+        throw new AssetLoadException(failedReason);
+    }
+
 
     /// <summary>
     /// Load asset file and preprocess the asset asynchronously, then return the asset as a task.
@@ -120,16 +163,28 @@ public sealed partial class AssetSystem
         return Task.Run(() => Load<TAsset>(filename, cacheMode));
     }
 
+    /// <summary>
+    /// Load asset file and preprocess the asset asynchronously, then return the asset as a task.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="type">The type of the asset to load.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    /// <returns>The loaded asset as a task.</returns>
+    public Task<object> LoadAsync(string filename, Type type, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
+    {
+        return Task.Run(() => Load(filename, type, cacheMode));
+    }
+
 
     /// <summary>
     /// Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
     /// <br/>This method is thread safe.
     /// </summary>
-    /// <typeparam name="TAsset">The type of asset.</typeparam>
     /// <param name="filename">Path and name of the asset file.</param>
     /// <param name="onComplete">The callback action when the asset is loaded.</param>
     /// <param name="cacheMode">Whether to cache the asset.</param>
-    public void LoadAsync<TAsset>(string filename, Action<TAsset, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    public void LoadAsync(string filename, Type type, Action<object, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
     {
 
         filename = ParseEntry(filename);
@@ -139,14 +194,14 @@ public sealed partial class AssetSystem
         {
             //try load from cache
             object? cachedAsset = handle.CachedAsset;
-            if (cachedAsset is TAsset cached)
+            if (cachedAsset != null && type.IsInstanceOfType(cachedAsset))
             {
-                onComplete(cached, null);
+                onComplete(cachedAsset, null);
                 return;
             }
 
             // check the asset loader
-            handle.OnLoadComplete += (asset, exception) => onComplete((TAsset)asset, exception);
+            handle.OnLoadComplete += (asset, exception) => onComplete(asset, exception);
 
             if (handle.IsLoading)
             {
@@ -158,15 +213,26 @@ public sealed partial class AssetSystem
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
                 name = filename,
-                onCreate = GetOnCreateAction<TAsset>(filename, cacheMode), // on worker thread
+                onCreate = GetOnCreateAction(filename, type, cacheMode), // on worker thread
                 handle = handle,
                 cacheMode = cacheMode
             };
 
             PushJob(job);
-
         }
+    }
 
+    /// <summary>
+    /// Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
+    /// <param name="filename">The filename of the asset to load.</param>
+    /// <param name="onComplete">The callback action when the asset is loaded.</param>
+    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
+    public void LoadAsync<TAsset>(string filename, Action<TAsset, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
+    {
+        LoadAsync(filename, typeof(TAsset), (asset, exception) => onComplete((TAsset)asset, exception), cacheMode);
     }
 
     /// <summary>
@@ -195,11 +261,11 @@ public sealed partial class AssetSystem
 
 
     //on worker thread
-    private Func<object?> GetOnCreateAction<TAsset>(string filename, AssetCacheMode cacheMode) where TAsset : class
+    private Func<object?> GetOnCreateAction(string filename, Type type, AssetCacheMode cacheMode)
     {
         return () =>
         {
-            return Load<TAsset>(filename, cacheMode);
+            return Load(filename, type, cacheMode);
         };
     }
 
@@ -269,11 +335,11 @@ public sealed partial class AssetSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryLoadAssetCore<TAsset>(string filename, AssetHandle handle, IAssetLoader loader, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason) where TAsset : class
+    private bool TryLoadAssetCore(string filename, Type type, AssetHandle handle, IAssetLoader loader, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string failedReason)
     {
         // assume the handle is locked
         // profile
-        StartProfile<TAsset>(filename);
+        StartProfile(filename, type);
 
         // IO
         if (!TryLoadDataFromSource(filename, out SafeMemoryHandle data))
@@ -284,18 +350,9 @@ public sealed partial class AssetSystem
             return false;
         }
 
-        // // create the asset
-        // if (!loader.TryCreateAsset(filename, data, out asset))
-        // {
-        //     failedReason = $"Trying to get asset {filename} but the asset loader failed to load the asset";
-        //     asset = null;
-        //     return false;
-        // }
-
-        object? tmpAsset = null;
         try
         {
-            tmpAsset = loader.CreateAsset(filename, data.Span, typeof(TAsset));
+            asset = loader.CreateAsset(filename, data.Span, type);
             data.Dispose();
         }
         catch (Exception ex)
@@ -306,10 +363,9 @@ public sealed partial class AssetSystem
             return false;
         }
 
-        asset = tmpAsset as TAsset;
-        if (asset == null)
+        if (asset == null || !type.IsInstanceOfType(asset))
         {
-            failedReason = $"The asset loader {loader.Name} returned an asset of type {tmpAsset?.GetType().Name} instead of {typeof(TAsset).Name}";
+            failedReason = $"The asset loader {loader.Name} returned an asset of type {asset?.GetType().Name} instead of {type.Name}";
             return false;
         }
 

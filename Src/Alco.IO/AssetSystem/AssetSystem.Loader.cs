@@ -44,7 +44,7 @@ public sealed partial class AssetSystem
         _isEntryDirty = true;
     }
 
-    private bool TryGetLoader<TAsset>(string filename, [NotNullWhen(true)] out IAssetLoader? loader)
+    private bool TryGetLoader(string filename, Type type, [NotNullWhen(true)] out IAssetLoader? loader)
     {
         //lower gc allocation a little bit
         ReadOnlySpan<char> extension = Path.GetExtension(filename.AsSpan());
@@ -57,9 +57,9 @@ public sealed partial class AssetSystem
             return false;
         }
 
-        if (!assetLoader.CanHandleType(typeof(TAsset)))
+        if (!assetLoader.CanHandleType(type))
         {
-            _host.LogError($"Trying to get asset {filename} with type {typeof(TAsset).Name} but the asset loader does not support this type");
+            _host.LogError($"Trying to get asset {filename} with type {type.Name} but the asset loader does not support this type");
             loader = null;
             return false;
         }
