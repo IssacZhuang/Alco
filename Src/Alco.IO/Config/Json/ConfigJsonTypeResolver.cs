@@ -43,7 +43,11 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         {
             if (property.PropertyType.IsAssignableTo(typeof(IConfig)))
             {
-                property.CustomConverter = new JsonConverterConfigReference(_configResolver);
+                property.CustomConverter = new JsonConverterConfigReference(
+                    property.Name,
+                    property.PropertyType,
+                    _configResolver
+                );
             }
         }
     }

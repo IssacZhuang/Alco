@@ -24,7 +24,7 @@ public class TestJsonReference
             _configs[config.Id] = config;
         }
 
-        public bool TryResolve(string id, out IConfig config)
+        public bool TryResolve(string id, string propertyName, Type propertyType, out IConfig config)
         {
             return _configs.TryGetValue(id, out config);
         }

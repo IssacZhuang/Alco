@@ -7,10 +7,18 @@ namespace Alco.IO;
 public class JsonConverterConfigReference : JsonConverter<IConfig>
 {
     private readonly IConfigReferenceResolver _configResolver;
+    private readonly string _propertyName;
+    private readonly Type _propertyType;// the real type of the property or field
 
-    public JsonConverterConfigReference(IConfigReferenceResolver configResolver)
+    public JsonConverterConfigReference(
+        string propertyName,
+        Type realType,
+        IConfigReferenceResolver configResolver
+    )
     {
         _configResolver = configResolver;
+        _propertyName = propertyName;
+        _propertyType = realType;
     }
 
     public override IConfig Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -21,7 +29,7 @@ public class JsonConverterConfigReference : JsonConverter<IConfig>
         }
 
         string id = reader.GetString() ?? throw new JsonException("The reference of config must be a string id.");
-        if (!_configResolver.TryResolve(id, out var config))
+        if (!_configResolver.TryResolve(id, _propertyName, _propertyType, out var config))
         {
             throw new JsonException($"The config with id {id} is not found.");
         }
