@@ -212,8 +212,9 @@ public sealed partial class AssetSystem
 
             AsyncPreprocessJob job = new AsyncPreprocessJob()
             {
+                system = this,
                 name = filename,
-                onCreate = GetOnCreateAction(filename, type, cacheMode), // on worker thread
+                type = type,
                 handle = handle,
                 cacheMode = cacheMode
             };
@@ -259,15 +260,6 @@ public sealed partial class AssetSystem
         return false;
     }
 
-
-    //on worker thread
-    private Func<object?> GetOnCreateAction(string filename, Type type, AssetCacheMode cacheMode)
-    {
-        return () =>
-        {
-            return Load(filename, type, cacheMode);
-        };
-    }
 
     private bool TryLoadDataFromSource(string filename, out SafeMemoryHandle data)
     {

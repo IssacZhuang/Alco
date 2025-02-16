@@ -35,13 +35,14 @@ namespace Alco.IO
         // Threads
         private struct AsyncPreprocessJob : IJob
         {
-            public string name;
+            public AssetSystem system;
             public AssetHandle handle;
-            public Func<object?> onCreate;
+            public string name;
+            public Type type;
             public AssetCacheMode cacheMode;
             public void Execute()
             {
-                handle.tmpAsset = onCreate();
+                handle.tmpAsset = system.Load(name, type, cacheMode);
             }
         }
 
