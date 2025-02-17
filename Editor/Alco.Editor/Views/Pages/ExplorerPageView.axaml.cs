@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Collections.ObjectModel;
+using System.Reflection;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -9,6 +11,7 @@ using Avalonia.Platform.Storage;
 using System.Collections.Generic;
 
 using Alco.Editor.Models;
+using Alco.Editor.Attributes;
 
 namespace Alco.Editor.Views
 {
@@ -17,6 +20,7 @@ namespace Alco.Editor.Views
         private readonly ObservableCollection<TreeViewItem> _rootItems;
         private readonly List<FileEditorMeta> _fileEditorMetas = new();
         private FileEditor? _currentEditor;
+        private ContextMenu? _contextMenu;
 
         public event EventHandler<FileEditor>? FileEditorCreated;
 
@@ -27,7 +31,87 @@ namespace Alco.Editor.Views
             InitializeComponent();
             _rootItems = new ObservableCollection<TreeViewItem>();
             FileTreeView.ItemsSource = _rootItems;
-            
+
+            InitializeContextMenu();
+        }
+
+        private void InitializeContextMenu()
+        {
+            _contextMenu = new ContextMenu();
+
+            // 获取所有带有 MenuItem 特性的方法
+            var menuItems = typeof(ExplorerContextMenuItems)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .Where(m => m.GetCustomAttribute<MenuItemAttribute>() != null)
+                .Select(m => new { Method = m, Attribute = m.GetCustomAttribute<MenuItemAttribute>()! })
+                .GroupBy(x => x.Attribute.Path.Split('/')[0])
+                .OrderBy(g => g.Key);
+
+            foreach (var group in menuItems)
+            {
+                if (group.Count() == 1 && !group.First().Attribute.Path.Contains('/'))
+                {
+                    // 单个菜单项
+                    var item = group.First();
+                    var menuItem = new MenuItem { Header = group.Key };
+                    menuItem.Click += async (s, e) =>
+                    {
+                        if (s is MenuItem mi && mi.Parent is ContextMenu cm)
+                        {
+                            var treeViewItem = cm.PlacementTarget as TreeViewItem;
+                            if (treeViewItem != null)
+                            {
+                                await (Task)item.Method.Invoke(null, new object[] { treeViewItem })!;
+                                // 刷新目录
+                                var path = treeViewItem.Tag as string;
+                                if (path != null)
+                                {
+                                    if (File.Exists(path))
+                                    {
+                                        path = Path.GetDirectoryName(path);
+                                    }
+                                    await LoadDirectoryContents(treeViewItem.Parent as TreeViewItem ?? treeViewItem, path!);
+                                }
+                            }
+                        }
+                    };
+                    _contextMenu.Items.Add(menuItem);
+                }
+                else
+                {
+                    // 子菜单
+                    var subMenu = new MenuItem { Header = group.Key };
+                    foreach (var item in group.OrderBy(x => x.Attribute.Path))
+                    {
+                        var menuItem = new MenuItem { Header = item.Attribute.Path.Split('/')[1] };
+                        menuItem.Click += async (s, e) =>
+                        {
+                            if (s is MenuItem mi && mi.Parent is MenuItem parentMi && parentMi.Parent is ContextMenu cm)
+                            {
+                                var treeViewItem = cm.PlacementTarget as TreeViewItem;
+                                if (treeViewItem != null)
+                                {
+                                    await (Task)item.Method.Invoke(null, new object[] { treeViewItem })!;
+                                    // 刷新目录
+                                    var path = treeViewItem.Tag as string;
+                                    if (path != null)
+                                    {
+                                        if (File.Exists(path))
+                                        {
+                                            path = Path.GetDirectoryName(path);
+                                        }
+                                        await LoadDirectoryContents(treeViewItem.Parent as TreeViewItem ?? treeViewItem, path!);
+                                    }
+                                }
+                            }
+                        };
+                        subMenu.Items.Add(menuItem);
+                    }
+                    _contextMenu.Items.Add(subMenu);
+                }
+            }
+
+            FileTreeView.ContextMenu = _contextMenu;
         }
 
         private async void OnOpenFolderClick(object sender, RoutedEventArgs e)

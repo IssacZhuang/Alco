@@ -22,8 +22,7 @@
                 <!-- File tree view - initially hidden -->
                 <TreeView x:Name="FileTreeView"
                     IsVisible="False"
-                    DoubleTapped="OnFileTreeViewDoubleTapped">
-                </TreeView>
+                    DoubleTapped="OnFileTreeViewDoubleTapped" />
             </Grid>
         </Border>
 

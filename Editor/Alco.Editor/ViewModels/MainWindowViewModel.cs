@@ -8,131 +8,123 @@ using Alco.Editor.Models;
 using Alco.Engine;
 using Avalonia.Controls;
 
-namespace Alco.Editor.ViewModels
+namespace Alco.Editor.ViewModels;
+
+public class MenuItemViewModel
 {
-    public class MenuItemViewModel
+    public string Header { get; set; } = string.Empty;
+    public Action<Avalonia.Controls.Window>? Action { get; set; }
+    public Dictionary<string, MenuItemViewModel> Child { get; set; } = new();
+}
+
+public partial class MainWindowViewModel : ViewModelBase, IDisposable
+{
+    private bool _disposed;
+    private readonly HashSet<string> _menuItemPaths = new();
+    public GameEngine Engine { get; }
+
+    public string Greeting { get; } = "Welcome to Avalonia!";
+    public List<Page> Pages { get; } = [];
+    public List<MenuItemViewModel> MainMenuItems { get; } = [];
+
+    public MainWindowViewModel()
     {
-        public string Header { get; set; } = string.Empty;
-        public Action<Avalonia.Controls.Window>? Action { get; set; }
-        public Dictionary<string, MenuItemViewModel> Child { get; set; } = new();
+        Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+
+        SetupPages();
+        SetupMainMenu();
     }
 
-    public partial class MainWindowViewModel : ViewModelBase, IDisposable
+    private void SetupPages()
     {
-        private bool _disposed;
-        private readonly HashSet<Assembly> _assemblies = new();
-        private readonly HashSet<string> _menuItemPaths = new();
-        public GameEngine Engine {get;}
+        Pages.Add(new ExplorerPage());
+    }
 
-        public string Greeting { get; } = "Welcome to Avalonia!";
-        public List<Page> Pages { get; } = [];
-        public List<MenuItemViewModel> MainMenuItems { get; } = [];
-
-        public MainWindowViewModel(params Assembly[] assemblies)
+    private void SetupMainMenu()
+    {
+        var menuItemMethods = GetMenuItemMethods();
+        foreach (var (method, attribute) in menuItemMethods)
         {
-            _assemblies.Add(Assembly.GetExecutingAssembly());
-            _assemblies.Add(Assembly.GetEntryAssembly()!);
-            foreach (var assembly in assemblies)
-            {
-                _assemblies.Add(assembly);
-            }
+            AddMenuItem(method, attribute);
+        }
+    }
 
-            Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
-
-            SetupPages();
-            SetupMainMenu();
+    private void AddMenuItem(MethodInfo method, MenuItemAttribute attribute)
+    {
+        if (_menuItemPaths.Contains(attribute.Path))
+        {
+            Console.WriteLine($"Duplicate menu item path: {attribute.Path}");
+            return;
         }
 
-        private void SetupPages()
+        _menuItemPaths.Add(attribute.Path);
+
+        string[] path = attribute.Path.Split('/');
+
+        var currentLevel = MainMenuItems;
+        MenuItemViewModel? currentItem = null;
+
+        for (int i = 0; i < path.Length; i++)
         {
-            Pages.Add(new ExplorerPage());
-        }
+            var segment = path[i];
 
-        private void SetupMainMenu()
-        {
-            var menuItemMethods = GetMenuItemMethods();
-            foreach (var (method, attribute) in menuItemMethods)
+            if (i == 0) // Top level menu
             {
-                AddMenuItem(method, attribute);
-            }
-        }
-
-        private void AddMenuItem(MethodInfo method, MenuItemAttribute attribute)
-        {
-            if (_menuItemPaths.Contains(attribute.Path))
-            {
-                Console.WriteLine($"Duplicate menu item path: {attribute.Path}");
-                return;
-            }
-
-            _menuItemPaths.Add(attribute.Path);
-
-            string[] path = attribute.Path.Split('/');
-
-            var currentLevel = MainMenuItems;
-            MenuItemViewModel? currentItem = null;
-
-            for (int i = 0; i < path.Length; i++)
-            {
-                var segment = path[i];
-
-                if (i == 0) // Top level menu
+                currentItem = currentLevel.FirstOrDefault(x => x.Header == segment);
+                if (currentItem == null)
                 {
-                    currentItem = currentLevel.FirstOrDefault(x => x.Header == segment);
-                    if (currentItem == null)
-                    {
-                        currentItem = new MenuItemViewModel { Header = segment };
-                        currentLevel.Add(currentItem);
-                    }
-                }
-                else // Sub menu
-                {
-                    if (!currentItem!.Child.TryGetValue(segment, out var childItem))
-                    {
-                        childItem = new MenuItemViewModel { Header = segment };
-                        currentItem.Child[segment] = childItem;
-                    }
-                    currentItem = childItem;
-                }
-
-                // Set action for the last segment
-                if (i == path.Length - 1)
-                {
-                    currentItem.Action = (window) => method.Invoke(null, new[] { window });
+                    currentItem = new MenuItemViewModel { Header = segment };
+                    currentLevel.Add(currentItem);
                 }
             }
-        }
-
-        private IEnumerable<(MethodInfo, MenuItemAttribute)> GetMenuItemMethods()
-        {
-            return from assembly in _assemblies
-                   from type in assembly.GetTypes()
-                   from method in type.GetMethods()
-                   where method.GetCustomAttributes(typeof(MenuItemAttribute), false).Length > 0
-                   select (method, method.GetCustomAttribute<MenuItemAttribute>()!);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_disposed) return;
-
-            if (disposing)
+            else // Sub menu
             {
-                Engine.Dispose();
+                if (!currentItem!.Child.TryGetValue(segment, out var childItem))
+                {
+                    childItem = new MenuItemViewModel { Header = segment };
+                    currentItem.Child[segment] = childItem;
+                }
+                currentItem = childItem;
             }
 
-            _disposed = true;
+            // Set action for the last segment
+            if (i == path.Length - 1)
+            {
+                currentItem.Action = (window) => method.Invoke(null, new[] { window });
+            }
+        }
+    }
+
+    private IEnumerable<(MethodInfo, MenuItemAttribute)> GetMenuItemMethods()
+    {
+        return from assembly in AppDomain.CurrentDomain.GetAssemblies()
+               from type in assembly.GetTypes()
+               from method in type.GetMethods()
+               where method.GetCustomAttributes(typeof(MenuItemAttribute), false).Length > 0
+               select (method, method.GetCustomAttribute<MenuItemAttribute>()!);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
+        {
+            Engine.Dispose();
         }
 
-        ~MainWindowViewModel()
-        {
-            Dispose(false);
-        }
+        _disposed = true;
+    }
+
+    ~MainWindowViewModel()
+    {
+        Dispose(false);
     }
 }
+
