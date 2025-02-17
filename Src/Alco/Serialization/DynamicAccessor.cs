@@ -45,8 +45,8 @@ public class DynamicAccessor
     private readonly string[] _fieldNames;
     private readonly Type _targetType;
 
-    public string[] PropertyNames => _propertyNames;
-    public string[] FieldNames => _fieldNames;
+    public IReadOnlyList<string> PropertyNames => _propertyNames;
+    public IReadOnlyList<string> FieldNames => _fieldNames;
     public Type TargetType => _targetType;
 
     public DynamicAccessor(Type targetType)

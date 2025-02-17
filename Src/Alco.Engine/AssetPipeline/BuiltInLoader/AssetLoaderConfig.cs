@@ -1,9 +1,10 @@
 
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
+using System.Text.Json.Serialization.Metadata;
 using Alco.IO;
 
 namespace Alco.Engine;
@@ -25,11 +26,15 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
         }
     }
 
-    private static readonly ConditionalWeakTable<IConfig, ConfigReference> _configReferences = new();
+    private readonly ConcurrentDictionary<Type, DynamicAccessor> _dynamicAccessors = new();
+    private readonly ConditionalWeakTable<IConfig, ConfigReference> _configReferences = new();
+    private readonly ConcurrentDictionary<string, IConfig> _loadingConfigs = new();
     private readonly JsonSerializerOptions _options;
+    private readonly AssetSystem _assetSystem;
 
-    public AssetLoaderConfig()
+    public AssetLoaderConfig(AssetSystem assetSystem)
     {
+        _assetSystem = assetSystem;
         var typeResolver = new ConfigJsonTypeResolver(this);
         _options = new JsonSerializerOptions()
         {
@@ -60,16 +65,32 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 
     public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
     {
-        throw new NotImplementedException();
+        IConfig asset = JsonSerializer.Deserialize<IConfig>(data, _options) ?? throw new InvalidOperationException($"Failed to deserialize {filename}");
+        _loadingConfigs.TryAdd(filename, asset);
+
+        try
+        {
+            ResolveRealReference(asset);
+            return asset;
+        }
+        catch
+        {
+            //rethrow the exception
+            throw;
+        }
+        finally
+        {
+            _loadingConfigs.TryRemove(filename, out _);
+        }
     }
 
-    public void OnAssetLoaded(object asset)
+    bool IConfigReferenceResolver.TryResolve(string id, string propertyName, Type propertyType, out IConfig config)
     {
-        //resolve the reference after the asset is loaded
-    }
+        if (_loadingConfigs.TryGetValue(id, out config!))
+        {
+            return true;
+        }
 
-    bool IConfigReferenceResolver.TryResolve(string id, string propertyName, Type propertyType, out IConfig? config)
-    {
         //it might be loop loading if resolve the reference immediately
         //so just create a placeholder config to store the reference
         IConfig placeHolder = Activator.CreateInstance(propertyType) as IConfig ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
@@ -78,13 +99,52 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
         return true;
     }
 
-    private static bool TryGetReference(IConfig config, [NotNullWhen(true)] out ConfigReference? references)
+    private void ResolveRealReference(IConfig asset)
     {
+        var accessor = GetDynamicAccessor(asset.GetType());
+        JsonTypeInfo typeInfo = _options.GetTypeInfo(asset.GetType());
+
+        for (int i = 0; i < typeInfo.Properties.Count; i++)
+        {
+            var property = typeInfo.Properties[i];
+            if (property.PropertyType.IsAssignableTo(typeof(IConfig)))
+            {
+                var config = accessor.GetValue(asset, property.Name) as IConfig;
+
+                if (TryGetReference(config, out var reference))
+                {
+                    object realConfig = _assetSystem.Load(reference.Id, reference.PropertyType);
+                    accessor.SetValue(asset, property.Name, realConfig);
+                }
+            }
+        }
+
+    }
+
+    private bool TryGetReference(IConfig? config, [NotNullWhen(true)] out ConfigReference? references)
+    {
+        if (config == null)
+        {
+            references = null;
+            return false;
+        }
         return _configReferences.TryGetValue(config, out references);
     }
 
-    private static void SetReference(IConfig config, ConfigReference reference)
+    private void SetReference(IConfig config, ConfigReference reference)
     {
         _configReferences.AddOrUpdate(config, reference);
+    }
+
+    private DynamicAccessor GetDynamicAccessor(Type type)
+    {
+        return _dynamicAccessors.GetOrAdd(type, t => new DynamicAccessor(t));
+    }
+
+
+
+    public void OnAssetLoaded(object asset)
+    {
+
     }
 }
