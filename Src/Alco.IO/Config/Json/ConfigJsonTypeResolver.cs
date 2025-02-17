@@ -10,7 +10,6 @@ namespace Alco.IO;
 
 public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
 {
-    private readonly List<Assembly> _assemblies = new List<Assembly>();
     private readonly IConfigReferenceResolver _configResolver;
 
     public ConfigJsonTypeResolver(IConfigReferenceResolver configResolver)
@@ -19,15 +18,10 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         _configResolver = configResolver;
     }
 
-    public void AddAssemblies(params ReadOnlySpan<Assembly> assemblies)
-    {
-        _assemblies.AddRange(assemblies);
-    }
-
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
     {
         var typeInfo = base.GetTypeInfo(type, options);
-        if (typeInfo.Type == typeof(IConfig))
+        if (typeInfo.Type == typeof(BaseConfig))
         {
             SetAllDerivedType(typeInfo);
             return typeInfo;
@@ -41,7 +35,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
     {
         foreach (var property in typeInfo.Properties)
         {
-            if (property.PropertyType.IsAssignableTo(typeof(IConfig)))
+            if (property.PropertyType.IsAssignableTo(typeof(BaseConfig)))
             {
                 property.CustomConverter = new JsonConverterConfigReference(
                     property.Name,
@@ -61,7 +55,8 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
             UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization
         };
 
-        var derivedTypes = _assemblies
+        //todo: performance optimization
+        var derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(a =>
             {
                 try
@@ -73,7 +68,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
                     return Array.Empty<Type>();
                 }
             })
-            .Where(t => typeof(IConfig).IsAssignableFrom(t) &&
+            .Where(t => typeof(BaseConfig).IsAssignableFrom(t) &&
                        !t.IsInterface &&
                        !t.IsAbstract)
             .ToArray();

@@ -5,7 +5,7 @@ namespace Alco.IO;
 
 public class EmptyConfigReferenceResolver : IConfigReferenceResolver
 {
-    public bool TryResolve(string id, string propertyName, Type propertyType, [NotNullWhen(true)] out IConfig? config)
+    public bool TryResolve(string id, string propertyName, Type propertyType, [NotNullWhen(true)] out BaseConfig? config)
     {
         throw new NotImplementedException("EmptyConfigReferenceResolver does not resolve any config.");
     }

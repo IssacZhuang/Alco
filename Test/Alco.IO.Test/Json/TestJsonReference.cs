@@ -8,23 +8,22 @@ namespace Alco.IO.Test;
 [TestFixture]
 public class TestJsonReference
 {
-    private class TestConfig : IConfig
+    private class TestConfig : BaseConfig
     {
-        public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public IConfig Reference { get; set; }
+        public BaseConfig Reference { get; set; }
     }
 
     private class TestConfigReferenceResolver : IConfigReferenceResolver
     {
-        private readonly Dictionary<string, IConfig> _configs = new();
+        private readonly Dictionary<string, BaseConfig> _configs = new();
 
-        public void AddConfig(IConfig config)
+        public void AddConfig(BaseConfig config)
         {
             _configs[config.Id] = config;
         }
 
-        public bool TryResolve(string id, string propertyName, Type propertyType, out IConfig config)
+        public bool TryResolve(string id, string propertyName, Type propertyType, out BaseConfig config)
         {
             return _configs.TryGetValue(id, out config);
         }
@@ -36,7 +35,6 @@ public class TestJsonReference
         // Arrange
         var resolver = new TestConfigReferenceResolver();
         var typeResolver = new ConfigJsonTypeResolver(resolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -76,7 +74,6 @@ public class TestJsonReference
         // Arrange
         var resolver = new TestConfigReferenceResolver();
         var typeResolver = new ConfigJsonTypeResolver(resolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -94,7 +91,6 @@ public class TestJsonReference
         // Arrange
         var resolver = new TestConfigReferenceResolver();
         var typeResolver = new ConfigJsonTypeResolver(resolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
 
         var options = new JsonSerializerOptions
         {
@@ -130,7 +126,6 @@ public class TestJsonReference
         // Arrange
         var resolver = new TestConfigReferenceResolver();
         var typeResolver = new ConfigJsonTypeResolver(resolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
 
         var options = new JsonSerializerOptions
         {

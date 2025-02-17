@@ -27,8 +27,8 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
     }
 
     private readonly ConcurrentDictionary<Type, DynamicAccessor> _dynamicAccessors = new();
-    private readonly ConditionalWeakTable<IConfig, ConfigReference> _configReferences = new();
-    private readonly ConcurrentDictionary<string, IConfig> _loadingConfigs = new();
+    private readonly ConditionalWeakTable<BaseConfig, ConfigReference> _configReferences = new();
+    private readonly ConcurrentDictionary<string, BaseConfig> _loadingConfigs = new();
     private readonly JsonSerializerOptions _options;
     private readonly AssetSystem _assetSystem;
 
@@ -60,12 +60,12 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 
     public bool CanHandleType(Type type)
     {
-        return type.IsAssignableTo(typeof(IConfig));
+        return type.IsAssignableTo(typeof(BaseConfig));
     }
 
     public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
     {
-        IConfig asset = JsonSerializer.Deserialize<IConfig>(data, _options) ?? throw new InvalidOperationException($"Failed to deserialize {filename}");
+        BaseConfig asset = JsonSerializer.Deserialize<BaseConfig>(data, _options) ?? throw new InvalidOperationException($"Failed to deserialize {filename}");
         _loadingConfigs.TryAdd(filename, asset);
 
         try
@@ -84,7 +84,7 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
         }
     }
 
-    bool IConfigReferenceResolver.TryResolve(string id, string propertyName, Type propertyType, out IConfig config)
+    bool IConfigReferenceResolver.TryResolve(string id, string propertyName, Type propertyType, out BaseConfig config)
     {
         if (_loadingConfigs.TryGetValue(id, out config!))
         {
@@ -93,13 +93,13 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 
         //it might be loop loading if resolve the reference immediately
         //so just create a placeholder config to store the reference
-        IConfig placeHolder = Activator.CreateInstance(propertyType) as IConfig ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
+        BaseConfig placeHolder = Activator.CreateInstance(propertyType) as BaseConfig ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
         SetReference(placeHolder, new ConfigReference(id, propertyName, propertyType));
         config = placeHolder;
         return true;
     }
 
-    private void ResolveRealReference(IConfig asset)
+    private void ResolveRealReference(BaseConfig asset)
     {
         var accessor = GetDynamicAccessor(asset.GetType());
         JsonTypeInfo typeInfo = _options.GetTypeInfo(asset.GetType());
@@ -107,9 +107,9 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
         for (int i = 0; i < typeInfo.Properties.Count; i++)
         {
             var property = typeInfo.Properties[i];
-            if (property.PropertyType.IsAssignableTo(typeof(IConfig)))
+            if (property.PropertyType.IsAssignableTo(typeof(BaseConfig)))
             {
-                var config = accessor.GetValue(asset, property.Name) as IConfig;
+                var config = accessor.GetValue(asset, property.Name) as BaseConfig;
 
                 if (TryGetReference(config, out var reference))
                 {
@@ -121,7 +121,7 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 
     }
 
-    private bool TryGetReference(IConfig? config, [NotNullWhen(true)] out ConfigReference? references)
+    private bool TryGetReference(BaseConfig? config, [NotNullWhen(true)] out ConfigReference? references)
     {
         if (config == null)
         {
@@ -131,7 +131,7 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
         return _configReferences.TryGetValue(config, out references);
     }
 
-    private void SetReference(IConfig config, ConfigReference reference)
+    private void SetReference(BaseConfig config, ConfigReference reference)
     {
         _configReferences.AddOrUpdate(config, reference);
     }

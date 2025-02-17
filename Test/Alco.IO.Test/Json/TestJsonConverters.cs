@@ -304,9 +304,8 @@ public class TestJsonConverters
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("\"NonExistentType\"", options));
     }
 
-    private class TestConfig : IConfig
+    private class TestConfig : BaseConfig
     {
-        public string Id { get; set; }
         public string Name { get; set; }
         public int Value { get; set; }
 
@@ -322,7 +321,6 @@ public class TestJsonConverters
     public void TestConfigConversion()
     {
         var typeResolver = new ConfigJsonTypeResolver(_emptyConfigReferenceResolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -334,10 +332,10 @@ public class TestJsonConverters
             Value = 42
         };
 
-        string json = JsonSerializer.Serialize<IConfig>(original, options);
+        string json = JsonSerializer.Serialize<BaseConfig>(original, options);
         TestContext.WriteLine($"Config JSON: {json}");
 
-        var deserialized = JsonSerializer.Deserialize<IConfig>(json, options) as TestConfig;
+        var deserialized = JsonSerializer.Deserialize<BaseConfig>(json, options) as TestConfig;
 
         Assert.That(deserialized, Is.Not.Null);
         Assert.Multiple(() =>
@@ -351,17 +349,16 @@ public class TestJsonConverters
     public void TestConfigNull()
     {
         var typeResolver = new ConfigJsonTypeResolver(_emptyConfigReferenceResolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
         };
 
-        IConfig original = null;
-        string json = JsonSerializer.Serialize<IConfig>(original, options);
+        BaseConfig original = null;
+        string json = JsonSerializer.Serialize<BaseConfig>(original, options);
         TestContext.WriteLine($"Null Config JSON: {json}");
 
-        var deserialized = JsonSerializer.Deserialize<IConfig>(json, options);
+        var deserialized = JsonSerializer.Deserialize<BaseConfig>(json, options);
         Assert.That(deserialized, Is.Null);
     }
 
@@ -369,7 +366,6 @@ public class TestJsonConverters
     public void TestConfigInvalidType()
     {
         var typeResolver = new ConfigJsonTypeResolver(_emptyConfigReferenceResolver);
-        typeResolver.AddAssemblies(typeof(TestConfig).Assembly);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -378,6 +374,6 @@ public class TestJsonConverters
         string invalidJson = @"{""$type"":""NonExistentType"",""name"":""test""}";
 
         Assert.Throws<JsonException>(() =>
-            JsonSerializer.Deserialize<IConfig>(invalidJson, options));
+            JsonSerializer.Deserialize<BaseConfig>(invalidJson, options));
     }
 }

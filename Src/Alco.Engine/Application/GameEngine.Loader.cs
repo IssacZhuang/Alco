@@ -40,5 +40,6 @@ public partial class GameEngine
         }));
 
         Assets.RegisterAssetHotReloader<Texture2D>(new AssetHotReloaderTexture2D(Rendering));
+        Assets.RegisterAssetLoader(new AssetLoaderConfig(Assets));
     }
 }
