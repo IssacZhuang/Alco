@@ -33,4 +33,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Views\Editor.axaml.cs">
+      <DependentUpon>Editor.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
 </Project>

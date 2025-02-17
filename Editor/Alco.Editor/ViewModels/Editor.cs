@@ -17,7 +17,7 @@ public class MenuItemViewModel
     public Dictionary<string, MenuItemViewModel> Child { get; set; } = new();
 }
 
-public partial class MainWindowViewModel : ViewModelBase, IDisposable
+public partial class Editor : ViewModelBase, IDisposable
 {
     private bool _disposed;
     private readonly HashSet<string> _menuItemPaths = new();
@@ -27,7 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public List<Page> Pages { get; } = [];
     public List<MenuItemViewModel> MainMenuItems { get; } = [];
 
-    public MainWindowViewModel()
+    public Editor()
     {
         Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
 
@@ -122,7 +122,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _disposed = true;
     }
 
-    ~MainWindowViewModel()
+    ~Editor()
     {
         Dispose(false);
     }
