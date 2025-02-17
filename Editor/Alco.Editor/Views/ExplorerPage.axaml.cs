@@ -15,7 +15,7 @@ using Alco.Editor.Attributes;
 
 namespace Alco.Editor.Views
 {
-    public partial class ExplorerPageView : UserControl
+    public partial class ExplorerPage : UserControl
     {
         private readonly ObservableCollection<TreeViewItem> _rootItems;
         private readonly List<FileEditorMeta> _fileEditorMetas = new();
@@ -24,15 +24,17 @@ namespace Alco.Editor.Views
 
         public event EventHandler<FileEditor>? FileEditorCreated;
 
-        public ExplorerPageView(params FileEditorMeta[] fileEditorMetas)
+        public ExplorerPage()
         {
-            _fileEditorMetas.AddRange(fileEditorMetas);
-
             InitializeComponent();
             _rootItems = new ObservableCollection<TreeViewItem>();
             FileTreeView.ItemsSource = _rootItems;
-
             InitializeContextMenu();
+        }
+
+        public ExplorerPage(params FileEditorMeta[] fileEditorMetas) : this()
+        {
+            _fileEditorMetas.AddRange(fileEditorMetas);
         }
 
         private void InitializeContextMenu()

@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    x:Class="Alco.Editor.Views.ExplorerPageView">
+    x:Class="Alco.Editor.Views.ExplorerPage">
     <Grid ColumnDefinitions="250,Auto,*,Auto,250">
         <!-- File browser area -->
         <Border Grid.Column="0"

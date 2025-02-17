@@ -7,6 +7,7 @@ using Alco.Editor.Attributes;
 using Alco.Editor.Models;
 using Alco.Engine;
 using Avalonia.Controls;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Alco.Editor.ViewModels;
 
@@ -29,7 +30,15 @@ public partial class Editor : ViewModelBase, IDisposable
 
     public Editor()
     {
-        Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        if (!Design.IsDesignMode)
+        {
+            Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        }
+        else
+        {
+            // the engine is not init in the design mode
+            Engine = null!;
+        }
 
         SetupPages();
         SetupMainMenu();
@@ -37,7 +46,7 @@ public partial class Editor : ViewModelBase, IDisposable
 
     private void SetupPages()
     {
-        Pages.Add(new ExplorerPage());
+        Pages.Add(new Models.ExplorerPage());
     }
 
     private void SetupMainMenu()
