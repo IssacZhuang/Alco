@@ -4,14 +4,13 @@ using System.Threading.Tasks;
 using Alco.Editor.Attributes;
 using Avalonia.Controls;
 
-namespace Alco.Editor.Models
+namespace Alco.Editor.Models;
+
+public static class ExplorerContextMenuItems
 {
-    public static class ExplorerContextMenuItems
+    [ContextMenuItem("Create/Folder")]
+    public static void CreateFolder(TreeViewItem item)
     {
-        [ContextMenuItem("Create/Folder")]
-        public static void CreateFolder(TreeViewItem item)
-        {
-            Log.Info("CreateFolder");
-        }
+        Log.Info("CreateFolder");
     }
 }
