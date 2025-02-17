@@ -28,22 +28,32 @@ public class TestDynamicAccessor
         public string Text { get; set; }
     }
 
+    private DynamicAccessor _classAccessor;
+    private DynamicAccessor _structAccessor;
+
+    [SetUp]
+    public void Setup()
+    {
+        _classAccessor = new DynamicAccessor(typeof(TestClass));
+        _structAccessor = new DynamicAccessor(typeof(TestStruct));
+    }
+
     [Test]
     public void TestPropertyAccess()
     {
         var obj = new TestClass();
 
         // Test getting public property
-        Assert.That(DynamicAccessor<TestClass>.TryGetValue(obj, "PublicProperty", out object value), Is.True);
+        Assert.That(_classAccessor.TryGetValue(obj, "PublicProperty", out object value), Is.True);
         Assert.That(value, Is.EqualTo(42));
 
         // Test setting public property
-        Assert.That(DynamicAccessor<TestClass>.TrySetValue(obj, "PublicProperty", 100), Is.True);
+        Assert.That(_classAccessor.TrySetValue(obj, "PublicProperty", 100), Is.True);
         Assert.That(obj.PublicProperty, Is.EqualTo(100));
 
         // Test non-existent property
-        Assert.That(DynamicAccessor<TestClass>.TryGetValue(obj, "NonExistentProperty", out _), Is.False);
-        Assert.That(DynamicAccessor<TestClass>.TrySetValue(obj, "NonExistentProperty", 200), Is.False);
+        Assert.That(_classAccessor.TryGetValue(obj, "NonExistentProperty", out _), Is.False);
+        Assert.That(_classAccessor.TrySetValue(obj, "NonExistentProperty", 200), Is.False);
     }
 
     [Test]
@@ -52,11 +62,11 @@ public class TestDynamicAccessor
         var obj = new TestClass();
 
         // Test getting public field
-        Assert.That(DynamicAccessor<TestClass>.TryGetValue(obj, "PublicField", out object value), Is.True);
+        Assert.That(_classAccessor.TryGetValue(obj, "PublicField", out object value), Is.True);
         Assert.That(value, Is.EqualTo("Hello"));
 
         // Test setting public field
-        Assert.That(DynamicAccessor<TestClass>.TrySetValue(obj, "PublicField", "World"), Is.True);
+        Assert.That(_classAccessor.TrySetValue(obj, "PublicField", "World"), Is.True);
         Assert.That(obj.PublicField, Is.EqualTo("World"));
     }
 
@@ -70,11 +80,11 @@ public class TestDynamicAccessor
         };
 
         // Test getting struct field
-        Assert.That(DynamicAccessor<TestStruct>.TryGetValue(obj, "Number", out object value), Is.True);
+        Assert.That(_structAccessor.TryGetValue(obj, "Number", out object value), Is.True);
         Assert.That(value, Is.EqualTo(42));
 
         // Test getting struct property
-        Assert.That(DynamicAccessor<TestStruct>.TryGetValue(obj, "Text", out object textValue), Is.True);
+        Assert.That(_structAccessor.TryGetValue(obj, "Text", out object textValue), Is.True);
         Assert.That(textValue, Is.EqualTo("Test"));
     }
 
@@ -84,10 +94,15 @@ public class TestDynamicAccessor
         var obj = new TestClass();
 
         // Test setting property with wrong type
-        Assert.That(DynamicAccessor<TestClass>.TrySetValue(obj, "PublicProperty", "wrong type"), Is.False);
+        Assert.That(_classAccessor.TrySetValue(obj, "PublicProperty", "wrong type"), Is.False);
 
         // Test setting field with wrong type
-        Assert.That(DynamicAccessor<TestClass>.TrySetValue(obj, "PublicField", 42), Is.False);
+        Assert.That(_classAccessor.TrySetValue(obj, "PublicField", 42), Is.False);
+
+        // Test using wrong type object
+        var wrongObj = new TestStruct();
+        Assert.That(() => _classAccessor.TryGetValue(wrongObj, "PublicProperty", out _),
+            Throws.ArgumentException.With.Message.Contains("not assignable"));
     }
 
     [Test]
@@ -96,15 +111,15 @@ public class TestDynamicAccessor
         var obj = new TestClass();
 
         // Test GetValue
-        Assert.That(() => DynamicAccessor<TestClass>.GetValue(obj, "PublicProperty"), Is.EqualTo(42));
-        Assert.That(() => DynamicAccessor<TestClass>.GetValue(obj, "NonExistent"),
+        Assert.That(() => _classAccessor.GetValue(obj, "PublicProperty"), Is.EqualTo(42));
+        Assert.That(() => _classAccessor.GetValue(obj, "NonExistent"),
             Throws.ArgumentException.With.Message.Contains("not found"));
 
         // Test SetValue
-        Assert.That(() => DynamicAccessor<TestClass>.SetValue(obj, "PublicProperty", 200), Throws.Nothing);
-        Assert.That(() => DynamicAccessor<TestClass>.SetValue(obj, "NonExistent", 100),
+        Assert.That(() => _classAccessor.SetValue(obj, "PublicProperty", 200), Throws.Nothing);
+        Assert.That(() => _classAccessor.SetValue(obj, "NonExistent", 100),
             Throws.ArgumentException.With.Message.Contains("not found"));
-        Assert.That(() => DynamicAccessor<TestClass>.SetValue(obj, "PublicProperty", "wrong type"),
+        Assert.That(() => _classAccessor.SetValue(obj, "PublicProperty", "wrong type"),
             Throws.ArgumentException.With.Message.Contains("not assignable"));
     }
 
@@ -112,13 +127,20 @@ public class TestDynamicAccessor
     public void TestPropertyAndFieldNames()
     {
         // Test property names
-        var propertyNames = DynamicAccessor<TestClass>.PropertyNames;
+        var propertyNames = _classAccessor.PropertyNames;
         Assert.That(propertyNames, Contains.Item("PublicProperty"));
         Assert.That(propertyNames, Contains.Item("_privateProperty"));
 
         // Test field names
-        var fieldNames = DynamicAccessor<TestClass>.FieldNames;
+        var fieldNames = _classAccessor.FieldNames;
         Assert.That(fieldNames, Contains.Item("PublicField"));
         Assert.That(fieldNames, Contains.Item("_privateField"));
+    }
+
+    [Test]
+    public void TestTargetType()
+    {
+        Assert.That(_classAccessor.TargetType, Is.EqualTo(typeof(TestClass)));
+        Assert.That(_structAccessor.TargetType, Is.EqualTo(typeof(TestStruct)));
     }
 }

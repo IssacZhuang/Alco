@@ -1,5 +1,6 @@
 
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -10,7 +11,21 @@ namespace Alco.Engine;
 
 public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 {
+    private class ConfigReference
+    {
+        public string Id { get; }
+        public string PropertyName { get; }
+        public Type PropertyType { get; }
 
+        public ConfigReference(string id, string propertyName, Type propertyType)
+        {
+            Id = id;
+            PropertyName = propertyName;
+            PropertyType = propertyType;
+        }
+    }
+
+    private static readonly ConditionalWeakTable<IConfig, ConfigReference> _configReferences = new();
     private readonly JsonSerializerOptions _options;
 
     public AssetLoaderConfig()
@@ -50,11 +65,26 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 
     public void OnAssetLoaded(object asset)
     {
-
+        //resolve the reference after the asset is loaded
     }
 
     bool IConfigReferenceResolver.TryResolve(string id, string propertyName, Type propertyType, out IConfig? config)
     {
-        throw new NotImplementedException();
+        //it might be loop loading if resolve the reference immediately
+        //so just create a placeholder config to store the reference
+        IConfig placeHolder = Activator.CreateInstance(propertyType) as IConfig ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
+        SetReference(placeHolder, new ConfigReference(id, propertyName, propertyType));
+        config = placeHolder;
+        return true;
+    }
+
+    private static bool TryGetReference(IConfig config, [NotNullWhen(true)] out ConfigReference? references)
+    {
+        return _configReferences.TryGetValue(config, out references);
+    }
+
+    private static void SetReference(IConfig config, ConfigReference reference)
+    {
+        _configReferences.AddOrUpdate(config, reference);
     }
 }

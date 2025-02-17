@@ -30,6 +30,7 @@ public class BenchmarkDynamicAccess
     private PropertyInfo _stringPropertyInfo;
     private FieldInfo _floatFieldInfo;
     private FieldInfo _objectFieldInfo;
+    private DynamicAccessor _accessor;
 
     [GlobalSetup]
     public void Setup()
@@ -40,12 +41,13 @@ public class BenchmarkDynamicAccess
         _stringPropertyInfo = type.GetProperty(nameof(TestClass.StringProperty));
         _floatFieldInfo = type.GetField(nameof(TestClass.FloatField));
         _objectFieldInfo = type.GetField(nameof(TestClass.ObjectField));
+        _accessor = new DynamicAccessor(type);
     }
 
     [Benchmark(Description = "Get Int Property - DynamicAccessor")]
     public int GetIntPropertyDynamic()
     {
-        return (int)DynamicAccessor<TestClass>.GetValue(_instance, nameof(TestClass.IntProperty));
+        return (int)_accessor.GetValue(_instance, nameof(TestClass.IntProperty));
     }
 
     [Benchmark(Description = "Get Int Property - Reflection")]
@@ -57,7 +59,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Get String Property - DynamicAccessor")]
     public string GetStringPropertyDynamic()
     {
-        return (string)DynamicAccessor<TestClass>.GetValue(_instance, nameof(TestClass.StringProperty));
+        return (string)_accessor.GetValue(_instance, nameof(TestClass.StringProperty));
     }
 
     [Benchmark(Description = "Get String Property - Reflection")]
@@ -69,7 +71,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Get Float Field - DynamicAccessor")]
     public float GetFloatFieldDynamic()
     {
-        return (float)DynamicAccessor<TestClass>.GetValue(_instance, nameof(TestClass.FloatField));
+        return (float)_accessor.GetValue(_instance, nameof(TestClass.FloatField));
     }
 
     [Benchmark(Description = "Get Float Field - Reflection")]
@@ -81,7 +83,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Get Object Field - DynamicAccessor")]
     public object GetObjectFieldDynamic()
     {
-        return DynamicAccessor<TestClass>.GetValue(_instance, nameof(TestClass.ObjectField));
+        return _accessor.GetValue(_instance, nameof(TestClass.ObjectField));
     }
 
     [Benchmark(Description = "Get Object Field - Reflection")]
@@ -93,7 +95,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Set Int Property - DynamicAccessor")]
     public void SetIntPropertyDynamic()
     {
-        DynamicAccessor<TestClass>.SetValue(_instance, nameof(TestClass.IntProperty), 100);
+        _accessor.SetValue(_instance, nameof(TestClass.IntProperty), 100);
     }
 
     [Benchmark(Description = "Set Int Property - Reflection")]
@@ -105,7 +107,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Set String Property - DynamicAccessor")]
     public void SetStringPropertyDynamic()
     {
-        DynamicAccessor<TestClass>.SetValue(_instance, nameof(TestClass.StringProperty), "New Value");
+        _accessor.SetValue(_instance, nameof(TestClass.StringProperty), "New Value");
     }
 
     [Benchmark(Description = "Set String Property - Reflection")]
@@ -117,7 +119,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Set Float Field - DynamicAccessor")]
     public void SetFloatFieldDynamic()
     {
-        DynamicAccessor<TestClass>.SetValue(_instance, nameof(TestClass.FloatField), 2.718f);
+        _accessor.SetValue(_instance, nameof(TestClass.FloatField), 2.718f);
     }
 
     [Benchmark(Description = "Set Float Field - Reflection")]
@@ -129,7 +131,7 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "Set Object Field - DynamicAccessor")]
     public void SetObjectFieldDynamic()
     {
-        DynamicAccessor<TestClass>.SetValue(_instance, nameof(TestClass.ObjectField), new object());
+        _accessor.SetValue(_instance, nameof(TestClass.ObjectField), new object());
     }
 
     [Benchmark(Description = "Set Object Field - Reflection")]
@@ -141,12 +143,12 @@ public class BenchmarkDynamicAccess
     [Benchmark(Description = "TryGetValue - DynamicAccessor")]
     public bool TryGetValueDynamic()
     {
-        return DynamicAccessor<TestClass>.TryGetValue(_instance, nameof(TestClass.IntProperty), out _);
+        return _accessor.TryGetValue(_instance, nameof(TestClass.IntProperty), out _);
     }
 
     [Benchmark(Description = "TrySetValue - DynamicAccessor")]
     public bool TrySetValueDynamic()
     {
-        return DynamicAccessor<TestClass>.TrySetValue(_instance, nameof(TestClass.IntProperty), 100);
+        return _accessor.TrySetValue(_instance, nameof(TestClass.IntProperty), 100);
     }
 }
