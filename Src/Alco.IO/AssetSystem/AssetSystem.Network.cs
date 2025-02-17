@@ -106,16 +106,6 @@ public sealed partial class AssetSystem
                 handle.SetCache(asset, cacheMode);
                 handle.IsLoading = false;
 
-                try
-                {
-                    loader.OnAssetLoaded(asset);
-                }
-                catch (Exception ex)
-                {
-                    failedReason = $"Failed to post-process asset {url}: {ex}";
-                    return FailWithCleanup();
-                }
-
                 EndProfile();
 
                 return true;

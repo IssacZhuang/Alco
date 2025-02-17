@@ -13,11 +13,6 @@ public abstract class BaseAssetLoader : IAssetLoader
     public abstract bool CanHandleType(Type type);
 
     public abstract object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType);
-
-    public virtual void OnAssetLoaded(object asset)
-    {
-        //do nothing by default
-    }
 }
 
 /// <summary>
@@ -37,10 +32,5 @@ public abstract class BaseAssetLoader<T> : IAssetLoader
     }
 
     public abstract object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType);
-
-    public virtual void OnAssetLoaded(object asset)
-    {
-        //do nothing by default
-    }
 }
 

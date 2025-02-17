@@ -59,8 +59,6 @@ public sealed partial class AssetSystem
                 handle.IsLoading = false;
                 asset = newAsset;
 
-                //post-process
-                loader.OnAssetLoaded(newAsset);
                 return true;
             }
         }
