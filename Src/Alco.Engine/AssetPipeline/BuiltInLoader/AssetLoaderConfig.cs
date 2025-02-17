@@ -1,4 +1,3 @@
-
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -86,8 +85,9 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
 
     bool IConfigReferenceResolver.TryResolve(string id, string propertyName, Type propertyType, out BaseConfig config)
     {
-        if (_loadingConfigs.TryGetValue(id, out config!))
+        if (_loadingConfigs.TryGetValue(id, out var loadingConfig))
         {
+            config = loadingConfig;
             return true;
         }
 
@@ -104,21 +104,27 @@ public class AssetLoaderConfig : IAssetLoader, IConfigReferenceResolver
         var accessor = GetDynamicAccessor(asset.GetType());
         JsonTypeInfo typeInfo = _options.GetTypeInfo(asset.GetType());
 
-        for (int i = 0; i < typeInfo.Properties.Count; i++)
+        foreach (var property in typeInfo.Properties)
         {
-            var property = typeInfo.Properties[i];
             if (property.PropertyType.IsAssignableTo(typeof(BaseConfig)))
             {
-                var config = accessor.GetValue(asset, property.Name) as BaseConfig;
-
-                if (TryGetReference(config, out var reference))
-                {
-                    object realConfig = _assetSystem.Load(reference.Id, reference.PropertyType);
-                    accessor.SetValue(asset, property.Name, realConfig);
-                }
+                ResolveConfigProperty(asset, property.Name, property.PropertyType, accessor);
             }
         }
+    }
 
+    private void ResolveConfigProperty(BaseConfig asset, string propertyName, Type propertyType, DynamicAccessor accessor)
+    {
+        var config = accessor.GetValue(asset, propertyName) as BaseConfig;
+
+        if (TryGetReference(config, out var reference))
+        {
+            object resolvedConfig = _loadingConfigs.TryGetValue(reference.Id, out var loadingConfig)
+                ? loadingConfig
+                : _assetSystem.Load(reference.Id, reference.PropertyType);
+
+            accessor.SetValue(asset, propertyName, resolvedConfig);
+        }
     }
 
     private bool TryGetReference(BaseConfig? config, [NotNullWhen(true)] out ConfigReference? references)

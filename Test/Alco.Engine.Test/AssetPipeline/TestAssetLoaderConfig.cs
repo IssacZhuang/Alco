@@ -222,8 +222,7 @@ public class TestAssetLoaderConfig
             Assert.That(((TestConfig)config.Reference).Reference.Id, Is.EqualTo("selfRef"));
 
             // Verify reference equality
-            Assert.That(ReferenceEquals(config.Reference, config), Is.True, "Self reference should point to the same instance");
-            Assert.That(ReferenceEquals(((TestConfig)config.Reference).Reference, config), Is.True, "Nested self reference should point to the same instance");
+            Assert.That(config.Reference, Is.SameAs(config));
         });
     }
 
