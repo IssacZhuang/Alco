@@ -192,9 +192,6 @@ IDisposable
             _renderScheduler = new ImmediateRenderScheduler(_graphicsDevice);
         }
 
-
-        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
-        _platform = _setting.Platform ?? new Sdl3Platform();
         _rendering = new RenderingSystem(
             this,
             _graphicsDevice,
@@ -203,21 +200,27 @@ IDisposable
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat
             );
-        
+
         _builtInAssets = new BuiltInAssets(_assets);
 
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
         InitializeDefaultAssetLoader(setting);
 
-        //main window
-        _mainWindow = CreateWindow(_setting.Window);
-        _mainRenderTarget = CreateWindowRenderTarget(_mainWindow, _rendering.PrefferedSDRPass, _builtInAssets.Shader_Blit);
-        AddSystem(_mainRenderTarget);
+        Task<Shader> shaderBlit = _assets.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
 
+        _platform = _setting.Platform ?? new Sdl3Platform();
         _input = _platform.Input;
 
         _profiler = new EngineProfiler(this);
 
+        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
+
+        //main window
+        _mainWindow = CreateWindow(_setting.Window);
+        _mainRenderTarget = CreateWindowRenderTarget(_mainWindow, _rendering.PrefferedSDRPass, shaderBlit.Result);
+        AddSystem(_mainRenderTarget);
+
+        
         InitializePlugins(_setting.Plugins);
     }
 
