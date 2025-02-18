@@ -132,6 +132,8 @@ public class TestAssetSystem
 
         public IEnumerable<string> AllFileNames => ["test.fast", "test.slow"];
 
+        public bool IsWriteable => false;
+
         public void Dispose()
         {
 
@@ -163,6 +165,11 @@ public class TestAssetSystem
                     failedReason = string.Empty;
                     return false;
             }
+        }
+
+        public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
+        {
+            throw new NotImplementedException();
         }
     }
 

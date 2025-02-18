@@ -29,6 +29,8 @@ public class DirectoryFileSource : IFileSource
 
     public virtual int Priority => 5;
 
+    public bool IsWriteable => true;
+
     public virtual unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
     {
         try
@@ -54,5 +56,26 @@ public class DirectoryFileSource : IFileSource
     public void Dispose()
     {
         //do nothing
+    }
+
+    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string? failureReason)
+    {
+        try
+        {
+            string fullPath = Path.Combine(_directoryPath, path);
+            string? directory = Path.GetDirectoryName(fullPath);
+            if (directory != null && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            File.WriteAllBytes(fullPath, data);
+            failureReason = string.Empty;
+            return true;
+        }
+        catch (Exception e)
+        {
+            failureReason = e.ToString();
+            return false;
+        }
     }
 }

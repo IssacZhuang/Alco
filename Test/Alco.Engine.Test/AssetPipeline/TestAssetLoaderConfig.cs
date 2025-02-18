@@ -22,6 +22,8 @@ public class TestAssetLoaderConfig
 
         public IEnumerable<string> AllFileNames => _files.Keys;
 
+        public bool IsWriteable => false;
+
         public void AddFile(string path, string content)
         {
             _files[path] = System.Text.Encoding.UTF8.GetBytes(content);
@@ -42,6 +44,11 @@ public class TestAssetLoaderConfig
 
         public void Dispose()
         {
+        }
+
+        public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
+        {
+            throw new NotImplementedException();
         }
     }
 

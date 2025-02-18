@@ -36,6 +36,8 @@ public class PackageFileSource : IFileSource
         }
     }
 
+    public bool IsWriteable => false;
+
     public void Dispose()
     {
         _package.Dispose();
@@ -54,5 +56,10 @@ public class PackageFileSource : IFileSource
         data = SafeMemoryHandle.Empty;
         failedReason = "File not found";
         return false;
+    }
+
+    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string? failureReason)
+    {
+        throw new NotImplementedException();
     }
 }
