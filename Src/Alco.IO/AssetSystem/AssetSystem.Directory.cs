@@ -101,14 +101,8 @@ public sealed partial class AssetSystem
             {
                 foreach (var file in fileSource.AllFileNames)
                 {
-                    string extension = Path.GetExtension(file);
 
-
-                    if (_recongizedExtensions.Contains(extension))
-                    {
-                        //it can override the file source with the same priority
-                        _fileEntries[ParseEntry(file)] = fileSource;
-                    }
+                    _fileEntries[ParseEntry(file)] = fileSource;
                 }
             }
             _isEntryDirty = false;

@@ -76,6 +76,7 @@ public sealed partial class AssetSystem
     /// <returns>True if the asset was written successfully; otherwise, false.</returns>
     public bool TryWriteAsset(string path, object asset, Type type, [NotNullWhen(false)] out string? failureReason)
     {
+        TryRefreshEntries();
         if (!_fileEntries.TryGetValue(path, out IFileSource? fileSource))
         {
             failureReason = $"Asset not found: {path}";
@@ -99,6 +100,7 @@ public sealed partial class AssetSystem
         catch (Exception e)
         {
             failureReason = e.ToString();
+            return false;
         }
 
         return true;
