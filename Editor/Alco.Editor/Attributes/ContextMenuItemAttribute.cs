@@ -3,7 +3,7 @@ using System;
 namespace Alco.Editor.Attributes;
 
 
-[AttributeUsage(AttributeTargets.Method)]
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public class ContextMenuItemAttribute : Attribute
 {
     public string Path { get; }

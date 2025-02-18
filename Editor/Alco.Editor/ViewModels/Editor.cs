@@ -20,6 +20,9 @@ public class MenuItemViewModel
 
 public partial class Editor : ViewModelBase, IDisposable
 {
+    private static readonly (MethodInfo, MenuItemAttribute)[] _menuItemMethods = UtilsAttribute.GetMethodsWithAttribute<MenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
+    private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
+
     private bool _disposed;
     private readonly HashSet<string> _menuItemPaths = new();
     public GameEngine Engine { get; }
@@ -46,13 +49,30 @@ public partial class Editor : ViewModelBase, IDisposable
 
     private void SetupPages()
     {
-        Pages.Add(new ExplorerPage());
+        foreach (var (type, attribute) in _editorPages)
+        {
+            try
+            {
+                if (!type.IsAssignableTo(typeof(Page)))
+                {
+                    Log.Error($"Failed to create page {type.Name}, because it is not assignable to {typeof(Page).Name}");
+                    continue;
+                }
+
+                var page = Activator.CreateInstance(type) as Page;
+
+                Pages.Add(page!);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error creating page {type.Name}: {ex.Message}");
+            }
+        }
     }
 
     private void SetupMainMenu()
     {
-        var menuItemMethods = GetMenuItemMethods();
-        foreach (var (method, attribute) in menuItemMethods)
+        foreach (var (method, attribute) in _menuItemMethods)
         {
             AddMenuItem(method, attribute);
         }
@@ -102,15 +122,6 @@ public partial class Editor : ViewModelBase, IDisposable
                 currentItem.Action = (window) => method.Invoke(null, new[] { window });
             }
         }
-    }
-
-    private IEnumerable<(MethodInfo, MenuItemAttribute)> GetMenuItemMethods()
-    {
-        return from assembly in AppDomain.CurrentDomain.GetAssemblies()
-               from type in assembly.GetTypes()
-               from method in type.GetMethods()
-               where method.GetCustomAttributes(typeof(MenuItemAttribute), false).Length > 0
-               select (method, method.GetCustomAttribute<MenuItemAttribute>()!);
     }
 
     public void Dispose()
