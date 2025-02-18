@@ -13,7 +13,10 @@ public sealed partial class AssetSystem
     /// <param name="writer">The asset encoder to register.</param>
     public void RegisterAssetWriter(IAssetEncoder writer)
     {
-        _writers[writer.GetType()] = writer;
+        foreach (var type in writer.GetSupportedTypes())
+        {
+            _writers[type] = writer;
+        }
     }
 
     /// <summary>
@@ -22,7 +25,16 @@ public sealed partial class AssetSystem
     /// <param name="writer">The asset encoder to unregister.</param>
     public void UnregisterAssetWriter(IAssetEncoder writer)
     {
-        _writers.TryRemove(writer.GetType(), out _);
+        foreach (var type in writer.GetSupportedTypes())
+        {
+            if (_writers.TryGetValue(type, out var value))
+            {
+                if (ReferenceEquals(value, writer))
+                {
+                    _writers.TryRemove(type, out _);
+                }
+            }
+        }
     }
 
     /// <summary>
