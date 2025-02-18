@@ -14,5 +14,18 @@ public static class DefaultMenuItems
         window.Close();
     }
 
+    [MenuItem("File/Open Project")]
+    public static void OpenProject(Window window)
+    {
+        
+    }
+
+    [MenuItem("File/Test/Test")]
+    public static void OpenTest(Window window)
+    {
+
+    }
+
+
 
 }

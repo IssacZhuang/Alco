@@ -109,16 +109,22 @@ public partial class Editor : Window
 
         foreach (var menuItem in ViewModel.MainMenuItems)
         {
-            var topLevelMenu = new MenuItem { Header = menuItem.Header };
-
-            foreach (var subItem in menuItem.Child)
-            {
-                var subMenuItem = new MenuItem { Header = subItem.Value.Header };
-                subMenuItem.Click += (s, e) => subItem.Value.Action?.Invoke(this);
-                topLevelMenu.Items.Add(subMenuItem);
-            }
-
-            MainMenu.Items.Add(topLevelMenu);
+            var item = CreateMenuItem(menuItem);
+            MainMenu.Items.Add(item);
         }
+    }
+
+    private MenuItem CreateMenuItem(MenuItemInfo menuItem)
+    {
+        var item = new MenuItem { Header = menuItem.Header };
+        foreach (var child in menuItem.Child)
+        {
+            item.Items.Add(CreateMenuItem(child.Value));
+        }
+        if (menuItem.Action != null)
+        {
+            item.Click += (s, e) => menuItem.Action(this);
+        }
+        return item;
     }
 }

@@ -22,7 +22,7 @@ public class ExplorerPage : Page
 
     public override Control Control { get; }
 
-    public List<MenuItemInfo> ContextMenuItemInfos { get; } = [];
+    public List<ContextMenuItemInfo> ContextMenuItemInfos { get; } = [];
 
     public ExplorerPage()
     {
@@ -48,7 +48,7 @@ public class ExplorerPage : Page
         string[] path = attribute.Path.Split('/');
 
         var currentLevel = ContextMenuItemInfos;
-        MenuItemInfo? currentItem = null;
+        ContextMenuItemInfo? currentItem = null;
 
         for (int i = 0; i < path.Length; i++)
         {
@@ -59,7 +59,7 @@ public class ExplorerPage : Page
                 currentItem = currentLevel.FirstOrDefault(x => x.Header == segment);
                 if (currentItem == null)
                 {
-                    currentItem = new MenuItemInfo { Header = segment };
+                    currentItem = new ContextMenuItemInfo { Header = segment };
                     currentLevel.Add(currentItem);
                 }
             }
@@ -67,7 +67,7 @@ public class ExplorerPage : Page
             {
                 if (!currentItem!.Child.TryGetValue(segment, out var childItem))
                 {
-                    childItem = new MenuItemInfo { Header = segment };
+                    childItem = new ContextMenuItemInfo { Header = segment };
                     currentItem.Child[segment] = childItem;
                 }
                 currentItem = childItem;
@@ -76,7 +76,7 @@ public class ExplorerPage : Page
             // Set action for the last segment
             if (i == path.Length - 1)
             {
-                currentItem.Action = (item) => method.Invoke(null, new[] { item });
+                currentItem.Action = (item) => method.Invoke(null, [item]);
             }
         }
     }

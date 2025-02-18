@@ -51,12 +51,16 @@ public partial class ExplorerPage : UserControl
         FileTreeView.ContextMenu = _contextMenu;
     }
 
-    private MenuItem CreateMenuItem(MenuItemInfo menuItem)
+    private MenuItem CreateMenuItem(ContextMenuItemInfo menuItem)
     {
         var item = new MenuItem { Header = menuItem.Header };
         foreach (var child in menuItem.Child)
         {
             item.Items.Add(CreateMenuItem(child.Value));
+        }
+        if (menuItem.Action != null)
+        {
+            item.Click += (s, e) => menuItem.Action(item);
         }
         return item;
     }
