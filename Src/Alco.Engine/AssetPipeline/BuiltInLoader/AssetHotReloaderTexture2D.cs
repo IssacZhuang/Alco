@@ -6,7 +6,7 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
-public class AssetHotReloaderTexture2D : IAssetHotReloader
+public class AssetHotReloaderTexture2D : BaseAssetHotReloader<Texture2D>
 {
     private readonly RenderingSystem _renderingSystem;
 
@@ -15,7 +15,7 @@ public class AssetHotReloaderTexture2D : IAssetHotReloader
         _renderingSystem = renderingSystem;
     }
 
-    public void HotReload(object asset, ReadOnlySpan<byte> data)
+    public override void HotReload(object asset, ReadOnlySpan<byte> data)
     {
         Texture2D texture2d = (Texture2D)asset;
 

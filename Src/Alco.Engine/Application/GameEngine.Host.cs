@@ -8,6 +8,7 @@ namespace Alco.Engine;
 public partial class GameEngine :
 IGPUDeviceHost,
 IAssetSystemHost,
+IStorageSystemHost,
 IRenderingSystemHost,
 IAudioDeviceHost
 {
@@ -57,6 +58,19 @@ IAudioDeviceHost
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
+    }
+
+    event Action IStorageSystemHost.OnDispose
+    {
+        add
+        {
+            EventOnDispose += value;
+        }
+
+        remove
+        {
+            EventOnDispose -= value;
+        }
     }
 
     void IAssetSystemHost.LogInfo(ReadOnlySpan<char> message)
@@ -115,6 +129,26 @@ IAudioDeviceHost
     }
 
     void IAudioDeviceHost.LogSuccess(ReadOnlySpan<char> message)
+    {
+        Log.Success(message);
+    }
+
+    void IStorageSystemHost.LogInfo(ReadOnlySpan<char> message)
+    {
+        Log.Info(message);
+    }
+
+    void IStorageSystemHost.LogWarning(ReadOnlySpan<char> message)
+    {
+        Log.Warning(message);
+    }
+
+    void IStorageSystemHost.LogError(ReadOnlySpan<char> message)
+    {
+        Log.Error(message);
+    }
+
+    void IStorageSystemHost.LogSuccess(ReadOnlySpan<char> message)
     {
         Log.Success(message);
     }

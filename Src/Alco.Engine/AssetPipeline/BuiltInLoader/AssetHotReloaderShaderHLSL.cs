@@ -5,7 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
-public class AssetHotReloaderShaderHLSL : IAssetHotReloader
+public class AssetHotReloaderShaderHLSL : BaseAssetHotReloader<Shader>
 {
     private readonly Func<string, string>? _includeResolver;
 
@@ -14,7 +14,7 @@ public class AssetHotReloaderShaderHLSL : IAssetHotReloader
         _includeResolver = includeResolver;
     }
 
-    public void HotReload(object asset, ReadOnlySpan<byte> data)
+    public override void HotReload(object asset, ReadOnlySpan<byte> data)
     {
         Shader shader = (Shader)asset;
         string shaderText = Encoding.UTF8.GetString(data);

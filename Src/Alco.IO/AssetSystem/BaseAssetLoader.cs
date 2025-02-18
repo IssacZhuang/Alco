@@ -2,20 +2,6 @@
 namespace Alco.IO;
 
 /// <summary>
-/// The base class of asset loader
-/// </summary>
-public abstract class BaseAssetLoader : IAssetLoader
-{
-    public abstract string Name { get; }
-
-    public abstract IReadOnlyList<string> FileExtensions { get; }
-
-    public abstract bool CanHandleType(Type type);
-
-    public abstract object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType);
-}
-
-/// <summary>
 /// The single type asset loader
 /// </summary>
 /// <typeparam name="T"></typeparam>
