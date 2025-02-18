@@ -18,9 +18,6 @@ namespace Alco.Engine;
 public partial class GameEngine :
 IDisposable
 {
-// #pragma warning disable CS8618
-//     public static GameEngine Instance { get; private set; }
-// #pragma warning restore CS8618
     private readonly GameEngineSetting _setting;
 
     #region  Resources
@@ -50,8 +47,7 @@ IDisposable
 
 
     #region  State
-    private int _engineThread;
-    private bool _isDisposed = false;
+    private volatile uint _disposed;
 
 
     #endregion
@@ -59,14 +55,6 @@ IDisposable
 
     #region Properties
 
-    /// <summary>
-    /// The main thread of the game main loop
-    /// </summary>
-    public int MainThread
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _engineThread;
-    }
 
     /// <summary>
     /// The directory of the game executable
@@ -174,6 +162,11 @@ IDisposable
         get => _profiler.FrameTime;
     }
 
+    /// <summary>
+    /// Check if the engine is disposed
+    /// </summary>
+    public bool IsDisposed => _disposed != 0;
+
     #endregion
 
     public GameEngine(GameEngineSetting setting)
@@ -225,12 +218,6 @@ IDisposable
     }
 
 
-
-    ~GameEngine()
-    {
-        Dispose();
-    }
-
     #region  Lifecycle
 
     /// <summary>
@@ -239,7 +226,6 @@ IDisposable
     [STAThread]
     public void Run()
     {
-        _engineThread = Environment.CurrentManagedThreadId;
         InternaleRun();
     }
 
@@ -414,11 +400,7 @@ IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed) return;
-        _isDisposed = true;
-// #pragma warning disable CS8625
-//         Instance = null;
-// #pragma warning restore CS8625
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
         _renderScheduler.Dispose();
@@ -622,17 +604,6 @@ IDisposable
     #endregion
 
     #region API
-
-    /// <summary>
-    /// Check if the target thread is the main thread
-    /// </summary>
-    /// <param name="threadId">The target thread id</param>
-    /// <returns>True if the target thread is the main thread</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsMainThread(int threadId)
-    {
-        return threadId == _engineThread;
-    }
 
     /// <summary>
     /// Stop the game engine. This will stop the main loop and dispose all the runtime objects in the end of the frame
