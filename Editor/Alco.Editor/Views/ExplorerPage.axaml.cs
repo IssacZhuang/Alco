@@ -19,7 +19,6 @@ public partial class ExplorerPage : UserControl
 {
     private readonly ObservableCollection<TreeViewItem> _rootItems;
     private readonly List<FileEditorMeta> _fileEditorMetas = new();
-    private FileEditor? _currentEditor;
     private ContextMenu? _contextMenu;
 
     public event EventHandler<FileEditor>? FileEditorCreated;
@@ -41,79 +40,25 @@ public partial class ExplorerPage : UserControl
     {
         _contextMenu = new ContextMenu();
 
-        
-        var menuItems = typeof(ExplorerContextMenuItems)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => m.GetCustomAttribute<MenuItemAttribute>() != null)
-            .Select(m => new { Method = m, Attribute = m.GetCustomAttribute<MenuItemAttribute>()! })
-            .GroupBy(x => x.Attribute.Path.Split('/')[0])
-            .OrderBy(g => g.Key);
+        var viewModel = DataContext as ViewModels.ExplorerPage;
+        if (viewModel == null) return;
 
-        foreach (var group in menuItems)
+        foreach (var menuItem in viewModel.ContextMenuItemInfos)
         {
-            if (group.Count() == 1 && !group.First().Attribute.Path.Contains('/'))
-            {
-      
-                var item = group.First();
-                var menuItem = new MenuItem { Header = group.Key };
-                menuItem.Click += async (s, e) =>
-                {
-                    if (s is MenuItem mi && mi.Parent is ContextMenu cm)
-                    {
-                        var treeViewItem = cm.PlacementTarget as TreeViewItem;
-                        if (treeViewItem != null)
-                        {
-                            await (Task)item.Method.Invoke(null, new object[] { treeViewItem })!;
-                           
-                            var path = treeViewItem.Tag as string;
-                            if (path != null)
-                            {
-                                if (File.Exists(path))
-                                {
-                                    path = Path.GetDirectoryName(path);
-                                }
-                                await LoadDirectoryContents(treeViewItem.Parent as TreeViewItem ?? treeViewItem, path!);
-                            }
-                        }
-                    }
-                };
-                _contextMenu.Items.Add(menuItem);
-            }
-            else
-            {
-                // 
-                var subMenu = new MenuItem { Header = group.Key };
-                foreach (var item in group.OrderBy(x => x.Attribute.Path))
-                {
-                    var menuItem = new MenuItem { Header = item.Attribute.Path.Split('/')[1] };
-                    menuItem.Click += async (s, e) =>
-                    {
-                        if (s is MenuItem mi && mi.Parent is MenuItem parentMi && parentMi.Parent is ContextMenu cm)
-                        {
-                            var treeViewItem = cm.PlacementTarget as TreeViewItem;
-                            if (treeViewItem != null)
-                            {
-                                await (Task)item.Method.Invoke(null, new object[] { treeViewItem })!;
-                                // 
-                                var path = treeViewItem.Tag as string;
-                                if (path != null)
-                                {
-                                    if (File.Exists(path))
-                                    {
-                                        path = Path.GetDirectoryName(path);
-                                    }
-                                    await LoadDirectoryContents(treeViewItem.Parent as TreeViewItem ?? treeViewItem, path!);
-                                }
-                            }
-                        }
-                    };
-                    subMenu.Items.Add(menuItem);
-                }
-                _contextMenu.Items.Add(subMenu);
-            }
+            var item = CreateMenuItem(menuItem);
+            _contextMenu.Items.Add(item);
         }
-
         FileTreeView.ContextMenu = _contextMenu;
+    }
+
+    private MenuItem CreateMenuItem(MenuItemInfo menuItem)
+    {
+        var item = new MenuItem { Header = menuItem.Header };
+        foreach (var child in menuItem.Child)
+        {
+            item.Items.Add(CreateMenuItem(child.Value));
+        }
+        return item;
     }
 
     private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
@@ -257,7 +202,7 @@ public partial class ExplorerPage : UserControl
 
     private void SetupEditor(FileEditor editor)
     {
-        _currentEditor = editor;
+        //_currentEditor = editor;
         // EditArea.Content = editor.EditControl;
         // PreviewArea.Content = editor.PreviewControl;
     }

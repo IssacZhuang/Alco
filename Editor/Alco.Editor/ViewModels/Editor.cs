@@ -1,22 +1,14 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Alco.Editor.Attributes;
-using Alco.Editor.Models;
 using Alco.Engine;
 using Avalonia.Controls;
-using CommunityToolkit.Mvvm.ComponentModel;
-
+using Alco.Editor.Models;
 namespace Alco.Editor.ViewModels;
 
-public class MenuItemViewModel
-{
-    public string Header { get; set; } = string.Empty;
-    public Action<Avalonia.Controls.Window>? Action { get; set; }
-    public Dictionary<string, MenuItemViewModel> Child { get; set; } = new();
-}
+
 
 public partial class Editor : ViewModelBase, IDisposable
 {
@@ -25,11 +17,10 @@ public partial class Editor : ViewModelBase, IDisposable
 
     private bool _disposed;
     private readonly HashSet<string> _menuItemPaths = new();
-    public GameEngine Engine { get; }
 
-    public string Greeting { get; } = "Welcome to Avalonia!";
+    public GameEngine Engine { get; }
     public List<Page> Pages { get; } = [];
-    public List<MenuItemViewModel> MainMenuItems { get; } = [];
+    public List<MenuItemInfo> MainMenuItems { get; } = [];
 
     public Editor()
     {
@@ -91,7 +82,7 @@ public partial class Editor : ViewModelBase, IDisposable
         string[] path = attribute.Path.Split('/');
 
         var currentLevel = MainMenuItems;
-        MenuItemViewModel? currentItem = null;
+        MenuItemInfo? currentItem = null;
 
         for (int i = 0; i < path.Length; i++)
         {
@@ -102,7 +93,7 @@ public partial class Editor : ViewModelBase, IDisposable
                 currentItem = currentLevel.FirstOrDefault(x => x.Header == segment);
                 if (currentItem == null)
                 {
-                    currentItem = new MenuItemViewModel { Header = segment };
+                    currentItem = new MenuItemInfo { Header = segment };
                     currentLevel.Add(currentItem);
                 }
             }
@@ -110,7 +101,7 @@ public partial class Editor : ViewModelBase, IDisposable
             {
                 if (!currentItem!.Child.TryGetValue(segment, out var childItem))
                 {
-                    childItem = new MenuItemViewModel { Header = segment };
+                    childItem = new MenuItemInfo { Header = segment };
                     currentItem.Child[segment] = childItem;
                 }
                 currentItem = childItem;

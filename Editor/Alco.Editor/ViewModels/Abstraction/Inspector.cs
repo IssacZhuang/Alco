@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Media;
 
@@ -7,4 +9,22 @@ public abstract class Inspector : ViewModelBase
 {
     public abstract Control Control { get; }
     public abstract bool IsModified { get; }
+
+    public abstract Type GetAssetType(string path);
+    public abstract void OnOpenAsset(object asset);
+}
+
+public abstract class Inspector<T> : Inspector
+{
+    public override Type GetAssetType(string path)
+    {
+        return typeof(T);
+    }
+
+    public override void OnOpenAsset(object asset)
+    {
+        OnOpenAsset((T)asset);
+    }
+
+    protected abstract void OnOpenAsset(T asset);
 }

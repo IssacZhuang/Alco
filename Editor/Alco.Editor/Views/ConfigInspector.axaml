@@ -4,7 +4,7 @@
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
   xmlns:avalonia="https://github.com/avaloniaui/avaloniaedit"
-  x:Class="Alco.Editor.ConfigInspector">
+  x:Class="Alco.Editor.Views.ConfigInspector">
 
   <Grid ColumnDefinitions="*, Auto, *">
     <!-- Left Panel (Empty for now) -->
