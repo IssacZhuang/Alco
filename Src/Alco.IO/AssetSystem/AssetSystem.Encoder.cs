@@ -5,17 +5,17 @@ namespace Alco.IO;
 
 public sealed partial class AssetSystem
 {
-    private static readonly ConcurrentDictionary<Type, IAssetEncoder> _writers = new();
+    private static readonly ConcurrentDictionary<Type, IAssetEncoder> _encoders = new();
 
     /// <summary>
     /// Registers an asset encoder that can write assets of a specific type.
     /// </summary>
     /// <param name="writer">The asset encoder to register.</param>
-    public void RegisterAssetWriter(IAssetEncoder writer)
+    public void RegisterAssetEncoder(IAssetEncoder writer)
     {
         foreach (var type in writer.GetSupportedTypes())
         {
-            _writers[type] = writer;
+            _encoders[type] = writer;
         }
     }
 
@@ -23,15 +23,15 @@ public sealed partial class AssetSystem
     /// Unregisters an asset encoder.
     /// </summary>
     /// <param name="writer">The asset encoder to unregister.</param>
-    public void UnregisterAssetWriter(IAssetEncoder writer)
+    public void UnregisterAssetEncoder(IAssetEncoder writer)
     {
         foreach (var type in writer.GetSupportedTypes())
         {
-            if (_writers.TryGetValue(type, out var value))
+            if (_encoders.TryGetValue(type, out var value))
             {
                 if (ReferenceEquals(value, writer))
                 {
-                    _writers.TryRemove(type, out _);
+                    _encoders.TryRemove(type, out _);
                 }
             }
         }
@@ -59,7 +59,7 @@ public sealed partial class AssetSystem
     /// <exception cref="Exception">Thrown when no encoder is registered for the specified type.</exception>
     public SafeMemoryHandle EncodeToBinary(object asset, Type type)
     {
-        if (_writers.TryGetValue(type, out IAssetEncoder? writer))
+        if (_encoders.TryGetValue(type, out IAssetEncoder? writer))
         {
             return writer.Encode(asset);
         }
