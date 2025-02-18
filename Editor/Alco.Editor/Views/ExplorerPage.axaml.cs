@@ -41,7 +41,7 @@ public partial class ExplorerPage : UserControl
     {
         _contextMenu = new ContextMenu();
 
-        // 获取所有带有 MenuItem 特性的方法
+        
         var menuItems = typeof(ExplorerContextMenuItems)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(m => m.GetCustomAttribute<MenuItemAttribute>() != null)
@@ -53,7 +53,7 @@ public partial class ExplorerPage : UserControl
         {
             if (group.Count() == 1 && !group.First().Attribute.Path.Contains('/'))
             {
-                // 单个菜单项
+      
                 var item = group.First();
                 var menuItem = new MenuItem { Header = group.Key };
                 menuItem.Click += async (s, e) =>
@@ -64,7 +64,7 @@ public partial class ExplorerPage : UserControl
                         if (treeViewItem != null)
                         {
                             await (Task)item.Method.Invoke(null, new object[] { treeViewItem })!;
-                            // 刷新目录
+                           
                             var path = treeViewItem.Tag as string;
                             if (path != null)
                             {
@@ -81,7 +81,7 @@ public partial class ExplorerPage : UserControl
             }
             else
             {
-                // 子菜单
+                // 
                 var subMenu = new MenuItem { Header = group.Key };
                 foreach (var item in group.OrderBy(x => x.Attribute.Path))
                 {
@@ -94,7 +94,7 @@ public partial class ExplorerPage : UserControl
                             if (treeViewItem != null)
                             {
                                 await (Task)item.Method.Invoke(null, new object[] { treeViewItem })!;
-                                // 刷新目录
+                                // 
                                 var path = treeViewItem.Tag as string;
                                 if (path != null)
                                 {
@@ -246,19 +246,19 @@ public partial class ExplorerPage : UserControl
 
     private void CleanupCurrentEditor()
     {
-        if (_currentEditor != null)
-        {
-            EditArea.Content = null;
-            PreviewArea.Content = null;
-            _currentEditor.OnCloseFile();
-            _currentEditor = null;
-        }
+        // if (_currentEditor != null)
+        // {
+        //     EditArea.Content = null;
+        //     PreviewArea.Content = null;
+        //     _currentEditor.OnCloseFile();
+        //     _currentEditor = null;
+        // }
     }
 
     private void SetupEditor(FileEditor editor)
     {
         _currentEditor = editor;
-        EditArea.Content = editor.EditControl;
-        PreviewArea.Content = editor.PreviewControl;
+        // EditArea.Content = editor.EditControl;
+        // PreviewArea.Content = editor.PreviewControl;
     }
 }
