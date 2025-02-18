@@ -41,7 +41,7 @@ public interface IFileSource : IDisposable
     /// <param name="data">The data of the file</param>
     /// <param name="failureReason">The failure reason</param>
     /// <returns>True if the data is successfully written, false otherwise</returns>
-    bool TryWriteData(string path, ReadOnlySpan<byte> data, out string? failureReason);
+    bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string? failureReason);
 
 }
 

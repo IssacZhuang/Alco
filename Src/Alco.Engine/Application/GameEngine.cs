@@ -26,7 +26,6 @@ IDisposable
 
     private readonly BuiltInAssets _builtInAssets;
     private readonly AssetSystem _assets;
-    private readonly StorageSystem _storage;
 
     private readonly RenderingSystem _rendering;
     private readonly IRenderScheduler _renderScheduler;
@@ -198,7 +197,6 @@ IDisposable
         _builtInAssets = new BuiltInAssets(_assets);
 
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
-        _storage = new StorageSystem(this);
         InitializeDefaultAssetLoader(setting);
 
         Task<Shader> shaderBlit = _assets.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
