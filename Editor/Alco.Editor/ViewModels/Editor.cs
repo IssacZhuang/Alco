@@ -46,7 +46,7 @@ public partial class Editor : ViewModelBase, IDisposable
 
     private void SetupPages()
     {
-        Pages.Add(new Models.ExplorerPage());
+        Pages.Add(new ExplorerPage());
     }
 
     private void SetupMainMenu()

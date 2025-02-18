@@ -75,10 +75,14 @@ public partial class Editor : Window
     {
         if (_currentPage == page) return;
 
-        _currentPage?.OnDeactivated();
+        if (_currentPage != null)
+        {
+            _currentPage.IsActive = false;
+        }
+
         _currentPage = page;
-        MainContent.Content = page.Content;
-        _currentPage.OnActivated();
+        MainContent.Content = page.Control;
+        _currentPage.IsActive = true;
 
         foreach (Button button in ActivityBar.Children)
         {
