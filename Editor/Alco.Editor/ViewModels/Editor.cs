@@ -18,7 +18,7 @@ public partial class Editor : ViewModelBase, IDisposable
     private bool _disposed;
     private readonly HashSet<string> _menuItemPaths = new();
 
-    public GameEngine Engine { get; }
+    public EditorEngine Engine { get; }
     public List<Page> Pages { get; } = [];
     public List<MenuItemInfo> MainMenuItems { get; } = [];
 
@@ -26,7 +26,7 @@ public partial class Editor : ViewModelBase, IDisposable
     {
         if (!Design.IsDesignMode)
         {
-            Engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+            Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
         }
         else
         {
