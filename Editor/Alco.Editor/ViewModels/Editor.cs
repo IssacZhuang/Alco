@@ -16,11 +16,10 @@ public partial class Editor : ViewModelBase, IDisposable
     private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
 
     private bool _disposed;
-    private readonly HashSet<string> _menuItemPaths = new();
 
     public EditorEngine Engine { get; }
     public List<Page> Pages { get; } = [];
-    public List<MenuItemInfo> MainMenuItems { get; } = [];
+    public List<TreeItem<MethodInfo?>> MainMenuItems { get; } = [];
 
     public Editor()
     {
@@ -50,9 +49,20 @@ public partial class Editor : ViewModelBase, IDisposable
                     continue;
                 }
 
-                var page = Activator.CreateInstance(type) as Page;
+                Page page;
 
-                Pages.Add(page!);
+                //the type has a constructor with EditorEngine parameter
+                var constructor = type.GetConstructor([typeof(EditorEngine)]);
+                if (constructor != null)
+                {
+                    page = (Page)Activator.CreateInstance(type, Engine)!;
+                }
+                else
+                {
+                    page = (Page)Activator.CreateInstance(type)!;
+                }
+
+                Pages.Add(page);
             }
             catch (Exception ex)
             {
@@ -65,55 +75,10 @@ public partial class Editor : ViewModelBase, IDisposable
     {
         foreach (var (method, attribute) in _menuItemMethods)
         {
-            AddMenuItem(method, attribute);
+            MainMenuItems.AddTreeItem(attribute.Path, method);
         }
     }
 
-    private void AddMenuItem(MethodInfo method, MenuItemAttribute attribute)
-    {
-        if (_menuItemPaths.Contains(attribute.Path))
-        {
-            Console.WriteLine($"Duplicate menu item path: {attribute.Path}");
-            return;
-        }
-
-        _menuItemPaths.Add(attribute.Path);
-
-        string[] path = attribute.Path.Split('/');
-
-        var currentLevel = MainMenuItems;
-        MenuItemInfo? currentItem = null;
-
-        for (int i = 0; i < path.Length; i++)
-        {
-            var segment = path[i];
-
-            if (i == 0) // Top level menu
-            {
-                currentItem = currentLevel.FirstOrDefault(x => x.Header == segment);
-                if (currentItem == null)
-                {
-                    currentItem = new MenuItemInfo { Header = segment };
-                    currentLevel.Add(currentItem);
-                }
-            }
-            else // Sub menu
-            {
-                if (!currentItem!.Child.TryGetValue(segment, out var childItem))
-                {
-                    childItem = new MenuItemInfo { Header = segment };
-                    currentItem.Child[segment] = childItem;
-                }
-                currentItem = childItem;
-            }
-
-            // Set action for the last segment
-            if (i == path.Length - 1)
-            {
-                currentItem.Action = (window) => method.Invoke(null, new[] { window });
-            }
-        }
-    }
 
     public void Dispose()
     {

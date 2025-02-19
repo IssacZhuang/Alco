@@ -51,22 +51,29 @@ public partial class ExplorerPage : UserControl
         FileTreeView.ContextMenu = _contextMenu;
     }
 
-    private MenuItem CreateMenuItem(ContextMenuItemInfo menuItem)
+    private MenuItem CreateMenuItem(TreeItem<MethodInfo?> menuItem)
     {
         var item = new MenuItem { Header = menuItem.Header };
         foreach (var child in menuItem.Child)
         {
             item.Items.Add(CreateMenuItem(child.Value));
         }
-        if (menuItem.Action != null)
+
+        MethodInfo? method = menuItem.UserData;
+        if (method != null)
         {
-            item.Click += (s, e) => menuItem.Action(item);
+            item.Click += (s, e) => method.Invoke(null, [item]);
         }
         return item;
     }
 
     private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
+        if (DataContext is not ViewModels.ExplorerPage viewModel)
+        {
+            throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
+        }
+
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel == null) return;
 
@@ -81,77 +88,41 @@ public partial class ExplorerPage : UserControl
             var folder = folders[0];
             if (folder.TryGetLocalPath() is string path)
             {
-                await LoadFolderContents(path);
+                viewModel.OpenProject(path);
+                RefreshFileTreeView();
+                FileTreeView.IsVisible = true;
+                NoFolderPanel.IsVisible = false;
             }
         }
     }
 
-    private async Task LoadFolderContents(string folderPath)
+    private void RefreshFileTreeView()
     {
-        // Clear existing items
-        _rootItems.Clear();
-
-        // Create root item
-        var rootItem = new TreeViewItem
+        if (DataContext is not ViewModels.ExplorerPage viewModel)
         {
-            Header = new DirectoryInfo(folderPath).Name,
-            Tag = folderPath
+            throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
+        }   
+
+        _rootItems.Clear();
+        foreach (var fileName in viewModel.FileNames)
+        {
+            _rootItems.Add(CreateFileTreeView(fileName));
+        }
+    }
+
+    private TreeViewItem CreateFileTreeView(TreeItem<string> fileNames)
+    {
+        var item = new TreeViewItem
+        {
+            Header = fileNames.Header,
+            Tag = fileNames.UserData
         };
 
-        // Load folder contents
-        await LoadDirectoryContents(rootItem, folderPath);
-
-        // Show file tree and hide no folder panel
-        _rootItems.Add(rootItem);
-        FileTreeView.IsVisible = true;
-        NoFolderPanel.IsVisible = false;
-    }
-
-    private async Task LoadDirectoryContents(TreeViewItem parentItem, string path)
-    {
-        try
+        foreach (var child in fileNames.Child)
         {
-            var items = new ObservableCollection<TreeViewItem>();
-            parentItem.ItemsSource = items;
-
-            // Add directories
-            foreach (var dir in Directory.GetDirectories(path))
-            {
-                var dirInfo = new DirectoryInfo(dir);
-                var item = new TreeViewItem
-                {
-                    Header = dirInfo.Name,
-                    Tag = dir
-                };
-                items.Add(item);
-
-                // Load subdirectories
-                await LoadDirectoryContents(item, dir);
-            }
-
-            // Add files
-            foreach (var file in Directory.GetFiles(path))
-            {
-                var fileInfo = new FileInfo(file);
-                var item = new TreeViewItem
-                {
-                    Header = fileInfo.Name,
-                    Tag = file
-                };
-                items.Add(item);
-            }
+            item.Items.Add(CreateFileTreeView(child.Value));
         }
-        catch (Exception ex)
-        {
-            // Handle any errors (e.g., access denied)
-            var errorItem = new TreeViewItem
-            {
-                Header = $"Error: {ex.Message}",
-                Tag = null
-            };
-            var items = new ObservableCollection<TreeViewItem> { errorItem };
-            parentItem.ItemsSource = items;
-        }
+        return item;
     }
 
     private void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)

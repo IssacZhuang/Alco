@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using Alco.Editor.ViewModels;
 using System;
 using Avalonia.Interactivity;
+using System.Reflection;
 
 namespace Alco.Editor.Views;
 
@@ -114,16 +115,18 @@ public partial class Editor : Window
         }
     }
 
-    private MenuItem CreateMenuItem(MenuItemInfo menuItem)
+    private MenuItem CreateMenuItem(TreeItem<MethodInfo?> menuItem)
     {
         var item = new MenuItem { Header = menuItem.Header };
         foreach (var child in menuItem.Child)
         {
             item.Items.Add(CreateMenuItem(child.Value));
         }
-        if (menuItem.Action != null)
+
+        MethodInfo? method = menuItem.UserData;
+        if (method != null)
         {
-            item.Click += (s, e) => menuItem.Action(this);
+            item.Click += (s, e) => method.Invoke(null, [this]);
         }
         return item;
     }
