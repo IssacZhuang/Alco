@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Alco.Editor.Views.NoInspector">
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+        <TextBlock Text="No Inspector Available"
+            x:Name="TextHint"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center" />
+    </Grid>
+</UserControl> 

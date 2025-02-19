@@ -13,7 +13,7 @@ namespace Alco.Editor.ViewModels;
 public partial class Editor : ViewModelBase, IDisposable
 {
     private static readonly (MethodInfo, MenuItemAttribute)[] _menuItemMethods = UtilsAttribute.GetMethodsWithAttribute<MenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
-    private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
+    private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>(BindingFlags.Public | BindingFlags.Instance);
 
     private bool _disposed;
 
@@ -49,19 +49,8 @@ public partial class Editor : ViewModelBase, IDisposable
                     continue;
                 }
 
-                Page page;
-
-                //the type has a constructor with EditorEngine parameter
-                var constructor = type.GetConstructor([typeof(EditorEngine)]);
-                if (constructor != null)
-                {
-                    page = (Page)Activator.CreateInstance(type, Engine)!;
-                }
-                else
-                {
-                    page = (Page)Activator.CreateInstance(type)!;
-                }
-
+                Page page = (Page)Activator.CreateInstance(type)!;
+                
                 Pages.Add(page);
             }
             catch (Exception ex)

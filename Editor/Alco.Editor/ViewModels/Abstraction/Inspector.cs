@@ -7,8 +7,9 @@ namespace Alco.Editor.ViewModels;
 
 public abstract class Inspector : ViewModelBase
 {
-    public abstract Control Control { get; }
     public abstract bool IsModified { get; }
+
+    public abstract Control CreateControl();
 
     public abstract Type GetAssetType(string path);
     public abstract void OnOpenAsset(object asset);

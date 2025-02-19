@@ -7,9 +7,11 @@ namespace Alco.Editor.Attributes;
 public class InspectorAttribute : Attribute
 {
     private readonly HashSet<string> _extensions = new();
+    public Type AssetType { get; }
 
-    public InspectorAttribute(params string[] extensions)
+    public InspectorAttribute(Type assetType, params string[] extensions)
     {
+        AssetType = assetType;
         _extensions.UnionWith(extensions);
     }
 

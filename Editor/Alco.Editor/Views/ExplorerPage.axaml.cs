@@ -12,16 +12,19 @@ using System.Collections.Generic;
 
 using Alco.Editor.Models;
 using Alco.Editor.Attributes;
+using Alco.Editor.Utility;
 
 namespace Alco.Editor.Views;
 
 public partial class ExplorerPage : UserControl
 {
     private readonly ObservableCollection<TreeViewItem> _rootItems;
-    private readonly List<FileEditorMeta> _fileEditorMetas = new();
+    
     private ContextMenu? _contextMenu;
 
     public event EventHandler<FileEditor>? FileEditorCreated;
+
+    public ViewModels.ExplorerPage ViewModel => DataContext as ViewModels.ExplorerPage ?? throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
 
     public ExplorerPage()
     {
@@ -33,7 +36,7 @@ public partial class ExplorerPage : UserControl
 
     public ExplorerPage(params FileEditorMeta[] fileEditorMetas) : this()
     {
-        _fileEditorMetas.AddRange(fileEditorMetas);
+       
     }
 
     private void InitializeContextMenu()
@@ -69,10 +72,6 @@ public partial class ExplorerPage : UserControl
 
     private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not ViewModels.ExplorerPage viewModel)
-        {
-            throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
-        }
 
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel == null) return;
@@ -83,12 +82,14 @@ public partial class ExplorerPage : UserControl
             AllowMultiple = false
         });
 
+        EditorEngine engine = this.GetEngine();
+
         if (folders.Count > 0)
         {
             var folder = folders[0];
             if (folder.TryGetLocalPath() is string path)
             {
-                viewModel.OpenProject(path);
+                await ViewModel.OpenProject(engine, path);
                 RefreshFileTreeView();
                 FileTreeView.IsVisible = true;
                 NoFolderPanel.IsVisible = false;
@@ -125,12 +126,15 @@ public partial class ExplorerPage : UserControl
         return item;
     }
 
-    private void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
+    private async void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
     {
         var treeViewItem = FindTreeViewItem(e.Source as Control);
         if (treeViewItem?.Tag is not string filePath) return;
 
-        OpenFileIfExists(filePath);
+        EditorEngine engine = this.GetEngine();
+
+        ViewModels.Inspector inspector = await ViewModel.OpenFile(engine, filePath);
+        MainContentArea.Content = inspector.CreateControl();
     }
 
     private static TreeViewItem? FindTreeViewItem(Control? element)
@@ -146,23 +150,6 @@ public partial class ExplorerPage : UserControl
         return null;
     }
 
-    private void OpenFileIfExists(string filePath)
-    {
-        var fileInfo = new FileInfo(filePath);
-        if (!fileInfo.Exists) return;
-
-        var extension = fileInfo.Extension;
-        var supportedEditor = _fileEditorMetas.Find(meta => meta.IsSupported(extension));
-
-        if (supportedEditor != null)
-        {
-            CleanupCurrentEditor();
-            var editor = supportedEditor.CreateInstance();
-            SetupEditor(editor);
-            editor.OnOpenFile(fileInfo);
-            FileEditorCreated?.Invoke(this, editor);
-        }
-    }
 
     private void CleanupCurrentEditor()
     {

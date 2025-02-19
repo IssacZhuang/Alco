@@ -9,16 +9,19 @@ using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
 
-[Inspector(".json")]
+[Inspector(typeof(BaseConfig), ".json")]
 public partial class ConfigInspector : Inspector<BaseConfig>
 {
-    public override Control Control { get; }
 
     public override bool IsModified => false;
 
     public ConfigInspector()
     {
-        Control = new Views.ConfigInspector()
+    }
+
+    public override Control CreateControl()
+    {
+        return new Views.ConfigInspector()
         {
             DataContext = this
         };
