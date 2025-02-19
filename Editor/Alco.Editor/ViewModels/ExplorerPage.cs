@@ -88,9 +88,9 @@ public class ExplorerPage : Page
                         continue;
                     }
 
-                    object asset = engine.Assets.Load(filePath, type);
+                    object asset = engine.Assets.Load(filePath, attribute.AssetType);
 
-                    inspector.OnOpenAsset(asset);
+                    inspector.OnOpenAsset(engine, asset);
                     return inspector;
                 }
             }

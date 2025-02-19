@@ -21,9 +21,6 @@ public partial class ExplorerPage : UserControl
     private readonly ObservableCollection<TreeViewItem> _rootItems;
     
     private ContextMenu? _contextMenu;
-
-    public event EventHandler<FileEditor>? FileEditorCreated;
-
     public ViewModels.ExplorerPage ViewModel => DataContext as ViewModels.ExplorerPage ?? throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
 
     public ExplorerPage()
@@ -32,11 +29,6 @@ public partial class ExplorerPage : UserControl
         _rootItems = new ObservableCollection<TreeViewItem>();
         FileTreeView.ItemsSource = _rootItems;
         InitializeContextMenu();
-    }
-
-    public ExplorerPage(params FileEditorMeta[] fileEditorMetas) : this()
-    {
-       
     }
 
     private void InitializeContextMenu()
@@ -150,22 +142,4 @@ public partial class ExplorerPage : UserControl
         return null;
     }
 
-
-    private void CleanupCurrentEditor()
-    {
-        // if (_currentEditor != null)
-        // {
-        //     EditArea.Content = null;
-        //     PreviewArea.Content = null;
-        //     _currentEditor.OnCloseFile();
-        //     _currentEditor = null;
-        // }
-    }
-
-    private void SetupEditor(FileEditor editor)
-    {
-        //_currentEditor = editor;
-        // EditArea.Content = editor.EditControl;
-        // PreviewArea.Content = editor.PreviewControl;
-    }
 }
