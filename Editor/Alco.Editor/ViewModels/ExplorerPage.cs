@@ -88,10 +88,19 @@ public class ExplorerPage : Page
                         continue;
                     }
 
-                    object asset = engine.Assets.Load(filePath, attribute.AssetType);
+                    try
+                    {
+                        object asset = engine.Assets.Load(filePath, attribute.AssetType);
 
-                    inspector.OnOpenAsset(engine, asset);
-                    return inspector;
+                        inspector.OnOpenAsset(engine, asset);
+                        return inspector;
+                    }
+                    catch (Exception ex)
+                    {
+                        return new ExceptionInspector(
+                            $"Exception when open: {filePath}",
+                            ex);
+                    }
                 }
             }
 
