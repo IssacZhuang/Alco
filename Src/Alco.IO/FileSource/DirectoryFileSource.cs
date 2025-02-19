@@ -58,7 +58,7 @@ public class DirectoryFileSource : IFileSource
         //do nothing
     }
 
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string? failureReason)
+    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
     {
         try
         {

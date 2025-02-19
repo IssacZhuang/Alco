@@ -58,7 +58,7 @@ public class PackageFileSource : IFileSource
         return false;
     }
 
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string? failureReason)
+    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
     {
         throw new NotImplementedException();
     }

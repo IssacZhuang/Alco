@@ -184,6 +184,11 @@ public sealed partial class AssetSystem
     /// <param name="cacheMode">Whether to cache the asset.</param>
     public void LoadAsync(string filename, Type type, Action<object, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
     {
+        if (_asyncLoadQueue == null)
+        {
+            throw new InvalidOperationException("The thread count should be greater than 0 when create the asset system if you want to use LoadAsync");
+        }
+
 
         filename = ParseEntry(filename);
 
@@ -293,6 +298,10 @@ public sealed partial class AssetSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void PushJob(AsyncPreprocessJob job)
     {
+        if (_asyncLoadQueue == null)
+        {
+            return;
+        }
         _lockJobQueue.Lock();
         _asyncLoadQueue.Push(job);
         _lockJobQueue.Unlock();
@@ -301,6 +310,10 @@ public sealed partial class AssetSystem
     // Only called from the GameEngine class
     private void OnHandleAssetLoaded()
     {
+        if (_asyncLoadQueue == null)
+        {
+            return;
+        }
         int count = 0;
         //allow cas failed in serveral times
         while (count < FetchJobAttempCount)

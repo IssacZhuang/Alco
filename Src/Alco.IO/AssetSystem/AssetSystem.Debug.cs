@@ -63,6 +63,10 @@ public sealed partial class AssetSystem
     //return finished job count
     internal int DebugWaitForAllJobComplete()
     {
+        if (_asyncLoadQueue == null)
+        {
+            return 0;
+        }
         var list = _asyncLoadQueue.WaitForAllCompleted();
 
         int count = 0;

@@ -79,7 +79,7 @@ public class DirectoryWatcherFileSource : IFileSource
         _watcher.Dispose();
     }
 
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string? failureReason)
+    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
     {
         try
         {
