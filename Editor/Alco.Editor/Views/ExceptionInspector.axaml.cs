@@ -17,8 +17,7 @@ namespace Alco.Editor.Views
         {
             base.OnAttachedToVisualTree(e);
 
-            ViewModels.ExceptionInspector? viewModel = DataContext as ViewModels.ExceptionInspector;
-            if (viewModel == null)
+            if (DataContext is not ViewModels.ExceptionInspector viewModel)
             {
                 return;
             }

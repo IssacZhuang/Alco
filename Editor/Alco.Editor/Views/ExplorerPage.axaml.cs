@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using Alco.Editor.Models;
 using Alco.Editor.Attributes;
 using Alco.Editor.Utility;
+using Avalonia;
 
 namespace Alco.Editor.Views;
 
@@ -28,6 +29,11 @@ public partial class ExplorerPage : UserControl
         InitializeComponent();
         _rootItems = new ObservableCollection<TreeViewItem>();
         FileTreeView.ItemsSource = _rootItems;
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
         InitializeContextMenu();
     }
 
