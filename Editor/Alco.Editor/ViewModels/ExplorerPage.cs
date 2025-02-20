@@ -30,15 +30,22 @@ public class ExplorerPage : Page
 
     public override Control Control { get; }
 
+    public EditorEngine Engine { get; }
+
 
     public List<TreeItem<MethodInfo?>> ContextMenuItemInfos { get; } = [];
 
     public List<TreeItem<string>> FileNames { get; } = [];
     //empty engine only for design mode
+    public ExplorerPage() : this(null!)
+    {
+
+    }
 
     //you should be use this constructor in runtime
-    public ExplorerPage()
+    public ExplorerPage(EditorEngine engine)
     {
+        Engine = engine;
         Control = new Views.ExplorerPage()
         {
             DataContext = this
@@ -51,7 +58,7 @@ public class ExplorerPage : Page
     public async Task OpenProject(EditorEngine engine, string projectPath)
     {
         engine.OpenProject(projectPath);
-        await RefreshFileNames(engine);
+        await RefreshFileNamesAsync(engine);
     }
 
     private void SetupContextMenu()
@@ -63,16 +70,18 @@ public class ExplorerPage : Page
         }
     }
 
-    private Task RefreshFileNames(EditorEngine engine)
+    public void RefreshFileNames(EditorEngine engine)
     {
-        return Task.Run(() =>
+        FileNames.Clear();
+        foreach (var asset in engine.AllFilesInProject)
         {
-            FileNames.Clear();
-            foreach (var asset in engine.AllFilesInProject)
-            {
-                FileNames.AddTreeItem(asset, asset);
-            }
-        });
+            FileNames.AddTreeItem(asset, asset);
+        }
+    }
+
+    private Task RefreshFileNamesAsync(EditorEngine engine)
+    {
+        return Task.Run(() => RefreshFileNames(engine));
     }
 
     public unsafe Task<Inspector> OpenFile(EditorEngine engine, string filePath)

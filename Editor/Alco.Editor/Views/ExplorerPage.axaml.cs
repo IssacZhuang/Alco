@@ -35,8 +35,21 @@ public partial class ExplorerPage : UserControl
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        if (!Design.IsDesignMode)
+        {
+            ViewModel.Engine.OnFilesInProjectUpdated += RefreshFileTreeView;
+        }
         base.OnAttachedToVisualTree(e);
         InitializeContextMenu();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (!Design.IsDesignMode)
+        {
+            ViewModel.Engine.OnFilesInProjectUpdated -= RefreshFileTreeView;
+        }
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void InitializeContextMenu()
@@ -92,7 +105,7 @@ public partial class ExplorerPage : UserControl
             AllowMultiple = false
         });
 
-        EditorEngine engine = this.GetEngine();
+        EditorEngine engine = ViewModel.Engine;
 
         if (folders.Count > 0)
         {
@@ -114,6 +127,7 @@ public partial class ExplorerPage : UserControl
             throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
         }   
 
+        viewModel.RefreshFileNames(viewModel.Engine);
         _rootItems.Clear();
         foreach (var fileName in viewModel.FileNames)
         {
@@ -141,7 +155,7 @@ public partial class ExplorerPage : UserControl
         var treeViewItem = FindTreeViewItem(e.Source as Control);
         if (treeViewItem?.Tag is not TreeItem<string> treeItem) return;
 
-        EditorEngine engine = this.GetEngine();
+        EditorEngine engine = ViewModel.Engine;
 
         if (treeItem.UserData is string filePath)
         {
@@ -177,8 +191,7 @@ public partial class ExplorerPage : UserControl
                 return;
             }
 
-            EditorEngine engine = this.GetEngine();
-            method.Invoke(null, [engine, treeItem.FullPath]);
+            method.Invoke(null, [ViewModel.Engine, treeItem.FullPath]);
         };
     }
 

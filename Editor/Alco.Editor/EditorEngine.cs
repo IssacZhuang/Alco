@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Alco.Engine;
 using Alco.IO;
+using Avalonia.Threading;
 
 namespace Alco.Editor;
 
@@ -14,6 +16,8 @@ public class EditorEngine : GameEngine
     public const string CacheFolderName = ".cache";
 
     private readonly List<string> _allFilesInProject = new();
+    private readonly object _allFilesInProjectLock = new();
+    private FileSystemWatcher? _projectWatcher;
 
     public string CacheDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CacheFolderName);
 
@@ -29,6 +33,11 @@ public class EditorEngine : GameEngine
     {
         get => _allFilesInProject;
     }
+
+    /// <summary>
+    /// Event triggered when the files in the project are updated.
+    /// </summary>
+    public event Action? OnFilesInProjectUpdated;
 
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
@@ -49,6 +58,12 @@ public class EditorEngine : GameEngine
 
     }
 
+    /// <summary>
+    /// Opens a project at the specified path.
+    /// </summary>
+    /// <param name="projectPath">The path to the project directory.</param>
+    /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
+    /// <exception cref="DirectoryNotFoundException">Thrown when the project directory does not exist.</exception>
     public void OpenProject(string projectPath)
     {
         if (IsProjectOpen)
@@ -56,33 +71,95 @@ public class EditorEngine : GameEngine
             throw new InvalidOperationException("Project is already open, close the current project first");
         }
 
-        
-        ProjectDirectory = projectPath;
-        UpdateAllFilesInProject();
+        if (!Directory.Exists(projectPath))
+        {
+            throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
+        }
 
-        Log.Info($"Project opened: {projectPath}");
+        try
+        {
+            ProjectDirectory = projectPath;
+            UpdateAllFilesInProject();
+            SetupProjectWatcher();
+
+            Log.Info($"Project opened: {projectPath}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Failed to open project: {ex.Message}");
+            CloseProject();
+            throw;
+        }
     }
 
     public void CloseProject()
     {
+        if (_projectWatcher != null)
+        {
+            _projectWatcher.EnableRaisingEvents = false;
+            _projectWatcher.Dispose();
+            _projectWatcher = null;
+        }
+
         ProjectDirectory = null;
         _allFilesInProject.Clear();
+
+        Log.Info("Project closed");
+    }
+
+    private void SetupProjectWatcher()
+    {
+        if (ProjectDirectory == null) return;
+
+        _projectWatcher = new FileSystemWatcher
+        {
+            Path = ProjectDirectory,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+            Filter = "*.*",
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true
+        };
+
+        _projectWatcher.Created += OnProjectFileChanged;
+        _projectWatcher.Deleted += OnProjectFileChanged;
+        _projectWatcher.Renamed += OnProjectFileChanged;
+    }
+
+    private void OnProjectFileChanged(object sender, FileSystemEventArgs e)
+    {
+        if (ProjectDirectory == null) return;
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            UpdateAllFilesInProject();
+            OnFilesInProjectUpdated?.Invoke();
+        });
     }
 
     private void UpdateAllFilesInProject()
     {
-        if (ProjectDirectory == null)
+        lock (_allFilesInProjectLock)
         {
-            return;
-        }
-        _allFilesInProject.Clear();
-        foreach (var file in Directory.EnumerateFiles(ProjectDirectory, "*", SearchOption.AllDirectories))
-        {
-            _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, file)));
+            if (ProjectDirectory == null)
+            {
+                return;
+            }
+            try
+            {
+                _allFilesInProject.Clear();
+                foreach (var file in Directory.EnumerateFiles(ProjectDirectory, "*", SearchOption.AllDirectories))
+                {
+                    _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, file)));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to update project files: {ex.Message}");
+                throw;
+            }
         }
     }
 
-    private string FixPath(string path)
+    private static string FixPath(string path)
     {
         return path.Replace('\\', '/');
     }

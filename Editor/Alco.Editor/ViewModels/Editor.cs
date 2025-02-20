@@ -49,8 +49,18 @@ public partial class Editor : ViewModelBase, IDisposable
                     continue;
                 }
 
-                Page page = (Page)Activator.CreateInstance(type)!;
-                
+                Page page;
+
+                //if has constructor with EditorEngine parameter, use it
+                if (type.GetConstructor([typeof(EditorEngine)]) != null)
+                {
+                    page = (Page)Activator.CreateInstance(type, Engine)!;
+                }
+                else
+                {
+                    page = (Page)Activator.CreateInstance(type)!;
+                }
+
                 Pages.Add(page);
             }
             catch (Exception ex)

@@ -42,9 +42,6 @@ public partial class ConfigInspector : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-
         TextJsonPreview.Text = ViewModel.SerializedJson;
-
-        
     }
 }
