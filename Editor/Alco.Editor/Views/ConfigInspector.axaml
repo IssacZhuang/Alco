@@ -13,7 +13,10 @@
 
   <Grid ColumnDefinitions="*, Auto, *">
     <!-- Left Panel (Empty for now) -->
-    <StackPanel Grid.Column="0">
+    <StackPanel
+      x:Name="PropertiesEditor"
+      Margin="20"
+      Grid.Column="0">
     </StackPanel>
 
     <!-- GridSplitter -->

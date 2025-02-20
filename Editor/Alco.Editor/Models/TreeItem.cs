@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Alco.Editor.Models;
@@ -9,6 +10,13 @@ public class TreeItem<TUserData>
     public string Header { get; set; } = string.Empty;
     public TUserData? UserData { get; set; }
     public Dictionary<string, TreeItem<TUserData>> Child { get; set; } = new();
+    public string FullPath { get; private set; }
+
+    public TreeItem(string header, string? parentPath = null)
+    {
+        Header = header;
+        FullPath = parentPath == null ? header : Path.Combine(parentPath, header);
+    }
 }
 
 public static class TreeItemExtension
@@ -18,6 +26,7 @@ public static class TreeItemExtension
         var pathParts = path.Split('/');
         var currentLevel = tree;
         TreeItem<TUserData>? currentItem = null;
+        string? currentPath = null;
 
         for (int i = 0; i < pathParts.Length; i++)
         {
@@ -28,18 +37,20 @@ public static class TreeItemExtension
                 currentItem = currentLevel.FirstOrDefault(x => x.Header == segment);
                 if (currentItem == null)
                 {
-                    currentItem = new TreeItem<TUserData> { Header = segment };
+                    currentItem = new TreeItem<TUserData>(segment);
                     currentLevel.Add(currentItem);
                 }
+                currentPath = segment;
             }
             else // Sub item
             {
                 if (!currentItem!.Child.TryGetValue(segment, out var childItem))
                 {
-                    childItem = new TreeItem<TUserData> { Header = segment };
+                    childItem = new TreeItem<TUserData>(segment, currentPath);
                     currentItem.Child[segment] = childItem;
                 }
                 currentItem = childItem;
+                currentPath = childItem.FullPath;
             }
 
             // Set user data for the last segment

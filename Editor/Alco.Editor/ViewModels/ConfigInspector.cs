@@ -19,6 +19,7 @@ public partial class ConfigInspector : Inspector<BaseConfig>
     private string? _serializedJson = null;
 
     public string SerializedJson => _serializedJson ?? "{}";
+    public BaseConfig? Asset => _asset;
 
     public ConfigInspector()
     {

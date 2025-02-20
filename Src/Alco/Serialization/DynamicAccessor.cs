@@ -43,21 +43,27 @@ public class DynamicAccessor
     private readonly FrozenDictionary<string, Setter> _setters;
     private readonly string[] _propertyNames;
     private readonly string[] _fieldNames;
+    private readonly Type[] _propertyTypes;
+    private readonly Type[] _fieldTypes;
     private readonly Type _targetType;
 
     public IReadOnlyList<string> PropertyNames => _propertyNames;
     public IReadOnlyList<string> FieldNames => _fieldNames;
     public Type TargetType => _targetType;
+    public IReadOnlyList<Type> PropertyTypes => _propertyTypes;
+    public IReadOnlyList<Type> FieldTypes => _fieldTypes;
 
-    public DynamicAccessor(Type targetType)
+
+    public DynamicAccessor(Type targetType, BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
     {
         _targetType = targetType;
         Dictionary<string, Getter> getters = new Dictionary<string, Getter>();
         Dictionary<string, Setter> setters = new Dictionary<string, Setter>();
         List<string> propertyNames = new List<string>();
         List<string> fieldNames = new List<string>();
+        List<Type> propertyTypes = new List<Type>();
+        List<Type> fieldTypes = new List<Type>();
 
-        const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
         var properties = targetType.GetProperties(bindingFlags);
         var fields = targetType.GetFields(bindingFlags);
 
@@ -66,19 +72,26 @@ public class DynamicAccessor
             getters[field.Name] = CreateFieldGetter(field);
             setters[field.Name] = CreateFieldSetter(field);
             fieldNames.Add(field.Name);
+            fieldTypes.Add(field.FieldType);
         }
 
         foreach (var property in properties)
         {
-            getters[property.Name] = CreatePropertyGetter(property);
-            setters[property.Name] = CreatePropertySetter(property);
-            propertyNames.Add(property.Name);
+            if (property.CanRead && property.CanWrite)
+            {
+                getters[property.Name] = CreatePropertyGetter(property);
+                setters[property.Name] = CreatePropertySetter(property);
+                propertyNames.Add(property.Name);
+                propertyTypes.Add(property.PropertyType);
+            }
         }
 
         _getters = getters.ToFrozenDictionary();
         _setters = setters.ToFrozenDictionary();
         _propertyNames = propertyNames.ToArray();
         _fieldNames = fieldNames.ToArray();
+        _propertyTypes = propertyTypes.ToArray();
+        _fieldTypes = fieldTypes.ToArray();
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Diagnostics;
+using Alco.IO;
 
 namespace Alco.Editor.Views;
 
@@ -19,7 +20,18 @@ public partial class ConfigInspector : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        BaseConfig? config = ViewModel.Asset;
+        if (config == null)
+        {
+            return;
+        }
+        DynamicAccessor accessor = new DynamicAccessor(config.GetType());
 
+        PropertiesEditor.Children.Clear();
+        for (int i = 0; i < accessor.PropertyNames.Count; i++)
+        {
+            PropertiesEditor.Children.Add(new TextBlock { Text = $"{accessor.PropertyNames[i]} [{accessor.PropertyTypes[i].Name}]" });
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

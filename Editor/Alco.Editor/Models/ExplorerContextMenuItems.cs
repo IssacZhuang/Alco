@@ -9,8 +9,8 @@ namespace Alco.Editor.Models;
 public static class ExplorerContextMenuItems
 {
     [ContextMenuItem("Create/Folder")]
-    public static void CreateFolder(TreeViewItem item)
+    public static void CreateFolder(EditorEngine engine, string path)
     {
-        Log.Info("CreateFolder");
+        Log.Success(path);
     }
 }

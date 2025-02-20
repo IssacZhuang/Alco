@@ -22,6 +22,7 @@ public partial class ExplorerPage : UserControl
     private readonly ObservableCollection<TreeViewItem> _rootItems;
     
     private ContextMenu? _contextMenu;
+    private TreeViewItem? _selectedItem;
     public ViewModels.ExplorerPage ViewModel => DataContext as ViewModels.ExplorerPage ?? throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
 
     public ExplorerPage()
@@ -50,6 +51,15 @@ public partial class ExplorerPage : UserControl
             _contextMenu.Items.Add(item);
         }
         FileTreeView.ContextMenu = _contextMenu;
+
+        _contextMenu.Opening += (sender, e) =>
+        {
+            var treeViewItem = FindTreeViewItem(FileTreeView.SelectedItem as Control);
+            if (treeViewItem != null)
+            {
+                _selectedItem = treeViewItem;
+            }
+        };
     }
 
     private MenuItem CreateMenuItem(TreeItem<MethodInfo?> menuItem)
@@ -60,10 +70,11 @@ public partial class ExplorerPage : UserControl
             item.Items.Add(CreateMenuItem(child.Value));
         }
 
+
         MethodInfo? method = menuItem.UserData;
         if (method != null)
         {
-            item.Click += (s, e) => method.Invoke(null, [item]);
+            item.Click += CreateContextMenuItemClickHandler(method);
         }
         return item;
     }
@@ -109,15 +120,15 @@ public partial class ExplorerPage : UserControl
         }
     }
 
-    private TreeViewItem CreateFileTreeView(TreeItem<string> fileNames)
+    private TreeViewItem CreateFileTreeView(TreeItem<string> treeItem)
     {
         var item = new TreeViewItem
         {
-            Header = fileNames.Header,
-            Tag = fileNames.UserData
+            Header = treeItem.Header,
+            Tag = treeItem
         };
 
-        foreach (var child in fileNames.Child)
+        foreach (var child in treeItem.Child)
         {
             item.Items.Add(CreateFileTreeView(child.Value));
         }
@@ -127,12 +138,15 @@ public partial class ExplorerPage : UserControl
     private async void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
     {
         var treeViewItem = FindTreeViewItem(e.Source as Control);
-        if (treeViewItem?.Tag is not string filePath) return;
+        if (treeViewItem?.Tag is not TreeItem<string> treeItem) return;
 
         EditorEngine engine = this.GetEngine();
 
-        ViewModels.Inspector inspector = await ViewModel.OpenFile(engine, filePath);
-        MainContentArea.Content = inspector.CreateControl();
+        if (treeItem.UserData is string filePath)
+        {
+            ViewModels.Inspector inspector = await ViewModel.OpenFile(engine, filePath);
+            MainContentArea.Content = inspector.CreateControl();
+        }
     }
 
     private static TreeViewItem? FindTreeViewItem(Control? element)
@@ -146,6 +160,25 @@ public partial class ExplorerPage : UserControl
             element = element.Parent as Control;
         }
         return null;
+    }
+
+    private EventHandler<RoutedEventArgs> CreateContextMenuItemClickHandler(MethodInfo method)
+    {
+        return (s, e) =>
+        {
+            if (_selectedItem is null)
+            {
+                return;
+            }
+
+            if (_selectedItem.Tag is not TreeItem<string> treeItem)
+            {
+                return;
+            }
+
+            EditorEngine engine = this.GetEngine();
+            method.Invoke(null, [engine, treeItem.FullPath]);
+        };
     }
 
 }
