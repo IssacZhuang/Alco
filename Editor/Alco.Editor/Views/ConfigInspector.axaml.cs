@@ -32,6 +32,11 @@ public partial class ConfigInspector : UserControl
         {
             PropertiesEditor.Children.Add(new TextBlock { Text = $"{accessor.PropertyNames[i]} [{accessor.PropertyTypes[i].Name}]" });
         }
+
+        //test
+        PropertyNumber propertyNumber = new PropertyNumber();
+        PropertiesEditor.Children.Add(propertyNumber);
+        propertyNumber.Bind(ViewModel, nameof(ViewModel.TestNumber));
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
