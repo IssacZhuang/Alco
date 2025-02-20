@@ -164,23 +164,40 @@ public class EditorEngine : GameEngine
     private void UpdateAllFilesInProject()
     {
         using (_lockProjectFiles.EnterScope())
-
+        {
             if (ProjectDirectory == null)
             {
                 return;
             }
-        try
-        {
-            _allFilesInProject.Clear();
-            foreach (var file in Directory.EnumerateFiles(ProjectDirectory, "*", SearchOption.AllDirectories))
+            try
             {
-                _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, file)));
+                _allFilesInProject.Clear();
+
+                var entries = new List<(string Path, bool IsDirectory)>();
+                foreach (var entry in Directory.EnumerateFileSystemEntries(ProjectDirectory, "*", SearchOption.AllDirectories))
+                {
+                    entries.Add((entry, Directory.Exists(entry)));
+                }
+
+                entries.Sort((a, b) =>
+                {
+                    if (a.IsDirectory != b.IsDirectory)
+                    {
+                        return a.IsDirectory ? -1 : 1;
+                    }
+                    return string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase);
+                });
+
+                foreach (var entry in entries)
+                {
+                    _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, entry.Path)));
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to update project files: {ex.Message}");
-            throw;
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to update project files: {ex.Message}");
+                throw;
+            }
         }
     }
 
