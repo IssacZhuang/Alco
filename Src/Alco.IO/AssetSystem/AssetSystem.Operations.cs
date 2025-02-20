@@ -263,6 +263,64 @@ public sealed partial class AssetSystem
         return false;
     }
 
+    /// <summary>
+    /// Try to decode the raw data of the asset from the file source.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <param name="filename">The filename of the asset.</param>
+    /// <param name="type">The type of the asset.</param>
+    /// <param name="data">The raw data of the asset.</param>
+    /// <param name="asset">When this method returns, contains the decoded asset if successful; otherwise, <c>null</c>.</param>
+    /// <param name="failedReason">When this method returns, contains the reason why the asset failed to decode if unsuccessful; otherwise, <c>null</c>.</param>
+    /// <returns><c>True</c> if the asset is decoded successfully.</returns>
+    public bool TryDecode(string filename, Type type, ReadOnlySpan<byte> data, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string failedReason)
+    {
+        if (TryGetLoader(filename, type, out IAssetLoader? loader))
+        {
+            asset = loader.CreateAsset(filename, data, type);
+            failedReason = string.Empty;
+            return true;
+        }
+
+        failedReason = $"No asset loader found for the file '{filename}' to type {type.Name}";
+        asset = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Try to decode the raw data of the asset from the file source.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <param name="filename">The filename of the asset.</param>
+    /// <param name="type">The type of the asset.</param>
+    /// <param name="data">The raw data of the asset.</param>
+    /// <param name="asset">When this method returns, contains the decoded asset if successful; otherwise, <c>null</c>.</param>
+    /// <returns><c>True</c> if the asset is decoded successfully.</returns>
+    public bool TryDecode(string filename, Type type, ReadOnlySpan<byte> data, [NotNullWhen(true)] out object? asset)
+    {
+        return TryDecode(filename, type, data, out asset, out _);
+    }
+
+    /// <summary>
+    /// Decode the raw data of the asset from the file source.
+    /// <br/>This method is thread safe.
+    /// </summary>
+    /// <param name="filename">The filename of the asset.</param>
+    /// <param name="type">The type of the asset.</param>
+    /// <param name="data">The raw data of the asset.</param>
+    /// <returns>The decoded asset.</returns>
+    /// <exception cref="AssetLoadException">Thrown when the asset failed to decode.</exception>
+    public object Decode(string filename, Type type, ReadOnlySpan<byte> data)
+    {
+        if (TryDecode(filename, type, data, out object? asset, out string? failedReason))
+        {
+            return asset;
+        }
+        throw new AssetLoadException(failedReason);
+    }
+
+
+
 
     private bool TryLoadDataFromSource(string filename, out SafeMemoryHandle data)
     {
