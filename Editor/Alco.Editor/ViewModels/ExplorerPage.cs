@@ -8,6 +8,8 @@ using Alco.Editor.Attributes;
 using Alco.Editor.Models;
 using Alco.Editor.Views;
 using Alco.Engine;
+using Alco.IO;
+using Alco.Unsafe;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -66,15 +68,14 @@ public class ExplorerPage : Page
         return Task.Run(() =>
         {
             FileNames.Clear();
-            string[] allAssets = engine.Assets.AllFileNames.ToArray();
-            foreach (var asset in allAssets)
+            foreach (var asset in engine.AllFilesInProject)
             {
                 FileNames.AddTreeItem(asset, asset);
             }
         });
     }
 
-    public Task<Inspector> OpenFile(EditorEngine engine, string filePath)
+    public unsafe Task<Inspector> OpenFile(EditorEngine engine, string filePath)
     {
         return Task.Run(() =>
         {
@@ -88,15 +89,37 @@ public class ExplorerPage : Page
                         continue;
                     }
 
+                    //use real project directory but not virtual file system in asset system
+                    string? projectPath = engine.ProjectDirectory;
+
+                    if (projectPath == null)
+                    {
+                        return new ExceptionInspector(
+                            $"No project is open",
+                            new InvalidOperationException("No project is open"));
+                    }
+
+                    string realPath = Path.Combine(projectPath, filePath);
+                    byte* data = null;
+
                     try
                     {
-                        object asset = engine.Assets.Load(filePath, attribute.AssetType);
+                        
+                        //use unmanaged memory to avoid LOH
+                        data = UnsafeIO.ReadFile(realPath, out int size);
+
+                        object asset = engine.Assets.Decode(filePath, attribute.AssetType, new ReadOnlySpan<byte>(data, size));
 
                         inspector.OnOpenAsset(engine, asset);
                         return inspector;
                     }
                     catch (Exception ex)
                     {
+                        if (data != null)
+                        {
+                            UtilsMemory.Free(data);
+                        }
+
                         return new ExceptionInspector(
                             $"Exception when open: {filePath}",
                             ex);

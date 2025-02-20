@@ -13,7 +13,7 @@ public class EditorEngine : GameEngine
 {
     public const string CacheFolderName = ".cache";
 
-    private DirectoryFileSource? _projectSource;
+    private readonly List<string> _allFilesInProject = new();
 
     public string CacheDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CacheFolderName);
 
@@ -22,12 +22,12 @@ public class EditorEngine : GameEngine
     /// </summary>
     public AssetSystem Cache { get; }
 
-    public bool IsProjectOpen => _projectSource != null;
-    public string ProjectDirectory { get; private set; }
+    public bool IsProjectOpen => ProjectDirectory != null;
+    public string? ProjectDirectory { get; private set; }
 
-    public IEnumerable<string> AllFilesInProject
+    public IReadOnlyList<string> AllFilesInProject
     {
-        get => Assets.AllFileNames;
+        get => _allFilesInProject;
     }
 
     public EditorEngine(GameEngineSetting setting) : base(setting)
@@ -47,7 +47,6 @@ public class EditorEngine : GameEngine
         AssetEncoderConfig configEncoder = new AssetEncoderConfig();
         Cache.RegisterAssetEncoder(configEncoder);
 
-        ProjectDirectory = string.Empty;
     }
 
     public void OpenProject(string projectPath)
@@ -57,21 +56,35 @@ public class EditorEngine : GameEngine
             throw new InvalidOperationException("Project is already open, close the current project first");
         }
 
+        
         ProjectDirectory = projectPath;
-        _projectSource = new DirectoryFileSource(projectPath);
-        Assets.AddFileSource(_projectSource);
+        UpdateAllFilesInProject();
+
+        Log.Info($"Project opened: {projectPath}");
     }
 
     public void CloseProject()
     {
-        if (_projectSource == null)
-        {
-            throw new InvalidOperationException("No project is open");
-        }
+        ProjectDirectory = null;
+        _allFilesInProject.Clear();
+    }
 
-        Assets.RemoveFileSource(_projectSource);
-        _projectSource.Dispose();
-        _projectSource = null;
+    private void UpdateAllFilesInProject()
+    {
+        if (ProjectDirectory == null)
+        {
+            return;
+        }
+        _allFilesInProject.Clear();
+        foreach (var file in Directory.EnumerateFiles(ProjectDirectory, "*", SearchOption.AllDirectories))
+        {
+            _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, file)));
+        }
+    }
+
+    private string FixPath(string path)
+    {
+        return path.Replace('\\', '/');
     }
 
 }
