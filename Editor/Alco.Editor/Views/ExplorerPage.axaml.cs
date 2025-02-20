@@ -112,7 +112,7 @@ public partial class ExplorerPage : UserControl
             var folder = folders[0];
             if (folder.TryGetLocalPath() is string path)
             {
-                await ViewModel.OpenProject(engine, path);
+                await ViewModel.OpenProjectAsync(engine, path);
                 RefreshFileTreeView();
                 FileTreeView.IsVisible = true;
                 NoFolderPanel.IsVisible = false;

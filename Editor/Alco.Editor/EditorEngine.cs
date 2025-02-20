@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Alco.Engine;
 using Alco.IO;
 using Avalonia.Threading;
@@ -16,8 +17,10 @@ public class EditorEngine : GameEngine
     public const string CacheFolderName = ".cache";
 
     private readonly List<string> _allFilesInProject = new();
-    private readonly object _allFilesInProjectLock = new();
+    private readonly Lock _lockProjectFiles = new();
+    private readonly Lock _lockProject = new();
     private FileSystemWatcher? _projectWatcher;
+    private volatile string? _projectDirectory;
 
     public string CacheDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CacheFolderName);
 
@@ -26,12 +29,18 @@ public class EditorEngine : GameEngine
     /// </summary>
     public AssetSystem Cache { get; }
 
-    public bool IsProjectOpen => ProjectDirectory != null;
-    public string? ProjectDirectory { get; private set; }
+    public bool IsProjectOpen => _projectDirectory != null;
+    public string? ProjectDirectory => _projectDirectory;
 
     public IReadOnlyList<string> AllFilesInProject
     {
-        get => _allFilesInProject;
+        get
+        {
+            using (_lockProjectFiles.EnterScope())
+            {
+                return _allFilesInProject;
+            }
+        }
     }
 
     /// <summary>
@@ -64,47 +73,64 @@ public class EditorEngine : GameEngine
     /// <param name="projectPath">The path to the project directory.</param>
     /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when the project directory does not exist.</exception>
+    public Task OpenProjectAsync(string projectPath)
+    {
+        return Task.Run(() => OpenProject(projectPath));
+    }
+
+    /// <summary>
+    /// Opens a project at the specified path.
+    /// </summary>
+    /// <param name="projectPath">The path to the project directory.</param>
+    /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
+    /// <exception cref="DirectoryNotFoundException">Thrown when the project directory does not exist.</exception>
     public void OpenProject(string projectPath)
     {
-        if (IsProjectOpen)
+        using (_lockProject.EnterScope())
         {
-            throw new InvalidOperationException("Project is already open, close the current project first");
-        }
+            if (IsProjectOpen)
+            {
+                throw new InvalidOperationException("Project is already open, close the current project first");
+            }
 
-        if (!Directory.Exists(projectPath))
-        {
-            throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
-        }
+            if (!Directory.Exists(projectPath))
+            {
+                throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
+            }
 
-        try
-        {
-            ProjectDirectory = projectPath;
-            UpdateAllFilesInProject();
-            SetupProjectWatcher();
+            try
+            {
+                _projectDirectory = projectPath;
+                UpdateAllFilesInProject();
+                SetupProjectWatcher();
 
-            Log.Info($"Project opened: {projectPath}");
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to open project: {ex.Message}");
-            CloseProject();
-            throw;
+                Log.Info($"Project opened: {projectPath}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to open project: {ex.Message}");
+                CloseProject();
+                throw;
+            }
         }
     }
 
     public void CloseProject()
     {
-        if (_projectWatcher != null)
+        using (_lockProject.EnterScope())
         {
-            _projectWatcher.EnableRaisingEvents = false;
-            _projectWatcher.Dispose();
-            _projectWatcher = null;
+            if (_projectWatcher != null)
+            {
+                _projectWatcher.EnableRaisingEvents = false;
+                _projectWatcher.Dispose();
+                _projectWatcher = null;
+            }
+
+            _projectDirectory = null;
+            _allFilesInProject.Clear();
+
+            Log.Info("Project closed");
         }
-
-        ProjectDirectory = null;
-        _allFilesInProject.Clear();
-
-        Log.Info("Project closed");
     }
 
     private void SetupProjectWatcher()
@@ -137,25 +163,24 @@ public class EditorEngine : GameEngine
 
     private void UpdateAllFilesInProject()
     {
-        lock (_allFilesInProjectLock)
-        {
+        using (_lockProjectFiles.EnterScope())
+
             if (ProjectDirectory == null)
             {
                 return;
             }
-            try
+        try
+        {
+            _allFilesInProject.Clear();
+            foreach (var file in Directory.EnumerateFiles(ProjectDirectory, "*", SearchOption.AllDirectories))
             {
-                _allFilesInProject.Clear();
-                foreach (var file in Directory.EnumerateFiles(ProjectDirectory, "*", SearchOption.AllDirectories))
-                {
-                    _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, file)));
-                }
+                _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, file)));
             }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to update project files: {ex.Message}");
-                throw;
-            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Failed to update project files: {ex.Message}");
+            throw;
         }
     }
 

@@ -55,10 +55,9 @@ public class ExplorerPage : Page
     }
 
 
-    public async Task OpenProject(EditorEngine engine, string projectPath)
+    public async Task OpenProjectAsync(EditorEngine engine, string projectPath)
     {
-        engine.OpenProject(projectPath);
-        await RefreshFileNamesAsync(engine);
+        await engine.OpenProjectAsync(projectPath);
     }
 
     private void SetupContextMenu()
