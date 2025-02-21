@@ -30,7 +30,7 @@ public class ExplorerPage : Page
 
     public override Control Control { get; }
 
-    public EditorEngine Engine { get; }
+    public EditorContext Engine { get; }
 
 
     public List<TreeItem<MethodInfo?>> ContextMenuItemInfos { get; } = [];
@@ -43,7 +43,7 @@ public class ExplorerPage : Page
     }
 
     //you should be use this constructor in runtime
-    public ExplorerPage(EditorEngine engine)
+    public ExplorerPage(EditorContext engine)
     {
         Engine = engine;
         Control = new Views.ExplorerPage()
@@ -55,7 +55,7 @@ public class ExplorerPage : Page
     }
 
 
-    public async Task OpenProjectAsync(EditorEngine engine, string projectPath)
+    public async Task OpenProjectAsync(EditorContext engine, string projectPath)
     {
         await engine.OpenProjectAsync(projectPath);
     }
@@ -69,7 +69,7 @@ public class ExplorerPage : Page
         }
     }
 
-    public void RefreshFileNames(EditorEngine engine)
+    public void RefreshFileNames(EditorContext engine)
     {
         FileNames.Clear();
         foreach (var asset in engine.AllFilesInProject)
@@ -78,12 +78,12 @@ public class ExplorerPage : Page
         }
     }
 
-    private Task RefreshFileNamesAsync(EditorEngine engine)
+    private Task RefreshFileNamesAsync(EditorContext engine)
     {
         return Task.Run(() => RefreshFileNames(engine));
     }
 
-    public unsafe Task<Inspector> OpenFile(EditorEngine engine, string filePath)
+    public unsafe Task<Inspector> OpenFile(EditorContext engine, string filePath)
     {
         return Task.Run(() =>
         {

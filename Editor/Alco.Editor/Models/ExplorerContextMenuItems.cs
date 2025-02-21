@@ -9,63 +9,27 @@ namespace Alco.Editor.Models;
 public static class ExplorerContextMenuItems
 {
     [ContextMenuItem("Create Folder")]
-    public static void CreateFolder(EditorEngine engine, string localPath)
+    public static void CreateFolder(EditorContext engine, string localPath)
     {
+        Views.Editor? editorWindow = App.Main.EditorWindow;
+        if (editorWindow == null)
+        {
+            return;
+        }
+
         if (engine.ProjectDirectory == null)
         {
             return;
         }
 
         string fullPath = Path.Combine(engine.ProjectDirectory, localPath);
-        try
-        {
-            string? targetDirectory;
-            if (Directory.Exists(fullPath))
-            {
-                // If path is a directory, create folder inside it
-                targetDirectory = fullPath;
-            }
-            else if (File.Exists(fullPath))
-            {
-                // If path is a file, get its directory
-                targetDirectory = Path.GetDirectoryName(fullPath);
-            }
-            else
-            {
-                Log.Warning($"Path does not exist: {fullPath}");
-                return;
-            }
-
-            if (targetDirectory == null)
-            {
-                Log.Error($"Invalid path: {fullPath}");
-                return;
-            }
-            
-
-            string newFolderName = "New Folder";
-            string newFolderPath = Path.Combine(targetDirectory, newFolderName);
-
-            // Handle duplicate names
-            int counter = 1;
-            while (Directory.Exists(newFolderPath))
-            {
-                newFolderName = $"New Folder ({counter})";
-                newFolderPath = Path.Combine(targetDirectory, newFolderName);
-                counter++;
-            }
-
-            Directory.CreateDirectory(newFolderPath);
-            Log.Success($"Created folder: {newFolderPath}");
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to create folder: {ex.Message}");
-        }
+        ViewModels.CreateFolderDialog viewModel = new ViewModels.CreateFolderDialog(fullPath);
+        Views.CreateFolderDialog window = viewModel.CreateWindow();
+        window.ShowDialog(editorWindow);
     }
 
     [ContextMenuItem("Delete")]
-    public static void Delete(EditorEngine engine, string path)
+    public static void Delete(EditorContext engine, string path)
     {
         try
         {
@@ -91,7 +55,7 @@ public static class ExplorerContextMenuItems
     }
 
     [ContextMenuItem("Rename")]
-    public static void Rename(EditorEngine engine, string path)
+    public static void Rename(EditorContext engine, string path)
     {
         Log.Success(path);
     }

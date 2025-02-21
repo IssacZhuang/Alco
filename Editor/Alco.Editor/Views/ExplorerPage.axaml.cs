@@ -105,7 +105,7 @@ public partial class ExplorerPage : UserControl
             AllowMultiple = false
         });
 
-        EditorEngine engine = ViewModel.Engine;
+        EditorContext engine = ViewModel.Engine;
 
         if (folders.Count > 0)
         {
@@ -155,7 +155,7 @@ public partial class ExplorerPage : UserControl
         var treeViewItem = FindTreeViewItem(e.Source as Control);
         if (treeViewItem?.Tag is not TreeItem<string> treeItem) return;
 
-        EditorEngine engine = ViewModel.Engine;
+        EditorContext engine = ViewModel.Engine;
 
         if (treeItem.UserData is string filePath)
         {

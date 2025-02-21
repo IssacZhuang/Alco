@@ -12,7 +12,7 @@ namespace Alco.Editor;
 /// <summary>
 /// The engine for the editor.
 /// </summary>
-public class EditorEngine : GameEngine
+public class EditorContext : GameEngine
 {
     public const string CacheFolderName = ".cache";
 
@@ -48,7 +48,7 @@ public class EditorEngine : GameEngine
     /// </summary>
     public event Action? OnFilesInProjectUpdated;
 
-    public EditorEngine(GameEngineSetting setting) : base(setting)
+    public EditorContext(GameEngineSetting setting) : base(setting)
     {
         //create cache folder if not exists
         if (!Directory.Exists(CacheDirectory))

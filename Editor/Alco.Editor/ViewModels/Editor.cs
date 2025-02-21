@@ -17,7 +17,7 @@ public partial class Editor : ViewModelBase, IDisposable
 
     private bool _disposed;
 
-    public EditorEngine Engine { get; }
+    public EditorContext Engine { get; }
     public List<Page> Pages { get; } = [];
     public List<TreeItem<MethodInfo?>> MainMenuItems { get; } = [];
 
@@ -25,7 +25,7 @@ public partial class Editor : ViewModelBase, IDisposable
     {
         if (!Design.IsDesignMode)
         {
-            Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
+            Engine = new EditorContext(GameEngineSetting.CreateGPUWithoutWindow());
         }
         else
         {
@@ -52,7 +52,7 @@ public partial class Editor : ViewModelBase, IDisposable
                 Page page;
 
                 //if has constructor with EditorEngine parameter, use it
-                if (type.GetConstructor([typeof(EditorEngine)]) != null)
+                if (type.GetConstructor([typeof(EditorContext)]) != null)
                 {
                     page = (Page)Activator.CreateInstance(type, Engine)!;
                 }
