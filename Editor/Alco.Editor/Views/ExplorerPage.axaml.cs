@@ -181,17 +181,15 @@ public partial class ExplorerPage : UserControl
     {
         return (s, e) =>
         {
-            if (_selectedItem is null)
+            string localPath = string.Empty;
+
+
+            if (_selectedItem != null && _selectedItem.Tag is TreeItem<string> treeItem)
             {
-                return;
+                localPath = treeItem.FullPath;
             }
 
-            if (_selectedItem.Tag is not TreeItem<string> treeItem)
-            {
-                return;
-            }
-
-            method.Invoke(null, [ViewModel.Engine, treeItem.FullPath]);
+            method.Invoke(null, [ViewModel.Engine, localPath]);
         };
     }
 
