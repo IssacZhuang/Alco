@@ -6,9 +6,16 @@ namespace Alco.Engine;
 
 public class AssetEncoderConfig : IAssetEncoder
 {
+    private readonly JsonSerializerOptions _options;
+
+    public AssetEncoderConfig(JsonSerializerOptions options)
+    {
+        _options = options;
+    }
+
     public SafeMemoryHandle Encode(object asset)
     {
-        string json = JsonSerializer.Serialize(asset);
+        string json = JsonSerializer.Serialize(asset, _options);
         return new SafeMemoryHandle(Encoding.UTF8.GetBytes(json));
     }
 

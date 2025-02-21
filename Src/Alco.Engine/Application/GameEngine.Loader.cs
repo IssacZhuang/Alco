@@ -48,6 +48,6 @@ public partial class GameEngine
         Assets.RegisterAssetLoader(new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver));
        
        
-        Assets.RegisterAssetEncoder(new AssetEncoderConfig());
+        Assets.RegisterAssetEncoder(new AssetEncoderConfig(jsonSerializerOptions));
     }
 }
