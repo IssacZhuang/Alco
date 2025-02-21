@@ -58,7 +58,22 @@ public static class ExplorerContextMenuItems
     [ContextMenuItem("Rename")]
     public static void Rename(string path)
     {
-        Log.Success(path);
+        EditorEngine engine = App.Main.Engine;
+        Views.Editor? editorWindow = App.Main.EditorWindow;
+        if (editorWindow == null)
+        {
+            return;
+        }
+
+        if (engine.ProjectDirectory == null)
+        {
+            return;
+        }
+
+        string fullPath = Path.Combine(engine.ProjectDirectory, path);
+        ViewModels.RenameDialog viewModel = new ViewModels.RenameDialog(fullPath);
+        Views.RenameDialog window = viewModel.CreateWindow();
+        window.ShowDialog(editorWindow);
     }
     
 }
