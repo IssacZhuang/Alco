@@ -37,7 +37,7 @@ public partial class ExplorerPage : UserControl
     {
         if (!Design.IsDesignMode)
         {
-            ViewModel.Engine.OnFilesInProjectUpdated += RefreshFileTreeView;
+            App.Main.Engine.OnFilesInProjectUpdated += RefreshFileTreeView;
         }
         base.OnAttachedToVisualTree(e);
         InitializeContextMenu();
@@ -47,7 +47,7 @@ public partial class ExplorerPage : UserControl
     {
         if (!Design.IsDesignMode)
         {
-            ViewModel.Engine.OnFilesInProjectUpdated -= RefreshFileTreeView;
+            App.Main.Engine.OnFilesInProjectUpdated -= RefreshFileTreeView;
         }
         base.OnDetachedFromVisualTree(e);
     }
@@ -105,7 +105,7 @@ public partial class ExplorerPage : UserControl
             AllowMultiple = false
         });
 
-        EditorContext engine = ViewModel.Engine;
+        EditorEngine engine = App.Main.Engine;
 
         if (folders.Count > 0)
         {
@@ -125,9 +125,9 @@ public partial class ExplorerPage : UserControl
         if (DataContext is not ViewModels.ExplorerPage viewModel)
         {
             throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
-        }   
+        }
 
-        viewModel.RefreshFileNames(viewModel.Engine);
+        viewModel.RefreshFileNames(App.Main.Engine);
         _rootItems.Clear();
         foreach (var fileName in viewModel.FileNames)
         {
@@ -155,7 +155,7 @@ public partial class ExplorerPage : UserControl
         var treeViewItem = FindTreeViewItem(e.Source as Control);
         if (treeViewItem?.Tag is not TreeItem<string> treeItem) return;
 
-        EditorContext engine = ViewModel.Engine;
+        EditorEngine engine = App.Main.Engine;
 
         if (treeItem.UserData is string filePath)
         {
@@ -189,7 +189,7 @@ public partial class ExplorerPage : UserControl
                 localPath = treeItem.FullPath;
             }
 
-            method.Invoke(null, [ViewModel.Engine, localPath]);
+            method.Invoke(null, [localPath]);
         };
     }
 

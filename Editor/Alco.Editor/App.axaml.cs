@@ -1,6 +1,8 @@
 using Alco.Editor.ViewModels;
 using Alco.Editor.Views;
+using Alco.Engine;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
@@ -18,6 +20,23 @@ namespace Alco.Editor
         }
 
         public Views.Editor? EditorWindow { get; private set; }
+        public EditorEngine Engine { get; }
+
+
+        public App()
+        {
+            if (!Design.IsDesignMode)
+            {
+                Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
+            }
+            else
+            {
+                Engine = null!;
+            }
+
+
+        }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -34,6 +53,7 @@ namespace Alco.Editor
                 {
                     DataContext = new ViewModels.Editor(),
                 };
+                EditorWindow.Closed += DisposeEngine;
                 desktop.MainWindow = EditorWindow;
             }
 
@@ -51,6 +71,11 @@ namespace Alco.Editor
             {
                 BindingPlugins.DataValidators.Remove(plugin);
             }
+        }
+
+        private void DisposeEngine(object? sender, EventArgs e)
+        {
+            Engine?.Dispose();
         }
     }
 }

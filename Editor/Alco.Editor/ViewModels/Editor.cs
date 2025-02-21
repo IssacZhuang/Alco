@@ -10,29 +10,16 @@ namespace Alco.Editor.ViewModels;
 
 
 
-public partial class Editor : ViewModelBase, IDisposable
+public partial class Editor : ViewModelBase
 {
     private static readonly (MethodInfo, MenuItemAttribute)[] _menuItemMethods = UtilsAttribute.GetMethodsWithAttribute<MenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
     private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>(BindingFlags.Public | BindingFlags.Instance);
-
-    private bool _disposed;
-
-    public EditorContext Engine { get; }
+    
     public List<Page> Pages { get; } = [];
     public List<TreeItem<MethodInfo?>> MainMenuItems { get; } = [];
 
     public Editor()
     {
-        if (!Design.IsDesignMode)
-        {
-            Engine = new EditorContext(GameEngineSetting.CreateGPUWithoutWindow());
-        }
-        else
-        {
-            // the engine is not init in the design mode
-            Engine = null!;
-        }
-
         SetupPages();
         SetupMainMenu();
     }
@@ -49,18 +36,8 @@ public partial class Editor : ViewModelBase, IDisposable
                     continue;
                 }
 
-                Page page;
-
-                //if has constructor with EditorEngine parameter, use it
-                if (type.GetConstructor([typeof(EditorContext)]) != null)
-                {
-                    page = (Page)Activator.CreateInstance(type, Engine)!;
-                }
-                else
-                {
-                    page = (Page)Activator.CreateInstance(type)!;
-                }
-
+                Page page = (Page)Activator.CreateInstance(type)!;
+                
                 Pages.Add(page);
             }
             catch (Exception ex)
@@ -78,28 +55,5 @@ public partial class Editor : ViewModelBase, IDisposable
         }
     }
 
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed) return;
-
-        if (disposing)
-        {
-            Engine.Dispose();
-        }
-
-        _disposed = true;
-    }
-
-    ~Editor()
-    {
-        Dispose(false);
-    }
 }
 

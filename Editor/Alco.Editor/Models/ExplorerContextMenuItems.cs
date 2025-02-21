@@ -9,8 +9,9 @@ namespace Alco.Editor.Models;
 public static class ExplorerContextMenuItems
 {
     [ContextMenuItem("Create Folder")]
-    public static void CreateFolder(EditorContext engine, string localPath)
+    public static void CreateFolder(string localPath)
     {
+        EditorEngine engine = App.Main.Engine;
         Views.Editor? editorWindow = App.Main.EditorWindow;
         if (editorWindow == null)
         {
@@ -29,7 +30,7 @@ public static class ExplorerContextMenuItems
     }
 
     [ContextMenuItem("Delete")]
-    public static void Delete(EditorContext engine, string path)
+    public static void Delete(string path)
     {
         try
         {
@@ -55,7 +56,7 @@ public static class ExplorerContextMenuItems
     }
 
     [ContextMenuItem("Rename")]
-    public static void Rename(EditorContext engine, string path)
+    public static void Rename(string path)
     {
         Log.Success(path);
     }

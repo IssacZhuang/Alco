@@ -30,7 +30,7 @@ public class ExceptionInspector : Inspector<Exception>
         };
     }
 
-    protected override void OnOpenAsset(EditorContext engine, Exception asset)
+    protected override void OnOpenAsset(EditorEngine engine, Exception asset)
     {
         throw new NotImplementedException();
     }

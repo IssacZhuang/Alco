@@ -35,7 +35,7 @@ public partial class ConfigInspector : Inspector<BaseConfig>
         };
     }
 
-    protected override void OnOpenAsset(EditorContext engine, BaseConfig asset)
+    protected override void OnOpenAsset(EditorEngine engine, BaseConfig asset)
     {
         _asset = asset;
         AssetSystem assetSystem = engine.Assets;
