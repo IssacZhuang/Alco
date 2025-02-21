@@ -61,7 +61,9 @@ public class TestAssetLoaderConfig
     {
         var lifeCycleProvider = new LifeCycleProvider();
         _assetSystem = new AssetSystem(lifeCycleProvider, 2);
-        _configLoader = new AssetLoaderConfig(_assetSystem);
+        var configReferenceResolver = new ConfigReferenceResolver(_assetSystem);
+        var jsonSerializerOptions = BaseConfig.BuiltJsonSerializerOptions(null, configReferenceResolver);
+        _configLoader = new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver);
         _fileSource = new TestFileSource();
         _assetSystem.RegisterAssetLoader(_configLoader);
         _assetSystem.AddFileSource(_fileSource);

@@ -1,5 +1,6 @@
 using System.Text;
 using Alco.Rendering;
+using Alco.IO;
 
 namespace Alco.Engine;
 
@@ -40,7 +41,11 @@ public partial class GameEngine
         }));
 
         Assets.RegisterAssetHotReloader<Texture2D>(new AssetHotReloaderTexture2D(Rendering));
-        Assets.RegisterAssetLoader(new AssetLoaderConfig(Assets));
+
+        var configReferenceResolver = new ConfigReferenceResolver(Assets);
+        var jsonSerializerOptions = BaseConfig.BuiltJsonSerializerOptions(null, configReferenceResolver);
+
+        Assets.RegisterAssetLoader(new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver));
        
        
         Assets.RegisterAssetEncoder(new AssetEncoderConfig());
