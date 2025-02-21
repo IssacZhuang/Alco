@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Json;
+using System.Web;
 using Alco.Editor.Models;
 using Alco.IO;
 
@@ -42,6 +43,8 @@ public class EditorPreference
         {
             Config = new PreferenceConfig();
         }
+
+        TryOpenProject(Config.OpenedProject);
     }
 
     public bool TryGetString(string key, [MaybeNullWhen(false)] out string value)
@@ -87,8 +90,21 @@ public class EditorPreference
 
     public void Save()
     {
-        using var handle = _engine.Assets.EncodeToBinary(Config, typeof(BaseConfig));
+        string projectPath = _engine.ProjectDirectory ?? string.Empty;
+        Config.OpenedProject = projectPath;
+        
+        using var handle = _engine.Assets.EncodeToBinary<BaseConfig>(Config);
         File.WriteAllBytes(_preferenceFilePath, handle.Span);
+    }
+
+    private void TryOpenProject(string projectPath)
+    {
+        if (string.IsNullOrEmpty(projectPath))
+        {
+            return;
+        }
+
+        _engine.OpenProject(projectPath);
     }
 }
 

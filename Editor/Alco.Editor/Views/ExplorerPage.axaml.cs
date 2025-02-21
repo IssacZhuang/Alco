@@ -37,7 +37,16 @@ public partial class ExplorerPage : UserControl
     {
         if (!Design.IsDesignMode)
         {
-            App.Main.Engine.OnFilesInProjectUpdated += RefreshFileTreeView;
+            EditorEngine engine = App.Main.Engine;
+            engine.OnFilesInProjectUpdated += RefreshFileTreeView;
+
+            if (engine.IsProjectOpen)
+            {
+                RefreshFileTreeView();
+            }
+
+            FileTreeView.IsVisible = engine.IsProjectOpen;
+            NoFolderPanel.IsVisible = !engine.IsProjectOpen;
         }
         base.OnAttachedToVisualTree(e);
         InitializeContextMenu();
