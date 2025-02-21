@@ -21,6 +21,7 @@ namespace Alco.Editor
 
         public Views.Editor? EditorWindow { get; private set; }
         public EditorEngine Engine { get; }
+        public EditorPreference Preference { get; }
 
 
         public App()
@@ -28,10 +29,12 @@ namespace Alco.Editor
             if (!Design.IsDesignMode)
             {
                 Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
+                Preference = new EditorPreference(Engine);
             }
             else
             {
                 Engine = null!;
+                Preference = null!;
             }
 
 
@@ -53,7 +56,7 @@ namespace Alco.Editor
                 {
                     DataContext = new ViewModels.Editor(),
                 };
-                EditorWindow.Closed += DisposeEngine;
+                EditorWindow.Closed += OnClose;
                 desktop.MainWindow = EditorWindow;
             }
 
@@ -73,8 +76,9 @@ namespace Alco.Editor
             }
         }
 
-        private void DisposeEngine(object? sender, EventArgs e)
+        private void OnClose(object? sender, EventArgs e)
         {
+            Preference?.Save();
             Engine?.Dispose();
         }
     }

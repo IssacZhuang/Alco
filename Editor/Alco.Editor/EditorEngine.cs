@@ -14,20 +14,11 @@ namespace Alco.Editor;
 /// </summary>
 public class EditorEngine : GameEngine
 {
-    public const string CacheFolderName = ".cache";
-
     private readonly List<string> _allFilesInProject = new();
     private readonly Lock _lockProjectFiles = new();
     private readonly Lock _lockProject = new();
     private FileSystemWatcher? _projectWatcher;
     private volatile string? _projectDirectory;
-
-    public string CacheDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CacheFolderName);
-
-    /// <summary>
-    /// an independent asset system for the editor cache.
-    /// </summary>
-    public AssetSystem Cache { get; }
 
     public bool IsProjectOpen => _projectDirectory != null;
     public string? ProjectDirectory => _projectDirectory;
@@ -50,20 +41,6 @@ public class EditorEngine : GameEngine
 
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
-        //create cache folder if not exists
-        if (!Directory.Exists(CacheDirectory))
-        {
-            Directory.CreateDirectory(CacheDirectory);
-        }
-
-        Cache = new AssetSystem(this, 0, true);
-        DirectoryFileSource cacheSource = new(CacheDirectory);
-        Cache.AddFileSource(cacheSource);
-
-        AssetLoaderConfig configLoader = new AssetLoaderConfig(Cache);
-        Cache.RegisterAssetLoader(configLoader);
-        AssetEncoderConfig configEncoder = new AssetEncoderConfig();
-        Cache.RegisterAssetEncoder(configEncoder);
 
     }
 
