@@ -12,11 +12,6 @@ public static class ExplorerContextMenuItems
     public static void CreateFolder(string localPath)
     {
         EditorEngine engine = App.Main.Engine;
-        Views.Editor? editorWindow = App.Main.EditorWindow;
-        if (editorWindow == null)
-        {
-            return;
-        }
 
         if (engine.ProjectDirectory == null)
         {
@@ -26,44 +21,43 @@ public static class ExplorerContextMenuItems
         string fullPath = Path.Combine(engine.ProjectDirectory, localPath);
         ViewModels.CreateFolderDialog viewModel = new ViewModels.CreateFolderDialog(fullPath);
         Views.CreateFolderDialog window = viewModel.CreateWindow();
-        window.ShowDialog(editorWindow);
+        ShowDialog(window);
     }
 
     [ContextMenuItem("Delete")]
     public static void Delete(string path)
     {
-        try
+        EditorEngine engine = App.Main.Engine;
+
+        if (engine.ProjectDirectory == null)
         {
-            if (Directory.Exists(path))
-            {
-                Directory.Delete(path, true);
-                Log.Success($"Deleted folder: {path}");
-            }
-            else if (File.Exists(path))
-            {
-                File.Delete(path);
-                Log.Success($"Deleted file: {path}");
-            }
-            else
-            {
-                Log.Warning($"Path does not exist: {path}");
-            }
+            return;
         }
-        catch (Exception ex)
+
+        string fullPath = Path.Combine(engine.ProjectDirectory, path);
+        string message = $"Delete: '{path}'?";
+        ViewModels.ConfirmDialog viewModel = new ViewModels.ConfirmDialog(message);
+
+        viewModel.OnConfirm += () =>
         {
-            Log.Error($"Failed to delete: {ex.Message}");
-        }
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+            else if (Directory.Exists(fullPath))
+            {
+                Directory.Delete(fullPath, true);
+            }
+        };
+
+        Views.ConfirmDialog window = viewModel.CreateWindow();
+        ShowDialog(window);
     }
 
     [ContextMenuItem("Rename")]
     public static void Rename(string path)
     {
         EditorEngine engine = App.Main.Engine;
-        Views.Editor? editorWindow = App.Main.EditorWindow;
-        if (editorWindow == null)
-        {
-            return;
-        }
 
         if (engine.ProjectDirectory == null)
         {
@@ -73,7 +67,17 @@ public static class ExplorerContextMenuItems
         string fullPath = Path.Combine(engine.ProjectDirectory, path);
         ViewModels.RenameDialog viewModel = new ViewModels.RenameDialog(fullPath);
         Views.RenameDialog window = viewModel.CreateWindow();
+        ShowDialog(window);
+    }
+
+    private static void ShowDialog(Window window)
+    {
+        Views.Editor? editorWindow = App.Main.EditorWindow;
+        if (editorWindow == null)
+        {
+            return;
+        }
+
         window.ShowDialog(editorWindow);
     }
-    
 }
