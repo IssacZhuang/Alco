@@ -39,6 +39,16 @@ public class EditorEngine : GameEngine
     /// </summary>
     public event Action? OnFilesInProjectUpdated;
 
+    /// <summary>
+    /// Event triggered when the project is opened.
+    /// </summary>
+    public event Action? OnProjectOpened;
+
+    /// <summary>
+    /// Event triggered when the project is closed.
+    /// </summary>
+    public event Action? OnProjectClosed;
+
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
 

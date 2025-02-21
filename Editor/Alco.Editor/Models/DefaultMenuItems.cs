@@ -8,6 +8,14 @@ namespace Alco.Editor.Models;
 
 public static class DefaultMenuItems
 {
+    
+
+    [MenuItem("File/Close Project")]
+    public static void OpenTest(Window window)
+    {
+        App.Main.Engine.CloseProject();
+    }
+
     [MenuItem("File/Exit")]
     public static void Exit(Window window)
     {
@@ -17,15 +25,6 @@ public static class DefaultMenuItems
     [MenuItem("File/Open Project")]
     public static void OpenProject(Window window)
     {
-        
-    }
-
-    [MenuItem("File/Test/Test")]
-    public static void OpenTest(Window window)
-    {
 
     }
-
-
-
 }
