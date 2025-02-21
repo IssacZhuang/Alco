@@ -28,7 +28,7 @@
             x:Name="TextError"
             Text="Error"
             Margin="0,8,0,8"
-            Foreground="Gray"
+            Foreground="Red"
             TextWrapping="Wrap" />
 
         <StackPanel Grid.Row="3"

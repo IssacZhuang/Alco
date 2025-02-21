@@ -16,6 +16,11 @@ public partial class CreateFolderDialog : Window
 
         BtnConfirm.Click += OnBtnConfirmClick;
         BtnCancel.Click += OnBtnCancelClick;
+
+        if (!Design.IsDesignMode)
+        {
+            TextError.Text = "";
+        }
     }
 
     public void OnBtnConfirmClick(object? sender, RoutedEventArgs e)
@@ -25,7 +30,12 @@ public partial class CreateFolderDialog : Window
         {
             return;
         }
-        string fullPath = Path.Combine(viewModel.Path, InputFolderName.Text ?? string.Empty);
+
+        string targetPath = File.Exists(viewModel.Path)
+            ? Path.GetDirectoryName(viewModel.Path) ?? string.Empty
+            : viewModel.Path;
+
+        string fullPath = Path.Combine(targetPath, InputFolderName.Text ?? string.Empty);
 
         try
         {
