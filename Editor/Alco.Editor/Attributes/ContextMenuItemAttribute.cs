@@ -7,10 +7,12 @@ namespace Alco.Editor.Attributes;
 public class ContextMenuItemAttribute : Attribute
 {
     public string Path { get; }
+    public int Order { get; }
 
-    public ContextMenuItemAttribute(string path)
+    public ContextMenuItemAttribute(string path, int order = 0)
     {
         Path = path;
+        Order = order;
     }
 }
 

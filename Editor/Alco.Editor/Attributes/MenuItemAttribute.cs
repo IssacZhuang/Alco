@@ -5,11 +5,12 @@ namespace Alco.Editor.Attributes
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class MenuItemAttribute : Attribute
     {
-        public MenuItemAttribute(string path)
+        public string Path { get; }
+        public int Order { get; }
+        public MenuItemAttribute(string path, int order = 0)
         {
             Path = path;
+            Order = order;
         }
-
-        public string Path { get; }
     }
 }

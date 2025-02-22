@@ -16,7 +16,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Alco.Editor.ViewModels;
 
-[EditorPage]
+[EditorPage(order: 0)]
 public class ExplorerPage : Page
 {
     private static readonly (MethodInfo, ContextMenuItemAttribute)[] _contextMenuItems = UtilsAttribute.GetMethodsWithAttribute<ContextMenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
