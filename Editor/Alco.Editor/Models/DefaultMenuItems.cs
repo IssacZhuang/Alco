@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alco.Editor.Attributes;
 using Avalonia;
 using Avalonia.Controls;
@@ -8,8 +9,6 @@ namespace Alco.Editor.Models;
 
 public static class DefaultMenuItems
 {
-    
-
     [MenuItem("File/Close Project")]
     public static void OpenTest(Window window)
     {
@@ -23,8 +22,8 @@ public static class DefaultMenuItems
     }
 
     [MenuItem("File/Open Project")]
-    public static void OpenProject(Window window)
+    public static async ValueTask OpenProject(Window window)
     {
-
+        await App.Main.ShowOpenProjectDialog();
     }
 }

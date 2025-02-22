@@ -55,7 +55,7 @@ public class EditorEngine : GameEngine
     }
 
     /// <summary>
-    /// Opens a project at the specified path.
+    /// Open a project at the specified path.
     /// </summary>
     /// <param name="projectPath">The path to the project directory.</param>
     /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
@@ -66,7 +66,7 @@ public class EditorEngine : GameEngine
     }
 
     /// <summary>
-    /// Opens a project at the specified path.
+    /// Open a project at the specified path.
     /// </summary>
     /// <param name="projectPath">The path to the project directory.</param>
     /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
@@ -75,30 +75,38 @@ public class EditorEngine : GameEngine
     {
         using (_lockProject.EnterScope())
         {
-            if (IsProjectOpen)
-            {
-                throw new InvalidOperationException("Project is already open, close the current project first");
-            }
+            OpenProjectCore(projectPath);
+        }
+    }
 
-            if (!Directory.Exists(projectPath))
-            {
-                throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
-            }
+    private void OpenProjectCore(string projectPath)
+    {
+        if (!Directory.Exists(projectPath))
+        {
+            throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
+        }
 
-            try
-            {
-                _projectDirectory = projectPath;
-                UpdateAllFilesInProject();
-                SetupProjectWatcher();
+        if (IsProjectOpen)
+        {
+            CloseProjectCore();
+        }
 
-                Log.Info($"Project opened: {projectPath}");
-            }
-            catch (Exception ex)
+        try
+        {
+            _projectDirectory = projectPath;
+            UpdateAllFilesInProject();
+            SetupProjectWatcher();
+            if (OnProjectOpened != null)
             {
-                Log.Error($"Failed to open project: {ex.Message}");
-                CloseProject();
-                throw;
+                Dispatcher.UIThread.InvokeAsync(OnProjectOpened);
             }
+            Log.Info($"Project opened: {projectPath}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Failed to open project: {ex.Message}");
+            CloseProject();
+            throw;
         }
     }
 
@@ -106,18 +114,27 @@ public class EditorEngine : GameEngine
     {
         using (_lockProject.EnterScope())
         {
-            if (_projectWatcher != null)
-            {
-                _projectWatcher.EnableRaisingEvents = false;
-                _projectWatcher.Dispose();
-                _projectWatcher = null;
-            }
-
-            _projectDirectory = null;
-            _allFilesInProject.Clear();
-
-            Log.Info("Project closed");
+            CloseProjectCore();
         }
+    }
+
+    private void CloseProjectCore()
+    {
+        if (_projectWatcher != null)
+        {
+            _projectWatcher.EnableRaisingEvents = false;
+            _projectWatcher.Dispose();
+            _projectWatcher = null;
+        }
+
+        _projectDirectory = null;
+        _allFilesInProject.Clear();
+        if (OnProjectClosed != null)
+        {
+            Dispatcher.UIThread.InvokeAsync(OnProjectClosed);
+        }
+
+        Log.Info("Project closed");
     }
 
     private void SetupProjectWatcher()

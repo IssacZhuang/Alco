@@ -7,8 +7,10 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Alco.Editor
 {
@@ -61,6 +63,26 @@ namespace Alco.Editor
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        public async ValueTask ShowOpenProjectDialog()
+        {
+            if (EditorWindow == null) return;
+
+            var folders = await EditorWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select a folder",
+                AllowMultiple = false
+            });
+
+            if (folders.Count > 0)
+            {
+                var folder = folders[0];
+                if (folder.TryGetLocalPath() is string path)
+                {
+                    await Engine.OpenProjectAsync(path);
+                }
+            }
         }
 
         private void DisableAvaloniaDataAnnotationValidation()

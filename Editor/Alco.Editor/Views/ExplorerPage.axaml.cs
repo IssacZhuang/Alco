@@ -38,11 +38,13 @@ public partial class ExplorerPage : UserControl
         if (!Design.IsDesignMode)
         {
             EditorEngine engine = App.Main.Engine;
-            engine.OnFilesInProjectUpdated += RefreshFileTreeView;
+            engine.OnFilesInProjectUpdated += OnRefreshProjectFiles;
+            engine.OnProjectOpened += OnProjectOpened;
+            engine.OnProjectClosed += OnProjectClosed;
 
             if (engine.IsProjectOpen)
             {
-                RefreshFileTreeView();
+                OnRefreshProjectFiles();
             }
 
             FileTreeView.IsVisible = engine.IsProjectOpen;
@@ -56,7 +58,10 @@ public partial class ExplorerPage : UserControl
     {
         if (!Design.IsDesignMode)
         {
-            App.Main.Engine.OnFilesInProjectUpdated -= RefreshFileTreeView;
+            EditorEngine engine = App.Main.Engine;
+            engine.OnFilesInProjectUpdated -= OnRefreshProjectFiles;
+            engine.OnProjectOpened -= OnProjectOpened;
+            engine.OnProjectClosed -= OnProjectClosed;
         }
         base.OnDetachedFromVisualTree(e);
     }
@@ -104,32 +109,10 @@ public partial class ExplorerPage : UserControl
 
     private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
-
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel == null) return;
-
-        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = "Select a folder",
-            AllowMultiple = false
-        });
-
-        EditorEngine engine = App.Main.Engine;
-
-        if (folders.Count > 0)
-        {
-            var folder = folders[0];
-            if (folder.TryGetLocalPath() is string path)
-            {
-                await ViewModel.OpenProjectAsync(engine, path);
-                RefreshFileTreeView();
-                FileTreeView.IsVisible = true;
-                NoFolderPanel.IsVisible = false;
-            }
-        }
+        await App.Main.ShowOpenProjectDialog();
     }
 
-    private void RefreshFileTreeView()
+    private void OnRefreshProjectFiles()
     {
         if (DataContext is not ViewModels.ExplorerPage viewModel)
         {
@@ -142,6 +125,19 @@ public partial class ExplorerPage : UserControl
         {
             _rootItems.Add(CreateFileTreeView(fileName));
         }
+    }
+    private void OnProjectOpened()
+    {
+        EditorEngine engine = App.Main.Engine;
+        OnRefreshProjectFiles();
+        FileTreeView.IsVisible = engine.IsProjectOpen;
+        NoFolderPanel.IsVisible = !engine.IsProjectOpen;
+    }
+
+    private void OnProjectClosed()
+    {
+        FileTreeView.IsVisible = false;
+        NoFolderPanel.IsVisible = true;
     }
 
     private TreeViewItem CreateFileTreeView(TreeItem<string> treeItem)
