@@ -13,7 +13,7 @@ using System.Reflection.Emit;
 
 namespace Alco;
 
-internal sealed class ReflectionEmitMemberAccessor : MemberAccessor
+public sealed class ReflectionEmitMemberAccessor : MemberAccessor
 {
     internal const int UnboxedParameterCountThreshold = 4;
 
