@@ -140,6 +140,32 @@ internal static partial class ReflectionExtensions
         }
     }
 
+    /// <summary>
+    /// Polyfill for BindingFlags.DoNotWrapExceptions
+    /// </summary>
+    public static object? CreateInstanceNoWrapExceptions(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] this Type type,
+        Type[] parameterTypes,
+        object?[] parameters)
+    {
+        ConstructorInfo ctorInfo = type.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, parameterTypes, null)!;
+#if NET
+        return ctorInfo.Invoke(BindingFlags.DoNotWrapExceptions, null, parameters, null);
+#else
+            object? result = null;
+            try
+            {
+                result = ctorInfo.Invoke(parameters);
+            }
+            catch (TargetInvocationException ex)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            }
+
+            return result;
+#endif
+    }
+
     private static string GetBaseNameFromGenericType(Type genericType)
     {
         Type genericTypeDef = genericType.GetGenericTypeDefinition();

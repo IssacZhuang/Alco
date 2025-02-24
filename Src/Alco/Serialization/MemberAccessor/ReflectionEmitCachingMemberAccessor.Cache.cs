@@ -33,12 +33,10 @@ internal sealed partial class ReflectionEmitCachingMemberAccessor
         {
             CacheEntry entry = _cache.GetOrAdd(
                 key,
-#if NET
+                
                 static (TKey key, Func<TKey, TValue> valueFactory) => new(valueFactory(key)),
                 valueFactory);
-#else
-                    key => new(valueFactory(key)));
-#endif
+
             long utcNowTicks = DateTime.UtcNow.Ticks;
             Volatile.Write(ref entry.LastUsedTicks, utcNowTicks);
 
