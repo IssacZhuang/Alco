@@ -338,19 +338,11 @@ public sealed partial class AssetSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private AssetHandle GetAssetHandle(string filename)
     {
-        if (_assetLookup.TryGetValue(filename, out AssetHandle? handle))
+        return _assetLookup.GetOrAdd(filename, CreateAssetHandle);
+        static AssetHandle CreateAssetHandle(string filename)
         {
-            return handle;
+            return new AssetHandle();
         }
-
-        AssetHandle newHandle = new AssetHandle();
-        if (_assetLookup.TryAdd(filename, newHandle))
-        {
-            return newHandle;
-        }
-        //otherwise handle is added by another thread
-
-        return _assetLookup[filename];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
