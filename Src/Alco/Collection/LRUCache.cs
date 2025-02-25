@@ -6,6 +6,7 @@ namespace Alco;
 
 /// <summary>
 /// Implements a Least Recently Used (LRU) cache with weighted capacity management.
+/// <br/> This cache is not thread-safe, use <see cref="ConcurrentLruCache{TKey, TValue}"/> for thread-safe operations.
 /// </summary>
 /// <typeparam name="TKey">The type of keys in the cache. Must be non-null.</typeparam>
 /// <typeparam name="TValue">The type of values in the cache. Must be a reference type.</typeparam>
@@ -16,7 +17,7 @@ namespace Alco;
 public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
 {
 
-    private struct KeyValuePair
+    private struct CacheItem
     {
         public TKey key;
 
@@ -24,7 +25,7 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
 
         public int weight;
 
-        public KeyValuePair(TKey key, TValue value, int weight)
+        public CacheItem(TKey key, TValue value, int weight)
         {
             this.key = key;
             this.value = value;
@@ -35,12 +36,12 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
     /// <summary>
     /// Dictionary that maps keys to their corresponding nodes in the linked list for O(1) lookups.
     /// </summary>
-    private readonly Dictionary<TKey, LinkedListNode<KeyValuePair>> _index = new Dictionary<TKey, LinkedListNode<KeyValuePair>>();
+    private readonly Dictionary<TKey, LinkedListNode<CacheItem>> _index = new Dictionary<TKey, LinkedListNode<CacheItem>>();
 
     /// <summary>
     /// Linked list that maintains the order of items based on their usage, with least recently used at the front.
     /// </summary>
-    private readonly LinkedList<KeyValuePair> _leastRecentList = new LinkedList<KeyValuePair>();
+    private readonly LinkedList<CacheItem> _leastRecentList = new LinkedList<CacheItem>();
 
     /// <summary>
     /// The maximum capacity of the cache, measured in total weight units.
@@ -151,7 +152,7 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
         {
             RemoveLeastUsed();
         }
-        LinkedListNode<KeyValuePair> linkedListNode = new LinkedListNode<KeyValuePair>(new KeyValuePair(key, value, weight));
+        LinkedListNode<CacheItem> linkedListNode = new LinkedListNode<CacheItem>(new CacheItem(key, value, weight));
         _index.Add(key, linkedListNode);
         _leastRecentList.AddLast(linkedListNode);
         _sumWeight += weight;
@@ -197,7 +198,7 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
         return 1;
     }
 
-    private void WasUsed(LinkedListNode<KeyValuePair> node)
+    private void WasUsed(LinkedListNode<CacheItem> node)
     {
         _leastRecentList.Remove(node);
         _leastRecentList.AddLast(node);
@@ -205,7 +206,7 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
 
     private void RemoveLeastUsed()
     {
-        LinkedListNode<KeyValuePair>? first = _leastRecentList.First;
+        LinkedListNode<CacheItem>? first = _leastRecentList.First;
         if (first != null)
         {
             _leastRecentList.RemoveFirst();
