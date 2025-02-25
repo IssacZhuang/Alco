@@ -23,6 +23,8 @@ public class AccessTypeInfo
             BindingFlags.NonPublic |
             BindingFlags.DeclaredOnly;
 
+    private readonly Func<object>? _constructor;
+
     /// <summary>
     /// Gets an array of <see cref="AccessMemberInfo"/> objects representing 
     /// all accessible members (public properties and fields) of the type.
@@ -59,6 +61,28 @@ public class AccessTypeInfo
         }
 
         Members = accessMembers.ToArray();
+
+        _constructor = memberAccessor.CreateParameterlessConstructor(type, null);
+    }
+
+    /// <summary>
+    /// Creates an instance of the type.
+    /// </summary>
+    /// <typeparam name="T">The type of the instance to create.</typeparam>
+    /// <returns>An instance of the type.</returns>
+    public T CreateInstance<T>()
+    {
+        if (_constructor is null)
+        {
+            throw new InvalidOperationException("Type does not have a parameterless constructor.");
+        }
+
+        if (_constructor is Func<T> constructor)
+        {
+            return constructor();
+        }
+
+        return (T)_constructor();
     }
 }
 
