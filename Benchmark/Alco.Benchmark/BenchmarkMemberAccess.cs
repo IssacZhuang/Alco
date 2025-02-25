@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
+using System.Linq;
 
 namespace Alco.Benchmark;
 
@@ -67,6 +68,18 @@ public class BenchmarkMemberAccess
     private ParameterizedConstructorDelegate<TestReflectionClass, int, string, object, object> _reflectionParamCtorDelegate;
     private ParameterizedConstructorDelegate<TestReflectionClass, int, string, object, object> _reflectionEmitParamCtorDelegate;
 
+    // AccessTypeInfo instances
+    private AccessTypeInfo _reflectionAccessTypeInfo;
+    private AccessTypeInfo _reflectionEmitAccessTypeInfo;
+
+    // Cached AccessMemberInfo references
+    private AccessMemberInfo _reflectionIntPropertyMember;
+    private AccessMemberInfo _reflectionStringPropertyMember;
+    private AccessMemberInfo _reflectionFloatFieldMember;
+    private AccessMemberInfo _reflectionEmitIntPropertyMember;
+    private AccessMemberInfo _reflectionEmitStringPropertyMember;
+    private AccessMemberInfo _reflectionEmitFloatFieldMember;
+
     [GlobalSetup]
     public void Setup()
     {
@@ -109,6 +122,18 @@ public class BenchmarkMemberAccess
         _reflectionEmitParamCtor = _reflectionEmitAccessor.CreateParameterizedConstructor<TestReflectionClass>(_ctor);
         _reflectionParamCtorDelegate = _reflectionAccessor.CreateParameterizedConstructor<TestReflectionClass, int, string, object, object>(_ctor)!;
         _reflectionEmitParamCtorDelegate = _reflectionEmitAccessor.CreateParameterizedConstructor<TestReflectionClass, int, string, object, object>(_ctor)!;
+
+        // Initialize AccessTypeInfo instances
+        _reflectionAccessTypeInfo = new AccessTypeInfo(_type, _reflectionAccessor);
+        _reflectionEmitAccessTypeInfo = new AccessTypeInfo(_type, _reflectionEmitAccessor);
+
+        // Cache AccessMemberInfo references
+        _reflectionIntPropertyMember = _reflectionAccessTypeInfo.Members.First(m => m.Name == nameof(TestReflectionClass.IntProperty));
+        _reflectionStringPropertyMember = _reflectionAccessTypeInfo.Members.First(m => m.Name == nameof(TestReflectionClass.StringProperty));
+        _reflectionFloatFieldMember = _reflectionAccessTypeInfo.Members.First(m => m.Name == nameof(TestReflectionClass.FloatField));
+        _reflectionEmitIntPropertyMember = _reflectionEmitAccessTypeInfo.Members.First(m => m.Name == nameof(TestReflectionClass.IntProperty));
+        _reflectionEmitStringPropertyMember = _reflectionEmitAccessTypeInfo.Members.First(m => m.Name == nameof(TestReflectionClass.StringProperty));
+        _reflectionEmitFloatFieldMember = _reflectionEmitAccessTypeInfo.Members.First(m => m.Name == nameof(TestReflectionClass.FloatField));
     }
 
     [Benchmark(Description = "Create Instance - Reflection")]
@@ -176,4 +201,89 @@ public class BenchmarkMemberAccess
 
     [Benchmark(Description = "Set Object Field - ReflectionEmit")]
     public void SetObjectFieldReflectionEmit() => _reflectionEmitObjectSetter(_instance, new object());
+
+    // AccessTypeInfo benchmarks
+    [Benchmark(Description = "Create AccessTypeInfo - Reflection")]
+    public AccessTypeInfo CreateAccessTypeInfoReflection() => new AccessTypeInfo(_type, _reflectionAccessor);
+
+    [Benchmark(Description = "Create AccessTypeInfo - ReflectionEmit")]
+    public AccessTypeInfo CreateAccessTypeInfoReflectionEmit() => new AccessTypeInfo(_type, _reflectionEmitAccessor);
+
+    [Benchmark(Description = "Get Int Property via AccessTypeInfo - Reflection")]
+    public int GetIntPropertyViaAccessTypeInfoReflection()
+    {
+        return _reflectionIntPropertyMember.GetValue<int>(_instance);
+    }
+
+    [Benchmark(Description = "Get Int Property via AccessTypeInfo - ReflectionEmit")]
+    public int GetIntPropertyViaAccessTypeInfoReflectionEmit()
+    {
+        return _reflectionEmitIntPropertyMember.GetValue<int>(_instance);
+    }
+
+    [Benchmark(Description = "Set Int Property via AccessTypeInfo - Reflection")]
+    public void SetIntPropertyViaAccessTypeInfoReflection()
+    {
+        _reflectionIntPropertyMember.SetValue(_instance, 100);
+    }
+
+    [Benchmark(Description = "Set Int Property via AccessTypeInfo - ReflectionEmit")]
+    public void SetIntPropertyViaAccessTypeInfoReflectionEmit()
+    {
+        _reflectionEmitIntPropertyMember.SetValue(_instance, 100);
+    }
+
+    [Benchmark(Description = "Get String Property via AccessTypeInfo - Reflection")]
+    public string GetStringPropertyViaAccessTypeInfoReflection()
+    {
+        return _reflectionStringPropertyMember.GetValue<string>(_instance);
+    }
+
+    [Benchmark(Description = "Get String Property via AccessTypeInfo - ReflectionEmit")]
+    public string GetStringPropertyViaAccessTypeInfoReflectionEmit()
+    {
+        return _reflectionEmitStringPropertyMember.GetValue<string>(_instance);
+    }
+
+    [Benchmark(Description = "Set String Property via AccessTypeInfo - Reflection")]
+    public void SetStringPropertyViaAccessTypeInfoReflection()
+    {
+        _reflectionStringPropertyMember.SetValue(_instance, "New Value");
+    }
+
+    [Benchmark(Description = "Set String Property via AccessTypeInfo - ReflectionEmit")]
+    public void SetStringPropertyViaAccessTypeInfoReflectionEmit()
+    {
+        _reflectionEmitStringPropertyMember.SetValue(_instance, "New Value");
+    }
+
+    [Benchmark(Description = "Get Float Field via AccessTypeInfo - Reflection")]
+    public float GetFloatFieldViaAccessTypeInfoReflection()
+    {
+        return _reflectionFloatFieldMember.GetValue<float>(_instance);
+    }
+
+    [Benchmark(Description = "Get Float Field via AccessTypeInfo - ReflectionEmit")]
+    public float GetFloatFieldViaAccessTypeInfoReflectionEmit()
+    {
+        return _reflectionEmitFloatFieldMember.GetValue<float>(_instance);
+    }
+
+    [Benchmark(Description = "Set Float Field via AccessTypeInfo - Reflection")]
+    public void SetFloatFieldViaAccessTypeInfoReflection()
+    {
+        _reflectionFloatFieldMember.SetValue(_instance, 2.718f);
+    }
+
+    [Benchmark(Description = "Set Float Field via AccessTypeInfo - ReflectionEmit")]
+    public void SetFloatFieldViaAccessTypeInfoReflectionEmit()
+    {
+        _reflectionEmitFloatFieldMember.SetValue(_instance, 2.718f);
+    }
+
+    [Benchmark(Description = "Create Instance via AccessTypeInfo - Reflection")]
+    public TestReflectionClass CreateInstanceViaAccessTypeInfoReflection() => _reflectionAccessTypeInfo.CreateInstance<TestReflectionClass>();
+
+    [Benchmark(Description = "Create Instance via AccessTypeInfo - ReflectionEmit")]
+    public TestReflectionClass CreateInstanceViaAccessTypeInfoReflectionEmit() => _reflectionEmitAccessTypeInfo.CreateInstance<TestReflectionClass>();
 }
