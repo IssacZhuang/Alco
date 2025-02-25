@@ -153,20 +153,20 @@ public class ConcurrentLruCache<TKey, TValue> where TKey : notnull where TValue 
             return existingNode.Value.Value;
         }
 
-        // Key doesn't exist, create the value
-        TValue value = valueFactory(key);
-        ArgumentNullException.ThrowIfNull(value);
-
-        // Use lock for the slow path (adding new item)
+        // Use lock for the entire slow path to prevent multiple threads from creating the value
         lock (_lock)
         {
-            // Double-check in case another thread added the key while we were creating the value
+            // Double-check in case another thread added the key while we were waiting for the lock
             if (_cacheMap.TryGetValue(key, out existingNode))
             {
                 _lruList.Remove(existingNode);
                 _lruList.AddFirst(existingNode);
                 return existingNode.Value.Value;
             }
+
+            // Key doesn't exist, create the value
+            TValue value = valueFactory(key);
+            ArgumentNullException.ThrowIfNull(value);
 
             int weight = GetWeight(value);
 

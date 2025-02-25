@@ -25,18 +25,7 @@ public partial class ConfigInspector : UserControl
         {
             return;
         }
-        DynamicAccessor accessor = new DynamicAccessor(config.GetType());
-
-        PropertiesEditor.Children.Clear();
-        for (int i = 0; i < accessor.PropertyNames.Count; i++)
-        {
-            PropertiesEditor.Children.Add(new TextBlock { Text = $"{accessor.PropertyNames[i]} [{accessor.PropertyTypes[i].Name}]" });
-        }
-
-        //test
-        PropertyNumber propertyNumber = new PropertyNumber();
-        PropertiesEditor.Children.Add(propertyNumber);
-        propertyNumber.Bind(ViewModel, nameof(ViewModel.TestNumber));
+        
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
