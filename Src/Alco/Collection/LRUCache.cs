@@ -4,96 +4,103 @@ using System.Diagnostics.CodeAnalysis;
 
 
 
-namespace Alco
+namespace Alco;
+
+
+public class LRUCache<Tkey, TValue> where Tkey : notnull where TValue : class
 {
-
-    public class LRUCache<K, V> where K:notnull
+    private struct KeyValuePair
     {
-        private struct KeyValuePair
+        public Tkey key;
+        public TValue value;
+        public int weight;
+        public KeyValuePair(Tkey key, TValue value, int weight)
         {
-            public K key;
-            public V value;
-            public int weight;
-            public KeyValuePair(K key, V value, int weight)
-            {
-                this.key = key;
-                this.value = value;
-                this.weight = weight;
-            }
+            this.key = key;
+            this.value = value;
+            this.weight = weight;
         }
-        private readonly Dictionary<K, LinkedListNode<KeyValuePair>> _index = new Dictionary<K, LinkedListNode<KeyValuePair>>();
+    }
+    private readonly Dictionary<Tkey, LinkedListNode<KeyValuePair>> _index = new Dictionary<Tkey, LinkedListNode<KeyValuePair>>();
 
-        private readonly LinkedList<KeyValuePair> _leastRecentList = new LinkedList<KeyValuePair>();
+    private readonly LinkedList<KeyValuePair> _leastRecentList = new LinkedList<KeyValuePair>();
 
-        private readonly int _capacity;
-        private int _sumWeight = 0;
+    private readonly int _capacity;
+    private int _sumWeight = 0;
 
-        public int Count => _index.Count;
-        public int Capacity => _capacity;
-        public int SumWeight => _sumWeight;
+    public int Count => _index.Count;
+    public int Capacity => _capacity;
+    public int SumWeight => _sumWeight;
 
-        public LRUCache(int capacity)
+    public LRUCache(int capacity)
+    {
+        _capacity = capacity;
+    }
+
+    public bool TryGetValue(Tkey key, [NotNullWhen(true)] out TValue? result)
+    {
+        if (_index.TryGetValue(key, out var value))
         {
-            _capacity = capacity;
+            result = value.Value.value;
+            WasUsed(value);
+            return true;
         }
+        result = default;
+        return false;
+    }
 
-        public bool TryGetValue(K key, [NotNullWhen(true)]out V? result)
+    public void Add(Tkey key, TValue value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        int weight = GetWeight(value);
+        if (_sumWeight + weight > _capacity)
         {
-            if (_index.TryGetValue(key, out var value))
-            {
-                result = value.Value.value;
-                WasUsed(value);
-#pragma warning disable CS8762
-                return true;
-#pragma warning restore CS8762
-            }
-            result = default(V);
-            return false;
+            RemoveLeastUsed();
         }
+        LinkedListNode<KeyValuePair> linkedListNode = new LinkedListNode<KeyValuePair>(new KeyValuePair(key, value, weight));
+        _index.Add(key, linkedListNode);
+        _leastRecentList.AddLast(linkedListNode);
+        _sumWeight += weight;
+    }
 
-        public void Add(K key, V value)
-        {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-            int weight = GetWeight(value);
-            if (_sumWeight + weight > _capacity)
-            {
-                RemoveLeastUsed();
-            }
-            LinkedListNode<KeyValuePair> linkedListNode = new LinkedListNode<KeyValuePair>(new KeyValuePair(key, value, weight));
-            _index.Add(key, linkedListNode);
-            _leastRecentList.AddLast(linkedListNode);
-            _sumWeight += weight;
-        }
+    public void Clear()
+    {
+        _index.Clear();
+        _leastRecentList.Clear();
+    }
 
-        public void Clear()
-        {
-            _index.Clear();
-            _leastRecentList.Clear();
-        }
-
-        protected virtual int GetWeight(V value)
-        {
-            return 1;
-        }
-
-        private void WasUsed(LinkedListNode<KeyValuePair> node)
+    public bool Remove(Tkey key)
+    {
+        if (_index.TryGetValue(key, out var node))
         {
             _leastRecentList.Remove(node);
-            _leastRecentList.AddLast(node);
+            _index.Remove(key);
+            _sumWeight -= node.Value.weight;
+            return true;
         }
+        return false;
+    }
 
-        private void RemoveLeastUsed()
+    protected virtual int GetWeight(TValue value)
+    {
+        return 1;
+    }
+
+    private void WasUsed(LinkedListNode<KeyValuePair> node)
+    {
+        _leastRecentList.Remove(node);
+        _leastRecentList.AddLast(node);
+    }
+
+    private void RemoveLeastUsed()
+    {
+        LinkedListNode<KeyValuePair>? first = _leastRecentList.First;
+        if (first != null)
         {
-            LinkedListNode<KeyValuePair>? first = _leastRecentList.First;
-            if (first != null)
-            {
-                _leastRecentList.RemoveFirst();
-                _index.Remove(first.Value.key);
-                _sumWeight -= first.Value.weight;
-            }
+            _leastRecentList.RemoveFirst();
+            _index.Remove(first.Value.key);
+            _sumWeight -= first.Value.weight;
         }
     }
 }
