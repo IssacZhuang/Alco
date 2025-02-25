@@ -20,25 +20,30 @@ public abstract class AccessMemberInfo
     /// </summary>
     public string Name { get; }
 
+    public bool CanRead { get; }
+    public bool CanWrite { get; }
+
     /// <summary>
     /// Gets a function that retrieves the value of this member from an object.
     /// </summary>
-    protected abstract Func<object, object?> MethodGet { get; }
+    protected abstract Func<object, object?>? MethodGet { get; }
 
     /// <summary>
     /// Gets an action that sets the value of this member on an object.
     /// </summary>
-    protected abstract Action<object, object?> MethodSet { get; }
+    protected abstract Action<object, object?>? MethodSet { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AccessMemberInfo"/> class.
     /// </summary>
     /// <param name="propertyType">The type of the property or field.</param>
     /// <param name="name">The name of the member.</param>
-    internal AccessMemberInfo(Type propertyType, string name)
+    internal AccessMemberInfo(bool canRead, bool canWrite, Type propertyType, string name)
     {
         PropertyType = propertyType;
         Name = name;
+        CanRead = canRead;
+        CanWrite = canWrite;
     }
 
     /// <summary>
@@ -53,7 +58,7 @@ public abstract class AccessMemberInfo
         {
             return getter(obj);
         }
-        return (T?)MethodGet(obj);
+        return (T?)MethodGet?.Invoke(obj);
     }
 
     /// <summary>
@@ -101,19 +106,23 @@ public abstract class AccessMemberInfo
 internal sealed class AccessPropertyInfo<T> : AccessMemberInfo
 {
 
-    protected override Func<object, object?> MethodGet { get; }
-    protected override Action<object, object?> MethodSet { get; }
+    protected override Func<object, object?>? MethodGet { get; }
+    protected override Action<object, object?>? MethodSet { get; }
 
     public AccessPropertyInfo(PropertyInfo propertyInfo, MemberAccessor accessor) :
-    base(propertyInfo.PropertyType, propertyInfo.Name)
+    base(propertyInfo.GetMethod?.IsPublic == true, propertyInfo.SetMethod?.IsPublic == true, propertyInfo.PropertyType, propertyInfo.Name)
     {
+        if (CanRead)
+        {
+            var typedGetter = accessor.CreatePropertyGetter<T>(propertyInfo);
+            MethodGet = typedGetter is Func<object, object?> getter ? getter : obj => typedGetter(obj);
+        }
 
-
-        var typedGetter = accessor.CreatePropertyGetter<T>(propertyInfo);
-        MethodGet = typedGetter is Func<object, object?> getter ? getter : obj => typedGetter(obj);
-
-        var typedSetter = accessor.CreatePropertySetter<T>(propertyInfo);
-        MethodSet = typedSetter is Action<object, object?> setter ? setter : (obj, value) => typedSetter(obj, (T)value!);
+        if (CanWrite)
+        {
+            var typedSetter = accessor.CreatePropertySetter<T>(propertyInfo);
+            MethodSet = typedSetter is Action<object, object?> setter ? setter : (obj, value) => typedSetter(obj, (T)value!);
+        }
     }
 }
 
@@ -127,7 +136,7 @@ internal sealed class AccessFieldInfo<T> : AccessMemberInfo
     protected override Action<object, object?> MethodSet { get; }
 
     public AccessFieldInfo(FieldInfo fieldInfo, MemberAccessor accessor) :
-    base(fieldInfo.FieldType, fieldInfo.Name)
+    base(true, true, fieldInfo.FieldType, fieldInfo.Name)
     {
         var typedGetter = accessor.CreateFieldGetter<T>(fieldInfo);
         MethodGet = typedGetter is Func<object, object?> getter ? getter : obj => typedGetter(obj);

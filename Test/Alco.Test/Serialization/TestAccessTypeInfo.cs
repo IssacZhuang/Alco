@@ -10,6 +10,7 @@ public class TestAccessTypeInfo
     private class TestClass
     {
         public int PublicProperty { get; set; }
+        public int PublicProperty2 { get; private set; }
         public string PublicField;
         private int _privateProperty { get; set; }
         private string _privateField;
@@ -34,7 +35,7 @@ public class TestAccessTypeInfo
     [SetUp]
     public void Setup()
     {
-        _memberAccessor = new ReflectionMemberAccessor();
+        _memberAccessor = new ReflectionEmitMemberAccessor();
     }
 
     [Test]
@@ -48,11 +49,21 @@ public class TestAccessTypeInfo
 
         // Assert
         Assert.That(members, Is.Not.Null);
-        Assert.That(members.Length, Is.EqualTo(2)); // Should have 2 public members
+        Assert.That(members.Length, Is.EqualTo(3)); // Should have 3 public members
 
         // Verify that we have the expected members
-        Assert.That(members.Any(m => m.Name == "PublicProperty"), Is.True);
-        Assert.That(members.Any(m => m.Name == "PublicField"), Is.True);
+        // also is CanRead and CanWrite
+        AccessMemberInfo publicProperty = members.First(m => m.Name == "PublicProperty");
+        Assert.That(publicProperty.CanRead, Is.True);
+        Assert.That(publicProperty.CanWrite, Is.True);
+
+        AccessMemberInfo publicField = members.First(m => m.Name == "PublicField");
+        Assert.That(publicField.CanRead, Is.True);
+        Assert.That(publicField.CanWrite, Is.True);
+
+        AccessMemberInfo publicProperty2 = members.First(m => m.Name == "PublicProperty2");
+        Assert.That(publicProperty2.CanRead, Is.True);
+        Assert.That(publicProperty2.CanWrite, Is.False);
 
         // Verify that private members are not included
         Assert.That(members.Any(m => m.Name == "_privateProperty"), Is.False);

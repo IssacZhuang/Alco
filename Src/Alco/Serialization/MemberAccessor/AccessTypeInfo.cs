@@ -64,7 +64,10 @@ public class AccessTypeInfo
 
         // Get the parameterless constructor if available
         var constructorInfo = type.GetConstructor(Type.EmptyTypes);
-        _constructor = memberAccessor.CreateParameterlessConstructor(type, constructorInfo);
+        if (constructorInfo is not null)
+        {
+            _constructor = memberAccessor.CreateParameterlessConstructor(type, constructorInfo);
+        }
     }
 
     /// <summary>
