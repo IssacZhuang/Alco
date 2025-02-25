@@ -62,7 +62,9 @@ public class AccessTypeInfo
 
         Members = accessMembers.ToArray();
 
-        _constructor = memberAccessor.CreateParameterlessConstructor(type, null);
+        // Get the parameterless constructor if available
+        var constructorInfo = type.GetConstructor(Type.EmptyTypes);
+        _constructor = memberAccessor.CreateParameterlessConstructor(type, constructorInfo);
     }
 
     /// <summary>
