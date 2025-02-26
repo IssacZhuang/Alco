@@ -13,7 +13,7 @@ namespace Alco.Editor.ViewModels;
 public partial class Editor : ViewModelBase
 {
     private static readonly (MethodInfo, MenuItemAttribute)[] _menuItemMethods = UtilsAttribute.GetMethodsWithAttribute<MenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
-    private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>(BindingFlags.Public | BindingFlags.Instance);
+    private static readonly (Type, EditorPageAttribute)[] _editorPages = UtilsAttribute.GetTypesWithAttribute<EditorPageAttribute>();
     
     public List<Page> Pages { get; } = [];
     public List<TreeItem<MethodInfo?>> MainMenuItems { get; } = [];

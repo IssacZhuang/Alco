@@ -16,7 +16,7 @@ public static class UtilsAttribute
             .ToArray();
     }
 
-    public static (Type, T)[] GetTypesWithAttribute<T>(BindingFlags bindingFlags) where T : Attribute
+    public static (Type, T)[] GetTypesWithAttribute<T>() where T : Attribute
     {
         return AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(assembly => assembly.GetTypes())
