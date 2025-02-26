@@ -13,18 +13,26 @@ public partial class PropertyEditorNumber : UserControl
         InitializeComponent();
     }
 
-    public void Bind(object target, string propertyPath)
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is ViewModels.PropertyEditorNumber viewModel)
+        {
+            Bind(viewModel.Target, viewModel.MemberInfo);
+        }
+    }
+
+    public void Bind(object target, AccessMemberInfo memberInfo)
     {
         ArgumentNullException.ThrowIfNull(target);
-        ArgumentNullException.ThrowIfNull(propertyPath);
+        ArgumentNullException.ThrowIfNull(memberInfo);
 
-        var property = target.GetType().GetProperty(propertyPath) ?? throw new ArgumentException($"Property '{propertyPath}' not found on target type '{target.GetType().Name}'");
-        InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(propertyPath)
+        InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(memberInfo.Name)
         {
             Source = target,
         });
 
-        InputNumber.FormatString = GetFormatString(property.PropertyType);
+        InputNumber.FormatString = GetFormatString(memberInfo.MemberType);
     }
 
     private static string GetFormatString(Type type)
