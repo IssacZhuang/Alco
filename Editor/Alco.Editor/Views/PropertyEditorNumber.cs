@@ -6,9 +6,9 @@ using Avalonia.Markup.Xaml;
 
 namespace Alco.Editor.Views;
 
-public partial class PropertyNumber : UserControl
+public partial class PropertyEditorNumber : UserControl
 {
-    public PropertyNumber()
+    public PropertyEditorNumber()
     {
         InitializeComponent();
     }
@@ -18,16 +18,12 @@ public partial class PropertyNumber : UserControl
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(propertyPath);
 
-        var property = target.GetType().GetProperty(propertyPath);
-        if (property == null)
-        {
-            throw new ArgumentException($"Property '{propertyPath}' not found on target type '{target.GetType().Name}'");
-        }
-
+        var property = target.GetType().GetProperty(propertyPath) ?? throw new ArgumentException($"Property '{propertyPath}' not found on target type '{target.GetType().Name}'");
         InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(propertyPath)
         {
             Source = target,
         });
+
         InputNumber.FormatString = GetFormatString(property.PropertyType);
     }
 
