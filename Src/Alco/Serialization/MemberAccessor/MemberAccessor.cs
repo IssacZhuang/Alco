@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Alco;
 
@@ -37,5 +38,20 @@ public abstract class MemberAccessor
     public abstract Action<object, TProperty> CreateFieldSetter<TProperty>(FieldInfo fieldInfo);
 
     public virtual void Clear() { }
+
+    public static MemberAccessor CreateCompatibleAccessor()
+    {
+        if (RuntimeFeature.IsDynamicCodeSupported)
+        {
+            return new ReflectionEmitMemberAccessor();
+        }
+        return new ReflectionMemberAccessor();
+    }
+
+    public static MemberAccessor CreateCompatibleCachedAccessor()
+    {
+        MemberAccessor accessor = CreateCompatibleAccessor();
+        return new MemberAccessorCache(accessor);
+    }
 }
 

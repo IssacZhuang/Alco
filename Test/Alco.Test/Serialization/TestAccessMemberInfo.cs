@@ -48,7 +48,7 @@ public class TestAccessMemberInfo
         // Assert
         Assert.That(accessMemberInfo, Is.Not.Null);
         Assert.That(accessMemberInfo.Name, Is.EqualTo("IntProperty"));
-        Assert.That(accessMemberInfo.PropertyType, Is.EqualTo(typeof(int)));
+        Assert.That(accessMemberInfo.MemberType, Is.EqualTo(typeof(int)));
         Assert.That(accessMemberInfo.CanRead, Is.True);
         Assert.That(accessMemberInfo.CanWrite, Is.True);
     }
@@ -65,7 +65,7 @@ public class TestAccessMemberInfo
         // Assert
         Assert.That(accessMemberInfo, Is.Not.Null);
         Assert.That(accessMemberInfo.Name, Is.EqualTo("FloatField"));
-        Assert.That(accessMemberInfo.PropertyType, Is.EqualTo(typeof(float)));
+        Assert.That(accessMemberInfo.MemberType, Is.EqualTo(typeof(float)));
         Assert.That(accessMemberInfo.CanRead, Is.True);
         Assert.That(accessMemberInfo.CanWrite, Is.True);
     }

@@ -9,7 +9,6 @@ namespace Alco.Engine;
 
 public class AssetLoaderConfig : IAssetLoader
 {
-    private readonly ConcurrentDictionary<Type, DynamicAccessor> _dynamicAccessors = new();
     private readonly JsonSerializerOptions _options;
 
     private readonly ConfigReferenceResolver _configReferenceResolver;
@@ -27,7 +26,7 @@ public class AssetLoaderConfig : IAssetLoader
 
     public string Name => "AssetLoader.Config";
 
-    public IReadOnlyList<string> FileExtensions => new[] { ".json" };
+    public IReadOnlyList<string> FileExtensions => [".json"];
 
     public bool CanHandleType(Type type)
     {
@@ -41,9 +40,7 @@ public class AssetLoaderConfig : IAssetLoader
 
         try
         {
-            var accessor = GetDynamicAccessor(asset.GetType());
-            JsonTypeInfo typeInfo = _options.GetTypeInfo(asset.GetType());
-            _configReferenceResolver.ResolveRealReference(asset, accessor, typeInfo);
+            _configReferenceResolver.ResolveRealReference(asset);
             return asset;
         }
         catch
@@ -55,11 +52,6 @@ public class AssetLoaderConfig : IAssetLoader
         {
             _configReferenceResolver.RemoveLoadingConfig(filename);
         }
-    }
-
-    private DynamicAccessor GetDynamicAccessor(Type type)
-    {
-        return _dynamicAccessors.GetOrAdd(type, t => new DynamicAccessor(t));
     }
 
     public void OnAssetLoaded(object asset)

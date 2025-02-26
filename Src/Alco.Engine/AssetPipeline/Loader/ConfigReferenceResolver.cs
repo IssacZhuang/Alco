@@ -22,6 +22,8 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         }
     }
 
+    private static readonly MemberAccessor s_memberAccessor = MemberAccessor.CreateCompatibleCachedAccessor();
+    private readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
     private readonly ConditionalWeakTable<BaseConfig, ConfigReference> _configReferences = new();
     private readonly ConcurrentDictionary<string, BaseConfig> _loadingConfigs = new();
     private readonly AssetSystem _assetSystem;
@@ -57,20 +59,21 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         _loadingConfigs.TryRemove(filename, out _);
     }
 
-    public void ResolveRealReference(BaseConfig asset, DynamicAccessor accessor, JsonTypeInfo typeInfo)
+    public void ResolveRealReference(BaseConfig asset)
     {
-        foreach (var property in typeInfo.Properties)
+        AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(asset.GetType());
+        foreach (var accessMember in accessTypeInfo.Members)
         {
-            if (property.PropertyType.IsAssignableTo(typeof(BaseConfig)))
+            if (accessMember.MemberType.IsAssignableTo(typeof(BaseConfig)))
             {
-                ResolveConfigProperty(asset, property.Name, property.PropertyType, accessor);
+                ResolveConfigProperty(asset, accessMember.Name, accessMember);
             }
         }
     }
 
-    private void ResolveConfigProperty(BaseConfig asset, string propertyName, Type propertyType, DynamicAccessor accessor)
+    private void ResolveConfigProperty(BaseConfig asset, string propertyName, AccessMemberInfo accessMember)
     {
-        var config = accessor.GetValue(asset, propertyName) as BaseConfig;
+        var config = accessMember.GetValue<BaseConfig>(asset);
 
         if (TryGetReference(config, out var reference))
         {
@@ -78,7 +81,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
                 ? loadingConfig
                 : _assetSystem.Load(reference.Id, reference.PropertyType);
 
-            accessor.SetValue(asset, propertyName, resolvedConfig);
+            accessMember.SetValue(asset, resolvedConfig);
         }
     }
 
@@ -95,5 +98,10 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
     private void SetReference(BaseConfig config, ConfigReference reference)
     {
         _configReferences.AddOrUpdate(config, reference);
+    }
+
+    private AccessTypeInfo GetAccessTypeInfo(Type type)
+    {
+        return _accessTypeInfos.GetOrAdd(type, static (t) => new AccessTypeInfo(t, s_memberAccessor));
     }
 }
