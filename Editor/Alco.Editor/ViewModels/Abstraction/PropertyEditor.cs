@@ -2,6 +2,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using Alco.Editor.Attributes;
+using Alco.Editor.Views;
 using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
@@ -42,7 +43,7 @@ public abstract class PropertyEditor : ViewModelBase
         {
             return (PropertyEditor)Activator.CreateInstance(propertyEditorType, target, memberInfo)!;
         }
-        //todo: fallback to a hint control
-        throw new Exception($"No property editor found for type {memberInfo.MemberType}");
+        
+        return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
     }
 }

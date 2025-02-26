@@ -13,8 +13,12 @@ public partial class PropertyEditorException : UserControl
         TextException.Text = "This is an exception";
     }
 
-    public void SetException(string exception)
+    protected override void OnDataContextChanged(EventArgs e)
     {
-        TextException.Text = exception;
+        base.OnDataContextChanged(e);
+        if (DataContext is ViewModels.PropertyEditorException propertyEditorException)
+        {
+            TextException.Text = propertyEditorException.Message;
+        }
     }
 }
