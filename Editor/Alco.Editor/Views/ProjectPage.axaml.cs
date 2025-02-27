@@ -1,3 +1,4 @@
+using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
@@ -11,6 +12,7 @@ public partial class ProjectPage : UserControl
         public string Name { get; set; } = "Test";
         public int Age { get; } = 10;
         public bool IsActive { get; set; } = true;
+        public Vector2 Position { get; set; } = new Vector2(10, 20);
     }
 
     public ProjectPage()

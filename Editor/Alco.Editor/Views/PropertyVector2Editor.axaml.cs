@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -12,5 +13,36 @@ public partial class PropertyVector2Editor : UserControl
     public PropertyVector2Editor()
     {
         InitializeComponent();
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is ViewModels.PropertyVector2Editor viewModel)
+        {
+            Setup(viewModel);
+        }
+    }
+
+    private void Setup(ViewModels.PropertyVector2Editor viewModel)
+    {
+        ArgumentNullException.ThrowIfNull(viewModel);
+        AccessMemberInfo memberInfo = viewModel.MemberInfo;
+
+        if (!memberInfo.CanRead)
+        {
+            return;
+        }
+
+        InputX.Bind(NumericUpDown.ValueProperty, new Binding(nameof(viewModel.X))
+        {
+            Source = viewModel,
+        });
+
+        InputY.Bind(NumericUpDown.ValueProperty, new Binding(nameof(viewModel.Y))
+        {
+            Source = viewModel,
+        });
+
     }
 }
