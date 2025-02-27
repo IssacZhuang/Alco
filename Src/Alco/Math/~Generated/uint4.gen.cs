@@ -36,44 +36,44 @@ namespace Alco
             this.W = (uint)value;
         }
 
-        public uint4(uint x, uint y, uint z, uint w)
+        public uint4(uint X, uint Y, uint Z, uint W)
         {
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
-            this.W = w;
+            this.X = X;
+            this.Y = Y;
+            this.Z = Z;
+            this.W = W;
         }
 
-        public uint4(int x, int y, int z, int w)
+        public uint4(int X, int Y, int Z, int W)
         {
-            this.X = (uint)x;
-            this.Y = (uint)y;
-            this.Z = (uint)z;
-            this.W = (uint)w;
+            this.X = (uint)X;
+            this.Y = (uint)Y;
+            this.Z = (uint)Z;
+            this.W = (uint)W;
         }
 
-        public uint4(float x, float y, float z, float w)
+        public uint4(float X, float Y, float Z, float W)
         {
-            this.X = (uint)x;
-            this.Y = (uint)y;
-            this.Z = (uint)z;
-            this.W = (uint)w;
+            this.X = (uint)X;
+            this.Y = (uint)Y;
+            this.Z = (uint)Z;
+            this.W = (uint)W;
         }
 
-        public uint4(uint2 value, uint z, uint w)
+        public uint4(uint2 value, uint Z, uint W)
         {
             this.X = value.X;
             this.Y = value.Y;
-            this.Z = z;
-            this.W = w;
+            this.Z = Z;
+            this.W = W;
         }
 
-        public uint4(uint3 value, uint w)
+        public uint4(uint3 value, uint W)
         {
             this.X = value.X;
             this.Y = value.Y;
             this.Z = value.Z;
-            this.W = w;
+            this.W = W;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -28,22 +28,22 @@ namespace Alco
             this.Y = (uint)value;
         }
 
-        public uint2(uint x, uint y)
+        public uint2(uint X, uint Y)
         {
-            this.X = x;
-            this.Y = y;
+            this.X = X;
+            this.Y = Y;
         }
 
-        public uint2(int x, int y)
+        public uint2(int X, int Y)
         {
-            this.X = (uint)x;
-            this.Y = (uint)y;
+            this.X = (uint)X;
+            this.Y = (uint)Y;
         }
 
-        public uint2(float x, float y)
+        public uint2(float X, float Y)
         {
-            this.X = (uint)x;
-            this.Y = (uint)y;
+            this.X = (uint)X;
+            this.Y = (uint)Y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

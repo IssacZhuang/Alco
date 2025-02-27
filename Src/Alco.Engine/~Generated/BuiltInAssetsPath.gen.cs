@@ -33,6 +33,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_Sprite = "Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl";
 
+   public const string Shader_Sprite9Slice = "Shaders/Pipelines/Rendering/Sprite/Sprite9Slice.hlsl";
+
    public const string Shader_SpriteMasked = "Shaders/Pipelines/Rendering/Sprite/SpriteMasked.hlsl";
 
    public const string Shader_Text = "Shaders/Pipelines/Rendering/Text/Text.hlsl";

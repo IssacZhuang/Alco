@@ -44,52 +44,52 @@ namespace Alco
             this.W = (Half)value;
         }
 
-        public Half4(Half x, Half y, Half z, Half w)
+        public Half4(Half X, Half Y, Half Z, Half W)
         {
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
-            this.W = w;
+            this.X = X;
+            this.Y = Y;
+            this.Z = Z;
+            this.W = W;
         }
 
-        public Half4(int x, int y, int z, int w)
+        public Half4(int X, int Y, int Z, int W)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
-            this.Z = (Half)z;
-            this.W = (Half)w;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
+            this.Z = (Half)Z;
+            this.W = (Half)W;
         }
 
-        public Half4(uint x, uint y, uint z, uint w)
+        public Half4(uint X, uint Y, uint Z, uint W)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
-            this.Z = (Half)z;
-            this.W = (Half)w;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
+            this.Z = (Half)Z;
+            this.W = (Half)W;
         }
 
-        public Half4(float x, float y, float z, float w)
+        public Half4(float X, float Y, float Z, float W)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
-            this.Z = (Half)z;
-            this.W = (Half)w;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
+            this.Z = (Half)Z;
+            this.W = (Half)W;
         }
 
-        public Half4(Half2 value, Half z, Half w)
+        public Half4(Half2 value, Half Z, Half W)
         {
             this.X = value.X;
             this.Y = value.Y;
-            this.Z = z;
-            this.W = w;
+            this.Z = Z;
+            this.W = W;
         }
 
-        public Half4(Half3 value, Half w)
+        public Half4(Half3 value, Half W)
         {
             this.X = value.X;
             this.Y = value.Y;
             this.Z = value.Z;
-            this.W = w;
+            this.W = W;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

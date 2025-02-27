@@ -34,28 +34,28 @@ namespace Alco
             this.Y = (Half)value;
         }
 
-        public Half2(Half x, Half y)
+        public Half2(Half X, Half Y)
         {
-            this.X = x;
-            this.Y = y;
+            this.X = X;
+            this.Y = Y;
         }
 
-        public Half2(int x, int y)
+        public Half2(int X, int Y)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
         }
 
-        public Half2(uint x, uint y)
+        public Half2(uint X, uint Y)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
         }
 
-        public Half2(float x, float y)
+        public Half2(float X, float Y)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

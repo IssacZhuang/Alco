@@ -39,39 +39,39 @@ namespace Alco
             this.Z = (Half)value;
         }
 
-        public Half3(Half x, Half y, Half z)
+        public Half3(Half X, Half Y, Half Z)
         {
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
+            this.X = X;
+            this.Y = Y;
+            this.Z = Z;
         }
 
-        public Half3(int x, int y, int z)
+        public Half3(int X, int Y, int Z)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
-            this.Z = (Half)z;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
+            this.Z = (Half)Z;
         }
 
-        public Half3(uint x, uint y, uint z)
+        public Half3(uint X, uint Y, uint Z)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
-            this.Z = (Half)z;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
+            this.Z = (Half)Z;
         }
 
-        public Half3(float x, float y, float z)
+        public Half3(float X, float Y, float Z)
         {
-            this.X = (Half)x;
-            this.Y = (Half)y;
-            this.Z = (Half)z;
+            this.X = (Half)X;
+            this.Y = (Half)Y;
+            this.Z = (Half)Z;
         }
 
-        public Half3(Half2 value, Half z)
+        public Half3(Half2 value, Half Z)
         {
             this.X = value.X;
             this.Y = value.Y;
-            this.Z = z;
+            this.Z = Z;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

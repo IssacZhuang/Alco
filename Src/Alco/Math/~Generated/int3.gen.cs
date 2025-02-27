@@ -32,32 +32,32 @@ namespace Alco
             this.Z = (int)value;
         }
 
-        public int3(int x, int y, int z)
+        public int3(int X, int Y, int Z)
         {
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
+            this.X = X;
+            this.Y = Y;
+            this.Z = Z;
         }
 
-        public int3(uint x, uint y, uint z)
+        public int3(uint X, uint Y, uint Z)
         {
-            this.X = (int)x;
-            this.Y = (int)y;
-            this.Z = (int)z;
+            this.X = (int)X;
+            this.Y = (int)Y;
+            this.Z = (int)Z;
         }
 
-        public int3(float x, float y, float z)
+        public int3(float X, float Y, float Z)
         {
-            this.X = (int)x;
-            this.Y = (int)y;
-            this.Z = (int)z;
+            this.X = (int)X;
+            this.Y = (int)Y;
+            this.Z = (int)Z;
         }
 
-        public int3(int2 value, int z)
+        public int3(int2 value, int Z)
         {
             this.X = value.X;
             this.Y = value.Y;
-            this.Z = z;
+            this.Z = Z;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
