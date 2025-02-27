@@ -18,18 +18,24 @@ public partial class PropertyEditorString : UserControl
         base.OnDataContextChanged(e);
         if (DataContext is ViewModels.PropertyEditorString viewModel)
         {
-            Bind(viewModel.Target, viewModel.MemberInfo);
+            Bind(viewModel);
         }
     }
 
-    public void Bind(object target, AccessMemberInfo memberInfo)
+    private void Bind(ViewModels.PropertyEditorString viewModel)
     {
-        ArgumentNullException.ThrowIfNull(target);
-        ArgumentNullException.ThrowIfNull(memberInfo);
+        ArgumentNullException.ThrowIfNull(viewModel);
+
+        AccessMemberInfo memberInfo = viewModel.MemberInfo;
 
         InputText.Bind(TextBox.TextProperty, new Binding(memberInfo.Name)
         {
-            Source = target,
+            Source = viewModel.Target,
         });
+
+        InputText.TextChanged += (sender, e) =>
+        {
+            viewModel.Refresh();
+        };
     }
 }

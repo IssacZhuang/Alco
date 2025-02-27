@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Alco.Editor.Attributes;
 using Alco.Editor.Views;
 using Avalonia.Controls;
@@ -20,6 +21,7 @@ public abstract class PropertyEditor : ViewModelBase
 
     public abstract Control CreateControl();
 
+    public event Action? OnRefresh;
 
     private static readonly FrozenDictionary<Type, Type> _propertyEditors;
     static PropertyEditor()
@@ -45,5 +47,10 @@ public abstract class PropertyEditor : ViewModelBase
         }
         
         return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
+    }
+
+    public void Refresh()
+    {
+        OnRefresh?.Invoke();
     }
 }

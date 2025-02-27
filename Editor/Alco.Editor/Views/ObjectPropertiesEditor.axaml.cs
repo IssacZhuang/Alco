@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Alco.Editor.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
@@ -37,9 +38,11 @@ public partial class ObjectPropertiesEditor : UserControl
             Root.Children.Add(textBlock);
 
             PropertyEditor propertyEditor = PropertyEditor.CreatePropertyEditor(viewModel.Target, member);
-            Root.Children.Add(propertyEditor.CreateControl());
+            Control control = propertyEditor.CreateControl();
+            Root.Children.Add(control);
         }
     }
+
 
     private void Clear()
     {

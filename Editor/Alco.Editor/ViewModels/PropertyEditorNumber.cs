@@ -1,6 +1,7 @@
 using System;
 using Alco.Editor.Attributes;
 using Avalonia.Controls;
+using Avalonia.Layout;
 
 namespace Alco.Editor.ViewModels;
 
@@ -26,10 +27,11 @@ public class PropertyEditorNumber : PropertyEditor
 
     public override Control CreateControl()
     {
-        return new Views.PropertyEditorNumber()
+        Control control = new Views.PropertyEditorNumber()
         {
             DataContext = this,
         };
+        return control;
     }
 
 }
