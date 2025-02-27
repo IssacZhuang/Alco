@@ -10,7 +10,7 @@ namespace Alco
     public struct ColliderBox3D : ICollider3D
     {
         private readonly ColliderHeader3D _header;
-        public ShapeBox3D shape;
+        public ShapeBox3D Shape;
 
         public ColliderHeader3D Header
         {
@@ -22,40 +22,40 @@ namespace Alco
         {
             _header = new ColliderHeader3D
             {
-                type = ColliderType3D.Box
+                Type = ColliderType3D.Box
             };
         }
 
         public unsafe bool CollidesWith(ColliderHeader3D* other)
         {
-            switch (other->type)
+            switch (other->Type)
             {
                 case ColliderType3D.Box:
-                    return UtilsCollision3D.BoxBox(shape, (*(ColliderBox3D*)other).shape);
+                    return UtilsCollision3D.BoxBox(Shape, (*(ColliderBox3D*)other).Shape);
                 case ColliderType3D.Sphere:
-                    return UtilsCollision3D.BoxSphere(shape, (*(ColliderSphere3D*)other).shape);
+                    return UtilsCollision3D.BoxSphere(Shape, (*(ColliderSphere3D*)other).shape);
             }
             return false;
         }
 
         public BoundingBox3D GetBoundingBox()
         {
-            return shape.GetBoundingBox();
+            return Shape.GetBoundingBox();
         }
 
         public bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo)
         {
-            return UtilsCollision3D.RayBox(ray, shape, out hitInfo);
+            return UtilsCollision3D.RayBox(ray, Shape, out hitInfo);
         }
 
         public bool IntersectPoint(Vector3 point)
         {
-            return UtilsCollision3D.PointBox(point, shape);
+            return UtilsCollision3D.PointBox(point, Shape);
         }
 
         public override string ToString()
         {
-            return $"Box Collider: {shape}";
+            return $"Box Collider: {Shape}";
         }
 
         

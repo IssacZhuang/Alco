@@ -24,13 +24,13 @@ namespace Alco.Test
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(20, 0, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(20, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(10, 0, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(10, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
             spheres.Add(new ColliderSphere3D
@@ -45,12 +45,12 @@ namespace Alco.Test
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
             });
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(-10, 0, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(-10, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
 
@@ -85,9 +85,9 @@ namespace Alco.Test
 
             RayCastResult3D result = bvh.CastRay(ray);
 
-            Assert.IsFalse(!result.hit);
-            TestContext.WriteLine(result.hitInfo.fraction);
-            TestContext.WriteLine(result.hitInfo.point);
+            Assert.IsFalse(!result.Hit);
+            TestContext.WriteLine(result.HitInfo.Fraction);
+            TestContext.WriteLine(result.HitInfo.Point);
 
             boxs.Dispose();
             spheres.Dispose();
@@ -105,17 +105,17 @@ namespace Alco.Test
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(Vector3.Zero, new Vector3(1f), Quaternion.Identity)
             });
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(5, 0, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(5, 0, 0), new Vector3(1f), Quaternion.Identity)
             });
 
             boxs.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(5, 5, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(5, 5, 0), new Vector3(1f), Quaternion.Identity)
             });
 
             spheres.Add(new ColliderSphere3D
@@ -140,12 +140,12 @@ namespace Alco.Test
 
             ColliderBox3D boxCast1 = new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(-2, 1.1f, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(-2, 1.1f, 0), new Vector3(1f), Quaternion.Identity)
             };
 
             ColliderBox3D boxCast2 = new ColliderBox3D
             {
-                shape = new ShapeBox3D(new Vector3(-1.2f, 0, 0), new Vector3(1f), Quaternion.Identity)
+                Shape = new ShapeBox3D(new Vector3(-1.2f, 0, 0), new Vector3(1f), Quaternion.Identity)
             };
 
             ColliderSphere3D sphereCast1 = new ColliderSphere3D
@@ -158,11 +158,11 @@ namespace Alco.Test
                 shape = new ShapeSphere3D(new Vector3(-1.2f, 0, 0), 1f)
             };
 
-            Assert.IsFalse(bvh.CastCollider(boxCast1).hit);
-            Assert.IsTrue(bvh.CastCollider(boxCast2).hit);
+            Assert.IsFalse(bvh.CastCollider(boxCast1).Hit);
+            Assert.IsTrue(bvh.CastCollider(boxCast2).Hit);
 
-            Assert.IsFalse(bvh.CastCollider(sphereCast1).hit);
-            Assert.IsTrue(bvh.CastCollider(sphereCast2).hit);
+            Assert.IsFalse(bvh.CastCollider(sphereCast1).Hit);
+            Assert.IsTrue(bvh.CastCollider(sphereCast2).Hit);
 
             boxs.Dispose();
             spheres.Dispose();

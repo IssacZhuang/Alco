@@ -8,34 +8,34 @@ namespace Alco
 {
     public struct ShapeSphere3D : IShape3D
     {
-        public Vector3 center;
-        public float radius;
+        public Vector3 Center;
+        public float Radius;
 
         public ShapeSphere3D(Vector3 center, float radius)
         {
-            this.center = center;
-            this.radius = radius;
+            this.Center = center;
+            this.Radius = radius;
         }
 
         public BoundingBox3D GetBoundingBox()
         {
-            Vector3 extends = new Vector3(radius);
-            return new BoundingBox3D(center - extends, center + extends);
+            Vector3 extends = new Vector3(Radius);
+            return new BoundingBox3D(Center - extends, Center + extends);
         }
 
         public ShapeSphere3D TransformByParent(Transform3D parent)
         {
             return new ShapeSphere3D
             {
-                center = math.rotate(parent.Rotation, center) * parent.Scale + parent.Position,
-                radius = radius * math.max(parent.Scale.X, math.max(parent.Scale.Y, parent.Scale.Z))
+                Center = math.rotate(parent.Rotation, Center) * parent.Scale + parent.Position,
+                Radius = Radius * math.max(parent.Scale.X, math.max(parent.Scale.Y, parent.Scale.Z))
             };
         }
 
 
         public override string ToString()
         {
-            return $"Sphere: {center}, {radius}";
+            return $"Sphere: {Center}, {Radius}";
         }
 
     }

@@ -278,9 +278,9 @@ namespace Alco
                 {
                     if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
                     {
-                        result.hit = true;
-                        result.hitInfo = hitInfo;
-                        result.collider = top.collider;
+                        result.Hit = true;
+                        result.HitInfo = hitInfo;
+                        result.Collider = top.collider;
                         return result;
                     }
 
@@ -325,11 +325,11 @@ namespace Alco
                 {
                     if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
                     {
-                        if (!result.hit || result.hit && hitInfo.fraction < result.hitInfo.fraction)
+                        if (!result.Hit || result.Hit && hitInfo.Fraction < result.HitInfo.Fraction)
                         {
-                            result.hit = true;
-                            result.hitInfo = hitInfo;
-                            result.collider = top.collider;
+                            result.Hit = true;
+                            result.HitInfo = hitInfo;
+                            result.Collider = top.collider;
                         }
                     }
 
@@ -424,8 +424,8 @@ namespace Alco
                     if (top.collider.CollidesWith(collider))
                     {
 
-                        result.hit = true;
-                        result.collider = top.collider;
+                        result.Hit = true;
+                        result.Collider = top.collider;
 
                         return result;
                     }
@@ -470,8 +470,8 @@ namespace Alco
                     {
                         ColliderCastResult2D resultItem = new ColliderCastResult2D
                         {
-                            hit = true,
-                            collider = top.collider
+                            Hit = true,
+                            Collider = top.collider
                         };
                         result->Add(resultItem);
                     }
@@ -513,8 +513,8 @@ namespace Alco
                     {
                         ColliderCastResult2D resultItem = new ColliderCastResult2D
                         {
-                            hit = true,
-                            collider = top.collider
+                            Hit = true,
+                            Collider = top.collider
                         };
                         result->Add(resultItem);
                     }

@@ -196,15 +196,15 @@ public class UIText : UISelectable
         if (_overflowHorizontal == OverflowModeHorizontal.Clamp)
         {
             //mask = Bound;
-            mask.min.X = math.max(mask.min.X, Bound.min.X);
-            mask.max.X = math.min(mask.max.X, Bound.max.X);
+            mask.Min.X = math.max(mask.Min.X, Bound.Min.X);
+            mask.Max.X = math.min(mask.Max.X, Bound.Max.X);
         }
 
         if (_overflowVertical == OverflowModeVertical.Clamp)
         {
             //mask = Bound;
-            mask.min.Y = math.max(mask.min.Y, Bound.min.Y);
-            mask.max.Y = math.min(mask.max.Y, Bound.max.Y);
+            mask.Min.Y = math.max(mask.Min.Y, Bound.Min.Y);
+            mask.Max.Y = math.min(mask.Max.Y, Bound.Max.Y);
         }
 
         for (int i = 0; i < _lines.Count; i++)

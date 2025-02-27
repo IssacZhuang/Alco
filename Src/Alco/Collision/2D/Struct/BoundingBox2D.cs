@@ -9,35 +9,35 @@ namespace Alco
         /// <summary>
         /// The left bottom corner of the box
         /// </summary>
-        public Vector2 min;
+        public Vector2 Min;
         /// <summary>
         /// The right top corner of the box
         /// </summary>
-        public Vector2 max;
+        public Vector2 Max;
 
 
         public Vector2 Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (min + max) * 0.5f;
+            get => (Min + Max) * 0.5f;
         }
 
         public Vector2 Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => max - min;
+            get => Max - Min;
         }
 
         public BoundingBox2D(Vector2 min, Vector2 max)
         {
-            this.min = min;
-            this.max = max;
+            this.Min = min;
+            this.Max = max;
         }
 
         public bool Intersects(BoundingBox2D other)
         {
-            Vector2 minMax = Vector2.Max(min, other.min);
-            Vector2 maxMin = Vector2.Min(max, other.max);
+            Vector2 minMax = Vector2.Max(Min, other.Min);
+            Vector2 maxMin = Vector2.Min(Max, other.Max);
             Vector2 result = maxMin - minMax;
             return result.X >= 0 && result.Y >= 0;
             // return min.X <= other.max.X && max.X >= other.min.X &&
@@ -46,21 +46,21 @@ namespace Alco
 
         public bool Contains(Vector2 point)
         {
-            return min.X <= point.X && max.X >= point.X &&
-                   min.Y <= point.Y && max.Y >= point.Y;
+            return Min.X <= point.X && Max.X >= point.X &&
+                   Min.Y <= point.Y && Max.Y >= point.Y;
         }
 
         public override string ToString()
         {
-            return $"Box: {min} {max}";
+            return $"Box: {Min} {Max}";
         }
 
         public static BoundingBox2D Merge(BoundingBox2D a, BoundingBox2D b)
         {
             return new BoundingBox2D
             {
-                min = math.min(a.min, b.min),
-                max = math.max(a.max, b.max),
+                Min = math.min(a.Min, b.Min),
+                Max = math.max(a.Max, b.Max),
             };
         }
 
@@ -68,8 +68,8 @@ namespace Alco
         {
             return new BoundingBox2D
             {
-                min = math.max(a.min, b.min),
-                max = math.min(a.max, b.max),
+                Min = math.max(a.Min, b.Min),
+                Max = math.min(a.Max, b.Max),
             };
         }
 

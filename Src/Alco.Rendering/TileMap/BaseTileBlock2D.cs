@@ -175,8 +175,8 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         //to local space
         if (Matrix4x4.Invert(matrix, out Matrix4x4 invMatrix))
         {
-            Vector3 start = ray.origin;
-            Vector3 end = ray.origin + ray.displacement;
+            Vector3 start = ray.Origin;
+            Vector3 end = ray.Origin + ray.Displacement;
 
             Vector3 localStart = Vector3.Transform(start, invMatrix);
             Vector3 localEnd = Vector3.Transform(end, invMatrix);

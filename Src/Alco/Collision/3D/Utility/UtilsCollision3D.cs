@@ -12,28 +12,28 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SphereSphere(ShapeSphere3D sphere1, ShapeSphere3D sphere2)
         {
-            Vector3 difference = sphere1.center - sphere2.center;
+            Vector3 difference = sphere1.Center - sphere2.Center;
             float distanceSquared = math.dot(difference, difference);
-            float sumRadius = sphere1.radius + sphere2.radius;
+            float sumRadius = sphere1.Radius + sphere2.Radius;
             return distanceSquared < sumRadius * sumRadius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxSphere(ShapeBox3D box, ShapeSphere3D sphere)
         {
-            Vector3 sphereCenter = math.mul(sphere.center - box.center, math.inverse(box.rotation));
+            Vector3 sphereCenter = math.mul(sphere.Center - box.Center, math.inverse(box.Rotation));
 
-            Vector3 closestPoint = math.clamp(sphereCenter, -box.extends, box.extends);
+            Vector3 closestPoint = math.clamp(sphereCenter, -box.Extends, box.Extends);
 
             Vector3 difference = closestPoint - sphereCenter;
             float distanceSquared = math.dot(difference, difference);
-            return distanceSquared < sphere.radius * sphere.radius;
+            return distanceSquared < sphere.Radius * sphere.Radius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBox(ShapeBox3D box1, ShapeBox3D box2)
         {
-            if (box1.rotation.Equals(Quaternion.Identity) && box2.rotation.Equals(Quaternion.Identity))
+            if (box1.Rotation.Equals(Quaternion.Identity) && box2.Rotation.Equals(Quaternion.Identity))
             {
                 return BoxBoxAxisAligned(box1, box2);
             }
@@ -44,10 +44,10 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBoxAxisAligned(ShapeBox3D box1, ShapeBox3D box2)
         {
-            Vector3 min1 = box1.center - box1.extends;
-            Vector3 max1 = box1.center + box1.extends;
-            Vector3 min2 = box2.center - box2.extends;
-            Vector3 max2 = box2.center + box2.extends;
+            Vector3 min1 = box1.Center - box1.Extends;
+            Vector3 max1 = box1.Center + box1.Extends;
+            Vector3 min2 = box2.Center - box2.Extends;
+            Vector3 max2 = box2.Center + box2.Extends;
 
             return min1.X <= max2.X && max1.X >= min2.X &&
                    min1.Y <= max2.Y && max1.Y >= min2.Y &&
@@ -57,11 +57,11 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IntersectAABBWorldToLocal(ShapeBox3D world, ShapeBox3D toLocal)
         {
-            BoundingBox3D worldBox = new BoundingBox3D(-world.extends, world.extends);
-            Quaternion invRot = math.inverse(world.rotation);
+            BoundingBox3D worldBox = new BoundingBox3D(-world.Extends, world.Extends);
+            Quaternion invRot = math.inverse(world.Rotation);
 
-            toLocal.center = math.rotate(toLocal.center - world.center, invRot);
-            toLocal.rotation = math.mul(toLocal.rotation, invRot);
+            toLocal.Center = math.rotate(toLocal.Center - world.Center, invRot);
+            toLocal.Rotation = math.mul(toLocal.Rotation, invRot);
             
             BoundingBox3D localBox = toLocal.GetBoundingBox();
             return worldBox.Intersects(localBox);
@@ -108,11 +108,11 @@ namespace Alco
             Vector3 normal = Vector3.Zero;
             hit = default;
 
-            if (RaySphere(ray.origin, ray.displacement, sphere.center, sphere.radius, ref fraction, out normal))
+            if (RaySphere(ray.Origin, ray.Displacement, sphere.Center, sphere.Radius, ref fraction, out normal))
             {
-                hit.point = ray.origin + ray.displacement * fraction;
-                hit.normal = normal;
-                hit.fraction = fraction;
+                hit.Point = ray.Origin + ray.Displacement * fraction;
+                hit.Normal = normal;
+                hit.Fraction = fraction;
                 return true;
             }
             return false;
@@ -122,10 +122,10 @@ namespace Alco
         public static bool RayAABB(Ray3D ray, BoundingBox3D boundingBox, ref float fraction, out Vector3 normal)
         {
             normal = Vector3.Zero;
-            Vector3 rayOrigin = ray.origin;
-            Vector3 rayDisplacement = ray.displacement;
-            Vector3 min = boundingBox.min;
-            Vector3 max = boundingBox.max;
+            Vector3 rayOrigin = ray.Origin;
+            Vector3 rayDisplacement = ray.Displacement;
+            Vector3 min = boundingBox.Min;
+            Vector3 max = boundingBox.Max;
 
             Vector3 invRayDisplacement = math.reciprocal(rayDisplacement);//1f / rayDisplacement;
 
@@ -232,9 +232,9 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray3D ray, BoundingBox3D boundingBox)
         {
-            Vector3 invRayDisplacement = math.reciprocal(ray.displacement);//1f / ray.displacement;
-            Vector3 originToMin = boundingBox.min - ray.origin;
-            Vector3 originToMax = boundingBox.max - ray.origin;
+            Vector3 invRayDisplacement = math.reciprocal(ray.Displacement);//1f / ray.displacement;
+            Vector3 originToMin = boundingBox.Min - ray.Origin;
+            Vector3 originToMax = boundingBox.Max - ray.Origin;
 
             float txmin = originToMin.X * invRayDisplacement.X;
             float txmax = originToMax.X * invRayDisplacement.X;
@@ -298,11 +298,11 @@ namespace Alco
         public static bool RayBox(Ray3D ray, ShapeBox3D box, out RaycastHit3D hit)
         {
             hit = default;
-            BoundingBox3D localAABB = new BoundingBox3D(-box.extends, box.extends);
-            Quaternion invRot =math.inverse(box.rotation);
+            BoundingBox3D localAABB = new BoundingBox3D(-box.Extends, box.Extends);
+            Quaternion invRot =math.inverse(box.Rotation);
             //Vector3 rayOriginLocal = math.transform(math.inverse(new Transform3D(box.rotation, box.center)), ray.origin);
-            Vector3 rayOriginLocal = math.rotate(invRot, ray.origin - box.center);
-            Vector3 rayDisplacementLocal = math.rotate(invRot, ray.displacement);
+            Vector3 rayOriginLocal = math.rotate(invRot, ray.Origin - box.Center);
+            Vector3 rayDisplacementLocal = math.rotate(invRot, ray.Displacement);
 
             Ray3D localRay = new Ray3D(rayOriginLocal, rayDisplacementLocal);
 
@@ -310,9 +310,9 @@ namespace Alco
 
             if (RayAABB(localRay, localAABB, ref fraction, out Vector3 normal))
             {
-                hit.point = ray.origin + ray.displacement * fraction;
-                hit.normal = math.rotate(box.rotation, normal);
-                hit.fraction = fraction;
+                hit.Point = ray.Origin + ray.Displacement * fraction;
+                hit.Normal = math.rotate(box.Rotation, normal);
+                hit.Fraction = fraction;
                 return fraction>=0;
             }
 
@@ -323,18 +323,18 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool PointSphere(Vector3 point, ShapeSphere3D sphere)
         {
-            Vector3 difference = point - sphere.center;
+            Vector3 difference = point - sphere.Center;
             float distanceSquared = math.dot(difference, difference);
-            return distanceSquared < sphere.radius * sphere.radius;
+            return distanceSquared < sphere.Radius * sphere.Radius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool PointBox(Vector3 point, ShapeBox3D box)
         {
-            Vector3 localPoint = math.rotate(point - box.center, math.inverse(box.rotation));
-            return math.abs(localPoint.X) <= box.extends.X &&
-                   math.abs(localPoint.Y) <= box.extends.Y &&
-                   math.abs(localPoint.Z) <= box.extends.Z;
+            Vector3 localPoint = math.rotate(point - box.Center, math.inverse(box.Rotation));
+            return math.abs(localPoint.X) <= box.Extends.X &&
+                   math.abs(localPoint.Y) <= box.Extends.Y &&
+                   math.abs(localPoint.Z) <= box.Extends.Z;
         }
     }
 }

@@ -5,12 +5,12 @@ namespace Alco
 {
     public struct RaycastHit2D
     {
-        public Vector2 point;
-        public Vector2 normal;
-        public float fraction;
+        public Vector2 Point;
+        public Vector2 Normal;
+        public float Fraction;
         public override string ToString()
         {
-            return $"point: {point}, normal: {normal}, fraction: {fraction}";
+            return $"point: {Point}, normal: {Normal}, fraction: {Fraction}";
         }
     }
 }

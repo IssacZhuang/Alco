@@ -5,22 +5,22 @@ namespace Alco
 {
     public struct RayCastResult2D
     {
-        public bool hit;
-        public RaycastHit2D hitInfo;
-        public ColliderRef2D collider;
+        public bool Hit;
+        public RaycastHit2D HitInfo;
+        public ColliderRef2D Collider;
 
         public static readonly RayCastResult2D Default = new RayCastResult2D
         {
-            hit = false,
-            hitInfo = new RaycastHit2D(),
-            collider = new ColliderRef2D()
+            Hit = false,
+            HitInfo = new RaycastHit2D(),
+            Collider = new ColliderRef2D()
         };
 
         public static readonly RayCastResult2D none = new RayCastResult2D
         {
-            hit = false,
-            hitInfo = new RaycastHit2D(),
-            collider = new ColliderRef2D()
+            Hit = false,
+            HitInfo = new RaycastHit2D(),
+            Collider = new ColliderRef2D()
         };
     }
 }

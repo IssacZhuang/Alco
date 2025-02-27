@@ -39,14 +39,14 @@ public class TestCollisionWorld2D
 
         TestSphereCaster caster1 = new TestSphereCaster(new ShapeSphere2D
         {
-            center = new Vector2(10, 0),
-            radius = 10.1f
+            Center = new Vector2(10, 0),
+            Radius = 10.1f
         });
 
         TestSphereCaster caster2 = new TestSphereCaster(new ShapeSphere2D
         {
-            center = new Vector2(70, 0),
-            radius = 10.1f
+            Center = new Vector2(70, 0),
+            Radius = 10.1f
         });
 
         world.PushCaster(caster1, caster1.shape, caster1.cutomData);
@@ -121,8 +121,8 @@ public class TestCollisionWorld2D
         // the shape is not in use
         TestSphereCaster caster1 = new TestSphereCaster(new ShapeSphere2D
         {
-            center = new Vector2(10, 0),
-            radius = 10.1f
+            Center = new Vector2(10, 0),
+            Radius = 10.1f
         });
 
         //hit 

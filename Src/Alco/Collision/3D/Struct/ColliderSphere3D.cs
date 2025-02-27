@@ -22,16 +22,16 @@ namespace Alco
         {
             _header = new ColliderHeader3D
             {
-                type = ColliderType3D.Sphere
+                Type = ColliderType3D.Sphere
             };
         }
 
         public unsafe bool CollidesWith(ColliderHeader3D* other)
         {
-            switch (other->type)
+            switch (other->Type)
             {
                 case ColliderType3D.Box:
-                    return UtilsCollision3D.BoxSphere((*(ColliderBox3D*)other).shape, shape);
+                    return UtilsCollision3D.BoxSphere((*(ColliderBox3D*)other).Shape, shape);
                 case ColliderType3D.Sphere:
                     return UtilsCollision3D.SphereSphere(shape, (*(ColliderSphere3D*)other).shape);
             }
