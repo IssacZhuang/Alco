@@ -11,8 +11,8 @@ namespace Alco.Engine;
 public unsafe abstract class Window : AutoDisposable//todo : change to disposable
 {
 
-    public uint Width => Size.x;
-    public uint Height => Size.y;
+    public uint Width => Size.X;
+    public uint Height => Size.Y;
 
     /// <summary>
     /// Gets or sets the window mode.
@@ -76,7 +76,7 @@ public unsafe abstract class Window : AutoDisposable//todo : change to disposabl
     /// </summary>
     public float AspectRatio
     {
-        get => (float)Size.x / Size.y;
+        get => (float)Size.X / Size.Y;
     }
 
     public abstract void StartTextInput(int x, int y, int width, int height, int cursor);

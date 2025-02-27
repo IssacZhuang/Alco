@@ -72,7 +72,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public bool TryGetItemId(int x, int y, out uint itemId)
     {
-        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        if (x < 0 || y < 0 || x >= _size.X || y >= _size.Y)
         {
             itemId = 0;
             return false;
@@ -84,7 +84,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySetItemId(int x, int y, uint itemId)
     {
-        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        if (x < 0 || y < 0 || x >= _size.X || y >= _size.Y)
         {
             return false;
         }
@@ -102,9 +102,9 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         from = clamp(from, new int2(0, 0), _size - new int2(1, 1));
         to = clamp(to, new int2(0, 0), _size - new int2(1, 1));
 
-        for (int i = from.x; i < to.x; i++)
+        for (int i = from.X; i < to.X; i++)
         {
-            for (int j = from.y; j < to.y; j++)
+            for (int j = from.Y; j < to.Y; j++)
             {
                 _tileIdData[GetTileIndex(i, j)] = RandomTileId(itemId);
             }
@@ -188,10 +188,10 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
             if (plane.IntersectRay(localRay, out Vector3 hitPoint))
             {
 
-                int tileX = (int)floor(hitPoint.X + _size.x * 0.5f);
-                int tileY = (int)floor(_size.y * 0.5f - hitPoint.Y);
+                int tileX = (int)floor(hitPoint.X + _size.X * 0.5f);
+                int tileY = (int)floor(_size.Y * 0.5f - hitPoint.Y);
 
-                if (tileX >= 0 && tileX < _size.x && tileY >= 0 && tileY < _size.y)
+                if (tileX >= 0 && tileX < _size.X && tileY >= 0 && tileY < _size.Y)
                 {
                     tilePosition = new int2(tileX, tileY);
                     return true;
@@ -205,13 +205,13 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
 
     public Vector2 TilePositionToLocalPosition(int2 tilePosition)
     {
-        return new Vector2(tilePosition.x - (_size.x - 1) * 0.5f, -tilePosition.y + (_size.y - 1) * 0.5f);
+        return new Vector2(tilePosition.X - (_size.X - 1) * 0.5f, -tilePosition.Y + (_size.Y - 1) * 0.5f);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetTileIndex(int x, int y)
     {
-        return y * _size.x + x;
+        return y * _size.X + x;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -9,26 +9,26 @@ namespace Alco
     /// </summary>
     public struct Rect
     {
-        public Vector2 origin;
-        public Vector2 size;
+        public Vector2 Origin;
+        public Vector2 Size;
 
         public Rect(Vector2 positon, Vector2 size)
         {
-            this.origin = positon;
-            this.size = size;
+            this.Origin = positon;
+            this.Size = size;
         }
 
         public Rect(float x, float y, float width, float height)
         {
-            this.origin = new Vector2(x, y);
-            this.size = new Vector2(width, height);
+            this.Origin = new Vector2(x, y);
+            this.Size = new Vector2(width, height);
         }
 
 
         public Vector2 Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => origin + size * 0.5f;
+            get => Origin + Size * 0.5f;
         }
 
 
@@ -38,7 +38,7 @@ namespace Alco
         public Vector2 Min
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => origin;
+            get => Origin;
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Alco
         public Vector2 Max
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => origin + size;
+            get => Origin + Size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -79,19 +79,19 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Rect Extend(float amount)
         {
-            return new Rect(Min - new Vector2(amount), size + new Vector2(amount * 2));
+            return new Rect(Min - new Vector2(amount), Size + new Vector2(amount * 2));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Rect Extend(float horizontal, float vertical)
         {
-            return new Rect(Min - new Vector2(horizontal, vertical), size + new Vector2(horizontal * 2, vertical * 2));
+            return new Rect(Min - new Vector2(horizontal, vertical), Size + new Vector2(horizontal * 2, vertical * 2));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Rect Extend(float left, float top, float right, float bottom)
         {
-            return new Rect(Min - new Vector2(left, top), size + new Vector2(left + right, top + bottom));
+            return new Rect(Min - new Vector2(left, top), Size + new Vector2(left + right, top + bottom));
         }
     }
 }

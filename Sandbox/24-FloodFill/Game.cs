@@ -33,7 +33,7 @@ public class Game : GameEngine
 
         ComputeMaterial computeMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_FloodFillLighting);
 
-        _tileLightMap = Rendering.CreateTileLightMap(computeMaterial, (int)_size.x, (int)_size.y, "tile_light_map");
+        _tileLightMap = Rendering.CreateTileLightMap(computeMaterial, (int)_size.X, (int)_size.Y, "tile_light_map");
 
 
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
@@ -93,7 +93,7 @@ public class Game : GameEngine
             UvRect = new Rect(0, 0, 1, 1)
         };
 
-        _tileLightMap.SetLight((int)_size.x / 2, (int)_size.y / 2, new Half4(_intensity, _intensity, _intensity, 1));
+        _tileLightMap.SetLight((int)_size.X / 2, (int)_size.Y / 2, new Half4(_intensity, _intensity, _intensity, 1));
         _tileLightMap.Render();
 
         //draw atlas texture

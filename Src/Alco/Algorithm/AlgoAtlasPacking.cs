@@ -58,8 +58,8 @@ namespace Alco
             for (int i = 0; i < AltasSize.Length; i++)
             {
                 int2 size = AltasSize[i];
-                countPerRow = size.x / (widthPerTile + padding);
-                countPerCol = size.y / (heightPerTile + padding);
+                countPerRow = size.X / (widthPerTile + padding);
+                countPerCol = size.Y / (heightPerTile + padding);
 
                 bestSize = size;
                 if (countPerRow * countPerCol >= count)
@@ -73,8 +73,8 @@ namespace Alco
             //pack
             AtlasPackResult result = new AtlasPackResult
             {
-                width = bestSize.x,
-                height = bestSize.y,
+                width = bestSize.X,
+                height = bestSize.Y,
                 uvRects = new RectInt[numPacked],
                 numOutside = count - numPacked
             };

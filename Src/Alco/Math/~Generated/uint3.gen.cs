@@ -7,84 +7,84 @@ namespace Alco
 {
     public struct uint3
     {
-        public uint x;
-        public uint y;
-        public uint z;
+        public uint X;
+        public uint Y;
+        public uint Z;
 
         public uint3(uint value)
         {
-            this.x = value;
-            this.y = value;
-            this.z = value;
+            this.X = value;
+            this.Y = value;
+            this.Z = value;
         }
 
         public uint3(int value)
         {
-            this.x = (uint)value;
-            this.y = (uint)value;
-            this.z = (uint)value;
+            this.X = (uint)value;
+            this.Y = (uint)value;
+            this.Z = (uint)value;
         }
 
         public uint3(float value)
         {
-            this.x = (uint)value;
-            this.y = (uint)value;
-            this.z = (uint)value;
+            this.X = (uint)value;
+            this.Y = (uint)value;
+            this.Z = (uint)value;
         }
 
         public uint3(uint x, uint y, uint z)
         {
-            this.x = x;
-            this.y = y;
-            this.z = z;
+            this.X = x;
+            this.Y = y;
+            this.Z = z;
         }
 
         public uint3(int x, int y, int z)
         {
-            this.x = (uint)x;
-            this.y = (uint)y;
-            this.z = (uint)z;
+            this.X = (uint)x;
+            this.Y = (uint)y;
+            this.Z = (uint)z;
         }
 
         public uint3(float x, float y, float z)
         {
-            this.x = (uint)x;
-            this.y = (uint)y;
-            this.z = (uint)z;
+            this.X = (uint)x;
+            this.Y = (uint)y;
+            this.Z = (uint)z;
         }
 
         public uint3(uint2 value, uint z)
         {
-            this.x = value.x;
-            this.y = value.y;
-            this.z = z;
+            this.X = value.X;
+            this.Y = value.Y;
+            this.Z = z;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint3 operator +(uint3 a, uint3 b)
         {
-            return new uint3(a.x + b.x, a.y + b.y, a.z + b.z);
+            return new uint3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint3 operator -(uint3 a, uint3 b)
         {
-            return new uint3(a.x - b.x, a.y - b.y, a.z - b.z);
+            return new uint3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint3 operator *(uint3 a, uint3 b)
         {
-            return new uint3(a.x * b.x, a.y * b.y, a.z * b.z);
+            return new uint3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint3 operator /(uint3 a, uint3 b)
         {
-            return new uint3(a.x / b.x, a.y / b.y, a.z / b.z);
+            return new uint3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector3(uint3 a)
         {
-            return new Vector3((float)a.x, (float)a.y, (float)a.z);
+            return new Vector3((float)a.X, (float)a.Y, (float)a.Z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -95,7 +95,7 @@ namespace Alco
 
         public override string ToString()
         {
-            return $"({x}, {y}, {z})";
+            return $"({X}, {Y}, {Z})";
         }
     }
 }

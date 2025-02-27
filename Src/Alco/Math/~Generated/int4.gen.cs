@@ -7,100 +7,100 @@ namespace Alco
 {
     public struct int4
     {
-        public int x;
-        public int y;
-        public int z;
-        public int w;
+        public int X;
+        public int Y;
+        public int Z;
+        public int W;
 
         public int4(int value)
         {
-            this.x = value;
-            this.y = value;
-            this.z = value;
-            this.w = value;
+            this.X = value;
+            this.Y = value;
+            this.Z = value;
+            this.W = value;
         }
 
         public int4(uint value)
         {
-            this.x = (int)value;
-            this.y = (int)value;
-            this.z = (int)value;
-            this.w = (int)value;
+            this.X = (int)value;
+            this.Y = (int)value;
+            this.Z = (int)value;
+            this.W = (int)value;
         }
 
         public int4(float value)
         {
-            this.x = (int)value;
-            this.y = (int)value;
-            this.z = (int)value;
-            this.w = (int)value;
+            this.X = (int)value;
+            this.Y = (int)value;
+            this.Z = (int)value;
+            this.W = (int)value;
         }
 
         public int4(int x, int y, int z, int w)
         {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.w = w;
+            this.X = x;
+            this.Y = y;
+            this.Z = z;
+            this.W = w;
         }
 
         public int4(uint x, uint y, uint z, uint w)
         {
-            this.x = (int)x;
-            this.y = (int)y;
-            this.z = (int)z;
-            this.w = (int)w;
+            this.X = (int)x;
+            this.Y = (int)y;
+            this.Z = (int)z;
+            this.W = (int)w;
         }
 
         public int4(float x, float y, float z, float w)
         {
-            this.x = (int)x;
-            this.y = (int)y;
-            this.z = (int)z;
-            this.w = (int)w;
+            this.X = (int)x;
+            this.Y = (int)y;
+            this.Z = (int)z;
+            this.W = (int)w;
         }
 
         public int4(int2 value, int z, int w)
         {
-            this.x = value.x;
-            this.y = value.y;
-            this.z = z;
-            this.w = w;
+            this.X = value.X;
+            this.Y = value.Y;
+            this.Z = z;
+            this.W = w;
         }
 
         public int4(int3 value, int w)
         {
-            this.x = value.x;
-            this.y = value.y;
-            this.z = value.z;
-            this.w = w;
+            this.X = value.X;
+            this.Y = value.Y;
+            this.Z = value.Z;
+            this.W = w;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int4 operator +(int4 a, int4 b)
         {
-            return new int4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+            return new int4(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int4 operator -(int4 a, int4 b)
         {
-            return new int4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+            return new int4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int4 operator *(int4 a, int4 b)
         {
-            return new int4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+            return new int4(a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int4 operator /(int4 a, int4 b)
         {
-            return new int4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+            return new int4(a.X / b.X, a.Y / b.Y, a.Z / b.Z, a.W / b.W);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector4(int4 a)
         {
-            return new Vector4((float)a.x, (float)a.y, (float)a.z, (float)a.w);
+            return new Vector4((float)a.X, (float)a.Y, (float)a.Z, (float)a.W);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -111,7 +111,7 @@ namespace Alco
 
         public override string ToString()
         {
-            return $"({x}, {y}, {z}, {w})";
+            return $"({X}, {Y}, {Z}, {W})";
         }
     }
 }

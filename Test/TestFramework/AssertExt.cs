@@ -121,7 +121,7 @@ public static class AssertExt
 
     private static bool IsEqual(Rotation2D expected, Rotation2D actual)
     {
-        return IsEqual(expected.s, actual.s) && IsEqual(expected.c, actual.c);
+        return IsEqual(expected.S, actual.S) && IsEqual(expected.C, actual.C);
     }
 
 

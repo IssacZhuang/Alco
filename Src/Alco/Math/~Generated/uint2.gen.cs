@@ -7,70 +7,70 @@ namespace Alco
 {
     public struct uint2
     {
-        public uint x;
-        public uint y;
+        public uint X;
+        public uint Y;
 
         public uint2(uint value)
         {
-            this.x = value;
-            this.y = value;
+            this.X = value;
+            this.Y = value;
         }
 
         public uint2(int value)
         {
-            this.x = (uint)value;
-            this.y = (uint)value;
+            this.X = (uint)value;
+            this.Y = (uint)value;
         }
 
         public uint2(float value)
         {
-            this.x = (uint)value;
-            this.y = (uint)value;
+            this.X = (uint)value;
+            this.Y = (uint)value;
         }
 
         public uint2(uint x, uint y)
         {
-            this.x = x;
-            this.y = y;
+            this.X = x;
+            this.Y = y;
         }
 
         public uint2(int x, int y)
         {
-            this.x = (uint)x;
-            this.y = (uint)y;
+            this.X = (uint)x;
+            this.Y = (uint)y;
         }
 
         public uint2(float x, float y)
         {
-            this.x = (uint)x;
-            this.y = (uint)y;
+            this.X = (uint)x;
+            this.Y = (uint)y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint2 operator +(uint2 a, uint2 b)
         {
-            return new uint2(a.x + b.x, a.y + b.y);
+            return new uint2(a.X + b.X, a.Y + b.Y);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint2 operator -(uint2 a, uint2 b)
         {
-            return new uint2(a.x - b.x, a.y - b.y);
+            return new uint2(a.X - b.X, a.Y - b.Y);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint2 operator *(uint2 a, uint2 b)
         {
-            return new uint2(a.x * b.x, a.y * b.y);
+            return new uint2(a.X * b.X, a.Y * b.Y);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint2 operator /(uint2 a, uint2 b)
         {
-            return new uint2(a.x / b.x, a.y / b.y);
+            return new uint2(a.X / b.X, a.Y / b.Y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector2(uint2 a)
         {
-            return new Vector2((float)a.x, (float)a.y);
+            return new Vector2((float)a.X, (float)a.Y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -81,7 +81,7 @@ namespace Alco
 
         public override string ToString()
         {
-            return $"({x}, {y})";
+            return $"({X}, {Y})";
         }
     }
 }

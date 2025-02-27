@@ -285,11 +285,11 @@ public class Game : GameEngine
                     continue;
                 }
                 int2 pos = _brushCells[i];
-                if (!_heightBuffer.TryGetTileHeight(tilePosition.x + pos.x, tilePosition.y - pos.y, out float height))
+                if (!_heightBuffer.TryGetTileHeight(tilePosition.X + pos.X, tilePosition.Y - pos.Y, out float height))
                 {
                     continue;
                 }
-                _brushTransform.position = new Vector3(pos.x + tileLocalPosition.X, pos.y + tileLocalPosition.Y + height, 0);
+                _brushTransform.position = new Vector3(pos.X + tileLocalPosition.X, pos.Y + tileLocalPosition.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshCenteredSprite, _brushMaterial, _brushConstant);
@@ -299,21 +299,21 @@ public class Game : GameEngine
                 {
                     if (_editWater)
                     {
-                        _waterBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _waterTileId);
+                        _waterBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _waterTileId);
                     }
                     else if (_editSurface)
                     {
-                        _surfaceBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
-                        _cliffBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _surfaceTileId);
+                        _surfaceBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
+                        _cliffBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
                     }
                     else if (_editPlant)
                     {
-                        _plantBlock.TrySetItemId(tilePosition.x + pos.x, tilePosition.y + pos.y, _plantTileId);
+                        _plantBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _plantTileId);
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
-                    _heightBuffer.TrySetTileHeight(tilePosition.x + pos.x, tilePosition.y + pos.y, _hight);
+                    _heightBuffer.TrySetTileHeight(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _hight);
                 }
 
             }

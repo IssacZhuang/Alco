@@ -28,8 +28,8 @@ public static class UtilsGrid
 
         list.Sort((int2 A, int2 B) =>
         {
-            float squaredDistanceA = A.x * (float)A.x + A.y * (float)A.y;
-            float squaredDistanceB = B.x * (float)B.x + B.y * (float)B.y;
+            float squaredDistanceA = A.X * (float)A.X + A.Y * (float)A.Y;
+            float squaredDistanceB = B.X * (float)B.X + B.Y * (float)B.Y;
             if (squaredDistanceA < squaredDistanceB)
             {
                 return -1;
@@ -41,7 +41,7 @@ public static class UtilsGrid
         {
             radialPattern[i] = list[i];
             int2 pos = list[i];
-            radialPatternRadii[i] = sqrt(pos.x * (float)pos.x + pos.y * (float)pos.y);
+            radialPatternRadii[i] = sqrt(pos.X * (float)pos.X + pos.Y * (float)pos.Y);
         }
 
         RadialPattern = radialPattern;

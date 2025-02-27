@@ -7,84 +7,84 @@ namespace Alco
 {
     public struct int3
     {
-        public int x;
-        public int y;
-        public int z;
+        public int X;
+        public int Y;
+        public int Z;
 
         public int3(int value)
         {
-            this.x = value;
-            this.y = value;
-            this.z = value;
+            this.X = value;
+            this.Y = value;
+            this.Z = value;
         }
 
         public int3(uint value)
         {
-            this.x = (int)value;
-            this.y = (int)value;
-            this.z = (int)value;
+            this.X = (int)value;
+            this.Y = (int)value;
+            this.Z = (int)value;
         }
 
         public int3(float value)
         {
-            this.x = (int)value;
-            this.y = (int)value;
-            this.z = (int)value;
+            this.X = (int)value;
+            this.Y = (int)value;
+            this.Z = (int)value;
         }
 
         public int3(int x, int y, int z)
         {
-            this.x = x;
-            this.y = y;
-            this.z = z;
+            this.X = x;
+            this.Y = y;
+            this.Z = z;
         }
 
         public int3(uint x, uint y, uint z)
         {
-            this.x = (int)x;
-            this.y = (int)y;
-            this.z = (int)z;
+            this.X = (int)x;
+            this.Y = (int)y;
+            this.Z = (int)z;
         }
 
         public int3(float x, float y, float z)
         {
-            this.x = (int)x;
-            this.y = (int)y;
-            this.z = (int)z;
+            this.X = (int)x;
+            this.Y = (int)y;
+            this.Z = (int)z;
         }
 
         public int3(int2 value, int z)
         {
-            this.x = value.x;
-            this.y = value.y;
-            this.z = z;
+            this.X = value.X;
+            this.Y = value.Y;
+            this.Z = z;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int3 operator +(int3 a, int3 b)
         {
-            return new int3(a.x + b.x, a.y + b.y, a.z + b.z);
+            return new int3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int3 operator -(int3 a, int3 b)
         {
-            return new int3(a.x - b.x, a.y - b.y, a.z - b.z);
+            return new int3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int3 operator *(int3 a, int3 b)
         {
-            return new int3(a.x * b.x, a.y * b.y, a.z * b.z);
+            return new int3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int3 operator /(int3 a, int3 b)
         {
-            return new int3(a.x / b.x, a.y / b.y, a.z / b.z);
+            return new int3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector3(int3 a)
         {
-            return new Vector3((float)a.x, (float)a.y, (float)a.z);
+            return new Vector3((float)a.X, (float)a.Y, (float)a.Z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -95,7 +95,7 @@ namespace Alco
 
         public override string ToString()
         {
-            return $"({x}, {y}, {z})";
+            return $"({X}, {Y}, {Z})";
         }
     }
 }

@@ -112,7 +112,7 @@ public class TextureAtlasPacker: AutoDisposable
             var item = _packer.GetRect(i);
             transform.position = item.Rect.Center;
             transform.position.Y = -transform.position.Y;//the rect packer is start from top left
-            transform.scale = item.Rect.size;
+            transform.scale = item.Rect.Size;
             constant.Model = transform.Matrix;
 
             _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);

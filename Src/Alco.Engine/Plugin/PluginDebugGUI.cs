@@ -34,7 +34,7 @@ public class PluginDebugGUI : BaseEnginePlugin
 
         private void OnRenderTargetResize(uint2 size)
         {
-            _renderer.SetResolution(size.x, size.y);
+            _renderer.SetResolution(size.X, size.Y);
         }
 
         public override void Dispose()
@@ -56,7 +56,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         Shader ShaderBlit = builtInAssets.Shader_Blit;
         Font font = builtInAssets.Font_Default;
 
-        DebugGUIRenderer renderer = new(engine.Input, engine.MainWindow, engine.MainWindow.Size.x, engine.MainWindow.Size.y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
+        DebugGUIRenderer renderer = new(engine.Input, engine.MainWindow, engine.MainWindow.Size.X, engine.MainWindow.Size.Y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
         DebugGUIStyle style = new DebugGUIStyle
         {
             Font = font,

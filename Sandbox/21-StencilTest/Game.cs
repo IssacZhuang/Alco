@@ -125,7 +125,7 @@ public class Game : GameEngine
 
     protected void OnMainWindowResize(uint2 size)
     {
-        _camera.AspectRatio = (float)size.x / size.y;
+        _camera.AspectRatio = (float)size.X / size.Y;
     }
 
     protected override void OnStop()

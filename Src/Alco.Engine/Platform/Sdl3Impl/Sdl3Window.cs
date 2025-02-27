@@ -59,12 +59,12 @@ public unsafe partial class Sdl3Window : Window
         get
         {
             int2 result = default;
-            SDL_GetWindowPosition(_window, out result.x, out result.y);
+            SDL_GetWindowPosition(_window, out result.X, out result.Y);
             return result;
         }
         set
         {
-            _ = SDL_SetWindowPosition(_window, value.x, value.y);
+            _ = SDL_SetWindowPosition(_window, value.X, value.Y);
         }
     }
 
@@ -88,7 +88,7 @@ public unsafe partial class Sdl3Window : Window
         }
         set
         {
-            _ = SDL_SetWindowSize(_window, (int)value.x, (int)value.y);
+            _ = SDL_SetWindowSize(_window, (int)value.X, (int)value.Y);
         }
     }
     public override string Title
@@ -136,8 +136,8 @@ public unsafe partial class Sdl3Window : Window
         {
             Name = $"{Title}_swapchain",
             SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
-            Width = Size.x,
-            Height = Size.y,
+            Width = Size.X,
+            Height = Size.Y,
             ColorFormat = device.PrefferedSurfaceFomat,
             IsVSyncEnabled = setting.VSync,
         };
@@ -153,8 +153,8 @@ public unsafe partial class Sdl3Window : Window
         {
             Name = $"{_title}_swapchain",
             SurfaceSource = GetSurfaceSource(_window, false),
-            Width = Size.x,
-            Height = Size.y,
+            Width = Size.X,
+            Height = Size.Y,
         });
     }
 
