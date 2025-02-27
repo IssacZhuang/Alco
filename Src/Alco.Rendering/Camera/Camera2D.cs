@@ -14,10 +14,10 @@ public class Camera2D : BaseCamera<CameraData2D>
 
     public Vector2 Position
     {
-        get => _data.transform.position;
+        get => _data.transform.Position;
         set
         {
-            _data.transform.position = value;
+            _data.transform.Position = value;
             _dirty = true;
         }
     }

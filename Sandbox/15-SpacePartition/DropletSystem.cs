@@ -98,9 +98,9 @@ public class DropletSystem : IDisposable
         for (int i = 0; i < _activeList.Count; i++)
         {
             Droplet entity = _activeList[i];
-            entity.transform.position.Y -= _speed * delta;
+            entity.transform.Position.Y -= _speed * delta;
 
-            if (entity.pendingDestroy || entity.transform.position.Y < _despawnHeight)
+            if (entity.pendingDestroy || entity.transform.Position.Y < _despawnHeight)
             {
                 _pool.TryReturn(entity);
                 _activeList[i] = _activeList.RemoveLast();
@@ -113,7 +113,7 @@ public class DropletSystem : IDisposable
     {
         if (_pool.TryGet(out Droplet? entity))
         {
-            entity.transform.position = new Vector2(_random.NextFloat(-_spwanRangeX, _spwanRangeX), _spawnHeight+ _random.NextFloat(-4,4));
+            entity.transform.Position = new Vector2(_random.NextFloat(-_spwanRangeX, _spwanRangeX), _spawnHeight+ _random.NextFloat(-4,4));
             entity.color = DefaultColor;
             entity.pendingDestroy = false;
             _activeList.Add(entity);

@@ -12,51 +12,51 @@ namespace Alco
         /// <summary>
         /// The position of the transform in world space.
         /// </summary>
-        public Vector2 position;
+        public Vector2 Position;
         /// <summary>
         /// The rotation of the transform in world space stored as a radian.
         /// </summary>
-        public Rotation2D rotation;
+        public Rotation2D Rotation;
         /// <summary>
         /// The scale of the transform in world space.
         /// </summary>
-        public Vector2 scale;
+        public Vector2 Scale;
 
         public static readonly Transform2D Identity = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One);
 
         public Transform2D()
         {
-            this.position = Vector2.Zero;
-            this.rotation = Rotation2D.Identity;
-            this.scale = Vector2.One;
+            this.Position = Vector2.Zero;
+            this.Rotation = Rotation2D.Identity;
+            this.Scale = Vector2.One;
         }
 
         public Transform2D(Vector2 pos)
         {
-            this.position = pos;
-            this.rotation = Rotation2D.Identity;
-            this.scale = Vector2.One;
+            this.Position = pos;
+            this.Rotation = Rotation2D.Identity;
+            this.Scale = Vector2.One;
         }
 
         public Transform2D(Vector2 pos, Rotation2D rot)
         {
-            this.position = pos;
-            this.rotation = rot;
-            this.scale = Vector2.One;
+            this.Position = pos;
+            this.Rotation = rot;
+            this.Scale = Vector2.One;
         }
 
         public Transform2D(Rotation2D rot, Vector2 pos)
         {
-            this.position = pos;
-            this.rotation = rot;
-            this.scale = Vector2.One;
+            this.Position = pos;
+            this.Rotation = rot;
+            this.Scale = Vector2.One;
         }
 
         public Transform2D(Vector2 pos, Rotation2D rot, Vector2 scale)
         {
-            this.position = pos;
-            this.rotation = rot;
-            this.scale = scale;
+            this.Position = pos;
+            this.Rotation = rot;
+            this.Scale = scale;
         }
 
         /// <summary>
@@ -67,13 +67,13 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.direction(rotation);
+                return math.direction(Rotation);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 Vector2 norm = math.normalize(value);
-                rotation = new Rotation2D(norm.X, norm.Y);
+                Rotation = new Rotation2D(norm.X, norm.Y);
             }
         }
 
@@ -86,7 +86,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix4trs(position, rotation, scale);
+                return math.matrix4trs(Position, Rotation, Scale);
             }
         }
 
@@ -99,7 +99,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix4translation(position);
+                return math.matrix4translation(Position);
             }
         }
 
@@ -112,7 +112,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix4rotation(rotation);
+                return math.matrix4rotation(Rotation);
             }
         }
 
@@ -125,7 +125,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix4scale(scale);
+                return math.matrix4scale(Scale);
             }
         }
 
@@ -136,7 +136,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector2 translation)
         {
-            position += math.rotate(translation, rotation);
+            Position += math.rotate(translation, Rotation);
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace Alco
         public void Rotate(float radians)
         {
             math.sincos(radians, out float s, out float c);
-            rotation = math.mul(rotation, new Rotation2D(c, s));
+            Rotation = math.mul(Rotation, new Rotation2D(c, s));
         }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Rotation2D rot)
         {
-            rotation = math.mul(rotation, rot);
+            Rotation = math.mul(Rotation, rot);
         }
 
         /// <summary>
@@ -178,8 +178,8 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Vector2 center, Rotation2D rot)
         {
-            position = math.rotate(position - center, rot) + center;
-            rotation = math.mul(rotation, rot);
+            Position = math.rotate(Position - center, rot) + center;
+            Rotation = math.mul(Rotation, rot);
         }
 
         
@@ -190,13 +190,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LookAt(Vector2 point)
         {
-            this.Direction = point - position;
+            this.Direction = point - Position;
         }
 
         
         public override string ToString()
         {
-            return $"Position: {position}, Rotation: {rotation}, Scale: {scale}";
+            return $"Position: {Position}, Rotation: {Rotation}, Scale: {Scale}";
         }
     }
 }

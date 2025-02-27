@@ -11,13 +11,13 @@ public class Droplet
 
     public ShapeBox2D Shape
     {
-        get => new ShapeBox2D(transform.position, transform.scale, transform.rotation);
+        get => new ShapeBox2D(transform.Position, transform.Scale, transform.Rotation);
     }
 
     public Droplet()
     {
         transform = new Transform2D();
-        transform.scale = Vector2.One * 10f;
+        transform.Scale = Vector2.One * 10f;
         color = new ColorFloat(1, 1, 1, 1);
         pendingDestroy = false;
     }

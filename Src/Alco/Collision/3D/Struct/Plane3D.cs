@@ -16,7 +16,7 @@ public struct Plane3D
     public Plane3D(Transform3D transform)
     {
         normal = math.normalize(transform.Direction);
-        distance = Vector3.Dot(normal, transform.position);
+        distance = Vector3.Dot(normal, transform.Position);
     }
 
     public Plane3D(Vector3 normal, Vector3 point)

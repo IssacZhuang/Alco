@@ -39,7 +39,7 @@ public class Game : GameEngine
         // _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
-        _camaraChild.position.Z = -10;
+        _camaraChild.Position.Z = -10;
         _camera.Tranform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = Rendering.CreateMaterialRenderer();
@@ -73,16 +73,16 @@ public class Game : GameEngine
 
         _cubeStencilWrite = new Cube(Rendering.MeshCube, _materialStencilWrite);
         _cubeStencilWrite.Color = Color1;
-        _cubeStencilWrite.transform.position = new Vector3(0, 0, 0);
-        _cubeStencilWrite.transform.scale = new Vector3(5f, 5f, 0.1f);
+        _cubeStencilWrite.transform.Position = new Vector3(0, 0, 0);
+        _cubeStencilWrite.transform.Scale = new Vector3(5f, 5f, 0.1f);
 
         _cubeStencilTest1 = new Cube(Rendering.MeshCube, _materialStencilTest);
         _cubeStencilTest1.Color = Color2;
-        _cubeStencilTest1.transform.position = new Vector3(2, 0, 3f);
+        _cubeStencilTest1.transform.Position = new Vector3(2, 0, 3f);
 
         _cubeStencilTest2 = new Cube(Rendering.MeshCube, _materialStencilTest);
         _cubeStencilTest2.Color = Color3;
-        _cubeStencilTest2.transform.position = new Vector3(-1, -1, 3f);
+        _cubeStencilTest2.transform.Position = new Vector3(-1, -1, 3f);
 
         _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
 

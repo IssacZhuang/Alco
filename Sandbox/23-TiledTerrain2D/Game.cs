@@ -109,14 +109,14 @@ public class Game : GameEngine
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
-        _waterBlock.Transform.position = new Vector3(0, -0.1f, -0.1f);
+        _waterBlock.Transform.Position = new Vector3(0, -0.1f, -0.1f);
         _waterBlock.UseLightMap = true;
         _waterBlock.LightMap = _lightMap.Texture;
 
 
         _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
         _plantBlock.SetAllItemIds(0);
-        _plantBlock.Transform.position = new Vector3(0, 0, 0);
+        _plantBlock.Transform.Position = new Vector3(0, 0, 0);
         _plantBlock.UseLightMap = true;
         _plantBlock.LightMap = _lightMap.Texture;
 
@@ -129,7 +129,7 @@ public class Game : GameEngine
 
 
         _brushTransform = new Transform3D();
-        _brushTransform.scale = new Vector3(0.8f);
+        _brushTransform.Scale = new Vector3(0.8f);
         _brushConstant = new SpriteConstant
         {
             Color = new ColorFloat(1, 1, 1, 0.3f),
@@ -289,7 +289,7 @@ public class Game : GameEngine
                 {
                     continue;
                 }
-                _brushTransform.position = new Vector3(pos.X + tileLocalPosition.X, pos.Y + tileLocalPosition.Y + height, 0);
+                _brushTransform.Position = new Vector3(pos.X + tileLocalPosition.X, pos.Y + tileLocalPosition.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(Rendering.MeshCenteredSprite, _brushMaterial, _brushConstant);

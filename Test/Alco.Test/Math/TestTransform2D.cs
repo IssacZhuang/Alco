@@ -13,16 +13,16 @@ public class TestTransform2D()
     {
         Transform2D parent = new Transform2D()
         {
-            position = new Vector2(1, 2),
-            rotation = Rotation2D.FromDegree(45),
-            scale = new Vector2(2, 3)
+            Position = new Vector2(1, 2),
+            Rotation = Rotation2D.FromDegree(45),
+            Scale = new Vector2(2, 3)
         };
 
         Transform2D child = new Transform2D()
         {
-            position = new Vector2(5, 6),
-            rotation = Rotation2D.FromDegree(90),
-            scale = new Vector2(8, 9)
+            Position = new Vector2(5, 6),
+            Rotation = Rotation2D.FromDegree(90),
+            Scale = new Vector2(8, 9)
         };
 
         Transform2D transformed = math.transform(parent, child);
@@ -37,14 +37,14 @@ public class TestTransform2D()
     {
         Transform2D parent = new Transform2D()
         {
-            position = new Vector2(1, 2),
-            rotation = Rotation2D.FromDegree(45),
-            scale = new Vector2(2, 3)
+            Position = new Vector2(1, 2),
+            Rotation = Rotation2D.FromDegree(45),
+            Scale = new Vector2(2, 3)
         };
 
         Vector2 position = new Vector2(5, 6);
         //transform by hand
-        Vector2 transformed1 = math.mul(parent.rotation, parent.scale * position) + parent.position;
+        Vector2 transformed1 = math.mul(parent.Rotation, parent.Scale * position) + parent.Position;
         //transform by matrix
         Vector2 transformed2 = math.transform(parent.Matrix, position);
 

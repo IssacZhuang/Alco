@@ -84,7 +84,7 @@ public class Game : GameEngine
         Transform2D transform = Transform2D.Identity;
         float scale = MainWindow.Width / _tileLightMap.Width;
         scale = math.min(scale, MainWindow.Height / _tileLightMap.Height);
-        transform.scale = new Vector2(_tileLightMap.Width * scale, _tileLightMap.Height * scale);
+        transform.Scale = new Vector2(_tileLightMap.Width * scale, _tileLightMap.Height * scale);
 
         SpriteConstant constant = new SpriteConstant
         {

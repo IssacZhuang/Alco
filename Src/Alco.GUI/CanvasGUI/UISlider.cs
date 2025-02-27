@@ -110,7 +110,7 @@ public class UISlider : UINode
             return;
         }
         Vector2 handleParentSize = parent.Size;
-        float left = mousePosition.X - WorldTransform.position.X + handleParentSize.X * 0.5f;
+        float left = mousePosition.X - WorldTransform.Position.X + handleParentSize.X * 0.5f;
         UpdateValue(left / handleParentSize.X);
     }
 

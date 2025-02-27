@@ -31,7 +31,7 @@ public class CubeSystem
         {
             Cube entity = _activeList[i];
 
-            if (entity.pendingDestroy)
+            if (entity.PendingDestroy)
             {
                 _despawnList.Push(entity);
             }
@@ -50,10 +50,10 @@ public class CubeSystem
         Log.Info("Spawn", position);
         if (_pool.TryGet(out Cube? entity))
         {
-            entity.transform.position = new Vector2(position.X, position.Y);
-            entity.color = DefaultColor;
-            entity.pendingDestroy = false;
-            entity.transform.rotation = Rotation2D.FromDegree(_random.NextFloat(0,360));
+            entity.Transform.Position = new Vector2(position.X, position.Y);
+            entity.Color = DefaultColor;
+            entity.PendingDestroy = false;
+            entity.Transform.Rotation = Rotation2D.FromDegree(_random.NextFloat(0,360));
             _activeList.Add(entity);
         }
     }
@@ -73,7 +73,7 @@ public class CubeSystem
         for (int i = 0; i < _activeList.Count; i++)
         {
             Cube entity = _activeList[i];
-            _renderer.Draw(_texture, entity.transform, entity.color);
+            _renderer.Draw(_texture, entity.Transform, entity.Color);
         }
         _renderer.End();
 

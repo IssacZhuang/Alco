@@ -12,50 +12,50 @@ namespace Alco
         /// <summary>
         /// The position of the transform in world space.
         /// </summary>
-        public Vector3 position;
+        public Vector3 Position;
         /// <summary>
         /// The rotation of the transform in world space stored as a Quaternion.
         /// </summary>
-        public Quaternion rotation;
+        public Quaternion Rotation;
         /// <summary>
         /// The scale of the transform in world space.
         /// </summary>
-        public Vector3 scale;
+        public Vector3 Scale;
         public static readonly Transform3D Identity = new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One);
 
         public Transform3D()
         {
-            this.position = Vector3.Zero;
-            this.rotation = Quaternion.Identity;
-            this.scale = Vector3.One;
+            this.Position = Vector3.Zero;
+            this.Rotation = Quaternion.Identity;
+            this.Scale = Vector3.One;
         }
 
         public Transform3D(Vector3 pos)
         {
-            this.position = pos;
-            this.rotation = Quaternion.Identity;
-            this.scale = Vector3.One;
+            this.Position = pos;
+            this.Rotation = Quaternion.Identity;
+            this.Scale = Vector3.One;
         }
 
         public Transform3D(Vector3 pos, Quaternion rot)
         {
-            this.position = pos;
-            this.rotation = rot;
-            this.scale = Vector3.One;
+            this.Position = pos;
+            this.Rotation = rot;
+            this.Scale = Vector3.One;
         }
 
         public Transform3D(Quaternion rot, Vector3 pos)
         {
-            this.position = pos;
-            this.rotation = rot;
-            this.scale = Vector3.One;
+            this.Position = pos;
+            this.Rotation = rot;
+            this.Scale = Vector3.One;
         }
 
         public Transform3D(Vector3 pos, Quaternion rot, Vector3 scale)
         {
-            this.position = pos;
-            this.rotation = rot;
-            this.scale = scale;
+            this.Position = pos;
+            this.Rotation = rot;
+            this.Scale = scale;
         }
 
         /// <summary>
@@ -67,12 +67,12 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.direction(rotation);
+                return math.direction(Rotation);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                rotation = math.direction(value);
+                Rotation = math.direction(value);
             }
         }
 
@@ -85,7 +85,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return math.matrix4trs(position, rotation, scale);
+                return math.matrix4trs(Position, Rotation, Scale);
             }
         }
 
@@ -98,7 +98,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix4x4.CreateTranslation(position);
+                return Matrix4x4.CreateTranslation(Position);
             }
         }
 
@@ -111,7 +111,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix4x4.CreateFromQuaternion(rotation);
+                return Matrix4x4.CreateFromQuaternion(Rotation);
             }
         }
 
@@ -124,7 +124,7 @@ namespace Alco
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Matrix4x4.CreateScale(scale);
+                return Matrix4x4.CreateScale(Scale);
             }
         }
 
@@ -135,7 +135,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Translate(Vector3 translation)
         {
-            position += math.rotate(translation, rotation);
+            Position += math.rotate(translation, Rotation);
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LookAt(Vector3 point)
         {
-            rotation = math.direction(point - position);
+            Rotation = math.direction(point - Position);
         } 
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Rotate(Quaternion rotation)
         {
-            this.rotation = math.mul(this.rotation, rotation);
+            this.Rotation = math.mul(this.Rotation, rotation);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Alco
 
         public override string ToString()
         {
-            return $"Position: {position}, Rotation: {rotation}, Scale: {scale}";
+            return $"Position: {Position}, Rotation: {Rotation}, Scale: {Scale}";
         }
     }
 }

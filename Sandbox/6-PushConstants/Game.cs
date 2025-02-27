@@ -77,7 +77,7 @@ public class Game : GameEngine
         _texGreen = Rendering.CreateTexture2D(16, 16, 0x00FF00);
 
         camera = new CameraData2D();
-        camera.transform.position = new Vector2(0, 2);
+        camera.transform.Position = new Vector2(0, 2);
         camera.Size = new Vector2(16, 9);
         Log.Info(camera.ViewProjectionMatrix);
 
@@ -85,9 +85,9 @@ public class Game : GameEngine
         _transform2 = Transform2D.Identity;
         _transform3 = Transform2D.Identity;
 
-        _transform1.position.X = -4;
-        _transform2.position.X = 0;
-        _transform3.position.X = 4;
+        _transform1.Position.X = -4;
+        _transform2.Position.X = 0;
+        _transform3.Position.X = 4;
 
     }
 
@@ -107,9 +107,9 @@ public class Game : GameEngine
 
         float t = math.clamp((_timer - _timeMove) * 2, 0, 1);
         float movement = t * (1 - t) * 4;
-        _transform1.position.Y = movement;
-        _transform2.rotation = new Rotation2D(math.radians(45 * movement));
-        _transform3.scale = new Vector2(1 + movement, 1 + movement);
+        _transform1.Position.Y = movement;
+        _transform2.Rotation = new Rotation2D(math.radians(45 * movement));
+        _transform3.Scale = new Vector2(1 + movement, 1 + movement);
 
         _cameraBuffer.UpdateBuffer(camera.ViewProjectionMatrix);
         _timer += delta;

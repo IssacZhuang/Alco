@@ -11,9 +11,9 @@ namespace Alco
         {
             return new Transform2D
             {
-                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
-                rotation = parent.rotation * child.rotation,
-                scale = parent.scale * child.scale
+                Position = mul(parent.Rotation, parent.Scale * child.Position) + parent.Position,
+                Rotation = parent.Rotation * child.Rotation,
+                Scale = parent.Scale * child.Scale
             };
         }
 
@@ -22,34 +22,34 @@ namespace Alco
         {
             return new Transform2D
             {
-                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
-                rotation = parent.rotation * child.rotation,
-                scale = parent.scale * child.scale
+                Position = mul(parent.Rotation, parent.Scale * child.Position) + parent.Position,
+                Rotation = parent.Rotation * child.Rotation,
+                Scale = parent.Scale * child.Scale
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 toworld(Transform2D parent, Vector2 localPosition)
         {
-            return mul(parent.rotation, parent.scale * localPosition) + parent.position;
+            return mul(parent.Rotation, parent.Scale * localPosition) + parent.Position;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform2D tolocal(Transform2D parent, Transform2D world)
         {
-            Rotation2D invRot = inverse(parent.rotation);
+            Rotation2D invRot = inverse(parent.Rotation);
             return new Transform2D
             {
-                position = mul(invRot, world.position - parent.position) / parent.scale,
-                rotation = invRot * world.rotation,
-                scale = world.scale / parent.scale
+                Position = mul(invRot, world.Position - parent.Position) / parent.Scale,
+                Rotation = invRot * world.Rotation,
+                Scale = world.Scale / parent.Scale
             };
         }
 
         public static Vector2 tolocal(Transform2D parent, Vector2 worldPosition)
         {
-            Rotation2D invRot = inverse(parent.rotation);
-            return mul(invRot, worldPosition - parent.position) / parent.scale;
+            Rotation2D invRot = inverse(parent.Rotation);
+            return mul(invRot, worldPosition - parent.Position) / parent.Scale;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -69,9 +69,9 @@ namespace Alco
         {
             return new Transform2D
             {
-                position = lerp(a.position, b.position, t),
-                rotation = slerp(a.rotation, b.rotation, t),
-                scale = lerp(a.scale, b.scale, t)
+                Position = lerp(a.Position, b.Position, t),
+                Rotation = slerp(a.Rotation, b.Rotation, t),
+                Scale = lerp(a.Scale, b.Scale, t)
             };
         }
     }

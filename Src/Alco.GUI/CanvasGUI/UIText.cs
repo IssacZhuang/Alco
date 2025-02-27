@@ -180,11 +180,11 @@ public class UIText : UISelectable
 
         //use local transform
         Transform2D transform = Transform2D.Identity;
-        transform.position = Size * TextPivot;
-        transform.scale = new Vector2(FontSize);
+        transform.Position = Size * TextPivot;
+        transform.Scale = new Vector2(FontSize);
         float lineHeight = LineSpacing* FontSize;
         float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - TextPivot.Y);
-        transform.position.Y += offsetY;
+        transform.Position.Y += offsetY;
 
 
         BoundingBox2D mask = Mask;
@@ -211,7 +211,7 @@ public class UIText : UISelectable
         {
             //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
             DrawLine(renderer, i, _text.Slice(_lines[i].start, _lines[i].count), transform, mask);
-            transform.position.Y -= lineHeight;
+            transform.Position.Y -= lineHeight;
         }
     }
 

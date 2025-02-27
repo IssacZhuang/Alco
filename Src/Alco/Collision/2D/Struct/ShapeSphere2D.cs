@@ -23,8 +23,8 @@ namespace Alco
         {
             return new ShapeSphere2D
             {
-                center = math.rotate(center, parent.rotation) * parent.scale + parent.position,
-                radius = radius * math.max(parent.scale.X, parent.scale.Y)
+                center = math.rotate(center, parent.Rotation) * parent.Scale + parent.Position,
+                radius = radius * math.max(parent.Scale.X, parent.Scale.Y)
             };
         }
 

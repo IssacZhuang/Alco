@@ -66,11 +66,11 @@ public class UINode
     public Vector2 Position
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _transform.position;
+        get => _transform.Position;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _transform.position = value;
+            _transform.Position = value;
             SetTransformDirty();
         }
     }
@@ -82,11 +82,11 @@ public class UINode
     public Rotation2D Rotation
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _transform.rotation;
+        get => _transform.Rotation;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _transform.rotation = value;
+            _transform.Rotation = value;
             SetTransformDirty();
         }
     }
@@ -98,11 +98,11 @@ public class UINode
     public Vector2 Scale
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _transform.scale;
+        get => _transform.Scale;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _transform.scale = value;
+            _transform.Scale = value;
             SetTransformDirty();
         }
     }
@@ -183,8 +183,8 @@ public class UINode
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);
                 //_transform.position -= Size * _pivot.value;
-                _transform.position -= math.rotate(Size * _pivot.value, _transform.rotation);
-                _transform.position -= Parent.Size * _anchor.CenterPoint;
+                _transform.Position -= math.rotate(Size * _pivot.value, _transform.Rotation);
+                _transform.Position -= Parent.Size * _anchor.CenterPoint;
             }
             else
             {
@@ -203,7 +203,7 @@ public class UINode
         get
         {
             Transform2D transform = WorldTransform;
-            transform.scale *= Size;
+            transform.Scale *= Size;
             return transform;
         }
     }
@@ -217,8 +217,8 @@ public class UINode
         get
         {
             Transform2D transform = RenderTransform;
-            Vector2 halfSize = transform.scale * 0.5f;
-            return new BoundingBox2D(transform.position - halfSize, transform.position + halfSize);
+            Vector2 halfSize = transform.Scale * 0.5f;
+            return new BoundingBox2D(transform.Position - halfSize, transform.Position + halfSize);
         }
     }
 
@@ -605,10 +605,10 @@ public class UINode
     {
         _worldTransform = _transform;
         //_worldTransform.position += Size * _pivot.value;
-        _worldTransform.position += math.rotate(Size * _pivot.value, _transform.rotation);
+        _worldTransform.Position += math.rotate(Size * _pivot.value, _transform.Rotation);
         if (Parent != null)
         {
-            _worldTransform.position += Parent.Size * _anchor.CenterPoint;
+            _worldTransform.Position += Parent.Size * _anchor.CenterPoint;
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 

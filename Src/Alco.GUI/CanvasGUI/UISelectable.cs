@@ -28,7 +28,7 @@ public class UISelectable : UINode
     protected void AddSelfForCollision(Canvas canvas)
     {
         Transform2D transform = RenderTransform;
-        ShapeBox2D shape = new ShapeBox2D(transform.position, transform.scale);
+        ShapeBox2D shape = new ShapeBox2D(transform.Position, transform.Scale);
         canvas.AddClickReciever(this, shape);
     }
 

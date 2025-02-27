@@ -126,15 +126,15 @@ public class UIInputBox : UIText, ITextInput
             Transform2D transform = Transform2D.Identity;
             ReadOnlySpan<char> chars = TextSpan.Slice(textLine.start, textLine.count);
 
-            transform.position = Size * TextPivot;
-            transform.position.X += (CursorOffsetInLine - (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars)) * FontSize;
-            transform.position.Y += (_lines.Count * (0.5f - TextPivot.Y) - (line + 1.5f)) * lineHeight;
-            transform.scale = new Vector2(FontSize);
+            transform.Position = Size * TextPivot;
+            transform.Position.X += (CursorOffsetInLine - (0.5f + TextPivot.X) * Font.GetNormalizedTextWidth(chars)) * FontSize;
+            transform.Position.Y += (_lines.Count * (0.5f - TextPivot.Y) - (line + 1.5f)) * lineHeight;
+            transform.Scale = new Vector2(FontSize);
 
             transform = math.transform(WorldTransform, transform);
 
             //calculate bounding box based on the transform
-            Vector2 min = transform.position - new Vector2(0, lineHeight * 0.5f);
+            Vector2 min = transform.Position - new Vector2(0, lineHeight * 0.5f);
             Vector2 max = min + new Vector2(textLine.width * FontSize, lineHeight);
             return new BoundingBox2D(min, max);
         }
@@ -184,11 +184,11 @@ public class UIInputBox : UIText, ITextInput
 
         float lineHeight = LineSpacing * FontSize;
 
-        transform.position = Size * TextPivot;
-        transform.position.Y += _lines.Count * lineHeight * (0.5f - TextPivot.Y);
-        transform.scale = new Vector2(FontSize);
+        transform.Position = Size * TextPivot;
+        transform.Position.Y += _lines.Count * lineHeight * (0.5f - TextPivot.Y);
+        transform.Scale = new Vector2(FontSize);
 
-        float localY = localMousePosition.Y - transform.position.Y;
+        float localY = localMousePosition.Y - transform.Position.Y;
 
 
         int line = (int)(localY / -lineHeight);
@@ -204,7 +204,7 @@ public class UIInputBox : UIText, ITextInput
         }
 
         Line textLine = _lines[line];
-        float textStartX = transform.position.X - textLine.width * FontSize * (TextPivot.X + 0.5f);
+        float textStartX = transform.Position.X - textLine.width * FontSize * (TextPivot.X + 0.5f);
         int start = textLine.start;
         float offset = 0;
         char c;
@@ -247,9 +247,9 @@ public class UIInputBox : UIText, ITextInput
             if (CursorLine == line && _isCursorVisible && IsEditable)
             {
                 Transform2D cursorTransform = baseTransform;
-                cursorTransform.position.Y -= TextPivot.Y * FontSize;
-                cursorTransform.position.X += CursorOffsetInLine * FontSize + textOffsetX;
-                cursorTransform.scale *= CursorScale;
+                cursorTransform.Position.Y -= TextPivot.Y * FontSize;
+                cursorTransform.Position.X += CursorOffsetInLine * FontSize + textOffsetX;
+                cursorTransform.Scale *= CursorScale;
 
                 renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
             }
@@ -257,7 +257,7 @@ public class UIInputBox : UIText, ITextInput
             //draw selection area
 
             Transform2D selectionTransform = baseTransform;
-            selectionTransform.position.Y -= TextPivot.Y * FontSize;
+            selectionTransform.Position.Y -= TextPivot.Y * FontSize;
 
             CursorPositionRednerCache start = _selectionStartPositionCache;
             CursorPositionRednerCache end = _selectionEndPositionCache;
@@ -269,7 +269,7 @@ public class UIInputBox : UIText, ITextInput
 
             if (line == start.line)
             {
-                float baseX = baseTransform.position.X + textOffsetX;
+                float baseX = baseTransform.Position.X + textOffsetX;
                 float selectionLeftX = baseX + start.charOffsetInLine * FontSize;
 
                 float width;
@@ -286,16 +286,16 @@ public class UIInputBox : UIText, ITextInput
                     width = (textAdvances - start.charOffsetInLine) * FontSize;
                 }
 
-                selectionTransform.position.X = (selectionLeftX + selectionRightX) * 0.5f;
-                selectionTransform.scale = new Vector2(width, FontSize);
+                selectionTransform.Position.X = (selectionLeftX + selectionRightX) * 0.5f;
+                selectionTransform.Scale = new Vector2(width, FontSize);
 
                 renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
             }
             else if (line > start.line && line < end.line)
             {
                 float width = textAdvances * FontSize;
-                selectionTransform.position.X -= TextPivot.X * width;
-                selectionTransform.scale = new Vector2(width, FontSize);
+                selectionTransform.Position.X -= TextPivot.X * width;
+                selectionTransform.Scale = new Vector2(width, FontSize);
 
                 renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
             }
@@ -303,8 +303,8 @@ public class UIInputBox : UIText, ITextInput
             {
                 float width = end.charOffsetInLine * FontSize;
 
-                selectionTransform.position.X += textOffsetX + width * 0.5f;
-                selectionTransform.scale = new Vector2(width, FontSize);
+                selectionTransform.Position.X += textOffsetX + width * 0.5f;
+                selectionTransform.Scale = new Vector2(width, FontSize);
 
                 renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
             }

@@ -49,9 +49,9 @@ namespace Alco
         {
             return new ShapeBox2D
             {
-                center = math.rotate(center, parent.rotation) * parent.scale + parent.position,
-                extends = extends * parent.scale,
-                rotation = math.mul(rotation, parent.rotation)
+                center = math.rotate(center, parent.Rotation) * parent.Scale + parent.Position,
+                extends = extends * parent.Scale,
+                rotation = math.mul(rotation, parent.Rotation)
             };
         }
     }

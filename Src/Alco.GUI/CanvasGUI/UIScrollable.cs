@@ -140,7 +140,7 @@ public class UIScrollable : UISelectable
     private static BoundingBox2D GetLocalBound(UINode node)
     {
         Transform2D transform = node.RenderTransform;
-        Vector2 halfSize = transform.scale * 0.5f;
+        Vector2 halfSize = transform.Scale * 0.5f;
         return new BoundingBox2D(halfSize, -halfSize);
     }
 }
