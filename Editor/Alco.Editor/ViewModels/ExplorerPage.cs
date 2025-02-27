@@ -68,10 +68,6 @@ public class ExplorerPage : Page
         }
     }
 
-    private Task RefreshFileNamesAsync(EditorEngine engine)
-    {
-        return Task.Run(() => RefreshFileNames(engine));
-    }
 
     public unsafe Task<Inspector> OpenFile(EditorEngine engine, string filePath)
     {

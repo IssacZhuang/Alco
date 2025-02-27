@@ -4,7 +4,7 @@
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
   x:Class="Alco.Editor.Views.ObjectPropertiesEditor">
-  <StackPanel Orientation="Vertical" Margin="10">
+  <StackPanel x:Name="Root" Orientation="Vertical" Margin="10">
 
   </StackPanel>
 </UserControl>

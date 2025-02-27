@@ -14,6 +14,7 @@ using Alco.Editor.Models;
 using Alco.Editor.Attributes;
 using Alco.Editor.Utility;
 using Avalonia;
+using Avalonia.LogicalTree;
 
 
 namespace Alco.Editor.Views;
@@ -33,6 +34,15 @@ public partial class ExplorerPage : UserControl
         FileTreeView.ItemsSource = _rootItems;
     }
 
+    protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToLogicalTree(e);
+        if (!Design.IsDesignMode)
+        {
+            OnRefreshProjectFiles();
+        }
+    }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         if (!Design.IsDesignMode)
@@ -41,11 +51,6 @@ public partial class ExplorerPage : UserControl
             engine.OnFilesInProjectUpdated += OnRefreshProjectFiles;
             engine.OnProjectOpened += OnProjectOpened;
             engine.OnProjectClosed += OnProjectClosed;
-
-            if (engine.IsProjectOpen)
-            {
-                OnRefreshProjectFiles();
-            }
 
             FileTreeView.IsVisible = engine.IsProjectOpen;
             NoFolderPanel.IsVisible = !engine.IsProjectOpen;
@@ -119,7 +124,14 @@ public partial class ExplorerPage : UserControl
             throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
         }
 
-        viewModel.RefreshFileNames(App.Main.Engine);
+        EditorEngine engine = App.Main.Engine;
+        if (!engine.IsProjectOpen)
+        {
+            _rootItems.Clear();
+            return;
+        }
+
+        viewModel.RefreshFileNames(engine);
         _rootItems.Clear();
         foreach (var fileName in viewModel.FileNames)
         {
