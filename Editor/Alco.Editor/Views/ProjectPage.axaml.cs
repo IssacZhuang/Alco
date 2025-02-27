@@ -9,7 +9,7 @@ public partial class ProjectPage : UserControl
     private class TestObject
     {
         public string Name { get; set; } = "Test";
-        public int Age { get; set; } = 10;
+        public int Age { get; } = 10;
         public bool IsActive { get; set; } = true;
     }
 

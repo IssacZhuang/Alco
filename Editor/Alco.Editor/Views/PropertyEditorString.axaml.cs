@@ -18,24 +18,37 @@ public partial class PropertyEditorString : UserControl
         base.OnDataContextChanged(e);
         if (DataContext is ViewModels.PropertyEditorString viewModel)
         {
-            Bind(viewModel);
+            Setup(viewModel);
         }
     }
 
-    private void Bind(ViewModels.PropertyEditorString viewModel)
+    private void Setup(ViewModels.PropertyEditorString viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
-
         AccessMemberInfo memberInfo = viewModel.MemberInfo;
+
+        if (!memberInfo.CanRead)
+        {
+            return;
+        }
 
         InputText.Bind(TextBox.TextProperty, new Binding(memberInfo.Name)
         {
             Source = viewModel.Target,
         });
 
-        InputText.TextChanged += (sender, e) =>
+        if (memberInfo.CanWrite)
         {
-            viewModel.Refresh();
-        };
+            InputText.TextChanged += (sender, e) =>
+            {
+                viewModel.Refresh();
+            };
+        }
+        else
+        {
+            InputText.IsReadOnly = true;
+        }
+
+
     }
 }

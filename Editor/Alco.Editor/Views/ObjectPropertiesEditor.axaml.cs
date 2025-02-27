@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Text.Json;
 using Alco.Editor.ViewModels;
 using Avalonia;
@@ -9,6 +10,8 @@ namespace Alco.Editor.Views;
 
 public partial class ObjectPropertiesEditor : UserControl
 {
+    private readonly StringBuilder _builder = new();
+
     public ObjectPropertiesEditor()
     {
         InitializeComponent();
@@ -33,14 +36,31 @@ public partial class ObjectPropertiesEditor : UserControl
 
         foreach (var member in viewModel.AccessTypeInfo.Members)
         {
-            TextBlock textBlock = new TextBlock();
-            textBlock.Text = member.Name;
+            TextBlock textBlock = CreateTextBlock(member);
+            textBlock.Margin = new Thickness(0, 5);
+
             Root.Children.Add(textBlock);
 
             PropertyEditor propertyEditor = PropertyEditor.CreatePropertyEditor(viewModel.Target, member);
             Control control = propertyEditor.CreateControl();
             Root.Children.Add(control);
         }
+    }
+
+    private TextBlock CreateTextBlock(AccessMemberInfo member)
+    {
+        TextBlock textBlock = new TextBlock();
+        _builder.Clear();
+        _builder.Append(member.Name);
+        _builder.Append(" [");
+        _builder.Append(member.MemberType.Name);
+        _builder.Append(']');
+        if (!member.CanWrite)
+        {
+            _builder.Append(" (Read Only)");
+        }
+        textBlock.Text = _builder.ToString();
+        return textBlock;
     }
 
 

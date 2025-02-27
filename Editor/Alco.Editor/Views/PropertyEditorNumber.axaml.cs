@@ -18,26 +18,41 @@ public partial class PropertyEditorNumber : UserControl
         base.OnDataContextChanged(e);
         if (DataContext is ViewModels.PropertyEditorNumber viewModel)
         {
-            Bind(viewModel);
+            Setup(viewModel);
         }
     }
 
-    private void Bind(ViewModels.PropertyEditorNumber viewModel)
+    private void Setup(ViewModels.PropertyEditorNumber viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 
         AccessMemberInfo memberInfo = viewModel.MemberInfo;
 
+        if (!memberInfo.CanRead)
+        {
+            return;
+        }
+
         InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(memberInfo.Name)
         {
             Source = viewModel.Target,
         });
-
         InputNumber.FormatString = GetFormatString(memberInfo.MemberType);
-        InputNumber.ValueChanged += (sender, e) =>
+
+        if (memberInfo.CanWrite)
         {
-            viewModel.Refresh();
-        };
+            //writable
+            InputNumber.ValueChanged += (sender, e) =>
+            {
+                viewModel.Refresh();
+            };
+        }
+        else
+        {
+            //readonly
+            InputNumber.IsReadOnly = true;
+        }
+
     }
 
     private static string GetFormatString(Type type)
