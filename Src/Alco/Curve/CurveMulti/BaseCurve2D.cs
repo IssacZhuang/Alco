@@ -57,8 +57,8 @@ namespace Alco
             for (int i = 0; i < points.Count; i++)
             {
                 _points.Add(points[i]);
-                xPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.X));
-                yPoints.Add(new CurvePoint<float>(points[i].t, points[i].value.Y));
+                xPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.X));
+                yPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.Y));
             }
 
             _curveX.SetPoints(xPoints);

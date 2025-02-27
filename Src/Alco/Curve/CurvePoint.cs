@@ -5,20 +5,20 @@ namespace Alco
 {
     public struct CurvePoint<T> : IComparable<CurvePoint<T>>, ISortable
     {
-        public float t;
-        public T value;
+        public float Time;
+        public T Value;
 
         public CurvePoint(float t, T value)
         {
-            this.t = t;
-            this.value = value;
+            this.Time = t;
+            this.Value = value;
         }
 
-        public float SortKey => t;
+        public float SortKey => this.Time;
 
         public int CompareTo(CurvePoint<T> other)
         {
-            return t.CompareTo(other.t);
+            return this.Time.CompareTo(other.Time);
         }
     }
 }

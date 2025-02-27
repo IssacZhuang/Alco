@@ -80,20 +80,20 @@ namespace Alco
 
         public float Evaluate(float t)
         {
-            if (t <= _points[0].t)
+            if (t <= _points[0].Time)
             {
-                return _points[0].value;
+                return _points[0].Value;
             }
-            if (t >= _points[_points.Count - 1].t)
+            if (t >= _points[_points.Count - 1].Time)
             {
-                return _points[_points.Count - 1].value;
+                return _points[_points.Count - 1].Value;
             }
             int index = BinarySearchFloor(t);
 
-            float t0 = _points[index].t;
-            float t1 = _points[index + 1].t;
-            float p0 = _points[index].value;
-            float p1 = _points[index + 1].value;
+            float t0 = _points[index].Time;
+            float t1 = _points[index + 1].Time;
+            float p0 = _points[index].Value;
+            float p1 = _points[index + 1].Value;
             float m0 = _slopes[index];
             float m1 = _slopes[index + 1];
             float dt = t1 - t0;
@@ -111,7 +111,7 @@ namespace Alco
 
         public void Sort()
         {
-            _points.Sort((a, b) => a.t.CompareTo(b.t));
+            _points.Sort((a, b) => a.Time.CompareTo(b.Time));
         }
 
 
@@ -121,11 +121,11 @@ namespace Alco
             while (low <= high)
             {
                 int mid = (low + high) / 2;
-                if (t < _points[mid].t)
+                if (t < _points[mid].Time)
                 {
                     high = mid - 1;
                 }
-                else if (t > _points[mid].t)
+                else if (t > _points[mid].Time)
                 {
                     low = mid + 1;
                 }
@@ -147,16 +147,16 @@ namespace Alco
                 float slope;
                 if (i == 0)
                 {
-                    slope = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
+                    slope = (points[i + 1].Value - points[i].Value) / (points[i + 1].Time - points[i].Time);
                 }
                 else if (i == count - 1)
                 {
-                    slope = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
+                    slope = (points[i].Value - points[i - 1].Value) / (points[i].Time - points[i - 1].Time);
                 }
                 else
                 {
-                    float dydx1 = (points[i].value - points[i - 1].value) / (points[i].t - points[i - 1].t);
-                    float dydx2 = (points[i + 1].value - points[i].value) / (points[i + 1].t - points[i].t);
+                    float dydx1 = (points[i].Value - points[i - 1].Value) / (points[i].Time - points[i - 1].Time);
+                    float dydx2 = (points[i + 1].Value - points[i].Value) / (points[i + 1].Time - points[i].Time);
                     slope = (dydx1 + dydx2) / 2f;
                 }
 
