@@ -5,15 +5,15 @@ using Avalonia.Controls;
 namespace Alco.Editor.ViewModels;
 
 [PropertyEditor(typeof(bool))]
-public class PropertyEditorBoolean : PropertyEditor
+public class PropertyBooleanEditor : PropertyEditor
 {
-    public PropertyEditorBoolean(object target, AccessMemberInfo memberInfo) : base(target, memberInfo)
+    public PropertyBooleanEditor(object target, AccessMemberInfo memberInfo) : base(target, memberInfo)
     {
     }
 
     public override Control CreateControl()
     {
-        return new Views.PropertyEditorBoolean()
+        return new Views.PropertyBooleanEditor()
         {
             DataContext = this,
         };

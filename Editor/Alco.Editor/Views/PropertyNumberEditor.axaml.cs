@@ -6,9 +6,9 @@ using Avalonia.Markup.Xaml;
 
 namespace Alco.Editor.Views;
 
-public partial class PropertyEditorNumber : UserControl
+public partial class PropertyNumberEditor : UserControl
 {
-    public PropertyEditorNumber()
+    public PropertyNumberEditor()
     {
         InitializeComponent();
     }
@@ -16,13 +16,13 @@ public partial class PropertyEditorNumber : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (DataContext is ViewModels.PropertyEditorNumber viewModel)
+        if (DataContext is ViewModels.PropertyNumberEditor viewModel)
         {
             Setup(viewModel);
         }
     }
 
-    private void Setup(ViewModels.PropertyEditorNumber viewModel)
+    private void Setup(ViewModels.PropertyNumberEditor viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 

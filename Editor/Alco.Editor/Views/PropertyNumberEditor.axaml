@@ -3,6 +3,6 @@
   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
   mc:Ignorable="d" d:DesignWidth="200" d:DesignHeight="32"
-  x:Class="Alco.Editor.Views.PropertyEditorNumber">
+  x:Class="Alco.Editor.Views.PropertyNumberEditor">
   <NumericUpDown x:Name="InputNumber"/>
 </UserControl>

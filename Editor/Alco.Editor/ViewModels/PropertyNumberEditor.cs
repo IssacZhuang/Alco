@@ -18,16 +18,16 @@ namespace Alco.Editor.ViewModels;
     typeof(double),
     typeof(Half),
     typeof(decimal))]
-public class PropertyEditorNumber : PropertyEditor
+public class PropertyNumberEditor : PropertyEditor
 {
-    public PropertyEditorNumber(object target, AccessMemberInfo memberInfo) : base(target, memberInfo)
+    public PropertyNumberEditor(object target, AccessMemberInfo memberInfo) : base(target, memberInfo)
     {
     }
 
 
     public override Control CreateControl()
     {
-        Control control = new Views.PropertyEditorNumber()
+        Control control = new Views.PropertyNumberEditor()
         {
             DataContext = this,
         };
