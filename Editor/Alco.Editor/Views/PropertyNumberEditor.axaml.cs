@@ -37,7 +37,7 @@ public partial class PropertyNumberEditor : UserControl
         {
             Source = viewModel.Target,
         });
-        InputNumber.FormatString = GetFormatString(memberInfo.MemberType);
+        InputNumber.FormatString = viewModel.GetFormatString();
 
         if (memberInfo.CanWrite)
         {
@@ -53,24 +53,5 @@ public partial class PropertyNumberEditor : UserControl
             InputNumber.IsReadOnly = true;
         }
 
-    }
-
-    private static string GetFormatString(Type type)
-    {
-        return Type.GetTypeCode(type) switch
-        {
-
-            TypeCode.SByte or TypeCode.Byte or
-            TypeCode.Int16 or TypeCode.UInt16 or
-            TypeCode.Int32 or TypeCode.UInt32 or
-            TypeCode.Int64 or TypeCode.UInt64 => "F0",
-
-            TypeCode.Single => "F4",  // float
-            TypeCode.Double => "F4",  // double
-
-            TypeCode.Decimal => "F8",
-
-            _ => "G"
-        };
     }
 }

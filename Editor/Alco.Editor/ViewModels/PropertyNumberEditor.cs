@@ -34,4 +34,24 @@ public class PropertyNumberEditor : PropertyEditor
         return control;
     }
 
+    public string GetFormatString()
+    {
+        return MemberInfo.MemberType switch
+        {
+            Type t when t == typeof(int) => "F0",
+            Type t when t == typeof(uint) => "F0",
+            Type t when t == typeof(long) => "F0",
+            Type t when t == typeof(ulong) => "F0",
+            Type t when t == typeof(short) => "F0",
+            Type t when t == typeof(ushort) => "F0",
+            Type t when t == typeof(byte) => "F0",
+            Type t when t == typeof(sbyte) => "F0",
+            Type t when t == typeof(float) => "G",
+            Type t when t == typeof(double) => "G",
+            Type t when t == typeof(Half) => "G",
+            Type t when t == typeof(decimal) => "G",
+            _ => "G"
+        };
+    }
+
 }

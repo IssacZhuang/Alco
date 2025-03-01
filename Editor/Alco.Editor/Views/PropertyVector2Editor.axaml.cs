@@ -34,15 +34,18 @@ public partial class PropertyVector2Editor : UserControl
             return;
         }
 
+        string formatString = viewModel.GetFormatString();
+
         InputX.Bind(NumericUpDown.ValueProperty, new Binding(nameof(viewModel.X))
         {
             Source = viewModel,
         });
+        InputX.FormatString = formatString;
 
         InputY.Bind(NumericUpDown.ValueProperty, new Binding(nameof(viewModel.Y))
         {
             Source = viewModel,
         });
-
+        InputY.FormatString = formatString;
     }
 }

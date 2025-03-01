@@ -51,6 +51,18 @@ public class PropertyVector4Editor : PropertyEditor
         return control;
     }
 
+    public string GetFormatString()
+    {
+        return MemberInfo.MemberType switch
+        {
+            Type t when t == typeof(Vector4) => "G",
+            Type t when t == typeof(int4) => "F0",
+            Type t when t == typeof(uint4) => "F0",
+            Type t when t == typeof(Half4) => "G",
+            _ => "G"
+        };
+    }
+
     private T GetVector<T>() where T : struct
     {
         return MemberInfo.GetValue<T>(Target);
