@@ -39,12 +39,12 @@ public class PropertyVector2Editor : PropertyEditor
         return control;
     }
 
-    protected T GetVector<T>() where T : struct
+    private T GetVector<T>() where T : struct
     {
         return MemberInfo.GetValue<T>(Target);
     }
 
-    protected void SetVector<T>(T value) where T : struct
+    private void SetVector<T>(T value) where T : struct
     {
         MemberInfo.SetValue(Target, value);
     }
