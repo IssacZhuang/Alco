@@ -13,6 +13,8 @@ public partial class ProjectPage : UserControl
         public int Age { get; } = 10;
         public bool IsActive { get; set; } = true;
         public Vector2 Position { get; set; } = new Vector2(10, 20);
+        public Vector3 Position3 { get; set; } = new Vector3(10, 20, 30);
+        public Vector4 Position4 { get; set; } = new Vector4(10, 20, 30, 40);
     }
 
     public ProjectPage()
