@@ -3,21 +3,27 @@ using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
 
-public class ObjectPropertiesEditor : ViewModelBase
+public class ObjectPropertiesEditor : PropertyEditor
 {
     private static readonly MemberAccessor s_memberAccessor = MemberAccessor.CreateCompatibleCachedAccessor();
     private static readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
-    public object Target { get; }
     public AccessTypeInfo AccessTypeInfo { get; }
 
-    public ObjectPropertiesEditor(object target)
+    public ObjectPropertiesEditor(object target) : base(target, AccessMemberInfo.Empty)
     {
-        Target = target;
         AccessTypeInfo = GetAccessTypeInfo(target.GetType());
     }
 
     private static AccessTypeInfo GetAccessTypeInfo(Type type)
     {
         return _accessTypeInfos.GetOrAdd(type, static (t) => new AccessTypeInfo(t, s_memberAccessor));
+    }
+
+    public override Control CreateControl()
+    {
+        return new Views.ObjectPropertiesEditor()
+        {
+            DataContext = this,
+        };
     }
 }

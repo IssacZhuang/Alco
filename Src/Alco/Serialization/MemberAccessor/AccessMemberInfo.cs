@@ -15,6 +15,12 @@ namespace Alco;
 public abstract class AccessMemberInfo
 {
     /// <summary>
+    /// A dummy <see cref="AccessMemberInfo"/> instance that is always empty.
+    /// The GetValue and SetValue methods will throw an <see cref="InvalidOperationException"/> if called.
+    /// </summary>
+    public static readonly AccessMemberInfo Empty = new AccessMemberInfoEmpty();
+
+    /// <summary>
     /// Gets the type of the property or field.
     /// </summary>
     public Type MemberType { get; }
@@ -92,7 +98,23 @@ public abstract class AccessMemberInfo
             MakeGenericType(fieldInfo.FieldType).
             CreateInstanceNoWrapExceptions([typeof(FieldInfo), typeof(MemberAccessor)], [fieldInfo, accessor])!;
     }
+}
 
+internal sealed class AccessMemberInfoEmpty : AccessMemberInfo
+{
+    public AccessMemberInfoEmpty() : base(false, false, typeof(object), string.Empty)
+    {
+    }
+
+    public override TTarget? GetValue<TTarget>(object obj) where TTarget : default
+    {
+        throw new InvalidOperationException("AccessMemberInfo is empty");
+    }
+
+    public override void SetValue<T>(object obj, T value)
+    {
+        throw new InvalidOperationException("AccessMemberInfo is empty");
+    }
 }
 
 internal abstract class AccessMemberInfo<T> : AccessMemberInfo

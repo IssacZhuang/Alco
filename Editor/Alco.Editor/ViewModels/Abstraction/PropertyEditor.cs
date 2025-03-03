@@ -45,7 +45,18 @@ public abstract class PropertyEditor : ViewModelBase
         {
             return (PropertyEditor)Activator.CreateInstance(propertyEditorType, target, memberInfo)!;
         }
-        
+
+        //if is class, fallback to ObjectPropertiesEditor
+        if (memberInfo.MemberType.IsClass)
+        {
+            object? value = memberInfo.GetValue<object>(target);
+            if (value is null)
+            {
+                return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
+            }
+            return new ObjectPropertiesEditor(value);
+        }
+
         return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
     }
 

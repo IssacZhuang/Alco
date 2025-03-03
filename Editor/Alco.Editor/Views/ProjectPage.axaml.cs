@@ -24,6 +24,14 @@ public partial class ProjectPage : UserControl
         public int4 PositionInt4 { get; set; } = new int4(10, 20, 30, 40);
         public uint4 PositionUint4 { get; set; } = new uint4(10, 20, 30, 40);
         public Half4 PositionHalf4 { get; set; } = new Half4(10, 20, 30, 40);
+        public TestSubObject SubObject { get; set; } = new TestSubObject();
+    }
+
+    private class TestSubObject
+    {
+        public string Name { get; set; } = "Test";
+        public int Age { get; } = 10;
+        public bool IsActive { get; set; } = true;
     }
 
     public ProjectPage()
