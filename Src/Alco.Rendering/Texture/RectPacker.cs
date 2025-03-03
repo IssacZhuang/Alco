@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 /// A rectangle packer that efficiently packs rectangles into a collection.
 /// Automatically resizes the packing area when needed by alternating between extending width and height.
 /// </summary>
-public class RectPacker : AutoDisposable
+public sealed class RectPacker : AutoDisposable
 {
     private Packer<byte> _packer;
     private bool _extendVertical;

@@ -8,7 +8,7 @@ namespace Alco.Rendering;
 /// The atlas packer is used to create a font atlas and unicode to glyph mapping from a ttf font file. <br/>
 /// Can be used to create <see cref="Font"/> instances.
 /// </summary> 
-public unsafe class FontAtlasPacker : AutoDisposable
+public sealed unsafe class FontAtlasPacker : AutoDisposable
 {
     private static readonly int MaxArrayLength = 0xD7AF + 1;
     private readonly stbtt_pack_context _context;

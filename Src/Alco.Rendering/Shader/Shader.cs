@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// The high level encapsulation of GPU pipeline
 /// </summary>
-public class Shader : AutoDisposable
+public sealed class Shader : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
     private readonly ConcurrentDictionary<int, ShaderModulesInfo> _modulesCache = new ConcurrentDictionary<int, ShaderModulesInfo>();

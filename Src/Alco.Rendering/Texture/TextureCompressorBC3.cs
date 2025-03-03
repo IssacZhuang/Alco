@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// Provides BC3 (DXT5) texture compression functionality using compute shaders.
 /// BC3 compression is commonly used for textures with alpha channels.
 /// </summary>
-public class TextureCompressorBC3 : AutoDisposable
+public sealed class TextureCompressorBC3 : AutoDisposable
 {
     public const string ShaderDefine_IS_SRGB = "IS_SRGB";
 

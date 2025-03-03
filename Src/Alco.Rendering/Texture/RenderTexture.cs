@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// The high level encapsulation of a GPUFrameBuffer with its entries of GPUTextureView
 /// </summary>
-public class RenderTexture : AutoDisposable
+public sealed class RenderTexture : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUSampler _sampler;

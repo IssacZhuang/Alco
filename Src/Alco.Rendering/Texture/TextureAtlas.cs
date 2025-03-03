@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Alco.Rendering;
 
-public class TextureAtlas : AutoDisposable
+public sealed class TextureAtlas : AutoDisposable
 {
     private readonly List<Sprite> _sprites;
     private readonly FrozenDictionary<string, Sprite> _spritesLookup;
