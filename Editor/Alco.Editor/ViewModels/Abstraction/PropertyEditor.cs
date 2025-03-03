@@ -11,6 +11,10 @@ namespace Alco.Editor.ViewModels;
 public abstract class PropertyEditor : ViewModelBase
 {
     public AccessMemberInfo MemberInfo { get; }
+    public string PropertyName => MemberInfo.Name;
+    public Type PropertyType => MemberInfo.MemberType;
+    public bool CanRead => MemberInfo.CanRead;
+    public bool CanWrite => MemberInfo.CanWrite;
     public object Target { get; }
     public virtual bool HasTitle => true;
 

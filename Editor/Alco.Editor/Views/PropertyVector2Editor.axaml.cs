@@ -27,9 +27,8 @@ public partial class PropertyVector2Editor : UserControl
     private void Setup(ViewModels.PropertyVector2Editor viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
-        AccessMemberInfo memberInfo = viewModel.MemberInfo;
 
-        if (!memberInfo.CanRead)
+        if (!viewModel.CanRead)
         {
             return;
         }

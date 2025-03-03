@@ -25,19 +25,18 @@ public partial class PropertyBooleanEditor : UserControl
     private void Setup(ViewModels.PropertyBooleanEditor viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
-        AccessMemberInfo memberInfo = viewModel.MemberInfo;
 
-        if (!memberInfo.CanRead)
+        if (!viewModel.CanRead)
         {
             return;
         }
 
-        InputCheckBox.Bind(CheckBox.IsCheckedProperty, new Binding(memberInfo.Name)
+        InputCheckBox.Bind(CheckBox.IsCheckedProperty, new Binding(viewModel.PropertyName)
         {
             Source = viewModel.Target,
         });
 
-        if (memberInfo.CanWrite)
+        if (viewModel.CanWrite)
         {
             InputCheckBox.IsCheckedChanged += (sender, e) =>
             {

@@ -41,7 +41,7 @@ public class PropertyVector2Editor : PropertyEditor
 
     public string GetFormatString()
     {
-        return MemberInfo.MemberType switch
+        return PropertyType switch
         {
             Type t when t == typeof(Vector2) => "G",
             Type t when t == typeof(int2) => "F0",
@@ -63,31 +63,31 @@ public class PropertyVector2Editor : PropertyEditor
 
     private decimal GetValueX()
     {
-        return MemberInfo.MemberType switch
+        return PropertyType switch
         {
             Type t when t == typeof(Vector2) => (decimal)GetVector<Vector2>().X,
             Type t when t == typeof(int2) => (decimal)GetVector<int2>().X,
             Type t when t == typeof(uint2) => (decimal)GetVector<uint2>().X,
             Type t when t == typeof(Half2) => (decimal)GetVector<Half2>().X,
-            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
+            _ => throw new InvalidOperationException($"Unsupported type: {PropertyType}")
         };
     }
 
     private decimal GetValueY()
     {
-        return MemberInfo.MemberType switch
+        return PropertyType switch
         {
             Type t when t == typeof(Vector2) => (decimal)GetVector<Vector2>().Y,
             Type t when t == typeof(int2) => (decimal)GetVector<int2>().Y,
             Type t when t == typeof(uint2) => (decimal)GetVector<uint2>().Y,
             Type t when t == typeof(Half2) => (decimal)GetVector<Half2>().Y,
-            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
+            _ => throw new InvalidOperationException($"Unsupported type: {PropertyType}")
         };
     }
 
     private void SetValueX(decimal value)
     {
-        switch (MemberInfo.MemberType)
+        switch (PropertyType)
         {
             case Type t when t == typeof(Vector2):
                 SetVector(new Vector2((float)value, GetVector<Vector2>().Y));
@@ -102,13 +102,13 @@ public class PropertyVector2Editor : PropertyEditor
                 SetVector(new Half2((Half)value, GetVector<Half2>().Y));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
+                throw new InvalidOperationException($"Unsupported type: {PropertyType}");
         }
     }
 
     private void SetValueY(decimal value)
     {
-        switch (MemberInfo.MemberType)
+        switch (PropertyType)
         {
             case Type t when t == typeof(Vector2):
                 SetVector(new Vector2(GetVector<Vector2>().X, (float)value));
@@ -123,7 +123,7 @@ public class PropertyVector2Editor : PropertyEditor
                 SetVector(new Half2(GetVector<Half2>().X, (Half)value));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
+                throw new InvalidOperationException($"Unsupported type: {PropertyType}");
         }
     }
 }
