@@ -15,12 +15,23 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
+    /// Get all the asset infos
+    /// </summary>
+    /// <value>All the asset infos</value>
+    public IEnumerable<AssetInfo> AllAssetInfos
+    {
+        get
+        {
+            return AllFileNames.Select(x => new AssetInfo(this, x));
+        }
+    }
+
+    /// <summary>
     /// Check if the file exists
     /// /// </summary>
     /// <param name="filename">The filename to check</param>
     /// <returns>True if the file exists</returns>
     public bool IsFileExist(string filename)
-
     {
         return _fileEntries.ContainsKey(filename);
     }
