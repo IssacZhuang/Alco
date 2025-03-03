@@ -12,6 +12,7 @@ public abstract class PropertyEditor : ViewModelBase
 {
     public AccessMemberInfo MemberInfo { get; }
     public object Target { get; }
+    public virtual bool HasTitle => true;
 
     public PropertyEditor(object target, AccessMemberInfo memberInfo)
     {
@@ -54,7 +55,8 @@ public abstract class PropertyEditor : ViewModelBase
             {
                 return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
             }
-            return new ObjectPropertiesEditor(value, depth + 1);
+            ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
+            return objectPropertiesEditor;
         }
 
         return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");

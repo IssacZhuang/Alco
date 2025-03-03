@@ -32,17 +32,28 @@ public partial class ObjectPropertiesEditor : UserControl
 
     private void Setup(ViewModels.ObjectPropertiesEditor viewModel)
     {
+        TextHeader.Text = GetTitle(viewModel.Header, viewModel.Target.GetType().Name, true);
         Root.Children.Clear();
 
         foreach (var member in viewModel.AccessTypeInfo.Members)
         {
-            TextBlock textBlock = CreateTextBlock(member);
-            textBlock.Margin = new Thickness(0, 5);
-
-            Root.Children.Add(textBlock);
-
             PropertyEditor propertyEditor = PropertyEditor.CreatePropertyEditor(viewModel.Target, member, viewModel.Depth + 1);
             Control control = propertyEditor.CreateControl();
+
+            if (propertyEditor.HasTitle)
+            {
+                TextBlock textBlock = CreateTextBlock(member);
+                textBlock.Margin = new Thickness(0, 5);
+                Root.Children.Add(textBlock);
+            }
+            else
+            {
+                //just spacing
+                UserControl userControl = new UserControl();
+                userControl.Margin = new Thickness(0, 5);
+                Root.Children.Add(userControl);
+            }
+
             Root.Children.Add(control);
         }
     }
@@ -50,19 +61,28 @@ public partial class ObjectPropertiesEditor : UserControl
     private TextBlock CreateTextBlock(AccessMemberInfo member)
     {
         TextBlock textBlock = new TextBlock();
-        _builder.Clear();
-        _builder.Append(member.Name);
-        _builder.Append(" [");
-        _builder.Append(member.MemberType.Name);
-        _builder.Append(']');
-        if (!member.CanWrite)
-        {
-            _builder.Append(" (Read Only)");
-        }
-        textBlock.Text = _builder.ToString();
+        textBlock.Text = GetTitle(member);
         return textBlock;
     }
 
+    private string GetTitle(AccessMemberInfo member)
+    {
+        return GetTitle(member.Name, member.MemberType.Name, member.CanWrite);
+    }
+
+    private string GetTitle(string name, string typeName, bool canWrite)
+    {
+        _builder.Clear();
+        _builder.Append(name);
+        _builder.Append(" [");
+        _builder.Append(typeName);
+        _builder.Append(']');
+        if (!canWrite)
+        {
+            _builder.Append(" (Read Only)");
+        }
+        return _builder.ToString();
+    }
 
     private void Clear()
     {

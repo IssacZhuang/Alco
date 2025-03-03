@@ -10,11 +10,15 @@ public class ObjectPropertiesEditor : PropertyEditor
     private static readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
     public AccessTypeInfo AccessTypeInfo { get; }
     public uint Depth { get; }
+    public string Header { get; }
 
-    public ObjectPropertiesEditor(object target, uint depth = 0) : base(target, AccessMemberInfo.Empty)
+    public override bool HasTitle => false;
+
+    public ObjectPropertiesEditor(object target, string header, uint depth = 0) : base(target, AccessMemberInfo.Empty)
     {
         AccessTypeInfo = GetAccessTypeInfo(target.GetType());
         Depth = depth;
+        Header = header;
     }
 
     private static AccessTypeInfo GetAccessTypeInfo(Type type)

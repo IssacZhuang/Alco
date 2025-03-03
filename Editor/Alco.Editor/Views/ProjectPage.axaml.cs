@@ -46,6 +46,6 @@ public partial class ProjectPage : UserControl
     {
         InitializeComponent();
         TestObject testObject = new TestObject();
-        ObjectPropertiesEditor.DataContext = new ViewModels.ObjectPropertiesEditor(testObject);
+        ObjectPropertiesEditor.DataContext = new ViewModels.ObjectPropertiesEditor(testObject, "Test Object");
     }
 }
