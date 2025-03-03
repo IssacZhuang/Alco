@@ -44,6 +44,8 @@ public abstract class AccessMemberInfo
     /// <summary>
     /// Initializes a new instance of the <see cref="AccessMemberInfo"/> class.
     /// </summary>
+    /// <param name="canRead">Whether the member can be read.</param>
+    /// <param name="canWrite">Whether the member can be written to.</param>
     /// <param name="propertyType">The type of the property or field.</param>
     /// <param name="name">The name of the member.</param>
     internal AccessMemberInfo(bool canRead, bool canWrite, Type propertyType, string name)
@@ -100,34 +102,82 @@ public abstract class AccessMemberInfo
     }
 }
 
-internal sealed class AccessMemberInfoEmpty : AccessMemberInfo
+/// <summary>
+/// Represents an empty implementation of <see cref="AccessMemberInfo"/> that throws exceptions when accessed.
+/// Used as a null object pattern implementation.
+/// </summary>
+public sealed class AccessMemberInfoEmpty : AccessMemberInfo
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AccessMemberInfoEmpty"/> class.
+    /// </summary>
     public AccessMemberInfoEmpty() : base(false, false, typeof(object), string.Empty)
     {
     }
 
+    /// <summary>
+    /// Gets the value of the member, but always throws an <see cref="InvalidOperationException"/> since this is an empty implementation.
+    /// </summary>
+    /// <typeparam name="TTarget">The type to get the value as.</typeparam>
+    /// <param name="obj">The object to get the value from.</param>
+    /// <returns>This method never returns a value as it always throws an exception.</returns>
+    /// <exception cref="InvalidOperationException">Always thrown when this method is called.</exception>
     public override TTarget? GetValue<TTarget>(object obj) where TTarget : default
     {
         throw new InvalidOperationException("AccessMemberInfo is empty");
     }
 
+    /// <summary>
+    /// Sets the value of the member, but always throws an <see cref="InvalidOperationException"/> since this is an empty implementation.
+    /// </summary>
+    /// <typeparam name="T">The type of the value to set.</typeparam>
+    /// <param name="obj">The object to set the value on.</param>
+    /// <param name="value">The value to set.</param>
+    /// <exception cref="InvalidOperationException">Always thrown when this method is called.</exception>
     public override void SetValue<T>(object obj, T value)
     {
         throw new InvalidOperationException("AccessMemberInfo is empty");
     }
 }
 
-internal abstract class AccessMemberInfo<T> : AccessMemberInfo
+/// <summary>
+/// Generic base class for accessing members of objects with a specific type.
+/// Provides type-safe access to property and field values.
+/// </summary>
+/// <typeparam name="T">The type of the member being accessed.</typeparam>
+public abstract class AccessMemberInfo<T> : AccessMemberInfo
 {
+    /// <summary>
+    /// Function to get the typed value from an object.
+    /// </summary>
     protected Func<object, T>? _typedGet;
+
+    /// <summary>
+    /// Action to set the typed value on an object.
+    /// </summary>
     protected Action<object, T>? _typedSet;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AccessMemberInfo{T}"/> class.
+    /// </summary>
+    /// <param name="canRead">Whether the member can be read.</param>
+    /// <param name="canWrite">Whether the member can be written to.</param>
+    /// <param name="propertyType">The type of the property or field.</param>
+    /// <param name="name">The name of the member.</param>
     internal AccessMemberInfo(bool canRead, bool canWrite, Type propertyType, string name) :
     base(canRead, canWrite, propertyType, name)
     {
 
     }
 
+    /// <summary>
+    /// Gets the value of the member as the specified type.
+    /// </summary>
+    /// <typeparam name="TTarget">The type to get the value as.</typeparam>
+    /// <param name="obj">The object to get the value from.</param>
+    /// <returns>The value of the member as the specified type.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the property is not readable.</exception>
+    /// <exception cref="InvalidCastException">Thrown when the value cannot be converted to the target type.</exception>
     public override TTarget GetValue<TTarget>(object obj)
     {
         if (_typedGet is null)
@@ -149,6 +199,14 @@ internal abstract class AccessMemberInfo<T> : AccessMemberInfo
         throw new InvalidCastException($"Cannot convert value of type {typeof(T)} to {typeof(TTarget)}");
     }
 
+    /// <summary>
+    /// Sets the value of the member to the specified value.
+    /// </summary>
+    /// <typeparam name="TTarget">The type of the value to set.</typeparam>
+    /// <param name="obj">The object to set the value on.</param>
+    /// <param name="value">The value to set.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the property is not writable.</exception>
+    /// <exception cref="InvalidCastException">Thrown when the value cannot be converted to the member type.</exception>
     public override void SetValue<TTarget>(object obj, TTarget value)
     {
         if (_typedSet is null)
@@ -167,10 +225,17 @@ internal abstract class AccessMemberInfo<T> : AccessMemberInfo
     }
 }
 
-
-internal sealed class AccessPropertyInfo<T> : AccessMemberInfo<T>
+/// <summary>
+/// Provides access to a property with strongly-typed getters and setters.
+/// </summary>
+/// <typeparam name="T">The type of the property.</typeparam>
+public sealed class AccessPropertyInfo<T> : AccessMemberInfo<T>
 {
-
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AccessPropertyInfo{T}"/> class.
+    /// </summary>
+    /// <param name="propertyInfo">The property information.</param>
+    /// <param name="accessor">The member accessor to use for creating getters and setters.</param>
     public AccessPropertyInfo(PropertyInfo propertyInfo, MemberAccessor accessor) :
     base(propertyInfo.GetMethod?.IsPublic == true, propertyInfo.SetMethod?.IsPublic == true, propertyInfo.PropertyType, propertyInfo.Name)
     {
@@ -186,15 +251,19 @@ internal sealed class AccessPropertyInfo<T> : AccessMemberInfo<T>
             _typedSet = typedSetter;
         }
     }
-
 }
 
 /// <summary>
 /// Provides access to a field with strongly-typed getters and setters.
 /// </summary>
 /// <typeparam name="T">The type of the field.</typeparam>
-internal sealed class AccessFieldInfo<T> : AccessMemberInfo<T>
+public sealed class AccessFieldInfo<T> : AccessMemberInfo<T>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AccessFieldInfo{T}"/> class.
+    /// </summary>
+    /// <param name="fieldInfo">The field information.</param>
+    /// <param name="accessor">The member accessor to use for creating getters and setters.</param>
     public AccessFieldInfo(FieldInfo fieldInfo, MemberAccessor accessor) :
     base(true, true, fieldInfo.FieldType, fieldInfo.Name)
     {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace Alco;
 
@@ -17,7 +18,9 @@ public static class UtilsType
     /// <returns>true if the specified type is a generic IList; otherwise, false.</returns>
     public static bool IsGenericList(Type type, [MaybeNullWhen(false)] out Type genericType)
     {
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IList<>))
+        if (type.IsGenericType &&
+            (typeof(IList<>).IsAssignableFrom(type.GetGenericTypeDefinition()) ||
+             type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>))))
         {
             genericType = type.GetGenericArguments()[0];
             return true;
@@ -35,7 +38,9 @@ public static class UtilsType
     /// <returns>true if the specified type is a generic Dictionary; otherwise, false.</returns>
     public static bool IsGenericDictionary(Type type, [MaybeNullWhen(false)] out Type genericKeyType, [MaybeNullWhen(false)] out Type genericValueType)
     {
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IDictionary<,>))
+        if (type.IsGenericType &&
+            (typeof(IDictionary<,>).IsAssignableFrom(type.GetGenericTypeDefinition()) ||
+             type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary<,>))))
         {
             genericKeyType = type.GetGenericArguments()[0];
             genericValueType = type.GetGenericArguments()[1];

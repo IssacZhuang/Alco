@@ -47,19 +47,27 @@ public abstract class PropertyEditor : ViewModelBase
             return (PropertyEditor)Activator.CreateInstance(propertyEditorType, target, memberInfo)!;
         }
 
-        //if is class, fallback to ObjectPropertiesEditor
-        if (memberInfo.MemberType.IsClass)
+        if (!memberInfo.MemberType.IsClass)
         {
-            object? value = memberInfo.GetValue<object>(target);
-            if (value is null)
-            {
-                return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
-            }
-            ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
-            return objectPropertiesEditor;
+            return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
         }
 
-        return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
+        object? value = memberInfo.GetValue<object>(target);
+
+        if (value is null)
+        {
+            return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
+        }
+
+        if (PropertyListEditor.TryCreate(value, out PropertyListEditor? propertyListEditor))
+        {
+            return propertyListEditor;
+        }
+
+        ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
+        return objectPropertiesEditor;
+
+
     }
 
     public void Refresh()

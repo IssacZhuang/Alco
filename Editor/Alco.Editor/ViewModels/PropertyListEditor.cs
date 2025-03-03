@@ -9,6 +9,8 @@ namespace Alco.Editor.ViewModels;
 
 public abstract class PropertyListEditor : PropertyEditor
 {
+    public abstract IEnumerable<Control> ItemEditors { get; }
+
     public PropertyListEditor(object target, AccessMemberInfo memberInfo) : base(target, memberInfo)
     {
     }
@@ -24,6 +26,8 @@ public abstract class PropertyListEditor : PropertyEditor
     public abstract void Add();
     public abstract void RemoveAt(int index);
     public abstract void RemoveLast();
+
+
 
     public static bool TryCreate(object list, [NotNullWhen(true)] out PropertyListEditor? editor)
     {
@@ -44,10 +48,19 @@ public class PropertyListEditor<T> : PropertyListEditor
 {
     private static readonly bool IsClass = typeof(T).IsClass;
     private readonly IList<T> _list;
-    private readonly List<PropertyEditor> _itemEditors = new();
+    
+    private readonly List<Control> _itemEditors = new();
+
+    public override IEnumerable<Control> ItemEditors => _itemEditors;
+
     public PropertyListEditor(IList<T> list) : base(list, AccessMemberInfo.Empty)
     {
         _list = list;
+        foreach (var item in _list)
+        {
+            PropertyEditor propertyEditor = CreatePropertyEditor(_list, new AccessListItemInfo<T>(_list, _list.IndexOf(item)));
+            _itemEditors.Add(propertyEditor.CreateControl());
+        }
     }
 
     public override void Add()
@@ -60,16 +73,20 @@ public class PropertyListEditor<T> : PropertyListEditor
         {
             _list.Add(default!);
         }
+
+        PropertyEditor propertyEditor = CreatePropertyEditor(_list, new AccessListItemInfo<T>(_list, _list.Count - 1));
+        _itemEditors.Add(propertyEditor.CreateControl());
     }
 
     public override void RemoveAt(int index)
     {
         _list.RemoveAt(index);
+        _itemEditors.RemoveAt(index);
     }
 
     public override void RemoveLast()
     {
-        _list.RemoveAt(_list.Count - 1);
+        RemoveAt(_list.Count - 1);
     }
 }
 

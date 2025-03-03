@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
@@ -25,6 +26,7 @@ public partial class ProjectPage : UserControl
         public uint4 PositionUint4 { get; set; } = new uint4(10, 20, 30, 40);
         public Half4 PositionHalf4 { get; set; } = new Half4(10, 20, 30, 40);
         public TestSubObject SubObject { get; set; } = new TestSubObject();
+        public List<int> IntList { get; set; } = new List<int> { 1, 2, 3, 4, 5 };
     }
 
     private class TestSubObject
