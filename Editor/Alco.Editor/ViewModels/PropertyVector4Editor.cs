@@ -53,7 +53,7 @@ public class PropertyVector4Editor : PropertyEditor
 
     public string GetFormatString()
     {
-        return PropertyType switch
+        return MemberInfo.MemberType switch
         {
             Type t when t == typeof(Vector4) => "G",
             Type t when t == typeof(int4) => "F0",
@@ -75,55 +75,55 @@ public class PropertyVector4Editor : PropertyEditor
 
     private decimal GetValueX()
     {
-        return PropertyType switch
+        return MemberInfo.MemberType switch
         {
             Type t when t == typeof(Vector4) => (decimal)GetVector<Vector4>().X,
             Type t when t == typeof(int4) => (decimal)GetVector<int4>().X,
             Type t when t == typeof(uint4) => (decimal)GetVector<uint4>().X,
             Type t when t == typeof(Half4) => (decimal)GetVector<Half4>().X,
-            _ => throw new InvalidOperationException($"Unsupported type: {PropertyType}")
+            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
         };
     }
 
     private decimal GetValueY()
     {
-        return PropertyType switch
+        return MemberInfo.MemberType switch
         {
             Type t when t == typeof(Vector4) => (decimal)GetVector<Vector4>().Y,
             Type t when t == typeof(int4) => (decimal)GetVector<int4>().Y,
             Type t when t == typeof(uint4) => (decimal)GetVector<uint4>().Y,
             Type t when t == typeof(Half4) => (decimal)GetVector<Half4>().Y,
-            _ => throw new InvalidOperationException($"Unsupported type: {PropertyType}")
+            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
         };
     }
 
     private decimal GetValueZ()
     {
-        return PropertyType switch
+        return MemberInfo.MemberType switch
         {
             Type t when t == typeof(Vector4) => (decimal)GetVector<Vector4>().Z,
             Type t when t == typeof(int4) => (decimal)GetVector<int4>().Z,
             Type t when t == typeof(uint4) => (decimal)GetVector<uint4>().Z,
             Type t when t == typeof(Half4) => (decimal)GetVector<Half4>().Z,
-            _ => throw new InvalidOperationException($"Unsupported type: {PropertyType}")
+            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
         };
     }
 
     private decimal GetValueW()
     {
-        return PropertyType switch
+        return MemberInfo.MemberType switch
         {
             Type t when t == typeof(Vector4) => (decimal)GetVector<Vector4>().W,
             Type t when t == typeof(int4) => (decimal)GetVector<int4>().W,
             Type t when t == typeof(uint4) => (decimal)GetVector<uint4>().W,
             Type t when t == typeof(Half4) => (decimal)GetVector<Half4>().W,
-            _ => throw new InvalidOperationException($"Unsupported type: {PropertyType}")
+            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
         };
     }
 
     private void SetValueX(decimal value)
     {
-        switch (PropertyType)
+        switch (MemberInfo.MemberType)
         {
             case Type t when t == typeof(Vector4):
                 Vector4 v = GetVector<Vector4>();
@@ -142,13 +142,13 @@ public class PropertyVector4Editor : PropertyEditor
                 SetVector(new Half4((Half)value, h.Y, h.Z, h.W));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported type: {PropertyType}");
+                throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
     }
 
     private void SetValueY(decimal value)
     {
-        switch (PropertyType)
+        switch (MemberInfo.MemberType)
         {
             case Type t when t == typeof(Vector4):
                 Vector4 v = GetVector<Vector4>();
@@ -167,13 +167,13 @@ public class PropertyVector4Editor : PropertyEditor
                 SetVector(new Half4(h.X, (Half)value, h.Z, h.W));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported type: {PropertyType}");
+                throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
     }
 
     private void SetValueZ(decimal value)
     {
-        switch (PropertyType)
+        switch (MemberInfo.MemberType)
         {
             case Type t when t == typeof(Vector4):
                 Vector4 v = GetVector<Vector4>();
@@ -192,13 +192,13 @@ public class PropertyVector4Editor : PropertyEditor
                 SetVector(new Half4(h.X, h.Y, (Half)value, h.W));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported type: {PropertyType}");
+                throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
     }
 
     private void SetValueW(decimal value)
     {
-        switch (PropertyType)
+        switch (MemberInfo.MemberType)
         {
             case Type t when t == typeof(Vector4):
                 Vector4 v = GetVector<Vector4>();
@@ -217,7 +217,7 @@ public class PropertyVector4Editor : PropertyEditor
                 SetVector(new Half4(h.X, h.Y, h.Z, (Half)value));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported type: {PropertyType}");
+                throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
     }
 }

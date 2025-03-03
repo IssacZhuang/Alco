@@ -26,19 +26,20 @@ public partial class PropertyNumberEditor : UserControl
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 
+        AccessMemberInfo memberInfo = viewModel.MemberInfo;
 
-        if (!viewModel.CanRead)
+        if (!memberInfo.CanRead)
         {
             return;
         }
 
-        InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(viewModel.PropertyName)
+        InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(memberInfo.Name)
         {
             Source = viewModel.Target,
         });
         InputNumber.FormatString = viewModel.GetFormatString();
 
-        if (viewModel.CanWrite)
+        if (memberInfo.CanWrite)
         {
             //writable
             InputNumber.ValueChanged += (sender, e) =>

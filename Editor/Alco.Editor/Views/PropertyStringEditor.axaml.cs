@@ -25,18 +25,19 @@ public partial class PropertyStringEditor : UserControl
     private void Setup(ViewModels.PropertyStringEditor viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        AccessMemberInfo memberInfo = viewModel.MemberInfo;
 
-        if (!viewModel.CanRead)
+        if (!memberInfo.CanRead)
         {
             return;
         }
 
-        InputText.Bind(TextBox.TextProperty, new Binding(viewModel.PropertyName)
+        InputText.Bind(TextBox.TextProperty, new Binding(memberInfo.Name)
         {
             Source = viewModel.Target,
         });
 
-        if (viewModel.CanWrite)
+        if (memberInfo.CanWrite)
         {
             InputText.TextChanged += (sender, e) =>
             {

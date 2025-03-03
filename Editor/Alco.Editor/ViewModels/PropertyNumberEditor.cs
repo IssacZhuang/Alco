@@ -36,7 +36,7 @@ public class PropertyNumberEditor : PropertyEditor
 
     public string GetFormatString()
     {
-        return PropertyType switch
+        return MemberInfo.MemberType switch
         {
             Type t when t == typeof(int) => "F0",
             Type t when t == typeof(uint) => "F0",
