@@ -39,7 +39,7 @@ public abstract class PropertyEditor : ViewModelBase
         _propertyEditors = typeToPropertyEditor.ToFrozenDictionary();
     }
 
-    public static PropertyEditor CreatePropertyEditor(object target, AccessMemberInfo memberInfo)
+    public static PropertyEditor CreatePropertyEditor(object target, AccessMemberInfo memberInfo, uint depth = 0)
     {
         if (_propertyEditors.TryGetValue(memberInfo.MemberType, out Type? propertyEditorType))
         {
@@ -54,7 +54,7 @@ public abstract class PropertyEditor : ViewModelBase
             {
                 return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
             }
-            return new ObjectPropertiesEditor(value);
+            return new ObjectPropertiesEditor(value, depth + 1);
         }
 
         return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");

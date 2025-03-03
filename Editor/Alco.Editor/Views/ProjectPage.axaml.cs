@@ -32,6 +32,14 @@ public partial class ProjectPage : UserControl
         public string Name { get; set; } = "Test";
         public int Age { get; } = 10;
         public bool IsActive { get; set; } = true;
+        public TestSubSubObject SubSubObject { get; set; } = new TestSubSubObject();
+    }
+
+    private class TestSubSubObject
+    {
+        public string Name { get; set; } = "Test";
+        public int Age { get; } = 10;
+        public bool IsActive { get; set; } = true;
     }
 
     public ProjectPage()

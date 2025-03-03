@@ -41,7 +41,7 @@ public partial class ObjectPropertiesEditor : UserControl
 
             Root.Children.Add(textBlock);
 
-            PropertyEditor propertyEditor = PropertyEditor.CreatePropertyEditor(viewModel.Target, member);
+            PropertyEditor propertyEditor = PropertyEditor.CreatePropertyEditor(viewModel.Target, member, viewModel.Depth + 1);
             Control control = propertyEditor.CreateControl();
             Root.Children.Add(control);
         }
