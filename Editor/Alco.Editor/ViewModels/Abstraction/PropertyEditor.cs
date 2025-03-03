@@ -64,10 +64,13 @@ public abstract class PropertyEditor : ViewModelBase
             return propertyListEditor;
         }
 
+        if (PropertyDictionaryEditor.TryCreate(value, out PropertyDictionaryEditor? propertyDictionaryEditor))
+        {
+            return propertyDictionaryEditor;
+        }
+
         ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
         return objectPropertiesEditor;
-
-
     }
 
     public void Refresh()
