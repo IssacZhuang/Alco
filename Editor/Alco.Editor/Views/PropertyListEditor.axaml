@@ -15,7 +15,7 @@
         <Button Width="40" x:Name="BtnAdd" Margin="5 0" HorizontalContentAlignment="Center"
           VerticalContentAlignment="Center">+</Button>
       </StackPanel>
-      <StackPanel x:Name="Root" Orientation="Vertical" Margin="0">
+      <StackPanel x:Name="Root" Orientation="Vertical" Margin="0 10 0 0" Spacing="10">
       </StackPanel>
     </StackPanel>
   </Expander>
