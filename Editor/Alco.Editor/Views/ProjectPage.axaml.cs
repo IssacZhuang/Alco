@@ -12,6 +12,13 @@ namespace Alco.Editor.Views;
 
 public partial class ProjectPage : UserControl
 {
+    private enum TestEnum
+    {
+        Value1,
+        Value2,
+        Value3
+    }
+
     private class TestObject
     {
         public string Name { get; set; } = "Test";
@@ -41,6 +48,7 @@ public partial class ProjectPage : UserControl
         public uint4 PositionUint4 { get; set; } = new uint4(10, 20, 30, 40);
         public Half4 PositionHalf4 { get; set; } = new Half4(10, 20, 30, 40);
         public TestSubObject SubObject { get; set; } = new TestSubObject();
+        public TestEnum TestEnum { get; set; } = TestEnum.Value1;
         public List<int> IntList { get; set; } = new List<int> { 1, 2, 3, 4, 5 };
     }
 

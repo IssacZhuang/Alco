@@ -48,6 +48,12 @@ public abstract class PropertyEditor : ViewModelBase
             return (PropertyEditor)Activator.CreateInstance(propertyEditorType, target, memberInfo)!;
         }
 
+        if (memberInfo.MemberType.IsEnum)
+        {
+            //is enum
+            return new PropertyEnumEditor(target, memberInfo);
+        }
+
         if (!memberInfo.MemberType.IsClass)
         {
             return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
@@ -62,9 +68,11 @@ public abstract class PropertyEditor : ViewModelBase
 
         if (PropertyListEditor.TryCreate(value, memberInfo.Name, depth + 1, out PropertyListEditor? propertyListEditor))
         {
+            //is list
             return propertyListEditor;
         }
 
+        //is object
         ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
         return objectPropertiesEditor;
     }

@@ -44,14 +44,7 @@ public class ObjectPropertiesEditor : PropertyEditor
         {
             DataContext = this,
         };
-        if (Depth > 0)
-        {
-            view.Margin = new Thickness(15, 0, 0, 0);
-        }
-        else
-        {
-            view.Margin = new Thickness(0, 0, 0, 0);
-        }
+        
         return view;
     }
 }
