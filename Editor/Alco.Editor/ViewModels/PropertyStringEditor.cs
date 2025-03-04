@@ -11,6 +11,16 @@ public class PropertyStringEditor : PropertyEditor
     {
     }
 
+    public string Value
+    {
+        get => MemberInfo.GetValue<string>(Target)!;
+        set
+        {
+            MemberInfo.SetValue(Target, value);
+            Refresh();
+        }
+    }
+
     public override Control CreateControl()
     {
         return new Views.PropertyStringEditor()

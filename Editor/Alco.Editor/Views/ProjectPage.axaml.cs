@@ -15,7 +15,18 @@ public partial class ProjectPage : UserControl
     private class TestObject
     {
         public string Name { get; set; } = "Test";
-        public int Age { get; } = 10;
+        public int IntValue { get; set; } = 10;
+        public uint UintValue { get; set; } = 10;
+        public long LongValue { get; set; } = 10;
+        public ulong UlongValue { get; set; } = 10;
+        public short ShortValue { get; set; } = 10;
+        public ushort UshortValue { get; set; } = 10;
+        public byte ByteValue { get; set; } = 10;
+        public sbyte SbyteValue { get; set; } = 10;
+        public float FloatValue { get; set; } = 10;
+        public double DoubleValue { get; set; } = 10;
+        public Half HalfValue { get; set; } = (Half)10;
+        public decimal DecimalValue { get; set; } = 10;
         public bool IsActive { get; set; } = true;
         public Vector2 PositionFloat2 { get; set; } = new Vector2(10, 20);
         public int2 PositionInt2 { get; set; } = new int2(10, 20);

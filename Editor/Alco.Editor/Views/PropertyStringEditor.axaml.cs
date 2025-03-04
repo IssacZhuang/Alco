@@ -32,19 +32,12 @@ public partial class PropertyStringEditor : UserControl
             return;
         }
 
-        InputText.Bind(TextBox.TextProperty, new Binding(memberInfo.Name)
+        InputText.Bind(TextBox.TextProperty, new Binding(nameof(viewModel.Value))
         {
-            Source = viewModel.Target,
+            Source = viewModel,
         });
 
-        if (memberInfo.CanWrite)
-        {
-            InputText.TextChanged += (sender, e) =>
-            {
-                viewModel.Refresh();
-            };
-        }
-        else
+        if (!memberInfo.CanWrite)
         {
             InputText.IsReadOnly = true;
         }

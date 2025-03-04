@@ -33,21 +33,13 @@ public partial class PropertyNumberEditor : UserControl
             return;
         }
 
-        InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(memberInfo.Name)
+        InputNumber.Bind(NumericUpDown.ValueProperty, new Binding(nameof(viewModel.Value))
         {
-            Source = viewModel.Target,
+            Source = viewModel,
         });
         InputNumber.FormatString = viewModel.GetFormatString();
 
-        if (memberInfo.CanWrite)
-        {
-            //writable
-            InputNumber.ValueChanged += (sender, e) =>
-            {
-                viewModel.Refresh();
-            };
-        }
-        else
+        if (!memberInfo.CanWrite)
         {
             //readonly
             InputNumber.IsReadOnly = true;
