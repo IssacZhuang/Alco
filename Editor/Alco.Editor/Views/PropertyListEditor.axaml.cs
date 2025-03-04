@@ -24,7 +24,7 @@ public partial class PropertyListEditor : UserControl
         }
         else
         {
-            Clear();
+            Root.Children.Clear();
         }
     }
 
@@ -34,6 +34,8 @@ public partial class PropertyListEditor : UserControl
 
         BtnAdd.Click += Add;
         BtnRemove.Click += RemoveLast;
+        BtnClear.Click += Clear;
+        viewModel.OnUIChanged += RefreshList;
     }
 
     private void RefreshList(ViewModels.PropertyListEditor viewModel)
@@ -46,9 +48,12 @@ public partial class PropertyListEditor : UserControl
         UpdateTitle(viewModel);
     }
 
-    private void Clear()
+    private void Clear(object? sender, RoutedEventArgs e)
     {
-        Root.Children.Clear();
+        if (DataContext is ViewModels.PropertyListEditor viewModel)
+        {
+            viewModel.Clear();
+        }
     }
 
     private void Add(object? sender, RoutedEventArgs e)
@@ -56,7 +61,6 @@ public partial class PropertyListEditor : UserControl
         if (DataContext is ViewModels.PropertyListEditor viewModel)
         {
             viewModel.Add();
-            RefreshList(viewModel);
         }
     }
 
@@ -65,7 +69,6 @@ public partial class PropertyListEditor : UserControl
         if (DataContext is ViewModels.PropertyListEditor viewModel)
         {
             viewModel.RemoveLast();
-            RefreshList(viewModel);
         }
     }
 

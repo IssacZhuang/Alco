@@ -69,9 +69,9 @@ public abstract class PropertyEditor : ViewModelBase
         return objectPropertiesEditor;
     }
 
-    public void Refresh()
+    public void DoRefreshEvent()
     {
         OnRefresh?.Invoke();
-        Parent?.Refresh();
+        Parent?.DoRefreshEvent();
     }
 }

@@ -18,6 +18,7 @@ public abstract class PropertyListEditor : PropertyEditor
     public abstract int ItemCount { get; }
     public uint Depth { get; }
     public string Header { get; set; } = string.Empty;
+    public event Action<PropertyListEditor>? OnUIChanged;
 
     public PropertyListEditor(object target, AccessMemberInfo memberInfo, uint depth) : base(target, memberInfo)
     {
@@ -46,6 +47,7 @@ public abstract class PropertyListEditor : PropertyEditor
     public abstract void Add();
     public abstract void RemoveAt(int index);
     public abstract void RemoveLast();
+    public abstract void Clear();
 
 
 
@@ -62,6 +64,12 @@ public abstract class PropertyListEditor : PropertyEditor
         editor = (PropertyListEditor)Activator.CreateInstance(editorType, list, depth)!;
         editor.Header = header;
         return true;
+    }
+
+    protected void DoUIChangedEvent()
+    {
+        DoRefreshEvent();
+        OnUIChanged?.Invoke(this);
     }
 }
 
@@ -96,15 +104,22 @@ public class PropertyListEditor<T> : PropertyListEditor
         }
 
         AddControl(_list.Count - 1);
-        Refresh();
+        DoUIChangedEvent();
     }
 
     public override void RemoveAt(int index)
     {
-        _list.RemoveAt(index);
         _itemEditors.RemoveAt(index);
+        _list.RemoveAt(index);
         UpdateAccessIndex();
-        Refresh();
+        DoUIChangedEvent();
+    }
+
+    public override void Clear()
+    {
+        _itemEditors.Clear();
+        _list.Clear();
+        DoUIChangedEvent();
     }
 
     public override void RemoveLast()
@@ -116,12 +131,29 @@ public class PropertyListEditor<T> : PropertyListEditor
     {
         for (int i = 0; i < _itemEditors.Count; i++)
         {
-            (_itemEditors[i].Item1 as AccessListItemInfo<T>)!.Index = i;
+            (_itemEditors[i].Item1.MemberInfo as AccessListItemInfo<T>)!.Index = i;
         }
     }
 
     private void AddControl(int index)
     {
+
+        //the index in the AccessListItemInfo might be changed during remove
+        AccessListItemInfo<T> accessListItemInfo = new(_list, index);
+        PropertyEditor propertyEditor = CreatePropertyEditor(_list, accessListItemInfo);
+        propertyEditor.Parent = this;
+
+        Button btnRemove = new Button()
+        {
+            Content = "-",
+            Margin = new Thickness(10, 0),
+        };
+
+        btnRemove.Click += (sender, e) =>
+        {
+            RemoveAt(accessListItemInfo.Index);
+        };
+
         Grid grid = new Grid
         {
             HorizontalAlignment = HorizontalAlignment.Stretch
@@ -131,26 +163,14 @@ public class PropertyListEditor<T> : PropertyListEditor
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        Button btnRemove = new Button()
-        {
-            Content = "-",
-            Width = 32,
-            Margin = new Thickness(10, 0),
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
 
-        //the index in the AccessListItemInfo might be changed during remove
-        AccessListItemInfo<T> accessListItemInfo = new(_list, index);
-
-        btnRemove.Click += (sender, e) => RemoveAt(accessListItemInfo.Index);
         Grid.SetColumn(btnRemove, 0);
         grid.Children.Add(btnRemove);
 
-        PropertyEditor propertyEditor = CreatePropertyEditor(_list, accessListItemInfo);
-        propertyEditor.Parent = this;
         Control propertyControl = propertyEditor.CreateControl();
         Grid.SetColumn(propertyControl, 1);
         grid.Children.Add(propertyControl);
+
         _itemEditors.Add((propertyEditor, grid));
     }
 }
