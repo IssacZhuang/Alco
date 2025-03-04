@@ -11,7 +11,7 @@ namespace Alco;
 public class AccessListItemInfo<T> : AccessMemberInfo
 {
     private readonly IList<T> _list;
-    private readonly int _index;
+    public int Index { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AccessListItemInfo{T}"/> class.
@@ -22,7 +22,7 @@ public class AccessListItemInfo<T> : AccessMemberInfo
     base(true, true, typeof(T), $"[{index}]")
     {
         _list = list;
-        _index = index;
+        Index = index;
     }
 
     /// <summary>
@@ -34,7 +34,7 @@ public class AccessListItemInfo<T> : AccessMemberInfo
     /// <exception cref="InvalidCastException">Thrown when the value cannot be converted to the target type.</exception>
     public override TTarget? GetValue<TTarget>(object obj) where TTarget : default
     {
-        if (_list[_index] is TTarget targetValue)
+        if (_list[Index] is TTarget targetValue)
         {
             return targetValue;
         }
@@ -53,7 +53,7 @@ public class AccessListItemInfo<T> : AccessMemberInfo
     {
         if (value is T typedValue)
         {
-            _list[_index] = typedValue;
+            _list[Index] = typedValue;
         }
         else
         {

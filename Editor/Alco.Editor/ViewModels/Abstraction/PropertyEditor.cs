@@ -60,7 +60,7 @@ public abstract class PropertyEditor : ViewModelBase
             return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
         }
 
-        if (PropertyListEditor.TryCreate(value, out PropertyListEditor? propertyListEditor))
+        if (PropertyListEditor.TryCreate(value, memberInfo.Name, depth + 1, out PropertyListEditor? propertyListEditor))
         {
             return propertyListEditor;
         }

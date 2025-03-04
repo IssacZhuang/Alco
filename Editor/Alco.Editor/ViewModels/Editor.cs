@@ -42,7 +42,7 @@ public partial class Editor : ViewModelBase
             }
             catch (Exception ex)
             {
-                Log.Error($"Error creating page {type.Name}: {ex.Message}");
+                Log.Error($"Error creating page {type.Name}: {ex}");
             }
         }
     }

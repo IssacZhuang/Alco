@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -8,6 +9,7 @@ namespace Alco.Editor.Views;
 
 public partial class PropertyListEditor : UserControl
 {
+    private readonly StringBuilder _builder = new();
     public PropertyListEditor()
     {
         InitializeComponent();
@@ -37,10 +39,11 @@ public partial class PropertyListEditor : UserControl
     private void RefreshList(ViewModels.PropertyListEditor viewModel)
     {
         Root.Children.Clear();
-        foreach (var item in viewModel.ItemEditors)
+        foreach (var (_, control) in viewModel.ItemEditors)
         {
-            Root.Children.Add(item);
+            Root.Children.Add(control);
         }
+        UpdateTitle(viewModel);
     }
 
     private void Clear()
@@ -64,5 +67,20 @@ public partial class PropertyListEditor : UserControl
             viewModel.RemoveLast();
             RefreshList(viewModel);
         }
+    }
+
+    private void UpdateTitle(ViewModels.PropertyListEditor viewModel)
+    {
+        _builder.Clear();
+        _builder.Append(viewModel.Header);
+        _builder.Append(" [");
+        _builder.Append(viewModel.ListType.Name);
+        _builder.Append('<');
+        _builder.Append(viewModel.ItemType.Name);
+        _builder.Append('>');
+        _builder.Append(']');
+        _builder.Append(" Count = ");
+        _builder.Append(viewModel.ItemCount);
+        TextHeader.Text = _builder.ToString();
     }
 }
