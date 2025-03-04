@@ -91,6 +91,18 @@ public class PropertyVector3Editor : PropertyEditor
         };
     }
 
+    private decimal GetValueZ()
+    {
+        return MemberInfo.MemberType switch
+        {
+            Type t when t == typeof(Vector3) => (decimal)GetVector<Vector3>().Z,
+            Type t when t == typeof(int3) => (decimal)GetVector<int3>().Z,
+            Type t when t == typeof(uint3) => (decimal)GetVector<uint3>().Z,
+            Type t when t == typeof(Half3) => (decimal)GetVector<Half3>().Z,
+            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
+        };
+    }
+
     private void SetValueX(decimal value)
     {
         switch (MemberInfo.MemberType)
@@ -114,6 +126,7 @@ public class PropertyVector3Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
+        Refresh();
     }
 
     private void SetValueY(decimal value)
@@ -139,19 +152,8 @@ public class PropertyVector3Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
-    }
-
-    private decimal GetValueZ()
-    {
-        return MemberInfo.MemberType switch
-        {
-            Type t when t == typeof(Vector3) => (decimal)GetVector<Vector3>().Z,
-            Type t when t == typeof(int3) => (decimal)GetVector<int3>().Z,
-            Type t when t == typeof(uint3) => (decimal)GetVector<uint3>().Z,
-            Type t when t == typeof(Half3) => (decimal)GetVector<Half3>().Z,
-            _ => throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}")
-        };
-    }
+        Refresh();
+    }   
 
     private void SetValueZ(decimal value)
     {
@@ -176,5 +178,6 @@ public class PropertyVector3Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
+        Refresh();
     }
 }

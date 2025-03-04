@@ -6,12 +6,10 @@ public class BaseConfig
 {
     public string Id { get; set; } = string.Empty;
 
-    public static JsonSerializerOptions BuiltJsonSerializerOptions(JsonSerializerOptions? baseOptions, IConfigReferenceResolver configReferenceResolver)
+    public static JsonSerializerOptions BuildJsonSerializerOptions(IConfigReferenceResolver configReferenceResolver)
     {
-        JsonSerializerOptions options = baseOptions ?? new JsonSerializerOptions();
-
         var typeResolver = new ConfigJsonTypeResolver(configReferenceResolver);
-        options = new JsonSerializerOptions()
+        return new JsonSerializerOptions()
         {
             TypeInfoResolver = typeResolver,
             Converters = {
@@ -21,9 +19,7 @@ public class BaseConfig
                 new JsonConverterVector4(),
                 new JsonConverterQuaternion(),
             }
-        };
-
-        return options;
+        }; ;
     }
 }
 

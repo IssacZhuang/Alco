@@ -35,9 +35,8 @@ public partial class ObjectPropertiesEditor : UserControl
         TextHeader.Text = GetTitle(viewModel.Header, viewModel.Target.GetType().Name, true);
         Root.Children.Clear();
 
-        foreach (var member in viewModel.AccessTypeInfo.Members)
+        foreach ((AccessMemberInfo member, PropertyEditor propertyEditor) in viewModel.PropertyEditors)
         {
-            PropertyEditor propertyEditor = PropertyEditor.CreatePropertyEditor(viewModel.Target, member, viewModel.Depth + 1);
             Control control = propertyEditor.CreateControl();
 
             if (propertyEditor.HasTitle)

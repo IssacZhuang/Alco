@@ -43,7 +43,7 @@ public partial class GameEngine
         Assets.RegisterAssetHotReloader<Texture2D>(new AssetHotReloaderTexture2D(Rendering));
 
         var configReferenceResolver = new ConfigReferenceResolver(Assets);
-        var jsonSerializerOptions = BaseConfig.BuiltJsonSerializerOptions(null, configReferenceResolver);
+        var jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions(configReferenceResolver);
 
         Assets.RegisterAssetLoader(new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver));
        

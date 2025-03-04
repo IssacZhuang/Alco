@@ -1,5 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Text.Json;
+using Alco.Engine;
+using Alco.IO;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
@@ -44,10 +48,24 @@ public partial class ProjectPage : UserControl
         public bool IsActive { get; set; } = true;
     }
 
+    private readonly TestObject _testObject = new TestObject();
+    private readonly JsonSerializerOptions _jsonSerializerOptions;
+
     public ProjectPage()
     {
         InitializeComponent();
-        TestObject testObject = new TestObject();
-        ObjectPropertiesEditor.DataContext = new ViewModels.ObjectPropertiesEditor(testObject, "Test Object");
+        var objectPropertiesEditor = new ViewModels.ObjectPropertiesEditor(_testObject, "Test Object");
+        ObjectPropertiesEditor.DataContext = objectPropertiesEditor;
+        objectPropertiesEditor.OnRefresh += () => PrintJson(_testObject);
+        var configReferenceResolver = new ConfigReferenceResolver(App.Main.Engine.Assets);
+        _jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions(configReferenceResolver);
+        _jsonSerializerOptions.WriteIndented = true;
+    }
+
+    private void PrintJson(object obj)
+    {
+
+        string json = JsonSerializer.Serialize(obj, _jsonSerializerOptions);
+        Console.WriteLine(json);
     }
 }

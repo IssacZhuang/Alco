@@ -59,6 +59,7 @@ public class PropertyListEditor<T> : PropertyListEditor
         foreach (var item in _list)
         {
             PropertyEditor propertyEditor = CreatePropertyEditor(_list, new AccessListItemInfo<T>(_list, _list.IndexOf(item)));
+            propertyEditor.Parent = this;
             _itemEditors.Add(propertyEditor.CreateControl());
         }
     }
@@ -75,13 +76,16 @@ public class PropertyListEditor<T> : PropertyListEditor
         }
 
         PropertyEditor propertyEditor = CreatePropertyEditor(_list, new AccessListItemInfo<T>(_list, _list.Count - 1));
+        propertyEditor.Parent = this;
         _itemEditors.Add(propertyEditor.CreateControl());
+        Refresh();
     }
 
     public override void RemoveAt(int index)
     {
         _list.RemoveAt(index);
         _itemEditors.RemoveAt(index);
+        Refresh();
     }
 
     public override void RemoveLast()

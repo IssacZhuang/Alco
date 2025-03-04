@@ -13,6 +13,7 @@ public abstract class PropertyEditor : ViewModelBase
     public AccessMemberInfo MemberInfo { get; }
     public object Target { get; }
     public virtual bool HasTitle => true;
+    public PropertyEditor? Parent { get; set; }
 
     public PropertyEditor(object target, AccessMemberInfo memberInfo)
     {
@@ -71,5 +72,6 @@ public abstract class PropertyEditor : ViewModelBase
     public void Refresh()
     {
         OnRefresh?.Invoke();
+        Parent?.Refresh();
     }
 }

@@ -144,6 +144,7 @@ public class PropertyVector4Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
+        Refresh();
     }
 
     private void SetValueY(decimal value)
@@ -169,6 +170,7 @@ public class PropertyVector4Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
+        Refresh();
     }
 
     private void SetValueZ(decimal value)
@@ -194,6 +196,7 @@ public class PropertyVector4Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
+        Refresh();
     }
 
     private void SetValueW(decimal value)
@@ -219,5 +222,6 @@ public class PropertyVector4Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
+        Refresh();
     }
 }
