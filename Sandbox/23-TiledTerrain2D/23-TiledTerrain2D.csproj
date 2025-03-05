@@ -10,6 +10,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\..\Sandbox\~SandboxUtils\~SandboxUtils.csproj" />
-    <ProjectReference Include="..\..\Tool\Alco.AssetsBuilder\Alco.AssetsBuilder.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
+      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
