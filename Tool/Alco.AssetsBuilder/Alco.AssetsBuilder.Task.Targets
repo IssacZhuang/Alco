@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <!-- Define properties -->
+    <PropertyGroup>
+        <AssetsSourceDirectory Condition="'$(AssetsSourceDirectory)' == ''">
+            $(MSBuildProjectDirectory)\Assets</AssetsSourceDirectory>
+        <AssetsTargetDirectory Condition="'$(AssetsTargetDirectory)' == ''">$(OutputPath)\Assets</AssetsTargetDirectory>
+    </PropertyGroup>
+
+    <!-- Define targets -->
+    <Target Name="CopyAssetsToOutput" AfterTargets="Build"
+        Condition="Exists('$(AssetsSourceDirectory)')">
+        <Message Text="Copying Assets from '$(AssetsSourceDirectory)' to '$(AssetsTargetDirectory)'"
+            Importance="high" />
+
+        <!-- Create the target directory if it doesn't exist -->
+        <MakeDir Directories="$(AssetsTargetDirectory)"
+            Condition="!Exists('$(AssetsTargetDirectory)')" />
+
+        <!-- Copy all files from the Assets directory to the output directory -->
+        <ItemGroup>
+            <AssetFiles Include="$(AssetsSourceDirectory)\**\*.*" />
+        </ItemGroup>
+
+        <Copy
+            SourceFiles="@(AssetFiles)"
+            DestinationFiles="@(AssetFiles->'$(AssetsTargetDirectory)\%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true" />
+
+        <Message Text="Assets copied successfully." Importance="high" />
+    </Target>
+</Project>
