@@ -14,14 +14,7 @@ public partial class GameEngine
 
         //shader
         Assets.RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
-        Assets.RegisterAssetLoader(new AssetLoaderShaderHLSL(Rendering, (string includeName) =>
-        {
-            if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
-            {
-                return Encoding.UTF8.GetString(data.Span);
-            }
-            throw new Exception($"Can not find the include file: {includeName}");
-        }));
+        Assets.RegisterAssetLoader(new AssetLoaderShaderHLSL(Rendering));
         //Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
 
         //aduio
@@ -46,8 +39,6 @@ public partial class GameEngine
         var jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions(configReferenceResolver);
 
         Assets.RegisterAssetLoader(new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver));
-       
-       
         Assets.RegisterAssetEncoder(new AssetEncoderConfig(jsonSerializerOptions));
     }
 }

@@ -35,7 +35,7 @@ public class AssetLoaderShaderHLSL : IAssetLoader
     {
         if (context.AssetType == typeof(Shader))
         {
-            return CreateShader(context.Filename, context.Data);
+            return CreateShader(context);
         }
         else if (context.AssetType == typeof(string))
         {
@@ -44,17 +44,24 @@ public class AssetLoaderShaderHLSL : IAssetLoader
         throw new InvalidOperationException($"Cannot create asset of type {context.AssetType.Name}");
     }
 
-    private object CreateShader(string filename, ReadOnlySpan<byte> file)
+    private object CreateShader(in AssetLoadContext context)
     {
         //ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         IncludeHelper includeHelper = new IncludeHelper();
-        string shaderText = Encoding.UTF8.GetString(file);
+        string shaderText = Encoding.UTF8.GetString(context.Data);
         if (_includeResolver != null)
         {
-            shaderText = includeHelper.ProcessInclude(shaderText, filename, _includeResolver);
+            shaderText = includeHelper.ProcessInclude(shaderText, context.Filename, _includeResolver);
+        }
+        else
+        {
+            AssetSystem assetSystem = context.AssetSystem;
+            shaderText = includeHelper.ProcessInclude(shaderText, context.Filename, (string include) =>
+            {
+                return assetSystem.Load<string>(include);
+            });
         }
 
-        return _renderingSystem.CreateShader(shaderText, filename);
+        return _renderingSystem.CreateShader(shaderText, context.Filename);
     }
-
 }
