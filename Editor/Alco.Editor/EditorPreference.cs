@@ -90,7 +90,7 @@ public class EditorPreference
 
     public void Save()
     {
-        string projectPath = _engine.ProjectDirectory ?? string.Empty;
+        string projectPath = _engine.Project?.FullPath ?? string.Empty;
         Config.OpenedProject = projectPath;
         
         using var handle = _engine.Assets.EncodeToBinary<BaseConfig>(Config);

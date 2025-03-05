@@ -85,6 +85,7 @@ public partial class ObjectPropertiesEditor : UserControl
 
     private void Clear()
     {
-
+        TextHeader.Text = string.Empty;
+        Root.Children.Clear();
     }
 }

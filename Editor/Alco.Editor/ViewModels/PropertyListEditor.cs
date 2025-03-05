@@ -86,15 +86,7 @@ public class PropertyListEditor<T> : PropertyListEditor
 
     public override void Add()
     {
-        if (IsClass)
-        {
-            _list.Add(Activator.CreateInstance<T>());
-        }
-        else
-        {
-            _list.Add(default!);
-        }
-
+        _list.Add(CreateInstance());
         AddControl(_list.Count - 1);
         DoUIChangedEvent();
     }
@@ -164,6 +156,22 @@ public class PropertyListEditor<T> : PropertyListEditor
         grid.Children.Add(propertyControl);
 
         _itemEditors.Add((propertyEditor, grid));
+    }
+
+    private static T CreateInstance()
+    {
+        if (typeof(T) == typeof(string))
+        {
+            return (T)(object)"";
+        }
+        else if (IsClass)
+        {
+            return Activator.CreateInstance<T>();
+        }
+        else
+        {
+            return default!;
+        }
     }
 }
 
