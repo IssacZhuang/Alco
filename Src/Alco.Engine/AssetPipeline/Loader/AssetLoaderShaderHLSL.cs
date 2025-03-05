@@ -31,17 +31,17 @@ public class AssetLoaderShaderHLSL : IAssetLoader
     }
 
     /// <inheritdoc/>
-    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    public object CreateAsset(in AssetLoadContext context)
     {
-        if (targetType == typeof(Shader))
+        if (context.AssetType == typeof(Shader))
         {
-            return CreateShader(filename, file);
+            return CreateShader(context.Filename, context.Data);
         }
-        else if (targetType == typeof(string))
+        else if (context.AssetType == typeof(string))
         {
-            return Encoding.UTF8.GetString(file);
+            return Encoding.UTF8.GetString(context.Data);
         }
-        throw new InvalidOperationException($"Cannot create asset of type {targetType.Name}");
+        throw new InvalidOperationException($"Cannot create asset of type {context.AssetType.Name}");
     }
 
     private object CreateShader(string filename, ReadOnlySpan<byte> file)

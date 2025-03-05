@@ -21,12 +21,12 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
         _renderingSystem = renderingSystem;
     }
 
-    public override object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    public override object CreateAsset(in AssetLoadContext context)
     {
 
         using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
 
-        packer.Add(file, 32, new int2[]{
+        packer.Add(context.Data, 32, new int2[]{
                 UtilsUnicode.RangeBasicLatin,
                 UtilsUnicode.RangeLatin1Supplement,
                 UtilsUnicode.RangeLatinExtendedA,

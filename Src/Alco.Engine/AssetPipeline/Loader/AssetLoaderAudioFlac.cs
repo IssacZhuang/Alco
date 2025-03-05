@@ -20,8 +20,8 @@ public class AssetLoaderAudioFlac : BaseAssetLoader<AudioClip>
         _device = device;
     }
 
-    public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+    public override object CreateAsset(in AssetLoadContext context)
     {
-        return _device.CreateAudioClipFromFlac(data);
+        return _device.CreateAudioClipFromFlac(context.Data);
     }
 }

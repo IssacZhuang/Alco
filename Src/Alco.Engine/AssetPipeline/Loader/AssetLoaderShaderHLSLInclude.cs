@@ -17,8 +17,8 @@ public class AssetLoaderShaderHLSLInclude : BaseAssetLoader<string>
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
     /// <inheritdoc/>
-    public override object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+    public override object CreateAsset(in AssetLoadContext context)
     {
-        return Encoding.UTF8.GetString(data);
+        return Encoding.UTF8.GetString(context.Data);
     }
 }

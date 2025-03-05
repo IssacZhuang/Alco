@@ -1,4 +1,3 @@
-
 namespace Alco.IO;
 
 /// <summary>
@@ -17,6 +16,6 @@ public abstract class BaseAssetLoader<T> : IAssetLoader
         return type == typeof(T);
     }
 
-    public abstract object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType);
+    public abstract object CreateAsset(in AssetLoadContext context);
 }
 

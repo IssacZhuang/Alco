@@ -39,18 +39,18 @@ public class AssetLoaderTexture2D : IAssetLoader
     }
 
     /// <inheritdoc/>
-    public object CreateAsset(string filename, ReadOnlySpan<byte> file, Type targetType)
+    public object CreateAsset(in AssetLoadContext context)
     {
-        if (targetType == typeof(Texture2D))
+        if (context.AssetType == typeof(Texture2D))
         {
-            return _renderingSystem.CreateTexture2DFromFile(file, ImageLoadOption.Default with
+            return _renderingSystem.CreateTexture2DFromFile(context.Data, ImageLoadOption.Default with
             {
-                Name = filename
+                Name = context.Filename
             });
         }
         //todo: create sprite
 
-        throw new InvalidOperationException($"Cannot create asset of type {targetType.Name}");
+        throw new InvalidOperationException($"Cannot create asset of type {context.AssetType.Name}");
     }
 
     

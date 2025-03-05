@@ -33,10 +33,10 @@ public class AssetLoaderConfig : IAssetLoader
         return type.IsAssignableTo(typeof(BaseConfig));
     }
 
-    public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+    public object CreateAsset(in AssetLoadContext context)
     {
-        BaseConfig asset = JsonSerializer.Deserialize<BaseConfig>(data, _options) ?? throw new InvalidOperationException($"Failed to deserialize {filename}");
-        _configReferenceResolver.AddLoadingConfig(filename, asset);
+        BaseConfig asset = JsonSerializer.Deserialize<BaseConfig>(context.Data, _options) ?? throw new InvalidOperationException($"Failed to deserialize {context.Filename}");
+        _configReferenceResolver.AddLoadingConfig(context.Filename, asset);
 
         try
         {
@@ -50,7 +50,7 @@ public class AssetLoaderConfig : IAssetLoader
         }
         finally
         {
-            _configReferenceResolver.RemoveLoadingConfig(filename);
+            _configReferenceResolver.RemoveLoadingConfig(context.Filename);
         }
     }
 

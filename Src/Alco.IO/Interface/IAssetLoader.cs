@@ -28,16 +28,14 @@ public interface IAssetLoader
     bool CanHandleType(Type type);
 
     /// <summary>
-    /// Creates an asset from the given filename and data.
+    /// Creates an asset from the given asset load context.
     /// It might throw an exception if the asset cannot be created.
     /// 
     /// <br/> [note] Just throw an exception if the asset cannot be created when implementing this method.
     /// </summary>
-    /// <param name="filename">The filename of the asset.</param>
-    /// <param name="data">The data of the asset.</param>
-    /// <param name="targetType">The type of the asset.</param>
+    /// <param name="context">The asset load context containing filename, data, and target type.</param>
     /// <returns>The created asset.</returns>
-    object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType);
+    object CreateAsset(in AssetLoadContext context);
 }
 
 

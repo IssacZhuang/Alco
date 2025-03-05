@@ -278,7 +278,7 @@ public sealed partial class AssetSystem
     {
         if (TryGetLoader(filename, type, out IAssetLoader? loader))
         {
-            asset = loader.CreateAsset(filename, data, type);
+            asset = loader.CreateAsset(new AssetLoadContext(this, filename, data, type));
             failedReason = string.Empty;
             return true;
         }
@@ -405,7 +405,8 @@ public sealed partial class AssetSystem
 
         try
         {
-            asset = loader.CreateAsset(filename, data.Span, type);
+            var context = new AssetLoadContext(this, filename, data.Span, type);
+            asset = loader.CreateAsset(in context);
             data.Dispose();
         }
         catch (Exception ex)

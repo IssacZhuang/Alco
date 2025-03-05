@@ -68,7 +68,7 @@ public class TestAssetSystem
             return type == typeof(TestFastAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public object CreateAsset(in AssetLoadContext context)
         {
             return new TestFastAsset();
         }
@@ -85,8 +85,9 @@ public class TestAssetSystem
             return type == typeof(TestSlowAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public object CreateAsset(in AssetLoadContext context)
         {
+            Thread.Sleep(100);
             return new TestSlowAsset();
         }
     }
@@ -103,9 +104,9 @@ public class TestAssetSystem
             return type == typeof(TestFastAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public object CreateAsset(in AssetLoadContext context)
         {
-            return null;
+            return null!;
         }
     }
 
@@ -120,9 +121,9 @@ public class TestAssetSystem
             return type == typeof(TestFastAsset);
         }
 
-        public object CreateAsset(string filename, ReadOnlySpan<byte> data, Type targetType)
+        public object CreateAsset(in AssetLoadContext context)
         {
-            throw new Exception("Test Exception");
+            throw new Exception("Test exception");
         }
     }
 
