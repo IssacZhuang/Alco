@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+    <ProjectReference Include="..\Alco.Project\Alco.Project.csproj" />
   </ItemGroup>
 
   <ItemGroup>

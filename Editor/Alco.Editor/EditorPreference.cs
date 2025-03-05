@@ -97,14 +97,21 @@ public class EditorPreference
         File.WriteAllBytes(_preferenceFilePath, handle.Span);
     }
 
-    private void TryOpenProject(string projectPath)
+    private void TryOpenProject(string projectFilePath)
     {
-        if (string.IsNullOrEmpty(projectPath))
+        if (string.IsNullOrEmpty(projectFilePath))
         {
             return;
         }
 
-        _engine.OpenProject(projectPath);
+        try
+        {
+            _engine.OpenProject(projectFilePath);
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Failed to open project: {projectFilePath}", e);
+        }
     }
 }
 

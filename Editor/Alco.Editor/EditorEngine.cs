@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Alco.Engine;
 using Alco.IO;
+using Alco.Project;
 using Avalonia.Threading;
 
 namespace Alco.Editor;
@@ -19,9 +20,11 @@ public class EditorEngine : GameEngine
     private readonly Lock _lockProject = new();
     private FileSystemWatcher? _projectWatcher;
     private volatile string? _projectDirectory;
+    private volatile AlcoProject? _project;
 
     public bool IsProjectOpen => _projectDirectory != null;
     public string? ProjectDirectory => _projectDirectory;
+    public AlcoProject? Project => _project;
 
     public IReadOnlyList<string> AllFilesInProject
     {
@@ -57,50 +60,52 @@ public class EditorEngine : GameEngine
     /// <summary>
     /// Open a project at the specified path.
     /// </summary>
-    /// <param name="projectPath">The path to the project directory.</param>
+    /// <param name="projectFilePath">The path to the project directory.</param>
     /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when the project directory does not exist.</exception>
-    public Task OpenProjectAsync(string projectPath)
+    public Task OpenProjectAsync(string projectFilePath)
     {
-        return Task.Run(() => OpenProject(projectPath));
+        return Task.Run(() => OpenProject(projectFilePath));
     }
 
     /// <summary>
     /// Open a project at the specified path.
     /// </summary>
-    /// <param name="projectPath">The path to the project directory.</param>
+    /// <param name="projectFilePath">The path to the project directory.</param>
     /// <exception cref="InvalidOperationException">Thrown when a project is already open.</exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when the project directory does not exist.</exception>
-    public void OpenProject(string projectPath)
+    public void OpenProject(string projectFilePath)
     {
         using (_lockProject.EnterScope())
         {
-            OpenProjectCore(projectPath);
+            OpenProjectCore(projectFilePath);
         }
     }
 
-    private void OpenProjectCore(string projectPath)
+    private void OpenProjectCore(string projectFilePath)
     {
-        if (!Directory.Exists(projectPath))
+        if (!File.Exists(projectFilePath))
         {
-            throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
+            throw new FileNotFoundException($"Project file not found: {projectFilePath}");
         }
+
+        string directory = Path.GetDirectoryName(projectFilePath) ?? throw new InvalidOperationException("Project directory not found");
 
         if (IsProjectOpen)
         {
             CloseProjectCore();
         }
-
         try
         {
-            _projectDirectory = projectPath;
+            _project = new AlcoProject(projectFilePath);
+            _projectDirectory = directory;
             UpdateAllFilesInProject();
             SetupProjectWatcher();
             if (OnProjectOpened != null)
             {
                 Dispatcher.UIThread.InvokeAsync(OnProjectOpened);
             }
-            Log.Info($"Project opened: {projectPath}");
+            Log.Info($"Project opened: {projectFilePath}");
         }
         catch (Exception ex)
         {

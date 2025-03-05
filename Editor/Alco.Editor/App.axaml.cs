@@ -69,16 +69,17 @@ namespace Alco.Editor
         {
             if (EditorWindow == null) return;
 
-            var folders = await EditorWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            var files = await EditorWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Select a folder",
-                AllowMultiple = false
+                Title = "Open Project",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Alco Project") { Patterns = new[] { "*.alco" } }]
             });
 
-            if (folders.Count > 0)
+            if (files.Count > 0)
             {
-                var folder = folders[0];
-                if (folder.TryGetLocalPath() is string path)
+                var file = files[0];
+                if (file.TryGetLocalPath() is string path)
                 {
                     await Engine.OpenProjectAsync(path);
                 }

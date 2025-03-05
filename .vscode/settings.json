@@ -49,5 +49,8 @@
     "slang.additionalSearchPaths": [
         "Src/Alco.Engine/Assets"
     ],
+    "files.associations": {
+        "*.alco": "json"
+    },
     "slang.searchInAllWorkspaceDirectories": false
 }

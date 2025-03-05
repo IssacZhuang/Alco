@@ -4,6 +4,10 @@ namespace Alco.Project;
 
 public struct BuildOption
 {
+    private const string PropertyConfiguration = "Configuration";
+    private const string PropertyRuntimeIdentifier = "RuntimeIdentifier";
+    private const string PropertyOptimize = "Optimize";
+
     public static readonly BuildOption Debug = new BuildOption(BuildMode.Debug, BuildPlatform.Auto, false);
     public static readonly BuildOption Release = new BuildOption(BuildMode.Release, BuildPlatform.Auto, true);
 
@@ -53,6 +57,16 @@ public struct BuildOption
     public string GetOptimize()
     {
         return Optimize ? "true" : "false";
+    }
+
+    public Dictionary<string, string?> GetGlobalProperties()
+    {
+        return new Dictionary<string, string?>
+        {
+            { PropertyConfiguration, GetConfiguration() },
+            { PropertyRuntimeIdentifier, GetRuntimeIdentifier() },
+            { PropertyOptimize, GetOptimize() },
+        };
     }
 
     private static BuildPlatform GetCurrentBuildPlatform()
