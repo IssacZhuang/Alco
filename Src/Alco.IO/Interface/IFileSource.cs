@@ -11,7 +11,7 @@ namespace Alco.IO;
 /// This interface is not recyclable and it will be disposed when the <see cref="AssetSystem"/> is disposed 
 /// or on the <see cref="AssetSystem.RemoveAllFileSource"/> and <see cref="AssetSystem.RemoveFileSource"/>
 /// </summary>
-public interface IFileSource : IDisposable
+public interface IFileSource
 {
     /// <summary>
     /// The priority of this file source, the higher priority will be override the lower priority
