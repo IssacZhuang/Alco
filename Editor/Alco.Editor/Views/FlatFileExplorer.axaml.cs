@@ -21,7 +21,7 @@ public partial class FlatFileExplorer : UserControl
     private bool _disableSelectionChangingEvent = false;
     private readonly List<ViewModels.FileTreeNode> _searchResult = [];
     private readonly List<string> _subPaths = [];
-
+    private string _currentPath = "";
 
     public AvaloniaList<ViewModels.FileTreeNode> Rows
     {
@@ -31,6 +31,11 @@ public partial class FlatFileExplorer : UserControl
     public FlatFileExplorer()
     {
         InitializeComponent();
+    }
+
+    public void Refresh()
+    {
+        EnterFolder(_currentPath);
     }
 
     public void SetSearchResult(string file)
@@ -165,6 +170,7 @@ public partial class FlatFileExplorer : UserControl
         if (DataContext is not ViewModels.FileExplorer vm)
             return;
 
+        _currentPath = path ?? "";
         var objects = vm.GetItemsInFolder(path);
         if (objects == null || objects.Count == 0)
             return;

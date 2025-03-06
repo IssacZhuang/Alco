@@ -24,10 +24,10 @@ public abstract class Page : ViewModelBase
     public abstract Control Control { get; }
 
     public abstract string Name { get; }
-    public abstract string IconData { get; }
+    public abstract string IconKey { get; }
     public abstract string Tooltip { get; }
 
-    public StreamGeometry IconGeometry => StreamGeometry.Parse(IconData);
+    public StreamGeometry IconGeometry => StreamGeometry.Parse(IconKey);
 
     protected virtual void OnActivated() { }
     protected virtual void OnDeactivated() { }

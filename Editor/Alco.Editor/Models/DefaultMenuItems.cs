@@ -9,21 +9,23 @@ namespace Alco.Editor.Models;
 
 public static class DefaultMenuItems
 {
-    [MenuItem("File/Close Project")]
+    [MenuItem("File/Open Project", 0)]
+    public static async ValueTask OpenProject(Window window)
+    {
+        await App.Main.ShowOpenProjectDialog();
+    }
+
+    [MenuItem("File/Close Project", 1)]
     public static void OpenTest(Window window)
     {
         App.Main.Engine.CloseProject();
     }
 
-    [MenuItem("File/Exit")]
+    [MenuItem("File/Exit", 2)]
     public static void Exit(Window window)
     {
         window.Close();
     }
 
-    [MenuItem("File/Open Project")]
-    public static async ValueTask OpenProject(Window window)
-    {
-        await App.Main.ShowOpenProjectDialog();
-    }
+
 }

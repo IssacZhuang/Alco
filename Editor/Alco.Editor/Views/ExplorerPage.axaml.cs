@@ -28,14 +28,9 @@ public partial class ExplorerPage : UserControl
     public ExplorerPage()
     {
         InitializeComponent();
-    }
-
-    protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToLogicalTree(e);
-        if (!Design.IsDesignMode)
+        if (!Design.IsDesignMode && App.Main.Engine.IsProjectOpen)
         {
-            OnRefreshProjectFiles();
+            OnProjectOpened();
         }
     }
 
@@ -74,31 +69,16 @@ public partial class ExplorerPage : UserControl
 
     private void OnRefreshProjectFiles()
     {
-        if (DataContext is not ViewModels.ExplorerPage viewModel)
-        {
-            throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
-        }
-
-        EditorEngine engine = App.Main.Engine;
-        string? projectDir = engine.ProjectDirectory;
-        if (projectDir == null)
-        {
-            //project is not open
-            return;
-        }
-
-        ViewModels.FileExplorer vmFileTree = new ViewModels.FileSystemExplorer(projectDir);
-        FileTreeView.DataContext = vmFileTree;
-        //FileTreeView.SetSearchResult(null);
+        FileTreeView.Refresh();
     }
     private void OnProjectOpened()
     {
         EditorEngine engine = App.Main.Engine;
-        OnRefreshProjectFiles();
         FileTreeView.IsVisible = engine.IsProjectOpen;
         NoFolderPanel.IsVisible = !engine.IsProjectOpen;
 
-        
+        ViewModels.FileExplorer vmFileTree = new ViewModels.FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
+        FileTreeView.DataContext = vmFileTree;
     }
 
     private void OnProjectClosed()
