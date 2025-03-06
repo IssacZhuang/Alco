@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Alco.Editor.Attributes;
 using Alco.Editor.Models;
@@ -39,6 +40,7 @@ public class ExplorerPage : Page
 
     public unsafe Task<Inspector> OpenFile(EditorEngine engine, string filePath)
     {
+        
         return Task.Run(() =>
         {
             string extension = Path.GetExtension(filePath);

@@ -15,6 +15,7 @@ using Alco.Editor.Attributes;
 using Alco.Editor.Utility;
 using Avalonia;
 using Avalonia.LogicalTree;
+using Alco.Editor.ViewModels;
 
 
 namespace Alco.Editor.Views;
@@ -77,8 +78,13 @@ public partial class ExplorerPage : UserControl
         FileTreeView.IsVisible = engine.IsProjectOpen;
         NoFolderPanel.IsVisible = !engine.IsProjectOpen;
 
-        ViewModels.FileExplorer vmFileTree = new ViewModels.FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
+        ViewModels.FileSystemExplorer vmFileTree = new ViewModels.FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
         FileTreeView.DataContext = vmFileTree;
+        vmFileTree.OnFileOpened += async (file) =>
+        {
+            Inspector inspector = await ViewModel.OpenFile(engine, file?.Path ?? "");
+            MainContentArea.Content = inspector;
+        };
     }
 
     private void OnProjectClosed()

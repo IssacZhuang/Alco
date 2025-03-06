@@ -18,6 +18,8 @@ public class FileSystemExplorer : FileExplorer
     public string BasePath { get; }
     public List<TreeItem<ContextMenuItem?>> ContextMenuItemInfos { get; } = [];
 
+    public event Action<Models.FileSystemItem?>? OnFileOpened;
+
     public FileSystemExplorer(string basePath)
     {
         BasePath = basePath;
@@ -46,7 +48,7 @@ public class FileSystemExplorer : FileExplorer
 
     public override void OpenFile(Models.FileSystemItem? file)
     {
-
+        OnFileOpened?.Invoke(file);
     }
 
     public override ContextMenu CreateFileContextMenu(Models.FileSystemItem file)
