@@ -1,19 +1,27 @@
 
 
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using Alco.Editor.Attributes;
+using Alco.Editor.Models;
 using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
 
 public class FileSystemTree : FileTree
 {
-    private List<Models.FileSystemItem> _objects = [];
+    private static readonly (MethodInfo, ContextMenuItemAttribute)[] _contextMenuItems = UtilsAttribute.GetMethodsWithAttribute<ContextMenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
+
+    private readonly List<Models.FileSystemItem> _objects = [];
     public string BasePath { get; }
+    public List<TreeItem<ContextMenuItem?>> ContextMenuItemInfos { get; } = [];
 
     public FileSystemTree(string basePath)
     {
         BasePath = basePath;
+        SetupContextMenu();
     }
 
     public override IReadOnlyList<Models.FileSystemItem> GetRevisionFilesUnderFolder(string? subPath)
@@ -44,8 +52,44 @@ public class FileSystemTree : FileTree
     public override ContextMenu CreateFileContextMenu(Models.FileSystemItem file)
     {
         ContextMenu menu = new ContextMenu();
-        menu.Items.Add(new MenuItem { Header = "Open",});
+        foreach (var item in ContextMenuItemInfos)
+        {
+            menu.Items.Add(CreateMenuItem(item, file));
+        }
         return menu;
     }
+
+    private MenuItem CreateMenuItem(TreeItem<ContextMenuItem?> item, Models.FileSystemItem file)
+    {
+        var menuItem = new MenuItem{Header = item.Header};
+        foreach (var child in item.Child)
+        {
+            menuItem.Items.Add(CreateMenuItem(child.Value, file));
+        }
+
+        if (item.UserData != null)
+        {
+            menuItem.Click += (_, _) => item.UserData(file.Path);
+        }
+        return menuItem;
+    }
+
+    private void SetupContextMenu()
+    {
+        ContextMenuItemInfos.Clear();
+        foreach (var (method, attribute) in _contextMenuItems)
+        {
+            try
+            {
+                ContextMenuItemInfos.AddTreeItem(attribute.Path, method.CreateDelegate<ContextMenuItem>());
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to create context menu item: {ex}");
+            }
+        }
+    }
+
+
 }
 
