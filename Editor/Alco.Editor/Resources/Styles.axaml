@@ -1,0 +1,36 @@
+<Styles xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:s="using:Alco.Editor"
+    xmlns:vm="using:Alco.Editor.ViewModels"
+    xmlns:v="using:Alco.Editor.Views"
+    xmlns:c="using:Alco.Editor.Converters"
+    xmlns:ae="using:AvaloniaEdit"
+    xmlns:aee="using:AvaloniaEdit.Editing"
+    xmlns:aes="using:AvaloniaEdit.Search">
+
+    <Style Selector="ToggleButton.tree_expander">
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Width" Value="9" />
+        <Setter Property="Height" Value="9" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="Transparent"
+                    Width="{TemplateBinding Width}"
+                    Height="{TemplateBinding Height}"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center">
+                    <Path x:Name="ChevronPath"
+                        Data="M 4 0 L 8 4 L 4 8 Z"
+                        Fill="{DynamicResource Brush.FG1}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:checked /template/ Path#ChevronPath">
+            <Setter Property="Data" Value="M 0 4 L 8 4 L 4 8 Z" />
+        </Style>
+    </Style>
+</Styles>
