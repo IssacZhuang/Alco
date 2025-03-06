@@ -1,24 +1,26 @@
 using System;
 using System.Collections.Generic;
-
+using System.Linq;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 
 namespace Alco.Editor.Views;
 
-public partial class TreeFileExplorer : UserControl
+public partial class FlatFileExplorer : UserControl
 {
 
-    private List<ViewModels.FileTreeNode> _tree = [];
-    private AvaloniaList<ViewModels.FileTreeNode> _rows = [];
+    private readonly List<ViewModels.FileTreeNode> _tree = [];
+    private readonly AvaloniaList<ViewModels.FileTreeNode> _rows = [];
     private bool _disableSelectionChangingEvent = false;
-    private List<ViewModels.FileTreeNode> _searchResult = [];
+    private readonly List<ViewModels.FileTreeNode> _searchResult = [];
+    private readonly List<string> _subPaths = [];
 
 
     public AvaloniaList<ViewModels.FileTreeNode> Rows
@@ -26,7 +28,7 @@ public partial class TreeFileExplorer : UserControl
         get => _rows;
     }
 
-    public TreeFileExplorer()
+    public FlatFileExplorer()
     {
         InitializeComponent();
     }
@@ -92,43 +94,6 @@ public partial class TreeFileExplorer : UserControl
         GC.Collect();
     }
 
-    public void ToggleNodeIsExpanded(ViewModels.FileTreeNode node)
-    {
-        _disableSelectionChangingEvent = true;
-        node.IsExpanded = !node.IsExpanded;
-
-        var depth = node.Depth;
-        var idx = _rows.IndexOf(node);
-        if (idx == -1)
-            return;
-
-        if (node.IsExpanded)
-        {
-            var subtree = GetChildrenOfTreeNode(node);
-            if (subtree != null && subtree.Count > 0)
-            {
-                var subrows = new List<ViewModels.FileTreeNode>();
-                MakeRows(subrows, subtree, depth + 1);
-                _rows.InsertRange(idx + 1, subrows);
-            }
-        }
-        else
-        {
-            var removeCount = 0;
-            for (int i = idx + 1; i < _rows.Count; i++)
-            {
-                var row = _rows[i];
-                if (row.Depth <= depth)
-                    break;
-
-                removeCount++;
-            }
-            _rows.RemoveRange(idx + 1, removeCount);
-        }
-
-        _disableSelectionChangingEvent = false;
-    }
-
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -150,20 +115,7 @@ public partial class TreeFileExplorer : UserControl
             return;
         }
 
-        foreach (var obj in objects)
-            _tree.Add(new ViewModels.FileTreeNode { Backend = obj });
-
-        _tree.Sort((l, r) =>
-        {
-            if (l.IsFolder == r.IsFolder)
-                return string.Compare(l.Name, r.Name, StringComparison.Ordinal);
-            return l.IsFolder ? -1 : 1;
-        });
-
-        var topTree = new List<ViewModels.FileTreeNode>();
-        MakeRows(topTree, _tree, 0);
-        _rows.AddRange(topTree);
-        GC.Collect();
+        EnterFolder(null);
     }
 
 
@@ -184,11 +136,12 @@ public partial class TreeFileExplorer : UserControl
     {
         if (sender is Grid { DataContext: ViewModels.FileTreeNode { IsFolder: true } node })
         {
-            var posX = e.GetPosition(this).X;
-            if (posX < node.Depth * 16 + 16)
-                return;
+            // var posX = e.GetPosition(this).X;
+            // if (posX < node.Depth * 16 + 16)
+            //     return;
 
-            ToggleNodeIsExpanded(node);
+            // ToggleNodeIsExpanded(node);
+            EnterFolder(node.Backend?.Path);
         }
     }
 
@@ -206,32 +159,35 @@ public partial class TreeFileExplorer : UserControl
         }
     }
 
-    private List<ViewModels.FileTreeNode>? GetChildrenOfTreeNode(ViewModels.FileTreeNode node)
+    private void EnterFolder(string? path)
     {
-        if (!node.IsFolder)
-            return null;
-
-        if (node.Children.Count > 0)
-            return node.Children;
 
         if (DataContext is not ViewModels.FileExplorer vm)
-            return null;
+            return;
 
-        var objects = vm.GetItemsInFolder(node.Backend?.Path);
+        var objects = vm.GetItemsInFolder(path);
         if (objects == null || objects.Count == 0)
-            return null;
+            return;
+
+        _rows.Clear();
+        _tree.Clear();
+        _searchResult.Clear();
+
+        HandlePath(path);
 
         foreach (var obj in objects)
-            node.Children.Add(new ViewModels.FileTreeNode() { Backend = obj });
+            _tree.Add(new ViewModels.FileTreeNode { Backend = obj });
 
-        node.Children.Sort((l, r) =>
+        _tree.Sort((l, r) =>
         {
             if (l.IsFolder == r.IsFolder)
                 return string.Compare(l.Name, r.Name, StringComparison.Ordinal);
             return l.IsFolder ? -1 : 1;
         });
 
-        return node.Children;
+        var rows = new List<ViewModels.FileTreeNode>();
+        MakeRows(rows, _tree, 0);
+        _rows.AddRange(rows);
     }
 
     private static void MakeRows(List<ViewModels.FileTreeNode> rows, List<ViewModels.FileTreeNode> nodes, int depth)
@@ -246,6 +202,47 @@ public partial class TreeFileExplorer : UserControl
 
             MakeRows(rows, node.Children, depth + 1);
         }
+    }
+
+    private void HandlePath(string? path)
+    {
+        _subPaths.Clear();
+        PathStack.Children.Clear();
+
+        var button = new Button { Content = "/" };
+        button.Click += (_, _) => EnterFolder(null);
+        PathStack.Children.Add(button);
+
+        if (path == null)
+        {
+            return;
+        }
+
+        path = path.Replace("\\", "/");
+        _subPaths.AddRange(path.Split('/', StringSplitOptions.None));
+
+        if (_subPaths.Count > 0 && _subPaths.Last() == "")
+        {
+            _subPaths.RemoveAt(_subPaths.Count - 1);
+        }
+
+        for (var i = 0; i < _subPaths.Count; i++)
+        {
+            string subPath = string.Join("/", _subPaths.Take(i + 1));
+            button = new Button { Content = _subPaths[i] };
+            button.Click += (_, _) => EnterFolder(subPath);
+            PathStack.Children.Add(button);
+        }
+    }
+
+    private void OnBtnBackClick(object sender, RoutedEventArgs e)
+    {
+        if (_subPaths.Count == 0)
+            return;
+
+        _subPaths.RemoveAt(_subPaths.Count - 1);
+        string path = string.Join("/", _subPaths);
+        EnterFolder(path);
     }
 }
 
