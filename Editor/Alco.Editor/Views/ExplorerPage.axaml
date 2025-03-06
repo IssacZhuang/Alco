@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:views="clr-namespace:Alco.Editor.Views"
     d:DesignWidth="1200"
     d:DesignHeight="800"
     x:Class="Alco.Editor.Views.ExplorerPage">
@@ -23,9 +24,9 @@
                 </StackPanel>
 
                 <!-- File tree view - initially hidden -->
-                <TreeView x:Name="FileTreeView"
+                <views:RevisionFileTree x:Name="FileTreeView"
                     IsVisible="False"
-                    DoubleTapped="OnFileTreeViewDoubleTapped" />
+                     />
             </Grid>
         </Border>
 

@@ -21,17 +21,13 @@ namespace Alco.Editor.Views;
 
 public partial class ExplorerPage : UserControl
 {
-    private readonly ObservableCollection<TreeViewItem> _rootItems;
     
     private ContextMenu? _contextMenu;
-    private TreeViewItem? _selectedItem;
     public ViewModels.ExplorerPage ViewModel => DataContext as ViewModels.ExplorerPage ?? throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
 
     public ExplorerPage()
     {
         InitializeComponent();
-        _rootItems = new ObservableCollection<TreeViewItem>();
-        FileTreeView.ItemsSource = _rootItems;
     }
 
     protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)
@@ -56,7 +52,6 @@ public partial class ExplorerPage : UserControl
             NoFolderPanel.IsVisible = !engine.IsProjectOpen;
         }
         base.OnAttachedToVisualTree(e);
-        InitializeContextMenu();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -71,46 +66,6 @@ public partial class ExplorerPage : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    private void InitializeContextMenu()
-    {
-        _contextMenu = new ContextMenu();
-
-        var viewModel = DataContext as ViewModels.ExplorerPage;
-        if (viewModel == null) return;
-
-        foreach (var menuItem in viewModel.ContextMenuItemInfos)
-        {
-            var item = CreateMenuItem(menuItem);
-            _contextMenu.Items.Add(item);
-        }
-        FileTreeView.ContextMenu = _contextMenu;
-
-        _contextMenu.Opening += (sender, e) =>
-        {
-            var treeViewItem = FindTreeViewItem(FileTreeView.SelectedItem as Control);
-            if (treeViewItem != null)
-            {
-                _selectedItem = treeViewItem;
-            }
-        };
-    }
-
-    private MenuItem CreateMenuItem(TreeItem<MethodInfo?> menuItem)
-    {
-        var item = new MenuItem { Header = menuItem.Header };
-        foreach (var child in menuItem.Child)
-        {
-            item.Items.Add(CreateMenuItem(child.Value));
-        }
-
-
-        MethodInfo? method = menuItem.UserData;
-        if (method != null)
-        {
-            item.Click += CreateContextMenuItemClickHandler(method);
-        }
-        return item;
-    }
 
     private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
@@ -125,18 +80,16 @@ public partial class ExplorerPage : UserControl
         }
 
         EditorEngine engine = App.Main.Engine;
-        if (!engine.IsProjectOpen)
+        string? projectDir = engine.ProjectDirectory;
+        if (projectDir == null)
         {
-            _rootItems.Clear();
+            //project is not open
             return;
         }
 
-        viewModel.RefreshFileNames(engine);
-        _rootItems.Clear();
-        foreach (var fileName in viewModel.FileNames)
-        {
-            _rootItems.Add(CreateFileTreeView(fileName));
-        }
+        ViewModels.RevisionFileTree vmFileTree = new ViewModels.RevisionFileTree(projectDir);
+        FileTreeView.DataContext = vmFileTree;
+        //FileTreeView.SetSearchResult(null);
     }
     private void OnProjectOpened()
     {
@@ -144,6 +97,8 @@ public partial class ExplorerPage : UserControl
         OnRefreshProjectFiles();
         FileTreeView.IsVisible = engine.IsProjectOpen;
         NoFolderPanel.IsVisible = !engine.IsProjectOpen;
+
+        
     }
 
     private void OnProjectClosed()
@@ -152,62 +107,9 @@ public partial class ExplorerPage : UserControl
         NoFolderPanel.IsVisible = true;
     }
 
-    private TreeViewItem CreateFileTreeView(TreeItem<string> treeItem)
-    {
-        var item = new TreeViewItem
-        {
-            Header = treeItem.Header,
-            Tag = treeItem
-        };
-
-        foreach (var child in treeItem.Child)
-        {
-            item.Items.Add(CreateFileTreeView(child.Value));
-        }
-        return item;
-    }
-
-    private async void OnFileTreeViewDoubleTapped(object? sender, RoutedEventArgs e)
-    {
-        var treeViewItem = FindTreeViewItem(e.Source as Control);
-        if (treeViewItem?.Tag is not TreeItem<string> treeItem) return;
-
-        EditorEngine engine = App.Main.Engine;
-
-        if (treeItem.UserData is string filePath)
-        {
-            ViewModels.Inspector inspector = await ViewModel.OpenFile(engine, filePath);
-            MainContentArea.Content = inspector.CreateControl();
-        }
-    }
-
-    private static TreeViewItem? FindTreeViewItem(Control? element)
-    {
-        while (element != null)
-        {
-            if (element is TreeViewItem item)
-            {
-                return item;
-            }
-            element = element.Parent as Control;
-        }
-        return null;
-    }
-
-    private EventHandler<RoutedEventArgs> CreateContextMenuItemClickHandler(MethodInfo method)
-    {
-        return (s, e) =>
-        {
-            string localPath = string.Empty;
 
 
-            if (_selectedItem != null && _selectedItem.Tag is TreeItem<string> treeItem)
-            {
-                localPath = treeItem.FullPath;
-            }
 
-            method.Invoke(null, [localPath]);
-        };
-    }
+
 
 }
