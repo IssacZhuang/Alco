@@ -7,7 +7,7 @@ namespace Alco.Editor.ViewModels;
 
 public class RevisionFileTreeNode : ObservableObject
 {
-    public Models.Object Backend { get; set; } = null;
+    public Models.Object? Backend { get; set; } = null;
     public int Depth { get; set; } = 0;
     public List<RevisionFileTreeNode> Children { get; set; } = new List<RevisionFileTreeNode>();
 

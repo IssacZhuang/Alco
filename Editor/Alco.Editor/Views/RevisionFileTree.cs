@@ -68,10 +68,10 @@ namespace Alco.Editor.Views
             switch (obj.Type)
             {
                 case Models.ObjectType.Blob:
-                    CreateContent("Icons.File", new Thickness(0, 0, 0, 0));
+                    CreateContent("Icons.File", new Thickness(0, 0, 0, 0), Brushes.White);
                     break;
                 case Models.ObjectType.Commit:
-                    CreateContent("Icons.Submodule", new Thickness(0, 0, 0, 0));
+                    CreateContent("Icons.Submodule", new Thickness(0, 0, 0, 0), Brushes.White);
                     break;
                 default:
                     CreateContent(node.IsExpanded ? "Icons.Folder.Open" : "Icons.Folder", new Thickness(0, 2, 0, 0), Brushes.Goldenrod);
@@ -79,10 +79,10 @@ namespace Alco.Editor.Views
             }
         }
 
-        private void CreateContent(string iconKey, Thickness margin, IBrush fill = null)
+        private void CreateContent(string iconKey, Thickness margin, IBrush? fill = null)
         {
-            var geo = this.FindResource(iconKey) as StreamGeometry;
-            if (geo == null)
+            StreamGeometry? geometry = this.FindResource(iconKey) as StreamGeometry;
+            if (geometry == null)
                 return;
 
             var icon = new Avalonia.Controls.Shapes.Path()
@@ -93,7 +93,7 @@ namespace Alco.Editor.Views
                 Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,
-                Data = geo,
+                Data = geometry,
             };
 
             if (fill != null)
@@ -319,7 +319,7 @@ namespace Alco.Editor.Views
             }
         }
 
-        private List<ViewModels.RevisionFileTreeNode> GetChildrenOfTreeNode(ViewModels.RevisionFileTreeNode node)
+        private List<ViewModels.RevisionFileTreeNode>? GetChildrenOfTreeNode(ViewModels.RevisionFileTreeNode node)
         {
             if (!node.IsFolder)
                 return null;
@@ -330,7 +330,7 @@ namespace Alco.Editor.Views
             if (DataContext is not ViewModels.RevisionFileTree vm)
                 return null;
 
-            var objects = vm.GetRevisionFilesUnderFolder(node.Backend.Path + "/");
+            var objects = vm.GetRevisionFilesUnderFolder(node.Backend?.Path);
             if (objects == null || objects.Count == 0)
                 return null;
 
@@ -347,7 +347,7 @@ namespace Alco.Editor.Views
             return node.Children;
         }
 
-        private void MakeRows(List<ViewModels.RevisionFileTreeNode> rows, List<ViewModels.RevisionFileTreeNode> nodes, int depth)
+        private static void MakeRows(List<ViewModels.RevisionFileTreeNode> rows, List<ViewModels.RevisionFileTreeNode> nodes, int depth)
         {
             foreach (var node in nodes)
             {

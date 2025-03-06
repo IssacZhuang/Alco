@@ -24,7 +24,7 @@ public class RevisionFileTree : ViewModelBase
     public IReadOnlyList<Models.Object> GetRevisionFilesUnderFolder(string? subPath)
     {
         _objects.Clear();
-        subPath = subPath ?? "";
+        subPath ??= "";
         string path = Path.Combine(BasePath, subPath);
         foreach (var entry in Directory.EnumerateFileSystemEntries(path))
         {
