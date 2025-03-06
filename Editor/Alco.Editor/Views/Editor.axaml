@@ -6,7 +6,7 @@
     mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
     x:Class="Alco.Editor.Views.Editor"
     x:DataType="vm:Editor"
-    Icon="/Assets/avalonia-logo.ico"
+    Icon="/AppLogo.ico"
     Title="Alco.Editor">
 
     <Design.DataContext>
