@@ -21,19 +21,21 @@ public class RevisionFileTree : ViewModelBase
         _objects.Clear();
     }
 
-    public List<Models.Object> GetRevisionFilesUnderFolder(string? subPath)
+    public IReadOnlyList<Models.Object> GetRevisionFilesUnderFolder(string? subPath)
     {
+        _objects.Clear();
         subPath = subPath ?? "";
         string path = Path.Combine(BasePath, subPath);
         foreach (var entry in Directory.EnumerateFileSystemEntries(path))
         {
+            string relativePath = Path.GetRelativePath(BasePath, entry);
             if (Directory.Exists(entry))
             {
-                _objects.Add(new Models.Object { Type = Models.ObjectType.Tree, Path = entry });
+                _objects.Add(new Models.Object { Type = Models.ObjectType.Tree, Path = relativePath });
             }
             else
             {
-                _objects.Add(new Models.Object { Type = Models.ObjectType.Blob, Path = entry });
+                _objects.Add(new Models.Object { Type = Models.ObjectType.Blob, Path = relativePath });
             }
         }
         return _objects;

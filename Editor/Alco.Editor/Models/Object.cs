@@ -12,6 +12,6 @@ public enum ObjectType
 public class Object
 {
     public ObjectType Type { get; set; }
-    public string Path { get; set; }
+    public string Path { get; set; } = string.Empty;
 }
 
