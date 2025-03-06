@@ -5,11 +5,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Alco.Editor.ViewModels;
 
-public class RevisionFileTreeNode : ObservableObject
+public class FileTreeNode : ObservableObject
 {
-    public Models.Object? Backend { get; set; } = null;
+    public Models.FileSystemItem? Backend { get; set; } = null;
     public int Depth { get; set; } = 0;
-    public List<RevisionFileTreeNode> Children { get; set; } = new List<RevisionFileTreeNode>();
+    public List<FileTreeNode> Children { get; set; } = new List<FileTreeNode>();
 
     public string Name
     {
@@ -18,7 +18,7 @@ public class RevisionFileTreeNode : ObservableObject
 
     public bool IsFolder
     {
-        get => Backend != null && Backend.Type == Models.ObjectType.Tree;
+        get => Backend != null && Backend.Type == Models.FileSystemItemType.File;
     }
 
     public bool IsExpanded

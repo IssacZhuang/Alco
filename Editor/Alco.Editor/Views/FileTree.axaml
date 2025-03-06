@@ -6,7 +6,7 @@
   xmlns:v="using:Alco.Editor.Views"
   xmlns:vm="using:Alco.Editor.ViewModels"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-  x:Class="Alco.Editor.Views.RevisionFileTree"
+  x:Class="Alco.Editor.Views.FileTree"
   x:Name="ThisControl">
   <v:RevisionFileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
     Background="Transparent"
@@ -29,13 +29,13 @@
     </ListBox.Styles>
 
     <ListBox.ItemTemplate>
-      <DataTemplate DataType="vm:RevisionFileTreeNode">
+      <DataTemplate DataType="vm:FileTreeNode">
         <Grid ColumnDefinitions="16,Auto,Auto,*"
           Margin="{Binding Depth, Converter={x:Static c:IntConverters.ToTreeMargin}}"
           Background="Transparent"
           DoubleTapped="OnTreeNodeDoubleTapped"
           ContextRequested="OnTreeNodeContextRequested">
-          <v:RevisionFileTreeNodeToggleButton Grid.Column="0"
+          <v:FileTreeNodeToggleButton Grid.Column="0"
             Classes="tree_expander"
             Focusable="False"
             HorizontalAlignment="Center"

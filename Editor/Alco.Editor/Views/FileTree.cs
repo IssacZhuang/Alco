@@ -12,16 +12,16 @@ using Avalonia.VisualTree;
 
 namespace Alco.Editor.Views
 {
-    public class RevisionFileTreeNodeToggleButton : ToggleButton
+    public class FileTreeNodeToggleButton : ToggleButton
     {
         protected override Type StyleKeyOverride => typeof(ToggleButton);
 
         protected override void OnPointerPressed(PointerPressedEventArgs e)
         {
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed &&
-                DataContext is ViewModels.RevisionFileTreeNode { IsFolder: true } node)
+                DataContext is ViewModels.FileTreeNode { IsFolder: true } node)
             {
-                var tree = this.FindAncestorOfType<RevisionFileTree>();
+                var tree = this.FindAncestorOfType<FileTree>();
                 tree?.ToggleNodeIsExpanded(node);
             }
 
@@ -31,10 +31,10 @@ namespace Alco.Editor.Views
 
     public class RevisionTreeNodeIcon : UserControl
     {
-        public static readonly StyledProperty<ViewModels.RevisionFileTreeNode> NodeProperty =
-            AvaloniaProperty.Register<RevisionTreeNodeIcon, ViewModels.RevisionFileTreeNode>(nameof(Node));
+        public static readonly StyledProperty<ViewModels.FileTreeNode> NodeProperty =
+            AvaloniaProperty.Register<RevisionTreeNodeIcon, ViewModels.FileTreeNode>(nameof(Node));
 
-        public ViewModels.RevisionFileTreeNode Node
+        public ViewModels.FileTreeNode Node
         {
             get => GetValue(NodeProperty);
             set => SetValue(NodeProperty, value);
@@ -67,11 +67,8 @@ namespace Alco.Editor.Views
             var obj = node.Backend;
             switch (obj.Type)
             {
-                case Models.ObjectType.Blob:
+                case Models.FileSystemItemType.Folder:
                     CreateContent("Icons.File", new Thickness(0, 0, 0, 0), Brushes.White);
-                    break;
-                case Models.ObjectType.Commit:
-                    CreateContent("Icons.Submodule", new Thickness(0, 0, 0, 0), Brushes.White);
                     break;
                 default:
                     CreateContent(node.IsExpanded ? "Icons.Folder.Open" : "Icons.Folder", new Thickness(0, 2, 0, 0), Brushes.Goldenrod);
@@ -109,11 +106,11 @@ namespace Alco.Editor.Views
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            if (SelectedItem is ViewModels.RevisionFileTreeNode { IsFolder: true } node && e.KeyModifiers == KeyModifiers.None)
+            if (SelectedItem is ViewModels.FileTreeNode { IsFolder: true } node && e.KeyModifiers == KeyModifiers.None)
             {
                 if ((node.IsExpanded && e.Key == Key.Left) || (!node.IsExpanded && e.Key == Key.Right))
                 {
-                    this.FindAncestorOfType<RevisionFileTree>()?.ToggleNodeIsExpanded(node);
+                    this.FindAncestorOfType<FileTree>()?.ToggleNodeIsExpanded(node);
                     e.Handled = true;
                 }
             }
@@ -123,21 +120,21 @@ namespace Alco.Editor.Views
         }
     }
 
-    public partial class RevisionFileTree : UserControl
+    public partial class FileTree : UserControl
     {
 
-        private List<ViewModels.RevisionFileTreeNode> _tree = [];
-        private AvaloniaList<ViewModels.RevisionFileTreeNode> _rows = [];
+        private List<ViewModels.FileTreeNode> _tree = [];
+        private AvaloniaList<ViewModels.FileTreeNode> _rows = [];
         private bool _disableSelectionChangingEvent = false;
-        private List<ViewModels.RevisionFileTreeNode> _searchResult = [];
+        private List<ViewModels.FileTreeNode> _searchResult = [];
 
 
-        public AvaloniaList<ViewModels.RevisionFileTreeNode> Rows
+        public AvaloniaList<ViewModels.FileTreeNode> Rows
         {
             get => _rows;
         }
 
-        public RevisionFileTree()
+        public FileTree()
         {
             InitializeComponent();
         }
@@ -147,14 +144,14 @@ namespace Alco.Editor.Views
             _rows.Clear();
             _searchResult.Clear();
 
-            var rows = new List<ViewModels.RevisionFileTreeNode>();
+            var rows = new List<ViewModels.FileTreeNode>();
             if (string.IsNullOrEmpty(file))
             {
                 MakeRows(rows, _tree, 0);
             }
             else
             {
-                if (DataContext is not ViewModels.RevisionFileTree vm)
+                if (DataContext is not ViewModels.FileTree vm)
                     return;
 
                 var objects = vm.GetRevisionFilesUnderFolder(file);
@@ -164,7 +161,7 @@ namespace Alco.Editor.Views
                 var routes = file.Split('/', StringSplitOptions.None);
                 if (routes.Length == 1)
                 {
-                    _searchResult.Add(new ViewModels.RevisionFileTreeNode
+                    _searchResult.Add(new ViewModels.FileTreeNode
                     {
                         Backend = objects[0]
                     });
@@ -175,11 +172,11 @@ namespace Alco.Editor.Views
                     var prefix = string.Empty;
                     for (var i = 0; i < routes.Length - 1; i++)
                     {
-                        var folder = new ViewModels.RevisionFileTreeNode
+                        var folder = new ViewModels.FileTreeNode
                         {
-                            Backend = new Models.Object
+                            Backend = new Models.FileSystemItem
                             {
-                                Type = Models.ObjectType.Tree,
+                                Type = Models.FileSystemItemType.File,
                                 Path = prefix + routes[i],
                             },
                             IsExpanded = true,
@@ -190,7 +187,7 @@ namespace Alco.Editor.Views
                         prefix = folder.Backend + "/";
                     }
 
-                    last.Add(new ViewModels.RevisionFileTreeNode
+                    last.Add(new ViewModels.FileTreeNode
                     {
                         Backend = objects[0]
                     });
@@ -203,7 +200,7 @@ namespace Alco.Editor.Views
             GC.Collect();
         }
 
-        public void ToggleNodeIsExpanded(ViewModels.RevisionFileTreeNode node)
+        public void ToggleNodeIsExpanded(ViewModels.FileTreeNode node)
         {
             _disableSelectionChangingEvent = true;
             node.IsExpanded = !node.IsExpanded;
@@ -218,7 +215,7 @@ namespace Alco.Editor.Views
                 var subtree = GetChildrenOfTreeNode(node);
                 if (subtree != null && subtree.Count > 0)
                 {
-                    var subrows = new List<ViewModels.RevisionFileTreeNode>();
+                    var subrows = new List<ViewModels.FileTreeNode>();
                     MakeRows(subrows, subtree, depth + 1);
                     _rows.InsertRange(idx + 1, subrows);
                 }
@@ -248,7 +245,7 @@ namespace Alco.Editor.Views
             _rows.Clear();
             _searchResult.Clear();
 
-            if (DataContext is not ViewModels.RevisionFileTree vm)
+            if (DataContext is not ViewModels.FileTree vm)
             {
                 GC.Collect();
                 return;
@@ -262,7 +259,7 @@ namespace Alco.Editor.Views
             }
 
             foreach (var obj in objects)
-                _tree.Add(new ViewModels.RevisionFileTreeNode { Backend = obj });
+                _tree.Add(new ViewModels.FileTreeNode { Backend = obj });
 
             _tree.Sort((l, r) =>
             {
@@ -271,7 +268,7 @@ namespace Alco.Editor.Views
                 return l.IsFolder ? -1 : 1;
             });
 
-            var topTree = new List<ViewModels.RevisionFileTreeNode>();
+            var topTree = new List<ViewModels.FileTreeNode>();
             MakeRows(topTree, _tree, 0);
             _rows.AddRange(topTree);
             GC.Collect();
@@ -280,12 +277,12 @@ namespace Alco.Editor.Views
 
         private void OnTreeNodeContextRequested(object sender, ContextRequestedEventArgs e)
         {
-            if (DataContext is ViewModels.RevisionFileTree vm &&
-                sender is Grid { DataContext: ViewModels.RevisionFileTreeNode { Backend: { } obj } } grid)
+            if (DataContext is ViewModels.FileTree vm &&
+                sender is Grid { DataContext: ViewModels.FileTreeNode { Backend: { } obj } } grid)
             {
-                if (obj.Type != Models.ObjectType.Tree)
+                if (obj.Type != Models.FileSystemItemType.File)
                 {
-                    var menu = vm.CreateRevisionFileContextMenu(obj);
+                    var menu = vm.CreateFileContextMenu(obj);
                     menu?.Open(grid);
                 }
             }
@@ -295,7 +292,7 @@ namespace Alco.Editor.Views
 
         private void OnTreeNodeDoubleTapped(object sender, TappedEventArgs e)
         {
-            if (sender is Grid { DataContext: ViewModels.RevisionFileTreeNode { IsFolder: true } node })
+            if (sender is Grid { DataContext: ViewModels.FileTreeNode { IsFolder: true } node })
             {
                 var posX = e.GetPosition(this).X;
                 if (posX < node.Depth * 16 + 16)
@@ -310,16 +307,16 @@ namespace Alco.Editor.Views
             if (_disableSelectionChangingEvent)
                 return;
 
-            if (sender is ListBox { SelectedItem: ViewModels.RevisionFileTreeNode node } && DataContext is ViewModels.RevisionFileTree vm)
+            if (sender is ListBox { SelectedItem: ViewModels.FileTreeNode node } && DataContext is ViewModels.FileTree vm)
             {
                 if (!node.IsFolder)
-                    vm.ViewRevisionFile(node.Backend);
+                    vm.OpenFile(node.Backend);
                 else
-                    vm.ViewRevisionFile(null);
+                    vm.OpenFile(null);
             }
         }
 
-        private List<ViewModels.RevisionFileTreeNode>? GetChildrenOfTreeNode(ViewModels.RevisionFileTreeNode node)
+        private List<ViewModels.FileTreeNode>? GetChildrenOfTreeNode(ViewModels.FileTreeNode node)
         {
             if (!node.IsFolder)
                 return null;
@@ -327,7 +324,7 @@ namespace Alco.Editor.Views
             if (node.Children.Count > 0)
                 return node.Children;
 
-            if (DataContext is not ViewModels.RevisionFileTree vm)
+            if (DataContext is not ViewModels.FileTree vm)
                 return null;
 
             var objects = vm.GetRevisionFilesUnderFolder(node.Backend?.Path);
@@ -335,7 +332,7 @@ namespace Alco.Editor.Views
                 return null;
 
             foreach (var obj in objects)
-                node.Children.Add(new ViewModels.RevisionFileTreeNode() { Backend = obj });
+                node.Children.Add(new ViewModels.FileTreeNode() { Backend = obj });
 
             node.Children.Sort((l, r) =>
             {
@@ -347,7 +344,7 @@ namespace Alco.Editor.Views
             return node.Children;
         }
 
-        private static void MakeRows(List<ViewModels.RevisionFileTreeNode> rows, List<ViewModels.RevisionFileTreeNode> nodes, int depth)
+        private static void MakeRows(List<ViewModels.FileTreeNode> rows, List<ViewModels.FileTreeNode> nodes, int depth)
         {
             foreach (var node in nodes)
             {
@@ -361,6 +358,6 @@ namespace Alco.Editor.Views
             }
         }
 
-        
+
     }
 }
