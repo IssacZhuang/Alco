@@ -75,7 +75,6 @@ public class TestAssetLoaderConfig
         // Arrange
         string json = @"{
             ""$type"": ""Alco.Engine.Test.TestAssetLoaderConfig+TestConfig"",
-            ""Id"": ""config1"",
             ""Name"": ""Test Config"",
             ""Value"": 42
         }";
@@ -88,7 +87,7 @@ public class TestAssetLoaderConfig
         Assert.That(config, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(config.Id, Is.EqualTo("config1"));
+            Assert.That(config.Id, Is.EqualTo("test.json"));
             Assert.That(config.Name, Is.EqualTo("Test Config"));
             Assert.That(config.Value, Is.EqualTo(42));
             Assert.That(config.Reference, Is.Null);
@@ -101,13 +100,11 @@ public class TestAssetLoaderConfig
         // Arrange
         string referencedJson = @"{
             ""$type"": ""Alco.Engine.Test.TestAssetLoaderConfig+TestConfig"",
-            ""Id"": ""config2"",
             ""Name"": ""Referenced Config"",
             ""Value"": 100
         }";
         string mainJson = @"{
             ""$type"": ""Alco.Engine.Test.TestAssetLoaderConfig+TestConfig"",
-            ""Id"": ""config1"",
             ""Name"": ""Main Config"",
             ""Value"": 42,
             ""Reference"": ""config2.json""
@@ -124,10 +121,10 @@ public class TestAssetLoaderConfig
         Assert.That(config.Reference, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(config.Id, Is.EqualTo("config1"));
+            Assert.That(config.Id, Is.EqualTo("config1.json"));
             Assert.That(config.Name, Is.EqualTo("Main Config"));
             Assert.That(config.Value, Is.EqualTo(42));
-            Assert.That(config.Reference.Id, Is.EqualTo("config2"));
+            Assert.That(config.Reference.Id, Is.EqualTo("config2.json"));
             Assert.That(((TestConfig)config.Reference).Name, Is.EqualTo("Referenced Config"));
             Assert.That(((TestConfig)config.Reference).Value, Is.EqualTo(100));
         });
@@ -139,14 +136,12 @@ public class TestAssetLoaderConfig
         // Arrange
         string config1Json = @"{
             ""$type"": ""Alco.Engine.Test.TestAssetLoaderConfig+TestConfig"",
-            ""Id"": ""config1"",
             ""Name"": ""Config 1"",
             ""Value"": 1,
             ""Reference"": ""config2.json""
         }";
         string config2Json = @"{
             ""$type"": ""Alco.Engine.Test.TestAssetLoaderConfig+TestConfig"",
-            ""Id"": ""config2"",
             ""Name"": ""Config 2"",
             ""Value"": 2,
             ""Reference"": ""config1.json""
@@ -163,9 +158,9 @@ public class TestAssetLoaderConfig
         Assert.That(config1.Reference, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(config1.Id, Is.EqualTo("config1"));
-            Assert.That(config1.Reference.Id, Is.EqualTo("config2"));
-            Assert.That(((TestConfig)config1.Reference).Reference.Id, Is.EqualTo("config1"));
+            Assert.That(config1.Id, Is.EqualTo("config1.json"));
+            Assert.That(config1.Reference.Id, Is.EqualTo("config2.json"));
+            Assert.That(((TestConfig)config1.Reference).Reference.Id, Is.EqualTo("config1.json"));
 
             // Verify reference equality
             var config2 = (TestConfig)config1.Reference;
@@ -208,7 +203,6 @@ public class TestAssetLoaderConfig
         // Arrange
         string selfRefJson = @"{
             ""$type"": ""Alco.Engine.Test.TestAssetLoaderConfig+TestConfig"",
-            ""Id"": ""selfRef"",
             ""Name"": ""Self Reference Config"",
             ""Value"": 42,
             ""Reference"": ""self.json""
@@ -224,11 +218,11 @@ public class TestAssetLoaderConfig
         Assert.That(config.Reference, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(config.Id, Is.EqualTo("selfRef"));
+            Assert.That(config.Id, Is.EqualTo("self.json"));
             Assert.That(config.Name, Is.EqualTo("Self Reference Config"));
             Assert.That(config.Value, Is.EqualTo(42));
-            Assert.That(config.Reference.Id, Is.EqualTo("selfRef"));
-            Assert.That(((TestConfig)config.Reference).Reference.Id, Is.EqualTo("selfRef"));
+            Assert.That(config.Reference.Id, Is.EqualTo("self.json"));
+            Assert.That(((TestConfig)config.Reference).Reference.Id, Is.EqualTo("self.json"));
 
             // Verify reference equality
             Assert.That(config.Reference, Is.SameAs(config));

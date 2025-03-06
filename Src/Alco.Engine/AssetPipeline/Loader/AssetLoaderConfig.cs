@@ -36,6 +36,7 @@ public class AssetLoaderConfig : IAssetLoader
     public object CreateAsset(in AssetLoadContext context)
     {
         BaseConfig asset = JsonSerializer.Deserialize<BaseConfig>(context.Data, _options) ?? throw new InvalidOperationException($"Failed to deserialize {context.Filename}");
+        asset.Id = context.Filename;
         _configReferenceResolver.AddLoadingConfig(context.Filename, asset);
 
         try
