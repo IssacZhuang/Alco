@@ -61,8 +61,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 
         _rendering = engine.Rendering;
 
-        _width = math.max(1, window.Size.x);
-        _height = math.max(1, window.Size.y);
+        _width = math.max(1, window.Size.X);
+        _height = math.max(1, window.Size.Y);
 
         _renderPass = renderPass;
         _renderer = _rendering.CreateMaterialRenderer();
@@ -158,8 +158,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private void OnWindowResize(uint2 size)
     {
         _shouldResize = true;
-        _width = size.x;
-        _height = size.y;
+        _width = size.X;
+        _height = size.Y;
         
         _windowSwapchain?.Resize(_width, _height);
     }

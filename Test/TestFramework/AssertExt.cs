@@ -55,9 +55,9 @@ public static class AssertExt
 
     public static void AreEqual(Transform2D expected, Transform2D actual)
     {
-        if (!IsEqual(expected.position, actual.position) ||
-        !IsEqual(expected.rotation, actual.rotation) ||
-        !IsEqual(expected.scale, actual.scale))
+        if (!IsEqual(expected.Position, actual.Position) ||
+        !IsEqual(expected.Rotation, actual.Rotation) ||
+        !IsEqual(expected.Scale, actual.Scale))
         {
             Assert.Fail($"Expected {expected}, but got {actual}");
             //throw new Exception($"Expected {expected}, but got {actual}");
@@ -66,9 +66,9 @@ public static class AssertExt
 
     public static void AreEqual(Transform3D expected, Transform3D actual)
     {
-        if (!IsEqual(expected.position, actual.position) ||
-        !IsEqual(expected.rotation, actual.rotation) ||
-        !IsEqual(expected.scale, actual.scale))
+        if (!IsEqual(expected.Position, actual.Position) ||
+        !IsEqual(expected.Rotation, actual.Rotation) ||
+        !IsEqual(expected.Scale, actual.Scale))
         {
             Assert.Fail($"Expected {expected}, but got {actual}");
             //throw new Exception($"Expected {expected}, but got {actual}");
@@ -121,7 +121,7 @@ public static class AssertExt
 
     private static bool IsEqual(Rotation2D expected, Rotation2D actual)
     {
-        return IsEqual(expected.s, actual.s) && IsEqual(expected.c, actual.c);
+        return IsEqual(expected.S, actual.S) && IsEqual(expected.C, actual.C);
     }
 
 

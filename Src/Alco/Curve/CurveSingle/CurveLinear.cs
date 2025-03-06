@@ -85,7 +85,7 @@ namespace Alco
 
         public void Sort()
         {
-            _points.Sort((CurvePoint<float> a, CurvePoint<float> b) => a.t.CompareTo(b.t));
+            _points.Sort((CurvePoint<float> a, CurvePoint<float> b) => a.Time.CompareTo(b.Time));
         }
         
 
@@ -95,20 +95,20 @@ namespace Alco
             {
                 return 0f;
             }
-            if (x <= _points[0].t)
+            if (x <= _points[0].Time)
             {
-                return _points[0].value;
+                return _points[0].Value;
             }
-            if (x >= _points[_points.Count - 1].t)
+            if (x >= _points[_points.Count - 1].Time)
             {
-                return _points[_points.Count - 1].value;
+                return _points[_points.Count - 1].Value;
             }
            
             int i = BinarySearchFloor(x);
             CurvePoint<float> keyFrame1 = _points[i];
             CurvePoint<float> keyFrame2 = _points[i + 1];
-            float t = (x - keyFrame1.t) / (keyFrame2.t - keyFrame1.t);
-            return math.lerp(keyFrame1.value, keyFrame2.value, t);
+            float t = (x - keyFrame1.Time) / (keyFrame2.Time - keyFrame1.Time);
+            return math.lerp(keyFrame1.Value, keyFrame2.Value, t);
         }
 
         private int BinarySearchFloor(float t){
@@ -117,11 +117,11 @@ namespace Alco
             while (low <= high)
             {
                 int mid = (low + high) / 2;
-                if (t < _points[mid].t)
+                if (t < _points[mid].Time)
                 {
                     high = mid - 1;
                 }
-                else if (t > _points[mid].t)
+                else if (t > _points[mid].Time)
                 {
                     low = mid + 1;
                 }

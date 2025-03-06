@@ -1,16 +1,47 @@
 using Alco.Editor.ViewModels;
 using Alco.Editor.Views;
+using Alco.Engine;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Alco.Editor
 {
     public partial class App : Application
     {
+        public static App Main
+        {
+            get => Current as App ?? throw new InvalidOperationException("App is not initialized");
+        }
+
+        public Views.Editor? EditorWindow { get; private set; }
+        public EditorEngine Engine { get; }
+        public EditorPreference Preference { get; }
+
+
+        public App()
+        {
+            if (!Design.IsDesignMode)
+            {
+                Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
+                Preference = new EditorPreference(Engine);
+            }
+            else
+            {
+                Engine = null!;
+                Preference = null!;
+            }
+
+
+        }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -23,13 +54,36 @@ namespace Alco.Editor
                 // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
                 // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
                 DisableAvaloniaDataAnnotationValidation();
-                desktop.MainWindow = new MainWindow
+                EditorWindow = new Views.Editor
                 {
-                    DataContext = new MainWindowViewModel(),
+                    DataContext = new ViewModels.Editor(),
                 };
+                EditorWindow.Closed += OnClose;
+                desktop.MainWindow = EditorWindow;
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        public async ValueTask ShowOpenProjectDialog()
+        {
+            if (EditorWindow == null) return;
+
+            var files = await EditorWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Open Project",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Alco Project") { Patterns = new[] { "*.alco" } }]
+            });
+
+            if (files.Count > 0)
+            {
+                var file = files[0];
+                if (file.TryGetLocalPath() is string path)
+                {
+                    await Engine.OpenProjectAsync(path);
+                }
+            }
         }
 
         private void DisableAvaloniaDataAnnotationValidation()
@@ -43,6 +97,12 @@ namespace Alco.Editor
             {
                 BindingPlugins.DataValidators.Remove(plugin);
             }
+        }
+
+        private void OnClose(object? sender, EventArgs e)
+        {
+            Preference?.Save();
+            Engine?.Dispose();
         }
     }
 }

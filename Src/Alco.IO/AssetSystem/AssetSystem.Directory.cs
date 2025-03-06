@@ -15,12 +15,23 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
+    /// Get all the asset infos
+    /// </summary>
+    /// <value>All the asset infos</value>
+    public IEnumerable<AssetInfo> AllAssetInfos
+    {
+        get
+        {
+            return AllFileNames.Select(x => new AssetInfo(this, x));
+        }
+    }
+
+    /// <summary>
     /// Check if the file exists
     /// /// </summary>
     /// <param name="filename">The filename to check</param>
     /// <returns>True if the file exists</returns>
     public bool IsFileExist(string filename)
-
     {
         return _fileEntries.ContainsKey(filename);
     }
@@ -41,10 +52,7 @@ public sealed partial class AssetSystem
     /// <param name="fileSource">The file source to remove</param>
     public void RemoveFileSource(IFileSource fileSource)
     {
-        if (_fileSources.Remove(fileSource))
-        {
-            fileSource.Dispose();
-        }
+        _fileSources.Remove(fileSource);
         _isEntryDirty = true;
     }
 
@@ -53,10 +61,6 @@ public sealed partial class AssetSystem
     /// </summary>
     public void RemoveAllFileSource()
     {
-        foreach (var fileSource in _fileSources)
-        {
-            fileSource.Dispose();
-        }
         _fileSources.Clear();
         _isEntryDirty = true;
     }
@@ -101,14 +105,8 @@ public sealed partial class AssetSystem
             {
                 foreach (var file in fileSource.AllFileNames)
                 {
-                    string extension = Path.GetExtension(file);
 
-
-                    if (_recongizedExtensions.Contains(extension))
-                    {
-                        //it can override the file source with the same priority
-                        _fileEntries[ParseEntry(file)] = fileSource;
-                    }
+                    _fileEntries[ParseEntry(file)] = fileSource;
                 }
             }
             _isEntryDirty = false;

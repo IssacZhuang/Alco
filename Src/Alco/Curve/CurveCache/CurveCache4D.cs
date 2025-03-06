@@ -48,15 +48,15 @@ namespace Alco
         public Vector4 Evaluate(float t)
         {
 
-            t = math.clamp(t, _points[0].t, _points[_points.Length - 1].t);
+            t = math.clamp(t, _points[0].Time, _points[_points.Length - 1].Time);
             //find the nearest two point by t and step
-            int index = (int)math.floor((t - _points[0].t) / _step);
+            int index = (int)math.floor((t - _points[0].Time) / _step);
             int index2 = index + 1;
             //interpolate between two points
-            float t1 = _points[index].t;
-            float t2 = _points[index2].t;
-            Vector4 v1 = _points[index].value;
-            Vector4 v2 = _points[index2].value;
+            float t1 = _points[index].Time;
+            float t2 = _points[index2].Time;
+            Vector4 v1 = _points[index].Value;
+            Vector4 v2 = _points[index2].Value;
 
             if (index2 == _points.Length - 1)
             {
@@ -70,17 +70,17 @@ namespace Alco
         {
             if (curve == null) throw new ArgumentNullException(nameof(curve));
 
-            int count = (int)math.floor((curve.Points[curve.PointsCount - 1].t - curve.Points[0].t) / step) + 2;
+            int count = (int)math.floor((curve.Points[curve.PointsCount - 1].Time - curve.Points[0].Time) / step) + 2;
 
             CurvePoint<Vector4>[] points = new CurvePoint<Vector4>[count];
             Parallel.For(0, count - 1, (i) =>
             {
-                float t = curve.Points[0].t + i * step;
+                float t = curve.Points[0].Time + i * step;
                 Vector4 value = curve.Evaluate(t);
 
                 points[i] = new CurvePoint<Vector4>(t, value);
             });
-            points[count - 1] = new CurvePoint<Vector4>(curve.Points[curve.PointsCount - 1].t, curve.Points[curve.PointsCount - 1].value);
+            points[count - 1] = new CurvePoint<Vector4>(curve.Points[curve.PointsCount - 1].Time, curve.Points[curve.PointsCount - 1].Value);
 
             return points;
         }

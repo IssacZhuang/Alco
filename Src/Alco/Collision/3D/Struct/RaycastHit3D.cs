@@ -8,13 +8,13 @@ namespace Alco
 {
     public struct RaycastHit3D
     {
-        public Vector3 point;
-        public Vector3 normal;
-        public float fraction;
+        public Vector3 Point;
+        public Vector3 Normal;
+        public float Fraction;
 
         public override string ToString()
         {
-            return $"point: {point}, normal: {normal}";
+            return $"point: {Point}, normal: {Normal}";
         }
     }
 }

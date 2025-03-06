@@ -17,7 +17,7 @@ namespace Alco
         /// Used for index the target collider in the <see cref="CollisionWorld3D"/> 
         /// <br/> Also can be the custom data for the caster collider.
         /// </summary>
-        public int userData;
+        public int UserData;
 
         public bool HasCollider
         {
@@ -41,7 +41,7 @@ namespace Alco
             return new ColliderRef2D
             {
                 _ptr = (ColliderHeader2D*)collider,
-                _type = collider->Header.type
+                _type = collider->Header.Type
             };
         }
 

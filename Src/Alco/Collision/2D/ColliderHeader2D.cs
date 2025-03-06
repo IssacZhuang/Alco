@@ -2,5 +2,5 @@ namespace Alco;
 
 public struct ColliderHeader2D
 {
-    public ColliderType2D type;
+    public ColliderType2D Type;
 }

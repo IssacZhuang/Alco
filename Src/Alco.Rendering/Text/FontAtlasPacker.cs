@@ -8,7 +8,7 @@ namespace Alco.Rendering;
 /// The atlas packer is used to create a font atlas and unicode to glyph mapping from a ttf font file. <br/>
 /// Can be used to create <see cref="Font"/> instances.
 /// </summary> 
-public unsafe class FontAtlasPacker : AutoDisposable
+public sealed unsafe class FontAtlasPacker : AutoDisposable
 {
     private static readonly int MaxArrayLength = 0xD7AF + 1;
     private readonly stbtt_pack_context _context;
@@ -75,17 +75,17 @@ public unsafe class FontAtlasPacker : AutoDisposable
 
         foreach (var range in unicodeRanges)
         {
-            if (range.x < 0 || range.y > MaxArrayLength || range.x > range.y)
+            if (range.X < 0 || range.Y > MaxArrayLength || range.X > range.Y)
             {
                 continue;
             }
 
             //stbtt_packedchar[] packedchar = new stbtt_packedchar[range.y - range.x + 1];
-            NativeBuffer<stbtt_packedchar> packedchars = new NativeBuffer<stbtt_packedchar>(range.y - range.x + 1);
+            NativeBuffer<stbtt_packedchar> packedchars = new NativeBuffer<stbtt_packedchar>(range.Y - range.X + 1);
 
             stbtt_PackFontRange(_context, font.data, 0, fontSize,
-                    range.x,
-                    range.y - range.x + 1,
+                    range.X,
+                    range.Y - range.X + 1,
                     packedchars.UnsafePointer);
 
 
@@ -103,7 +103,7 @@ public unsafe class FontAtlasPacker : AutoDisposable
                     Advance = packedchar.xadvance * invfontSize
                 };
 
-                _glyphs[i + range.x] = glyphInfo;
+                _glyphs[i + range.X] = glyphInfo;
             }
 
             packedchars.Dispose();

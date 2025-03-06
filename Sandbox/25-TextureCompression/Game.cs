@@ -59,7 +59,7 @@ public class Game : GameEngine
 
 
         Transform2D transform = Transform2D.Identity;
-        transform.scale = new Vector2(_texture.Width, _texture.Height);
+        transform.Scale = new Vector2(_texture.Width, _texture.Height);
 
 
         SpriteConstant constant = new SpriteConstant

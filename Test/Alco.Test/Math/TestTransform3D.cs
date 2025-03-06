@@ -13,16 +13,16 @@ public class TestTransform3D()
     {
         Transform3D parent = new Transform3D()
         {
-            position = new Vector3(1, 2, 3),
-            rotation = math.euler(0.1f, 0.2f, 0.3f),
-            scale = new Vector3(2, 3, 4)
+            Position = new Vector3(1, 2, 3),
+            Rotation = math.euler(0.1f, 0.2f, 0.3f),
+            Scale = new Vector3(2, 3, 4)
         };
 
         Transform3D child = new Transform3D()
         {
-            position = new Vector3(5, 6, 7),
-            rotation = math.euler(0.4f, 0.5f, 0.6f),
-            scale = new Vector3(8, 9, 10)
+            Position = new Vector3(5, 6, 7),
+            Rotation = math.euler(0.4f, 0.5f, 0.6f),
+            Scale = new Vector3(8, 9, 10)
         };
 
         Transform3D transformed = math.transform(parent, child);
@@ -36,14 +36,14 @@ public class TestTransform3D()
     {
         Transform3D parent = new Transform3D()
         {
-            position = new Vector3(1, 2, 3),
-            rotation = math.euler(0.1f, 0.2f, 0.3f),
-            scale = new Vector3(2, 3, 4)
+            Position = new Vector3(1, 2, 3),
+            Rotation = math.euler(0.1f, 0.2f, 0.3f),
+            Scale = new Vector3(2, 3, 4)
         };
 
         Vector3 position = new Vector3(5, 6, 7);
         //transform by hand
-        Vector3 transformed1 = math.mul(parent.rotation, parent.scale * position) + parent.position;
+        Vector3 transformed1 = math.mul(parent.Rotation, parent.Scale * position) + parent.Position;
         //transform by matrix
         Vector3 transformed2 = math.transform(parent.Matrix, position);
 

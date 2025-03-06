@@ -42,7 +42,7 @@ namespace Alco.Test
         [Test(Description = "WeakCache")]
         public void TestWeakCache()
         {
-            WeakCache<TestObject> cache = new WeakCache<TestObject>();
+            WeakCache<string,TestObject> cache = new WeakCache<string,TestObject>();
             TestObject obj = new TestObject(){
                 Value = 123
             };

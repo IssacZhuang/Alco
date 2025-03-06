@@ -11,34 +11,34 @@ namespace Alco
         /// <summary>
         /// The left bottom corner of the box
         /// </summary>
-        public Vector3 min;
+        public Vector3 Min;
         /// <summary>
         /// The right top corner of the box
         /// </summary>
-        public Vector3 max;
+        public Vector3 Max;
 
         public Vector3 Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (min + max) * 0.5f;
+            get => (Min + Max) * 0.5f;
         }
 
         public Vector3 Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => max - min;
+            get => Max - Min;
         }
 
         public BoundingBox3D(Vector3 min, Vector3 max)
         {
-            this.min = min;
-            this.max = max;
+            this.Min = min;
+            this.Max = max;
         }
 
         public bool Intersects(BoundingBox3D other)
         {
-            Vector3 minMax = Vector3.Max(min, other.min);
-            Vector3 maxMin = Vector3.Min(max, other.max);
+            Vector3 minMax = Vector3.Max(Min, other.Min);
+            Vector3 maxMin = Vector3.Min(Max, other.Max);
             Vector3 result = maxMin - minMax;
             return result.X >= 0 && result.Y >= 0 && result.Z >= 0;
             // return min.X <= other.max.X && max.X >= other.min.X &&
@@ -48,22 +48,22 @@ namespace Alco
 
         public bool Contains(Vector3 point)
         {
-            return min.X <= point.X && max.X >= point.X &&
-                   min.Y <= point.Y && max.Y >= point.Y &&
-                   min.Z <= point.Z && max.Z >= point.Z;
+            return Min.X <= point.X && Max.X >= point.X &&
+                   Min.Y <= point.Y && Max.Y >= point.Y &&
+                   Min.Z <= point.Z && Max.Z >= point.Z;
         }
 
         public override string ToString()
         {
-            return $"Box: {min} {max}";
+            return $"Box: {Min} {Max}";
         }
 
         public static BoundingBox3D Merge(BoundingBox3D a, BoundingBox3D b)
         {
             return new BoundingBox3D
             {
-                min = math.min(a.min, b.min),
-                max = math.max(a.max, b.max),
+                Min = math.min(a.Min, b.Min),
+                Max = math.max(a.Max, b.Max),
             };
         }
 
@@ -71,8 +71,8 @@ namespace Alco
         {
             return new BoundingBox3D
             {
-                min = math.max(a.min, b.min),
-                max = math.min(a.max, b.max),
+                Min = math.max(a.Min, b.Min),
+                Max = math.min(a.Max, b.Max),
             };
         }
 

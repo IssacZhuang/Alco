@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Alco.Rendering;
 
-public class IncludeHelper
+public sealed class IncludeHelper
 {
     public const string KeyInclude = "#include"; // #include "Base.hlsli"
     public const string FormatLine = "#line {0} \"{1}\""; // #line line filename

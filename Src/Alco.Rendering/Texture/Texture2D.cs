@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;
 
-public class Texture2D : Texture
+public sealed class Texture2D : Texture
 {
     // bind group include texture and sampeler
     private GPUResourceGroup? _resourcesSample;

@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// A font atlas texture with unicode to glyph mapping.
 /// </summary>
-public unsafe class Font : AutoDisposable
+public sealed unsafe class Font : AutoDisposable
 {
     
     private readonly Texture2D _texture;

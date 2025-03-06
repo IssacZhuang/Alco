@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    x:Class="Alco.Editor.Views.CreateFolderDialog"
+    Title="Create Folder"
+    Width="400"
+    Height="180"
+    WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto" Margin="20,15,20,15">
+        <TextBlock Grid.Row="0"
+            x:Name="TextTitle"
+            Text="Create Folder"
+            Margin="0,0,0,8"
+            FontSize="14" />
+
+        <TextBox 
+            x:Name="InputFolderName"
+            Grid.Row="1"
+            Watermark="Enter folder name"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Center" />
+
+        <TextBlock Grid.Row="2"
+            x:Name="TextError"
+            Text="Error"
+            Margin="0,8,0,8"
+            Foreground="Red"
+            TextWrapping="Wrap" />
+
+        <StackPanel Grid.Row="3"
+            Orientation="Horizontal"
+            HorizontalAlignment="Right"
+            Spacing="10"
+            Margin="0,8,0,0">
+            <Button 
+                x:Name="BtnConfirm"
+                Content="OK"
+                Width="80" />
+            <Button 
+                x:Name="BtnCancel"
+                Content="Cancel"
+                Width="80" />
+        </StackPanel>
+    </Grid>
+</Window> 

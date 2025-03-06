@@ -7,32 +7,32 @@ namespace Alco
 {
     public struct Ray3D
     {
-        public Vector3 origin;
-        public Vector3 displacement;
+        public Vector3 Origin;
+        public Vector3 Displacement;
 
         public Ray3D(Vector3 origin, Vector3 displacement)
         {
-            this.origin = origin;
-            this.displacement = displacement;
+            this.Origin = origin;
+            this.Displacement = displacement;
         }
 
         public static Ray3D CreateWithStartAndEnd(Vector3 start, Vector3 end)
         {
             return new Ray3D
             {
-                origin = start,
-                displacement = end - start
+                Origin = start,
+                Displacement = end - start
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoundingBox3D GetBoundingBox()
         {
-            Vector3 end = origin + displacement;
+            Vector3 end = Origin + Displacement;
             return new BoundingBox3D
             {
-                min = Vector3.Min(origin, end),
-                max = Vector3.Max(origin, end)
+                Min = Vector3.Min(Origin, end),
+                Max = Vector3.Max(Origin, end)
             };
         }
 
@@ -41,12 +41,12 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Ray3D operator *(Ray3D ray, float scalar)
         {
-            return new Ray3D(ray.origin, ray.displacement * scalar);
+            return new Ray3D(ray.Origin, ray.Displacement * scalar);
         }
 
         public override string ToString()
         {
-            return $"origin: {origin}, displacement: {displacement}";
+            return $"origin: {Origin}, displacement: {Displacement}";
         }
     }
 }

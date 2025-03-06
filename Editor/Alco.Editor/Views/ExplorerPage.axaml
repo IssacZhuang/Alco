@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    d:DesignWidth="1200"
+    d:DesignHeight="800"
+    x:Class="Alco.Editor.Views.ExplorerPage">
+    <Grid ColumnDefinitions="250,Auto,*">
+        <!-- File browser area -->
+        <Border Grid.Column="0"
+            BorderBrush="{DynamicResource SystemControlHighlightBaseMediumLowBrush}"
+            BorderThickness="0,0,1,0">
+            <Grid>
+                <!-- Initial state - Open Folder button -->
+                <StackPanel x:Name="NoFolderPanel"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Spacing="10">
+                    <TextBlock Text="No folder opened"
+                        HorizontalAlignment="Center" />
+                    <Button x:Name="OpenFolderButton"
+                        Content="Open Folder"
+                        Click="OnOpenFolderClick" />
+                </StackPanel>
+
+                <!-- File tree view - initially hidden -->
+                <TreeView x:Name="FileTreeView"
+                    IsVisible="False"
+                    DoubleTapped="OnFileTreeViewDoubleTapped" />
+            </Grid>
+        </Border>
+
+        <!-- Splitter between file browser and main area -->
+        <GridSplitter Grid.Column="1"
+            Background="{DynamicResource SystemControlHighlightBaseMediumLowBrush}"
+            ResizeDirection="Columns"
+            Width="4" />
+
+        <!-- Main content area (combined edit and preview) -->
+        <Border Grid.Column="2">
+            <ContentControl x:Name="MainContentArea" />
+        </Border>
+    </Grid>
+</UserControl> 

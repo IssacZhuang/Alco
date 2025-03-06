@@ -288,8 +288,8 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4rotation(Rotation2D rotation)
         {
-            float sin = rotation.s;
-            float cos = rotation.c;
+            float sin = rotation.S;
+            float cos = rotation.C;
             Matrix4x4 identity = Matrix4x4.Identity;
             identity.M11 = cos;
             identity.M12 = -sin;

@@ -56,7 +56,7 @@ public class Game : GameEngine
 
 
         Transform2D transform = Transform2D.Identity;
-        transform.scale = new Vector2(_atlas.RenderTexture.Width, _atlas.RenderTexture.Height);
+        transform.Scale = new Vector2(_atlas.RenderTexture.Width, _atlas.RenderTexture.Height);
 
         SpriteConstant constant = new SpriteConstant
         {

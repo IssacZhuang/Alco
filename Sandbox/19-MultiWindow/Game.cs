@@ -79,13 +79,13 @@ public class Game : GameEngine
 
 
 
-        _windowCamera1.ViewSize = new Vector2(MainWindow.Size.x, MainWindow.Size.y);
+        _windowCamera1.ViewSize = new Vector2(MainWindow.Size.X, MainWindow.Size.Y);
         //window pos to game scene pos
 
         _windowCamera1.Position = ScreenToWorld(new Vector2(1920, 1080), MainWindow.Position, MainWindow.Size);
         _windowCamera1.UpdateBuffer();
 
-        _windowCamera2.ViewSize = new Vector2(_window2.Size.x, _window2.Size.y);
+        _windowCamera2.ViewSize = new Vector2(_window2.Size.X, _window2.Size.Y);
         _windowCamera2.Position = ScreenToWorld(new Vector2(1920, 1080), _window2.Position, _window2.Size);
         _windowCamera2.UpdateBuffer();
 

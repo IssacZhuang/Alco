@@ -53,7 +53,7 @@ public sealed class TileMapHeightBuffer : GraphicsArrayBuffer<float>
     public bool TryGetTileHeight(int x, int y, out float height)
 
     {
-        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        if (x < 0 || y < 0 || x >= _size.X || y >= _size.Y)
         {
             height = 0;
             return false;
@@ -72,7 +72,7 @@ public sealed class TileMapHeightBuffer : GraphicsArrayBuffer<float>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySetTileHeight(int x, int y, float height)
     {
-        if (x < 0 || y < 0 || x >= _size.x || y >= _size.y)
+        if (x < 0 || y < 0 || x >= _size.X || y >= _size.Y)
         {
             return false;
         }
@@ -92,7 +92,7 @@ public sealed class TileMapHeightBuffer : GraphicsArrayBuffer<float>
     public int GetTileIndex(int x, int y)
 
     {
-        return y * _size.x + x;
+        return y * _size.X + x;
     }
 
 }

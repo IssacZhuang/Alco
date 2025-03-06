@@ -54,6 +54,18 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     }
 
     /// <summary>
+    /// Initializes a new instance of the SafeMemoryHandle class by allocating unmanaged memory of the specified size.
+    /// </summary>
+    /// <param name="byteCount">The number of bytes to allocate. Must be non-negative.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when byteCount is negative.</exception>
+    public SafeMemoryHandle(long byteCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(byteCount);
+        _unsafePointer = (byte*)UtilsMemory.Alloc(byteCount);
+        _length = (int)byteCount;
+    }
+
+    /// <summary>
     /// Initializes a new instance of the SafeMemoryHandle class using an existing unmanaged memory pointer.
     /// </summary>
     /// <param name="unsafePointer">Pointer to the unmanaged memory. Must not be null.</param>

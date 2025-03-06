@@ -40,13 +40,12 @@ public sealed partial class AssetSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void StartProfile<T>(string name)
+    private void StartProfile(string name, Type type)
     {
         if (IsProfileEnabled)
         {
-            Profiler.Value!.StartProfile(name, typeof(T).Name);
+            Profiler.Value!.StartProfile(name, type.Name);
         }
-
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -64,6 +63,10 @@ public sealed partial class AssetSystem
     //return finished job count
     internal int DebugWaitForAllJobComplete()
     {
+        if (_asyncLoadQueue == null)
+        {
+            return 0;
+        }
         var list = _asyncLoadQueue.WaitForAllCompleted();
 
         int count = 0;

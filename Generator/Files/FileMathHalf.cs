@@ -35,7 +35,7 @@ public class FileMathHalf
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"min(a.{FieldsLowerCase[i]}, b.{FieldsLowerCase[i]})");
+            builder.Append($"min(a.{FieldsUpperCase[i]}, b.{FieldsUpperCase[i]})");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -55,7 +55,7 @@ public class FileMathHalf
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"max(a.{FieldsLowerCase[i]}, b.{FieldsLowerCase[i]})");
+            builder.Append($"max(a.{FieldsUpperCase[i]}, b.{FieldsUpperCase[i]})");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -75,7 +75,7 @@ public class FileMathHalf
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"abs(a.{FieldsLowerCase[i]})");
+            builder.Append($"abs(a.{FieldsUpperCase[i]})");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -95,7 +95,7 @@ public class FileMathHalf
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"lerp(a.{FieldsLowerCase[i]}, b.{FieldsLowerCase[i]}, t)");
+            builder.Append($"lerp(a.{FieldsUpperCase[i]}, b.{FieldsUpperCase[i]}, t)");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");

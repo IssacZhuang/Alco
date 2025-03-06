@@ -23,15 +23,15 @@ public struct CameraData2D: ICameraData
     public Vector2 Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => transform.scale;
+        get => transform.Scale;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => transform.scale = value;
+        set => transform.Scale = value;
     }
 
     public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => math.matrix4translation(-transform.position) * math.matrix4rotation(math.inverse(transform.rotation));
+        get => math.matrix4translation(-transform.Position) * math.matrix4rotation(math.inverse(transform.Rotation));
     }
 
     public Matrix4x4 ProjectionMatrix
@@ -39,7 +39,7 @@ public struct CameraData2D: ICameraData
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            Vector2 halfSize = transform.scale * 0.5f;
+            Vector2 halfSize = transform.Scale * 0.5f;
             return Matrix4x4.CreateOrthographicOffCenter(
                 -halfSize.X, halfSize.X,    // left, right
                 -halfSize.Y, halfSize.Y,    // bottom, top

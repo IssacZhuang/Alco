@@ -5,19 +5,19 @@ using Alco.Rendering;
 
 public class Cube:ICollisionCaster
 {
-    public Transform2D transform;
-    public ColorFloat color;
-    public bool pendingDestroy;
+    public Transform2D Transform;
+    public ColorFloat Color;
+    public bool PendingDestroy;
 
     public ShapeBox2D Shape
     {
-        get => new ShapeBox2D(transform.position, transform.scale, transform.rotation);
+        get => new ShapeBox2D(Transform.Position, Transform.Scale, Transform.Rotation);
     }
 
     public Cube()
     {
-        transform = Transform2D.Identity;
-        transform.scale = Vector2.One * 80f;
+        Transform = Transform2D.Identity;
+        Transform.Scale = Vector2.One * 80f;
     }
 
 

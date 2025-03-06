@@ -32,7 +32,7 @@ public class FileVector
         //fields
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.AppendLine($"        public {_vectorType} {FieldsLowerCase[i]};");
+            builder.AppendLine($"        public {_vectorType} {FieldsUpperCase[i]};");
         }
         builder.AppendLine();
 
@@ -41,7 +41,7 @@ public class FileVector
         builder.AppendLine("        {");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.AppendLine($"            this.{FieldsLowerCase[i]} = value;");
+            builder.AppendLine($"            this.{FieldsUpperCase[i]} = value;");
         }
         builder.AppendLine("        }");
         builder.AppendLine();
@@ -54,7 +54,7 @@ public class FileVector
         builder.Append($"        public {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"{_vectorType} {FieldsLowerCase[i]}");
+            builder.Append($"{_vectorType} {FieldsUpperCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -67,7 +67,7 @@ public class FileVector
         builder.AppendLine("        {");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.AppendLine($"            this.{FieldsLowerCase[i]} = {FieldsLowerCase[i]};");
+            builder.AppendLine($"            this.{FieldsUpperCase[i]} = {FieldsUpperCase[i]};");
         }
         builder.AppendLine("        }");
         builder.AppendLine();
@@ -88,7 +88,7 @@ public class FileVector
                 builder.Append($"{_vectorType}{lowerSize} value, ");
                 for (int j = lowerSize; j < _vectorSize; j++)
                 {
-                    builder.Append($"{_vectorType} {FieldsLowerCase[j]}");
+                    builder.Append($"{_vectorType} {FieldsUpperCase[j]}");
                     if (j < _vectorSize - 1)
                     {
                         builder.Append(", ");
@@ -101,12 +101,12 @@ public class FileVector
                 builder.AppendLine("        {");
                 for (int j = 0; j < lowerSize; j++)
                 {
-                    builder.AppendLine($"            this.{FieldsLowerCase[j]} = value.{FieldsLowerCase[j]};");
+                    builder.AppendLine($"            this.{FieldsUpperCase[j]} = value.{FieldsUpperCase[j]};");
                 }
 
                 for (int j = lowerSize; j < _vectorSize; j++)
                 {
-                    builder.AppendLine($"            this.{FieldsLowerCase[j]} = {FieldsLowerCase[j]};");
+                    builder.AppendLine($"            this.{FieldsUpperCase[j]} = {FieldsUpperCase[j]};");
                 }
                 builder.AppendLine("        }");
                 builder.AppendLine();
@@ -120,7 +120,7 @@ public class FileVector
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"a.{FieldsLowerCase[i]} + b.{FieldsLowerCase[i]}");
+            builder.Append($"a.{FieldsUpperCase[i]} + b.{FieldsUpperCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -139,7 +139,7 @@ public class FileVector
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"a.{FieldsLowerCase[i]} - b.{FieldsLowerCase[i]}");
+            builder.Append($"a.{FieldsUpperCase[i]} - b.{FieldsUpperCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -158,7 +158,7 @@ public class FileVector
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"a.{FieldsLowerCase[i]} * b.{FieldsLowerCase[i]}");
+            builder.Append($"a.{FieldsUpperCase[i]} * b.{FieldsUpperCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -177,7 +177,7 @@ public class FileVector
         builder.Append($"            return new {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"a.{FieldsLowerCase[i]} / b.{FieldsLowerCase[i]}");
+            builder.Append($"a.{FieldsUpperCase[i]} / b.{FieldsUpperCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -197,7 +197,7 @@ public class FileVector
         builder.Append($"            return new Vector{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"(float)a.{FieldsLowerCase[i]}");
+            builder.Append($"(float)a.{FieldsUpperCase[i]}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -236,7 +236,7 @@ public class FileVector
         builder.Append("            return $\"(");
         for (int i = 0; i < _vectorSize; i++)
         {
-            builder.Append($"{{{FieldsLowerCase[i]}}}");
+            builder.Append($"{{{FieldsUpperCase[i]}}}");
             if (i < _vectorSize - 1)
             {
                 builder.Append(", ");
@@ -262,7 +262,7 @@ public class FileVector
             builder.AppendLine("        {");
             for (int i = 0; i < _vectorSize; i++)
             {
-                builder.AppendLine($"            this.{FieldsLowerCase[i]} = ({_vectorType})value;");
+                builder.AppendLine($"            this.{FieldsUpperCase[i]} = ({_vectorType})value;");
             }
             builder.AppendLine("        }");
             builder.AppendLine();
@@ -276,7 +276,7 @@ public class FileVector
             builder.Append($"        public {_vectorType}{_vectorSize}(");
             for (int i = 0; i < _vectorSize; i++)
             {
-                builder.Append($"{type} {FieldsLowerCase[i]}");
+                builder.Append($"{type} {FieldsUpperCase[i]}");
                 if (i < _vectorSize - 1)
                 {
                     builder.Append(", ");
@@ -289,7 +289,7 @@ public class FileVector
             builder.AppendLine("        {");
             for (int i = 0; i < _vectorSize; i++)
             {
-                builder.AppendLine($"            this.{FieldsLowerCase[i]} = ({_vectorType}){FieldsLowerCase[i]};");
+                builder.AppendLine($"            this.{FieldsUpperCase[i]} = ({_vectorType}){FieldsUpperCase[i]};");
             }
             builder.AppendLine("        }");
             builder.AppendLine();

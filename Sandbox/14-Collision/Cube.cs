@@ -18,7 +18,7 @@ public class Cube
 
     public ShapeBox3D Shape
     {
-        get => new ShapeBox3D(transform.position, transform.scale, transform.rotation);
+        get => new ShapeBox3D(transform.Position, transform.Scale, transform.Rotation);
     }
 
     public ColorFloat Color

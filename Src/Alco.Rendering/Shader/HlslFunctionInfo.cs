@@ -3,7 +3,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public class HlslFunctionInfo
+public sealed class HlslFunctionInfo
 {
     public const string AttributeVertex = @"[shader(""vertex"")]";
     public const string AttributeFragment = @"[shader(""fragment"")]";

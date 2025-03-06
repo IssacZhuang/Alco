@@ -10,13 +10,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint2 min(uint2 a, uint2 b)
         {
-            return new uint2(min(a.x, b.x), min(a.y, b.y));
+            return new uint2(min(a.X, b.X), min(a.Y, b.Y));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint2 max(uint2 a, uint2 b)
         {
-            return new uint2(max(a.x, b.x), max(a.y, b.y));
+            return new uint2(max(a.X, b.X), max(a.Y, b.Y));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

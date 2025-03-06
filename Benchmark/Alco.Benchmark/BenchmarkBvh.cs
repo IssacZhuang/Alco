@@ -49,7 +49,7 @@ public class BenchmarkBvh
             Quaternion rot = random.NextQuaternionRotation();
             boxs3D.Add(new ColliderBox3D
             {
-                shape = new ShapeBox3D(pos, size, rot)
+                Shape = new ShapeBox3D(pos, size, rot)
             });
         }
 
@@ -112,7 +112,7 @@ public class BenchmarkBvh
             Rotation2D rot = random.NextRotation2D();
             boxs2D.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(pos, size, rot)
+                Shape = new ShapeBox2D(pos, size, rot)
             });
         }
 
@@ -122,7 +122,7 @@ public class BenchmarkBvh
             float radius = random.NextFloat(1, 10);
             spheres2D.Add(new ColliderSphere2D
             {
-                shape = new ShapeSphere2D(pos, radius)
+                Shape = new ShapeSphere2D(pos, radius)
             });
         }
 

@@ -23,33 +23,33 @@ namespace Alco.Test
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(20, 0), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(20, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(10, 0), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(10, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
             spheres.Add(new ColliderSphere2D
             {
-                shape = new ShapeSphere2D(new Vector2(-10, 0), 1f)
+                Shape = new ShapeSphere2D(new Vector2(-10, 0), 1f)
             });
 
             spheres.Add(new ColliderSphere2D
             {
-                shape = new ShapeSphere2D(Vector2.Zero, 0.8f)
+                Shape = new ShapeSphere2D(Vector2.Zero, 0.8f)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(-10, 0), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(-10, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
 
@@ -84,9 +84,9 @@ namespace Alco.Test
 
             RayCastResult2D result = bvh.CastRay(ray);
 
-            Assert.IsFalse(!result.hit);
-            TestContext.WriteLine(result.hitInfo.fraction);
-            TestContext.WriteLine(result.hitInfo.point);
+            Assert.IsFalse(!result.Hit);
+            TestContext.WriteLine(result.HitInfo.Fraction);
+            TestContext.WriteLine(result.HitInfo.Point);
 
             boxs.Dispose();
             spheres.Dispose();
@@ -104,22 +104,22 @@ namespace Alco.Test
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(5, 0), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(5, 0), new Vector2(1f), Rotation2D.Identity)
             });
 
             boxs.Add(new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(5, 5), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(5, 5), new Vector2(1f), Rotation2D.Identity)
             });
 
             spheres.Add(new ColliderSphere2D
             {
-                shape = new ShapeSphere2D(Vector2.Zero, 1f)
+                Shape = new ShapeSphere2D(Vector2.Zero, 1f)
             });
 
             for (int i = 0; i < boxs.Length; i++)
@@ -139,29 +139,29 @@ namespace Alco.Test
 
             ColliderBox2D boxCast1 = new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(-2, 1.1f), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(-2, 1.1f), new Vector2(1f), Rotation2D.Identity)
             };
 
             ColliderBox2D boxCast2 = new ColliderBox2D
             {
-                shape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity)
+                Shape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity)
             };
 
             ColliderSphere2D sphereCast1 = new ColliderSphere2D
             {
-                shape = new ShapeSphere2D(new Vector2(-2, 1.1f), 1f)
+                Shape = new ShapeSphere2D(new Vector2(-2, 1.1f), 1f)
             };
 
             ColliderSphere2D sphereCast2 = new ColliderSphere2D
             {
-                shape = new ShapeSphere2D(new Vector2(-1.2f, 0), 1f)
+                Shape = new ShapeSphere2D(new Vector2(-1.2f, 0), 1f)
             };
 
-            Assert.IsFalse(bvh.CastCollider(boxCast1).hit);
-            Assert.IsTrue(bvh.CastCollider(boxCast2).hit);
+            Assert.IsFalse(bvh.CastCollider(boxCast1).Hit);
+            Assert.IsTrue(bvh.CastCollider(boxCast2).Hit);
 
-            Assert.IsFalse(bvh.CastCollider(sphereCast1).hit);
-            Assert.IsTrue(bvh.CastCollider(sphereCast2).hit);
+            Assert.IsFalse(bvh.CastCollider(sphereCast1).Hit);
+            Assert.IsTrue(bvh.CastCollider(sphereCast2).Hit);
 
             boxs.Dispose();
             spheres.Dispose();

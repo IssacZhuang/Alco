@@ -18,7 +18,7 @@ namespace Alco
         {
             get
             {
-                return valueCurve.Points[valueCurve.Points.Count - 1].t - valueCurve.Points[0].t;
+                return valueCurve.Points[valueCurve.Points.Count - 1].Time - valueCurve.Points[0].Time;
             }
         }
 
@@ -32,7 +32,7 @@ namespace Alco
             }
             else
             {
-                this.events = new PriorityList<CurveEvent>(events, (a, b) => a.t.CompareTo(b.t));
+                this.events = new PriorityList<CurveEvent>(events, (a, b) => a.T.CompareTo(b.T));
             }
         }
 
@@ -85,17 +85,17 @@ namespace Alco
 
                 curveEvent = events[i];
 
-                if (curveEvent.t > end)
+                if (curveEvent.T > end)
                 {
                     break;
                 }
 
-                if (curveEvent.IsFollowingDirection(direction) && TryInvokeEventAction(curveEvent.name))
+                if (curveEvent.IsFollowingDirection(direction) && TryInvokeEventAction(curveEvent.Name))
                 {
                     result = true;
                 }
 
-                if (curveEvent.t == end)
+                if (curveEvent.T == end)
                 {
                     _hasEventOnEnd = true;
                     break;

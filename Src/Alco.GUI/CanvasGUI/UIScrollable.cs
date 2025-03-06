@@ -78,28 +78,28 @@ public class UIScrollable : UISelectable
         BoundingBox2D boundContent = GetLocalBound(_content!);
         BoundingBox2D boundPosition = new BoundingBox2D()
         {
-            min = boundSelf.min - boundContent.min,
-            max = boundSelf.max - boundContent.max,
+            Min = boundSelf.Min - boundContent.Min,
+            Max = boundSelf.Max - boundContent.Max,
         };
 
-        if (boundPosition.min.X > 0)
+        if (boundPosition.Min.X > 0)
         {
-            boundPosition.min.X = 0;
+            boundPosition.Min.X = 0;
         }
 
-        if (boundPosition.min.Y > 0)
+        if (boundPosition.Min.Y > 0)
         {
-            boundPosition.min.Y = 0;
+            boundPosition.Min.Y = 0;
         }
 
-        if (boundPosition.max.X < 0)
+        if (boundPosition.Max.X < 0)
         {
-            boundPosition.max.X = 0;
+            boundPosition.Max.X = 0;
         }
 
-        if (boundPosition.max.Y < 0)
+        if (boundPosition.Max.Y < 0)
         {
-            boundPosition.max.Y = 0;
+            boundPosition.Max.Y = 0;
         }
 
         // DebugGUI.Text(boundSelf.ToString());
@@ -111,13 +111,13 @@ public class UIScrollable : UISelectable
             _content!.Position = new Vector2(_content.Position.X, position.Y);
 
             //clmap
-            if (_content.Position.Y < boundPosition.min.Y)
+            if (_content.Position.Y < boundPosition.Min.Y)
             {
-                _content.Position = new Vector2(_content.Position.X, boundPosition.min.Y);
+                _content.Position = new Vector2(_content.Position.X, boundPosition.Min.Y);
             }
-            else if (_content.Position.Y > boundPosition.max.Y)
+            else if (_content.Position.Y > boundPosition.Max.Y)
             {
-                _content.Position = new Vector2(_content.Position.X, boundPosition.max.Y);
+                _content.Position = new Vector2(_content.Position.X, boundPosition.Max.Y);
             }
         }
 
@@ -126,13 +126,13 @@ public class UIScrollable : UISelectable
             _content!.Position = new Vector2(position.X, _content.Position.Y);
 
             //clmap
-            if (_content.Position.X < boundPosition.min.X)
+            if (_content.Position.X < boundPosition.Min.X)
             {
-                _content.Position = new Vector2(boundPosition.min.X, _content.Position.Y);
+                _content.Position = new Vector2(boundPosition.Min.X, _content.Position.Y);
             }
-            else if (_content.Position.X > boundPosition.max.X)
+            else if (_content.Position.X > boundPosition.Max.X)
             {
-                _content.Position = new Vector2(boundPosition.max.X, _content.Position.Y);
+                _content.Position = new Vector2(boundPosition.Max.X, _content.Position.Y);
             }
         }
     }
@@ -140,7 +140,7 @@ public class UIScrollable : UISelectable
     private static BoundingBox2D GetLocalBound(UINode node)
     {
         Transform2D transform = node.RenderTransform;
-        Vector2 halfSize = transform.scale * 0.5f;
+        Vector2 halfSize = transform.Scale * 0.5f;
         return new BoundingBox2D(halfSize, -halfSize);
     }
 }

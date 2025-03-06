@@ -12,8 +12,8 @@ public unsafe struct GridMap<T> : IDisposable where T : unmanaged
     public readonly T defaultValue;
 
     public int2 Size => _size;
-    public int Width => _size.x;
-    public int Height => _size.y;
+    public int Width => _size.X;
+    public int Height => _size.Y;
     public int DataLength => _data.Length;
 
     public unsafe T* UnsafePointer

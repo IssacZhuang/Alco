@@ -136,8 +136,8 @@ public class UIInputTracker : IUIInputTracker
 
     public void SetTextInput(float xNorm, float yNorm, float widthNorm, float heightNorm, int cursor)
     {
-        uint windowWidth = _window.Size.x;
-        uint windowHeight = _window.Size.y;
+        uint windowWidth = _window.Size.X;
+        uint windowHeight = _window.Size.Y;
         _window.StartTextInput((int)(xNorm * windowWidth), (int)(yNorm * windowHeight), (int)(widthNorm * windowWidth), (int)(heightNorm * windowHeight), cursor);
     }
 

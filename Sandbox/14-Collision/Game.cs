@@ -31,7 +31,7 @@ public class Game : GameEngine
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
-        _camera.Tranform.position.Z = -10;
+        _camera.Tranform.Position.Z = -10;
         _camera.UpdateMatrixToGPU();
 
         _renderer = Rendering.CreateMaterialRenderer();
@@ -43,8 +43,8 @@ public class Game : GameEngine
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
         _entity = CreateCube(Color);
-        _entity.transform.position = new Vector3(2, 0, 0);
-        _entity.transform.rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
+        _entity.transform.Position = new Vector3(2, 0, 0);
+        _entity.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
 
         MainWindow.OnResize += OnMainWindowResize;
     }
@@ -64,7 +64,7 @@ public class Game : GameEngine
 
         Vector2 localMousePosition = MainWindow.MousePosition;
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.Position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _entity.Shape, out RaycastHit3D rayCastHit);
 
@@ -76,13 +76,13 @@ public class Game : GameEngine
         DebugGUI.Text(mouseWoldPosition.ToString());
         if (Input.IsMouseDown(Mouse.Left) && hit)
         {
-            offset = _entity.transform.position - mouseWoldPosition;
+            offset = _entity.transform.Position - mouseWoldPosition;
             _isDragging = true;
         }
 
         if (_isDragging)
         {
-            _entity.transform.position = mouseWoldPosition + offset;
+            _entity.transform.Position = mouseWoldPosition + offset;
         }
 
         if (Input.IsMouseUp(Mouse.Left))
@@ -107,7 +107,7 @@ public class Game : GameEngine
 
     protected void OnMainWindowResize(uint2 size)
     {
-        _camera.AspectRatio = (float)size.x / size.y;
+        _camera.AspectRatio = (float)size.X / size.Y;
         _camera.UpdateMatrixToGPU();
     }
 

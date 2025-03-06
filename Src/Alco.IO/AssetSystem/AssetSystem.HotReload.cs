@@ -18,7 +18,7 @@ public sealed partial class AssetSystem
         }
     }
 
-    private readonly ConcurrentDictionary<Type, object> _hotReloaders = new();
+    private readonly ConcurrentDictionary<Type, IAssetHotReloader> _hotReloaders = new();
     private readonly ConcurrentDictionary<string, HotReloadTask> _hotReloadTasks = new();
 
     public event Action<string, object>? OnHotReload;
@@ -30,7 +30,18 @@ public sealed partial class AssetSystem
     /// <param name="hotReloader">The hot reloader implementation</param>
     public void RegisterAssetHotReloader<TAsset>(IAssetHotReloader hotReloader) where TAsset : class
     {
+        ArgumentNullException.ThrowIfNull(hotReloader);
         _hotReloaders[typeof(TAsset)] = hotReloader;
+    }
+
+    /// <summary>
+    /// Unregister a hot reloader for a specific asset type
+    /// </summary>
+    /// <typeparam name="TAsset">The asset type</typeparam>
+    /// <param name="hotReloader">The hot reloader implementation</param>
+    public void UnregisterAssetHotReloader<TAsset>(IAssetHotReloader hotReloader) where TAsset : class
+    {
+        _hotReloaders.TryRemove(typeof(TAsset), out _);
     }
 
     /// <summary>
@@ -80,10 +91,9 @@ public sealed partial class AssetSystem
             return;
         }
 
-        if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out object? hotReloader))
+        if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out IAssetHotReloader? hotReloader))
         {
-            IAssetHotReloader assetHotReloader = (IAssetHotReloader)hotReloader;
-            assetHotReloader.HotReload(cachedAsset, data);
+            hotReloader.HotReload(cachedAsset, data);
         }
         else
         {

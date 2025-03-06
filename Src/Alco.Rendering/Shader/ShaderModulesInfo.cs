@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// Represents a variant of a shader with specific defines and shader modules.
 /// </summary>
-public class ShaderModulesInfo
+public sealed class ShaderModulesInfo
 {
     public string Name { get; }
 

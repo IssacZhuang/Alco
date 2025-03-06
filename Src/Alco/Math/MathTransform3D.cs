@@ -12,9 +12,9 @@ namespace Alco
         {
             return new Transform3D
             {
-                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
-                rotation = parent.rotation * child.rotation,
-                scale = parent.scale * child.scale
+                Position = mul(parent.Rotation, parent.Scale * child.Position) + parent.Position,
+                Rotation = parent.Rotation * child.Rotation,
+                Scale = parent.Scale * child.Scale
             };
         }
 
@@ -23,21 +23,21 @@ namespace Alco
         {
             return new Transform3D
             {
-                position = mul(parent.rotation, parent.scale * child.position) + parent.position,
-                rotation = parent.rotation* child.rotation,
-                scale = parent.scale * child.scale
+                Position = mul(parent.Rotation, parent.Scale * child.Position) + parent.Position,
+                Rotation = parent.Rotation* child.Rotation,
+                Scale = parent.Scale * child.Scale
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Transform3D tolocal(Transform3D parent, Transform3D world)
         {
-            Quaternion invRot = inverse(parent.rotation);
+            Quaternion invRot = inverse(parent.Rotation);
             return new Transform3D
             {
-                position = mul(invRot, world.position - parent.position) / parent.scale,
-                rotation = invRot * world.rotation,
-                scale = world.scale / parent.scale
+                Position = mul(invRot, world.Position - parent.Position) / parent.Scale,
+                Rotation = invRot * world.Rotation,
+                Scale = world.Scale / parent.Scale
             };
         }
 
@@ -59,9 +59,9 @@ namespace Alco
         {
             return new Transform3D
             {
-                position = lerp(a.position, b.position, t),
-                rotation = slerp(a.rotation, b.rotation, t),
-                scale = lerp(a.scale, b.scale, t)
+                Position = lerp(a.Position, b.Position, t),
+                Rotation = slerp(a.Rotation, b.Rotation, t),
+                Scale = lerp(a.Scale, b.Scale, t)
             };
         }
     }

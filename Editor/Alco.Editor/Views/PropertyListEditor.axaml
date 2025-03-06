@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+  x:Class="Alco.Editor.Views.PropertyListEditor">
+  <Expander HorizontalAlignment="Stretch">
+    <Expander.Header>
+      <TextBlock x:Name="TextHeader" Text="Header" />
+    </Expander.Header>
+    <StackPanel Orientation="Vertical">
+      <StackPanel Orientation="Horizontal">
+      <Button Width="40" x:Name="BtnRemove" Margin="5 0" HorizontalContentAlignment="Center"
+          VerticalContentAlignment="Center">-</Button>
+        <Button Width="40" x:Name="BtnAdd" Margin="5 0" HorizontalContentAlignment="Center"
+          VerticalContentAlignment="Center">+</Button>
+        <Button x:Name="BtnClear" Margin="5 0">Clear</Button>
+      </StackPanel>
+      <StackPanel x:Name="Root" Orientation="Vertical" Margin="0 10 0 0" Spacing="10">
+      </StackPanel>
+    </StackPanel>
+  </Expander>
+</UserControl>

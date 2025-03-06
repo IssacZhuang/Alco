@@ -23,7 +23,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float angle(Rotation2D a, Rotation2D b)
         {
-            float dot = a.c * b.c + a.s * b.s;
+            float dot = a.C * b.C + a.S * b.S;
             return acos(min(abs(dot), 1f)) * 2f * sign(dot);
         }
 
@@ -64,28 +64,28 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Vector2 v, Rotation2D q)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
+            return new Vector2(q.C * v.X + q.S * v.Y, q.C * v.Y - q.S * v.X);
         }
 
         //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Rotation2D q, Vector2 v)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
+            return new Vector2(q.C * v.X + q.S * v.Y, q.C * v.Y - q.S * v.X);
         }
 
         //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 mul(Vector2 v, Rotation2D q)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
+            return new Vector2(q.C * v.X + q.S * v.Y, q.C * v.Y - q.S * v.X);
         }
 
         //left handed rotation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 mul(Rotation2D q, Vector2 v)
         {
-            return new Vector2(q.c * v.X + q.s * v.Y, q.c * v.Y - q.s * v.X);
+            return new Vector2(q.C * v.X + q.S * v.Y, q.C * v.Y - q.S * v.X);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -94,20 +94,20 @@ namespace Alco
             // Rotation2D qr;
             // qr.s = q.c * r.s + q.s * r.c; // Change the sign here
             // qr.c = q.c * r.c - q.s * r.s; // Change the sign here
-            return new Rotation2D(q.c * r.s + q.s * r.c, q.c * r.c - q.s * r.s);
+            return new Rotation2D(q.C * r.S + q.S * r.C, q.C * r.C - q.S * r.S);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Rotation2D inverse(Rotation2D q)
         {
-            return new Rotation2D(-q.s, q.c);
+            return new Rotation2D(-q.S, q.C);
         }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 direction(Rotation2D q)
         {
-            return new Vector2(q.c, q.s);
+            return new Vector2(q.C, q.S);
         }
 
         // [MethodImpl(MethodImplOptions.AggressiveInlining)]

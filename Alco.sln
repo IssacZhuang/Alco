@@ -103,6 +103,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alco.IO.Test", "Test\Alco.I
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alco.Rendering.Test", "Test\Alco.Rendering.Test\Alco.Rendering.Test.csproj", "{27C9D667-2370-43C9-8011-E399A714664F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alco.Project", "Editor\Alco.Project\Alco.Project.csproj", "{4B7F61DC-EB5B-4EC8-AFD8-461226B81EEB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -285,6 +287,10 @@ Global
 		{27C9D667-2370-43C9-8011-E399A714664F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{27C9D667-2370-43C9-8011-E399A714664F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{27C9D667-2370-43C9-8011-E399A714664F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B7F61DC-EB5B-4EC8-AFD8-461226B81EEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B7F61DC-EB5B-4EC8-AFD8-461226B81EEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B7F61DC-EB5B-4EC8-AFD8-461226B81EEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B7F61DC-EB5B-4EC8-AFD8-461226B81EEB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -334,5 +340,6 @@ Global
 		{0B24EA7A-BEC7-4043-8F64-6D14A1371E5D} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{F94C788F-20B4-4406-8F28-BEBA9785CC90} = {13EA6E4E-2EBB-42E5-9211-2AAC68B87B6E}
 		{27C9D667-2370-43C9-8011-E399A714664F} = {13EA6E4E-2EBB-42E5-9211-2AAC68B87B6E}
+		{4B7F61DC-EB5B-4EC8-AFD8-461226B81EEB} = {28251423-8E50-9DF4-F913-DC1FAAA673F1}
 	EndGlobalSection
 EndGlobal

@@ -38,6 +38,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 
+    public Shader Shader_Sprite9Slice => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite9Slice.hlsl");
+
     public Shader Shader_SpriteMasked => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteMasked.hlsl");
 
     public Shader Shader_Text => GetShader("Shaders/Pipelines/Rendering/Text/Text.hlsl");

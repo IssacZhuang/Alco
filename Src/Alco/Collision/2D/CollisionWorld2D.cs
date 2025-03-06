@@ -58,7 +58,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     {
         ColliderBox2D* collider = _targetBoxes.Alloc(new ColliderBox2D
         {
-            shape = shape
+            Shape = shape
         });
 
         PushTargetCore(target, collider);
@@ -73,7 +73,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     {
         ColliderSphere2D* collider = _targetSpheres.Alloc(new ColliderSphere2D
         {
-            shape = shape
+            Shape = shape
         });
 
         PushTargetCore(target, collider);
@@ -90,7 +90,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     {
         ColliderBox2D* collider = _casterBoxes.Alloc(new ColliderBox2D
         {
-            shape = shape
+            Shape = shape
         });
 
         PushCasterCore(caster, collider, userData);
@@ -105,7 +105,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     {
         ColliderSphere2D* collider = _casterSpheres.Alloc(new ColliderSphere2D
         {
-            shape = shape
+            Shape = shape
         });
 
         PushCasterCore(caster, collider, userData);
@@ -138,8 +138,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
             for (int j = 0; j < hitTargets.Length; j++)
             {
                 ColliderCastResult2D target = hitTargets[j];
-                int targetIndex = target.collider.userData;
-                caster.OnHit(_targets[targetIndex], casterCollider.userData);
+                int targetIndex = target.Collider.UserData;
+                caster.OnHit(_targets[targetIndex], casterCollider.UserData);
             }
         }
     }
@@ -156,7 +156,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
         for (int i = 0; i < result.Length; i++)
         {
             ColliderCastResult2D target = result[i];
-            caster.OnHit(_targets[target.collider.userData], userData);
+            caster.OnHit(_targets[target.Collider.UserData], userData);
         }
     }
 
@@ -185,7 +185,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
         for (int i = 0; i < result.Length; i++)
         {
             ColliderCastResult2D target = result[i];
-            caster.OnHit(_targets[target.collider.userData], userData);
+            caster.OnHit(_targets[target.Collider.UserData], userData);
         }
     }
 
@@ -217,7 +217,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
         _targets.Add(target);
         int targetIndex = _targets.Count - 1;
         ColliderRef2D colliderRef = ColliderRef2D.Create(collider);
-        colliderRef.userData = targetIndex;
+        colliderRef.UserData = targetIndex;
         _targetColliders.Add(colliderRef);
     }
 
@@ -225,7 +225,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     private void PushCasterCore<T>(ICollisionCaster caster, T* collider, int userData) where T : unmanaged, ICollider2D
     {
         ColliderRef2D colliderRef = ColliderRef2D.Create(collider);
-        colliderRef.userData = userData;
+        colliderRef.UserData = userData;
         _casterColliders.Add(colliderRef);
         _casters.Add(caster);
     }

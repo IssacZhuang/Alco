@@ -1,5 +1,6 @@
 using System.Text;
 using Alco.Rendering;
+using Alco.IO;
 
 namespace Alco.Engine;
 
@@ -13,14 +14,7 @@ public partial class GameEngine
 
         //shader
         Assets.RegisterAssetLoader(new AssetLoaderShaderHLSLInclude());
-        Assets.RegisterAssetLoader(new AssetLoaderShaderHLSL(Rendering, (string includeName) =>
-        {
-            if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
-            {
-                return Encoding.UTF8.GetString(data.Span);
-            }
-            throw new Exception($"Can not find the include file: {includeName}");
-        }));
+        Assets.RegisterAssetLoader(new AssetLoaderShaderHLSL(Rendering));
         //Assets.RegisterAssetLoader(new AssetLoaderShaderSlang(Rendering, Assets));
 
         //aduio
@@ -40,5 +34,11 @@ public partial class GameEngine
         }));
 
         Assets.RegisterAssetHotReloader<Texture2D>(new AssetHotReloaderTexture2D(Rendering));
+
+        var configReferenceResolver = new ConfigReferenceResolver(Assets);
+        var jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions(configReferenceResolver);
+
+        Assets.RegisterAssetLoader(new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver));
+        Assets.RegisterAssetEncoder(new AssetEncoderConfig(jsonSerializerOptions));
     }
 }
