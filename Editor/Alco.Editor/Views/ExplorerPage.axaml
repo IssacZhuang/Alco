@@ -24,7 +24,7 @@
                 </StackPanel>
 
                 <!-- File tree view - initially hidden -->
-                <views:FileTree x:Name="FileTreeView"
+                <views:TreeFileExplorer x:Name="FileTreeView"
                     IsVisible="False"
                 />
             </Grid>

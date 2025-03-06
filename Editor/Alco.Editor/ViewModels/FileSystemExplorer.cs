@@ -10,7 +10,7 @@ using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
 
-public class FileSystemTree : FileTree
+public class FileSystemExplorer : FileExplorer
 {
     private static readonly (MethodInfo, ContextMenuItemAttribute)[] _contextMenuItems = UtilsAttribute.GetMethodsWithAttribute<ContextMenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
 
@@ -18,13 +18,13 @@ public class FileSystemTree : FileTree
     public string BasePath { get; }
     public List<TreeItem<ContextMenuItem?>> ContextMenuItemInfos { get; } = [];
 
-    public FileSystemTree(string basePath)
+    public FileSystemExplorer(string basePath)
     {
         BasePath = basePath;
         SetupContextMenu();
     }
 
-    public override IReadOnlyList<Models.FileSystemItem> GetRevisionFilesUnderFolder(string? subPath)
+    public override IReadOnlyList<Models.FileSystemItem> GetItemsInFolder(string? subPath)
     {
         _objects.Clear();
         subPath ??= "";

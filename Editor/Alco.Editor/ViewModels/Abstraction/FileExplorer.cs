@@ -6,14 +6,14 @@ using Avalonia.Controls;
 namespace Alco.Editor.ViewModels;
 
 
-public abstract class FileTree : ViewModelBase
+public abstract class FileExplorer : ViewModelBase
 {
     /// <summary>
     /// Get file item in path
     /// </summary>
     /// <param name="subPath">sub path of the file</param>
     /// <returns>file item list</returns>
-    public abstract IReadOnlyList<Models.FileSystemItem> GetRevisionFilesUnderFolder(string? subPath);
+    public abstract IReadOnlyList<Models.FileSystemItem> GetItemsInFolder(string? subPath);
 
     /// <summary>
     /// Called when a file is double clicked

@@ -87,7 +87,7 @@ public partial class ExplorerPage : UserControl
             return;
         }
 
-        ViewModels.FileTree vmFileTree = new ViewModels.FileSystemTree(projectDir);
+        ViewModels.FileExplorer vmFileTree = new ViewModels.FileSystemExplorer(projectDir);
         FileTreeView.DataContext = vmFileTree;
         //FileTreeView.SetSearchResult(null);
     }

@@ -21,7 +21,7 @@ public class FileTreeNodeToggleButton : ToggleButton
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed &&
             DataContext is ViewModels.FileTreeNode { IsFolder: true } node)
         {
-            var tree = this.FindAncestorOfType<FileTree>();
+            var tree = this.FindAncestorOfType<TreeFileExplorer>();
             tree?.ToggleNodeIsExpanded(node);
         }
 
@@ -29,10 +29,10 @@ public class FileTreeNodeToggleButton : ToggleButton
     }
 }
 
-public class RevisionTreeNodeIcon : UserControl
+public class FileTreeNodeIcon : UserControl
 {
     public static readonly StyledProperty<ViewModels.FileTreeNode> NodeProperty =
-        AvaloniaProperty.Register<RevisionTreeNodeIcon, ViewModels.FileTreeNode>(nameof(Node));
+        AvaloniaProperty.Register<FileTreeNodeIcon, ViewModels.FileTreeNode>(nameof(Node));
 
     public ViewModels.FileTreeNode Node
     {
@@ -41,7 +41,7 @@ public class RevisionTreeNodeIcon : UserControl
     }
 
     public static readonly StyledProperty<bool> IsExpandedProperty =
-        AvaloniaProperty.Register<RevisionTreeNodeIcon, bool>(nameof(IsExpanded));
+        AvaloniaProperty.Register<FileTreeNodeIcon, bool>(nameof(IsExpanded));
 
     public bool IsExpanded
     {
@@ -49,10 +49,10 @@ public class RevisionTreeNodeIcon : UserControl
         set => SetValue(IsExpandedProperty, value);
     }
 
-    static RevisionTreeNodeIcon()
+    static FileTreeNodeIcon()
     {
-        NodeProperty.Changed.AddClassHandler<RevisionTreeNodeIcon>((icon, _) => icon.UpdateContent());
-        IsExpandedProperty.Changed.AddClassHandler<RevisionTreeNodeIcon>((icon, _) => icon.UpdateContent());
+        NodeProperty.Changed.AddClassHandler<FileTreeNodeIcon>((icon, _) => icon.UpdateContent());
+        IsExpandedProperty.Changed.AddClassHandler<FileTreeNodeIcon>((icon, _) => icon.UpdateContent());
     }
 
     private void UpdateContent()
@@ -100,7 +100,7 @@ public class RevisionTreeNodeIcon : UserControl
     }
 }
 
-public class RevisionFileRowsListBox : ListBox
+public class FileRowsListBox : ListBox
 {
     protected override Type StyleKeyOverride => typeof(ListBox);
 
@@ -110,7 +110,7 @@ public class RevisionFileRowsListBox : ListBox
         {
             if ((node.IsExpanded && e.Key == Key.Left) || (!node.IsExpanded && e.Key == Key.Right))
             {
-                this.FindAncestorOfType<FileTree>()?.ToggleNodeIsExpanded(node);
+                this.FindAncestorOfType<TreeFileExplorer>()?.ToggleNodeIsExpanded(node);
                 e.Handled = true;
             }
         }
@@ -120,7 +120,7 @@ public class RevisionFileRowsListBox : ListBox
     }
 }
 
-public partial class FileTree : UserControl
+public partial class TreeFileExplorer : UserControl
 {
 
     private List<ViewModels.FileTreeNode> _tree = [];
@@ -134,7 +134,7 @@ public partial class FileTree : UserControl
         get => _rows;
     }
 
-    public FileTree()
+    public TreeFileExplorer()
     {
         InitializeComponent();
     }
@@ -151,10 +151,10 @@ public partial class FileTree : UserControl
         }
         else
         {
-            if (DataContext is not ViewModels.FileTree vm)
+            if (DataContext is not ViewModels.FileExplorer vm)
                 return;
 
-            var objects = vm.GetRevisionFilesUnderFolder(file);
+            var objects = vm.GetItemsInFolder(file);
             if (objects == null || objects.Count != 1)
                 return;
 
@@ -245,13 +245,13 @@ public partial class FileTree : UserControl
         _rows.Clear();
         _searchResult.Clear();
 
-        if (DataContext is not ViewModels.FileTree vm)
+        if (DataContext is not ViewModels.FileExplorer vm)
         {
             GC.Collect();
             return;
         }
 
-        var objects = vm.GetRevisionFilesUnderFolder(null);
+        var objects = vm.GetItemsInFolder(null);
         if (objects == null || objects.Count == 0)
         {
             GC.Collect();
@@ -277,14 +277,12 @@ public partial class FileTree : UserControl
 
     private void OnTreeNodeContextRequested(object sender, ContextRequestedEventArgs e)
     {
-        if (DataContext is ViewModels.FileTree vm &&
+        if (DataContext is ViewModels.FileExplorer vm &&
             sender is Grid { DataContext: ViewModels.FileTreeNode { Backend: { } obj } } grid)
         {
-            if (obj.Type != Models.FileSystemItemType.File)
-            {
-                var menu = vm.CreateFileContextMenu(obj);
-                menu?.Open(grid);
-            }
+
+            var menu = vm.CreateFileContextMenu(obj);
+            menu?.Open(grid);
         }
 
         e.Handled = true;
@@ -307,7 +305,7 @@ public partial class FileTree : UserControl
         if (_disableSelectionChangingEvent)
             return;
 
-        if (sender is ListBox { SelectedItem: ViewModels.FileTreeNode node } && DataContext is ViewModels.FileTree vm)
+        if (sender is ListBox { SelectedItem: ViewModels.FileTreeNode node } && DataContext is ViewModels.FileExplorer vm)
         {
             if (!node.IsFolder)
                 vm.OpenFile(node.Backend);
@@ -324,10 +322,10 @@ public partial class FileTree : UserControl
         if (node.Children.Count > 0)
             return node.Children;
 
-        if (DataContext is not ViewModels.FileTree vm)
+        if (DataContext is not ViewModels.FileExplorer vm)
             return null;
 
-        var objects = vm.GetRevisionFilesUnderFolder(node.Backend?.Path);
+        var objects = vm.GetItemsInFolder(node.Backend?.Path);
         if (objects == null || objects.Count == 0)
             return null;
 

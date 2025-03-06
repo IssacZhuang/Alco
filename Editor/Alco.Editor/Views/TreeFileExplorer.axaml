@@ -6,9 +6,9 @@
   xmlns:v="using:Alco.Editor.Views"
   xmlns:vm="using:Alco.Editor.ViewModels"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-  x:Class="Alco.Editor.Views.FileTree"
+  x:Class="Alco.Editor.Views.TreeFileExplorer"
   x:Name="ThisControl">
-  <v:RevisionFileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
+  <v:FileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
     Background="Transparent"
     SelectionMode="Single"
     SelectionChanged="OnRowsSelectionChanged"
@@ -41,11 +41,11 @@
             HorizontalAlignment="Center"
             IsChecked="{Binding IsExpanded, Mode=OneWay}"
             IsVisible="{Binding IsFolder}" />
-          <v:RevisionTreeNodeIcon Grid.Column="1" Width="14" Height="14" Node="{Binding}"
+          <v:FileTreeNodeIcon Grid.Column="1" Width="14" Height="14" Node="{Binding}"
             IsExpanded="{Binding IsExpanded, Mode=OneWay}" />
           <TextBlock Grid.Column="2" Classes="primary" Text="{Binding Name}" Margin="6,0,0,0" />
         </Grid>
       </DataTemplate>
     </ListBox.ItemTemplate>
-  </v:RevisionFileRowsListBox>
+  </v:FileRowsListBox>
 </UserControl>
