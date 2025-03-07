@@ -26,6 +26,7 @@ public class ConfigTypeExplorer : FileExplorer
         {
             Type = ExplorerItemType.Type,
             Path = t.FullName ?? string.Empty,
+            UserData = t
         }));
     }
 

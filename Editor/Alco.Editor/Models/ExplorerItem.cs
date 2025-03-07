@@ -21,5 +21,6 @@ public class ExplorerItem
 {
     public ExplorerItemType Type { get; set; }
     public string Path { get; set; } = string.Empty;
+    public object? UserData { get; set; }
 }
 

@@ -6,8 +6,8 @@
     mc:Ignorable="d"
     xmlns:vm="using:Alco.Editor.ViewModels"
     xmlns:views="using:Alco.Editor.Views"
-    x:Class="Alco.Editor.Views.CraeteConfigDialog"
-    x:DataType="vm:CraeteConfigDialog"
+    x:Class="Alco.Editor.Views.CreateConfigDialog"
+    x:DataType="vm:CreateConfigDialog"
     Title="Create Config File"
     WindowStartupLocation="CenterOwner"
     Width="400"
@@ -37,6 +37,7 @@
 
             <TextBox Grid.Column="1"
                 x:Name="InputFilename"
+                Text="{Binding Filename}"
                 Watermark="Enter filename"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Center" />
@@ -57,5 +58,12 @@
                 Click="OnBtnCancelClick"
                 Width="80" />
         </StackPanel>
+        <TextBlock x:Name="TextWarning"
+            IsVisible="{Binding HasWarning}"
+            Margin="0,8,0,0"
+            FontSize="14"
+            Foreground="Yellow"
+            Text="{Binding Warning}"
+            />
     </StackPanel>
 </Window> 

@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace Alco.Editor.Views;
 
-public partial class CraeteConfigDialog : Window
+public partial class CreateConfigDialog : Window
 {
-    public CraeteConfigDialog()
+    public CreateConfigDialog()
     {
         InitializeComponent();
     }
@@ -18,7 +18,7 @@ public partial class CraeteConfigDialog : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (DataContext is not ViewModels.CraeteConfigDialog viewModel)
+        if (DataContext is not ViewModels.CreateConfigDialog viewModel)
         {
             return;
         }
@@ -28,13 +28,15 @@ public partial class CraeteConfigDialog : Window
 
     public void OnBtnConfirmClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not ViewModels.CraeteConfigDialog viewModel)
+        if (DataContext is not ViewModels.CreateConfigDialog viewModel)
         {
             return;
         }
 
-        viewModel.Confirm();
-        Close();
+        if (viewModel.Confirm())
+        {
+            Close();
+        }
     }
 
     public void OnBtnCancelClick(object? sender, RoutedEventArgs e)

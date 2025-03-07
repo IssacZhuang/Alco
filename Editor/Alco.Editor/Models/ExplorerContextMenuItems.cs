@@ -16,7 +16,7 @@ public static class ExplorerContextMenuItems
     {
         var engine = App.Main.Engine;
         var types = App.Main.TypeDatabase.ConfigTypes;
-        var dialog = new ViewModels.CraeteConfigDialog(types.ToArray());
+        var dialog = new ViewModels.CreateConfigDialog(types.ToArray());
 
         if (engine.ProjectDirectory == null)
         {
@@ -27,11 +27,11 @@ public static class ExplorerContextMenuItems
         string path = Path.Combine(engine.ProjectDirectory, localPath);
         path = File.Exists(path) ? Path.GetDirectoryName(path) ?? string.Empty : path;
 
-        dialog.OnTypeConfirmed += (type) =>
+        dialog.OnTypeConfirmed += (filename, type) =>
         {
             BaseConfig? instance = Activator.CreateInstance(type) as BaseConfig ?? throw new Exception($"The type {type.Name} is not a valid config type.");
             SafeMemoryHandle handle = engine.Assets.EncodeToBinary(instance);
-            path = Path.Combine(path, type.Name + ".json");
+            path = Path.Combine(path, filename + ".json");
             File.WriteAllBytes(path, handle.Span);
         };
         var window = dialog.CreateControl();
