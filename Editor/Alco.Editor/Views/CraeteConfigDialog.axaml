@@ -8,7 +8,7 @@
     xmlns:views="using:Alco.Editor.Views"
     x:Class="Alco.Editor.Views.CraeteConfigDialog"
     x:DataType="vm:CraeteConfigDialog"
-    Title="Create Instance"
+    Title="Create Config File"
     WindowStartupLocation="CenterOwner"
     Width="400"
     SizeToContent="Height"

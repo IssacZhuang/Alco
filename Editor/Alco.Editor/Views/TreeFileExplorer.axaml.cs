@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
@@ -19,6 +22,7 @@ public partial class TreeFileExplorer : UserControl
     private AvaloniaList<ViewModels.FileTreeNode> _rows = [];
     private bool _disableSelectionChangingEvent = false;
     private List<ViewModels.FileTreeNode> _searchResult = [];
+    private CancellationTokenSource? _searchCancellationTokenSource;
 
 
     public AvaloniaList<ViewModels.FileTreeNode> Rows
@@ -245,6 +249,85 @@ public partial class TreeFileExplorer : UserControl
                 continue;
 
             MakeRows(rows, node.Children, depth + 1);
+        }
+    }
+
+    private async void OnSearchBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            await PerformSearch();
+            e.Handled = true;
+        }
+    }
+
+    private void OnBtnClearClick(object sender, RoutedEventArgs e)
+    {
+        InputSearch.Text = "";
+        ResetToDefaultView();
+    }
+
+    private void ResetToDefaultView()
+    {
+        _rows.Clear();
+        _searchResult.Clear();
+
+        var topTree = new List<ViewModels.FileTreeNode>();
+        MakeRows(topTree, _tree, 0);
+        _rows.AddRange(topTree);
+    }
+
+    private async ValueTask PerformSearch()
+    {
+        if (DataContext is not ViewModels.FileExplorer vm)
+            return;
+
+        string? keyword = InputSearch.Text?.Trim();
+
+        if (string.IsNullOrEmpty(keyword))
+        {
+            ResetToDefaultView();
+            return;
+        }
+
+        // Cancel previous search if any
+        _searchCancellationTokenSource?.Cancel();
+        _searchCancellationTokenSource = new CancellationTokenSource();
+
+        try
+        {
+            var searchResults = await vm.SearchItems(keyword, _searchCancellationTokenSource.Token);
+
+            _rows.Clear();
+            _searchResult.Clear();
+
+            if (searchResults != null && searchResults.Count > 0)
+            {
+                foreach (var item in searchResults)
+                {
+                    _searchResult.Add(new ViewModels.FileTreeNode { Backend = item });
+                }
+
+                _searchResult.Sort((l, r) =>
+                {
+                    if (l.IsFolder == r.IsFolder)
+                        return string.Compare(l.Name, r.Name, StringComparison.Ordinal);
+                    return l.IsFolder ? -1 : 1;
+                });
+
+                var rows = new List<ViewModels.FileTreeNode>();
+                MakeRows(rows, _searchResult, 0);
+                _rows.AddRange(rows);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Search was cancelled, do nothing
+        }
+        catch (Exception ex)
+        {
+            // Handle any other exceptions
+            Console.WriteLine($"Search error: {ex.Message}");
         }
     }
 }

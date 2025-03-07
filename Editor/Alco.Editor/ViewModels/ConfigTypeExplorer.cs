@@ -52,7 +52,7 @@ public class ConfigTypeExplorer : FileExplorer
         return Task.Run<IReadOnlyList<ExplorerItem>>(() =>
         {
             _searchResults.Clear();
-            _searchResults.AddRange(_items.Where(item => item.Path.Contains(keyword ?? string.Empty)));
+            _searchResults.AddRange(_items.Where(item => item.Path.Contains(keyword ?? string.Empty, StringComparison.CurrentCultureIgnoreCase)));
             return _searchResults.ToArray();
         });
     }
