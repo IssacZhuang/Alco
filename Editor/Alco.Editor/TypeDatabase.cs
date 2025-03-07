@@ -11,6 +11,7 @@ public class TypeDatabase : IDisposable
     private readonly List<Type> _configTypes = new();
     private bool _isConfigTypesDirty = false;
 
+
     public IReadOnlyList<Type> ConfigTypes
     {
         get
@@ -28,6 +29,8 @@ public class TypeDatabase : IDisposable
         FetchAllConfigTypes();
         AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;
     }
+
+
 
 
     private void OnAssemblyLoad(object? sender, AssemblyLoadEventArgs args)

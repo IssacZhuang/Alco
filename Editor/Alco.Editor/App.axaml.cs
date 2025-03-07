@@ -106,6 +106,7 @@ namespace Alco.Editor
         {
             Preference?.Save();
             Engine?.Dispose();
+            TypeDatabase?.Dispose();
         }
     }
 }

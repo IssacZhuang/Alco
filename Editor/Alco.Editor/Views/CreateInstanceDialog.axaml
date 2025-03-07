@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    xmlns:vm="using:Alco.Editor.ViewModels"
+    x:Class="Alco.Editor.Views.CreateInstanceDialog"
+    x:DataType="vm:CreateInstanceDialog"
+    Title="Create Instance"
+    WindowStartupLocation="CenterOwner"
+    Width="400"
+    Height="340"
+>
+
+    <StackPanel Orientation="Vertical" Margin="20,15,20,15">
+        <TextBlock x:Name="TextTitle"
+            Text="Create Instance"
+            Margin="0,0,0,8"
+            FontSize="14" />
+
+        <TextBox x:Name="InputTypeName"
+            Watermark="Search type name"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Center" />
+
+        <ListBox x:Name="ListBoxTypes"
+            ItemsSource="{Binding Types}"
+            SelectedItem="{Binding SelectedType}"
+            SelectionMode="Single"
+            SelectionChanged="OnTypeSelectionChanged"
+            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            Height="200"
+            Margin="0,8,0,8">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:TypeItem">
+                    <TextBlock Text="{Binding Name}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Orientation="Horizontal"
+            HorizontalAlignment="Right"
+            Spacing="10"
+            Margin="0,8,0,0">
+            <Button
+                x:Name="BtnConfirm"
+                Content="OK"
+                Width="80" />
+            <Button
+                x:Name="BtnCancel"
+                Content="Cancel"
+                Width="80" />
+        </StackPanel>
+    </StackPanel>
+</Window> 

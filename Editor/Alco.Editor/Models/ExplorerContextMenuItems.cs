@@ -9,6 +9,14 @@ namespace Alco.Editor.Models;
 
 public static class ExplorerContextMenuItems
 {
+    [ContextMenuItem("Create/Create Config")]
+    public static void CreateConfig(string localPath)
+    {
+        var dialog = new ViewModels.CreateInstanceDialog();
+        var window = dialog.CreateControl();
+        ShowDialog(window);
+    }
+
     [ContextMenuItem("Create Folder")]
     public static void CreateFolder(string localPath)
     {
