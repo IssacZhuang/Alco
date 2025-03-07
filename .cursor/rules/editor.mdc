@@ -1,0 +1,9 @@
+---
+description: For task that edit code in Alco.Editor project
+globs: *.cs/*.axaml
+alwaysApply: false
+---
+
+# Build Alco.Editor project after editing .axaml and .cs file in the Alco.Editor
+
+- [Alco.Editor.csproj](mdc:Editor/Alco.Editor/Alco.Editor.csproj)

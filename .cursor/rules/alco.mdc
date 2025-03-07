@@ -1,0 +1,9 @@
+---
+description: The common rule for editing this project
+globs: 
+alwaysApply: true
+---
+
+# Read README.md in the begin of task
+
+- [README.md](mdc:README.md)
