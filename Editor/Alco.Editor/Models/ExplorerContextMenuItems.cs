@@ -16,7 +16,7 @@ public static class ExplorerContextMenuItems
     {
         var engine = App.Main.Engine;
         var types = App.Main.TypeDatabase.ConfigTypes;
-        var dialog = new ViewModels.SelectTypeDialog(types.ToArray());
+        var dialog = new ViewModels.CraeteConfigDialog(types.ToArray());
 
         if (engine.ProjectDirectory == null)
         {

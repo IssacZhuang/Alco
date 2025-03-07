@@ -6,8 +6,8 @@
     mc:Ignorable="d"
     xmlns:vm="using:Alco.Editor.ViewModels"
     xmlns:views="using:Alco.Editor.Views"
-    x:Class="Alco.Editor.Views.SelectTypeDialog"
-    x:DataType="vm:SelectTypeDialog"
+    x:Class="Alco.Editor.Views.CraeteConfigDialog"
+    x:DataType="vm:CraeteConfigDialog"
     Title="Create Instance"
     WindowStartupLocation="CenterOwner"
     Width="400"
@@ -16,7 +16,7 @@
 
     <StackPanel Orientation="Vertical" Margin="20,15,20,15">
         <TextBlock x:Name="TextTitle"
-            Text="Create Instance"
+            Text="Create Config"
             Margin="0,0,0,8"
             FontSize="14" />
 

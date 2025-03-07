@@ -11,8 +11,6 @@ namespace Alco.Editor.ViewModels;
 
 public abstract class FileExplorer : ViewModelBase
 {
-    public ExplorerItem? SelectedItem { get; set; }
-
     /// <summary>
     /// Get file item in path
     /// </summary>

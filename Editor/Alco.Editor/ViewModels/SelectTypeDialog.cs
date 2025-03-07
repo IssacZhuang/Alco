@@ -7,7 +7,7 @@ using Alco.Editor.Models;
 
 namespace Alco.Editor.ViewModels;
 
-public class SelectTypeDialog : ViewModelBase
+public class CraeteConfigDialog : ViewModelBase
 {
     private readonly List<Type> _types;
     public ConfigTypeExplorer ConfigTypeExplorer { get; }
@@ -15,15 +15,15 @@ public class SelectTypeDialog : ViewModelBase
     public event Action<Type>? OnTypeConfirmed;
 
 
-    public SelectTypeDialog(params Type[] types)
+    public CraeteConfigDialog(params Type[] types)
     {
         _types = types.ToList();
         ConfigTypeExplorer = new ConfigTypeExplorer(types);
     }
 
-    public Views.SelectTypeDialog CreateControl()
+    public Views.CraeteConfigDialog CreateControl()
     {
-        return new Views.SelectTypeDialog
+        return new Views.CraeteConfigDialog
         {
             DataContext = this
         };

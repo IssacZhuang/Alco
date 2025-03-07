@@ -17,6 +17,9 @@ public class ConfigTypeExplorer : FileExplorer
     private readonly List<ExplorerItem> _items = [];
     private readonly List<ExplorerItem> _searchResults = [];
     private ContextMenu? _contextMenu;
+
+    public ExplorerItem? SelectedItem { get; set; }
+
     public ConfigTypeExplorer(params Type[] types)
     {
         _items.AddRange(types.Select(t => new ExplorerItem
@@ -41,7 +44,7 @@ public class ConfigTypeExplorer : FileExplorer
 
     public override void OpenFile(ExplorerItem? file)
     {
-        //do nothing
+        SelectedItem = file;
     }
 
     public override Task<IReadOnlyList<ExplorerItem>> SearchItems(string? keyword, CancellationToken cancellationToken)
