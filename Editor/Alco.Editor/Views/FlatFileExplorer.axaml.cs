@@ -41,67 +41,6 @@ public partial class FlatFileExplorer : UserControl
         EnterFolder(_currentPath);
     }
 
-    public void SetSearchResult(string file)
-    {
-        _rows.Clear();
-        _searchResult.Clear();
-
-        var rows = new List<ViewModels.FileTreeNode>();
-        if (string.IsNullOrEmpty(file))
-        {
-            MakeRows(rows, _tree, 0);
-        }
-        else
-        {
-            if (DataContext is not ViewModels.FileExplorer vm)
-                return;
-
-            var objects = vm.GetItemsInFolder(file);
-            if (objects == null || objects.Count != 1)
-                return;
-
-            var routes = file.Split('/', StringSplitOptions.None);
-            if (routes.Length == 1)
-            {
-                _searchResult.Add(new ViewModels.FileTreeNode
-                {
-                    Backend = objects[0]
-                });
-            }
-            else
-            {
-                var last = _searchResult;
-                var prefix = string.Empty;
-                for (var i = 0; i < routes.Length - 1; i++)
-                {
-                    var folder = new ViewModels.FileTreeNode
-                    {
-                        Backend = new Models.FileSystemItem
-                        {
-                            Type = Models.FileSystemItemType.File,
-                            Path = prefix + routes[i],
-                        },
-                        IsExpanded = true,
-                    };
-
-                    last.Add(folder);
-                    last = folder.Children;
-                    prefix = folder.Backend + "/";
-                }
-
-                last.Add(new ViewModels.FileTreeNode
-                {
-                    Backend = objects[0]
-                });
-            }
-
-            MakeRows(rows, _searchResult, 0);
-        }
-
-        _rows.AddRange(rows);
-        GC.Collect();
-    }
-
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -144,11 +83,6 @@ public partial class FlatFileExplorer : UserControl
     {
         if (sender is Grid { DataContext: ViewModels.FileTreeNode { IsFolder: true } node })
         {
-            // var posX = e.GetPosition(this).X;
-            // if (posX < node.Depth * 16 + 16)
-            //     return;
-
-            // ToggleNodeIsExpanded(node);
             EnterFolder(node.Backend?.Path);
         }
     }
@@ -268,7 +202,7 @@ public partial class FlatFileExplorer : UserControl
         }
     }
 
-    private async Task PerformSearch()
+    private async ValueTask PerformSearch()
     {
         if (DataContext is not ViewModels.FileExplorer vm)
             return;
@@ -277,7 +211,8 @@ public partial class FlatFileExplorer : UserControl
 
         if (string.IsNullOrEmpty(keyword))
         {
-            Refresh();
+            string path = string.Join("/", _subPaths);
+            EnterFolder(path);
             return;
         }
 

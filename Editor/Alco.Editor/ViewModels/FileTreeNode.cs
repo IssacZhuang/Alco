@@ -18,7 +18,7 @@ public class FileTreeNode : ObservableObject
 
     public bool IsFolder
     {
-        get => Backend != null && Backend.Type == Models.FileSystemItemType.File;
+        get => Backend != null && Backend.Type == Models.FileSystemItemType.Folder;
     }
 
     public bool IsExpanded
