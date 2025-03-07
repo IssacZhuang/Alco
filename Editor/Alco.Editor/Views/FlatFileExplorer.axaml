@@ -15,11 +15,16 @@
         
       </StackPanel>
     </StackPanel>
-    <Grid Margin="10,0,10,5" ColumnDefinitions="*, Auto">
-      <TextBox x:Name="SearchBox" Grid.Column="0" Watermark="Search files..."
-        KeyDown="OnSearchBoxKeyDown" />
-      <Button x:Name="BtnSearch" Grid.Column="1" Content="Search" Click="OnBtnSearchClick"
-        Margin="5,0,0,0" />
+    <Grid Margin="10,0,10,5" ColumnDefinitions="*">
+      <TextBox x:Name="InputSearch" Grid.Column="0" Watermark="Search files..."
+        KeyDown="OnSearchBoxKeyDown">
+        <TextBox.InnerRightContent>
+          <Button x:Name="BtnClear" Click="OnBtnClearClick" Margin="0,0,5,0" Background="Transparent"
+                 IsVisible="{Binding #InputSearch.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <PathIcon Data="{StaticResource Icons.Clear}" Width="14" Height="14" />
+          </Button>
+        </TextBox.InnerRightContent>
+      </TextBox>
     </Grid>
     <v:FileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
         Background="Transparent"

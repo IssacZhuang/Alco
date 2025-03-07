@@ -202,12 +202,25 @@ public partial class FlatFileExplorer : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the click event of the clear button in the search box.
+    /// Clears the search box text and refreshes the file list.
+    /// </summary>
+    /// <param name="sender">The source of the event.</param>
+    /// <param name="e">The event data.</param>
+    private void OnBtnClearClick(object sender, RoutedEventArgs e)
+    {
+        string path = string.Join("/", _subPaths);
+        EnterFolder(path);
+        InputSearch.Text = "";
+    }
+
     private async ValueTask PerformSearch()
     {
         if (DataContext is not ViewModels.FileExplorer vm)
             return;
 
-        string? keyword = SearchBox.Text?.Trim();
+        string? keyword = InputSearch.Text?.Trim();
 
         if (string.IsNullOrEmpty(keyword))
         {
