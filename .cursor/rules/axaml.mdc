@@ -1,0 +1,9 @@
+---
+description: For task that edit .axaml file of Avalonia
+globs: *.axaml
+alwaysApply: false
+---
+
+# Build Alco.Editor project after editing .axaml to check axaml error
+
+- [Alco.Editor.csproj](mdc:Editor/Alco.Editor/Alco.Editor.csproj)

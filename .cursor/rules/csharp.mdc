@@ -1,7 +1,9 @@
 ---
-description: Add docs for public class, method and property
+description: For task that edit csharp code
 globs: *.cs
 alwaysApply: false
 ---
 
 # Add docs comment after editing the public class, method and property
+
+# Build project that the CSharp file located in to check error
