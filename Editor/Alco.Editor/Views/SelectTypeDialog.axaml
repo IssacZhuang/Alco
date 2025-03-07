@@ -5,8 +5,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     xmlns:vm="using:Alco.Editor.ViewModels"
-    x:Class="Alco.Editor.Views.CreateInstanceDialog"
-    x:DataType="vm:CreateInstanceDialog"
+    x:Class="Alco.Editor.Views.SelectTypeDialog"
+    x:DataType="vm:SelectTypeDialog"
     Title="Create Instance"
     WindowStartupLocation="CenterOwner"
     Width="400"
@@ -47,10 +47,12 @@
             <Button
                 x:Name="BtnConfirm"
                 Content="OK"
+                Click="OnBtnConfirmClick"
                 Width="80" />
             <Button
                 x:Name="BtnCancel"
                 Content="Cancel"
+                Click="OnBtnCancelClick"
                 Width="80" />
         </StackPanel>
     </StackPanel>

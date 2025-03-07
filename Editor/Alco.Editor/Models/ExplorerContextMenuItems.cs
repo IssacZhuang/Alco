@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Alco.Editor.Attributes;
 using Avalonia.Controls;
+using System.Linq;
+using Alco.IO;
 
 namespace Alco.Editor.Models;
 
@@ -12,7 +14,24 @@ public static class ExplorerContextMenuItems
     [ContextMenuItem("Create/Create Config")]
     public static void CreateConfig(string localPath)
     {
-        var dialog = new ViewModels.CreateInstanceDialog();
+        var engine = App.Main.Engine;
+        var types = App.Main.TypeDatabase.ConfigTypes;
+        var dialog = new ViewModels.SelectTypeDialog(types.ToArray());
+
+        if (engine.ProjectDirectory == null)
+        {
+            return;
+        }
+
+        string path = Path.Combine(engine.ProjectDirectory, localPath);
+
+        dialog.OnTypeConfirmed += (type) =>
+        {
+            BaseConfig? instance = Activator.CreateInstance(type) as BaseConfig ?? throw new Exception($"The type {type.Name} is not a valid config type.");
+            SafeMemoryHandle handle = engine.Assets.EncodeToBinary(instance);
+            path = Path.Combine(path, type.Name + ".json");
+            File.WriteAllBytes(path, handle.Span);
+        };
         var window = dialog.CreateControl();
         ShowDialog(window);
     }
