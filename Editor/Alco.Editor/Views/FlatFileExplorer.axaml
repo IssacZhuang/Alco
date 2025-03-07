@@ -10,11 +10,17 @@
   x:Name="ThisControl">
   <StackPanel Orientation="Vertical">
     <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
-      <Button x:Name="BtnBack" Content="&lt;" Click="OnBtnBackClick" Margin="10,0,5,0"/>
+      <Button x:Name="BtnBack" Content="&lt;" Click="OnBtnBackClick" Margin="10,0,5,0" />
       <StackPanel x:Name="PathStack" Orientation="Horizontal">
         
       </StackPanel>
     </StackPanel>
+    <Grid Margin="10,0,10,5" ColumnDefinitions="*, Auto">
+      <TextBox x:Name="SearchBox" Grid.Column="0" Watermark="Search files..."
+        KeyDown="OnSearchBoxKeyDown" />
+      <Button x:Name="BtnSearch" Grid.Column="1" Content="Search" Click="OnBtnSearchClick"
+        Margin="5,0,0,0" />
+    </Grid>
     <v:FileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
         Background="Transparent"
         SelectionMode="Single"

@@ -1,6 +1,8 @@
 
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
@@ -14,6 +16,13 @@ public abstract class FileExplorer : ViewModelBase
     /// <param name="subPath">sub path of the file</param>
     /// <returns>file item list</returns>
     public abstract IReadOnlyList<Models.FileSystemItem> GetItemsInFolder(string? subPath);
+
+    /// <summary>
+    /// Search items in the file explorer
+    /// </summary>
+    /// <param name="keyword">search keyword</param>
+    /// <returns>search result</returns>
+    public abstract Task<IReadOnlyList<Models.FileSystemItem>> SearchItems(string? keyword, CancellationToken cancellationToken);
 
     /// <summary>
     /// Called when a file is double clicked

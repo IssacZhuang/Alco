@@ -1,12 +1,13 @@
-
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Alco.Editor.Attributes;
 using Alco.Editor.Models;
 using Avalonia.Controls;
+using Alco;
 
 namespace Alco.Editor.ViewModels;
 
@@ -26,7 +27,7 @@ public class FileSystemExplorer : FileExplorer
         SetupContextMenu();
     }
 
-    public override IReadOnlyList<Models.FileSystemItem> GetItemsInFolder(string? subPath)
+    public override IReadOnlyList<FileSystemItem> GetItemsInFolder(string? subPath)
     {
         _objects.Clear();
         subPath ??= "";
@@ -36,14 +37,70 @@ public class FileSystemExplorer : FileExplorer
             string relativePath = Path.GetRelativePath(BasePath, entry);
             if (Directory.Exists(entry))
             {
-                _objects.Add(new Models.FileSystemItem { Type = Models.FileSystemItemType.File, Path = relativePath });
+                _objects.Add(new Models.FileSystemItem { Type = Models.FileSystemItemType.Folder, Path = relativePath });
             }
             else
             {
-                _objects.Add(new Models.FileSystemItem { Type = Models.FileSystemItemType.Folder, Path = relativePath });
+                _objects.Add(new Models.FileSystemItem { Type = Models.FileSystemItemType.File, Path = relativePath });
             }
         }
         return _objects;
+    }
+
+    public override Task<IReadOnlyList<FileSystemItem>> SearchItems(string? keyword, CancellationToken cancellationToken)
+    {
+        return Task.Run<IReadOnlyList<FileSystemItem>>(() =>
+        {
+            var result = new List<Models.FileSystemItem>();
+
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return result;
+            }
+
+            try
+            {
+                // Search all files and directories recursively
+                foreach (var entry in Directory.EnumerateFileSystemEntries(BasePath, "*", SearchOption.AllDirectories))
+                {
+                    // Check if operation was cancelled
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    string relativePath = Path.GetRelativePath(BasePath, entry);
+
+                    // Check if the path contains the keyword (case-insensitive)
+                    if (relativePath.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (Directory.Exists(entry))
+                        {
+                            result.Add(new Models.FileSystemItem
+                            {
+                                Type = Models.FileSystemItemType.Folder,
+                                Path = relativePath
+                            });
+                        }
+                        else
+                        {
+                            result.Add(new Models.FileSystemItem
+                            {
+                                Type = Models.FileSystemItemType.File,
+                                Path = relativePath
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception but return empty result
+                Log.Error($"Error searching items: {ex}");
+            }
+
+            return result;
+        }, cancellationToken);
     }
 
     public override void OpenFile(Models.FileSystemItem? file)

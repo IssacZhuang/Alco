@@ -10,6 +10,8 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Alco.Editor.Views;
 
@@ -22,6 +24,7 @@ public partial class FlatFileExplorer : UserControl
     private readonly List<ViewModels.FileTreeNode> _searchResult = [];
     private readonly List<string> _subPaths = [];
     private string _currentPath = "";
+    private CancellationTokenSource? _searchCancellationTokenSource;
 
     public AvaloniaList<ViewModels.FileTreeNode> Rows
     {
@@ -249,6 +252,68 @@ public partial class FlatFileExplorer : UserControl
         _subPaths.RemoveAt(_subPaths.Count - 1);
         string path = string.Join("/", _subPaths);
         EnterFolder(path);
+    }
+
+    private async void OnBtnSearchClick(object sender, RoutedEventArgs e)
+    {
+        await PerformSearch();
+    }
+
+    private async void OnSearchBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            await PerformSearch();
+            e.Handled = true;
+        }
+    }
+
+    private async Task PerformSearch()
+    {
+        if (DataContext is not ViewModels.FileExplorer vm)
+            return;
+
+        string? keyword = SearchBox.Text?.Trim();
+
+        if (string.IsNullOrEmpty(keyword))
+        {
+            Refresh();
+            return;
+        }
+
+        // Cancel previous search if any
+        _searchCancellationTokenSource?.Cancel();
+        _searchCancellationTokenSource = new CancellationTokenSource();
+
+        try
+        {
+            var searchResults = await vm.SearchItems(keyword, _searchCancellationTokenSource.Token);
+
+            _rows.Clear();
+            _tree.Clear();
+            _searchResult.Clear();
+
+            if (searchResults != null && searchResults.Count > 0)
+            {
+                foreach (var item in searchResults)
+                {
+                    _searchResult.Add(new ViewModels.FileTreeNode { Backend = item });
+                }
+
+                var rows = new List<ViewModels.FileTreeNode>();
+                MakeRows(rows, _searchResult, 0);
+                _rows.AddRange(rows);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Search was cancelled, do nothing
+        }
+        catch (Exception ex)
+        {
+            // Handle any exceptions
+            Console.WriteLine($"Search error: {ex.Message}");
+        }
     }
 }
 
