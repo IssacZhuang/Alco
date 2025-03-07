@@ -33,4 +33,10 @@
             <Setter Property="Data" Value="M 0 4 L 8 4 L 4 8 Z" />
         </Style>
     </Style>
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="#1E1E1E" />
+    </Style>
+
+
 </Styles>

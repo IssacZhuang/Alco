@@ -15,27 +15,27 @@
         <vm:Editor/>
     </Design.DataContext>
 
-<DockPanel>
-        <!-- Top Menu Bar -->
-    <Menu DockPanel.Dock="Top" Background="#2D2D2D" Name="MainMenu">
-    </Menu>
+    <DockPanel>
+            <!-- Top Menu Bar -->
+        <Menu DockPanel.Dock="Top" Background="#2D2D2D" Name="MainMenu">
+        </Menu>
 
-        <!-- Main Content Area -->
-    <Grid>
-        <Grid.ColumnDefinitions>
-                <!-- Activity Bar -->
-            <ColumnDefinition Width="48"/>
-                <!-- Editor Area -->
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+            <!-- Main Content Area -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                    <!-- Activity Bar -->
+                <ColumnDefinition Width="48"/>
+                    <!-- Editor Area -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- Activity Bar (Left Icon Bar) -->
-        <StackPanel Grid.Column="0" Background="#2D2D2D" Name="ActivityBar">
-        </StackPanel>
+                <!-- Activity Bar (Left Icon Bar) -->
+            <StackPanel Grid.Column="0" Background="#2D2D2D" Name="ActivityBar">
+            </StackPanel>
 
-            <!-- Main Content Area for User Customization -->
-        <ContentControl Grid.Column="1" Name="MainContent" Background="#1E1E1E"/>
-    </Grid>
-</DockPanel>
+                <!-- Main Content Area for User Customization -->
+            <ContentControl Grid.Column="1" Name="MainContent" Background="#1E1E1E"/>
+        </Grid>
+    </DockPanel>
 
 </Window>

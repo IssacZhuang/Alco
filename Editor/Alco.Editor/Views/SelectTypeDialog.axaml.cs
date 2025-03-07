@@ -15,9 +15,15 @@ public partial class SelectTypeDialog : Window
         InitializeComponent();
     }
 
-    private void OnTypeSelectionChanged(object sender, SelectionChangedEventArgs e)
+    protected override void OnDataContextChanged(EventArgs e)
     {
-        
+        base.OnDataContextChanged(e);
+        if (DataContext is not ViewModels.SelectTypeDialog viewModel)
+        {
+            return;
+        }
+
+        ConfigTypeExplorer.DataContext = viewModel.ConfigTypeExplorer;
     }
 
     public void OnBtnConfirmClick(object? sender, RoutedEventArgs e)

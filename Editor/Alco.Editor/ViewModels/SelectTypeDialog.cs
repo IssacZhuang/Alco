@@ -3,20 +3,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Alco.Editor.Models;
 
 namespace Alco.Editor.ViewModels;
 
 public class SelectTypeDialog : ViewModelBase
 {
-    public List<TypeItem> Types { get; } = new List<TypeItem>();
-    public TypeItem? SelectedType { get; set; }
+    private readonly List<Type> _types;
+    public ConfigTypeExplorer ConfigTypeExplorer { get; }
 
     public event Action<Type>? OnTypeConfirmed;
 
 
     public SelectTypeDialog(params Type[] types)
     {
-        Types.AddRange(types.Select(t => new TypeItem(t)));
+        _types = types.ToList();
+        ConfigTypeExplorer = new ConfigTypeExplorer(types);
     }
 
     public Views.SelectTypeDialog CreateControl()
@@ -29,11 +31,14 @@ public class SelectTypeDialog : ViewModelBase
 
     public void Confirm()
     {
-        if (SelectedType == null)
+        if (ConfigTypeExplorer.SelectedItem == null)
         {
             return;
         }
 
-        OnTypeConfirmed?.Invoke(SelectedType.Type);
+        ExplorerItem item = ConfigTypeExplorer.SelectedItem;
+        Type type = _types.FirstOrDefault(t => t.FullName == item.Path) ?? throw new Exception($"Type {item.Path} not found");
+
+        OnTypeConfirmed?.Invoke(type);
     }
 }

@@ -66,9 +66,9 @@ public partial class TreeFileExplorer : UserControl
                 {
                     var folder = new ViewModels.FileTreeNode
                     {
-                        Backend = new Models.FileSystemItem
+                        Backend = new Models.ExplorerItem
                         {
-                            Type = Models.FileSystemItemType.File,
+                            Type = Models.ExplorerItemType.File,
                             Path = prefix + routes[i],
                         },
                         IsExpanded = true,

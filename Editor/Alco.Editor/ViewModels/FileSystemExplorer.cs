@@ -15,11 +15,11 @@ public class FileSystemExplorer : FileExplorer
 {
     private static readonly (MethodInfo, ContextMenuItemAttribute)[] _contextMenuItems = UtilsAttribute.GetMethodsWithAttribute<ContextMenuItemAttribute>(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance);
 
-    private readonly List<Models.FileSystemItem> _objects = [];
+    private readonly List<Models.ExplorerItem> _objects = [];
     public string BasePath { get; }
     public List<TreeItem<ContextMenuItem?>> ContextMenuItemInfos { get; } = [];
 
-    public event Action<Models.FileSystemItem?>? OnFileOpened;
+    public event Action<Models.ExplorerItem?>? OnFileOpened;
 
     public FileSystemExplorer(string basePath)
     {
@@ -27,7 +27,7 @@ public class FileSystemExplorer : FileExplorer
         SetupContextMenu();
     }
 
-    public override IReadOnlyList<FileSystemItem> GetItemsInFolder(string? subPath)
+    public override IReadOnlyList<ExplorerItem> GetItemsInFolder(string? subPath)
     {
         _objects.Clear();
         subPath ??= "";
@@ -37,21 +37,21 @@ public class FileSystemExplorer : FileExplorer
             string relativePath = Path.GetRelativePath(BasePath, entry);
             if (Directory.Exists(entry))
             {
-                _objects.Add(new Models.FileSystemItem { Type = Models.FileSystemItemType.Folder, Path = relativePath });
+                _objects.Add(new Models.ExplorerItem { Type = Models.ExplorerItemType.Folder, Path = relativePath });
             }
             else
             {
-                _objects.Add(new Models.FileSystemItem { Type = Models.FileSystemItemType.File, Path = relativePath });
+                _objects.Add(new Models.ExplorerItem { Type = Models.ExplorerItemType.File, Path = relativePath });
             }
         }
         return _objects;
     }
 
-    public override Task<IReadOnlyList<FileSystemItem>> SearchItems(string? keyword, CancellationToken cancellationToken)
+    public override Task<IReadOnlyList<ExplorerItem>> SearchItems(string? keyword, CancellationToken cancellationToken)
     {
-        return Task.Run<IReadOnlyList<FileSystemItem>>(() =>
+        return Task.Run<IReadOnlyList<ExplorerItem>>(() =>
         {
-            var result = new List<Models.FileSystemItem>();
+            var result = new List<Models.ExplorerItem>();
 
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -76,17 +76,17 @@ public class FileSystemExplorer : FileExplorer
                     {
                         if (Directory.Exists(entry))
                         {
-                            result.Add(new Models.FileSystemItem
+                            result.Add(new Models.ExplorerItem
                             {
-                                Type = Models.FileSystemItemType.Folder,
+                                Type = Models.ExplorerItemType.Folder,
                                 Path = relativePath
                             });
                         }
                         else
                         {
-                            result.Add(new Models.FileSystemItem
+                            result.Add(new Models.ExplorerItem
                             {
-                                Type = Models.FileSystemItemType.File,
+                                Type = Models.ExplorerItemType.File,
                                 Path = relativePath
                             });
                         }
@@ -103,12 +103,12 @@ public class FileSystemExplorer : FileExplorer
         }, cancellationToken);
     }
 
-    public override void OpenFile(Models.FileSystemItem? file)
+    public override void OpenFile(Models.ExplorerItem? file)
     {
         OnFileOpened?.Invoke(file);
     }
 
-    public override ContextMenu CreateFileContextMenu(Models.FileSystemItem file)
+    public override ContextMenu CreateFileContextMenu(Models.ExplorerItem file)
     {
         ContextMenu menu = new ContextMenu();
         foreach (var item in ContextMenuItemInfos)
@@ -118,7 +118,7 @@ public class FileSystemExplorer : FileExplorer
         return menu;
     }
 
-    private MenuItem CreateMenuItem(TreeItem<ContextMenuItem?> item, Models.FileSystemItem file)
+    private MenuItem CreateMenuItem(TreeItem<ContextMenuItem?> item, Models.ExplorerItem file)
     {
         var menuItem = new MenuItem{Header = item.Header};
         foreach (var child in item.Child)

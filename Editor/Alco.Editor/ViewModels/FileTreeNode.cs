@@ -7,7 +7,7 @@ namespace Alco.Editor.ViewModels;
 
 public class FileTreeNode : ObservableObject
 {
-    public Models.FileSystemItem? Backend { get; set; } = null;
+    public Models.ExplorerItem? Backend { get; set; } = null;
     public int Depth { get; set; } = 0;
     public List<FileTreeNode> Children { get; set; } = new List<FileTreeNode>();
 
@@ -18,7 +18,7 @@ public class FileTreeNode : ObservableObject
 
     public bool IsFolder
     {
-        get => Backend != null && Backend.Type == Models.FileSystemItemType.Folder;
+        get => Backend != null && Backend.Type == Models.ExplorerItemType.Folder;
     }
 
     public bool IsExpanded

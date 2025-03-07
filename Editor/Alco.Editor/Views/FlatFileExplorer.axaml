@@ -7,6 +7,7 @@
   xmlns:vm="using:Alco.Editor.ViewModels"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
   x:Class="Alco.Editor.Views.FlatFileExplorer"
+  x:DataType="vm:FileExplorer"
   x:Name="ThisControl">
   <StackPanel Orientation="Vertical">
     <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
@@ -27,6 +28,7 @@
       </TextBox>
     </Grid>
     <v:FileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
+        SelectedItem="{Binding SelectedItem}"
         Background="Transparent"
         SelectionMode="Single"
         SelectionChanged="OnRowsSelectionChanged"

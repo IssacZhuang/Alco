@@ -7,8 +7,10 @@
   xmlns:vm="using:Alco.Editor.ViewModels"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
   x:Class="Alco.Editor.Views.TreeFileExplorer"
+  x:DataType="vm:FileExplorer"
   x:Name="ThisControl">
   <v:FileRowsListBox ItemsSource="{Binding #ThisControl.Rows}"
+    SelectedItem="{Binding SelectedItem}"
     Background="Transparent"
     SelectionMode="Single"
     SelectionChanged="OnRowsSelectionChanged"

@@ -5,12 +5,13 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     xmlns:vm="using:Alco.Editor.ViewModels"
+    xmlns:views="using:Alco.Editor.Views"
     x:Class="Alco.Editor.Views.SelectTypeDialog"
     x:DataType="vm:SelectTypeDialog"
     Title="Create Instance"
     WindowStartupLocation="CenterOwner"
     Width="400"
-    Height="340"
+    SizeToContent="Height"
 >
 
     <StackPanel Orientation="Vertical" Margin="20,15,20,15">
@@ -19,26 +20,27 @@
             Margin="0,0,0,8"
             FontSize="14" />
 
-        <TextBox x:Name="InputTypeName"
-            Watermark="Search type name"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Center" />
-
-        <ListBox x:Name="ListBoxTypes"
-            ItemsSource="{Binding Types}"
-            SelectedItem="{Binding SelectedType}"
-            SelectionMode="Single"
-            SelectionChanged="OnTypeSelectionChanged"
-            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-            ScrollViewer.VerticalScrollBarVisibility="Auto"
+        <views:TreeFileExplorer 
+            x:Name="ConfigTypeExplorer"
+            Margin="0,8,0,8"
             Height="200"
-            Margin="0,8,0,8">
-            <ListBox.ItemTemplate>
-                <DataTemplate DataType="vm:TypeItem">
-                    <TextBlock Text="{Binding Name}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Background="#2D2D2D"
+            />
+
+        <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,8" HorizontalAlignment="Stretch">
+            <TextBlock Grid.Column="0"
+                Text="Filename: "
+                Margin="0,0,8,0"
+                VerticalAlignment="Center" />
+
+            <TextBox Grid.Column="1"
+                x:Name="InputFilename"
+                Watermark="Enter filename"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center" />
+        </Grid>
 
         <StackPanel Orientation="Horizontal"
             HorizontalAlignment="Right"

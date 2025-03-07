@@ -67,8 +67,11 @@ public class FileTreeNodeIcon : UserControl
         var obj = node.Backend;
         switch (obj.Type)
         {
-            case Models.FileSystemItemType.File:
+            case Models.ExplorerItemType.File:
                 CreateContent("Icons.File", new Thickness(0, 0, 0, 0), Brushes.White);
+                break;
+            case Models.ExplorerItemType.Type:
+                CreateContent("Icons.Code", new Thickness(0, 0, 0, 0), Brushes.White);
                 break;
             default:
                 CreateContent(node.IsExpanded ? "Icons.Folder.Open" : "Icons.Folder", new Thickness(0, 2, 0, 0), Brushes.Goldenrod);
