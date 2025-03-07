@@ -23,7 +23,9 @@ public static class ExplorerContextMenuItems
             return;
         }
 
+
         string path = Path.Combine(engine.ProjectDirectory, localPath);
+        path = File.Exists(path) ? Path.GetDirectoryName(path) ?? string.Empty : path;
 
         dialog.OnTypeConfirmed += (type) =>
         {
