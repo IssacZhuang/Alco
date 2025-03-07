@@ -1,0 +1,7 @@
+---
+description: Add docs for public class, method and property
+globs: *.cs
+alwaysApply: false
+---
+
+# Add docs comment after editing the public class, method and property

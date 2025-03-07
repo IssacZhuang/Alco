@@ -7,3 +7,5 @@ alwaysApply: true
 # Read README.md in the begin of task
 
 - [README.md](mdc:README.md)
+
+# All comment or built-in text should be written in english

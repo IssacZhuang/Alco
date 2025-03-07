@@ -1,6 +1,6 @@
 ---
 description: For task that edit code in Alco.Editor project
-globs: *.cs/*.axaml
+globs: *.cs,*.axaml
 alwaysApply: false
 ---
 
