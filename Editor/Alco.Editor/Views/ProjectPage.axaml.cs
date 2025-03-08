@@ -19,7 +19,7 @@ public partial class ProjectPage : UserControl
     {
         InitializeComponent();
         var configReferenceResolver = new ConfigReferenceResolver(App.Main.Engine.Assets);
-        _jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions(configReferenceResolver);
+        _jsonSerializerOptions = Config.BuildJsonSerializerOptions(configReferenceResolver);
         _jsonSerializerOptions.WriteIndented = true;
 
         if (App.Main.Engine.IsProjectOpen)

@@ -44,8 +44,8 @@ public class TypeDatabase : IDisposable
     {
         _configTypes.Clear();
         _configTypes.AddRange(
-            Assembly.GetExecutingAssembly()
-                .GetTypes()
+            AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => a.GetTypes())
                 .Where(t => t.IsSubclassOf(typeof(BaseConfig)) && !t.IsAbstract)
         );
     }
