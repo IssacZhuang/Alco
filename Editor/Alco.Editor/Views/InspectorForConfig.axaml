@@ -28,12 +28,17 @@
       Width="4" />
 
     <!-- Right Panel with TextEditor -->
-    <avalonia:TextEditor
-      x:Name="TextJsonPreview"
-      Grid.Column="2"
-      ShowLineNumbers="True"
-      IsReadOnly="True"
-      FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+    <StackPanel Orientation="Vertical" Grid.Column="2">
+      <TextBlock x:Name="TextError" 
+       Margin="15 10"
+       Foreground="Red"
+       IsVisible="False" />
+      <TextBlock Text="Json Preview" Margin="15 10" />
+      <avalonia:TextEditor
+        x:Name="TextJsonPreview"
+        ShowLineNumbers="True"
+        IsReadOnly="True"
+        FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
       HorizontalScrollBarVisibility="Auto"
       VerticalScrollBarVisibility="Auto"
       HorizontalAlignment="Stretch"
@@ -52,7 +57,8 @@
           EnableTextDragDrop="True"
           EnableImeSupport="True"
           HighlightCurrentLine="True" />
-      </avalonia:TextEditor.Options>
-    </avalonia:TextEditor>
+        </avalonia:TextEditor.Options>
+      </avalonia:TextEditor>
+    </StackPanel>
   </Grid>
 </UserControl>

@@ -50,6 +50,15 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         SerializedJson = Encoding.UTF8.GetString(memory.Span);
     }
 
+    public IEnumerable<string> Validate(EditorEngine engine)
+    {
+        if (_asset is IValidatableConfig validatableConfig)
+        {
+            return validatableConfig.Validate(engine);
+        }
+        return [];
+    }
+
     protected override void OnOpenAsset(EditorEngine engine, BaseConfig asset)
     {
         _asset = asset;
