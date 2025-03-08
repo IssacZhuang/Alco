@@ -12,7 +12,7 @@ using Avalonia.Controls;
 namespace Alco.Editor.ViewModels;
 
 [Inspector(typeof(BaseConfig), ".json")]
-public partial class ConfigInspector : Inspector<BaseConfig>
+public partial class InspectorForConfig : Inspector<BaseConfig>
 {
     public override bool IsModified => false;
     private BaseConfig? _asset;
@@ -23,13 +23,13 @@ public partial class ConfigInspector : Inspector<BaseConfig>
 
     public int TestNumber { get; set; } = 100;
 
-    public ConfigInspector()
+    public InspectorForConfig()
     {
     }
 
     public override Control CreateControl()
     {
-        return new Views.ConfigInspector()
+        return new Views.InspectorForConfig()
         {
             DataContext = this
         };

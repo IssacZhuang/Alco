@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Alco.Editor.ViewModels"
-             x:Class="Alco.Editor.Views.ExceptionInspector">
+             x:Class="Alco.Editor.Views.InspectorForException">
     <Grid RowDefinitions="Auto,*" Margin="10">
         <SelectableTextBlock Grid.Row="0" 
                    x:Name="TextTitle"

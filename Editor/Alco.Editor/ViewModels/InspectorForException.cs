@@ -4,7 +4,7 @@ using Alco.Editor.Views;
 
 namespace Alco.Editor.ViewModels;
 
-public class ExceptionInspector : Inspector<Exception>
+public class InspectorForException : Inspector<Exception>
 {
     public override bool IsModified => false;
 
@@ -14,7 +14,7 @@ public class ExceptionInspector : Inspector<Exception>
     public string StackTrace { get; }
     public string Title { get; }
 
-    public ExceptionInspector(string title, Exception exception)
+    public InspectorForException(string title, Exception exception)
     {
         _exception = exception;
         ExceptionMessage = exception.Message;
@@ -24,7 +24,7 @@ public class ExceptionInspector : Inspector<Exception>
 
     public override Control CreateControl()
     {
-        return new Views.ExceptionInspector()
+        return new Views.InspectorForException()
         {
             DataContext = this
         };

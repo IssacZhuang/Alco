@@ -7,12 +7,12 @@ using Alco.IO;
 
 namespace Alco.Editor.Views;
 
-public partial class ConfigInspector : UserControl
+public partial class InspectorForConfig : UserControl
 {
 
-    public ViewModels.ConfigInspector ViewModel => DataContext as ViewModels.ConfigInspector ?? throw new InvalidOperationException("DataContext is not a ViewModels.ConfigInspector");
+    public ViewModels.InspectorForConfig ViewModel => DataContext as ViewModels.InspectorForConfig ?? throw new InvalidOperationException("DataContext is not a ViewModels.InspectorForConfig");
 
-    public ConfigInspector()
+    public InspectorForConfig()
     {
         InitializeComponent();
     }

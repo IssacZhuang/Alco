@@ -5,10 +5,10 @@
   xmlns:vm="using:Alco.Editor.ViewModels"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
   xmlns:avalonia="https://github.com/avaloniaui/avaloniaedit"
-  x:Class="Alco.Editor.Views.ConfigInspector">
+  x:Class="Alco.Editor.Views.InspectorForConfig">
 
   <Design.DataContext>
-    <vm:ConfigInspector />
+    <vm:InspectorForConfig />
   </Design.DataContext>
 
   <Grid ColumnDefinitions="*, Auto, *">

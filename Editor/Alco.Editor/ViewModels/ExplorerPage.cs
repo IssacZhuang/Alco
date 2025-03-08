@@ -58,7 +58,7 @@ public class ExplorerPage : Page
 
                     if (projectPath == null)
                     {
-                        return new ExceptionInspector(
+                        return new InspectorForException(
                             $"No project is open",
                             new InvalidOperationException("No project is open"));
                     }
@@ -84,7 +84,7 @@ public class ExplorerPage : Page
                             UtilsMemory.Free(data);
                         }
 
-                        return new ExceptionInspector(
+                        return new InspectorForException(
                             $"Exception when open: {filePath}",
                             ex);
                     }

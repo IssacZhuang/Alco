@@ -4,10 +4,10 @@ using Avalonia.Markup.Xaml;
 
 namespace Alco.Editor.Views
 {
-    public partial class ExceptionInspector : UserControl
+    public partial class InspectorForException : UserControl
     {
 
-        public ExceptionInspector()
+        public InspectorForException()
         {
             InitializeComponent();
 
@@ -17,7 +17,7 @@ namespace Alco.Editor.Views
         {
             base.OnAttachedToVisualTree(e);
 
-            if (DataContext is not ViewModels.ExceptionInspector viewModel)
+            if (DataContext is not ViewModels.InspectorForException viewModel)
             {
                 return;
             }
