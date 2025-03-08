@@ -41,7 +41,7 @@ public partial class PropertyBooleanEditor : UserControl
         {
             InputCheckBox.IsCheckedChanged += (sender, e) =>
             {
-                viewModel.DoRefreshEvent();
+                viewModel.DoValueChangedEvent();
             };
         }
         else

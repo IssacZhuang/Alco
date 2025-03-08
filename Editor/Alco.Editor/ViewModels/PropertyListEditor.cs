@@ -60,7 +60,7 @@ public abstract class PropertyListEditor : PropertyEditor
 
     protected void DoUIChangedEvent()
     {
-        DoRefreshEvent();
+        DoValueChangedEvent();
         OnUIChanged?.Invoke(this);
     }
 }

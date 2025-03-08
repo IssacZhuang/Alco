@@ -23,7 +23,7 @@ public abstract class PropertyEditor : ViewModelBase
 
     public abstract Control CreateControl();
 
-    public event Action? OnRefresh;
+    public event Action? OnValueChanged;
 
     private static readonly FrozenDictionary<Type, Type> _propertyEditors;
     static PropertyEditor()
@@ -77,9 +77,9 @@ public abstract class PropertyEditor : ViewModelBase
         return objectPropertiesEditor;
     }
 
-    public void DoRefreshEvent()
+    public void DoValueChangedEvent()
     {
-        OnRefresh?.Invoke();
-        Parent?.DoRefreshEvent();
+        OnValueChanged?.Invoke();
+        Parent?.DoValueChangedEvent();
     }
 }

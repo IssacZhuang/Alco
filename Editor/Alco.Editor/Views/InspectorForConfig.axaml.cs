@@ -32,7 +32,7 @@ public partial class InspectorForConfig : UserControl
         ViewModels.ObjectPropertiesEditor vmPropertiesEditor = new(config, config.Id, 0);
         PropertiesEditor.DataContext = vmPropertiesEditor;
         PropertiesEditor.IsExpanded = true;
-        vmPropertiesEditor.OnRefresh += OnRefresh;
+        vmPropertiesEditor.OnValueChanged += OnRefresh;
         OnRefresh();
     }
 

@@ -6,12 +6,11 @@ public class BaseConfig
 {
     public string Id { get; set; } = string.Empty;
 
-    public static JsonSerializerOptions BuildJsonSerializerOptions(IConfigReferenceResolver configReferenceResolver)
+    public static JsonSerializerOptions BuildJsonSerializerOptions(IConfigReferenceResolver? configReferenceResolver = null)
     {
-        var typeResolver = new ConfigJsonTypeResolver(configReferenceResolver);
         return new JsonSerializerOptions()
         {
-            TypeInfoResolver = typeResolver,
+            TypeInfoResolver = configReferenceResolver != null ? new ConfigJsonTypeResolver(configReferenceResolver) : null,
             Converters = {
                 new JsonConverterType(),
                 new JsonConverterVector2(),
