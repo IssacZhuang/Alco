@@ -18,7 +18,15 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
     private BaseConfig? _asset;
     private string? _serializedJson = null;
 
-    public string SerializedJson => _serializedJson ?? "{}";
+    public string SerializedJson
+    {
+        get => _serializedJson ?? "{}";
+        set
+        {
+            _serializedJson = value;
+            OnPropertyChanged(nameof(SerializedJson));
+        }
+    }
     public BaseConfig? Asset => _asset;
 
     public int TestNumber { get; set; } = 100;
@@ -35,11 +43,18 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         };
     }
 
+    public void RefreshSerializedJson(EditorEngine engine)
+    {
+        AssetSystem assetSystem = engine.Assets;
+        using SafeMemoryHandle memory = assetSystem.EncodeToBinary(_asset);
+        SerializedJson = Encoding.UTF8.GetString(memory.Span);
+    }
+
     protected override void OnOpenAsset(EditorEngine engine, BaseConfig asset)
     {
         _asset = asset;
         AssetSystem assetSystem = engine.Assets;
         using SafeMemoryHandle memory = assetSystem.EncodeToBinary(_asset);
-        _serializedJson = Encoding.UTF8.GetString(memory.Span);
+        SerializedJson = Encoding.UTF8.GetString(memory.Span);
     }
 }

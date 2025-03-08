@@ -3,8 +3,10 @@
   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
   xmlns:vm="using:Alco.Editor.ViewModels"
+  xmlns:views="using:Alco.Editor.Views"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
   xmlns:avalonia="https://github.com/avaloniaui/avaloniaedit"
+  x:DataType="vm:InspectorForConfig"
   x:Class="Alco.Editor.Views.InspectorForConfig">
 
   <Design.DataContext>
@@ -13,15 +15,15 @@
 
   <Grid ColumnDefinitions="*, Auto, *">
     <!-- Left Panel (Empty for now) -->
-    <StackPanel
+    <views:ObjectPropertiesEditor
       x:Name="PropertiesEditor"
-      Margin="20"
-      Grid.Column="0">
-    </StackPanel>
+      Grid.Column="0" />
 
     <!-- GridSplitter -->
     <GridSplitter Grid.Column="1"
       Background="Gray"
+      x:Name="GridSplitter"
+      DragCompleted="OnGridSplitterDragCompleted"
       ResizeDirection="Columns"
       Width="4" />
 
