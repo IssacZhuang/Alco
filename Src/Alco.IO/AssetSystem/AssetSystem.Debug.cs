@@ -6,6 +6,27 @@ public sealed partial class AssetSystem
 {
     private class AssetProfiler : Profiler, IDisposable
     {
+        public struct Scope : IDisposable
+        {
+            private readonly AssetProfiler _profiler;
+            private bool _isFailed;
+
+            public Scope(AssetProfiler profiler)
+            {
+                _profiler = profiler;
+            }
+
+            public void Fail()
+            {
+                _isFailed = true;
+            }
+
+            public void Dispose()
+            {
+                _profiler.EndProfile(!_isFailed);
+            }
+        }
+
         private readonly SpanStringBuilder _builder = new SpanStringBuilder(128);
 
         public void StartProfile(string assetName, string typeName)
@@ -16,7 +37,7 @@ public sealed partial class AssetSystem
             _builder.Append("(");
             _builder.Append(typeName);
             _builder.Append(")");
-            Start(assetName);
+            Start(new string(_builder.Buffer));
         }
 
         public void EndProfile(bool print = true)
@@ -24,6 +45,8 @@ public sealed partial class AssetSystem
             ProfilerBlock result = End();
             if (print)
             {
+                _builder.Clear();
+                _builder.Append(result.name);
                 _builder.Append(" ");
                 _builder.Append(result.Miliseconds);
                 _builder.Append("ms");
@@ -33,6 +56,12 @@ public sealed partial class AssetSystem
 
         }
 
+        public Scope BeginScope(string assetName, string typeName)
+        {
+            StartProfile(assetName, typeName);
+            return new Scope(this);
+        }
+
         public void Dispose()
         {
             _builder.Dispose();
@@ -40,22 +69,17 @@ public sealed partial class AssetSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void StartProfile(string name, Type type)
+    private AssetProfiler.Scope? StartProfile(string name, Type type)
     {
-        if (IsProfileEnabled)
+        if (!IsProfileEnabled)
         {
-            Profiler.Value!.StartProfile(name, type.Name);
+            return null;
         }
+
+
+        return Profiler.Value!.BeginScope(name, type.Name);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void EndProfile(bool print = true)
-    {
-        if (IsProfileEnabled)
-        {
-            Profiler.Value!.EndProfile(print);
-        }
-    }
 
 
     // for unit test only

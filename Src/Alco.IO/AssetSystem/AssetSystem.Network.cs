@@ -60,7 +60,7 @@ public sealed partial class AssetSystem
 
                 handle.IsLoading = true;
 
-                StartProfile(url, type);
+                using var profileScope = StartProfile(url, type);
 
                 // Get appropriate loader
                 if (!TryGetLoader(url, type, out IAssetLoader? loader))
@@ -79,6 +79,7 @@ public sealed partial class AssetSystem
                 catch (Exception ex)
                 {
                     failedReason = $"Failed to download remote asset '{url}': {ex.Message}";
+                    profileScope?.Fail();
                     return FailWithCleanup();
                 }
 
@@ -93,20 +94,20 @@ public sealed partial class AssetSystem
                 catch (Exception ex)
                 {
                     failedReason = $"Exception occurred while creating asset {url}: {ex}";
+                    profileScope?.Fail();
                     return FailWithCleanup();
                 }
 
                 if (asset == null || !type.IsInstanceOfType(asset))
                 {
                     failedReason = $"The asset loader {loader.Name} returned an asset of type {asset?.GetType().Name} instead of {type.Name}";
+                    profileScope?.Fail();
                     return FailWithCleanup();
                 }
 
                 // Cache the result
                 handle.SetCache(asset, cacheMode);
                 handle.IsLoading = false;
-
-                EndProfile();
 
                 return true;
             }
@@ -120,7 +121,6 @@ public sealed partial class AssetSystem
         bool FailWithCleanup()
         {
             handle.IsLoading = false;
-            EndProfile(false);
             return false;
         }
     }
