@@ -137,10 +137,7 @@ namespace Alco
         /// </summary>
         public static int BinarySearchCeil<T>(IReadOnlyList<T> list, T item, Comparison<T>? comparer = null)
         {
-            if (comparer == null)
-            {
-                comparer = DefaultComparer<T>();
-            }
+            comparer ??= DefaultComparer<T>();
 
             int left = 0;
             int right = list.Count - 1;
