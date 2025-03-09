@@ -74,7 +74,7 @@ public class ExplorerPage : Page
 
                         object asset = engine.Assets.Decode(filePath, attribute.AssetType, new ReadOnlySpan<byte>(data, size));
 
-                        inspector.OnOpenAsset(engine, asset);
+                        inspector.OnOpenAsset(engine, asset, realPath);
                         return inspector;
                     }
                     catch (Exception ex)

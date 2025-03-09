@@ -26,7 +26,12 @@ public class NoInspector : Inspector
         throw new NotImplementedException();
     }
 
-    public override void OnOpenAsset(EditorEngine engine, object asset)
+    public override void OnOpenAsset(EditorEngine engine, object asset, string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void SaveAsset(EditorEngine engine)
     {
         throw new NotImplementedException();
     }

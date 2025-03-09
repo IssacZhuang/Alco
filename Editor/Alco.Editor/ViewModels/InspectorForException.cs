@@ -14,7 +14,7 @@ public class InspectorForException : Inspector<Exception>
     public string StackTrace { get; }
     public string Title { get; }
 
-    public InspectorForException(string title, Exception exception)
+    public InspectorForException(string title, Exception exception )
     {
         _exception = exception;
         ExceptionMessage = exception.Message;
@@ -30,7 +30,12 @@ public class InspectorForException : Inspector<Exception>
         };
     }
 
-    protected override void OnOpenAsset(EditorEngine engine, Exception asset)
+    protected override void OnOpenAsset(EditorEngine engine, Exception asset, string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void SaveAsset(EditorEngine engine)
     {
         throw new NotImplementedException();
     }

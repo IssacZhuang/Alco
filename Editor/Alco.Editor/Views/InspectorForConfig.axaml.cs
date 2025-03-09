@@ -9,6 +9,9 @@ using Avalonia.Threading;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using AvaloniaEdit;
+using AvaloniaEdit.TextMate;
+using TextMateSharp.Grammars;
 
 namespace Alco.Editor.Views;
 
@@ -17,6 +20,11 @@ public partial class InspectorForConfig : UserControl
     public InspectorForConfig()
     {
         InitializeComponent();
+        var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
+        var textMateInstallation = TextJsonPreview.InstallTextMate(registryOptions);
+        textMateInstallation.SetGrammar(registryOptions.GetScopeByLanguageId(registryOptions.GetLanguageByExtension(".json").Id));
+    
+        this.KeyDown += OnKeyDown;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -33,14 +41,18 @@ public partial class InspectorForConfig : UserControl
             return;
         }
 
-        ViewModels.ObjectPropertiesEditor vmPropertiesEditor = new(config, config.Id, 0);
-        PropertiesEditor.DataContext = vmPropertiesEditor;
+        if (viewModel.PropertiesEditor is null)
+        {
+            return;
+        }
+
+        PropertiesEditor.DataContext = viewModel.PropertiesEditor;
         PropertiesEditor.IsExpanded = true;
-        vmPropertiesEditor.OnValueChanged += OnRefresh;
-        OnRefresh();
+        viewModel.PropertiesEditor.OnValueChanged += Refresh;
+        Refresh();
     }
 
-    private void OnRefresh()
+    private void Refresh()
     {
         if (DataContext is not ViewModels.InspectorForConfig viewModel)
         {
@@ -59,10 +71,40 @@ public partial class InspectorForConfig : UserControl
         {
             TextError.IsVisible = false;
         }
+        TextFilename.Text = viewModel.Filename + " " + (viewModel.IsModified ? "*" : "");
     }
 
     private void OnGridSplitterDragCompleted(object? sender, VectorEventArgs e)
     {
         Log.Info(PropertiesEditor.Width);
     }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.S && e.KeyModifiers == KeyModifiers.Control)
+        {
+            SaveDocument();
+            e.Handled = true;
+        }
+        
+    }
+
+    private void SaveDocument()
+    {
+        if (DataContext is not ViewModels.InspectorForConfig viewModel)
+        {
+            return;
+        }
+
+        if (!viewModel.IsModified)
+        {
+            Log.Info($"{viewModel.Filename} has nothing to save");
+            return;
+        }
+
+        viewModel.SaveAsset(App.Main.Engine);
+        Refresh();
+    }
+
+    
 }
