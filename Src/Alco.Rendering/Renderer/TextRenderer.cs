@@ -10,7 +10,7 @@ namespace Alco.Rendering;
 /// The high performance text renderer.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
-public sealed class TextRenderer : AutoDisposable
+public unsafe sealed class TextRenderer : AutoDisposable
 {
 
     [StructLayout(LayoutKind.Sequential)]
@@ -25,15 +25,20 @@ public sealed class TextRenderer : AutoDisposable
 
 
     private const int MaxTextInstancingCount = 300;
+    private static readonly uint GPUBufferSize = (uint)(MaxTextInstancingCount * sizeof(TextData));
+
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
-    private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
+    // private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
 
     private readonly GPUCommandBuffer _command;
 
-    private readonly NativeBuffer<TextData> _textBufferCPU;
+    private NativeBuffer<TextData> _textBufferFull;
+    private NativeBuffer<TextData> _textBufferPartial;
+    private readonly List<GraphicsBuffer> _tmpGPUBuffers;
+    private GraphicsBuffer? _textBufferGPU;
 
     private GraphicsPipelineContext _pipelineInfo;
 
@@ -51,13 +56,15 @@ public sealed class TextRenderer : AutoDisposable
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
-        _textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
+        //_textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
+        _tmpGPUBuffers = new List<GraphicsBuffer>();
 
         _mesh = mesh;
         _shader = shader;
         _command = _device.CreateCommandBuffer();
 
-        _textBufferCPU = new NativeBuffer<TextData>(MaxTextInstancingCount);
+        _textBufferFull = new NativeBuffer<TextData>(MaxTextInstancingCount);
+        _textBufferPartial = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
         _pipelineInfo = _shader.GetGraphicsPipeline(
             renderingSystem.PrefferedSDRPass,
@@ -79,7 +86,7 @@ public sealed class TextRenderer : AutoDisposable
     /// <param name="target">The target frame buffer to draw text on.</param>
     /// <exception cref="InvalidOperationException">TextRenderer.Begin() called twice without calling End()</exception>
     /// <exception cref="ArgumentNullException">The render target is null</exception>
-    public void Begin(GPUFrameBuffer target)
+    public unsafe void Begin(GPUFrameBuffer target)
     {
         if (_isDrawing)
         {
@@ -95,8 +102,15 @@ public sealed class TextRenderer : AutoDisposable
 
         _renderTarget = target;
         _isDrawing = true;
-        BeginDraw();
         _instanceIndex = 0;
+
+        _command.Begin();
+        _command.SetFrameBuffer(_renderTarget!);
+        _command.SetGraphicsPipeline(_pipelineInfo!);
+        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
+        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
+        RequestGPUBuffer();
     }
 
     /// <summary>
@@ -110,27 +124,31 @@ public sealed class TextRenderer : AutoDisposable
             throw new InvalidOperationException("TextRenderer.End() called without calling Begin()");
         }
 
-        Flush();
+        UpdateBufferToGPU();
         _renderTarget = null;
         _isDrawing = false;
-    }
 
-    private void BeginDraw()
-    {
-        _command.Begin();
-        _command.SetFrameBuffer(_renderTarget!);
-        _command.SetGraphicsPipeline(_pipelineInfo!);
-        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
-        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadWrite);
-    }
-
-    private void Flush()
-    {
-        _textBufferGPU.UpdateBufferRanged(0, (uint)_instanceIndex);
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
+
+        _textBufferGPU = null;
+        for (int i = 0; i < _tmpGPUBuffers.Count; i++)
+        {
+            _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_tmpGPUBuffers[i]);
+        }
+        _tmpGPUBuffers.Clear();
+    }
+
+
+    private unsafe void UpdateBufferToGPU()
+    {
+        if (_textBufferGPU == null)
+        {
+            throw new InvalidOperationException("GPU buffer not requested");
+        }
+        uint size = (uint)(_instanceIndex * sizeof(TextData));
+        TextData* textDataPartialPtr = _textBufferPartial.UnsafePointer;
+        _textBufferGPU.UpdateBuffer((byte*)textDataPartialPtr, size);
         _instanceIndex = 0;
     }
 
@@ -238,7 +256,7 @@ public sealed class TextRenderer : AutoDisposable
             return 0;
         }
 
-        _textBufferCPU.EnsureSize(count);
+        _textBufferFull.EnsureSize(count);
 
         float x = 0;
         float y = 0;
@@ -251,11 +269,11 @@ public sealed class TextRenderer : AutoDisposable
 
         Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
 
-        TextData* textDataPtr = _textBufferCPU.UnsafePointer;
+        TextData* textDataFullPtr = _textBufferFull.UnsafePointer;
         for (int i = 0; i < count; i++)
         {
             c = str[i];
-            textDataPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
+            textDataFullPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
         }
 
         Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
@@ -267,6 +285,8 @@ public sealed class TextRenderer : AutoDisposable
             Model = matrix,
             VertexOffset = textAreaSize * realPivot
         };
+
+        TextData* textDataPartialPtr = _textBufferPartial.UnsafePointer;
 
         while (true)
         {
@@ -281,8 +301,8 @@ public sealed class TextRenderer : AutoDisposable
 
             if (remainInstanceCount <= 0)
             {
-                Flush();
-                BeginDraw();
+                UpdateBufferToGPU();
+                RequestGPUBuffer();
                 continue;
             }
 
@@ -291,7 +311,7 @@ public sealed class TextRenderer : AutoDisposable
 
             for (uint i = 0; i < drawCount; i++)
             {
-                _textBufferGPU[_instanceIndex] = textDataPtr[localIndex + i];
+                textDataPartialPtr[_instanceIndex] = textDataFullPtr[localIndex + i];
                 _instanceIndex++;
             }
 
@@ -333,12 +353,27 @@ public sealed class TextRenderer : AutoDisposable
         return data;
     }
 
+    private void RequestGPUBuffer()
+    {
+        if (_renderingSystem.GraphicsBufferPool.TryGetBuffer(GPUBufferSize, out var buffer))
+        {
+            _tmpGPUBuffers.Add(buffer);
+            _textBufferGPU = buffer;
+            _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadWrite);
+        }
+        else
+        {
+            throw new InvalidOperationException("Failed to request GPU buffer of size: " + GPUBufferSize);
+        }
+
+    }
+
     protected override void Dispose(bool disposing)
     {
         //dispose native resources
-        _textBufferCPU.Dispose();
-        //dispose private managed resources
-        _textBufferGPU.Dispose();
+        _textBufferFull.Dispose();
+        _textBufferPartial.Dispose();
+
         _command.Dispose();
     }
 }

@@ -30,7 +30,7 @@ public partial class RenderingSystem
 
     private GraphicsValueBuffer<TimeData> _timeData;
 
-    
+    private readonly GraphicsBufferPool _bufferPool;
 
     public GPUDevice GraphicsDevice
     {
@@ -104,6 +104,12 @@ public partial class RenderingSystem
         get => _prefferedLightMapPass;
     }
 
+    public GraphicsBufferPool GraphicsBufferPool
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _bufferPool;
+    }
+
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
@@ -122,6 +128,20 @@ public partial class RenderingSystem
         _prefferedDepthStencilFormat = prefferedDepthStencilFormat;
 
         _timeData = CreateGraphicsValueBuffer<TimeData>();
+
+        //2kb, 4kb, 8kb, 16kb, 32kb, 64kb, 128kb, 256kb, 512kb
+        _bufferPool = new GraphicsBufferPool(
+            this,
+            2 * 1024,
+            4 * 1024,
+            8 * 1024,
+            16 * 1024,
+            32 * 1024,
+            64 * 1024,
+            128 * 1024,
+            256 * 1024,
+            512 * 1024
+            );
 
         _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
         (
