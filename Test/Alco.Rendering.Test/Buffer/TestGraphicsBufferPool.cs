@@ -14,7 +14,7 @@ public class TestGraphicsBufferPool
         var renderingSystem = host.RenderingSystem;
 
         // Act
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Assert
         Assert.That(bufferPool.BufferSizes.Length, Is.EqualTo(4));
@@ -30,7 +30,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Act
         bool result = bufferPool.TryGetBuffer(256, out var buffer);
@@ -47,7 +47,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Act
         bool result = bufferPool.TryGetBuffer(200, out var buffer);
@@ -64,7 +64,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Act
         bool result = bufferPool.TryGetBuffer(2048, out var buffer);
@@ -80,7 +80,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Get a buffer from the pool
         bufferPool.TryGetBuffer(256, out var buffer);
@@ -98,7 +98,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Create a buffer with a size not in the pool
         var buffer = renderingSystem.CreateGraphicsBuffer(300);
@@ -119,7 +119,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Act
         bool result = bufferPool.TryGetEntry(256, out var entry);
@@ -135,7 +135,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Act
         bool result = bufferPool.TryGetEntry(200, out var entry);
@@ -151,7 +151,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         // Get a buffer and return it
         bufferPool.TryGetBuffer(256, out var buffer1);
@@ -170,7 +170,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         bufferPool.TryGetEntry(256, out var entry);
 
@@ -190,7 +190,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        using var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256, 512, 1024 });
+        using var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256, 512, 1024 });
 
         bufferPool.TryGetEntry(256, out var entry);
         var buffer = renderingSystem.CreateGraphicsBuffer(512);
@@ -211,7 +211,7 @@ public class TestGraphicsBufferPool
         // Arrange
         using var host = Utility.CreateRenderingSystem();
         var renderingSystem = host.RenderingSystem;
-        var bufferPool = new GraphicsBufferPool(renderingSystem, new uint[] { 128, 256 });
+        var bufferPool = renderingSystem.CreateGraphicsBufferPool(new uint[] { 128, 256 });
 
         // Get some buffers
         bufferPool.TryGetBuffer(128, out var buffer1);

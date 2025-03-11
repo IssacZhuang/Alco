@@ -55,7 +55,7 @@ public class GraphicsBufferPool: AutoDisposable
     /// </summary>
     /// <param name="renderingSystem">The rendering system used to create graphics buffers.</param>
     /// <param name="bufferSizes">The sizes of buffers to pre-allocate in the pool.</param>
-    public GraphicsBufferPool(RenderingSystem renderingSystem, params ReadOnlySpan<uint> bufferSizes)
+    internal GraphicsBufferPool(RenderingSystem renderingSystem, params ReadOnlySpan<uint> bufferSizes)
     {
         _renderingSystem = renderingSystem;
         _bufferSizes = bufferSizes.ToArray();

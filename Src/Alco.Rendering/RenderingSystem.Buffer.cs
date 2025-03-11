@@ -73,4 +73,14 @@ public partial class RenderingSystem
     {
         return new GraphicsArrayBuffer<T>(this, initialData, name);
     }
+
+    /// <summary>
+    /// Create a graphics buffer pool.
+    /// </summary>
+    /// <param name="bufferSizes">The sizes of buffers to pre-allocate in the pool.</param>
+    /// <returns>The created graphics buffer pool.</returns>
+    public GraphicsBufferPool CreateGraphicsBufferPool(params uint[] bufferSizes)
+    {
+        return new GraphicsBufferPool(this, bufferSizes);
+    }
 }
