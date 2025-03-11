@@ -9,132 +9,37 @@ namespace Alco.Rendering;
 /// The renderer to draw sprites in 2D or 3D space.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary>
-public sealed class SpriteRenderer : AutoDisposable
+public sealed class SpriteRenderer : AutoDisposable, IRenderer
 {
-    private class DrawTask : RenderTask
+    public const string ShaderId_camera = "_camera";
+    public const string ShaderId_texture = "_texture";
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Constant
     {
-        private struct DrawData
-        {
-            public Texture2D Texture;
-            public SpriteConstant Constant;
-        }
-
-
-
-
-
-        private readonly GraphicsBuffer _camera;
-        private readonly Mesh _mesh;
-        private readonly Shader _shader;
-
-        private GraphicsPipelineContext _pipelineInfo;
-        private uint _shaderId_texture;
-        private uint _shaderId_camera;
-
-        private readonly DrawData[] drawDatas;
-        private int _capacity;
-        private int _drawCount = 0;
-
-        public int DrawCount
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _drawCount;
-        }
-
-        public int Capacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _capacity;
-        }
-
-        public bool IsFull
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _drawCount >= _capacity;
-        }
-
-        public DrawTask(
-            RenderingSystem renderingSystem,
-            GraphicsBuffer camera,
-            Shader shader,
-            Mesh mesh,
-            int capacity = 10000
-            ) : base(renderingSystem, 1)
-        {
-            _camera = camera;
-            _shader = shader;
-            _mesh = mesh;
-
-            _pipelineInfo = shader.GetGraphicsPipeline(
-                renderingSystem.PrefferedSDRPass,
-                DepthStencilState.Read,
-                BlendState.AlphaBlend
-            );
-
-            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
-            _shaderId_texture = _pipelineInfo.GetResourceId(ShaderResourceId.Texture);
-
-            _capacity = capacity;
-            drawDatas = new DrawData[_capacity];
-        }
-
-        protected override void ExecuteCore(GPUCommandBuffer commandBuffer, GPUFrameBuffer renderTarget)
-        {
-            if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, renderTarget.RenderPass))
-            {
-                _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
-                _shaderId_texture = _pipelineInfo.GetResourceId(ShaderResourceId.Texture);
-            }
-
-            commandBuffer.SetGraphicsPipeline(_pipelineInfo);
-            commandBuffer.SetGraphicsResources(_shaderId_camera, _camera.EntryReadonly);
-            commandBuffer.SetVertexBuffer(0, _mesh.VertexBuffer);
-            commandBuffer.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
-
-
-            for (int i = 0; i < _drawCount; i++)
-            {
-                DrawData drawData = drawDatas[i];
-                commandBuffer.SetGraphicsResources(_shaderId_texture, drawData.Texture.EntrySample);
-                commandBuffer.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, drawData.Constant);
-                commandBuffer.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddDrawData(Texture2D texture, SpriteConstant constant)
-        {
-            drawDatas[_drawCount++] = new DrawData { Texture = texture, Constant = constant };
-        }
-
-        public void Clear()
-        {
-            _drawCount = 0;
-        }
+        public Matrix4x4 Model;
+        public Vector4 Color;
+        public Rect UvRect;
     }
 
     private static readonly Rect DefaultUvRect = new Rect(0, 0, 1, 1);
 
-    private readonly RenderingSystem _renderingSystem;
+    private readonly GPUCommandBuffer _command;
+    private readonly GPUDevice _device;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
-
-    private GPUFrameBuffer? _renderTarget;
 
     private GraphicsPipelineContext _pipelineInfo;
 
     private uint _shaderId_camera;
     private uint _shaderId_texture;
 
-    private readonly DynamicCircularBuffer<DrawTask> _drawTasks;
-    private DrawTask? _currentTask;
-
     public GraphicsBuffer Camera { get; set; }
-
 
     internal SpriteRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
     {
-        _renderingSystem = renderingSystem;
+        _device = renderingSystem.GraphicsDevice;
+        _command = _device.CreateCommandBuffer();
         _shader = shader;
         _mesh = mesh;
 
@@ -144,30 +49,32 @@ public sealed class SpriteRenderer : AutoDisposable
             BlendState.AlphaBlend
         );
 
-        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
-        _shaderId_texture = _pipelineInfo.GetResourceId(ShaderResourceId.Texture);
+        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+        _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
 
         Camera = camera;
-
-        _drawTasks = new DynamicCircularBuffer<DrawTask>(() => new DrawTask(_renderingSystem, Camera, _shader, _mesh));
     }
 
     public void Begin(GPUFrameBuffer target)
     {
-        _currentTask = _drawTasks.Next();
-        _renderTarget = target ?? throw new ArgumentNullException(nameof(target));
+        if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
+        {
+            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
+            _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);
+        }
+
+        _command.Begin();
+        _command.SetFrameBuffer(target);
+        _command.SetGraphicsPipeline(_pipelineInfo);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
+        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
+        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
     }
 
     public void End()
     {
-        //run last task
-        _currentTask!.Run(_renderTarget!);
-        for (int i = 0; i < _drawTasks.UsedCount; i++)
-        {
-            _drawTasks[i].Submit();
-            _drawTasks[i].Clear();
-        }
-        _drawTasks.ResetToHead();
+        _command.End();
+        _device.Submit(_command);
     }
 
     #region  Draw 3D
@@ -232,7 +139,7 @@ public sealed class SpriteRenderer : AutoDisposable
 
     #endregion
 
-    
+
     #region Draw by matrix
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -251,24 +158,21 @@ public sealed class SpriteRenderer : AutoDisposable
 
     private void DrawCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, ColorFloat color)
     {
-        SpriteConstant constant = new SpriteConstant
+        Constant constant = new Constant
         {
             Model = matrix,
             Color = color,
             UvRect = uvRect
         };
 
-        if (_currentTask!.IsFull)
-        {
-            _currentTask.Run(_renderTarget!);
-            _currentTask = _drawTasks.Next();
-        }
-
-        _currentTask.AddDrawData(texture, constant);
+        _command.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
+        _command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
     }
 
     protected override void Dispose(bool disposing)
     {
-
+        //dispose private managed resources
+        _command.Dispose();
     }
 }
