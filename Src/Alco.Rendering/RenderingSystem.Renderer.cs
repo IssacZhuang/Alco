@@ -11,6 +11,11 @@ public partial class RenderingSystem
         return new TextRenderer(this, MeshTrueType, camera, shader);
     }
 
+    public TextRenderer2 CreateTextRenderer2(Material material, string name = "text_renderer")
+    {
+        return new TextRenderer2(this, MeshTrueType, material, name);
+    }
+
     public SpriteRenderer CreateSpriteRenderer(GraphicsBuffer camera, Shader shader)
     {
         return new SpriteRenderer(this, MeshCenteredSprite, camera, shader);

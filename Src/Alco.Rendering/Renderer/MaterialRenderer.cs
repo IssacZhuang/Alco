@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
@@ -9,7 +10,7 @@ public sealed class MaterialRenderer : AutoDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
     private GPUFrameBuffer? _framebuffer;
-    public MaterialRenderer(RenderingSystem renderingSystem)
+    internal MaterialRenderer(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
@@ -63,7 +64,13 @@ public sealed class MaterialRenderer : AutoDisposable
         _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, 0);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawInstancedWithConstant<T>(IMesh mesh, Material material, uint instanceCount, T constant) where T : unmanaged
+    {
+        DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant);
+    }
+
+    public void DrawInstancedWithConstant<T>(IMesh mesh, Material material, uint instanceCount, uint instanceStart, T constant) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -72,7 +79,7 @@ public sealed class MaterialRenderer : AutoDisposable
         _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
-        _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, 0);
+        _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, instanceStart);
     }
 
     public void End()
@@ -83,6 +90,6 @@ public sealed class MaterialRenderer : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-
+        _command.Dispose();
     }
 }

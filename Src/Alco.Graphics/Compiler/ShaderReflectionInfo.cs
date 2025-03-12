@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 /// <summary>
 /// The reflection information for a shader
 /// </summary>
-public class ShaderReflectionInfo
+public sealed class ShaderReflectionInfo
 {
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
     private readonly string[] _idToName;
