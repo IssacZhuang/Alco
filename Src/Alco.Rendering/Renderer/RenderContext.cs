@@ -28,6 +28,17 @@ public sealed class RenderContext : AutoDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _command;
     }
+
+    /// <summary>
+    /// The event that is invoked when the <see cref="Begin"/> is called.
+    /// </summary>
+    public event Action? OnBegin;
+
+    /// <summary>
+    /// The event that is invoked when the <see cref="End"/> is called.
+    /// </summary>
+    public event Action? OnEnd;
+
     internal RenderContext(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
@@ -35,11 +46,27 @@ public sealed class RenderContext : AutoDisposable
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("render_context"));
     }
 
-    public void Begin(GPUFrameBuffer target)
+    /// <summary>
+    /// Begin the render context.
+    /// </summary>
+    /// <param name="target">The framebuffer to render to.</param>
+    /// <returns>The exception that occurred during invoking the <see cref="OnBegin"/> event; otherwise, null.</returns>
+    public Exception? Begin(GPUFrameBuffer target)
     {
+        Exception? exception = null;
         _command.Begin();
+        try
+        {
+            OnBegin?.Invoke();
+        }
+        catch (Exception e)
+        {
+            exception = e;
+        }
+
         _command.SetFrameBuffer(target);
         _framebuffer = target;
+        return exception;
     }
 
     public void Draw(IMesh mesh, Material material)
@@ -98,10 +125,27 @@ public sealed class RenderContext : AutoDisposable
         _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, instanceStart);
     }
 
-    public void End()
+    /// <summary>
+    /// End the render context.
+    /// </summary>
+    /// <returns>The exception that occurred during invoking the <see cref="OnEnd"/> event; otherwise, null.</returns>
+    public Exception? End()
     {
+        Exception? exception = null;
+
+        try
+        {
+            OnEnd?.Invoke();
+        }
+        catch (Exception e)
+        {
+            exception = e;
+        }
+
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
+
+        return exception;
     }
 
     protected override void Dispose(bool disposing)
