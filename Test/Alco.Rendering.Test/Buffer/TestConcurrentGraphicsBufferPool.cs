@@ -4,10 +4,10 @@ using Alco.Rendering;
 
 namespace Alco.Rendering.Test;
 
-public class TestGraphicsBufferPool
+public class TestConcurrentGraphicsBufferPool
 {
-    [Test(Description = "Test GraphicsBufferPool initialization")]
-    public void TestGraphicsBufferPoolInitialization()
+    [Test(Description = "Test ConcurrentGraphicsBufferPool initialization")]
+    public void TestConcurrentGraphicsBufferPoolInitialization()
     {
         // Arrange
         using var host = Utility.CreateRenderingSystem();

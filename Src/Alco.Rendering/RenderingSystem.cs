@@ -30,7 +30,7 @@ public partial class RenderingSystem
 
     private GraphicsValueBuffer<TimeData> _timeData;
 
-    private readonly GraphicsBufferPool _bufferPool;
+    private readonly ConcurrentGraphicsBufferPool _bufferPool;
 
     public GPUDevice GraphicsDevice
     {
@@ -104,7 +104,7 @@ public partial class RenderingSystem
         get => _prefferedLightMapPass;
     }
 
-    public GraphicsBufferPool GraphicsBufferPool
+    public ConcurrentGraphicsBufferPool GraphicsBufferPool
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _bufferPool;
@@ -130,7 +130,7 @@ public partial class RenderingSystem
         _timeData = CreateGraphicsValueBuffer<TimeData>();
 
         //2kb, 4kb, 8kb, 16kb, 32kb, 64kb, 128kb, 256kb, 512kb
-        _bufferPool = new GraphicsBufferPool(
+        _bufferPool = new ConcurrentGraphicsBufferPool(
             this,
             2 * 1024,
             4 * 1024,

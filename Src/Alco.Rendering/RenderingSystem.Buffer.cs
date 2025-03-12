@@ -79,8 +79,8 @@ public partial class RenderingSystem
     /// </summary>
     /// <param name="bufferSizes">The sizes of buffers to pre-allocate in the pool.</param>
     /// <returns>The created graphics buffer pool.</returns>
-    public GraphicsBufferPool CreateGraphicsBufferPool(params uint[] bufferSizes)
+    public ConcurrentGraphicsBufferPool CreateGraphicsBufferPool(params uint[] bufferSizes)
     {
-        return new GraphicsBufferPool(this, bufferSizes);
+        return new ConcurrentGraphicsBufferPool(this, bufferSizes);
     }
 }
