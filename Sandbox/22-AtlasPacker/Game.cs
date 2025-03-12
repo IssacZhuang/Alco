@@ -10,7 +10,7 @@ using Alco.GUI;
 public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
-    private readonly MaterialRenderer _materialRenderer;
+    private readonly RenderContext _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
     public Game(GameEngineSetting setting) : base(setting)

@@ -4,17 +4,35 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed class MaterialRenderer : AutoDisposable
+/// <summary>
+/// The context of the render object. It is a high level encapsulation of the rendering process.
+/// All APIs in this class are not thread safe, but you can create multiple instances on different threads.
+/// </summary>
+public sealed class RenderContext : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
     private GPUFrameBuffer? _framebuffer;
-    internal MaterialRenderer(RenderingSystem renderingSystem)
+
+    /// <summary>
+    /// The framebuffer that is currently being rendered to.
+    /// </summary>
+    public GPUFrameBuffer? Framebuffer => _framebuffer;
+
+    /// <summary>
+    /// The command buffer that is currently in use.
+    /// </summary>
+    public GPUCommandBuffer CommandBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _command;
+    }
+    internal RenderContext(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("material_renderer"));
+        _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("render_context"));
     }
 
     public void Begin(GPUFrameBuffer target)
@@ -23,8 +41,6 @@ public sealed class MaterialRenderer : AutoDisposable
         _command.SetFrameBuffer(target);
         _framebuffer = target;
     }
-
-
 
     public void Draw(IMesh mesh, Material material)
     {

@@ -36,7 +36,7 @@ public class Cube
 
 
 
-    public void OnDraw(MaterialRenderer renderer)
+    public void OnDraw(RenderContext renderer)
     {
         _renderData.matrix = transform.Matrix;
         // renderer already began

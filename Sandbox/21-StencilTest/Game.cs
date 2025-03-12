@@ -18,7 +18,7 @@ public class Game : GameEngine
     private Transform3D _camaraChild = Transform3D.Identity;
 
     private readonly Shader _shader;
-    private readonly MaterialRenderer _renderer;
+    private readonly RenderContext _renderer;
     private readonly CameraPerspective _camera;
     private readonly GraphicsMaterial _materialStencilWrite;
     private readonly GraphicsMaterial _materialStencilTest;

@@ -12,7 +12,7 @@ public class Game : GameEngine
     private TextRenderer _renderer;
 
     private Material _material;
-    private MaterialRenderer _materialRenderer;
+    private RenderContext _materialRenderer;
     private TextRenderer2 _textRenderer;
 
     private Font _font;

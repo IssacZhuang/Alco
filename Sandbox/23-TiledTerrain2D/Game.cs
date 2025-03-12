@@ -10,7 +10,7 @@ using SandboxUtils;
 
 public class Game : GameEngine
 {
-    private readonly MaterialRenderer _renderer;
+    private readonly RenderContext _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
 

@@ -20,7 +20,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     private BoundingBox2D _cameraMask;
 
     //blit
-    private readonly MaterialRenderer _renderer;
+    private readonly RenderContext _renderer;
     private readonly Material _material;
     private readonly Mesh _mesh;    
 

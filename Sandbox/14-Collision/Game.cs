@@ -15,7 +15,7 @@ public class Game : GameEngine
     private readonly CameraPerspective _camera;
 
     private readonly Shader _shader;
-    private readonly MaterialRenderer _renderer;
+    private readonly RenderContext _renderer;
     private readonly GraphicsMaterial _material;
 
     private readonly Cube _entity;

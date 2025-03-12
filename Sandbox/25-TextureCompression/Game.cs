@@ -11,7 +11,7 @@ using Alco.GUI;
 public class Game : GameEngine
 {
 
-    private readonly MaterialRenderer _materialRenderer;
+    private readonly RenderContext _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
     private readonly Material _materialCompressed;

@@ -16,7 +16,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private GPURenderPass _renderPass;
     private RenderTexture _renderTexture;
 
-    private MaterialRenderer _renderer;
+    private RenderContext _renderer;
     private Material _blitMaterial;
     private MaterialInstance? _overrideMaterial;
     private Mesh _mesh;
