@@ -18,6 +18,9 @@ public sealed class RenderContext : AutoDisposable
     private readonly List<Exception> _exceptionsEnd;
     private GPUFrameBuffer? _framebuffer;
 
+    private IMesh? _mesh;
+    private int _subMeshIndex;
+
     /// <summary>
     /// The framebuffer that is currently being rendered to.
     /// </summary>
@@ -31,6 +34,7 @@ public sealed class RenderContext : AutoDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _command;
     }
+
 
 
     internal RenderContext(RenderingSystem renderingSystem)
@@ -64,21 +68,22 @@ public sealed class RenderContext : AutoDisposable
         _command.SetFrameBuffer(target);
         _framebuffer = target;
 
+        ClearCache();
+
         return InvokeBegin();
     }
 
-    public void Draw(IMesh mesh, Material material)
+    public void Draw(in IMesh mesh,in Material material)
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        _command.SetVertexBuffer(0, mesh.VertexBuffer);
-        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    public unsafe void DrawWithConstant<T>(IMesh mesh, Material material, T constant) where T : unmanaged
+    public unsafe void DrawWithConstant<T>(in IMesh mesh, in Material material, in T constant) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -87,37 +92,34 @@ public sealed class RenderContext : AutoDisposable
             throw new ArgumentException("The size of the constant does not match the push constants size");
         }
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        _command.SetVertexBuffer(0, mesh.VertexBuffer);
-        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    public void DrawInstanced(IMesh mesh, Material material, uint instanceCount)
+    public void DrawInstanced(in IMesh mesh, in Material material, in uint instanceCount)
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        _command.SetVertexBuffer(0, mesh.VertexBuffer);
-        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
         _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, 0);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawInstancedWithConstant<T>(IMesh mesh, Material material, uint instanceCount, T constant) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in IMesh mesh, in Material material, in uint instanceCount, in T constant) where T : unmanaged
     {
         DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant);
     }
 
-    public void DrawInstancedWithConstant<T>(IMesh mesh, Material material, uint instanceCount, uint instanceStart, T constant) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in IMesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        _command.SetVertexBuffer(0, mesh.VertexBuffer);
-        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, instanceStart);
@@ -133,13 +135,31 @@ public sealed class RenderContext : AutoDisposable
 
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
+        ClearCache();
 
         return exceptions;
     }
 
-    protected override void Dispose(bool disposing)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetMesh(in IMesh mesh, in int subMeshIndex)
     {
-        _command.Dispose();
+        if (_mesh == mesh && _subMeshIndex == subMeshIndex)
+        {
+            return;
+        }
+
+        _mesh = mesh;
+        _subMeshIndex = subMeshIndex;
+
+        //todo: sub mesh support
+        _command.SetVertexBuffer(0, mesh.VertexBuffer);
+        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+    }
+
+    private void ClearCache()
+    {
+        _mesh = null;
+        _subMeshIndex = 0;
     }
 
     private IReadOnlyList<Exception> InvokeBegin()
@@ -174,5 +194,10 @@ public sealed class RenderContext : AutoDisposable
             }
         }
         return _exceptionsEnd;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        _command.Dispose();
     }
 }
