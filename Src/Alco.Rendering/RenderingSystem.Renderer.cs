@@ -11,9 +11,16 @@ public partial class RenderingSystem
         return new TextRenderer(this, MeshTrueType, camera, shader);
     }
 
-    public TextRenderer2 CreateTextRenderer2(Material material, string name = "text_renderer")
+    /// <summary>
+    /// Create a text renderer that uses a render context and a material.
+    /// </summary>
+    /// <param name="renderContext">The render context to use.</param>
+    /// <param name="material">The material to use.</param>
+    /// <param name="name">The name of the renderer.</param>
+    /// <returns>The created text renderer.</returns>
+    public TextRenderer2 CreateTextRenderer2(RenderContext renderContext, Material material, string name = "text_renderer")
     {
-        return new TextRenderer2(this, MeshTrueType, material, name);
+        return new TextRenderer2(this, renderContext, MeshTrueType, material, name);
     }
 
     public SpriteRenderer CreateSpriteRenderer(GraphicsBuffer camera, Shader shader)

@@ -13,6 +13,9 @@ public sealed class RenderContext : AutoDisposable
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
+    private readonly List<ICommandListener> _listeners;
+    private readonly List<Exception> _exceptionsBegin;
+    private readonly List<Exception> _exceptionsEnd;
     private GPUFrameBuffer? _framebuffer;
 
     /// <summary>
@@ -29,44 +32,39 @@ public sealed class RenderContext : AutoDisposable
         get => _command;
     }
 
-    /// <summary>
-    /// The event that is invoked when the <see cref="Begin"/> is called.
-    /// </summary>
-    public event Action? OnBegin;
-
-    /// <summary>
-    /// The event that is invoked when the <see cref="End"/> is called.
-    /// </summary>
-    public event Action? OnEnd;
 
     internal RenderContext(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("render_context"));
+        _listeners = new List<ICommandListener>();
+        _exceptionsBegin = new List<Exception>();
+        _exceptionsEnd = new List<Exception>();
+    }
+
+    public void AddListener(ICommandListener listener)
+    {
+        _listeners.Add(listener);
+    }
+
+    public void RemoveListener(ICommandListener listener)
+    {
+        _listeners.Remove(listener);
     }
 
     /// <summary>
     /// Begin the render context.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
-    /// <returns>The exception that occurred during invoking the <see cref="OnBegin"/> event; otherwise, null.</returns>
-    public Exception? Begin(GPUFrameBuffer target)
+    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
+    public IReadOnlyList<Exception> Begin(GPUFrameBuffer target)
     {
-        Exception? exception = null;
         _command.Begin();
-        try
-        {
-            OnBegin?.Invoke();
-        }
-        catch (Exception e)
-        {
-            exception = e;
-        }
-
         _command.SetFrameBuffer(target);
         _framebuffer = target;
-        return exception;
+
+        return InvokeBegin();
     }
 
     public void Draw(IMesh mesh, Material material)
@@ -128,28 +126,53 @@ public sealed class RenderContext : AutoDisposable
     /// <summary>
     /// End the render context.
     /// </summary>
-    /// <returns>The exception that occurred during invoking the <see cref="OnEnd"/> event; otherwise, null.</returns>
-    public Exception? End()
+    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandEnd"/> event; otherwise, an empty array.</returns>
+    public IReadOnlyList<Exception> End()
     {
-        Exception? exception = null;
-
-        try
-        {
-            OnEnd?.Invoke();
-        }
-        catch (Exception e)
-        {
-            exception = e;
-        }
+        var exceptions = InvokeEnd();
 
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
 
-        return exception;
+        return exceptions;
     }
 
     protected override void Dispose(bool disposing)
     {
         _command.Dispose();
+    }
+
+    private IReadOnlyList<Exception> InvokeBegin()
+    {
+        _exceptionsBegin.Clear();
+        foreach (var observer in _listeners)
+        {
+            try
+            {
+                observer.OnCommandBegin();
+            }
+            catch (Exception e)
+            {
+                _exceptionsBegin.Add(e);
+            }
+        }
+        return _exceptionsBegin;
+    }
+
+    private IReadOnlyList<Exception> InvokeEnd()
+    {
+        _exceptionsEnd.Clear();
+        foreach (var observer in _listeners)
+        {
+            try
+            {
+                observer.OnCommandEnd();
+            }
+            catch (Exception e)
+            {
+                _exceptionsEnd.Add(e);
+            }
+        }
+        return _exceptionsEnd;
     }
 }

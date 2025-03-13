@@ -12,7 +12,7 @@ public class Game : GameEngine
     private TextRenderer _renderer;
 
     private Material _material;
-    private RenderContext _materialRenderer;
+    private RenderContext _renderContext;
     private TextRenderer2 _textRenderer;
 
     private Font _font;
@@ -31,8 +31,8 @@ public class Game : GameEngine
 
         _material = Rendering.CreateGraphicsMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
-        _materialRenderer = Rendering.CreateMaterialRenderer();
-        _textRenderer = Rendering.CreateTextRenderer2(_material);
+        _renderContext = Rendering.CreateMaterialRenderer();
+        _textRenderer = Rendering.CreateTextRenderer2(_renderContext, _material);
     }
 
     protected override void OnUpdate(float delta)
@@ -71,25 +71,27 @@ public class Game : GameEngine
 
         // _renderer.End();
 
-        _materialRenderer.Begin(MainFrameBuffer);
-        _textRenderer.Begin();
-        _textRenderer.DrawString(_materialRenderer, _font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString(_materialRenderer,_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString(_materialRenderer,_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
-        _textRenderer.DrawString(_materialRenderer,_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString(_materialRenderer,_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString(_materialRenderer,_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString(_materialRenderer,_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+        _renderContext.Begin(MainFrameBuffer);
 
-        _textRenderer.DrawString(_materialRenderer, _font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString(_materialRenderer, _font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.euler(0, math.radians(_angle), 0), Pivot.Center, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
+        _textRenderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
 
-        _textRenderer.End();
-        _materialRenderer.End();
+        _textRenderer.DrawString( _font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString( _font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.euler(0, math.radians(_angle), 0), Pivot.Center, new Vector4(1, 1, 1, 1));
+
+        _renderContext.End();
     }
 
     protected override void OnStop()
     {
+        _renderContext.Dispose();
+        _material.Dispose();
+        _textRenderer.Dispose();
         _renderer.Dispose();
     }
 }

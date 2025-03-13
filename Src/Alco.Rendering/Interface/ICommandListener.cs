@@ -2,7 +2,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public interface ICommandObserver
+public interface ICommandListener
 {
     public void OnCommandBegin();
     public void OnCommandEnd();

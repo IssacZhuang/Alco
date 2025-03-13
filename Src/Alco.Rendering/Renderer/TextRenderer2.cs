@@ -10,14 +10,13 @@ namespace Alco.Rendering;
 /// The high performance text renderer.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
-public unsafe sealed class TextRenderer2 : AutoDisposable
+public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
 {
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
         public Matrix4x4 Model;
-        // the start of instance id in OpenGL is always 0, so use a custom instance start
         public Vector2 VertexOffset;
     }
 
@@ -27,9 +26,6 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
     private const int MaxTextInstancingCount = 300;
     private static readonly uint GPUBufferSize = (uint)(MaxTextInstancingCount * sizeof(TextData));
 
-    private readonly GPUDevice _device;
-    private readonly RenderingSystem _renderingSystem;
-
     private readonly Mesh _mesh;
     private readonly Material _material;
 
@@ -38,6 +34,9 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
     private readonly List<GraphicsBuffer> _tmpGPUBuffers;
     private GraphicsBuffer? _textBufferGPU;
 
+    private readonly RenderingSystem _renderingSystem;
+    private readonly RenderContext _renderContext;
+
     private uint _shaderId_textBuffer;
     private uint _shaderId_font;
 
@@ -45,10 +44,11 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
     private bool _isDrawing;
 
 
-    internal TextRenderer2(RenderingSystem renderingSystem, Mesh mesh, Material material, string name)
+    internal TextRenderer2(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
     {
         _renderingSystem = renderingSystem;
-        _device = renderingSystem.GraphicsDevice;
+        _renderContext = renderContext;
+        _renderContext.AddListener(this);
         _tmpGPUBuffers = new List<GraphicsBuffer>();
 
         _mesh = mesh;
@@ -63,10 +63,8 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
         _shaderId_font = _material.GetResourceId(ShaderResourceId.Font);
     }
 
-    /// <summary>
-    ///  Begin drawing text.
-    /// <exception cref="InvalidOperationException">TextRenderer.Begin() called twice without calling End()</exception>
-    public unsafe void Begin()
+
+    void ICommandListener.OnCommandBegin()
     {
         if (_isDrawing)
         {
@@ -79,12 +77,9 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
         RequestGPUBuffer();
     }
 
-    /// <summary>
-    /// End drawing text and submit the command to GPU
-    /// </summary>
-    public void End()
-    {
 
+    void ICommandListener.OnCommandEnd()
+    {
         if (!_isDrawing)
         {
             throw new InvalidOperationException("TextRenderer.End() called without calling Begin()");
@@ -117,50 +112,50 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
     #region  Draw 2d
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(RenderContext renderer, Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawString(Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(renderer, font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(RenderContext renderer, Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(renderer, font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(RenderContext renderer, Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(renderer, font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
         }
     }
 
     #endregion 
 
     #region Draw 3d
-    public unsafe float DrawString(RenderContext renderer, Font font, string str, float fontSize, Vector3 position, Quaternion rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawString(Font font, string str, float fontSize, Vector3 position, Quaternion rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(renderer, font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
         }
     }
 
-    public unsafe float DrawChars(RenderContext renderer, Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(renderer, font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
     }
 
-    public unsafe float DrawChars(RenderContext renderer, Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(renderer, font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
         }
     }
 
@@ -169,26 +164,26 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
     #region Draw by matrix
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(RenderContext renderer, Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawString(Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(renderer, font, p, str.Length, matrix, align, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, matrix, align, color, lineSpacing);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(RenderContext renderer, Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(renderer, font, str, count, matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, count, matrix, pivot, color, lineSpacing);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(RenderContext renderer, Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         fixed (char* p = str)
         {
-            return DrawTextCore(renderer, font, p, str.Length, matrix, pivot, color, lineSpacing);
+            return DrawTextCore(font, p, str.Length, matrix, pivot, color, lineSpacing);
         }
     }
 
@@ -196,22 +191,22 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
 
     //draw 2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(RenderContext renderer, Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
-        return DrawTextCore(renderer, font, str, count, transform.Matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
     }
 
     //draw 3d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(RenderContext renderer, Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
-        return DrawTextCore(renderer, font, str, count, transform.Matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
     }
 
     //draw by matrix
-    private unsafe float DrawTextCore(RenderContext renderer, Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         if (count == 0)
         {
@@ -280,7 +275,7 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
             localIndex += drawCount;
 
             _material.SetTexture(_shaderId_font, font.Texture);
-            renderer.DrawInstancedWithConstant(_mesh, _material, (uint)drawCount, instanceStart, constant);
+            _renderContext.DrawInstancedWithConstant(_mesh, _material, (uint)drawCount, instanceStart, constant);
         }
 
         return x;
@@ -319,8 +314,11 @@ public unsafe sealed class TextRenderer2 : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        _renderContext.RemoveListener(this);
         //dispose native resources
         _textBufferFull.Dispose();
         _textBufferPartial.Dispose();
     }
+
+
 }
