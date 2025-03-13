@@ -65,8 +65,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _height = math.max(1, window.Size.Y);
 
         _renderPass = renderPass;
-        _renderer = _rendering.CreateMaterialRenderer();
-        
+        _renderer = _rendering.CreateRenderContext();
+
         _mesh = _rendering.MeshFullScreen;
 
         _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);

@@ -28,7 +28,7 @@ public partial class RenderingSystem
         return new SpriteRenderer(this, MeshCenteredSprite, camera, shader);
     }
 
-    public RenderContext CreateMaterialRenderer()
+    public RenderContext CreateRenderContext()
     {
         return new RenderContext(this);
     }

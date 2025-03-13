@@ -44,10 +44,10 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
         _cameraMask = new BoundingBox2D(_camera.Position - halfSize, _camera.Position + halfSize);
 
         _canvasRenderer = _renderingSystem.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
-        
-       
-        
-        _renderer = _renderingSystem.CreateMaterialRenderer();
+
+
+
+        _renderer = _renderingSystem.CreateRenderContext();
         _mesh = _renderingSystem.MeshFullScreen;
 
         _backBuffer = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");

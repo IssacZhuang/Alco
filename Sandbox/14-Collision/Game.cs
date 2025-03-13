@@ -34,7 +34,7 @@ public class Game : GameEngine
         _camera.Tranform.Position.Z = -10;
         _camera.UpdateMatrixToGPU();
 
-        _renderer = Rendering.CreateMaterialRenderer();
+        _renderer = Rendering.CreateRenderContext();
         _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
 
         _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);

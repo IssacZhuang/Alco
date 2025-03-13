@@ -42,7 +42,7 @@ public class Game : GameEngine
         _camaraChild.Position.Z = -10;
         _camera.Tranform = math.transform(_camaraParent, _camaraChild);
 
-        _renderer = Rendering.CreateMaterialRenderer();
+        _renderer = Rendering.CreateRenderContext();
         _materialStencilWrite = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
         _materialStencilWrite.SetBuffer("_camera", _camera);
         _materialStencilWrite.DepthStencilState = new DepthStencilState

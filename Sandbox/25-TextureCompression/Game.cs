@@ -25,7 +25,7 @@ public class Game : GameEngine
         _texture = Assets.Load<Texture2D>("test.jpg");
         
         _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
-        _materialRenderer = Rendering.CreateMaterialRenderer();
+        _materialRenderer = Rendering.CreateRenderContext();
         _material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _material.DepthStencilState = DepthStencilState.Default;
         _material.BlendState = BlendState.AlphaBlend;

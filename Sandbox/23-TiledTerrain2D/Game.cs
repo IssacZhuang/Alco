@@ -62,7 +62,7 @@ public class Game : GameEngine
         float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
  
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
-        _renderer = Rendering.CreateMaterialRenderer();
+        _renderer = Rendering.CreateRenderContext();
 
         _heightBuffer = Rendering.CreateTileMapHeightBuffer(width, height);
 

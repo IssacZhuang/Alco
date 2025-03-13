@@ -31,7 +31,7 @@ public class Game : GameEngine
 
         _material = Rendering.CreateGraphicsMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
-        _renderContext = Rendering.CreateMaterialRenderer();
+        _renderContext = Rendering.CreateRenderContext();
         _textRenderer = Rendering.CreateTextRenderer2(_renderContext, _material);
     }
 
