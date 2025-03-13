@@ -10,12 +10,14 @@ public class Game : GameEngine
 {
     private int DrawCount = 10000;
     private Camera2D _camera;
+    private Material _materialText;
+    private Material _materialSprite;
     private Font _font;
-    private Shader _textShader;
-    private Shader _spriteShader;
     private Texture2D _star;
-    private TextRenderer _textRenderer;
-    private SpriteRenderer _spriteRenderer;
+
+    private RenderContext _renderContext;
+    private TextRenderer2 _textRenderer;
+    private SpriteRenderer2 _spriteRenderer;
 
     private Vector2[] _positions;
     private ColorFloat[] _colors;
@@ -24,15 +26,21 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _textShader = BuiltInAssets.Shader_Text;
-        _spriteShader = BuiltInAssets.Shader_Sprite;
-        _font = BuiltInAssets.Font_Default;
-        _star = Assets.Load<Texture2D>("Star.png");
-
         _camera = Rendering.CreateCamera2D(640, 360, 100);
 
-        _textRenderer = Rendering.CreateTextRenderer(_camera, _textShader);
-        _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
+        _materialText = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
+        _materialText.SetBuffer(ShaderResourceId.Camera, _camera);
+
+        _materialSprite = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _materialSprite.BlendState = BlendState.AlphaBlend;
+        _materialSprite.SetBuffer(ShaderResourceId.Camera, _camera);
+
+        _font = BuiltInAssets.Font_Default;
+        _star = Assets.Load<Texture2D>("Star.png");
+    
+        _renderContext = Rendering.CreateRenderContext();
+        _textRenderer = Rendering.CreateTextRenderer2(_renderContext, _materialText);
+        _spriteRenderer = Rendering.CreateSpriteRenderer2(_renderContext, _materialSprite);
 
 
         _positions = new Vector2[DrawCount];
@@ -55,19 +63,31 @@ public class Game : GameEngine
             Stop();
         }
 
-        _textRenderer.Begin(MainFrameBuffer);
-        _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        _textRenderer.End();
+        // _textRenderer.Begin(MainFrameBuffer);
+        // _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+        // _textRenderer.End();
 
-        _spriteRenderer.Begin(MainFrameBuffer);
-        //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
+        // _spriteRenderer.Begin(MainFrameBuffer);
+        // //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
+
+        // for (int i = 0; i < DrawCount; i++)
+        // {
+        //     _spriteRenderer.Draw(_star, _positions[i], Rotation2D.Identity, _size, _colors[i]);
+        // }
+
+        // _spriteRenderer.End();
+
+        _renderContext.Begin(MainFrameBuffer);
+        _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+        
+        _spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
         for (int i = 0; i < DrawCount; i++)
         {
             _spriteRenderer.Draw(_star, _positions[i], Rotation2D.Identity, _size, _colors[i]);
         }
-
-        _spriteRenderer.End();
+        
+        _renderContext.End();
     }
 
     protected override void OnStop()

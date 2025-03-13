@@ -28,6 +28,11 @@ public partial class RenderingSystem
         return new SpriteRenderer(this, MeshCenteredSprite, camera, shader);
     }
 
+    public SpriteRenderer2 CreateSpriteRenderer2(RenderContext renderContext, Material material, string name = "sprite_renderer")
+    {
+        return new SpriteRenderer2(this, renderContext, MeshCenteredSprite, material, name);
+    }
+
     public RenderContext CreateRenderContext()
     {
         return new RenderContext(this);
