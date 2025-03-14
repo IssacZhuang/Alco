@@ -18,7 +18,7 @@ public sealed class RenderContext : AutoDisposable
     private readonly List<Exception> _exceptionsEnd;
     private GPUFrameBuffer? _framebuffer;
 
-    private IMesh? _mesh;
+    private Mesh? _mesh;
     private int _subMeshIndex;
 
     /// <summary>
@@ -73,7 +73,7 @@ public sealed class RenderContext : AutoDisposable
         return InvokeBegin();
     }
 
-    public void Draw(in IMesh mesh,in Material material)
+    public void Draw(in Mesh mesh, in Material material)
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -83,7 +83,7 @@ public sealed class RenderContext : AutoDisposable
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    public unsafe void DrawWithConstant<T>(in IMesh mesh, in Material material, in T constant) where T : unmanaged
+    public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -98,7 +98,7 @@ public sealed class RenderContext : AutoDisposable
         _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    public void DrawInstanced(in IMesh mesh, in Material material, in uint instanceCount)
+    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount)
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -109,12 +109,12 @@ public sealed class RenderContext : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawInstancedWithConstant<T>(in IMesh mesh, in Material material, in uint instanceCount, in T constant) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant) where T : unmanaged
     {
         DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant);
     }
 
-    public void DrawInstancedWithConstant<T>(in IMesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -141,7 +141,7 @@ public sealed class RenderContext : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetMesh(in IMesh mesh, in int subMeshIndex)
+    private void SetMesh(in Mesh mesh, in int subMeshIndex)
     {
         if (_mesh == mesh && _subMeshIndex == subMeshIndex)
         {
