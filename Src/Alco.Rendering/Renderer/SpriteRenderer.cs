@@ -27,7 +27,7 @@ public sealed class SpriteRenderer : AutoDisposable
     private readonly GPUCommandBuffer _command;
     private readonly GPUDevice _device;
     private readonly Shader _shader;
-    private readonly Mesh _mesh;
+    private readonly StaticMesh _mesh;
 
     private GraphicsPipelineContext _pipelineInfo;
 
@@ -36,7 +36,7 @@ public sealed class SpriteRenderer : AutoDisposable
 
     public GraphicsBuffer Camera { get; set; }
 
-    internal SpriteRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
+    internal SpriteRenderer(RenderingSystem renderingSystem, StaticMesh mesh, GraphicsBuffer camera, Shader shader)
     {
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();

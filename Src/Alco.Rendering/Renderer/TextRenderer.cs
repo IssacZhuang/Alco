@@ -30,7 +30,7 @@ public unsafe sealed class TextRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly Shader _shader;
-    private readonly Mesh _mesh;
+    private readonly StaticMesh _mesh;
     // private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
 
     private readonly GPUCommandBuffer _command;
@@ -52,7 +52,7 @@ public unsafe sealed class TextRenderer : AutoDisposable
 
     public GraphicsBuffer Camera { get; set; }
 
-    internal TextRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
+    internal TextRenderer(RenderingSystem renderingSystem, StaticMesh mesh, GraphicsBuffer camera, Shader shader)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;

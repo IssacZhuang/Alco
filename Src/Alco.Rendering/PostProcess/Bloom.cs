@@ -159,7 +159,7 @@ public class Bloom : PostProcess
             throw new InvalidOperationException("Input is not set.");
         }
 
-        Mesh mesh = FullScreenMesh;
+        StaticMesh mesh = FullScreenMesh;
 
         _commandDownSample.Begin();
 

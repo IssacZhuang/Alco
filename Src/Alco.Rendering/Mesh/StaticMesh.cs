@@ -3,17 +3,17 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public unsafe class Mesh : AutoDisposable, IMesh
+public sealed unsafe class StaticMesh : AutoDisposable, IMesh
 {
     private readonly string VertexBufferName;
     private readonly string IndexBufferName;
-    protected GPUDevice _device;
-    protected GPUBuffer _vertexBuffer;
-    protected GPUBuffer _indexBuffer;
-    protected IndexFormat _indexFormat;
-    protected uint _indexCount;
-    protected uint _vertexCount;
-    protected uint _vertexStride;
+    private GPUDevice _device;
+    private GPUBuffer _vertexBuffer;
+    private GPUBuffer _indexBuffer;
+    private IndexFormat _indexFormat;
+    private uint _indexCount;
+    private uint _vertexCount;
+    private uint _vertexStride;
     public string Name { get; }
 
     public GPUBuffer VertexBuffer
@@ -40,13 +40,13 @@ public unsafe class Mesh : AutoDisposable, IMesh
         get => _indexCount;
     }
 
-    public virtual uint SubMeshCount
+    public uint SubMeshCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => 1;
     }
 
-    internal Mesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
+    internal StaticMesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
     {
         _device = device;
 
@@ -86,7 +86,7 @@ public unsafe class Mesh : AutoDisposable, IMesh
 
     public void UpdateVertex(void* data, uint size, uint offset = 0)
     {
-        EncureVertexBufferSize(size);
+        ValidateVertexBufferSize(offset, size);
         _device.WriteBuffer(_vertexBuffer, offset, (byte*)data, size);
     }
 
@@ -111,14 +111,14 @@ public unsafe class Mesh : AutoDisposable, IMesh
 
     public void UpdateIndex(void* data, uint size, uint offset, uint indexCount, IndexFormat indexFormat)
     {
-        EncureIndexBufferSize(size);
+        ValidateIndexBufferSize(offset, size);
         _indexFormat = indexFormat;
         _indexCount = indexCount;
 
         _device.WriteBuffer(_indexBuffer, offset, (byte*)data, size);
     }
 
-    public virtual SubMeshData GetSubMesh(int index)
+    public SubMeshData GetSubMesh(int index)
     {
         //no submeshes,, return hole mesh
         return new SubMeshData
@@ -141,35 +141,23 @@ public unsafe class Mesh : AutoDisposable, IMesh
         }
     }
 
-    protected void EncureVertexBufferSize(uint size)
+    private void ValidateVertexBufferSize(uint offset, uint size)
     {
-        if (_vertexBuffer.Size < size)
+        if (offset + size > _vertexBuffer.Size)
         {
-            _vertexBuffer.Dispose();
-            _vertexBuffer = _device.CreateBuffer(new BufferDescriptor
-            {
-                Size = size,
-                Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
-                Name = VertexBufferName
-            });
+            throw new InvalidOperationException($"The data offset with size is out of range of vertex buffer. offset: {offset}, size: {size}, vertex buffer size: {_vertexBuffer.Size}");
         }
     }
 
-    protected void EncureIndexBufferSize(uint size)
+    private void ValidateIndexBufferSize(uint offset, uint size)
     {
-        if (_indexBuffer.Size < size)
+        if (offset + size > _indexBuffer.Size)
         {
-            _indexBuffer.Dispose();
-            _indexBuffer = _device.CreateBuffer(new BufferDescriptor
-            {
-                Size = size,
-                Usage = BufferUsage.Index | BufferUsage.CopyDst,
-                Name = IndexBufferName
-            });
+            throw new InvalidOperationException($"The data offset with size is out of range of index buffer. offset: {offset}, size: {size}, index buffer size: {_indexBuffer.Size}");
         }
     }
 
-    protected static uint GetIndexSize(IndexFormat format)
+    private static uint GetIndexSize(IndexFormat format)
     {
         return format switch
         {

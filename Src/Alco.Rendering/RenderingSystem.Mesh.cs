@@ -13,9 +13,9 @@ public partial class RenderingSystem
     /// </summary>
     /// <param name="name">The name of the mesh.</param>
     /// <returns>The created mesh.</returns>
-    public unsafe Mesh CreateMesh(string name = "mesh")
+    public unsafe StaticMesh CreateMesh(string name = "mesh")
     {
-        return new Mesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
+        return new StaticMesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
     }
 
 
@@ -103,9 +103,9 @@ public partial class RenderingSystem
     /// <param name="name">The name of the mesh.</param>
     /// <typeparam name="TVertex">The type of the vertices.</typeparam>
     /// <returns>The created mesh.</returns>
-    public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
+    public unsafe StaticMesh CreateMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
     {
-        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
+        StaticMesh mesh = new StaticMesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
         mesh.UpdateVertex<TVertex>(vertices);
         mesh.UpdateIndex(indices, 0);
         return mesh;
@@ -119,10 +119,10 @@ public partial class RenderingSystem
     /// <param name="name">The name of the mesh.</param>
     /// <typeparam name="TVertex">The type of the vertices.</typeparam>
     /// <returns></returns>
-    public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
+    public unsafe StaticMesh CreateMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
     {
 
-        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
+        StaticMesh mesh = new StaticMesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
         mesh.UpdateVertex<TVertex>(vertices);
         mesh.UpdateIndex(indices, 0);
         return mesh;

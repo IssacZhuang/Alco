@@ -19,7 +19,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private RenderContext _renderer;
     private Material _blitMaterial;
     private MaterialInstance? _overrideMaterial;
-    private Mesh _mesh;
+    private StaticMesh _mesh;
 
 
     private bool _shouldResize = false;

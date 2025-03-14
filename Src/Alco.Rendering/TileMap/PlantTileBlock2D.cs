@@ -53,7 +53,7 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
 
 
 
-    protected override Mesh CreateMesh()
+    protected override StaticMesh CreateMesh()
     {
         return _renderingSystem.MeshMidUpSprite;
     }

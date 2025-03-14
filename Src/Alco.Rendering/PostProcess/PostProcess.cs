@@ -6,12 +6,12 @@ namespace Alco.Rendering;
 public abstract class PostProcess : AutoDisposable
 {
     private readonly GPUDevice _device;
-    
-    private readonly Mesh _mesh;
-  
 
-    protected Mesh FullScreenMesh => _mesh;
-    
+    private readonly StaticMesh _mesh;
+
+
+    protected StaticMesh FullScreenMesh => _mesh;
+
 
 
     internal PostProcess(RenderingSystem renderingSystem, Shader postProcessShader)

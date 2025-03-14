@@ -28,7 +28,7 @@ public sealed partial class CanvasRenderer : AutoDisposable
     //sprite properties
     private readonly Shader _shaderSprite;
     private GraphicsPipelineContext _pipelineInfoSprite;
-    private readonly Mesh _meshSprite;
+    private readonly StaticMesh _meshSprite;
 
     private uint _spriteShaderId_camera;
     private uint _spriteShaderId_texture;
@@ -36,7 +36,7 @@ public sealed partial class CanvasRenderer : AutoDisposable
     //text properties
     private readonly Shader _shaderText;
     private GraphicsPipelineContext _pipelineInfoText;
-    private readonly Mesh _meshText;
+    private readonly StaticMesh _meshText;
 
     private uint _textShaderId_camera;
     private uint _textShaderId_textBuffer;
