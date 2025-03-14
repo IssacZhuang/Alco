@@ -9,16 +9,8 @@ namespace Alco.Rendering;
 /// The high performance sprite renderer.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
-public sealed class SpriteRenderer2 : AutoDisposable
+public unsafe sealed class SpriteRenderer2 : AutoDisposable
 {
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Constant
-    {
-        public Matrix4x4 Model;
-        public Vector4 Color;
-        public Rect UvRect;
-    }
-
     private static readonly Rect DefaultUvRect = new Rect(0, 0, 1, 1);
 
     private readonly Mesh _mesh;
@@ -66,10 +58,17 @@ public sealed class SpriteRenderer2 : AutoDisposable
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
 
+    public void Draw(Sprite sprite, Vector2 position, Rotation2D rotation, Vector2 scale, ColorFloat color)
+    {
+        Transform2D transform = new Transform2D(position, rotation, scale);
+        DrawCore(sprite.Texture, sprite.UvRect, transform.Matrix, color);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Draw(Texture2D texture, Transform2D transform, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
+
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,6 +76,13 @@ public sealed class SpriteRenderer2 : AutoDisposable
     {
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Draw(Sprite sprite, Transform2D transform, ColorFloat color)
+    {
+        DrawCore(sprite.Texture, sprite.UvRect, transform.Matrix, color);
+    }
+
 
     #endregion
 
@@ -97,6 +103,13 @@ public sealed class SpriteRenderer2 : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Draw(Sprite sprite, Vector3 position, Quaternion rotation, Vector3 scale, ColorFloat color)
+    {
+        Transform3D transform = new Transform3D(position, rotation, scale);
+        DrawCore(sprite.Texture, sprite.UvRect, transform.Matrix, color);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Draw(Texture2D texture, Transform3D transform, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
@@ -106,6 +119,12 @@ public sealed class SpriteRenderer2 : AutoDisposable
     public void Draw(Texture2D texture, Transform3D transform, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, transform.Matrix, color);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Draw(Sprite sprite, Transform3D transform, ColorFloat color)
+    {
+        DrawCore(sprite.Texture, sprite.UvRect, transform.Matrix, color);
     }
 
     #endregion
@@ -124,11 +143,17 @@ public sealed class SpriteRenderer2 : AutoDisposable
         DrawCore(texture, uvRect, matrix, color);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Draw(Sprite sprite, Matrix4x4 matrix, ColorFloat color)
+    {
+        DrawCore(sprite.Texture, sprite.UvRect, matrix, color);
+    }
+
     #endregion
 
     private void DrawCore(Texture2D texture, Rect uvRect, Matrix4x4 matrix, ColorFloat color)
     {
-        Constant constant = new Constant
+        SpriteConstant constant = new SpriteConstant
         {
             Model = matrix,
             Color = color,
