@@ -7,7 +7,7 @@ using BenchmarkFramework;
 
 namespace Alco.Engine.Benchmark;
 
-[CustomConfigParam(4, 16, 128)]
+[CustomConfigParam(8, 50, 128)]
 public class BenchmarkRenderer
 {
     const int count = 10000;

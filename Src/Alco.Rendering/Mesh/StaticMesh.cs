@@ -5,7 +5,7 @@ namespace Alco.Rendering;
 
 public sealed unsafe class StaticMesh : Mesh 
 {
-    private readonly SubMeshData _defaultSubMesh;
+    private SubMeshData _defaultSubMesh;
 
     public override uint SubMeshCount
     {
@@ -19,22 +19,24 @@ public sealed unsafe class StaticMesh : Mesh
         _defaultSubMesh = new SubMeshData
         {
             VertexOffset = 0,
-            VertexSize = VertexBuffer.Size,
+            VertexSize = VertexCount * VertexStride,
             IndexOffset = 0,
-            IndexSize = IndexBuffer.Size,
+            IndexSize = IndexCount * GetIndexSize(IndexFormat),
             IndexCount = IndexCount
         };
     }
 
-    public void UpdateVertex<T>(ReadOnlySpan<T> data, uint offset = 0) where T : unmanaged
+    public void SetVertex<T>(ReadOnlySpan<T> data) where T : unmanaged
     {
+        ResizeVertextBufferSoft((uint)data.Length, (uint)sizeof(T));
         fixed (void* ptr = data)
         {
-            UpdateVertex(ptr, (uint)(data.Length * sizeof(T)), offset);
+            UpdateVertexUnsafe(ptr, (uint)(data.Length * sizeof(T)), 0);
         }
+        RefreshSubMeshData();
     }
 
-    public void UpdateVertex(void* data, uint size, uint offset = 0)
+    public void UpdateVertexUnsafe(void* data, uint size, uint offset = 0)
     {
         ValidateVertexBufferSize(offset, size);
         _device.WriteBuffer(VertexBuffer, offset, (byte*)data, size);
@@ -42,32 +44,28 @@ public sealed unsafe class StaticMesh : Mesh
 
 
 
-    public void UpdateIndex(ReadOnlySpan<uint> indices, uint offset = 0)
+    public void SetIndices(ReadOnlySpan<uint> indices)
     {
-        if(IndexFormat != IndexFormat.UInt32)
-        {
-            throw new InvalidOperationException("trying to update index buffer with uint data, but index format is not UInt32.");
-        }
+        ResizeIndexBufferSoft((uint)indices.Length, IndexFormat.UInt32);
         fixed (void* ptr = indices)
         {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(uint)), offset, (uint)indices.Length);
+            UpdateIndicesUnsafe(ptr, (uint)(indices.Length * sizeof(uint)), 0);
         }
+        RefreshSubMeshData();
     }
 
-    public void UpdateIndex(ReadOnlySpan<ushort> indices, uint offset = 0)
+    public void SetIndices(ReadOnlySpan<ushort> indices)
     {
-        if(IndexFormat != IndexFormat.UInt16)
-        {
-            throw new InvalidOperationException("trying to update index buffer with ushort data, but index format is not UInt16.");
-        }
+        ResizeIndexBufferSoft((uint)indices.Length, IndexFormat.UInt16);
         fixed (void* ptr = indices)
         {
-            UpdateIndex(ptr, (uint)(indices.Length * sizeof(ushort)), offset, (uint)indices.Length);
+            UpdateIndicesUnsafe(ptr, (uint)(indices.Length * sizeof(ushort)), 0);
         }
+        RefreshSubMeshData();
     }
 
 
-    public void UpdateIndex(void* data, uint size, uint offset, uint indexCount)
+    public void UpdateIndicesUnsafe(void* data, uint size, uint offset)
     {
         ValidateIndexBufferSize(offset, size);
         _device.WriteBuffer(IndexBuffer, offset, (byte*)data, size);
@@ -96,5 +94,11 @@ public sealed unsafe class StaticMesh : Mesh
         }
     }
 
-    
+    private void RefreshSubMeshData()
+    {
+        _defaultSubMesh.VertexOffset = 0;
+        _defaultSubMesh.VertexSize = VertexCount * VertexStride;
+        _defaultSubMesh.IndexOffset = 0;
+        _defaultSubMesh.IndexSize = IndexCount * GetIndexSize(IndexFormat);
+    }
 }

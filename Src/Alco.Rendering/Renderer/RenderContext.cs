@@ -18,8 +18,13 @@ public sealed class RenderContext : AutoDisposable
     private readonly List<Exception> _exceptionsEnd;
     private GPUFrameBuffer? _framebuffer;
 
+    //cached mesh data
     private Mesh? _mesh;
     private int _subMeshIndex;
+    private uint _meshVersion;
+
+
+
 
     /// <summary>
     /// The framebuffer that is currently being rendered to.
@@ -143,13 +148,14 @@ public sealed class RenderContext : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetMesh(in Mesh mesh, in int subMeshIndex)
     {
-        if (_mesh == mesh && _subMeshIndex == subMeshIndex)
+        if (_mesh == mesh && _subMeshIndex == subMeshIndex && mesh.Version == _meshVersion)
         {
             return;
         }
 
         _mesh = mesh;
         _subMeshIndex = subMeshIndex;
+        _meshVersion = mesh.Version;
 
         //todo: sub mesh support
         _command.SetVertexBuffer(0, mesh.VertexBuffer);

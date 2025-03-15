@@ -106,8 +106,8 @@ public partial class RenderingSystem
     public unsafe StaticMesh CreateMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
     {
         StaticMesh mesh = new StaticMesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
-        mesh.UpdateVertex<TVertex>(vertices);
-        mesh.UpdateIndex(indices, 0);
+        mesh.SetVertex<TVertex>(vertices);
+        mesh.SetIndices(indices);
         return mesh;
     }
 
@@ -123,8 +123,8 @@ public partial class RenderingSystem
     {
 
         StaticMesh mesh = new StaticMesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
-        mesh.UpdateVertex<TVertex>(vertices);
-        mesh.UpdateIndex(indices, 0);
+        mesh.SetVertex<TVertex>(vertices);
+        mesh.SetIndices(indices);
         return mesh;
     }
 }
