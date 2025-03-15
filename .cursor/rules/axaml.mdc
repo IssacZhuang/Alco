@@ -1,9 +1,15 @@
 ---
-description: For task that edit .axaml file of Avalonia
+description: 
 globs: *.axaml
 alwaysApply: false
 ---
 
-# Build Alco.Editor project after editing .axaml to check axaml error
+# Agent should build Alco.Editor project after editing .axaml to check axaml error
 
 - [Alco.Editor.csproj](mdc:Editor/Alco.Editor/Alco.Editor.csproj)
+
+# The naming rule of the x:Name in axaml UI
+
+- Button: Start with "Btn". For example: "BtnConfirm", "BtnCancel"
+- Event: Start with "On", also end with "Click" if it is a button event. For example: "OnRefresh", "OnBtnConfirmClick"
+- Text: Start with "Text", for example. For example: "TextTitle"
