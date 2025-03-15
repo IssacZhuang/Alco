@@ -13,7 +13,7 @@ public unsafe sealed class SpriteRenderer2 : AutoDisposable
 {
     private static readonly Rect DefaultUvRect = new Rect(0, 0, 1, 1);
 
-    private readonly StaticMesh _mesh;
+    private readonly Mesh _mesh;
     private readonly Material _material;
 
     private readonly RenderingSystem _renderingSystem;
@@ -30,7 +30,7 @@ public unsafe sealed class SpriteRenderer2 : AutoDisposable
     /// <param name="mesh">The mesh to use for rendering sprites.</param>
     /// <param name="material">The material to use for rendering sprites.</param>
     /// <param name="name">The name of the renderer.</param>
-    internal SpriteRenderer2(RenderingSystem renderingSystem, RenderContext renderContext, StaticMesh mesh, Material material, string name)
+    internal SpriteRenderer2(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;

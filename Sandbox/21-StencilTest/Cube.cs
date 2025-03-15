@@ -12,7 +12,7 @@ public class Cube
     }
 
     private readonly Material _material;
-    private readonly StaticMesh _mesh;
+    private readonly Mesh _mesh;
     private RenderDataPerObject _renderData;
     public Transform3D transform;
 
@@ -27,7 +27,7 @@ public class Cube
         set => _renderData.color = value;
     }
 
-    public Cube(StaticMesh mesh, Material material)
+    public Cube(Mesh mesh, Material material)
     {
         _mesh = mesh;
         _material = material;

@@ -26,7 +26,7 @@ public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
     private const int MaxTextInstancingCount = 300;
     private static readonly uint GPUBufferSize = (uint)(MaxTextInstancingCount * sizeof(TextData));
 
-    private readonly StaticMesh _mesh;
+    private readonly Mesh _mesh;
     private readonly Material _material;
 
     private NativeBuffer<TextData> _textBufferFull;
@@ -44,7 +44,7 @@ public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
     private bool _isDrawing;
 
 
-    internal TextRenderer2(RenderingSystem renderingSystem, RenderContext renderContext, StaticMesh mesh, Material material, string name)
+    internal TextRenderer2(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;

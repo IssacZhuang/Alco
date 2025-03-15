@@ -17,7 +17,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     protected readonly GraphicsArrayBuffer<uint> _tileIdData;
     
     protected readonly Material _material;
-    protected readonly StaticMesh _mesh;
+    protected readonly Mesh _mesh;
     protected bool _isTileIdDirty;
 
     protected BaseTileSet<TTileData, TUserData> _tileSet;
@@ -62,7 +62,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
     }
 
-    protected virtual StaticMesh CreateMesh()
+    protected virtual Mesh CreateMesh()
     {
         return _renderingSystem.MeshCenteredSprite;
     }

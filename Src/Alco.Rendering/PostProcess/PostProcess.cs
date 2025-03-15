@@ -7,10 +7,10 @@ public abstract class PostProcess : AutoDisposable
 {
     private readonly GPUDevice _device;
 
-    private readonly StaticMesh _mesh;
+    private readonly Mesh _mesh;
 
 
-    protected StaticMesh FullScreenMesh => _mesh;
+    protected Mesh FullScreenMesh => _mesh;
 
 
 

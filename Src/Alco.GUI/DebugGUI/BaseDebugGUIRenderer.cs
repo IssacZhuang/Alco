@@ -22,7 +22,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     //blit
     private readonly RenderContext _renderer;
     private readonly Material _material;
-    private readonly StaticMesh _mesh;
+    private readonly Mesh _mesh;
 
 
     public abstract Vector2 MousePosition { get; }

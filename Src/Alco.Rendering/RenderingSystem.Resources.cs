@@ -143,15 +143,15 @@ public partial class RenderingSystem
         3, 2, 6, 3, 6, 7
     };
 
-    private StaticMesh? _meshCenteredSprite;
-    private StaticMesh? _mesh9SliceSprite;
-    private StaticMesh? _meshMidUpSprite;
-    private StaticMesh? _meshTrueType;
-    private StaticMesh? _mehsFullScreen;
-    private StaticMesh? _meshCube;
+    private Mesh? _meshCenteredSprite;
+    private Mesh? _mesh9SliceSprite;
+    private Mesh? _meshMidUpSprite;
+    private Mesh? _meshTrueType;
+    private Mesh? _mehsFullScreen;
+    private Mesh? _meshCube;
 
 
-    public StaticMesh MeshCenteredSprite
+    public Mesh MeshCenteredSprite
     {
         get
         {
@@ -164,7 +164,7 @@ public partial class RenderingSystem
         }
     }
 
-    public StaticMesh Mesh9SliceSprite
+    public Mesh Mesh9SliceSprite
     {
         get
         {
@@ -177,7 +177,7 @@ public partial class RenderingSystem
     }
 
 
-    public StaticMesh MeshMidUpSprite
+    public Mesh MeshMidUpSprite
     {
         get
         {
@@ -191,7 +191,7 @@ public partial class RenderingSystem
     }
 
 
-    public StaticMesh MeshTrueType
+    public Mesh MeshTrueType
     {
         get
         {
@@ -203,7 +203,7 @@ public partial class RenderingSystem
         }
     }
 
-    public StaticMesh MeshFullScreen
+    public Mesh MeshFullScreen
     {
         get
         {
@@ -215,7 +215,7 @@ public partial class RenderingSystem
         }
     }
 
-    public StaticMesh MeshCube
+    public Mesh MeshCube
     {
         get
         {
