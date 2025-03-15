@@ -3,7 +3,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed unsafe class StaticMesh : Mesh 
+public sealed unsafe class PrimitiveMesh : Mesh
 {
     private SubMeshData _defaultSubMesh;
 
@@ -13,7 +13,7 @@ public sealed unsafe class StaticMesh : Mesh
         get => 1;
     }
 
-    internal StaticMesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
+    internal PrimitiveMesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
     : base(device, vertexCount, vertexStride, indexCount, indexFormat, name)
     {
         _defaultSubMesh = new SubMeshData
