@@ -8,6 +8,7 @@ bin/
 obj/
 Bin/
 Obj/
+BenchmarkDotNet.Artifacts/
 
 # Doc fx
 _site/
