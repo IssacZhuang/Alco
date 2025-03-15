@@ -4,17 +4,17 @@ using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 
-namespace Alco.Engine.Benchmark;
+namespace BenchmarkFramework;
 
-public class BenchmarkConfig : ManualConfig
+public class DefaultBenchmarkConfig : ManualConfig
 {
-    public BenchmarkConfig()
+    public DefaultBenchmarkConfig()
     {
         AddJob(Job.Default
             .WithWarmupCount(1)
             .WithIterationCount(8)
             .WithInvocationCount(128))
             .AddLogger(ConsoleLogger.Default)
-            .AddColumnProvider(DefaultColumnProviders.Instance);        
+            .AddColumnProvider(DefaultColumnProviders.Instance);
     }
 }
