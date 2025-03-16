@@ -9,17 +9,6 @@ public partial class RenderingSystem
     public const uint DefaultIndexBufferSize = 16;
 
     /// <summary>
-    /// Create a mesh.
-    /// </summary>
-    /// <param name="name">The name of the mesh.</param>
-    /// <returns>The created mesh.</returns>
-    public unsafe PrimitiveMesh CreatePrimitiveMesh(string name = "mesh")
-    {
-        return new PrimitiveMesh(_device, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
-    }
-
-
-    /// <summary>
     /// Make a 9 slice mesh data.
     /// </summary>
     /// <param name="width">The width of the mesh.</param>

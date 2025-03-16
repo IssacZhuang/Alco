@@ -12,9 +12,6 @@ public abstract class Mesh : AutoDisposable
 
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
-    private IndexFormat _indexFormat;
-    private uint _indexCount;
-    private uint _vertexSize;
 
 
     private uint _version;//it will increase when the mesh is updated
@@ -45,37 +42,12 @@ public abstract class Mesh : AutoDisposable
     }
 
     /// <summary>
-    /// Gets the index format used by the mesh.
-    /// </summary>
-    public IndexFormat IndexFormat {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _indexFormat;
-    }
-
-    /// <summary>
-    /// Gets the number of indices in the mesh.
-    /// </summary>
-    public uint IndexCount {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _indexCount;
-    }
-
-    /// <summary>
     /// Gets the version of the mesh, which increases when the mesh is updated.
     /// </summary>
     public uint Version
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _version;
-    }
-
-    /// <summary>
-    /// Gets the size of the vertex buffer.
-    /// </summary>
-    public uint VertexSize
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _vertexSize;
     }
 
 
@@ -88,27 +60,23 @@ public abstract class Mesh : AutoDisposable
     /// <param name="indexCount">The number of indices in the mesh.</param>
     /// <param name="indexFormat">The format of indices (UInt16 or UInt32).</param>
     /// <param name="name">The name of the mesh. Default is "mesh".</param>
-    protected Mesh(GPUDevice device, uint size, uint indexCount, IndexFormat indexFormat, string name = "mesh")
+    protected Mesh(GPUDevice device, uint vertexBufferSize, uint indexBufferSize, string name = "mesh")
     {
         _device = device;
         Name = name;
 
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
-            Size = size,
+            Size = vertexBufferSize,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
         });
 
         _indexBuffer = device.CreateBuffer(new BufferDescriptor
         {
-            Size = indexCount * GetIndexSize(indexFormat),
+            Size = indexBufferSize,
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         });
 
-        _indexFormat = indexFormat;
-        _indexCount = indexCount;
-
-        _vertexSize = size;
     }
 
     /// <summary>
@@ -157,7 +125,7 @@ public abstract class Mesh : AutoDisposable
     /// It will recreate the vertex buffer and dispose the old one.
     /// </summary>
     /// <param name="size">The new size of the vertex buffer.</param>
-    protected void ResizeVertextBuffer(uint size)
+    protected void ResizeVertexBuffer(uint size)
     {
         _vertexBuffer.Dispose();
         _vertexBuffer = _device.CreateBuffer(new BufferDescriptor
@@ -165,25 +133,19 @@ public abstract class Mesh : AutoDisposable
             Size = size,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
         });
-        _vertexSize = size;
         IncrementVersion();
     }
 
     /// <summary>
-    /// Resizes the vertex buffer only if the new size is larger than the current size use <see cref="ResizeVertextBuffer"/> to resize the vertex buffer.
+    /// Resizes the vertex buffer only if the new size is larger than the current size use <see cref="ResizeVertexBuffer"/> to resize the vertex buffer.
     /// Otherwise, it will just update the <see cref="VertexCount"/> and <see cref="VertexStride"/>.
     /// </summary>
     /// <param name="size">The new size of the vertex buffer.</param>
-    protected void ResizeVertextBufferSoft(uint size)
+    protected void EnsureVertexBufferSize(uint size)
     {
         if (size > _vertexBuffer.Size)
         {
-            ResizeVertextBuffer(size);
-        }
-        else
-        {
-            _vertexSize = size;
-            IncrementVersion();
+            ResizeVertexBuffer(size);
         }
     }
 
@@ -191,38 +153,28 @@ public abstract class Mesh : AutoDisposable
     /// Resizes the index buffer to accommodate the specified number of indices.
     /// It will recreate the index buffer and dispose the old one.
     /// </summary>
-    /// <param name="indexCount">The new number of indices.</param>
-    /// <param name="indexFormat">The format of indices (UInt16 or UInt32).</param>
-    protected void ResizeIndexBuffer(uint indexCount, IndexFormat indexFormat)
+    /// <param name="size">The new size of the index buffer.</param>
+    protected void ResizeIndexBuffer(uint size)
     {
         _indexBuffer.Dispose();
         _indexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
-            Size = indexCount * GetIndexSize(indexFormat),
+            Size = size,
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         });
-        _indexFormat = indexFormat;
-        _indexCount = indexCount;
         IncrementVersion();
     }
 
     /// <summary>
     /// Resizes the index buffer only if the new size is larger than the current size use <see cref="ResizeIndexBuffer"/> to resize the index buffer.
-    /// Otherwise, it will just update the <see cref="IndexCount"/> and <see cref="IndexFormat"/>.
+    /// Otherwise, it will just update the <see cref="IndexCount"/>.
     /// </summary>
-    /// <param name="indexCount">The new number of indices.</param>
-    /// <param name="indexFormat">The format of indices (UInt16 or UInt32).</param>
-    protected void ResizeIndexBufferSoft(uint indexCount, IndexFormat indexFormat)
+    /// <param name="size">The new size of the index buffer.</param>
+    protected void EnsureIndexBufferSize(uint size)
     {
-        if (indexCount * GetIndexSize(indexFormat) > _indexBuffer.Size)
+        if (size > _indexBuffer.Size)
         {
-            ResizeIndexBuffer(indexCount, indexFormat);
-        }
-        else
-        {
-            _indexCount = indexCount;
-            _indexFormat = indexFormat;
-            IncrementVersion();
+            ResizeIndexBuffer(size);
         }
     }
 

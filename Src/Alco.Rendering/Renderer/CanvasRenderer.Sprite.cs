@@ -18,8 +18,7 @@ public sealed partial class CanvasRenderer
     {
         _command.SetGraphicsPipeline(_pipelineInfoSprite);
         _command.SetGraphicsResources(_spriteShaderId_camera, Camera.EntryReadonly);
-        _command.SetVertexBuffer(0, _meshSprite.VertexBuffer);
-        _command.SetIndexBuffer(_meshSprite.IndexBuffer, _meshSprite.IndexFormat);
+        _indexCount = _command.SetMesh(_meshSprite);
     }
 
 
@@ -81,7 +80,7 @@ public sealed partial class CanvasRenderer
 
         _command.SetGraphicsResources(_spriteShaderId_texture, texture.EntrySample);
         _command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
-        _command.DrawIndexed(_meshSprite.IndexCount, 1, 0, 0, 0);
+        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
 }
