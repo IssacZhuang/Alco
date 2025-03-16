@@ -31,6 +31,7 @@ public unsafe sealed class TextRenderer : AutoDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
+    private uint _indexCount;
     // private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
 
     private readonly GPUCommandBuffer _command;
@@ -107,8 +108,7 @@ public unsafe sealed class TextRenderer : AutoDisposable
         _command.Begin();
         _command.SetFrameBuffer(_renderTarget!);
         _command.SetGraphicsPipeline(_pipelineInfo!);
-        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
-        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
+        _indexCount = _command.SetMesh(_mesh);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         RequestGPUBuffer();
     }
@@ -319,7 +319,7 @@ public unsafe sealed class TextRenderer : AutoDisposable
 
             _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
             _command.PushConstants(ShaderStage.Vertex, 0, constant);
-            _command.DrawIndexed(_mesh.IndexCount, (uint)drawCount, 0, 0, instanceStart);
+            _command.DrawIndexed(_indexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 
         return x;

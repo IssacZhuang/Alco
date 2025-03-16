@@ -22,6 +22,7 @@ public sealed class RenderContext : AutoDisposable
     private Mesh? _mesh;
     private int _subMeshIndex;
     private uint _meshVersion;
+    private uint _indexCount;
 
 
 
@@ -85,7 +86,7 @@ public sealed class RenderContext : AutoDisposable
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
-        _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
     public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant) where T : unmanaged
@@ -100,7 +101,7 @@ public sealed class RenderContext : AutoDisposable
         SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
-        _command.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount)
@@ -110,7 +111,7 @@ public sealed class RenderContext : AutoDisposable
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
-        _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, 0);
+        _command.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -127,7 +128,7 @@ public sealed class RenderContext : AutoDisposable
         SetMesh(mesh, 0);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
-        _command.DrawIndexed(mesh.IndexCount, instanceCount, 0, 0, instanceStart);
+        _command.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
     /// <summary>
@@ -157,9 +158,7 @@ public sealed class RenderContext : AutoDisposable
         _subMeshIndex = subMeshIndex;
         _meshVersion = mesh.Version;
 
-        //todo: sub mesh support
-        _command.SetVertexBuffer(0, mesh.VertexBuffer);
-        _command.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        _indexCount = _command.SetMesh(mesh, subMeshIndex);
     }
 
     private void ClearCache()

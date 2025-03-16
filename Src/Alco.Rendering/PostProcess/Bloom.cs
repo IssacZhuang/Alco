@@ -167,13 +167,13 @@ public class Bloom : PostProcess
         //clamp
         Vector2 invFrameSize;// = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
 
+
         _commandDownSample.SetFrameBuffer(clampFrame);
         _commandDownSample.SetGraphicsPipeline(_clampPipelineInfo);
-        _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
-        _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        uint indexCount = _commandDownSample.SetMesh(mesh);
         _commandDownSample.SetGraphicsResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
         _commandDownSample.SetGraphicsResources(_clampShaderId_data, _clampShaderData.EntryReadonly);
-        _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        _commandDownSample.DrawIndexed(indexCount, 1, 0, 0, 0);
 
 
         //down sample
@@ -183,11 +183,10 @@ public class Bloom : PostProcess
             invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
             _commandDownSample.SetFrameBuffer(downSampleFrame);
             _commandDownSample.SetGraphicsPipeline(_downSamplePipelineInfo);
-            _commandDownSample.SetVertexBuffer(0, mesh.VertexBuffer);
-            _commandDownSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+            indexCount = _commandDownSample.SetMesh(mesh);
             _commandDownSample.SetGraphicsResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
             _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
-            _commandDownSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+            _commandDownSample.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
         _commandDownSample.End();
         _renderingSystem.ScheduleCommandBuffer(_commandDownSample);
@@ -197,12 +196,11 @@ public class Bloom : PostProcess
         _commandUpSample.Begin();
         _commandUpSample.SetFrameBuffer(_upSampleTextures![0]);
         _commandUpSample.SetGraphicsPipeline(_upSamplePipelineInfo);
-        _commandUpSample.SetVertexBuffer(0, mesh.VertexBuffer);
-        _commandUpSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        indexCount = _commandUpSample.SetMesh(mesh);
         _commandUpSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].ColorTextures[0].EntrySample);
         _commandUpSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].ColorTextures[0].EntrySample);
         //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
-        _commandUpSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        _commandUpSample.DrawIndexed(indexCount, 1, 0, 0, 0);
         
 
 
@@ -212,12 +210,11 @@ public class Bloom : PostProcess
 
             _commandUpSample.SetFrameBuffer(_upSampleTextures[i]);
             _commandUpSample.SetGraphicsPipeline(_upSamplePipelineInfo);
-            _commandUpSample.SetVertexBuffer(0, mesh.VertexBuffer);
-            _commandUpSample.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+            indexCount = _commandUpSample.SetMesh(mesh);
             _commandUpSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].ColorTextures[0].EntrySample);
             _commandUpSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].ColorTextures[0].EntrySample);
             //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
-            _commandUpSample.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+            _commandUpSample.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
         _commandUpSample.End();
@@ -232,10 +229,9 @@ public class Bloom : PostProcess
         _commandBlit.Begin();
         _commandBlit.SetFrameBuffer(target);
         _commandBlit.SetGraphicsPipeline(_blitPipelineInfo);
-        _commandBlit.SetVertexBuffer(0, mesh.VertexBuffer);
-        _commandBlit.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        indexCount = _commandBlit.SetMesh(mesh);
         _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-        _commandBlit.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+        _commandBlit.DrawIndexed(indexCount, 1, 0, 0, 0);
         _commandBlit.End();
         _renderingSystem.ScheduleCommandBuffer(_commandBlit);
     }

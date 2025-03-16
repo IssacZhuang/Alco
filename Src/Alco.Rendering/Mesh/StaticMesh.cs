@@ -22,8 +22,9 @@ public sealed unsafe class PrimitiveMesh : Mesh
             VertexOffset = 0,
             VertexSize = VertexSize,
             IndexOffset = 0,
-            IndexSize = IndexCount * GetIndexSize(IndexFormat),
-            IndexCount = IndexCount
+            IndexSize = IndexCount * GetIndexSize(indexFormat),
+            IndexCount = IndexCount,
+            IndexFormat = indexFormat
         };
     }
 
@@ -101,5 +102,6 @@ public sealed unsafe class PrimitiveMesh : Mesh
         _defaultSubMesh.VertexSize = VertexSize;
         _defaultSubMesh.IndexOffset = 0;
         _defaultSubMesh.IndexSize = IndexCount * GetIndexSize(IndexFormat);
+        _defaultSubMesh.IndexFormat = IndexFormat;
     }
 }

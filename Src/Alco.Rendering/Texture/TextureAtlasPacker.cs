@@ -102,8 +102,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         _commandBuffer.SetFrameBuffer(atlasTexture);
         _commandBuffer.ClearColor(ColorFloat.Black);
         _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        _commandBuffer.SetVertexBuffer(0, mesh.VertexBuffer);
-        _commandBuffer.SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat);
+        uint indexCount = _commandBuffer.SetMesh(mesh);
 
         _commandBuffer.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
 
@@ -117,7 +116,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
             _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
             _commandBuffer.PushConstants(pipelineInfo.PushConstantsStages, constant);
-            _commandBuffer.DrawIndexed(mesh.IndexCount, 1, 0, 0, 0);
+            _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
         _commandBuffer.End();

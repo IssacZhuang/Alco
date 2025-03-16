@@ -1,3 +1,5 @@
+using Alco.Graphics;
+
 namespace Alco.Rendering;
 
 public struct SubMeshData
@@ -8,4 +10,5 @@ public struct SubMeshData
     public ulong IndexOffset;
     public ulong IndexSize;
     public uint IndexCount;
+    public IndexFormat IndexFormat;
 }

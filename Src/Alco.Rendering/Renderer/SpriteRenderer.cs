@@ -28,6 +28,7 @@ public sealed class SpriteRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly Shader _shader;
     private readonly Mesh _mesh;
+    private uint _indexCount;
 
     private GraphicsPipelineContext _pipelineInfo;
 
@@ -67,8 +68,7 @@ public sealed class SpriteRenderer : AutoDisposable
         _command.SetFrameBuffer(target);
         _command.SetGraphicsPipeline(_pipelineInfo);
         _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        _command.SetVertexBuffer(0, _mesh.VertexBuffer);
-        _command.SetIndexBuffer(_mesh.IndexBuffer, _mesh.IndexFormat);
+        _indexCount = _command.SetMesh(_mesh);
     }
 
     public void End()
@@ -167,7 +167,7 @@ public sealed class SpriteRenderer : AutoDisposable
 
         _command.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
         _command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
-        _command.DrawIndexed(_mesh.IndexCount, 1, 0, 0, 0);
+        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
     protected override void Dispose(bool disposing)
