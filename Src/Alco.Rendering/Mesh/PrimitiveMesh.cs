@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// The mesh that has only one submesh.
+/// </summary>
 public sealed unsafe class PrimitiveMesh : Mesh
 {
     private SubMeshData _defaultSubMesh;
@@ -44,6 +47,7 @@ public sealed unsafe class PrimitiveMesh : Mesh
 
         //_defaultSubMesh.VertexOffset = 0;//readonly, no need to set
         _defaultSubMesh.VertexSize = (uint)(data.Length * sizeof(T));
+        IncrementVersion();
     }
 
     /// <summary>
@@ -74,6 +78,7 @@ public sealed unsafe class PrimitiveMesh : Mesh
         //_defaultSubMesh.IndexOffset = 0;//readonly, no need to set
         _defaultSubMesh.IndexSize = (uint)(indices.Length * sizeof(uint));
         _defaultSubMesh.IndexFormat = IndexFormat.UInt32;
+        IncrementVersion();
     }
 
     /// <summary>
@@ -92,6 +97,7 @@ public sealed unsafe class PrimitiveMesh : Mesh
         //_defaultSubMesh.IndexOffset = 0;//readonly, no need to set
         _defaultSubMesh.IndexSize = (uint)(indices.Length * sizeof(ushort));
         _defaultSubMesh.IndexFormat = IndexFormat.UInt16;
+        IncrementVersion();
     }
 
     /// <summary>
