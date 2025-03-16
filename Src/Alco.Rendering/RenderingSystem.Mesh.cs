@@ -15,7 +15,7 @@ public partial class RenderingSystem
     /// <returns>The created mesh.</returns>
     public unsafe PrimitiveMesh CreatePrimitiveMesh(string name = "mesh")
     {
-        return new PrimitiveMesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
+        return new PrimitiveMesh(_device, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
     }
 
 
@@ -105,7 +105,7 @@ public partial class RenderingSystem
     /// <returns>The created mesh.</returns>
     public unsafe PrimitiveMesh CreatePrimitiveMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
     {
-        PrimitiveMesh mesh = new PrimitiveMesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
+        PrimitiveMesh mesh = new PrimitiveMesh(_device, (uint)vertices.Length * (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
         mesh.SetVertex<TVertex>(vertices);
         mesh.SetIndices(indices);
         return mesh;
@@ -122,7 +122,7 @@ public partial class RenderingSystem
     public unsafe PrimitiveMesh CreatePrimitiveMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
     {
 
-        PrimitiveMesh mesh = new PrimitiveMesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
+        PrimitiveMesh mesh = new PrimitiveMesh(_device, (uint)vertices.Length * (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
         mesh.SetVertex<TVertex>(vertices);
         mesh.SetIndices(indices);
         return mesh;

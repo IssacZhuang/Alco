@@ -14,9 +14,8 @@ public abstract class Mesh : AutoDisposable
     private GPUBuffer _indexBuffer;
     private IndexFormat _indexFormat;
     private uint _indexCount;
+    private uint _vertexSize;
 
-    private uint _vertexCount;
-    private uint _vertexStride;
 
     private uint _version;//it will increase when the mesh is updated
 
@@ -71,22 +70,14 @@ public abstract class Mesh : AutoDisposable
     }
 
     /// <summary>
-    /// Gets the number of vertices in the mesh.
+    /// Gets the size of the vertex buffer.
     /// </summary>
-    public uint VertexCount
+    public uint VertexSize
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _vertexCount;
+        get => _vertexSize;
     }
 
-    /// <summary>
-    /// Gets the stride (size in bytes) of each vertex in the mesh.
-    /// </summary>
-    public uint VertexStride
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _vertexStride;
-    }
 
     /// <summary>
     /// Initializes a new instance of the Mesh class.
@@ -97,14 +88,14 @@ public abstract class Mesh : AutoDisposable
     /// <param name="indexCount">The number of indices in the mesh.</param>
     /// <param name="indexFormat">The format of indices (UInt16 or UInt32).</param>
     /// <param name="name">The name of the mesh. Default is "mesh".</param>
-    protected Mesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
+    protected Mesh(GPUDevice device, uint size, uint indexCount, IndexFormat indexFormat, string name = "mesh")
     {
         _device = device;
         Name = name;
 
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
-            Size = vertexCount * vertexStride,
+            Size = size,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
         });
 
@@ -117,14 +108,13 @@ public abstract class Mesh : AutoDisposable
         _indexFormat = indexFormat;
         _indexCount = indexCount;
 
-        _vertexCount = vertexCount;
-        _vertexStride = vertexStride;
+        _vertexSize = size;
     }
 
     /// <summary>
     /// Gets the number of sub-meshes in this mesh.
     /// </summary>
-    public abstract uint SubMeshCount { get; }
+    public abstract int SubMeshCount { get; }
 
     /// <summary>
     /// Gets the sub-mesh data at the specified index.
@@ -166,16 +156,16 @@ public abstract class Mesh : AutoDisposable
     /// Resizes the vertex buffer to accommodate the specified number of vertices.
     /// It will recreate the vertex buffer and dispose the old one.
     /// </summary>
-    /// <param name="vertexCount">The new number of vertices.</param>
-    /// <param name="vertexStride">The stride (size in bytes) of each vertex.</param>
-    protected void ResizeVertextBuffer(uint vertexCount, uint vertexStride)
+    /// <param name="size">The new size of the vertex buffer.</param>
+    protected void ResizeVertextBuffer(uint size)
     {
         _vertexBuffer.Dispose();
         _vertexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
-            Size = vertexCount * vertexStride,
+            Size = size,
             Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
         });
+        _vertexSize = size;
         IncrementVersion();
     }
 
@@ -183,18 +173,16 @@ public abstract class Mesh : AutoDisposable
     /// Resizes the vertex buffer only if the new size is larger than the current size use <see cref="ResizeVertextBuffer"/> to resize the vertex buffer.
     /// Otherwise, it will just update the <see cref="VertexCount"/> and <see cref="VertexStride"/>.
     /// </summary>
-    /// <param name="vertexCount">The new number of vertices.</param>
-    /// <param name="vertexStride">The stride (size in bytes) of each vertex.</param>
-    protected void ResizeVertextBufferSoft(uint vertexCount, uint vertexStride)
+    /// <param name="size">The new size of the vertex buffer.</param>
+    protected void ResizeVertextBufferSoft(uint size)
     {
-        if (vertexCount * vertexStride > _vertexBuffer.Size)
+        if (size > _vertexBuffer.Size)
         {
-            ResizeVertextBuffer(vertexCount, vertexStride);
+            ResizeVertextBuffer(size);
         }
         else
         {
-            _vertexCount = vertexCount;
-            _vertexStride = vertexStride;
+            _vertexSize = size;
             IncrementVersion();
         }
     }

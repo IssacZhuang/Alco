@@ -7,19 +7,20 @@ public sealed unsafe class PrimitiveMesh : Mesh
 {
     private SubMeshData _defaultSubMesh;
 
-    public override uint SubMeshCount
+    public override int SubMeshCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => 1;
     }
 
-    internal PrimitiveMesh(GPUDevice device, uint vertexCount, uint vertexStride, uint indexCount, IndexFormat indexFormat, string name = "mesh")
-    : base(device, vertexCount, vertexStride, indexCount, indexFormat, name)
+    internal PrimitiveMesh(GPUDevice device, uint size, uint indexCount, IndexFormat indexFormat, string name = "mesh")
+    : base(device, size, indexCount, indexFormat, name)
     {
         _defaultSubMesh = new SubMeshData
         {
+            Index = 0,
             VertexOffset = 0,
-            VertexSize = VertexCount * VertexStride,
+            VertexSize = VertexSize,
             IndexOffset = 0,
             IndexSize = IndexCount * GetIndexSize(IndexFormat),
             IndexCount = IndexCount
@@ -28,7 +29,7 @@ public sealed unsafe class PrimitiveMesh : Mesh
 
     public void SetVertex<T>(ReadOnlySpan<T> data) where T : unmanaged
     {
-        ResizeVertextBufferSoft((uint)data.Length, (uint)sizeof(T));
+        ResizeVertextBufferSoft((uint)(data.Length * sizeof(T)));
         fixed (void* ptr = data)
         {
             UpdateVertexUnsafe(ptr, (uint)(data.Length * sizeof(T)), 0);
@@ -97,7 +98,7 @@ public sealed unsafe class PrimitiveMesh : Mesh
     private void RefreshSubMeshData()
     {
         _defaultSubMesh.VertexOffset = 0;
-        _defaultSubMesh.VertexSize = VertexCount * VertexStride;
+        _defaultSubMesh.VertexSize = VertexSize;
         _defaultSubMesh.IndexOffset = 0;
         _defaultSubMesh.IndexSize = IndexCount * GetIndexSize(IndexFormat);
     }
