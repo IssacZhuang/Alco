@@ -43,13 +43,14 @@ public sealed unsafe class DynamicMesh : Mesh
     /// <typeparam name="TVertex">The vertex type.</typeparam>
     /// <param name="vertices">The vertices of the sub-mesh.</param>
     /// <param name="indices">The 32-bit indices of the sub-mesh.</param>
-    public void AddSubMesh<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices) where TVertex : unmanaged
+    /// <returns>The sub-mesh data.</returns>
+    public SubMeshData AddSubMesh<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices) where TVertex : unmanaged
     {
         fixed (void* pVertices = vertices)
         {
             fixed (void* pIndices = indices)
             {
-                AddSubMeshCore((byte*)pVertices, (uint)(vertices.Length * sizeof(TVertex)), (byte*)pIndices, (uint)indices.Length, IndexFormat.UInt32);
+                return AddSubMeshCore((byte*)pVertices, (uint)(vertices.Length * sizeof(TVertex)), (byte*)pIndices, (uint)indices.Length, IndexFormat.UInt32);
             }
         }
     }
@@ -60,13 +61,14 @@ public sealed unsafe class DynamicMesh : Mesh
     /// <typeparam name="TVertex">The vertex type.</typeparam>
     /// <param name="vertices">The vertices of the sub-mesh.</param>
     /// <param name="indices">The 16-bit indices of the sub-mesh.</param>
-    public void AddSubMesh<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices) where TVertex : unmanaged
+    /// <returns>The sub-mesh data.</returns>
+    public SubMeshData AddSubMesh<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices) where TVertex : unmanaged
     {
         fixed (void* pVertices = vertices)
         {
             fixed (void* pIndices = indices)
             {
-                AddSubMeshCore((byte*)pVertices, (uint)(vertices.Length * sizeof(TVertex)), (byte*)pIndices, (uint)indices.Length, IndexFormat.UInt16);
+                return AddSubMeshCore((byte*)pVertices, (uint)(vertices.Length * sizeof(TVertex)), (byte*)pIndices, (uint)indices.Length, IndexFormat.UInt16);
             }
         }
     }
@@ -93,7 +95,7 @@ public sealed unsafe class DynamicMesh : Mesh
         _device.WriteBuffer(IndexBuffer, 0, _indexBufferCpu.UnsafePointer, _indexBufferCpuSize);
     }
 
-    private unsafe void AddSubMeshCore(byte* vertexPtr, uint verticesSize, byte* indexPtr, uint indexCount, IndexFormat indexFormat)
+    private unsafe SubMeshData AddSubMeshCore(byte* vertexPtr, uint verticesSize, byte* indexPtr, uint indexCount, IndexFormat indexFormat)
     {
         uint indicesSize = indexCount * GetIndexSize(indexFormat);
         _vertexBufferCpu.EnsureSize((int)(_vertexBufferCpuSize + verticesSize));
@@ -105,7 +107,7 @@ public sealed unsafe class DynamicMesh : Mesh
         UtilsMemory.MemCopy(pVertexBuffer, vertexPtr, verticesSize);
         UtilsMemory.MemCopy(pIndexBuffer, indexPtr, indicesSize);
 
-        _subMeshes.Add(new SubMeshData
+        SubMeshData subMeshData = new SubMeshData
         {
             VertexOffset = _vertexBufferCpuSize,
             VertexSize = verticesSize,
@@ -113,10 +115,14 @@ public sealed unsafe class DynamicMesh : Mesh
             IndexSize = indicesSize,
             IndexCount = indexCount,
             IndexFormat = indexFormat,
-        });
+        };
+
+        _subMeshes.Add(subMeshData);
 
         _vertexBufferCpuSize += verticesSize;
         _indexBufferCpuSize += indicesSize;
+
+        return subMeshData;
     }
 
     /// <summary>

@@ -79,17 +79,18 @@ public sealed class RenderContext : AutoDisposable
         return InvokeBegin();
     }
 
-    public void Draw(in Mesh mesh, in Material material)
+    public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0)
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        SetMesh(mesh, 0);
+        SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
         _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
-    public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant) where T : unmanaged
+
+    public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
@@ -98,34 +99,37 @@ public sealed class RenderContext : AutoDisposable
             throw new ArgumentException("The size of the constant does not match the push constants size");
         }
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        SetMesh(mesh, 0);
+        SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount)
+
+    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        SetMesh(mesh, 0);
+        SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
         _command.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
     }
 
+
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
-        DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant);
+        DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant, subMeshIndex);
     }
 
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        SetMesh(mesh, 0);
+        SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
         _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);

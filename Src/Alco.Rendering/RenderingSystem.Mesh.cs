@@ -116,4 +116,9 @@ public partial class RenderingSystem
         mesh.SetIndices(indices);
         return mesh;
     }
+
+    public DynamicMesh CreateDynamicMesh(string name = "dynamic_mesh")
+    {
+        return new DynamicMesh(_device, DefaultVertexBufferSize, DefaultIndexBufferSize, name);
+    }
 }
