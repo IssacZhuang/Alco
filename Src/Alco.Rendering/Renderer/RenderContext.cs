@@ -53,11 +53,19 @@ public sealed class RenderContext : AutoDisposable
         _exceptionsEnd = new List<Exception>();
     }
 
+    /// <summary>
+    /// Adds a command listener to the render context.
+    /// </summary>
+    /// <param name="listener">The listener to add.</param>
     public void AddListener(ICommandListener listener)
     {
         _listeners.Add(listener);
     }
 
+    /// <summary>
+    /// Removes a command listener from the render context.
+    /// </summary>
+    /// <param name="listener">The listener to remove.</param>
     public void RemoveListener(ICommandListener listener)
     {
         _listeners.Remove(listener);
@@ -79,6 +87,12 @@ public sealed class RenderContext : AutoDisposable
         return InvokeBegin();
     }
 
+    /// <summary>
+    /// Draws a mesh with the specified material.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0)
     {
         Debug.Assert(_framebuffer != null);
@@ -90,6 +104,15 @@ public sealed class RenderContext : AutoDisposable
     }
 
 
+    /// <summary>
+    /// Draws a mesh with the specified material and push constants.
+    /// </summary>
+    /// <typeparam name="T">The type of the constant data.</typeparam>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="constant">The constant data to push to the shader.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    /// <exception cref="ArgumentException">Thrown when the size of the constant does not match the push constants size.</exception>
     public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
@@ -106,6 +129,13 @@ public sealed class RenderContext : AutoDisposable
     }
 
 
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
         Debug.Assert(_framebuffer != null);
@@ -118,12 +148,31 @@ public sealed class RenderContext : AutoDisposable
 
 
 
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material and push constants.
+    /// </summary>
+    /// <typeparam name="T">The type of the constant data.</typeparam>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="constant">The constant data to push to the shader.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant, subMeshIndex);
     }
 
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material and push constants, starting from a specific instance.
+    /// </summary>
+    /// <typeparam name="T">The type of the constant data.</typeparam>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="instanceStart">The index of the first instance to draw.</param>
+    /// <param name="constant">The constant data to push to the shader.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         Debug.Assert(_framebuffer != null);
@@ -150,6 +199,11 @@ public sealed class RenderContext : AutoDisposable
         return exceptions;
     }
 
+    /// <summary>
+    /// Sets the mesh for rendering.
+    /// </summary>
+    /// <param name="mesh">The mesh to set.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to use.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetMesh(in Mesh mesh, in int subMeshIndex)
     {
@@ -165,12 +219,19 @@ public sealed class RenderContext : AutoDisposable
         _indexCount = _command.SetMesh(mesh, subMeshIndex);
     }
 
+    /// <summary>
+    /// Clears the cached mesh data.
+    /// </summary>
     private void ClearCache()
     {
         _mesh = null;
         _subMeshIndex = 0;
     }
 
+    /// <summary>
+    /// Invokes the OnCommandBegin event on all listeners.
+    /// </summary>
+    /// <returns>A list of exceptions that occurred during the invocation.</returns>
     private IReadOnlyList<Exception> InvokeBegin()
     {
         _exceptionsBegin.Clear();
@@ -188,6 +249,10 @@ public sealed class RenderContext : AutoDisposable
         return _exceptionsBegin;
     }
 
+    /// <summary>
+    /// Invokes the OnCommandEnd event on all listeners.
+    /// </summary>
+    /// <returns>A list of exceptions that occurred during the invocation.</returns>
     private IReadOnlyList<Exception> InvokeEnd()
     {
         _exceptionsEnd.Clear();
