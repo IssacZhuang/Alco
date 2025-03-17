@@ -33,9 +33,9 @@ public partial class RenderingSystem
         return new SpriteRenderer(this, renderContext, MeshCenteredSprite, material, name);
     }
 
-    public RenderContext CreateRenderContext()
+    public RenderContext CreateRenderContext(string name = "render_context")
     {
-        return new RenderContext(this);
+        return new RenderContext(this, name);
     }
 
     public CanvasRenderer CreateCanvasRenderer(GraphicsBuffer camera, Shader shaderSprite, Shader shaderText)

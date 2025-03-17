@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alco.Rendering\Alco.Rendering.csproj" />
+    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -43,11 +43,11 @@ public sealed class RenderContext : AutoDisposable
 
 
 
-    internal RenderContext(RenderingSystem renderingSystem)
+    internal RenderContext(RenderingSystem renderingSystem, string name)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer(new CommandBufferDescriptor("render_context"));
+        _command = _device.CreateCommandBuffer(new CommandBufferDescriptor(name));
         _listeners = new List<ICommandListener>();
         _exceptionsBegin = new List<Exception>();
         _exceptionsEnd = new List<Exception>();
