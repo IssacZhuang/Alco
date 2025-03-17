@@ -13,7 +13,7 @@ public class Game : GameEngine
     private readonly Camera2D _camera;
 
     private readonly Shader _shaderSprite;
-    private readonly SpriteRenderer _spriteRenderer;
+    private readonly OldSpriteRenderer _spriteRenderer;
     private readonly DropletSystem _dropletSystem;
     private readonly CubeSystem _cubeSystem;
     private readonly Texture2D _texDroplet;
@@ -34,7 +34,7 @@ public class Game : GameEngine
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
-        _spriteRenderer  = Rendering.CreateSpriteRenderer(_camera, _shaderSprite);
+        _spriteRenderer = Rendering.CreateOldSpriteRenderer(_camera, _shaderSprite);
 
         _dropletSystem = new DropletSystem(MainRenderTarget, Rendering, _camera, _shaderSprite, _texDroplet);
         _cubeSystem = new CubeSystem(_spriteRenderer, Rendering.TextureWhite);

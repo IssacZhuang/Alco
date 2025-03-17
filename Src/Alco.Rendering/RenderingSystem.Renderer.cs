@@ -6,9 +6,9 @@ using Alco.Graphics;
 
 public partial class RenderingSystem
 {
-    public TextRenderer CreateTextRenderer(GraphicsBuffer camera, Shader shader)
+    public OldTextRenderer CreateOldTextRenderer(GraphicsBuffer camera, Shader shader)
     {
-        return new TextRenderer(this, MeshTrueType, camera, shader);
+        return new OldTextRenderer(this, MeshTrueType, camera, shader);
     }
 
     /// <summary>
@@ -18,19 +18,19 @@ public partial class RenderingSystem
     /// <param name="material">The material to use.</param>
     /// <param name="name">The name of the renderer.</param>
     /// <returns>The created text renderer.</returns>
-    public TextRenderer2 CreateTextRenderer2(RenderContext renderContext, Material material, string name = "text_renderer")
+    public TextRenderer CreateTextRenderer(RenderContext renderContext, Material material, string name = "text_renderer")
     {
-        return new TextRenderer2(this, renderContext, MeshTrueType, material, name);
+        return new TextRenderer(this, renderContext, MeshTrueType, material, name);
     }
 
-    public SpriteRenderer CreateSpriteRenderer(GraphicsBuffer camera, Shader shader)
+    public OldSpriteRenderer CreateOldSpriteRenderer(GraphicsBuffer camera, Shader shader)
     {
-        return new SpriteRenderer(this, MeshCenteredSprite, camera, shader);
+        return new OldSpriteRenderer(this, MeshCenteredSprite, camera, shader);
     }
 
-    public SpriteRenderer2 CreateSpriteRenderer2(RenderContext renderContext, Material material, string name = "sprite_renderer")
+    public SpriteRenderer CreateSpriteRenderer(RenderContext renderContext, Material material, string name = "sprite_renderer")
     {
-        return new SpriteRenderer2(this, renderContext, MeshCenteredSprite, material, name);
+        return new SpriteRenderer(this, renderContext, MeshCenteredSprite, material, name);
     }
 
     public RenderContext CreateRenderContext()

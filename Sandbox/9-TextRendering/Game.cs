@@ -9,11 +9,11 @@ public class Game : GameEngine
 
     private Camera2D _camera;
     private Shader _shader;
-    private TextRenderer _renderer;
+    private OldTextRenderer _renderer;
 
     private Material _material;
     private RenderContext _renderContext;
-    private TextRenderer2 _textRenderer;
+    private TextRenderer _textRenderer;
 
     private Font _font;
     private float _fontSize = 16;
@@ -27,12 +27,12 @@ public class Game : GameEngine
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
 
-        _renderer = Rendering.CreateTextRenderer(_camera, _shader);
+        _renderer = Rendering.CreateOldTextRenderer(_camera, _shader);
 
         _material = Rendering.CreateGraphicsMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
         _renderContext = Rendering.CreateRenderContext();
-        _textRenderer = Rendering.CreateTextRenderer2(_renderContext, _material);
+        _textRenderer = Rendering.CreateTextRenderer(_renderContext, _material);
     }
 
     protected override void OnUpdate(float delta)

@@ -11,9 +11,9 @@ namespace Alco.Engine.Benchmark;
 public class BenchmarkRenderer
 {
     const int count = 10000;
-    private SpriteRenderer _renderer1;
+    private OldSpriteRenderer _renderer1;
     private RenderContext _context;
-    private SpriteRenderer2 _renderer2;
+    private SpriteRenderer _renderer2;
     private GameEngine _engine;
     private Texture2D _texture;
     private RenderTexture _target;
@@ -37,8 +37,8 @@ public class BenchmarkRenderer
         Material material = renderingSystem.CreateGraphicsMaterial(shader);
         material.SetBuffer(ShaderResourceId.Camera, camera);
         _context = renderingSystem.CreateRenderContext();
-        _renderer1 = renderingSystem.CreateSpriteRenderer(camera, shader);
-        _renderer2 = renderingSystem.CreateSpriteRenderer2(_context, material);
+        _renderer1 = renderingSystem.CreateOldSpriteRenderer(camera, shader);
+        _renderer2 = renderingSystem.CreateSpriteRenderer(_context, material);
 
 
     }

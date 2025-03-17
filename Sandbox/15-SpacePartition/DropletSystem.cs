@@ -23,14 +23,14 @@ public class DropletSystem : IDisposable
 
     private class JobParallelRender : IJobBatch
     {
-        private readonly SpriteRenderer[] _renderers;
+        private readonly OldSpriteRenderer[] _renderers;
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
         private readonly Texture2D _texture;
         private readonly GPUFrameBuffer _renderTarget;
-        
 
-        public JobParallelRender(GPUFrameBuffer renderTarget, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
+
+        public JobParallelRender(GPUFrameBuffer renderTarget, OldSpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
         {
             _renderTarget = renderTarget;
             _renderers = renderers;
@@ -52,7 +52,7 @@ public class DropletSystem : IDisposable
     }
 
     private static readonly ColorFloat DefaultColor = 0xCCCCCC;
-    private readonly SpriteRenderer[] _renderer;
+    private readonly OldSpriteRenderer[] _renderer;
     private readonly RenderRange[] _renderRanges;
     private readonly Texture2D _texture;
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
@@ -72,10 +72,10 @@ public class DropletSystem : IDisposable
 
     public DropletSystem(WindowRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
-        _renderer = new SpriteRenderer[RenderThreadCount];
+        _renderer = new OldSpriteRenderer[RenderThreadCount];
         for (int i = 0; i < RenderThreadCount; i++)
         {
-            _renderer[i] = system.CreateSpriteRenderer(camera, shader);
+            _renderer[i] = system.CreateOldSpriteRenderer(camera, shader);
         }
 
         _renderRanges = new RenderRange[RenderThreadCount];

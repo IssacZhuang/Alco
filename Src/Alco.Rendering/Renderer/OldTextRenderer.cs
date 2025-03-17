@@ -10,13 +10,15 @@ namespace Alco.Rendering;
 /// The high performance text renderer.
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// </summary> 
-public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
+[Obsolete]
+public unsafe sealed class OldTextRenderer : AutoDisposable
 {
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
     {
         public Matrix4x4 Model;
+        // the start of instance id in OpenGL is always 0, so use a custom instance start
         public Vector2 VertexOffset;
     }
 
@@ -26,67 +28,109 @@ public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
     private const int MaxTextInstancingCount = 300;
     private static readonly uint GPUBufferSize = (uint)(MaxTextInstancingCount * sizeof(TextData));
 
+    private readonly GPUDevice _device;
+    private readonly RenderingSystem _renderingSystem;
+    private readonly Shader _shader;
     private readonly Mesh _mesh;
-    private readonly Material _material;
+    private uint _indexCount;
+    // private readonly GraphicsArrayBuffer<TextData> _textBufferGPU;
+
+    private readonly GPUCommandBuffer _command;
 
     private NativeBuffer<TextData> _textBufferFull;
     private NativeBuffer<TextData> _textBufferPartial;
     private readonly List<GraphicsBuffer> _tmpGPUBuffers;
     private GraphicsBuffer? _textBufferGPU;
 
-    private readonly RenderingSystem _renderingSystem;
-    private readonly RenderContext _renderContext;
+    private GraphicsPipelineContext _pipelineInfo;
 
+    private uint _shaderId_camera;
     private uint _shaderId_textBuffer;
     private uint _shaderId_font;
 
     private int _instanceIndex;
     private bool _isDrawing;
+    private GPUFrameBuffer? _renderTarget;
 
+    public GraphicsBuffer Camera { get; set; }
 
-    internal TextRenderer2(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
+    internal OldTextRenderer(RenderingSystem renderingSystem, Mesh mesh, GraphicsBuffer camera, Shader shader)
     {
         _renderingSystem = renderingSystem;
-        _renderContext = renderContext;
-        _renderContext.AddListener(this);
+        _device = renderingSystem.GraphicsDevice;
+        //_textBufferGPU = renderingSystem.CreateGraphicsArrayBuffer<TextData>(MaxTextInstancingCount, "text_buffer");
         _tmpGPUBuffers = new List<GraphicsBuffer>();
 
         _mesh = mesh;
-        _material = material.CreateInstance();
+        _shader = shader;
+        _command = _device.CreateCommandBuffer();
 
         _textBufferFull = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _textBufferPartial = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
+        _pipelineInfo = _shader.GetGraphicsPipeline(
+            renderingSystem.PrefferedSDRPass,
+            DepthStencilState.Read,
+            BlendState.AlphaBlend
+            );
 
         //get resource ids
-        _shaderId_textBuffer = _material.GetResourceId(ShaderResourceId.TextBuffer);
-        _shaderId_font = _material.GetResourceId(ShaderResourceId.Font);
+        _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+        _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderResourceId.TextBuffer);
+        _shaderId_font = _pipelineInfo.GetResourceId(ShaderResourceId.Font);
+
+        Camera = camera;
     }
 
-
-    void ICommandListener.OnCommandBegin()
+    /// <summary>
+    ///  Begin drawing text on the target frame buffer.
+    /// </summary>
+    /// <param name="target">The target frame buffer to draw text on.</param>
+    /// <exception cref="InvalidOperationException">TextRenderer.Begin() called twice without calling End()</exception>
+    /// <exception cref="ArgumentNullException">The render target is null</exception>
+    public unsafe void Begin(GPUFrameBuffer target)
     {
         if (_isDrawing)
         {
             throw new InvalidOperationException("TextRenderer.Begin() called twice without calling End()");
         }
 
+        if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
+        {
+            _shaderId_camera = _pipelineInfo.GetResourceId(ShaderResourceId.Camera);
+            _shaderId_textBuffer = _pipelineInfo.GetResourceId(ShaderResourceId.TextBuffer);
+            _shaderId_font = _pipelineInfo.GetResourceId(ShaderResourceId.Font);
+        }
+
+        _renderTarget = target;
         _isDrawing = true;
         _instanceIndex = 0;
 
+        _command.Begin();
+        _command.SetFrameBuffer(_renderTarget!);
+        _command.SetGraphicsPipeline(_pipelineInfo!);
+        _indexCount = _command.SetMesh(_mesh);
+        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
         RequestGPUBuffer();
     }
 
-
-    void ICommandListener.OnCommandEnd()
+    /// <summary>
+    /// End drawing text and submit the command to GPU
+    /// </summary>
+    public void End()
     {
+
         if (!_isDrawing)
         {
             throw new InvalidOperationException("TextRenderer.End() called without calling Begin()");
         }
 
         UpdateBufferToGPU();
+        _renderTarget = null;
         _isDrawing = false;
+
+        _command.End();
+        _renderingSystem.ScheduleCommandBuffer(_command);
 
         _textBufferGPU = null;
         for (int i = 0; i < _tmpGPUBuffers.Count; i++)
@@ -274,17 +318,30 @@ public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
 
             localIndex += drawCount;
 
-            _material.SetTexture(_shaderId_font, font.Texture);
-            _renderContext.DrawInstancedWithConstant(_mesh, _material, (uint)drawCount, instanceStart, constant);
+            _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
+            _command.PushConstants(ShaderStage.Vertex, 0, constant);
+            _command.DrawIndexed(_indexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 
         return x;
     }
 
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static TextData GetTextData(char c, GlyphInfo glyph, Vector4 color, float lineSpacing, ref float x, ref float y)
     {
+        // if (c == ' ')
+        // {
+        //     x += 0.5f;
+        //     return new TextData();
+        // }
+
+        // if (c == '\n' || c == '\r')
+        // {
+        //     // x = basePos.X;
+        //     // y -= lineSpacing;
+        //     return new TextData();
+        // }
+
         TextData data = new TextData
         {
             UVRect = glyph.UVRect,
@@ -303,7 +360,7 @@ public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
         {
             _tmpGPUBuffers.Add(buffer);
             _textBufferGPU = buffer;
-            _material.SetBuffer(_shaderId_textBuffer, _textBufferGPU);
+            _command.SetGraphicsResources(_shaderId_textBuffer, _textBufferGPU.EntryReadWrite);
         }
         else
         {
@@ -314,11 +371,10 @@ public unsafe sealed class TextRenderer2 : AutoDisposable, ICommandListener
 
     protected override void Dispose(bool disposing)
     {
-        _renderContext.RemoveListener(this);
         //dispose native resources
         _textBufferFull.Dispose();
         _textBufferPartial.Dispose();
+
+        _command.Dispose();
     }
-
-
 }

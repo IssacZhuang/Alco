@@ -16,8 +16,8 @@ public class Game : GameEngine
     private Texture2D _star;
 
     private RenderContext _renderContext;
-    private TextRenderer2 _textRenderer;
-    private SpriteRenderer2 _spriteRenderer;
+    private TextRenderer _textRenderer;
+    private SpriteRenderer _spriteRenderer;
 
     private Vector2[] _positions;
     private ColorFloat[] _colors;
@@ -39,8 +39,8 @@ public class Game : GameEngine
         _star = Assets.Load<Texture2D>("Star.png");
     
         _renderContext = Rendering.CreateRenderContext();
-        _textRenderer = Rendering.CreateTextRenderer2(_renderContext, _materialText);
-        _spriteRenderer = Rendering.CreateSpriteRenderer2(_renderContext, _materialSprite);
+        _textRenderer = Rendering.CreateTextRenderer(_renderContext, _materialText);
+        _spriteRenderer = Rendering.CreateSpriteRenderer(_renderContext, _materialSprite);
 
 
         _positions = new Vector2[DrawCount];
