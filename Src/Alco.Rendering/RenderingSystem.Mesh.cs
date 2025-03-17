@@ -101,6 +101,18 @@ public partial class RenderingSystem
     }
 
     /// <summary>
+    /// Create a primitive mesh with a vertex buffer size and an index buffer size.
+    /// </summary>
+    /// <param name="vertexBufferSize">The size of the vertex buffer.</param>
+    /// <param name="indexBufferSize">The size of the index buffer.</param>
+    /// <param name="name">The name of the mesh.</param>
+    /// <returns>The created mesh.</returns>
+    public unsafe PrimitiveMesh CreatePrimitiveMesh(uint vertexBufferSize, uint indexBufferSize, string name = "mesh")
+    {
+        return new PrimitiveMesh(_device, vertexBufferSize, indexBufferSize, IndexFormat.UInt16, name);
+    }
+
+    /// <summary>
     /// Create a mesh.
     /// </summary>
     /// <param name="vertices">The vertices of the mesh.</param>

@@ -7,16 +7,16 @@ namespace Alco.GUI;
 
 public unsafe class ImGuiRenderer : AutoDisposable
 {
-    private readonly RenderContext _renderContext;
-    private readonly DynamicMeshRenderer _renderer;
-    private readonly Material _material;
+    private readonly GPUCommandBuffer _commandBuffer;
+    private readonly PrimitiveMesh _mesh;
+    private readonly Shader _shader;
     private IntPtr _imGuiContext;
 
-    public ImGuiRenderer(RenderingSystem renderingSystem, Material material, string name)
+    public ImGuiRenderer(RenderingSystem renderingSystem, Shader shader, string name)
     {
-        _renderContext = renderingSystem.CreateRenderContext(name);
-        _renderer = renderingSystem.CreateDynamicMeshRenderer(_renderContext);
-        _material = material;
+        _commandBuffer = renderingSystem.GraphicsDevice.CreateCommandBuffer($"{name}_command_buffer");
+        _mesh = renderingSystem.CreatePrimitiveMesh((uint)sizeof(ImDrawVert) * 64, (uint)sizeof(ushort) * 96, "ImGuiRenderer_mesh");
+        _shader = shader;
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
 
@@ -34,9 +34,6 @@ public unsafe class ImGuiRenderer : AutoDisposable
         io.DisplaySize = new Vector2(width, height);
         io.DisplayFramebufferScale = new Vector2(1.0f, 1.0f);
         io.DeltaTime = deltaTime;
-
-        _renderContext.Begin(target);
-        
     }
 
     public void End()
@@ -44,29 +41,38 @@ public unsafe class ImGuiRenderer : AutoDisposable
         ImGui.Render();
         ImDrawDataPtr drawData = ImGui.GetDrawData();
 
+        uint totalVertexBufferSize = (uint)(drawData.TotalVtxCount * sizeof(ImDrawVert));
+        uint totalIndexBufferSize = (uint)(drawData.TotalIdxCount * sizeof(ushort));
+
+        _mesh.EnsureVertexBufferSizeUnsafe(totalVertexBufferSize);
+        _mesh.EnsureIndexBufferSizeUnsafe(totalIndexBufferSize);
+
+        uint vertexBufferOffset = 0;
+        uint indexBufferOffset = 0;
+
+
         for (int i = 0; i < drawData.CmdListsCount; i++)
         {
             ImDrawListPtr cmdList = drawData.CmdLists[i];
 
-            ImDrawVert* vertexPtr = (ImDrawVert*)cmdList.VtxBuffer.Data;
-            uint totalVertexCount = (uint)cmdList.VtxBuffer.Size;
+            void* vertexDataPtr = (void*)cmdList.VtxBuffer.Data;
+            uint vertexDataSize = (uint)(cmdList.VtxBuffer.Size * sizeof(ImDrawVert));
 
-            ushort* indexPtr = (ushort*)cmdList.IdxBuffer.Data;
-            uint totalIndexCount = (uint)cmdList.IdxBuffer.Size;
+            void* indexDataPtr = (void*)cmdList.IdxBuffer.Data;
+            uint indexDataSize = (uint)(cmdList.IdxBuffer.Size * sizeof(ushort));
 
-            
-            for(int j = 0; j < cmdList.CmdBuffer.Size; j++)
-            {
-                ImDrawCmdPtr cmd = cmdList.CmdBuffer[j];
-                
-                uint drawIndex = cmd.ElemCount;
-                
-            }
+            _mesh.UpdateVertexUnsafe(vertexDataPtr, vertexDataSize, vertexBufferOffset);
+            _mesh.UpdateIndicesUnsafe(indexDataPtr, indexDataSize, indexBufferOffset);
+
+            vertexBufferOffset += vertexDataSize;
+            indexBufferOffset += indexDataSize;
         }
 
-        _renderContext.End();
+        var io = ImGui.GetIO();
+        Matrix4x4 viewProjection = Matrix4x4.CreateOrthographicOffCenter(0, io.DisplaySize.X, io.DisplaySize.Y, 0, -1, 1);
+        
     }
-    
+
 
     protected override void Dispose(bool disposing)
     {

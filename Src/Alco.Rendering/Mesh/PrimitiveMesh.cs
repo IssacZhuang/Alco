@@ -100,6 +100,8 @@ public sealed unsafe class PrimitiveMesh : Mesh
         IncrementVersion();
     }
 
+
+
     /// <summary>
     /// Update the indices by unmanaged pointer.
     /// </summary>
@@ -110,6 +112,26 @@ public sealed unsafe class PrimitiveMesh : Mesh
     {
         ValidateIndexBufferSize(offset, size);
         _device.WriteBuffer(IndexBuffer, offset, (byte*)data, size);
+    }
+
+    /// <summary>
+    /// Ensure the vertex buffer size. If the size is larger than the current size, it will resize the vertex buffer.
+    /// This method will not copy the data from the old buffer to the new buffer.
+    /// </summary>
+    /// <param name="size">The size of the vertex buffer.</param>
+    public void EnsureVertexBufferSizeUnsafe(uint size)
+    {
+        EnsureIndexBufferSize(size);
+    }
+
+    /// <summary>
+    /// Ensure the index buffer size. If the size is larger than the current size, it will resize the index buffer.
+    /// This method will not copy the data from the old buffer to the new buffer.
+    /// </summary>
+    /// <param name="size">The size of the index buffer.</param>
+    public void EnsureIndexBufferSizeUnsafe(uint size)
+    {
+        EnsureIndexBufferSize(size);
     }
 
     public override SubMeshData GetSubMesh(int index)
