@@ -211,6 +211,13 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _depthStencilAttachmentCache = attachment;
     }
 
+    protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)
+    {
+        ValidateGraphicsPipeline();
+
+        wgpuRenderPassEncoderSetScissorRect(_renderPass, x, y, width, height);
+    }
+
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         CheckRenderPass(true);

@@ -38,85 +38,105 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     //graphics
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetFrameBuffer(GPUFrameBuffer frameBuffer)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetFrameBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetFrameBufferCore(frameBuffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearColor(ColorFloat color, uint index = 0)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearColor, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         ClearColorCore(color, index);
     }
 
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearDepth(float depth)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearDepth, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         ClearDepthCore(depth);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearStencil(uint stencil)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearDepthStencil, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         ClearStencilCore(stencil);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetScissorRect(uint x, uint y, uint width, uint height)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetScissorRect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        SetScissorRectCore(x, y, width, height);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetGraphicsPipeline(GPUPipeline pipeline)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetGraphicsPipelineCore(pipeline);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetStencilReference(uint value)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetStencilReference, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetStencilReferenceCore(value);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetGraphicsResourcesCore(slot, resourceGroup);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetVertexBufferCore(slot, buffer, offset, size);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format,  ulong offset, ulong size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetIndexBufferCore(buffer, format, offset, size);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while Draw, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         DrawCore(vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         DrawIndirectCore(indirectBuffer, offset);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while UpdateBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
@@ -125,24 +145,28 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     //compute
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetComputePipeline(GPUPipeline pipeline)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetComputePipelineCore(pipeline);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetComputeResourcesCore(slot, resourceGroup);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DispatchCompute(uint x, uint y, uint z)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DispatchCompute, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         DispatchComputeCore(x, y, z);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DispatchComputeIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DispatchComputeIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
@@ -211,6 +235,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     protected abstract void ClearDepthCore(float depth);
     protected abstract void ClearStencilCore(uint stencil);
+    protected abstract void SetScissorRectCore(uint x, uint y, uint width, uint height);
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetStencilReferenceCore(uint value);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
