@@ -9,6 +9,7 @@ public class ImGUISystem: BaseEngineSystem
     private readonly Shader _shader;
     private readonly Material _material;
     private readonly ImGUIRenderer _imGUIRenderer;
+    private readonly ImGUIInputHandler _imGUIInputHandler;
     private readonly WindowRenderTarget _mainRenderTarget;
 
     public ImGUISystem(GameEngine engine)
@@ -33,11 +34,18 @@ public class ImGUISystem: BaseEngineSystem
         _material.BlendState = BlendState.AlphaBlend;
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
         _mainRenderTarget = engine.MainRenderTarget;
+
+        _imGUIInputHandler = new ImGUIInputHandler(engine.MainWindow, engine.Input);
     }
 
     public override void OnBeginFrame(float deltaTime)
     {
         _imGUIRenderer.Begin(_mainRenderTarget.FrameBuffer, deltaTime);
+    }
+
+    public override void OnUpdate(float delta)
+    {
+        _imGUIInputHandler.Update();
     }
 
     public override void OnEndFrame(float deltaTime)
