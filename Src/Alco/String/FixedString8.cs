@@ -151,23 +151,23 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
         }
     }
 
-    /// <summary>
-    /// Implicitly converts a FixedString8 to a string.
-    /// </summary>
-    /// <param name="value">The FixedString8 to convert.</param>
-    public static implicit operator string(FixedString8 value)
-    {
-        return value.ToString();
-    }
+    // /// <summary>
+    // /// Implicitly converts a FixedString8 to a string.
+    // /// </summary>
+    // /// <param name="value">The FixedString8 to convert.</param>
+    // public static implicit operator string(FixedString8 value)
+    // {
+    //     return value.ToString();
+    // }
 
-    /// <summary>
-    /// Implicitly converts a string to a FixedString8.
-    /// </summary>
-    /// <param name="value">The string to convert.</param>
-    public static implicit operator FixedString8(string value)
-    {
-        return new FixedString8(value);
-    }
+    // /// <summary>
+    // /// Implicitly converts a string to a FixedString8.
+    // /// </summary>
+    // /// <param name="value">The string to convert.</param>
+    // public static implicit operator FixedString8(string value)
+    // {
+    //     return new FixedString8(value);
+    // }
 
     /// <summary>
     /// Implicitly converts a ReadOnlySpan of characters to a FixedString8.
@@ -301,6 +301,26 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
         fixed (char* ptr = value)
         {
             Append(ptr, value.Length);
+        }
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a value to the end of the current content.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <typeparam name="T">The type of the value to append.</typeparam>
+    /// <param name="value">The value to append.</param>
+    public void Append<T>(T value) where T : ISpanFormattable
+    {
+        //take remain buffer
+        fixed (char* ptr = Buffer)
+        {
+            Span<char> remainSpan = new Span<char>(ptr + Length, MaxLength - Length);
+            if (value.TryFormat(remainSpan, out int charsWritten, null, null))
+            {
+                Length += charsWritten;
+            }
         }
     }
 
@@ -490,10 +510,10 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     {
         if (trimChars.IsEmpty)
         {
-            return TrimWhiteSpaceHelper(TrimType.Both);
+            return TrimWhiteSpaceHelper(TrimType.Both).ToString();
         }
 
-        return TrimHelper(trimChars, TrimType.Both);
+        return TrimHelper(trimChars, TrimType.Both).ToString();
     }
 
     /// <summary>
@@ -540,9 +560,9 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     {
         if (trimChars.IsEmpty)
         {
-            return TrimWhiteSpaceHelper(TrimType.Head);
+            return TrimWhiteSpaceHelper(TrimType.Head).ToString();
         }
-        return TrimHelper(trimChars, TrimType.Head);
+        return TrimHelper(trimChars, TrimType.Head).ToString();
     }
 
     /// <summary>
@@ -589,9 +609,9 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     {
         if (trimChars.IsEmpty)
         {
-            return TrimWhiteSpaceHelper(TrimType.Tail);
+            return TrimWhiteSpaceHelper(TrimType.Tail).ToString();
         }
-        return TrimHelper(trimChars, TrimType.Tail);
+        return TrimHelper(trimChars, TrimType.Tail).ToString();
     }
 
     /// <summary>
