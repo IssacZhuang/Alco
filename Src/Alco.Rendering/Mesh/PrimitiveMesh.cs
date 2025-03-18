@@ -100,8 +100,6 @@ public sealed unsafe class PrimitiveMesh : Mesh
         IncrementVersion();
     }
 
-
-
     /// <summary>
     /// Update the indices by unmanaged pointer.
     /// </summary>
@@ -111,7 +109,33 @@ public sealed unsafe class PrimitiveMesh : Mesh
     public void UpdateIndicesUnsafe(void* data, uint size, uint offset)
     {
         ValidateIndexBufferSize(offset, size);
-        _device.WriteBuffer(IndexBuffer, offset, (byte*)data, size);
+
+        // Calculate aligned size (multiple of 4 bytes)
+        uint alignedSize = size & ~3u; // Clear the last 2 bits to get a multiple of 4
+
+        // Write the aligned portion
+        /// the index buffer in gpu has already reserved space for the memory alignment<see cref="Mesh.ResizeIndexBuffer"/>
+        if (alignedSize > 0)
+        {
+            _device.WriteBuffer(IndexBuffer, offset, (byte*)data, alignedSize);
+        }
+
+        // Handle the unaligned remainder (0-3 bytes)
+        uint remainder = size - alignedSize;
+        if (remainder > 0)
+        {
+            byte* alignedData = (byte*)data + alignedSize;
+            byte* temp = stackalloc byte[4];
+
+            // Copy the unaligned bytes to our temporary buffer
+            for (int i = 0; i < remainder; i++)
+            {
+                temp[i] = alignedData[i];
+            }
+
+            // Write the remaining bytes
+            _device.WriteBuffer(IndexBuffer, offset + alignedSize, temp, 4);
+        }
     }
 
     /// <summary>
@@ -139,7 +163,6 @@ public sealed unsafe class PrimitiveMesh : Mesh
         //no submeshes,, return hole mesh
         return _defaultSubMesh;
     }
-
 
     private void ValidateVertexBufferSize(uint offset, uint size)
     {

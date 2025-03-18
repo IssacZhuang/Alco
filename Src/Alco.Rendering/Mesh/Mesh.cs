@@ -156,6 +156,13 @@ public abstract class Mesh : AutoDisposable
     /// <param name="size">The new size of the index buffer.</param>
     protected void ResizeIndexBuffer(uint size)
     {
+        //for memory alignment
+        uint remainder = size % 4;
+        if(remainder != 0)
+        {
+            size += 4 - remainder;
+        }
+
         _indexBuffer.Dispose();
         _indexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
