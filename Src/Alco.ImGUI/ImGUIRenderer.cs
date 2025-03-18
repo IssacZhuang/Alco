@@ -1,6 +1,7 @@
 using System.Numerics;
 using Alco.Graphics;
 using Alco.Rendering;
+using Alco.Unsafe;
 using ImGuiNET;
 
 namespace Alco.ImGUI;
@@ -18,6 +19,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly uint _shaderId_Texture;
     private readonly IntPtr _fontTextureId = (IntPtr)1;
     private readonly Texture2D _fontTexture;
+    private NativeBuffer<byte> _tmpIndexBuffer;
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
     {
@@ -47,6 +49,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         io.Fonts.ClearTexData();
         io.Fonts.TexReady = true;
+
+        _tmpIndexBuffer = new NativeBuffer<byte>(96);
     }
 
     public void Begin(GPUFrameBuffer target, float deltaTime)
@@ -72,6 +76,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _mesh.EnsureVertexBufferSizeUnsafe(totalVertexBufferSize);
         _mesh.EnsureIndexBufferSizeUnsafe(totalIndexBufferSize);
+        _tmpIndexBuffer.EnsureSize((int)totalIndexBufferSize);
+        byte* tmpIndexBufferPtr = _tmpIndexBuffer.UnsafePointer;
 
         uint vertexBufferOffset = 0;
         uint indexBufferOffset = 0;
@@ -87,12 +93,21 @@ public unsafe class ImGUIRenderer : AutoDisposable
             void* indexDataPtr = (void*)cmdList.IdxBuffer.Data;
             uint indexDataSize = (uint)(cmdList.IdxBuffer.Size * sizeof(ushort));
 
+            //the vertex buffer is always aligned to 4 bytes because ImDrawVert is 4 bytes aligned
             _mesh.UpdateVertexUnsafe(vertexDataPtr, vertexDataSize, vertexBufferOffset);
-            _mesh.UpdateIndicesUnsafe(indexDataPtr, indexDataSize, indexBufferOffset);
+
+
+            //_mesh.UpdateIndicesUnsafe(indexDataPtr, indexDataSize, indexBufferOffset);
+            //the offset of index buffer might not be memory aligned, so we need to copy the index data to a temporary buffer
+            //_mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, indexDataSize, indexBufferOffset);
+            UtilsMemory.MemCopy(indexDataPtr, tmpIndexBufferPtr + indexBufferOffset, indexDataSize);
 
             vertexBufferOffset += vertexDataSize;
             indexBufferOffset += indexDataSize;
         }
+
+        //update the index buffer
+        _mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, totalIndexBufferSize, 0);
 
         var io = ImGui.GetIO();
         _viewProjectionBuffer.UpdateBuffer(Matrix4x4.CreateOrthographicOffCenter(0, io.DisplaySize.X, io.DisplaySize.Y, 0, -1, 1));
@@ -163,6 +178,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             _viewProjectionBuffer.Dispose();
             _mesh.Dispose();
         }
+        _tmpIndexBuffer.Dispose();
         ImGui.DestroyContext(_imGuiContext);
     }
 
