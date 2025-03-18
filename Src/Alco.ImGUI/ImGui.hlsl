@@ -1,4 +1,11 @@
-#include "Shaders/Libs/Core.hlsli"
+// from "Shaders/Libs/Core.hlsli"
+#define vk_binding vk::binding
+#define vk_push_constant vk::push_constant
+
+#define SLOT(set, bind) [[vk_binding(bind, set)]] // layout(binding = bind, set = set)
+#define DEFINE_UNIFORM(index, name) SLOT(index, 0) cbuffer name
+#define DEFINE_TEX2D_SAMPLE(index, name) SLOT(index, 0) Texture2D name; SLOT(index, 1) SamplerState name##Sampler
+#define PUSH_CONSTANT [[vk::push_constant]] // layout(push_constant) in GLSL
 
 struct Vertex {
   float2 position : POSITION;

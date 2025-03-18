@@ -121,7 +121,7 @@ public sealed unsafe class PrimitiveMesh : Mesh
     /// <param name="size">The size of the vertex buffer.</param>
     public void EnsureVertexBufferSizeUnsafe(uint size)
     {
-        EnsureIndexBufferSize(size);
+        EnsureVertexBufferSize(size);
     }
 
     /// <summary>
