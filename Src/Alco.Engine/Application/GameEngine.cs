@@ -319,7 +319,7 @@ IDisposable
             Log.Error("[Begin Frame Error]", e);
             TryErrorStop();
         }
-        OnSystemBeginFrame();
+        OnSystemBeginFrame(delta);
 
         EventOnUpdate?.Invoke(delta);
         _renderScheduler.OnEndFrame();
@@ -351,7 +351,7 @@ IDisposable
             TryErrorStop();
         }
 
-        OnSystemEndFrame();
+        OnSystemEndFrame(delta);
 
         _renderScheduler.OnBeginFrame();
         EventOnEndFrame?.Invoke();
@@ -530,13 +530,13 @@ IDisposable
         }
     }
 
-    private void OnSystemBeginFrame()
+    private void OnSystemBeginFrame(float deltaTime)
     {
         for (int i = 0; i < _systems.Count; i++)
         {
             try
             {
-                _systems[i].OnBeginFrame();
+                _systems[i].OnBeginFrame(deltaTime);
             }
             catch (Exception e)
             {
@@ -547,13 +547,13 @@ IDisposable
         }
     }
 
-    private void OnSystemEndFrame()
+    private void OnSystemEndFrame(float deltaTime)
     {
         for (int i = 0; i < _systems.Count; i++)
         {
             try
             {
-                _systems[i].OnEndFrame();
+                _systems[i].OnEndFrame(deltaTime);
             }
             catch (Exception e)
             {

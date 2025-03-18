@@ -196,6 +196,7 @@ public sealed class RenderContext : AutoDisposable
         _renderingSystem.ScheduleCommandBuffer(_command);
         ClearCache();
 
+        _framebuffer = null;
         return exceptions;
     }
 

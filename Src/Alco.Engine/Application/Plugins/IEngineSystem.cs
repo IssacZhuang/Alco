@@ -36,11 +36,11 @@ public interface IEngineSystem:IDisposable
     /// <summary>
     /// Called before rendering the update
     /// </summary>
-    void OnBeginFrame();
+    void OnBeginFrame(float deltaTime);
     /// <summary>
     /// Called before swapping the frame buffer
     /// </summary>
-    void OnEndFrame();
+    void OnEndFrame(float deltaTime);
     /// <summary>
     /// Called when the engine stops
     /// </summary>

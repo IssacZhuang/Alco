@@ -21,7 +21,7 @@ public class PluginDebugGUI : BaseEnginePlugin
             renderTarget.OnResize += OnRenderTargetResize;
         }
 
-        public override void OnEndFrame()
+        public override void OnEndFrame(float deltaTime)
         {
             _renderer.Blit(_renderTarget.RenderTexture.FrameBuffer);
         }

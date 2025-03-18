@@ -91,7 +91,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         }
     }
 
-    public override void OnBeginFrame()
+    public override void OnBeginFrame(float deltaTime)
     {
         _command.Begin();
         _command.SetFrameBuffer(_renderTexture.FrameBuffer);
@@ -102,7 +102,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _rendering.GraphicsDevice.Submit(_command);
     }
 
-    public override void OnEndFrame()
+    public override void OnEndFrame(float deltaTime)
     {
         if (_windowSwapchain == null)
         {
