@@ -20,11 +20,11 @@ public class ImGUIInputHandler: AutoDisposable
         // do not use _inputSystem.MousePosition, it is the position relative to the screen, not the window
         //io.AddMousePosEvent(_inputSystem.MousePosition.X, _inputSystem.MousePosition.Y);
         io.AddMousePosEvent(_window.MousePosition.X, _window.MousePosition.Y);
-        io.AddMouseButtonEvent(0, _inputSystem.IsMouseDown(Mouse.Left));
-        io.AddMouseButtonEvent(1, _inputSystem.IsMouseDown(Mouse.Right));
-        io.AddMouseButtonEvent(2, _inputSystem.IsMouseDown(Mouse.Middle));
-        io.AddMouseButtonEvent(3, _inputSystem.IsMouseDown(Mouse.Button4));
-        io.AddMouseButtonEvent(4, _inputSystem.IsMouseDown(Mouse.Button5));
+        io.AddMouseButtonEvent(0, _inputSystem.IsMousePressing(Mouse.Left));
+        io.AddMouseButtonEvent(1, _inputSystem.IsMousePressing(Mouse.Right));
+        io.AddMouseButtonEvent(2, _inputSystem.IsMousePressing(Mouse.Middle));
+        io.AddMouseButtonEvent(3, _inputSystem.IsMousePressing(Mouse.Button4));
+        io.AddMouseButtonEvent(4, _inputSystem.IsMousePressing(Mouse.Button5));
         io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta);
 
         

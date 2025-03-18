@@ -42,6 +42,10 @@ public class Game : GameEngine
         {
             ImGui.Begin("Custom Window", ref showCustomWindow);
 
+            FixedString8 strFramerate = new FixedString8();
+            strFramerate.Append(FrameRate);
+
+            ImGui.Text(strFramerate.AsReadOnlySpan());
             ImGui.Text("Welcome to ImGUI in Alco Engine!");
             ImGui.Spacing();
 
@@ -70,7 +74,6 @@ public class Game : GameEngine
             }
 
             ImGui.Spacing();
-            ImGui.Text($"Current slider value: {sliderValue:F2}");
 
             if (toggleValue)
             {
