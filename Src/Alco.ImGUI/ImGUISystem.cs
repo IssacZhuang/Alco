@@ -30,6 +30,7 @@ public class ImGUISystem: BaseEngineSystem
         ]);
 
         _material = renderingSystem.CreateGraphicsMaterial(_shader, "ImGuiMaterial");
+        _material.BlendState = BlendState.AlphaBlend;
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
         _mainRenderTarget = engine.MainRenderTarget;
     }

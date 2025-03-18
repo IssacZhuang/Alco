@@ -45,6 +45,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
         ReadOnlySpan<byte> fontTextureData = new ReadOnlySpan<byte>(pixels, width * height * bytesPerPixel);
         _fontTexture = renderingSystem.CreateTexture2D(fontTextureData, (uint)width, (uint)height, ImageLoadOption.Default);
 
+        io.Fonts.ClearTexData();
+        io.Fonts.TexReady = true;
     }
 
     public void Begin(GPUFrameBuffer target, float deltaTime)
