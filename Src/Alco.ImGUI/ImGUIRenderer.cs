@@ -16,6 +16,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private IntPtr _imGuiContext;
     private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
+    private readonly IntPtr _fontTextureId = (IntPtr)1;
+    private Texture2D _fontTexture;
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
     {
@@ -28,16 +30,22 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
 
-        ImGui.GetIO().Fonts.AddFontDefault();
-        ImGui.GetIO().Fonts.Flags |= ImFontAtlasFlags.NoBakedLines;
-
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
+
+        ImGuiIOPtr io = ImGui.GetIO();  
+        io.Fonts.AddFontDefault();
+        io.Fonts.Flags |= ImFontAtlasFlags.NoBakedLines;
+
+        io.Fonts.GetTexDataAsRGBA32(out byte* pixels, out int width, out int height, out int bytesPerPixel);
+        io.Fonts.SetTexID(_fontTextureId);
+
+        ReadOnlySpan<byte> fontTextureData = new ReadOnlySpan<byte>(pixels, width * height * bytesPerPixel);
+        _fontTexture = renderingSystem.CreateTexture2D(fontTextureData, (uint)width, (uint)height, ImageLoadOption.Default);
 
     }
 
     public void Begin(GPUFrameBuffer target, float deltaTime)
     {
-        ImGui.NewFrame();
         uint width = target.Width;
         uint height = target.Height;
         ImGuiIOPtr io = ImGui.GetIO();
@@ -45,6 +53,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         io.DisplayFramebufferScale = new Vector2(1.0f, 1.0f);
         io.DeltaTime = deltaTime;
 
+        ImGui.NewFrame();
         _target = target;
     }
 
@@ -89,6 +98,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.RenderPass);
 
         _commandBuffer.Begin();
+        _commandBuffer.SetFrameBuffer(_target);
         _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
         _commandBuffer.SetVertexBuffer(0, _mesh.VertexBuffer);
         _commandBuffer.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
@@ -104,10 +114,17 @@ public unsafe class ImGUIRenderer : AutoDisposable
             for (int j = 0; j < cmdList.CmdBuffer.Size; j++)
             {
                 ImDrawCmdPtr cmd = cmdList.CmdBuffer[j];
-                nint textureNativeHandle = cmd.TextureId;
+                nint textureId = cmd.TextureId;
 
-                //todo: get texture by native handle
-                _commandBuffer.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                if (textureId == _fontTextureId)
+                {
+                    _commandBuffer.SetGraphicsResources(_shaderId_Texture, _fontTexture.EntrySample);
+                }
+                else
+                {
+                    //todo: get texture by native handle
+                    _commandBuffer.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                }
                 Vector4 uvRect = new Vector4(0, 0, 1, 1);
                 _commandBuffer.PushConstants(pipelineInfo.PushConstantsStages, uvRect);
 
@@ -142,6 +159,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             _viewProjectionBuffer.Dispose();
             _mesh.Dispose();
         }
+        ImGui.DestroyContext(_imGuiContext);
     }
 
 }
