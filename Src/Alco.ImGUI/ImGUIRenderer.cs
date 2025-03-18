@@ -71,6 +71,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
         ImGui.Render();
         ImDrawDataPtr drawData = ImGui.GetDrawData();
 
+        if (drawData.CmdListsCount <= 0)
+        {
+            return;
+        }
+
         uint totalVertexBufferSize = (uint)(drawData.TotalVtxCount * sizeof(ImDrawVert));
         uint totalIndexBufferSize = (uint)(drawData.TotalIdxCount * sizeof(ushort));
 
