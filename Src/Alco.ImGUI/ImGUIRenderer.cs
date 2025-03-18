@@ -11,13 +11,13 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly PrimitiveMesh _mesh;
-    private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionBuffer;
+    private readonly GraphicsBuffer _viewProjectionBuffer;
     private readonly Material _material;
     private IntPtr _imGuiContext;
     private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
     private readonly IntPtr _fontTextureId = (IntPtr)1;
-    private Texture2D _fontTexture;
+    private readonly Texture2D _fontTexture;
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
     {
@@ -25,8 +25,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _commandBuffer = _device.CreateCommandBuffer($"{name}_command_buffer");
         _mesh = renderingSystem.CreatePrimitiveMesh((uint)sizeof(ImDrawVert) * 64, (uint)sizeof(ushort) * 96, "ImGuiRenderer_mesh");
-        _material = material;
-        _viewProjectionBuffer = renderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("ImGuiRenderer_view_projection_buffer");
+        
+        _viewProjectionBuffer = renderingSystem.CreateGraphicsBuffer((uint)sizeof(Matrix4x4), "ImGuiRenderer_view_projection_buffer");
+        _material = material.CreateInstance();
+        _material.SetBuffer(ShaderResourceId.Camera, _viewProjectionBuffer);
+
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
 
@@ -90,8 +93,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         }
 
         var io = ImGui.GetIO();
-        _viewProjectionBuffer.Value = Matrix4x4.CreateOrthographicOffCenter(0, io.DisplaySize.X, io.DisplaySize.Y, 0, -1, 1);
-        _viewProjectionBuffer.UpdateBuffer();
+        _viewProjectionBuffer.UpdateBuffer(Matrix4x4.CreateOrthographicOffCenter(0, io.DisplaySize.X, io.DisplaySize.Y, 0, -1, 1));
 
         drawData.ScaleClipRects(ImGui.GetIO().DisplayFramebufferScale);
 
