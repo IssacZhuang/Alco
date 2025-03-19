@@ -8,7 +8,9 @@ namespace Alco.Engine;
 public abstract class InputSystem
 {
     /// <summary>
-    /// Gets or sets the position of the mouse. The zero of coordinate system is top-left <br/>This is the global mouse position, use <see cref="Window.GetLocalMousePosition(Vector2)"/> to calculate the local position in the window.
+    /// Gets or sets the position of the mouse. The zero of coordinate system is top-left 
+    /// <br/>[Attention] This is the global mouse position relative to the screen,
+    /// use <see cref="Window.MousePosition"/> if you want the local position in the window.
     /// </summary>
     public abstract Vector2 MousePosition { get; set; }
 
