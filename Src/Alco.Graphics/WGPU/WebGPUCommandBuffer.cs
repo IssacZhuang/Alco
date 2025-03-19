@@ -34,6 +34,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     //release on dispose
     private readonly byte* _nativeName;
+    private readonly WGPUStringView _nativeNameView;
+
 
     #endregion
 
@@ -67,7 +69,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     {
         WGPUCommandEncoderDescriptor descriptor = new WGPUCommandEncoderDescriptor
         {
-            label = _nativeName
+            label = _nativeNameView
         };
         _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, &descriptor);
 
@@ -91,7 +93,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
         WGPUCommandBufferDescriptor descriptor = new WGPUCommandBufferDescriptor
         {
-            label = _nativeName
+            label = _nativeNameView 
         };
 
         _buffer = wgpuCommandEncoderFinish(_encoder, &descriptor);
@@ -348,13 +350,13 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
         WGPUTexture nativeTexture = nativeDst.Native;
         WGPUBuffer nativeBuffer = nativeSrc.Native;
-        WGPUImageCopyBuffer imageCopyBuffer = new WGPUImageCopyBuffer
+        WGPUTexelCopyBufferInfo imageCopyBuffer = new WGPUTexelCopyBufferInfo
         {
             buffer = nativeBuffer,
             layout = UtilsWebGPU.GetTextureDataLayout(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height),
         };
 
-        WGPUImageCopyTexture imageCopyTexture = new WGPUImageCopyTexture
+        WGPUTexelCopyTextureInfo imageCopyTexture = new WGPUTexelCopyTextureInfo
         {
             texture = nativeTexture,
             mipLevel = mipLevel,
@@ -407,6 +409,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         {
             _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
             UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            _nativeNameView = new WGPUStringView(_nativeName, nameSpan.Length);
         }
 
         _colorAttachmentsCache = new UnsafeArray<WGPURenderPassColorAttachment>(8);

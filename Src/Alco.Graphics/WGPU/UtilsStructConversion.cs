@@ -16,32 +16,14 @@ internal static partial class UtilsWebGPU
         };
         switch (surface)
         {
-            case HtmlCanvasSurfaceSource htmlCanvasSurface:
-                fixed (byte* ptr = htmlCanvasSurface.Selector.GetUtf8Span())
-                {
-                    WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasChain =
-                    new WGPUSurfaceDescriptorFromCanvasHTMLSelector()
-                    {
-                        selector = ptr,
-                        chain = new WGPUChainedStruct()
-                        {
-                            sType = WGPUSType.SurfaceDescriptorFromCanvasHTMLSelector,
-                        },
-                    };
-
-                    descriptor.nextInChain = (WGPUChainedStruct*)&canvasChain;
-                    // create the surface immediately because the pointer will be invalid outside of this block
-                    return wgpuInstanceCreateSurface(instance, &descriptor);
-                }
-
             case AndroidWindowSurfaceSource androidWindowSurface:
-                WGPUSurfaceDescriptorFromAndroidNativeWindow widnowChain =
-                new WGPUSurfaceDescriptorFromAndroidNativeWindow()
+                WGPUSurfaceSourceAndroidNativeWindow widnowChain =
+                new WGPUSurfaceSourceAndroidNativeWindow()
                 {
                     window = (void*)androidWindowSurface.Window,
                     chain = new WGPUChainedStruct()
                     {
-                        sType = WGPUSType.SurfaceDescriptorFromAndroidNativeWindow,
+                        sType = WGPUSType.SurfaceSourceAndroidNativeWindow,
                     },
                 };
 
@@ -49,13 +31,13 @@ internal static partial class UtilsWebGPU
                 break;
 
             case MetalLayerSurfaceHandle metalLayerSurface:
-                WGPUSurfaceDescriptorFromMetalLayer metalLayerChain =
-                new WGPUSurfaceDescriptorFromMetalLayer()
+                WGPUSurfaceSourceMetalLayer metalLayerChain =
+                new WGPUSurfaceSourceMetalLayer()
                 {
                     layer = (void*)metalLayerSurface.Layer,
                     chain = new WGPUChainedStruct()
                     {
-                        sType = WGPUSType.SurfaceDescriptorFromMetalLayer,
+                        sType = WGPUSType.SurfaceSourceMetalLayer,
                     },
                 };
 
@@ -63,14 +45,14 @@ internal static partial class UtilsWebGPU
                 break;
 
             case Win32SurfaceSource win32Surface:
-                WGPUSurfaceDescriptorFromWindowsHWND win32Chain =
-                new WGPUSurfaceDescriptorFromWindowsHWND()
+                WGPUSurfaceSourceWindowsHWND win32Chain =
+                new WGPUSurfaceSourceWindowsHWND()
                 {
                     hinstance = (void*)win32Surface.HInstance,
                     hwnd = (void*)win32Surface.Hwnd,
                     chain = new WGPUChainedStruct()
                     {
-                        sType = WGPUSType.SurfaceDescriptorFromWindowsHWND,
+                        sType = WGPUSType.SurfaceSourceWindowsHWND,
                     },
                 };
 
@@ -78,14 +60,14 @@ internal static partial class UtilsWebGPU
                 break;
 
             case WaylandSurfaceSource waylandSurface:
-                WGPUSurfaceDescriptorFromWaylandSurface surfaceChain =
-                new WGPUSurfaceDescriptorFromWaylandSurface()
+                WGPUSurfaceSourceWaylandSurface surfaceChain =
+                new WGPUSurfaceSourceWaylandSurface()
                 {
                     display = (void*)waylandSurface.Display,
                     surface = (void*)waylandSurface.Surface,
                     chain = new WGPUChainedStruct()
                     {
-                        sType = WGPUSType.SurfaceDescriptorFromWaylandSurface,
+                        sType = WGPUSType.SurfaceSourceWaylandSurface,
                     },
                 };
 
@@ -93,14 +75,14 @@ internal static partial class UtilsWebGPU
                 break;
 
             case XcbWindowSurfaceSource xcbWindowSurface:
-                WGPUSurfaceDescriptorFromXcbWindow surfaceXlibChain =
-                new WGPUSurfaceDescriptorFromXcbWindow()
+                WGPUSurfaceSourceXCBWindow surfaceXlibChain =
+                new WGPUSurfaceSourceXCBWindow()
                 {
                     connection = (void*)xcbWindowSurface.Connection,
                     window = xcbWindowSurface.Window,
                     chain = new WGPUChainedStruct()
                     {
-                        sType = WGPUSType.SurfaceDescriptorFromXcbWindow,
+                        sType = WGPUSType.SurfaceSourceXCBWindow,
                     },
                 };
 
@@ -108,14 +90,14 @@ internal static partial class UtilsWebGPU
                 break;
 
             case XlibWindowSurfaceSource xlibWindowSurface:
-                WGPUSurfaceDescriptorFromXlibWindow surfaceXcbChain =
-                new WGPUSurfaceDescriptorFromXlibWindow()
+                WGPUSurfaceSourceXlibWindow surfaceXcbChain =
+                new WGPUSurfaceSourceXlibWindow()
                 {
                     display = (void*)xlibWindowSurface.Display,
                     window = xlibWindowSurface.Window,
                     chain = new WGPUChainedStruct()
                     {
-                        sType = WGPUSType.SurfaceDescriptorFromXlibWindow,
+                        sType = WGPUSType.SurfaceSourceXlibWindow,
                     },
                 };
 
@@ -130,8 +112,7 @@ internal static partial class UtilsWebGPU
     {
         WGPUShaderModuleDescriptor shaderDesc = new()
         {
-            hintCount = 0,
-            hints = null
+            label = WGPUStringView.Empty
         };
 
         
@@ -139,14 +120,14 @@ internal static partial class UtilsWebGPU
         {
             fixed (byte* ptr = source.Source)
             {
-                WGPUShaderModuleSPIRVDescriptor descriptor = new WGPUShaderModuleSPIRVDescriptor()
+                WGPUShaderSourceSPIRV descriptor = new WGPUShaderSourceSPIRV()
                 {
                     codeSize = (uint)source.Source.Length / sizeof(uint),
                     code = (uint*)ptr,
                     chain = new WGPUChainedStruct()
                     {
                         next = null,
-                        sType = WGPUSType.ShaderModuleSPIRVDescriptor,
+                        sType = WGPUSType.ShaderSourceSPIRV,
                     },
                 };
 
@@ -157,36 +138,16 @@ internal static partial class UtilsWebGPU
         }
         else if (source.Language == ShaderLanguage.WGSL)
         {
-            string code = Encoding.UTF8.GetString(source.Source);
-            fixed (byte* ptr = code.GetUtf8Span())
+            ReadOnlySpan<byte> code = source.Source;
+            fixed (byte* ptr = code)
             {
-                WGPUShaderModuleWGSLDescriptor descriptor = new WGPUShaderModuleWGSLDescriptor()
+                WGPUShaderSourceWGSL descriptor = new WGPUShaderSourceWGSL()
                 {
-                    code = ptr,
+                    code = new WGPUStringView(ptr, code.Length),
                     chain = new WGPUChainedStruct()
                     {
                         next = null,
-                        sType = WGPUSType.ShaderModuleWGSLDescriptor,
-                    },
-                };
-
-                shaderDesc.nextInChain = &descriptor.chain;
-
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
-            }
-        }
-        else if (source.Language == ShaderLanguage.GLSL)
-        {
-            string code = Encoding.UTF8.GetString(source.Source);
-            fixed (byte* ptr = code.GetUtf8Span())
-            {
-                WGPUShaderModuleGLSLDescriptor descriptor = new WGPUShaderModuleGLSLDescriptor()
-                {
-                    code = ptr,
-                    chain = new WGPUChainedStruct()
-                    {
-                        next = null,
-                        sType = (WGPUSType)WGPUNativeSType.ShaderModuleGLSLDescriptor,
+                        sType = WGPUSType.ShaderSourceWGSL,
                     },
                 };
 

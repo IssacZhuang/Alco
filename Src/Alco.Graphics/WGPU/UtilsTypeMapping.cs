@@ -9,7 +9,7 @@ internal static partial class UtilsWebGPU
     // Graphics backend mapping
     private static readonly Tuple<GraphicsBackend, WGPUInstanceBackend>[] BackendCast = new Tuple<GraphicsBackend, WGPUInstanceBackend>[]
     {
-        new(GraphicsBackend.None, WGPUInstanceBackend.None),
+        new(GraphicsBackend.None, WGPUInstanceBackend.All),
         new(GraphicsBackend.Auto, WGPUInstanceBackend.Primary),
         new(GraphicsBackend.WebGPU, WGPUInstanceBackend.BrowserWebGPU),
         new(GraphicsBackend.Vulkan, WGPUInstanceBackend.Vulkan),
@@ -241,7 +241,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<VertexFormat, WGPUVertexFormat>[] VertexFormatCast = new Tuple<VertexFormat, WGPUVertexFormat>[]
     {
-        new(VertexFormat.Undefined, WGPUVertexFormat.Undefined),
+        new(VertexFormat.Undefined, WGPUVertexFormat.None),
         new(VertexFormat.Uint8x2, WGPUVertexFormat.Uint8x2),
         new(VertexFormat.Uint8x4, WGPUVertexFormat.Uint8x4),
         new(VertexFormat.Sint8x2, WGPUVertexFormat.Sint8x2),

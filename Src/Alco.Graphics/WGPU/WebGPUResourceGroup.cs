@@ -90,14 +90,15 @@ internal unsafe sealed class WebGPUResourceGroup : GPUResourceGroup
             entries[i] = nativeEntry;
         }
 
-        fixed (byte* ptrName = Name.GetUtf8Span())
+        ReadOnlySpan<byte> name = Name.GetUtf8Span();
+        fixed (byte* ptrName = name)
         {
             WGPUBindGroupDescriptor nativeDescriptor = new WGPUBindGroupDescriptor
             {
                 entryCount = (uint)descriptor.Resources.Length,
                 entries = entries,
                 layout = ((WebGPUBindGroup)descriptor.Layout).Native,
-                label = ptrName,
+                label = new WGPUStringView(ptrName, name.Length),
             };
             _native = wgpuDeviceCreateBindGroup(nativeDevice, &nativeDescriptor);
         }

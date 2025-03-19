@@ -47,12 +47,13 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
 
         _texture = (WebGPUTextureBase)descriptor.Texture;
 
-        fixed (byte* ptrName = descriptor.Name.GetUtf8Span())
+        ReadOnlySpan<byte> name = descriptor.Name.GetUtf8Span();    
+        fixed (byte* ptrName = name)
         {
             WGPUTextureViewDescriptor viewDescriptor = new WGPUTextureViewDescriptor()
             {
                 nextInChain = null,
-                label = ptrName,
+                label = new WGPUStringView(ptrName, name.Length),
                 dimension = UtilsWebGPU.TextureViewDimensionToWebGPU(descriptor.Dimension),
                 baseMipLevel = descriptor.BaseMipLevel,
                 mipLevelCount = descriptor.MipLevelCount,

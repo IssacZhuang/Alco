@@ -42,12 +42,13 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
 
         WGPUDevice nativeDevice = device.Native;
 
-        fixed (byte* name = descriptor.Name.GetUtf8Span())
+        ReadOnlySpan<byte> name = descriptor.Name.GetUtf8Span();
+        fixed (byte* ptrName = name)
         {
             WGPUBufferDescriptor bufferDescriptor = new()
             {
                 nextInChain = null,
-                label = name,
+                label = new WGPUStringView(ptrName, name.Length),
                 size = Size,
                 usage = UtilsWebGPU.ConvertBufferUsage(descriptor.Usage),
                 mappedAtCreation = false,

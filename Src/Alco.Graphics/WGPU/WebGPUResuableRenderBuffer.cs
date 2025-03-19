@@ -22,6 +22,7 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
 
     //release on dispose
     private readonly byte* _nativeName;
+    private readonly WGPUStringView _nativeNameView;
 
     #endregion
 
@@ -62,7 +63,7 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
 
         WGPURenderBundleEncoderDescriptor descriptor = new WGPURenderBundleEncoderDescriptor
         {
-            label = _nativeName,
+            label = _nativeNameView,
             colorFormatCount = (nuint)colorCount,
             colorFormats = colors,
             depthStencilFormat = _frameBuffer.NativeDepthFormat.HasValue? _frameBuffer.NativeDepthFormat.Value : WGPUTextureFormat.Undefined,
@@ -77,7 +78,7 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
         ReleaseRenderBundle();
         WGPURenderBundleDescriptor descriptor = new WGPURenderBundleDescriptor
         {
-            label = _nativeName
+            label = _nativeNameView
         };
         _bundle = wgpuRenderBundleEncoderFinish(_renderBundleEncoder, &descriptor);
         ReleaseRenderBunleEncoder();
@@ -171,6 +172,7 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
         {
             _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
             UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            _nativeNameView = new WGPUStringView(_nativeName, nameSpan.Length);
         }
     }
 
