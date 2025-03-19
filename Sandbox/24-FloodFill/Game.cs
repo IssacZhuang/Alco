@@ -11,7 +11,7 @@ public class Game : GameEngine
 {
 
     private readonly uint2 _size = new uint2(65, 65);
-    private readonly MaterialRenderer _materialRenderer;
+    private readonly RenderContext _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
@@ -26,7 +26,7 @@ public class Game : GameEngine
         Material blitMaterial = Rendering.CreateGraphicsMaterial(Assets.Load<Shader>("InverserGamma.hlsl"));
 
         _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
-        _materialRenderer = Rendering.CreateMaterialRenderer();
+        _materialRenderer = Rendering.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 

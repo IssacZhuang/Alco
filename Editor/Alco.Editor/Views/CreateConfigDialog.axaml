@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    xmlns:vm="using:Alco.Editor.ViewModels"
+    xmlns:views="using:Alco.Editor.Views"
+    x:Class="Alco.Editor.Views.CreateConfigDialog"
+    x:DataType="vm:CreateConfigDialog"
+    Title="Create Config File"
+    WindowStartupLocation="CenterOwner"
+    Width="400"
+    SizeToContent="Height"
+>
+
+    <StackPanel Orientation="Vertical" Margin="20,15,20,15">
+        <TextBlock x:Name="TextTitle"
+            Text="Create Config"
+            Margin="0,0,0,8"
+            FontSize="14" />
+
+        <views:TreeFileExplorer 
+            x:Name="ConfigTypeExplorer"
+            Margin="0,8,0,8"
+            Height="200"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Background="#2D2D2D"
+            />
+
+        <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,8" HorizontalAlignment="Stretch">
+            <TextBlock Grid.Column="0"
+                Text="Filename: "
+                Margin="0,0,8,0"
+                VerticalAlignment="Center" />
+
+            <TextBox Grid.Column="1"
+                x:Name="InputFilename"
+                Text="{Binding Filename}"
+                Watermark="Enter filename"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center" />
+        </Grid>
+
+        <StackPanel Orientation="Horizontal"
+            HorizontalAlignment="Right"
+            Spacing="10"
+            Margin="0,8,0,0">
+            <Button
+                x:Name="BtnConfirm"
+                Content="OK"
+                Click="OnBtnConfirmClick"
+                Width="80" />
+            <Button
+                x:Name="BtnCancel"
+                Content="Cancel"
+                Click="OnBtnCancelClick"
+                Width="80" />
+        </StackPanel>
+        <TextBlock x:Name="TextWarning"
+            IsVisible="{Binding HasWarning}"
+            Margin="0,8,0,0"
+            FontSize="14"
+            Foreground="Yellow"
+            Text="{Binding Warning}"
+            />
+    </StackPanel>
+</Window> 

@@ -9,17 +9,6 @@ public partial class RenderingSystem
     public const uint DefaultIndexBufferSize = 16;
 
     /// <summary>
-    /// Create a mesh.
-    /// </summary>
-    /// <param name="name">The name of the mesh.</param>
-    /// <returns>The created mesh.</returns>
-    public unsafe Mesh CreateMesh(string name = "mesh")
-    {
-        return new Mesh(_device, DefaultVertexBufferSize, DefaultVertexBufferSize, DefaultIndexBufferSize, IndexFormat.UInt32, name);
-    }
-
-
-    /// <summary>
     /// Make a 9 slice mesh data.
     /// </summary>
     /// <param name="width">The width of the mesh.</param>
@@ -103,12 +92,24 @@ public partial class RenderingSystem
     /// <param name="name">The name of the mesh.</param>
     /// <typeparam name="TVertex">The type of the vertices.</typeparam>
     /// <returns>The created mesh.</returns>
-    public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
+    public unsafe PrimitiveMesh CreatePrimitiveMesh<TVertex>(TVertex[] vertices, uint[] indices, string name = "mesh") where TVertex : unmanaged
     {
-        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
-        mesh.UpdateVertex<TVertex>(vertices);
-        mesh.UpdateIndex(indices, 0);
+        PrimitiveMesh mesh = new PrimitiveMesh(_device, (uint)vertices.Length * (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
+        mesh.SetVertex<TVertex>(vertices);
+        mesh.SetIndices(indices);
         return mesh;
+    }
+
+    /// <summary>
+    /// Create a primitive mesh with a vertex buffer size and an index buffer size.
+    /// </summary>
+    /// <param name="vertexBufferSize">The size of the vertex buffer.</param>
+    /// <param name="indexBufferSize">The size of the index buffer.</param>
+    /// <param name="name">The name of the mesh.</param>
+    /// <returns>The created mesh.</returns>
+    public unsafe PrimitiveMesh CreatePrimitiveMesh(uint vertexBufferSize, uint indexBufferSize, string name = "mesh")
+    {
+        return new PrimitiveMesh(_device, vertexBufferSize, indexBufferSize, IndexFormat.UInt16, name);
     }
 
     /// <summary>
@@ -119,12 +120,17 @@ public partial class RenderingSystem
     /// <param name="name">The name of the mesh.</param>
     /// <typeparam name="TVertex">The type of the vertices.</typeparam>
     /// <returns></returns>
-    public unsafe Mesh CreateMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
+    public unsafe PrimitiveMesh CreatePrimitiveMesh<TVertex>(TVertex[] vertices, ushort[] indices, string name = "mesh") where TVertex : unmanaged
     {
 
-        Mesh mesh = new Mesh(_device, (uint)vertices.Length, (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
-        mesh.UpdateVertex<TVertex>(vertices);
-        mesh.UpdateIndex(indices, 0);
+        PrimitiveMesh mesh = new PrimitiveMesh(_device, (uint)vertices.Length * (uint)sizeof(TVertex), (uint)indices.Length, IndexFormat.UInt16, name);
+        mesh.SetVertex<TVertex>(vertices);
+        mesh.SetIndices(indices);
         return mesh;
+    }
+
+    public DynamicMesh CreateDynamicMesh(string name = "dynamic_mesh")
+    {
+        return new DynamicMesh(_device, DefaultVertexBufferSize, DefaultIndexBufferSize, name);
     }
 }

@@ -51,13 +51,18 @@ public partial class Editor : Window
 
             ToolTip.SetTip(button, page.Tooltip);
 
-            var pathIcon = new PathIcon
-            {
-                Data = page.IconGeometry,
-                Foreground = new SolidColorBrush(Color.Parse("#D1D1D1"))
-            };
+            
 
-            button.Content = pathIcon;
+            if (this.TryFindResource(page.IconKey, out var resource) && resource is StreamGeometry icon)
+            {
+                var pathIcon = new PathIcon
+                {
+                    Data = icon,
+                    Foreground = new SolidColorBrush(Color.Parse("#D1D1D1"))
+                };
+                button.Content = pathIcon;
+            }
+            
             button.Click += (s, e) => SwitchToPage(page);
             ActivityBar.Children.Add(button);
         }

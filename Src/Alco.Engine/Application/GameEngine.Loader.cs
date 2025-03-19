@@ -37,6 +37,7 @@ public partial class GameEngine
 
         var configReferenceResolver = new ConfigReferenceResolver(Assets);
         var jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions(configReferenceResolver);
+        jsonSerializerOptions.WriteIndented = true;
 
         Assets.RegisterAssetLoader(new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver));
         Assets.RegisterAssetEncoder(new AssetEncoderConfig(jsonSerializerOptions));

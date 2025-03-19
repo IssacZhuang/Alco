@@ -26,8 +26,7 @@ public sealed partial class CanvasRenderer
     private void SetTextPipeline()
     {
         _command.SetGraphicsPipeline(_pipelineInfoText);
-        _command.SetVertexBuffer(0, _meshText.VertexBuffer);
-        _command.SetIndexBuffer(_meshText.IndexBuffer, _meshText.IndexFormat);
+        _indexCount = _command.SetMesh(_meshText);
         _command.SetGraphicsResources(_textShaderId_camera, Camera.EntryReadonly);
         _command.SetGraphicsResources(_textShaderId_textBuffer, _textBufferGPU.EntryReadWrite);
     }
@@ -135,7 +134,7 @@ public sealed partial class CanvasRenderer
 
             _command.SetGraphicsResources(_textShaderId_font, font.Texture.EntrySample);
             _command.PushConstants(ShaderStage.Vertex, 0, constant);
-            _command.DrawIndexed(_meshText.IndexCount, (uint)drawCount, 0, 0, instanceStart);
+            _command.DrawIndexed(_indexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 
         return x;

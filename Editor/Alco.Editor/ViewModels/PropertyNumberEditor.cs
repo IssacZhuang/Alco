@@ -26,7 +26,7 @@ public class PropertyNumberEditor : PropertyEditor
         set
         {
             SetValue(value);
-            DoRefreshEvent();
+            DoValueChangedEvent();
         }
     }
     public PropertyNumberEditor(object target, AccessMemberInfo memberInfo) : base(target, memberInfo)

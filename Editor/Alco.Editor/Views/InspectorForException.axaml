@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Alco.Editor.ViewModels"
+             x:Class="Alco.Editor.Views.InspectorForException">
+    <Grid RowDefinitions="Auto,*" Margin="10">
+        <SelectableTextBlock Grid.Row="0" 
+                   x:Name="TextTitle"
+                   Text="Exception Details" 
+                   FontWeight="Bold"
+                   FontSize="16"
+                   Margin="0,0,0,10"/>
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                <SelectableTextBlock x:Name="TextExceptionMessage"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,10"/>
+                <SelectableTextBlock x:Name="TextStackTrace"
+                           TextWrapping="Wrap"
+                           FontFamily="Consolas"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl> 

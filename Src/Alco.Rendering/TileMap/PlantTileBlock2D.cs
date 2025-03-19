@@ -59,7 +59,7 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
     }
 
 
-    public override void OnRender(MaterialRenderer renderer)
+    public override void OnRender(RenderContext renderer)
     {
         if (_isTileIdDirty)
         {

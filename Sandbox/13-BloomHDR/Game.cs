@@ -14,7 +14,7 @@ public class Game : GameEngine
 
     private readonly Texture2D _quad;
     private readonly Shader _spriteShader;
-    private readonly SpriteRenderer _spriteRenderer;
+    private readonly OldSpriteRenderer _spriteRenderer;
     private float _intensity = 3;
     private bool _enabled = true;
 
@@ -28,7 +28,7 @@ public class Game : GameEngine
         _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
-        _spriteRenderer = Rendering.CreateSpriteRenderer(_camera, _spriteShader);
+        _spriteRenderer = Rendering.CreateOldSpriteRenderer(_camera, _spriteShader);
     }
 
     protected override void OnUpdate(float delta)

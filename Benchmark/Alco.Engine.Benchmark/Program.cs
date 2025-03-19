@@ -4,19 +4,14 @@ using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using Alco.Engine.Benchmark;
-
-IConfig config = new BenchmarkConfig();
-
-//run all benchmarks in assembly
-var summarys = BenchmarkRunner.Run(typeof(Program).Assembly, config);
+using BenchmarkDotNet.Reports;
+using BenchmarkFramework;
 
 
 
-ILogger logger = ConsoleLogger.Default;
-foreach (var summary in summarys)
-{
-    MarkdownExporter.Console.ExportToLog(summary, logger);
-    ConclusionHelper.Print(logger, summary.BenchmarksCases.First().Config.GetCompositeAnalyser().Analyse(summary).ToList());
-}
+
+IConfig config = new DefaultBenchmarkConfig();
+
+Runner.Run(typeof(Program).Assembly, config, args);
 
 

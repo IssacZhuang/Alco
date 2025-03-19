@@ -27,7 +27,7 @@ public class PropertyEnumEditor : PropertyEditor
         set
         {
             SetValue(value);
-            DoRefreshEvent();
+            DoValueChangedEvent();
         }
     }
 

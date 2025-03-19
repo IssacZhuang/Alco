@@ -70,6 +70,11 @@ internal class NoCommandBuffer : GPUCommandBuffer
         _hasBuffer = true;
     }
 
+    protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)
+    {
+        
+    }
+
     protected override unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
         

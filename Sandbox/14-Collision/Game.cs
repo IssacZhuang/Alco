@@ -15,7 +15,7 @@ public class Game : GameEngine
     private readonly CameraPerspective _camera;
 
     private readonly Shader _shader;
-    private readonly MaterialRenderer _renderer;
+    private readonly RenderContext _renderer;
     private readonly GraphicsMaterial _material;
 
     private readonly Cube _entity;
@@ -34,7 +34,7 @@ public class Game : GameEngine
         _camera.Tranform.Position.Z = -10;
         _camera.UpdateMatrixToGPU();
 
-        _renderer = Rendering.CreateMaterialRenderer();
+        _renderer = Rendering.CreateRenderContext();
         _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
 
         _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);

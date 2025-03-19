@@ -38,12 +38,12 @@ public abstract class BaseEngineSystem : IEngineSystem
 
     }
 
-    public virtual void OnBeginFrame()
+    public virtual void OnBeginFrame(float deltaTime)
     {
 
     }
 
-    public virtual void OnEndFrame()
+    public virtual void OnEndFrame(float deltaTime)
     {
 
     }

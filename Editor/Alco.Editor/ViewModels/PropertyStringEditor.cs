@@ -17,7 +17,7 @@ public class PropertyStringEditor : PropertyEditor
         set
         {
             MemberInfo.SetValue(Target, value);
-            DoRefreshEvent();
+            DoValueChangedEvent();
         }
     }
 

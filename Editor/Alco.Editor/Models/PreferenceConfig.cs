@@ -5,7 +5,7 @@ using Alco.IO;
 
 namespace Alco.Editor.Models;
 
-public class PreferenceConfig: BaseConfig
+public class PreferenceConfig
 {
     public Dictionary<string, string> Strings { get; set; } = new();
     public Dictionary<string, float> Floats { get; set; } = new();

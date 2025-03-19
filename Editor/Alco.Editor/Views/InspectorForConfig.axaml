@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:Alco.Editor.ViewModels"
+  xmlns:views="using:Alco.Editor.Views"
+  mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+  xmlns:avalonia="https://github.com/avaloniaui/avaloniaedit"
+  x:DataType="vm:InspectorForConfig"
+  x:Class="Alco.Editor.Views.InspectorForConfig">
+
+  <Design.DataContext>
+    <vm:InspectorForConfig />
+  </Design.DataContext>
+
+  <Grid ColumnDefinitions="*, Auto, *">
+    <!-- Left Panel  -->
+    <StackPanel Orientation="Vertical" Grid.Column="0">
+      <TextBlock x:Name="TextFilename" Margin="15 10" />
+      <views:ObjectPropertiesEditor
+        x:Name="PropertiesEditor" />
+    </StackPanel>
+
+    <!-- GridSplitter -->
+    <GridSplitter Grid.Column="1"
+      Background="Gray"
+      x:Name="GridSplitter"
+      DragCompleted="OnGridSplitterDragCompleted"
+      ResizeDirection="Columns"
+      Width="4" />
+
+    <!-- Right Panel with TextEditor -->
+    <StackPanel Orientation="Vertical" Grid.Column="2">
+      <TextBlock x:Name="TextError" 
+       Margin="15 10"
+       Foreground="Red"
+       IsVisible="False" />
+      <TextBlock Text="Json Preview" Margin="15 10" />
+      <avalonia:TextEditor
+        x:Name="TextJsonPreview"
+        ShowLineNumbers="True"
+        IsReadOnly="True"
+        FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+      HorizontalScrollBarVisibility="Auto"
+      VerticalScrollBarVisibility="Auto"
+      HorizontalAlignment="Stretch"
+      VerticalAlignment="Stretch"
+      MinHeight="100"
+      MinWidth="100"
+      Background="Transparent"
+      Foreground="White"
+      IsVisible="True">
+      <avalonia:TextEditor.Options>
+        <avalonia:TextEditorOptions
+          ShowBoxForControlCharacters="True"
+          EnableHyperlinks="True"
+          EnableEmailHyperlinks="True"
+          AllowScrollBelowDocument="True"
+          EnableTextDragDrop="True"
+          EnableImeSupport="True"
+          HighlightCurrentLine="True" />
+        </avalonia:TextEditor.Options>
+      </avalonia:TextEditor>
+    </StackPanel>
+  </Grid>
+</UserControl>

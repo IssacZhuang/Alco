@@ -83,7 +83,7 @@ public partial class RenderingSystem
     }
 
     public unsafe Texture2D CreateTexture2D(
-        byte[] data,
+        ReadOnlySpan<byte> data,
         uint width,
         uint height,
         ImageLoadOption? option = null

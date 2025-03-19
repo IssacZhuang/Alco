@@ -16,7 +16,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private GPURenderPass _renderPass;
     private RenderTexture _renderTexture;
 
-    private MaterialRenderer _renderer;
+    private RenderContext _renderer;
     private Material _blitMaterial;
     private MaterialInstance? _overrideMaterial;
     private Mesh _mesh;
@@ -65,8 +65,8 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _height = math.max(1, window.Size.Y);
 
         _renderPass = renderPass;
-        _renderer = _rendering.CreateMaterialRenderer();
-        
+        _renderer = _rendering.CreateRenderContext();
+
         _mesh = _rendering.MeshFullScreen;
 
         _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
@@ -91,7 +91,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         }
     }
 
-    public override void OnBeginFrame()
+    public override void OnBeginFrame(float deltaTime)
     {
         _command.Begin();
         _command.SetFrameBuffer(_renderTexture.FrameBuffer);
@@ -102,7 +102,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _rendering.GraphicsDevice.Submit(_command);
     }
 
-    public override void OnEndFrame()
+    public override void OnEndFrame(float deltaTime)
     {
         if (_windowSwapchain == null)
         {

@@ -19,6 +19,9 @@ public sealed class Shader : AutoDisposable
     private readonly Lock _lockCreateGraphicsPipeline = new Lock();
     private readonly Lock _lockCreateComputePipeline = new Lock();
     private readonly Lock _lockCreateModules = new Lock();
+
+    private readonly VertexInputLayout[]? _customVertexLayouts;
+
     private string _shaderText;
     //for hot reload
     private uint _version = 0;
@@ -34,7 +37,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="renderingSystem">The rendering system</param>
     /// <param name="shaderText">The shader text</param>
     /// <param name="name">The name of the shader</param>
-    internal Shader(RenderingSystem renderingSystem, string shaderText, string name)
+    internal Shader(RenderingSystem renderingSystem, string shaderText, string name, VertexInputLayout[]? customVertexLayouts = null)
     {
         _renderingSystem = renderingSystem;
         _shaderText = shaderText;
@@ -43,6 +46,8 @@ public sealed class Shader : AutoDisposable
         //default permutation
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
         _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
+
+        _customVertexLayouts = customVertexLayouts;
     }
 
     /// <summary>
@@ -320,13 +325,15 @@ public sealed class Shader : AutoDisposable
             }
             PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
 
+            VertexInputLayout[] vertexInputLayouts = _customVertexLayouts ?? reflectionInfo.VertexLayouts.ToArray();
+
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,
                 new ShaderModule[] {
                     modulesInfo.VertexShader!.Value,
                     modulesInfo.FragmentShader!.Value
                     },
-                reflectionInfo.VertexLayouts.ToArray(),
+                vertexInputLayouts,
                 rasterizer,
                 blend,
                 depthStencil,

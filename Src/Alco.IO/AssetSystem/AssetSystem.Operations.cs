@@ -392,14 +392,14 @@ public sealed partial class AssetSystem
     {
         // assume the handle is locked
         // profile
-        StartProfile(filename, type);
+        using var profileScope = StartProfile(filename, type);
 
         // IO
         if (!TryLoadDataFromSource(filename, out SafeMemoryHandle data))
         {
             failedReason = $"Trying to get asset {filename} but the file does not exist";
             asset = null;
-            EndProfile(false);
+            profileScope?.Fail();
             return false;
         }
 
@@ -413,7 +413,7 @@ public sealed partial class AssetSystem
         {
             failedReason = $"Exception occurred while creating asset {filename}: {ex}";
             asset = null;
-            EndProfile(false);
+            profileScope?.Fail();
             return false;
         }
 
@@ -424,7 +424,6 @@ public sealed partial class AssetSystem
         }
 
         // profile
-        EndProfile();
         failedReason = string.Empty;
         return true;
     }

@@ -12,6 +12,12 @@ public partial class ObjectPropertiesEditor : UserControl
 {
     private readonly StringBuilder _builder = new();
 
+    public bool IsExpanded
+    {
+        get => Expander.IsExpanded;
+        set => Expander.IsExpanded = value;
+    }
+
     public ObjectPropertiesEditor()
     {
         InitializeComponent();

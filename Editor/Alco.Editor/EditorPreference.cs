@@ -16,11 +16,14 @@ public class EditorPreference
     private readonly string _tmpDirectory = Path.Combine(Environment.CurrentDirectory, TmpFolderName);
     private readonly string _preferenceFilePath;
     private readonly EditorEngine _engine;
+    private readonly JsonSerializerOptions _jsonSerializerOptions;
 
     public EditorPreference(EditorEngine engine)
     {
         _engine = engine;
         _preferenceFilePath = Path.Combine(_tmpDirectory, PreferenceFileName);
+        _jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions();
+        
         if (!Directory.Exists(_tmpDirectory))
         {
             Directory.CreateDirectory(_tmpDirectory);
@@ -30,8 +33,8 @@ public class EditorPreference
         {
             try
             {
-                byte[] bytes = File.ReadAllBytes(_preferenceFilePath);
-                Config = (PreferenceConfig)engine.Assets.Decode(_preferenceFilePath, typeof(BaseConfig), bytes);
+                string json = File.ReadAllText(_preferenceFilePath);
+                Config = JsonSerializer.Deserialize<PreferenceConfig>(json, _jsonSerializerOptions)!;
             }
             catch (Exception e)
             {
@@ -93,8 +96,8 @@ public class EditorPreference
         string projectPath = _engine.Project?.FullPath ?? string.Empty;
         Config.OpenedProject = projectPath;
         
-        using var handle = _engine.Assets.EncodeToBinary<BaseConfig>(Config);
-        File.WriteAllBytes(_preferenceFilePath, handle.Span);
+        string json = JsonSerializer.Serialize(Config, _jsonSerializerOptions);
+        File.WriteAllText(_preferenceFilePath, json);
     }
 
     private void TryOpenProject(string projectFilePath)

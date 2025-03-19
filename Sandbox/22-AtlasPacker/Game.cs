@@ -10,7 +10,7 @@ using Alco.GUI;
 public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
-    private readonly MaterialRenderer _materialRenderer;
+    private readonly RenderContext _materialRenderer;
     private readonly Camera2D _camera;
     private readonly Material _material;
     public Game(GameEngineSetting setting) : base(setting)
@@ -41,7 +41,7 @@ public class Game : GameEngine
         _atlas = packer.BuildTextureAtlas();
 
         _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
-        _materialRenderer = Rendering.CreateMaterialRenderer();
+        _materialRenderer = Rendering.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer("_camera", _camera);
         _material.SetRenderTexture("_texture", _atlas.RenderTexture);

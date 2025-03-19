@@ -16,6 +16,7 @@ namespace Alco.Editor;
 public class EditorEngine : GameEngine
 {
     private readonly List<string> _allFilesInProject = new();
+    private readonly List<DirectoryFileSource> _fileSources = new();
     private readonly Lock _lockProjectFiles = new();
     private readonly Lock _lockProject = new();
     private FileSystemWatcher? _projectWatcher;
@@ -26,6 +27,9 @@ public class EditorEngine : GameEngine
     public string? ProjectDirectory => _projectDirectory;
     public AlcoProject? Project => _project;
 
+    /// <summary>
+    /// All files in the project.
+    /// </summary>
     public IReadOnlyList<string> AllFilesInProject
     {
         get
@@ -100,6 +104,7 @@ public class EditorEngine : GameEngine
             _project = new AlcoProject(projectFilePath);
             _projectDirectory = directory;
             UpdateAllFilesInProject();
+            AddFileSources();
             SetupProjectWatcher();
             if (OnProjectOpened != null)
             {
@@ -134,6 +139,9 @@ public class EditorEngine : GameEngine
 
         _projectDirectory = null;
         _allFilesInProject.Clear();
+
+        RemoveFileSources();
+
         if (OnProjectClosed != null)
         {
             Dispatcher.UIThread.InvokeAsync(OnProjectClosed);
@@ -163,9 +171,9 @@ public class EditorEngine : GameEngine
     private void OnProjectFileChanged(object sender, FileSystemEventArgs e)
     {
         if (ProjectDirectory == null) return;
-        Dispatcher.UIThread.InvokeAsync(() =>
+        Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            UpdateAllFilesInProject();
+            await Task.Run(UpdateAllFilesInProject);
             OnFilesInProjectUpdated?.Invoke();
         });
     }
@@ -204,10 +212,38 @@ public class EditorEngine : GameEngine
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to update project files: {ex.Message}");
+                Log.Error($"Failed to update project files: {ex}");
                 throw;
             }
         }
+    }
+
+    private void AddFileSources()
+    {
+        if (_project == null) return;
+        if (ProjectDirectory == null) return;
+        RemoveFileSources();
+
+        foreach (var file in _project.Config.AssetsPaths)
+        {
+            string fullPath = Path.Combine(ProjectDirectory, file);
+            if (Directory.Exists(fullPath))
+            {
+                var fileSource = new DirectoryFileSource(fullPath);
+                _fileSources.Add(fileSource);
+                Assets.AddFileSource(fileSource);
+            }
+        }
+        Assets.TryRefreshEntries();
+    }
+
+    private void RemoveFileSources()
+    {
+        foreach (var fileSource in _fileSources)
+        {
+            Assets.RemoveFileSource(fileSource);
+        }
+        _fileSources.Clear();
     }
 
     private static string FixPath(string path)

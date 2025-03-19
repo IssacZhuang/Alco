@@ -24,6 +24,7 @@ namespace Alco.Editor
         public Views.Editor? EditorWindow { get; private set; }
         public EditorEngine Engine { get; }
         public EditorPreference Preference { get; }
+        public TypeDatabase TypeDatabase { get; }
 
 
         public App()
@@ -32,11 +33,13 @@ namespace Alco.Editor
             {
                 Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
                 Preference = new EditorPreference(Engine);
+                TypeDatabase = new TypeDatabase();
             }
             else
             {
                 Engine = null!;
                 Preference = null!;
+                TypeDatabase = null!;
             }
 
 
@@ -103,6 +106,7 @@ namespace Alco.Editor
         {
             Preference?.Save();
             Engine?.Dispose();
+            TypeDatabase?.Dispose();
         }
     }
 }

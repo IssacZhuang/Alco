@@ -10,7 +10,7 @@ using Random = Alco.Random;
 public class CubeSystem
 {
     private static readonly ColorFloat DefaultColor = 0xff4444;
-    private readonly SpriteRenderer _renderer;
+    private readonly OldSpriteRenderer _renderer;
     private readonly Texture2D _texture;
     private readonly List<Cube> _activeList = new List<Cube>();
     private readonly Stack<Cube> _despawnList = new Stack<Cube>();
@@ -18,7 +18,7 @@ public class CubeSystem
 
     private Random _random = new Random(123);
 
-    public CubeSystem(SpriteRenderer renderer, Texture2D texDroplet)
+    public CubeSystem(OldSpriteRenderer renderer, Texture2D texDroplet)
     {
         _renderer = renderer;
         _texture = texDroplet;

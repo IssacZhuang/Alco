@@ -149,7 +149,7 @@ public partial class RenderingSystem
     private Mesh? _meshTrueType;
     private Mesh? _mehsFullScreen;
     private Mesh? _meshCube;
-    
+
 
     public Mesh MeshCenteredSprite
     {
@@ -157,7 +157,7 @@ public partial class RenderingSystem
         {
             if (_meshCenteredSprite == null)
             {
-                _meshCenteredSprite = CreateMesh(VerticesCenteredSpriteQuad, IndicesCenteredSpriteQuad, "centered_sprite_mesh");
+                _meshCenteredSprite = CreatePrimitiveMesh(VerticesCenteredSpriteQuad, IndicesCenteredSpriteQuad, "centered_sprite_mesh");
             }
             return _meshCenteredSprite;
 
@@ -170,7 +170,7 @@ public partial class RenderingSystem
         {
             if (_mesh9SliceSprite == null)
             {
-                _mesh9SliceSprite = CreateMesh(Vertices9SliceSpriteQuad, Indices9SliceSpriteQuad, "9_slice_sprite_mesh");
+                _mesh9SliceSprite = CreatePrimitiveMesh(Vertices9SliceSpriteQuad, Indices9SliceSpriteQuad, "9_slice_sprite_mesh");
             }
             return _mesh9SliceSprite;
         }
@@ -183,7 +183,7 @@ public partial class RenderingSystem
         {
             if (_meshMidUpSprite == null)
             {
-                _meshMidUpSprite = CreateMesh(VerticesMidUpSpriteQuad, IndicesMidUpSpriteQuad, "mid_up_sprite_mesh");
+                _meshMidUpSprite = CreatePrimitiveMesh(VerticesMidUpSpriteQuad, IndicesMidUpSpriteQuad, "mid_up_sprite_mesh");
             }
             return _meshMidUpSprite;
 
@@ -197,7 +197,7 @@ public partial class RenderingSystem
         {
             if (_meshTrueType == null)
             {
-                _meshTrueType = CreateMesh(VerticesTrueTypeQuad, IndicesTrueTypeQuad, "true_type_mesh");
+                _meshTrueType = CreatePrimitiveMesh(VerticesTrueTypeQuad, IndicesTrueTypeQuad, "true_type_mesh");
             }
             return _meshTrueType;
         }
@@ -209,7 +209,7 @@ public partial class RenderingSystem
         {
             if (_mehsFullScreen == null)
             {
-                _mehsFullScreen = CreateMesh(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
+                _mehsFullScreen = CreatePrimitiveMesh(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
             }
             return _mehsFullScreen;
         }
@@ -221,7 +221,7 @@ public partial class RenderingSystem
         {
             if (_meshCube == null)
             {
-                _meshCube = CreateMesh(VerticesBox, IndicesBox, "box_mesh");
+                _meshCube = CreatePrimitiveMesh(VerticesBox, IndicesBox, "box_mesh");
             }
             return _meshCube;
         }

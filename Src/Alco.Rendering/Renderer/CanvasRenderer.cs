@@ -38,6 +38,8 @@ public sealed partial class CanvasRenderer : AutoDisposable
     private GraphicsPipelineContext _pipelineInfoText;
     private readonly Mesh _meshText;
 
+    private uint _indexCount;
+
     private uint _textShaderId_camera;
     private uint _textShaderId_textBuffer;
     private uint _textShaderId_font;

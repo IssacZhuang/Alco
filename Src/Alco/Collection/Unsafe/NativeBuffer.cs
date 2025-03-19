@@ -105,7 +105,7 @@ namespace Alco
 
         public void EnsureSize(int size)
         {
-            if (size <= 0) throw new EmptySizeException(nameof(size));
+            if (size <= 0) return;
             if (size <= _length) return;
             Resize(size);
         }

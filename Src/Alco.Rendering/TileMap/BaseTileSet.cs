@@ -110,7 +110,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
                     TileId = (uint)currentTileIndex
                 };
 
-                tileData.SetUVRect(sprite.UVRect);
+                tileData.SetUVRect(sprite.UvRect);
                 _tileIdToItemId[currentTileIndex] = i;
                 _tileData[currentTileIndex++] = tileData;
             }

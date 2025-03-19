@@ -42,7 +42,7 @@ public partial class ProjectPage : UserControl
         AlcoProjectConfig config = project.Config;
         ViewModels.ObjectPropertiesEditor objectPropertiesEditor = new(config, "Project Config");
         ObjectPropertiesEditor.DataContext = objectPropertiesEditor;
-        objectPropertiesEditor.OnRefresh += () => PrintJson(config);
+        objectPropertiesEditor.OnValueChanged += () => PrintJson(config);
     }
 
     private void OnProjectClosed()

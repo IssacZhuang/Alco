@@ -104,7 +104,7 @@ public class PropertyVector2Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
-        DoRefreshEvent();
+        DoValueChangedEvent();
     }
 
     private void SetValueY(decimal value)
@@ -126,6 +126,6 @@ public class PropertyVector2Editor : PropertyEditor
             default:
                 throw new InvalidOperationException($"Unsupported type: {MemberInfo.MemberType}");
         }
-        DoRefreshEvent();
+        DoValueChangedEvent();
     }
 }

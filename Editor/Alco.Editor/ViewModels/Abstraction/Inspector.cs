@@ -12,7 +12,8 @@ public abstract class Inspector : ViewModelBase
     public abstract Control CreateControl();
 
     public abstract Type GetAssetType(string path);
-    public abstract void OnOpenAsset(EditorEngine engine, object asset);
+    public abstract void OnOpenAsset(EditorEngine engine, object asset, string path);
+    public abstract void SaveAsset(EditorEngine engine);
 }
 
 public abstract class Inspector<T> : Inspector
@@ -22,10 +23,10 @@ public abstract class Inspector<T> : Inspector
         return typeof(T);
     }
 
-    public override void OnOpenAsset(EditorEngine engine, object asset)
+    public override void OnOpenAsset(EditorEngine engine, object asset, string path)
     {
-        OnOpenAsset(engine, (T)asset);
+        OnOpenAsset(engine, (T)asset, path);
     }
 
-    protected abstract void OnOpenAsset(EditorEngine engine, T asset);
+    protected abstract void OnOpenAsset(EditorEngine engine, T asset, string path);
 }

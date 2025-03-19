@@ -17,8 +17,8 @@ public class Game : GameEngine
     private readonly Camera2D _windowCamera2;
 
     private readonly Shader _shader;
-    private readonly SpriteRenderer _renderer1;
-    private readonly SpriteRenderer _renderer2;
+    private readonly OldSpriteRenderer _renderer1;
+    private readonly OldSpriteRenderer _renderer2;
 
     //hdr
     private ReinhardToneMapData _toneMapData;
@@ -49,8 +49,8 @@ public class Game : GameEngine
         _windowCamera1 = Rendering.CreateCamera2D(720, 405, 100);
         _windowCamera2 = Rendering.CreateCamera2D(720, 405, 100);
 
-        _renderer1 = Rendering.CreateSpriteRenderer(_windowCamera1, _shader);
-        _renderer2 = Rendering.CreateSpriteRenderer(_windowCamera2, _shader);
+        _renderer1 = Rendering.CreateOldSpriteRenderer(_windowCamera1, _shader);
+        _renderer2 = Rendering.CreateOldSpriteRenderer(_windowCamera2, _shader);
 
         MainWindow.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);

@@ -416,6 +416,16 @@ public abstract class GPUDevice
     /// <param name="size">The size of the data. (unit: byte)</param>
     public unsafe void WriteBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
+        uint remainder = size % 4;
+        if(remainder != 0)
+        {
+            throw new GraphicsException($"The size of the data must be aligned to 4. (size: {size})");
+        }
+        remainder = bufferOffset % 4;
+        if(remainder != 0)
+        {
+            throw new GraphicsException($"The offset of the buffer must be aligned to 4. (offset: {bufferOffset})");
+        }
         WriteBufferCore(buffer, bufferOffset, data, size);
     }
 

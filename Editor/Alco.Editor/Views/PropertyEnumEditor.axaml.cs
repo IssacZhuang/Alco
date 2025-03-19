@@ -45,7 +45,7 @@ public partial class PropertyEnumEditor : UserControl
         // Handle selection changes
         InputComboBox.SelectionChanged += (sender, e) =>
         {
-            viewModel.DoRefreshEvent();
+            viewModel.DoValueChangedEvent();
         };
 
         if (!memberInfo.CanWrite)

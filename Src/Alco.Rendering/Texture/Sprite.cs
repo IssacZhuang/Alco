@@ -20,7 +20,7 @@ public sealed class Sprite
     /// <summary>
     /// Gets the UV rectangle that defines the portion of the texture used by this sprite.
     /// </summary>
-    public Rect UVRect { get; }
+    public Rect UvRect { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Sprite"/> class.
@@ -32,6 +32,6 @@ public sealed class Sprite
     {
         Name = name;
         Texture = texture;
-        UVRect = uvRect;
+        UvRect = uvRect;
     }
 }

@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using System.Collections.Generic;
+using System.Collections.Frozen;
 using Alco.Unsafe;
 
 namespace Alco.Benchmark;
@@ -109,6 +110,68 @@ public class BenchmarkCollectionRemove
             nativeArrayList.Remove(i);
         }
     }
+
+}
+
+public class BenchmarkCollectionAccess
+{
+    private const int Count = 1000;
+
+    private int[] array;
+    private Dictionary<int, int> dictionary;
+    private FrozenDictionary<int, int> frozenDictionary;
+
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        array = new int[Count];
+        dictionary = new Dictionary<int, int>();
+
+        // Initialize with same data
+        for (int i = 0; i < Count; i++)
+        {
+            array[i] = i;
+            dictionary[i] = i;
+        }
+
+        // Create frozen dictionary from regular dictionary
+        frozenDictionary = dictionary.ToFrozenDictionary();
+    }
+
+    [Benchmark(Description = "Array access")]
+    public int ArrayAccess()
+    {
+        int sum = 0;
+        for (int i = 0; i < Count; i++)
+        {
+            sum += array[i];
+        }
+        return sum;
+    }
+
+    [Benchmark(Description = "Dictionary access")]
+    public int DictionaryAccess()
+    {
+        int sum = 0;
+        for (int i = 0; i < Count; i++)
+        {
+            sum += dictionary[i];
+        }
+        return sum;
+    }
+
+    [Benchmark(Description = "FrozenDictionary access")]
+    public int FrozenDictionaryAccess()
+    {
+        int sum = 0;
+        for (int i = 0; i < Count; i++)
+        {
+            sum += frozenDictionary[i];
+        }
+        return sum;
+    }
+
 
 }
 
