@@ -404,11 +404,23 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
 
             WGPULimits limits = default;
+            
             WGPUStatus status = wgpuAdapterGetLimits(Adapter, &limits);
             if(status != WGPUStatus.Success)
             {
                 throw new GraphicsException("Could not get WebGPU adapter limits");
             }
+        
+            WGPUNativeLimits nativeLimits = new WGPUNativeLimits()
+            {
+                chain = new WGPUChainedStructOut()
+                {
+                    sType = (WGPUSType)WGPUNativeSType.NativeLimits,
+                },
+                maxPushConstantSize = descriptor.PushConstantsSize
+            };
+
+            limits.nextInChain = (WGPUChainedStructOut*)&nativeLimits;
 
             WGPUDeviceDescriptor deviceDescriptor = new WGPUDeviceDescriptor()
             {
