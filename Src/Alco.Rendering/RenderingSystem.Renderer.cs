@@ -18,11 +18,6 @@ public partial class RenderingSystem
         return new TextRenderer(this, renderContext, MeshTrueType, material, name);
     }
 
-    public OldSpriteRenderer CreateOldSpriteRenderer(GraphicsBuffer camera, Shader shader)
-    {
-        return new OldSpriteRenderer(this, MeshCenteredSprite, camera, shader);
-    }
-
     public SpriteRenderer CreateSpriteRenderer(RenderContext renderContext, Material material, string name = "sprite_renderer")
     {
         return new SpriteRenderer(this, renderContext, MeshCenteredSprite, material, name);

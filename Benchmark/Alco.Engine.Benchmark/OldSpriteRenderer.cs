@@ -2,14 +2,11 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
+using Alco.Rendering;
 
-namespace Alco.Rendering;
+namespace Alco.Engine.Benchmark;
 
-/// <summary>
-/// The renderer to draw sprites in 2D or 3D space.
-/// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
-/// 
-/// </summary>
+// the old sprite renderer, use less command for better performance, but not flexible
 internal sealed class OldSpriteRenderer : AutoDisposable
 {
     public const string ShaderId_camera = "_camera";

@@ -23,16 +23,18 @@ public class DropletSystem : IDisposable
 
     private class JobParallelRender : IJobBatch
     {
-        private readonly OldSpriteRenderer[] _renderers;
+        private readonly RenderContext[] _renderContext;
+        private readonly SpriteRenderer[] _renderers;
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
         private readonly Texture2D _texture;
         private readonly GPUFrameBuffer _renderTarget;
 
 
-        public JobParallelRender(GPUFrameBuffer renderTarget, OldSpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
+        public JobParallelRender(GPUFrameBuffer renderTarget, RenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
         {
             _renderTarget = renderTarget;
+            _renderContext = renderContext;
             _renderers = renderers;
             _renderRanges = renderRanges;
             _activeList = activeList;
@@ -41,18 +43,19 @@ public class DropletSystem : IDisposable
 
         public void Execute(int index)
         {
-            _renderers[index].Begin(_renderTarget);
+            _renderContext[index].Begin(_renderTarget);
             for (int j = _renderRanges[index].start; j < _renderRanges[index].end; j++)
             {
                 var droplet = _activeList[j];
                 _renderers[index].Draw(_texture, droplet.transform.Matrix, droplet.color);
             }
-            _renderers[index].End();
+            _renderContext[index].End();
         }
     }
 
     private static readonly ColorFloat DefaultColor = 0xCCCCCC;
-    private readonly OldSpriteRenderer[] _renderer;
+    private readonly RenderContext[] _renderContext;
+    private readonly SpriteRenderer[] _renderers;
     private readonly RenderRange[] _renderRanges;
     private readonly Texture2D _texture;
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
@@ -72,17 +75,23 @@ public class DropletSystem : IDisposable
 
     public DropletSystem(WindowRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
-        _renderer = new OldSpriteRenderer[RenderThreadCount];
+        _renderContext = new RenderContext[RenderThreadCount];
+        _renderers = new SpriteRenderer[RenderThreadCount];
+        Material material = system.CreateGraphicsMaterial(shader, "Sprite");
+        material.BlendState = BlendState.AlphaBlend;
+        material.SetBuffer(ShaderResourceId.Camera, camera);
         for (int i = 0; i < RenderThreadCount; i++)
         {
-            _renderer[i] = system.CreateOldSpriteRenderer(camera, shader);
+            _renderContext[i] = system.CreateRenderContext();
+            //a material instance per thread
+            _renderers[i] = system.CreateSpriteRenderer(_renderContext[i], material.CreateInstance(), "Sprite");
         }
 
         _renderRanges = new RenderRange[RenderThreadCount];
         _texture = texDroplet;
         _renderTarget = windowRenderTarget;
 
-        _jobParallelRender = new JobParallelRender(_renderTarget.RenderTexture.FrameBuffer, _renderer, _renderRanges, _activeList, _texture);
+        _jobParallelRender = new JobParallelRender(_renderTarget.RenderTexture.FrameBuffer, _renderContext, _renderers, _renderRanges, _activeList, _texture);
     }
 
     public void OnTick(float delta)
@@ -131,48 +140,6 @@ public class DropletSystem : IDisposable
 
     public void OnUpdate(float delta)
     {
-        // int jobExecCount = _activeList.Count / BufferLength;
-        // int remain = _activeList.Count % BufferLength;
-
-        // _renderer.Begin(frame);
-        // for (int i = 0; i < _activeList.Count; i++)
-        // {
-        //     var droplet = _activeList[i];
-        //     _renderer.Draw(_texture, droplet.transform.Matrix, droplet.color);
-        // }
-        // for (int i = 0; i < jobExecCount; i++)
-        // {
-        //     //copy transform to buffer
-        //     for (int j = 0; j < BufferLength; j++)
-        //     {
-        //         _transformBuffer[j] = _activeList[i * BufferLength + j].transform;
-        //     }
-
-        //     _scheduler.Run(_jobCalcMatrix, BufferLength);
-
-        //     for (int j = 0; j < BufferLength; j++)
-        //     {
-        //         _renderer.Draw(_texture, _matrixBuffer[j], DefaultColor);
-        //     }
-        // }
-
-        // if (remain > 0)
-        // {
-        //     for (int i = 0; i < remain; i++)
-        //     {
-        //         _transformBuffer[i] = _activeList[jobExecCount * BufferLength + i].transform;
-        //     }
-
-        //     _scheduler.Run(_jobCalcMatrix, remain);
-
-        //     for (int i = 0; i < remain; i++)
-        //     {
-        //         _renderer.Draw(_texture, _matrixBuffer[i], DefaultColor);
-        //     }
-        // }
-
-        //_renderer.End();
-
         for (int i = 0; i < RenderThreadCount; i++)
         {
             _renderRanges[i].start = i * _activeList.Count / RenderThreadCount;

@@ -10,18 +10,20 @@ using Random = Alco.Random;
 public class CubeSystem
 {
     private static readonly ColorFloat DefaultColor = 0xff4444;
-    private readonly OldSpriteRenderer _renderer;
     private readonly Texture2D _texture;
     private readonly List<Cube> _activeList = new List<Cube>();
     private readonly Stack<Cube> _despawnList = new Stack<Cube>();
     private readonly Pool<Cube> _pool = new Pool<Cube>(10000, () => new Cube());
+    private readonly RenderContext _renderContext;
+    private readonly SpriteRenderer _spriteRenderer;
 
     private Random _random = new Random(123);
 
-    public CubeSystem(OldSpriteRenderer renderer, Texture2D texDroplet)
+    public CubeSystem(RenderingSystem rendering, Material material, Texture2D texDroplet)
     {
-        _renderer = renderer;
         _texture = texDroplet;
+        _renderContext = rendering.CreateRenderContext();
+        _spriteRenderer = rendering.CreateSpriteRenderer(_renderContext, material, "Sprite");
     }
 
     public void OnTick(float delta)
@@ -69,13 +71,13 @@ public class CubeSystem
 
     public void OnUpdate(GPUFrameBuffer frame, float delta)
     {
-        _renderer.Begin(frame);
+        _renderContext.Begin(frame);
         for (int i = 0; i < _activeList.Count; i++)
         {
             Cube entity = _activeList[i];
-            _renderer.Draw(_texture, entity.Transform, entity.Color);
+            _spriteRenderer.Draw(_texture, entity.Transform, entity.Color);
         }
-        _renderer.End();
+        _renderContext.End();
 
     }
 }
