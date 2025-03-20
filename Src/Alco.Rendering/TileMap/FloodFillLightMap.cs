@@ -17,7 +17,7 @@ public class FloodFillLightMap : AutoDisposable
     private uint _shaderId_front;
     private uint _shaderId_back;
 
-    private FloodFillLightingData _data;
+    private FloodFillLightingConstant _data;
 
 
     public int Iteration { get; set; } = 32;
@@ -59,7 +59,7 @@ public class FloodFillLightMap : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();
 
-        _data = new FloodFillLightingData
+        _data = new FloodFillLightingConstant
         {
             AttenuationSide = 0.1f,
             AttenuationCorner = 0.14141414f,

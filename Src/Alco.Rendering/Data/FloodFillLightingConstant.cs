@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
-public struct FloodFillLightingData
+public struct FloodFillLightingConstant
 {
     public float AttenuationSide;
     public float AttenuationCorner;
