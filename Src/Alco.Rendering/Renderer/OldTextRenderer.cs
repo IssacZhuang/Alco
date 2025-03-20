@@ -319,7 +319,7 @@ public unsafe sealed class OldTextRenderer : AutoDisposable
             localIndex += drawCount;
 
             _command.SetGraphicsResources(_shaderId_font, font.Texture.EntrySample);
-            _command.PushConstants(ShaderStage.Vertex, 0, constant);
+            _command.PushGraphicsConstants(ShaderStage.Vertex, 0, constant);
             _command.DrawIndexed(_indexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 

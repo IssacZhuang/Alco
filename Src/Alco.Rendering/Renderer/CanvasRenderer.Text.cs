@@ -133,7 +133,7 @@ public sealed partial class CanvasRenderer
             localIndex += drawCount;
 
             _command.SetGraphicsResources(_textShaderId_font, font.Texture.EntrySample);
-            _command.PushConstants(ShaderStage.Vertex, 0, constant);
+            _command.PushGraphicsConstants(ShaderStage.Vertex, 0, constant);
             _command.DrawIndexed(_indexCount, (uint)drawCount, 0, 0, instanceStart);
         }
 

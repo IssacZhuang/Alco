@@ -137,10 +137,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    public unsafe void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while UpdateBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
-        PushConstantsCore(stage, bufferOffset, data, size);
+        PushGraphicsConstantsCore(stage, bufferOffset, data, size);
     }
 
     //compute
@@ -188,15 +188,33 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+    public unsafe void PushGraphicsConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
     {
-        PushConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+        PushGraphicsConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
+    public unsafe void PushGraphicsConstants<T>(ShaderStage stage, T data) where T : unmanaged
     {
-        PushConstants(stage, 0, data);
+        PushGraphicsConstants(stage, 0, data);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushComputeConstants<T>(uint bufferOffset, T data) where T : unmanaged
+    {
+        PushComputeConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushComputeConstants<T>(T data) where T : unmanaged
+    {
+        PushComputeConstants(0, data);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushComputeConstants(uint bufferOffset, byte* data, uint size)
+    {
+        PushComputeConstantsCore(bufferOffset, data, size);
     }
 
 
@@ -249,10 +267,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup);
     protected abstract void DispatchComputeCore(uint x, uint y, uint z);
     protected abstract void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset);
-    /// <summary>
-    /// Do not store the fucking pointer when implementing, it is unsafe;<br/> Try only read data from it.
-    /// </summary>
-    protected abstract unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size);
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);

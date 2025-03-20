@@ -1,15 +1,18 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Libs/CompressionBC.hlsli"
 
-DEFINE_STORAGE(0, uint4, _output);
-DEFINE_TEX2D_READ(1, _input);
-DEFINE_UNIFORM(2, _data) {
+struct Constants {
     uint2 size;
 };
 
+DEFINE_STORAGE(0, uint4, _output);
+DEFINE_TEX2D_READ(1, _input);
+
+PUSH_CONSTANT Constants constants;
+
 uint GetOutputIndex(uint2 pos)
 {
-    return pos.y * size.x + pos.x;
+    return pos.y * constants.size.x + pos.x;
 }
 
 [shader("compute")]

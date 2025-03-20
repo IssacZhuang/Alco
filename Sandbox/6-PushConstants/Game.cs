@@ -123,15 +123,15 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
 
         _commandBuffer.SetGraphicsResources(1, _texGreen.EntrySample);
-        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
+        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
         _commandBuffer.SetGraphicsResources(1, _texRed.EntrySample);
-        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform2.Matrix);
+        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform2.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
         _commandBuffer.SetGraphicsResources(1, _texBlue.EntrySample);
-        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform3.Matrix);
+        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform3.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
         _commandBuffer.End();

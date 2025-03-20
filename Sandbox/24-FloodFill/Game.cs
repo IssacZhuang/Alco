@@ -57,7 +57,10 @@ public class Game : GameEngine
         }
 
         DebugGUI.Text(FrameRate);
-        DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100);
+        if (DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100))
+        {
+            _tileLightMap.Iteration = _iterations;
+        }
         DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
         if(DebugGUI.Button("Reset")) {
             _tileLightMap.AttenuationCorner = 0.1f;
@@ -100,5 +103,10 @@ public class Game : GameEngine
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
         _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
+    }
+
+    protected override void OnStop()
+    {
+        _tileLightMap.Dispose();
     }
 }

@@ -17,7 +17,6 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     private readonly GPUCommandBuffer _commandCompress;
     private readonly GPUCommandBuffer _commandCopy;
 
-    private readonly GraphicsValueBuffer<uint2> _data;
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
 
     private readonly List<string> _defines = new();
@@ -46,10 +45,10 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _commandCompress = _device.CreateCommandBuffer("texture_compressor_command_buffer");
         _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
-        _data = renderingSystem.CreateGraphicsValueBuffer<uint2>("texture_compressor_data");
+      
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _blocks.UpdateBuffer();
-        _material.TrySetBuffer(ShaderResourceId.Data, _data);
+
         _material.TrySetBuffer(ShaderResourceId.Output, _blocks);
     }
 
@@ -129,11 +128,8 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
         _material.SetTexture(ShaderResourceId.Input, source);
 
-        _data.UpdateBuffer(new uint2(blocksX, blocksY));
-    
-
         _commandCompress.Begin();
-        _material.DispatchBySize(_commandCompress, blocksX, blocksY, 1);
+        _material.DispatchBySizeWithConstant(_commandCompress, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
         _commandCompress.End();
         _device.Submit(_commandCompress);
 
@@ -181,8 +177,8 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     {
         if (disposing)
         {
+            _blocks.Dispose();
             _commandCompress.Dispose();
-            _data.Dispose();
         }
     }
 }

@@ -82,4 +82,9 @@ public class Game : GameEngine
         _materialRenderer.End();
 
     }
+
+    protected override void OnStop()
+    {
+        _compressor.Dispose();
+    }
 }

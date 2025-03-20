@@ -124,7 +124,7 @@ public sealed class RenderContext : AutoDisposable
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
-        _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
+        _command.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
@@ -180,7 +180,7 @@ public sealed class RenderContext : AutoDisposable
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
-        _command.PushConstants(pipelineInfo.PushConstantsStages, constant);
+        _command.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
         _command.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 

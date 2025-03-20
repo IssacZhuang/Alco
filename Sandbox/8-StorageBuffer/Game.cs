@@ -115,8 +115,8 @@ public class Game : GameEngine
         _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
         _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
         _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
-        
-        _commandBuffer.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
+
+        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
         _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
 
         _commandBuffer.End();
@@ -191,6 +191,7 @@ public class Game : GameEngine
         ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
             computeSource,
             bindGroups,
+            null,
             "compute_pipline"
         );
 

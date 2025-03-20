@@ -291,10 +291,15 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
 
 
-    protected override unsafe void PushConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
         WGPUShaderStage shaderStage = UtilsWebGPU.ConvertShaderStage(stage);
         wgpuRenderPassEncoderSetPushConstants(_renderPass, shaderStage, bufferOffset, size, data);
+    }
+
+    protected override unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size)
+    {
+        wgpuComputePassEncoderSetPushConstants(_computePass, bufferOffset, size, data);
     }
 
     protected unsafe override void SetComputePipelineCore(GPUPipeline pipeline)

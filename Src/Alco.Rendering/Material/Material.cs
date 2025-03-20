@@ -132,6 +132,11 @@ public abstract class Material: AutoDisposable
         _system = system;
         _shader = shader;
 
+        if(shader.IsComputeShader)
+        {
+            throw new InvalidOperationException("The shader required for material must be a graphics shader");
+        }
+
         ShaderReflectionInfo reflectionInfo = shader.GetShaderModules().ReflectionInfo;
         _parameters = new ShaderParameterSet(reflectionInfo);
         UpdateSlotResources(reflectionInfo);

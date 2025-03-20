@@ -115,7 +115,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
             constant.Model = transform.Matrix;
 
             _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-            _commandBuffer.PushConstants(pipelineInfo.PushConstantsStages, constant);
+            _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
             _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 

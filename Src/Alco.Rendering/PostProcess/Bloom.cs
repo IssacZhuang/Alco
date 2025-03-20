@@ -185,7 +185,7 @@ public class Bloom : PostProcess
             _commandDownSample.SetGraphicsPipeline(_downSamplePipelineInfo);
             indexCount = _commandDownSample.SetMesh(mesh);
             _commandDownSample.SetGraphicsResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
-            _commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
+            _commandDownSample.PushGraphicsConstants(ShaderStage.Fragment, invFrameSize);
             _commandDownSample.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
         _commandDownSample.End();
