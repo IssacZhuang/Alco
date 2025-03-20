@@ -6,11 +6,6 @@ using Alco.Graphics;
 
 public partial class RenderingSystem
 {
-    public OldTextRenderer CreateOldTextRenderer(GraphicsBuffer camera, Shader shader)
-    {
-        return new OldTextRenderer(this, MeshTrueType, camera, shader);
-    }
-
     /// <summary>
     /// Create a text renderer that uses a render context and a material.
     /// </summary>

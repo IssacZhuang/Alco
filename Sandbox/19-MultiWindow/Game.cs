@@ -17,8 +17,8 @@ public class Game : GameEngine
     private readonly Camera2D _windowCamera2;
 
     private readonly Shader _shader;
-    private readonly OldSpriteRenderer _renderer1;
-    private readonly OldSpriteRenderer _renderer2;
+    private readonly RenderContext _renderContext;
+    private readonly SpriteRenderer _renderer;
 
     //hdr
     private ReinhardToneMapData _toneMapData;
@@ -49,8 +49,11 @@ public class Game : GameEngine
         _windowCamera1 = Rendering.CreateCamera2D(720, 405, 100);
         _windowCamera2 = Rendering.CreateCamera2D(720, 405, 100);
 
-        _renderer1 = Rendering.CreateOldSpriteRenderer(_windowCamera1, _shader);
-        _renderer2 = Rendering.CreateOldSpriteRenderer(_windowCamera2, _shader);
+        Material material = Rendering.CreateGraphicsMaterial(_shader);
+        material.SetBuffer(ShaderResourceId.Camera, _windowCamera1);
+        _renderContext = Rendering.CreateRenderContext("renderer");
+        _renderer = Rendering.CreateSpriteRenderer(_renderContext, material);
+
 
         MainWindow.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
@@ -92,13 +95,13 @@ public class Game : GameEngine
         DebugGUI.Text(MainWindow.Position.ToString());
         DebugGUI.Text(_window2.Position.ToString());
 
-        _renderer1.Begin(MainFrameBuffer);
-        _renderer1.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
-        _renderer1.End();
+        _renderContext.Begin(MainFrameBuffer);
+        _renderer.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+        _renderContext.End();
 
-        _renderer2.Begin(_windowRenderTarget.FrameBuffer);
-        _renderer2.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
-        _renderer2.End();
+        _renderContext.Begin(_windowRenderTarget.FrameBuffer);
+        _renderer.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+        _renderContext.End();
 
 
     }
