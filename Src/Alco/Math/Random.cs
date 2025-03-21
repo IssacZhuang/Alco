@@ -18,6 +18,32 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Random CreateFromIndex(uint index)
+        {
+
+            // Wang hash will hash 61 to zero but we want uint.MaxValue to hash to zero.  To make this happen
+            // we must offset by 62.
+            return new Random(WangHash(index + 62u));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static uint WangHash(uint n)
+        {
+            // https://gist.github.com/badboy/6267743#hash-function-construction-principles
+            // Wang hash: this has the property that none of the outputs will
+            // collide with each other, which is important for the purposes of
+            // seeding a random number generator.  This was verified empirically
+            // by checking all 2^32 uints.
+            n = (n ^ 61u) ^ (n >> 16);
+            n *= 9u;
+            n = n ^ (n >> 4);
+            n *= 0x27d4eb2du;
+            n = n ^ (n >> 15);
+
+            return n;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint NextState()
         {
             CheckState();

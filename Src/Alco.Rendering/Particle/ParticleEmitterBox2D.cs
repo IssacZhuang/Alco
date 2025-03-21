@@ -1,14 +1,15 @@
-
 using System.Numerics;
 
 namespace Alco.Rendering;
 
 public class ParticleEmitterBox2D : IParticleEmitter<ParticleData2D>
 {
-    private readonly Random _random = new Random(3151344);
+    private Random _random = Random.CreateFromIndex(3);
     public Vector2 Position;
     public Vector2 Extents;
     public Rotation2D Rotation;
+    public float MinSpeed = 1.0f;
+    public float MaxSpeed = 2.0f;
 
     public ParticleEmitterBox2D()
     {
@@ -30,7 +31,18 @@ public class ParticleEmitterBox2D : IParticleEmitter<ParticleData2D>
         particle.Rotation = Rotation2D.Identity;
         particle.Color = new Vector4(1, 1, 1, 1);
         particle.Size = 1;
-        particle.Velocity = new Vector2(_random.NextFloat(-1, 1), _random.NextFloat(-1, 1));
+
+        // Create normalized random direction vector
+        Vector2 direction = new Vector2(_random.NextFloat(-1, 1), _random.NextFloat(-1, 1));
+        if (direction != Vector2.Zero)
+        {
+            direction = Vector2.Normalize(direction);
+        }
+
+        // Apply random speed between MinSpeed and MaxSpeed
+        float speed = _random.NextFloat(MinSpeed, MaxSpeed);
+        particle.Velocity = direction * speed;
+
         particle.Lifetime = _random.NextFloat(1, 2);
         return particle;
     }
