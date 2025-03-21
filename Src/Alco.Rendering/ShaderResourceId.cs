@@ -27,4 +27,6 @@ public static class ShaderResourceId
 
     public const string Input = "_input";
     public const string Output = "_output";
+
+    public const string Particles = "_particles";
 }
