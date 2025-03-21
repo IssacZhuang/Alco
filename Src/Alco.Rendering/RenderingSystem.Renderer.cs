@@ -4,6 +4,8 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
+// renderer factory
+
 public partial class RenderingSystem
 {
     /// <summary>

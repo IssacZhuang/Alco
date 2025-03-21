@@ -1,5 +1,7 @@
 namespace Alco.Rendering;
 
+// gpu buffer factory
+
 public partial class RenderingSystem
 {
     /// <summary>

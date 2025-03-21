@@ -6,6 +6,8 @@ using static Alco.Unsafe.UtilsMemory;
 
 namespace Alco.Rendering;
 
+// texture factory
+
 public partial class RenderingSystem
 {
     public unsafe Texture2D CreateTexture2DFromStream(

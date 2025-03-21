@@ -2,6 +2,8 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+// render texture factory
+
 public partial class RenderingSystem
 {
     /// <summary>

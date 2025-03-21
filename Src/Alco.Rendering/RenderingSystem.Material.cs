@@ -3,6 +3,8 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+// material factory
+
 public partial class RenderingSystem
 {
     public GraphicsMaterial CreateGraphicsMaterial(Shader shader, string name = "unamed")

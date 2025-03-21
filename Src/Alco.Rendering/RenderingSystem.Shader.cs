@@ -2,6 +2,8 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+// shader factory
+
 public partial class RenderingSystem
 {
     public Shader CreateShader(string shaderText, string name)

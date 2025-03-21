@@ -2,6 +2,8 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+// tile map factory
+
 public partial class RenderingSystem
 {
     public SurfaceTileBlock2D<TUserData> CreateSurfaceBlock2D<TUserData>(

@@ -2,6 +2,8 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+// camera factory
+
 public partial class RenderingSystem
 {
     /// <summary>

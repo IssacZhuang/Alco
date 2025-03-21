@@ -2,6 +2,8 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+// compute material factory
+
 public partial class RenderingSystem
 {
     public ComputeMaterial CreateComputeMaterial(Shader shader)

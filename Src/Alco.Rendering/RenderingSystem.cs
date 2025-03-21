@@ -5,8 +5,7 @@ using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
 /// <summary>
-/// The facility to manage rendering resource and perform rendering.
-/// <br/>It is a high-level encapsulation of <see cref="GPUDevice"/>.
+/// The facility to manage global rendering resource and provide the factory to create rendering resource.
 /// </summary>
 public partial class RenderingSystem
 {
