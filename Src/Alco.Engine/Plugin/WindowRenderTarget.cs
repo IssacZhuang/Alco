@@ -32,18 +32,32 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     /// </summary>
     public event Action<uint2>? OnResize;
 
+    /// <summary>
+    /// The window that the render target is attached to
+    /// </summary>
+    /// <value></value>
     public Window Window
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _window;
     }
 
+    /// <summary>
+    /// The render texture of the render target
+    /// <br/>[Attention] The render texture will be recreated when the window is resized
+    /// </summary>
+    /// <value></value>
     public RenderTexture RenderTexture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderTexture;
     }
 
+    /// <summary>
+    /// The frame buffer of the render target
+    /// <br/>[Attention] The frame buffer will be recreated when the window is resized
+    /// </summary>
+    /// <value></value>
     public GPUFrameBuffer FrameBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

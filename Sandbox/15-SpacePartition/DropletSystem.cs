@@ -28,10 +28,10 @@ public class DropletSystem : IDisposable
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
         private readonly Texture2D _texture;
-        private readonly GPUFrameBuffer _renderTarget;
+        private readonly WindowRenderTarget _renderTarget;
 
 
-        public JobParallelRender(GPUFrameBuffer renderTarget, RenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
+        public JobParallelRender(WindowRenderTarget renderTarget, RenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
         {
             _renderTarget = renderTarget;
             _renderContext = renderContext;
@@ -43,7 +43,7 @@ public class DropletSystem : IDisposable
 
         public void Execute(int index)
         {
-            _renderContext[index].Begin(_renderTarget);
+            _renderContext[index].Begin(_renderTarget.RenderTexture.FrameBuffer);
             for (int j = _renderRanges[index].start; j < _renderRanges[index].end; j++)
             {
                 var droplet = _activeList[j];
@@ -91,7 +91,7 @@ public class DropletSystem : IDisposable
         _texture = texDroplet;
         _renderTarget = windowRenderTarget;
 
-        _jobParallelRender = new JobParallelRender(_renderTarget.RenderTexture.FrameBuffer, _renderContext, _renderers, _renderRanges, _activeList, _texture);
+        _jobParallelRender = new JobParallelRender(_renderTarget, _renderContext, _renderers, _renderRanges, _activeList, _texture);
     }
 
     public void OnTick(float delta)
