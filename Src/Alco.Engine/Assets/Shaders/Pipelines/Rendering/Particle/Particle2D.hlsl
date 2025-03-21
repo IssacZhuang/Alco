@@ -17,9 +17,9 @@ struct ParticleData2D{
     float2 position;
     float2 velocity;
     float4 color;
-    float2 rotation;//x, y represent the sin and cos of the rotation
-    float size;
+    float2 rotation; // x, y represent the sin and cos of the rotation
     float lifetime;
+    float size;
 };
 
 struct Constants{

@@ -22,11 +22,11 @@ public class Game : GameEngine
 
         // Create material for particles
         _materialParticle = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
-        _materialParticle.BlendState = BlendState.AlphaBlend;
+        _materialParticle.BlendState = BlendState.PremultipliedAlpha;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
         // Use default white texture if no specific texture is needed
-        _particleTexture = Rendering.TextureWhite;
+        _particleTexture = Assets.Load<Texture2D>("Star.png");
         _materialParticle.SetTexture(ShaderResourceId.Texture, _particleTexture);
 
         // Create render context
@@ -34,14 +34,14 @@ public class Game : GameEngine
 
         // Create particle emitter
         _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(50, 10));
-        _emitter.MinSpeed = 30.0f;
-        _emitter.MaxSpeed = 80.0f;
+        _emitter.MinSpeed = 8.0f;
+        _emitter.MaxSpeed = 15.0f;
 
         // Create particle system
         _particleSystem = Rendering.CreateParticleSystem2DCPU(_materialParticle, _emitter);
         _particleSystem.EmissionRateOverTime = 100;
-        _particleSystem.ParticleLifetime = 3.0f;
-        _particleSystem.MaxParticles = 3000;
+        _particleSystem.ParticleLifetime = 1.0f;
+        _particleSystem.MaxParticles = 100000;
         _particleSystem.Play();
     }
 
@@ -66,8 +66,13 @@ public class Game : GameEngine
         // Show particle controls
         ImGui.Begin("Particle Control");
 
+        FixedString8 strFramerate = new FixedString8();//zero allocation string
+        strFramerate.Append(FrameRate);
+
+        ImGui.Text(strFramerate);
+
         float emissionRate = _particleSystem.EmissionRateOverTime;
-        if (ImGui.SliderFloat("Emission Rate", ref emissionRate, 10, 1000))
+        if (ImGui.SliderFloat("Emission Rate", ref emissionRate, 10, 100000))
         {
             _particleSystem.EmissionRateOverTime = emissionRate;
         }

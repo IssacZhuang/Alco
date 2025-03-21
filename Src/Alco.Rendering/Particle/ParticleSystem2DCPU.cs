@@ -2,10 +2,21 @@ namespace Alco.Rendering;
 
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 public unsafe class ParticleSystem2DCPU : AutoDisposable
 {
-    private const int GPUBufferBlockSize = 1024;
+    public class DefaultSimulator : IParticleSimulator
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Simulate(ref ParticleData2D particle, float deltaTime)
+        {
+            particle.Position += particle.Velocity * deltaTime;
+            particle.Lifetime -= deltaTime;
+        }
+    }
+
+    private const int GPUBufferBlockSize = 64 * 1024;
     private static readonly int MaxParticlePerBuffer = GPUBufferBlockSize / sizeof(ParticleData2D);
     private readonly RenderingSystem _renderingSystem;
     private readonly List<GraphicsBuffer> _buffers = new();
@@ -14,6 +25,8 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     private readonly uint _shaderId_particles;
     private NativeArrayList<ParticleData2D> _particles;//simulate on cpu
     private bool _isParticleDirty = false;
+
+    private IParticleSimulator _simulator;
 
     private IParticleEmitter<ParticleData2D> _emitter;
     public IParticleEmitter<ParticleData2D> Emitter
@@ -25,6 +38,18 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
             _emitter = value;
         }
     }
+
+    public IParticleSimulator Simulator
+    {
+        get => _simulator;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _simulator = value;
+        }
+    }
+
+
 
     /// <summary>
     /// Whether the particle system is currently playing
@@ -70,10 +95,16 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     public float ParticleLifetime { get; set; } = 5f;
 
 
-    internal ParticleSystem2DCPU(RenderingSystem renderingSystem, Mesh mesh, Material material, IParticleEmitter<ParticleData2D> emitter)
+    internal ParticleSystem2DCPU(
+        RenderingSystem renderingSystem,
+        Mesh mesh,
+        Material material,
+        IParticleEmitter<ParticleData2D> emitter,
+        IParticleSimulator? simulator = null)
     {
         ArgumentNullException.ThrowIfNull(emitter);
         _emitter = emitter;
+        _simulator = simulator ?? new DefaultSimulator();
         _renderingSystem = renderingSystem;
         _particles = new NativeArrayList<ParticleData2D>(32);
         _mesh = mesh;
@@ -120,13 +151,12 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
         if (!IsPlaying)
             return;
 
+        ParticleData2D* particles = _particles.UnsafePointer;
+
         // Update existing particles
         for (int i = _particles.Length - 1; i >= 0; i--)
         {
-            var particle = _particles[i];
-
-            // Update lifetime
-            particle.Lifetime -= deltaTime;
+            ref ParticleData2D particle = ref particles[i];
 
             if (particle.Lifetime <= 0)
             {
@@ -134,18 +164,14 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
                 int lastIndex = _particles.Length - 1;
                 if (i != lastIndex)
                 {
-                    _particles[i] = _particles[lastIndex];
+                    particle = particles[lastIndex];
                 }
                 // Remove last element
                 _particles.RemoveAt(lastIndex);
                 continue;
             }
 
-            // Update position based on velocity
-            particle.Position += particle.Velocity * deltaTime;
-
-            // Store updated particle
-            _particles[i] = particle;
+            OnSimulate(ref particle, deltaTime);
         }
 
         // Emit new particles over time (only in continuous mode)
@@ -176,6 +202,7 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
         }
         _isParticleDirty = true;
     }
+
 
     /// <summary>
     /// Render the particle system.
@@ -232,6 +259,12 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
             context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, transformMatrix);
         }
 
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void OnSimulate(ref ParticleData2D particle, float deltaTime)
+    {
+        _simulator.Simulate(ref particle, deltaTime);
     }
 
     protected override void Dispose(bool disposing)

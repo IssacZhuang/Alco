@@ -40,6 +40,12 @@ namespace Alco
             get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
         }
 
+        public readonly Span<T> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Span<T>((T*)_ptrBuffer, _length);
+        }
+
         public int Stride => sizeof(T);
         public bool IsReadOnly => false;
         public bool IsDisposed => _isDisposed;
