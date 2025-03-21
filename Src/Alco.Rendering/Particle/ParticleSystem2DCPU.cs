@@ -1,10 +1,19 @@
 namespace Alco.Rendering;
 
 using System;
+using System.Numerics;
 
-public class ParticleSystem2DCPU : AutoDisposable
+public unsafe class ParticleSystem2DCPU : AutoDisposable
 {
+    private const int GPUBufferBlockSize = 1024;
+    private static readonly int MaxParticlePerBuffer = GPUBufferBlockSize / sizeof(ParticleData2D);
+    private readonly RenderingSystem _renderingSystem;
+    private readonly List<GraphicsBuffer> _buffers = new();
+    private readonly Mesh _mesh;
+    private readonly Material _material;
+    private readonly uint _shaderId_particles;
     private NativeArrayList<ParticleData2D> _particles;//simulate on cpu
+    private bool _isParticleDirty = false;
 
     private IParticleEmitter<ParticleData2D> _emitter;
     public IParticleEmitter<ParticleData2D> Emitter
@@ -61,11 +70,15 @@ public class ParticleSystem2DCPU : AutoDisposable
     public float ParticleLifetime { get; set; } = 5f;
 
 
-    public ParticleSystem2DCPU(IParticleEmitter<ParticleData2D> emitter)
+    internal ParticleSystem2DCPU(RenderingSystem renderingSystem, Mesh mesh, Material material, IParticleEmitter<ParticleData2D> emitter)
     {
         ArgumentNullException.ThrowIfNull(emitter);
         _emitter = emitter;
+        _renderingSystem = renderingSystem;
         _particles = new NativeArrayList<ParticleData2D>(32);
+        _mesh = mesh;
+        _material = material.CreateInstance();
+        _shaderId_particles = _material.GetResourceId(ShaderResourceId.Particles);
     }
 
 
@@ -101,7 +114,7 @@ public class ParticleSystem2DCPU : AutoDisposable
 
     private float _emitAccumulator = 0f;
 
-    public void Update(float deltaTime)
+    public void Simulate(float deltaTime)
     {
         if (!IsPlaying)
             return;
@@ -160,11 +173,74 @@ public class ParticleSystem2DCPU : AutoDisposable
         {
             Stop();
         }
+        _isParticleDirty = true;
+    }
+
+    /// <summary>
+    /// Render the particle system.
+    /// </summary>
+    /// <param name="context">The render context.</param>
+    /// <param name="transformMatrix">The position, rotation and scale of the particle system.</param>
+    public unsafe void Render(RenderContext context, Matrix4x4 transformMatrix)
+    {
+        if (!IsPlaying)
+        {
+            return;
+        }
+
+        //update to gpu
+        if (_isParticleDirty)
+        {
+            int bufferRequired = (_particles.Length * sizeof(ParticleData2D) + GPUBufferBlockSize - 1) / GPUBufferBlockSize;
+            int bufferNeedToRent = bufferRequired - _buffers.Count;
+            if (bufferNeedToRent > 0)
+            {
+                for (int i = 0; i < bufferNeedToRent; i++)
+                {
+                    _buffers.Add(_renderingSystem.GraphicsBufferPool.GetBuffer(GPUBufferBlockSize));
+                }
+            }
+            else if (bufferNeedToRent < 0)
+            {
+                for (int i = 0; i < -bufferNeedToRent; i++)
+                {
+                    _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_buffers[^1]);
+                    _buffers.RemoveAt(_buffers.Count - 1);
+                }
+            }
+
+            int drawCount = _particles.Length;
+            for (int i = 0; i < _buffers.Count; i++)
+            {
+                GraphicsBuffer buffer = _buffers[i];
+                int particleCount = Math.Min(drawCount, MaxParticlePerBuffer);
+                drawCount -= particleCount;
+                buffer.UpdateBuffer(_particles.ReadOnlySpan.Slice(i * MaxParticlePerBuffer, particleCount));
+            }
+            _isParticleDirty = false;
+        }
+
+        //draw
+        int drawCount2 = _particles.Length;
+        for (int i = 0; i < _buffers.Count; i++)
+        {
+            GraphicsBuffer buffer = _buffers[i];
+            int particleCount = Math.Min(drawCount2, MaxParticlePerBuffer);
+            drawCount2 -= particleCount;
+            _material.SetBuffer(_shaderId_particles, buffer);
+            context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, transformMatrix);
+        }
+
     }
 
     protected override void Dispose(bool disposing)
     {
         _particles.Dispose();
+        foreach (var buffer in _buffers)
+        {
+            _renderingSystem.GraphicsBufferPool.TryReturnBuffer(buffer);
+        }
+        _buffers.Clear();
     }
 }
 

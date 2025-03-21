@@ -28,9 +28,9 @@ struct Constants{
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_STORAGE(1, ParticleData2D, _particles);
+DEFINE_TEX2D_SAMPLE(1, _texture);
 
-DEFINE_TEX2D_SAMPLE(2, _texture);
+DEFINE_STORAGE(2, ParticleData2D, _particles);
 
 PUSH_CONSTANT Constants constants;
 
