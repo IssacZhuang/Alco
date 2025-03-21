@@ -104,6 +104,7 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
                 particle.Lifetime = ParticleLifetime;
                 _particles.Add(particle);
             }
+            _isParticleDirty = true;
         }
     }
 
