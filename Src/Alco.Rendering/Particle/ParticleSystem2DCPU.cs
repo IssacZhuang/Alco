@@ -4,10 +4,22 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
+/// <summary>
+/// A CPU-based 2D particle system that handles simulation and rendering of particles.
+/// </summary>
 public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 {
+    /// <summary>
+    /// Default implementation of particle simulator that updates particle position based on velocity.
+    /// </summary>
     public sealed class DefaultSimulator : IParticleSimulator2D
     {
+        /// <summary>
+        /// Simulates a particle by updating its position based on velocity and reducing its lifetime.
+        /// </summary>
+        /// <param name="system">The particle system managing this particle.</param>
+        /// <param name="particle">Reference to the particle being simulated.</param>
+        /// <param name="deltaTime">Time elapsed since the last simulation step.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
         {
@@ -29,6 +41,10 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     private IParticleSimulator2D _simulator;
 
     private IParticleEmitter2D _emitter;
+    /// <summary>
+    /// Gets or sets the particle emitter used to generate new particles.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when attempting to set a null emitter.</exception>
     public IParticleEmitter2D Emitter
     {
         get => _emitter;
@@ -39,6 +55,10 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// Gets or sets the particle simulator used to update particle behavior.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when attempting to set a null simulator.</exception>
     public IParticleSimulator2D Simulator
     {
         get => _simulator;
@@ -48,8 +68,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
             _simulator = value;
         }
     }
-
-
 
     /// <summary>
     /// Whether the particle system is currently playing
@@ -94,7 +112,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     /// </summary>
     public float ParticleLifetime { get; set; } = 5f;
 
-
     internal ParticleSystem2DCPU(
         RenderingSystem renderingSystem,
         Mesh mesh,
@@ -112,7 +129,9 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         _shaderId_particles = _material.GetResourceId(ShaderResourceId.Particles);
     }
 
-
+    /// <summary>
+    /// Starts playing the particle system. If already playing and in burst mode, triggers another burst.
+    /// </summary>
     public void Play()
     {
         if (IsPlaying)
@@ -127,6 +146,9 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         IsPlaying = true;
     }
 
+    /// <summary>
+    /// Stops the particle system from playing.
+    /// </summary>
     public void Stop()
     {
         IsPlaying = false;
@@ -151,6 +173,10 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         _isParticleDirty = true;
     }
 
+    /// <summary>
+    /// Simulates all active particles in the system for the given time step.
+    /// </summary>
+    /// <param name="deltaTime">Time elapsed since the last simulation step in seconds.</param>
     public void Simulate(float deltaTime)
     {
         if (!IsPlaying)
@@ -208,7 +234,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         _isParticleDirty = true;
     }
 
-
     /// <summary>
     /// Render the particle system.
     /// </summary>
@@ -263,7 +288,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
             _material.SetBuffer(_shaderId_particles, buffer);
             context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, transformMatrix);
         }
-
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -272,6 +296,10 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         _simulator.Simulate(this, ref particle, deltaTime);
     }
 
+    /// <summary>
+    /// Disposes resources used by the particle system.
+    /// </summary>
+    /// <param name="disposing">True if called from Dispose, false if called from finalizer.</param>
     protected override void Dispose(bool disposing)
     {
         _particles.Dispose();
