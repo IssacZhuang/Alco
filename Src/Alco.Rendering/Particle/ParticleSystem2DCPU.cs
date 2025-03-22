@@ -81,13 +81,13 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     /// Minimum number of particles to emit in a burst
     /// <br/>[Attention] This value is only used when IsBurst is true
     /// </summary>
-    public uint MinBurstCount { get; set; } = 10;
+    public int MinBurstCount { get; set; } = 10;
 
     /// <summary>
     /// Maximum number of particles to emit in a burst
     /// <br/>[Attention] This value is only used when IsBurst is true
     /// </summary>
-    public uint MaxBurstCount { get; set; } = 20;
+    public int MaxBurstCount { get; set; } = 20;
 
     /// <summary>
     /// Default lifetime for particles in seconds
@@ -116,27 +116,15 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     public void Play()
     {
         if (IsPlaying)
+        {
+            if (IsBurst)
+            {
+                DoBurst();
+            }
             return;
+        }
 
         IsPlaying = true;
-
-        if (IsBurst)
-        {
-            // For burst mode, emit particles immediately
-            uint burstCount = MinBurstCount;
-            if (MaxBurstCount > MinBurstCount)
-            {
-                burstCount += (uint)Random.Shared.Next(0, (int)(MaxBurstCount - MinBurstCount + 1));
-            }
-
-            for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
-            {
-                var particle = _emitter.Emit();
-                particle.Lifetime = ParticleLifetime;
-                _particles.Add(particle);
-            }
-            _isParticleDirty = true;
-        }
     }
 
     public void Stop()
@@ -145,6 +133,23 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     }
 
     private float _emitAccumulator = 0f;
+
+    private void DoBurst()
+    {
+        int burstCount = MinBurstCount;
+        if (MaxBurstCount > MinBurstCount)
+        {
+            burstCount += Random.Shared.Next(0, MaxBurstCount - MinBurstCount + 1);
+        }
+
+        for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
+        {
+            var particle = _emitter.Emit();
+            particle.Lifetime = ParticleLifetime;
+            _particles.Add(particle);
+        }
+        _isParticleDirty = true;
+    }
 
     public void Simulate(float deltaTime)
     {

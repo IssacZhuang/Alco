@@ -95,6 +95,32 @@ public class Game : GameEngine
             _emitter.Extents = extents;
         }
 
+        bool isBurst = _particleSystem.IsBurst;
+        if (ImGui.Checkbox("Burst Mode", ref isBurst))
+        {
+            _particleSystem.IsBurst = isBurst;
+        }
+
+        int minBurstCount = _particleSystem.MinBurstCount;
+        if (ImGui.SliderInt("Min Burst Count", ref minBurstCount, 1, 1000))
+        {
+            _particleSystem.MinBurstCount = minBurstCount;
+        }
+
+        int maxBurstCount = _particleSystem.MaxBurstCount;
+        if (ImGui.SliderInt("Max Burst Count", ref maxBurstCount, 1, 1000))
+        {
+            _particleSystem.MaxBurstCount = maxBurstCount;
+        }
+
+        if (_particleSystem.IsBurst)
+        {
+            if (ImGui.Button("Play Burst"))
+            {
+                _particleSystem.Play();
+            }
+        }
+
         float minSpeed = _emitter.MinSpeed;
         if (ImGui.SliderFloat("Min Speed", ref minSpeed, 0, 100))
         {
