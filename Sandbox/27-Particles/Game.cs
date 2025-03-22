@@ -10,8 +10,10 @@ public class Game : GameEngine
 {
     private Camera2D _camera;
     private Material _materialParticle;
-    private ParticleSystem2DCPU _particleSystem;
     private ParticleEmitterBox2D _emitter;
+    private ParticleSimulatorColorLerp2D _simulator;
+    private ParticleSystem2DCPU _particleSystem;
+    
     private RenderContext _renderContext;
     private Texture2D _particleTexture;
 
@@ -22,7 +24,7 @@ public class Game : GameEngine
 
         // Create material for particles
         _materialParticle = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
-        _materialParticle.BlendState = BlendState.PremultipliedAlpha;
+        _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
         // Use default white texture if no specific texture is needed
@@ -37,12 +39,15 @@ public class Game : GameEngine
         _emitter.MinSpeed = 8.0f;
         _emitter.MaxSpeed = 15.0f;
 
+        _simulator = new ParticleSimulatorColorLerp2D();
+
         // Create particle system
-        _particleSystem = Rendering.CreateParticleSystem2DCPU(_materialParticle, _emitter);
+        _particleSystem = Rendering.CreateParticleSystem2DCPU(_materialParticle, _emitter, _simulator);
         _particleSystem.EmissionRateOverTime = 100;
         _particleSystem.ParticleLifetime = 1.0f;
         _particleSystem.MaxParticles = 100000;
         _particleSystem.Play();
+
     }
 
     protected override void OnTick(float delta)
@@ -71,6 +76,9 @@ public class Game : GameEngine
 
         ImGui.Text(strFramerate);
 
+        // Particle System Controls
+        ImGui.TextColored(new Vector4(1, 1, 0, 1), "Particle System");
+
         float emissionRate = _particleSystem.EmissionRateOverTime;
         if (ImGui.SliderFloat("Emission Rate", ref emissionRate, 10, 100000))
         {
@@ -83,22 +91,18 @@ public class Game : GameEngine
             _particleSystem.ParticleLifetime = lifetime;
         }
 
-        Vector2 position = _emitter.Position;
-        if (ImGui.SliderFloat2("Emitter Position", ref position, -300, 300))
-        {
-            _emitter.Position = position;
-        }
-
-        Vector2 extents = _emitter.Extents;
-        if (ImGui.SliderFloat2("Emitter Size", ref extents, 1, 100))
-        {
-            _emitter.Extents = extents;
-        }
-
         bool isBurst = _particleSystem.IsBurst;
         if (ImGui.Checkbox("Burst Mode", ref isBurst))
         {
             _particleSystem.IsBurst = isBurst;
+        }
+
+        if (_particleSystem.IsBurst)
+        {
+            if (ImGui.Button("Play Burst"))
+            {
+                _particleSystem.Play();
+            }
         }
 
         int minBurstCount = _particleSystem.MinBurstCount;
@@ -113,12 +117,22 @@ public class Game : GameEngine
             _particleSystem.MaxBurstCount = maxBurstCount;
         }
 
-        if (_particleSystem.IsBurst)
+        // Separator
+        ImGui.Separator();
+
+        // Particle Emitter Controls
+        ImGui.TextColored(new Vector4(1, 1, 0, 1), "Particle Emitter");
+
+        Vector2 position = _emitter.Position;
+        if (ImGui.SliderFloat2("Position", ref position, -300, 300))
         {
-            if (ImGui.Button("Play Burst"))
-            {
-                _particleSystem.Play();
-            }
+            _emitter.Position = position;
+        }
+
+        Vector2 extents = _emitter.Extents;
+        if (ImGui.SliderFloat2("Size", ref extents, 1, 100))
+        {
+            _emitter.Extents = extents;
         }
 
         float minSpeed = _emitter.MinSpeed;
@@ -142,6 +156,30 @@ public class Game : GameEngine
                 _emitter.MinSpeed = maxSpeed;
             }
         }
+
+        Vector4 color = _emitter.Color;
+        if (ImGui.ColorEdit4("Color", ref color))
+        {
+            _emitter.Color = color;
+        }
+
+        //simulator
+        ImGui.TextColored(new Vector4(1, 1, 0, 1), "Simulator");
+
+        Vector4 startColor = _simulator.StartColor;
+        if (ImGui.ColorEdit4("Start Color", ref startColor))
+        {
+            _simulator.StartColor = startColor;
+        }
+
+        Vector4 endColor = _simulator.EndColor;
+        if (ImGui.ColorEdit4("End Color", ref endColor))
+        {
+            _simulator.EndColor = endColor;
+        }
+        
+        
+        
 
         ImGui.End();
     }

@@ -1,7 +1,7 @@
 
 namespace Alco.Rendering;
 
-public interface IParticleEmitter<TParticleData> where TParticleData : unmanaged
+public interface IParticleEmitter2D
 {
-    TParticleData Emit();
+    ParticleData2D Emit();
 }

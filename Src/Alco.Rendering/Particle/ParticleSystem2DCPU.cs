@@ -4,12 +4,12 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-public unsafe class ParticleSystem2DCPU : AutoDisposable
+public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 {
-    public class DefaultSimulator : IParticleSimulator
+    public sealed class DefaultSimulator : IParticleSimulator2D
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Simulate(ref ParticleData2D particle, float deltaTime)
+        public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
         {
             particle.Position += particle.Velocity * deltaTime;
             particle.Lifetime -= deltaTime;
@@ -26,10 +26,10 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     private NativeArrayList<ParticleData2D> _particles;//simulate on cpu
     private bool _isParticleDirty = false;
 
-    private IParticleSimulator _simulator;
+    private IParticleSimulator2D _simulator;
 
-    private IParticleEmitter<ParticleData2D> _emitter;
-    public IParticleEmitter<ParticleData2D> Emitter
+    private IParticleEmitter2D _emitter;
+    public IParticleEmitter2D Emitter
     {
         get => _emitter;
         set
@@ -39,7 +39,7 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
         }
     }
 
-    public IParticleSimulator Simulator
+    public IParticleSimulator2D Simulator
     {
         get => _simulator;
         set
@@ -99,8 +99,8 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
         RenderingSystem renderingSystem,
         Mesh mesh,
         Material material,
-        IParticleEmitter<ParticleData2D> emitter,
-        IParticleSimulator? simulator = null)
+        IParticleEmitter2D emitter,
+        IParticleSimulator2D? simulator = null)
     {
         ArgumentNullException.ThrowIfNull(emitter);
         _emitter = emitter;
@@ -269,7 +269,7 @@ public unsafe class ParticleSystem2DCPU : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void OnSimulate(ref ParticleData2D particle, float deltaTime)
     {
-        _simulator.Simulate(ref particle, deltaTime);
+        _simulator.Simulate(this, ref particle, deltaTime);
     }
 
     protected override void Dispose(bool disposing)
