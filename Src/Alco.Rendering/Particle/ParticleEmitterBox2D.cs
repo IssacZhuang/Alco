@@ -44,7 +44,7 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     /// <summary>
     /// Gets or sets the maximum rotation angle in degrees for emitted particles.
     /// </summary>
-    public float MaxRotation = 360.0f;
+    public float MaxRotation = 360f;
 
     /// <summary>
     /// Gets or sets the color of emitted particles.
@@ -60,6 +60,11 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     /// Gets or sets the maximum size of emitted particles.
     /// </summary>
     public float MaxSize = 1.0f;
+
+    /// <summary>
+    /// Gets or sets whether the rotation should follow the direction of the velocity.
+    /// </summary>
+    public bool IsRotationFollowDirection = true;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ParticleEmitterBox2D"/> class with default position and extents.
@@ -89,8 +94,9 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     {
         ParticleData2D particle = default;
         particle.Position = Position + new Vector2(_random.NextFloat(-Extents.X, Extents.X), _random.NextFloat(-Extents.Y, Extents.Y));
+        //the rotation here is the rotation of the box
         particle.Position = math.rotate(particle.Position, Rotation);
-        particle.Rotation = Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
+
         particle.Color = Color;
         particle.Size = _random.NextFloat(MinSize, MaxSize);
 
@@ -100,6 +106,21 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);
         particle.Velocity = math.rotate(Vector2.UnitX, direction) * speed;
+
+        if (IsRotationFollowDirection)
+        {
+            particle.Rotation = math.inverse(direction);
+        }
+        else
+        {
+            particle.Rotation = Rotation2D.Identity;
+        }
+
+        particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
+
+
+
+
 
         particle.Lifetime = _random.NextFloat(1, 2);
         return particle;

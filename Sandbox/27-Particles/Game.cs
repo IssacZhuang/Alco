@@ -28,7 +28,7 @@ public class Game : GameEngine
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
         // Use default white texture if no specific texture is needed
-        _particleTexture = Assets.Load<Texture2D>("Star");
+        _particleTexture = Assets.Load<Texture2D>("Droplet");
         _materialParticle.SetTexture(ShaderResourceId.Texture, _particleTexture);
 
         // Create render context
@@ -38,6 +38,11 @@ public class Game : GameEngine
         _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(50, 10));
         _emitter.MinSpeed = 8.0f;
         _emitter.MaxSpeed = 15.0f;
+
+        _emitter.MinRotation = 270f;
+        _emitter.MaxRotation = 270f;
+
+        _emitter.MinSize = _emitter.MaxSize = 2.5f;
 
         _simulator = new ParticleSimulatorColorLerp2D();
 
@@ -130,7 +135,7 @@ public class Game : GameEngine
         }
 
         Vector2 extents = _emitter.Extents;
-        if (ImGui.SliderFloat2("Size", ref extents, 1, 100))
+        if (ImGui.SliderFloat2("Extents", ref extents, 1, 100))
         {
             _emitter.Extents = extents;
         }
@@ -157,11 +162,43 @@ public class Game : GameEngine
             }
         }
 
+        float minSize = _emitter.MinSize;
+        if (ImGui.SliderFloat("Min Size", ref minSize, 1, 100))
+        {
+            _emitter.MinSize = minSize;
+        }
+
+        float maxSize = _emitter.MaxSize;
+        if (ImGui.SliderFloat("Max Size", ref maxSize, 1, 100))
+        {
+            _emitter.MaxSize = maxSize;
+        }
+
         Vector4 color = _emitter.Color;
         if (ImGui.ColorEdit4("Color", ref color))
         {
             _emitter.Color = color;
         }
+
+        bool isRotationFollowDirection = _emitter.IsRotationFollowDirection;
+        if (ImGui.Checkbox("Rotation Follow Direction", ref isRotationFollowDirection))
+        {
+            _emitter.IsRotationFollowDirection = isRotationFollowDirection;
+        }
+
+        float minRotation = _emitter.MinRotation;
+        if (ImGui.SliderFloat("Min Rotation", ref minRotation, 0, 360))
+        {
+            _emitter.MinRotation = minRotation;
+        }
+
+        float maxRotation = _emitter.MaxRotation;
+        if (ImGui.SliderFloat("Max Rotation", ref maxRotation, 0, 360))
+        {
+            _emitter.MaxRotation = maxRotation;
+        }
+        
+        
 
         //simulator
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Simulator");
