@@ -16,6 +16,7 @@ public class Game : GameEngine
     
     private RenderContext _renderContext;
     private Texture2D _particleTexture;
+    private float _boxRotation = 0f;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -35,7 +36,7 @@ public class Game : GameEngine
         _renderContext = Rendering.CreateRenderContext();
 
         // Create particle emitter
-        _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(50, 10));
+        _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(0, 0));
         _emitter.MinSpeed = 8.0f;
         _emitter.MaxSpeed = 15.0f;
 
@@ -128,16 +129,21 @@ public class Game : GameEngine
         // Particle Emitter Controls
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Particle Emitter");
 
-        Vector2 position = _emitter.Position;
-        if (ImGui.SliderFloat2("Position", ref position, -300, 300))
+        Vector2 position = _emitter.Shape.Center;
+        if (ImGui.SliderFloat2("Box Position", ref position, -300, 300))
         {
-            _emitter.Position = position;
+            _emitter.Shape.Center = position;
         }
 
-        Vector2 extents = _emitter.Extents;
-        if (ImGui.SliderFloat2("Extents", ref extents, 1, 100))
+        Vector2 extents = _emitter.Shape.Extends;
+        if (ImGui.SliderFloat2("Box Extents", ref extents, 0, 10))
         {
-            _emitter.Extents = extents;
+            _emitter.Shape.Extends = extents;
+        }
+
+        if (ImGui.SliderFloat("Box Rotation", ref _boxRotation, 0, 360))
+        {
+            _emitter.Shape.Rotation = Rotation2D.FromDegree(_boxRotation);
         }
 
         float minSpeed = _emitter.MinSpeed;

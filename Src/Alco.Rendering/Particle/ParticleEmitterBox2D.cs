@@ -12,20 +12,9 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     private Random _random = Random.CreateFromIndex(3);
 
     /// <summary>
-    /// Gets or sets the center position of the emission box.
+    /// The shape of the emitter.
     /// </summary>
-    public Vector2 Position;
-
-    /// <summary>
-    /// Gets or sets the half-dimensions of the emission box.
-    /// </summary>
-    public Vector2 Extents;
-
-    /// <summary>
-    /// Gets or sets the rotation of the emission box.
-    /// </summary>
-    public Rotation2D Rotation;
-
+    public ShapeBox2D Shape;
     /// <summary>
     /// Gets or sets the minimum speed of emitted particles.
     /// </summary>
@@ -71,8 +60,7 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     /// </summary>
     public ParticleEmitterBox2D()
     {
-        Position = Vector2.Zero;
-        Extents = Vector2.One;
+        Shape = new ShapeBox2D(Vector2.Zero, Vector2.Zero);
     }
 
     /// <summary>
@@ -82,8 +70,7 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     /// <param name="extents">The half-dimensions of the emission box.</param>
     public ParticleEmitterBox2D(Vector2 position, Vector2 extents)
     {
-        Position = position;
-        Extents = extents;
+        Shape = new ShapeBox2D(position, extents);
     }
 
     /// <summary>
@@ -93,9 +80,9 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
     public ParticleData2D Emit()
     {
         ParticleData2D particle = default;
-        particle.Position = Position + new Vector2(_random.NextFloat(-Extents.X, Extents.X), _random.NextFloat(-Extents.Y, Extents.Y));
+        particle.Position = Shape.Center + new Vector2(_random.NextFloat(-Shape.Extends.X, Shape.Extends.X), _random.NextFloat(-Shape.Extends.Y, Shape.Extends.Y));
         //the rotation here is the rotation of the box
-        particle.Position = math.rotate(particle.Position, Rotation);
+        particle.Position = math.rotate(particle.Position, Shape.Rotation);
 
         particle.Color = Color;
         particle.Size = _random.NextFloat(MinSize, MaxSize);
@@ -117,10 +104,6 @@ public class ParticleEmitterBox2D : IParticleEmitter2D
         }
 
         particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
-
-
-
-
 
         particle.Lifetime = _random.NextFloat(1, 2);
         return particle;
