@@ -21,14 +21,14 @@ public class Game : GameEngine
     {
         // Create camera
         _camera = Rendering.CreateCamera2D(64, 36, 100);
-
+         
         // Create material for particles
         _materialParticle = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
         _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
         // Use default white texture if no specific texture is needed
-        _particleTexture = Assets.Load<Texture2D>("Star.png");
+        _particleTexture = Assets.Load<Texture2D>("Star");
         _materialParticle.SetTexture(ShaderResourceId.Texture, _particleTexture);
 
         // Create render context

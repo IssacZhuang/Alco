@@ -17,6 +17,8 @@ namespace Alco.IO
         private readonly ConcurrentDictionary<string, AssetHandle> _assetLookup = new ConcurrentDictionary<string, AssetHandle>();
         // key: extension, value: asset loader
         private readonly Dictionary<string, IAssetLoader> _assetLoaders = new Dictionary<string, IAssetLoader>();
+        // key: alias, value: filename
+        private readonly ConcurrentDictionary<string, string> _assetAliases = new ConcurrentDictionary<string, string>();
         // key: filename, value: file source
         private readonly Dictionary<string, IFileSource> _fileEntries = new Dictionary<string, IFileSource>();
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Priority.CompareTo(b.Priority));

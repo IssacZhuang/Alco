@@ -15,6 +15,18 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
+    /// The asset names without the extension
+    /// </summary>
+    public IEnumerable<string> AllFileAliases
+    {
+        get
+        {
+            return _assetAliases.Keys;
+        }
+    }
+
+    
+    /// <summary>
     /// Get all the asset infos
     /// </summary>
     /// <value>All the asset infos</value>
@@ -101,12 +113,15 @@ public sealed partial class AssetSystem
             }
 
             _fileEntries.Clear();
+            _assetAliases.Clear();
             foreach (var fileSource in _fileSources)
             {
                 foreach (var file in fileSource.AllFileNames)
                 {
-
-                    _fileEntries[ParseEntry(file)] = fileSource;
+                    string key = ParseEntry(file);
+                    _fileEntries[key] = fileSource;
+                    string alias = Path.ChangeExtension(key, null);
+                    _assetAliases[alias] = key;
                 }
             }
             _isEntryDirty = false;

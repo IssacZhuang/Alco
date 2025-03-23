@@ -18,6 +18,11 @@ public sealed partial class AssetSystem
     {
         TryRefreshEntries();
         filename = ParseEntry(filename);
+        // the real filename if the filename is an alias
+        if (_assetAliases.TryGetValue(filename, out var realFilename))
+        {
+            filename = realFilename;
+        }
 
         failedReason = string.Empty;
         try
