@@ -31,6 +31,16 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     public float MaxRotation = 360f;
 
     /// <summary>
+    /// Gets or sets the minimum direction angle in degrees for emitted particles.\
+    /// </summary>
+    public float MinDirectionAngle = 0.0f;
+
+    /// <summary>
+    /// Gets or sets the maximum direction angle in degrees for emitted particles.
+    /// </summary>
+    public float MaxDirectionAngle = 360f;
+
+    /// <summary>
     /// Gets or sets the color of emitted particles.
     /// </summary>
     public ColorFloat Color = new ColorFloat(1, 1, 1, 1);
@@ -68,7 +78,8 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Size = _random.NextFloat(MinSize, MaxSize);
 
         // Create normalized random direction vector
-        Rotation2D direction = _random.NextRotation2D();
+        float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
+        Rotation2D direction = Rotation2D.FromDegree(directionAngle);
 
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);

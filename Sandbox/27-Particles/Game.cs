@@ -203,8 +203,22 @@ public class Game : GameEngine
         {
             _emitter.MaxRotation = maxRotation;
         }
+
+        float minDirectionAngle = _emitter.MinDirectionAngle;
+        if (ImGui.SliderFloat("Min Direction Angle", ref minDirectionAngle, 0, 360))
+        {
+            _emitter.MinDirectionAngle = minDirectionAngle;
+        }
+        
+        float maxDirectionAngle = _emitter.MaxDirectionAngle;
+        if (ImGui.SliderFloat("Max Direction Angle", ref maxDirectionAngle, 0, 360))
+        {
+            _emitter.MaxDirectionAngle = maxDirectionAngle;
+        }
         
         
+        
+
 
         //simulator
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Simulator");
