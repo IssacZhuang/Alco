@@ -8,8 +8,11 @@
     Title="GPU Surface Test"
     Width="800" Height="600">
 
-    <Grid>
-        <views:GPUSurfaceView Name="GpuView" x:Name="GpuView" />
+    <Grid HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch">
+        <views:GPUSurfaceView Name="GpuView" x:Name="GpuView" HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch" />
     </Grid>
+
 
 </Window> 
