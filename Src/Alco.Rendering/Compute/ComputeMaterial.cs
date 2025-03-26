@@ -102,7 +102,7 @@ public class ComputeMaterial
             }
             else
             {
-                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineContext.ReflectionInfo!.GetResourceName((uint)i)}");
+                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineContext.ReflectionInfo!.GetResourceName((uint)i)} of shader {_shader.Name}");
             }
         }
     }

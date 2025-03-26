@@ -1,15 +1,23 @@
 #include "Shaders/Libs/Core.hlsli"
 
+struct TileLightingData {
+    float attenuationSide;
+    float attenuationCorner;
+    int2 size;
+};
 
 // light map texture
 DEFINE_TEX2D_STORAGE(0, _frontBuffer, float4, "rgba16f");
 DEFINE_TEX2D_STORAGE(1, _backBuffer, float4, "rgba16f");
 DEFINE_STORAGE(2, float, _heightData);
-DEFINE_UNIFORM(3, _data) {
-    float attenuationSide;
-    float attenuationCorner;
-    int2 size;
-};
+// DEFINE_UNIFORM(3, _data) {
+//     float attenuationSide;
+//     float attenuationCorner;
+//     int2 size;
+// };
+
+PUSH_CONSTANT TileLightingData constants;
+
 
 
 
@@ -19,7 +27,7 @@ float GetLightPassingFactor(float heightFrom, float heightTo) {
 }
 
 uint GetHeightIndex(uint2 pos) {
-    return pos.y * size.x + pos.x;
+    return pos.y * constants.size.x + pos.x;
 }
 
 [shader("compute")]
@@ -50,6 +58,9 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
         _heightData[GetHeightIndex(id.xy + int2(1, -1))],
         _heightData[GetHeightIndex(id.xy + int2(-1, -1))],
     };
+
+    float attenuationSide = constants.attenuationSide;
+    float attenuationCorner = constants.attenuationCorner;
 
     float4 color = _frontBuffer[id.xy];
     color = max(color, colors[0] * GetLightPassingFactor(height, neighborHeight[0]) - attenuationSide);

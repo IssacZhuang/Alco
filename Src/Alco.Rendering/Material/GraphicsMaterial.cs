@@ -33,7 +33,7 @@ public sealed class GraphicsMaterial : Material
             {
                 context.SetGraphicsResources(i, resource);
             }else{
-                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)}");
+                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
             }
         }
     }
