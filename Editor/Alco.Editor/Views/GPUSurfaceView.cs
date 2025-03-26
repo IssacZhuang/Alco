@@ -123,7 +123,6 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
         Log.Success($"Swapchain created with size {width}x{height}");
 
-        //StartRenderThread();
         return handle;
     }
 
@@ -156,7 +155,13 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         var bounds = Bounds;
         uint width = math.max(1, (uint)bounds.Width);
         uint height = math.max(1, (uint)bounds.Height);
+
+        // Resize the swapchain
         _swapchain.Resize(width, height);
+
+        // Force an immediate render to apply the resize
+        InvalidateVisual();
+
         Log.Success($"Resize swapchain to {width}x{height}");
     }
 
