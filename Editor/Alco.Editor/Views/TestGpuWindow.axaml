@@ -10,7 +10,7 @@
 
     <Grid HorizontalAlignment="Stretch"
         VerticalAlignment="Stretch">
-        <views:GPUSurfaceView Name="GpuView" x:Name="GpuView" HorizontalAlignment="Stretch"
+        <views:TestGpuSurfaceView x:Name="GpuView" HorizontalAlignment="Stretch"
             VerticalAlignment="Stretch" />
     </Grid>
 

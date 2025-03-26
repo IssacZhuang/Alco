@@ -25,26 +25,22 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
     private class GPURenderOperation : ICustomDrawOperation
     {
         private readonly GPUSurfaceView _view;
-        private readonly GPUDevice _device;
+
         private readonly GPUSwapchain _swapchain;
-        private readonly GPUCommandBuffer _commandBuffer;
+
         public GPURenderOperation(
             GPUSurfaceView view,
-            GPUDevice device,
-            GPUSwapchain swapchain,
-            GPUCommandBuffer commandBuffer
+            GPUSwapchain swapchain
         )
         {
             _view = view;
-            _device = device;
             _swapchain = swapchain;
-            _commandBuffer = commandBuffer;
         }
         public Avalonia.Rect Bounds => _view.Bounds;
 
         public void Dispose()
         {
-            Log.Info("Dispose");
+            //not the real dispose because it is a reusable object
         }
 
         public bool Equals(ICustomDrawOperation? other)
@@ -60,21 +56,16 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
         public void Render(ImmediateDrawingContext context)
         {
-            Log.Info("Begin Draw");
-            _commandBuffer.Begin();
-            _commandBuffer.SetFrameBuffer(_swapchain.FrameBuffer);
-            _commandBuffer.ClearColor(new ColorFloat(0, 1, 1, 1));
-            _commandBuffer.End();
-            _device.Submit(_commandBuffer);
+            _view.OnRenderCore(_swapchain.FrameBuffer);
             _swapchain.Present();
-            Log.Success("Clear color completed");
         }
 
     }
 
-    private GPUDevice? _device;
+    private readonly GPUDevice _device;
+    private readonly GPUCommandBuffer _commandBuffer;
     private GPURenderOperation? _renderOperation;
-    private GPUCommandBuffer? _commandBuffer;
+    
     private GPUSwapchain? _swapchain;
 
 
@@ -93,6 +84,10 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
     public GPUSurfaceView()
     {
+        GameEngine engine = App.Main.Engine;
+        _device = engine.Rendering.GraphicsDevice;
+        _commandBuffer = _device.CreateCommandBuffer( "GPUSurfaceView_CommandBuffer");
+
         _frameRate = 60;
         _renderTimer = new DispatcherTimer();
         _renderTimer.Interval = TimeSpan.FromSeconds(1.0f / _frameRate);
@@ -106,10 +101,6 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
     {
-        GameEngine engine = App.Main.Engine;
-        _device = engine.Rendering.GraphicsDevice;
-
-
         var handle = base.CreateNativeControlCore(parent);
         Handle = handle.Handle;
 
@@ -118,21 +109,17 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         var bounds = Bounds;
         uint width = math.max(1, (uint)bounds.Width);
         uint height = math.max(1, (uint)bounds.Height);
-        RenderingSystem renderingSystem = engine.Rendering;
-        GPUDevice device = renderingSystem.GraphicsDevice;
 
-        _swapchain = device.CreateSwapchain(
+        _swapchain = _device.CreateSwapchain(
             new SwapchainDescriptor(
                 SurfaceSource.CreateWin32Window(Handle, GetModuleHandleW(null)),
-                device.PrefferedSurfaceFomat,
+                _device.PrefferedSurfaceFomat,
                 null,
                 width,
                 height,
                 true));
 
-        _commandBuffer = device.CreateCommandBuffer(this.Name ?? "GPUSurfaceView_CommandBuffer");
-
-        _renderOperation = new GPURenderOperation(this, device, _swapchain, _commandBuffer);
+        _renderOperation = new GPURenderOperation(this, _swapchain);
 
         Log.Success($"Swapchain created with size {width}x{height}");
 
@@ -145,6 +132,20 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         base.Render(context);
         if (_renderOperation == null) return;
         context.Custom(_renderOperation);
+    }
+
+    private void OnRenderCore(GPUFrameBuffer frameBuffer)
+    {
+        OnRender(frameBuffer, 1f / _frameRate);
+    }
+
+    protected virtual void OnRender(GPUFrameBuffer frameBuffer, float deltaTime)
+    {
+        _commandBuffer.Begin();
+        _commandBuffer.SetFrameBuffer(frameBuffer);
+        _commandBuffer.ClearColor(new ColorFloat(0, 0, 0, 1));
+        _commandBuffer.End();
+        _device.Submit(_commandBuffer);
     }
 
 

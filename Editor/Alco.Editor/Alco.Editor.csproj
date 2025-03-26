@@ -34,6 +34,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\Alco.Project\Alco.Project.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
   </ItemGroup>
 
   <ItemGroup>
