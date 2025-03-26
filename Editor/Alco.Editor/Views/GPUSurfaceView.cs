@@ -121,7 +121,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
         _renderOperation = new GPURenderOperation(this, _swapchain);
 
-        Log.Success($"Swapchain created with size {width}x{height}");
+        Log.Success($"Swapchain created with size {width}x{height} in {_device.PrefferedSurfaceFomat}");
 
         return handle;
     }

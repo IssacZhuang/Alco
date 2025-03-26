@@ -15,9 +15,9 @@ public class TextureGPUSurfaceView : GPUSurfaceView
 {
     private Texture2D? _texture;
     private readonly Material _material;
-    private readonly SpriteRenderer _spriteRenderer;
     private readonly RenderContext _renderContext;
     private readonly Camera2D _camera;
+    private readonly Mesh _mesh;
 
     public BlendState BlendState
     {
@@ -55,9 +55,9 @@ public class TextureGPUSurfaceView : GPUSurfaceView
         _material.BlendState = BlendState.AlphaBlend;
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 
-        // Create rendering context and sprite renderer
+        // Create rendering context and get sprite mesh
         _renderContext = engine.Rendering.CreateRenderContext();
-        _spriteRenderer = engine.Rendering.CreateSpriteRenderer(_renderContext, _material);
+        _mesh = engine.Rendering.MeshCenteredSprite;
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)
@@ -104,8 +104,24 @@ public class TextureGPUSurfaceView : GPUSurfaceView
 
         _renderContext.Begin(frameBuffer);
 
-        // Draw the texture as a sprite
-        _spriteRenderer.Draw(_texture, Vector2.Zero, Rotation2D.Identity, new Vector2(_texture.Width * scale, _texture.Height * scale), new Vector4(1, 1, 1, 1));
+        // Create transform and constant data
+        Vector2 scaledSize = new Vector2(_texture.Width * scale, _texture.Height * scale);
+        Transform2D transform = new Transform2D(Vector2.Zero, Rotation2D.Identity, scaledSize);
+
+        // Create sprite constant
+        SpriteConstant constant = new SpriteConstant
+        {
+            Model = transform.Matrix,
+            Color = new Vector4(1, 1, 1, 1),
+            UvRect = new Rect(0, 0, 1, 1)
+        };
+
+        // Set texture and draw with constant
+        uint textureResourceId = _material.GetResourceId(ShaderResourceId.Texture);
+        _material.SetTexture(textureResourceId, _texture);
+
+        // Draw the texture directly with the render context
+        _renderContext.DrawWithConstant(_mesh, _material, constant);
 
         _renderContext.End();
     }

@@ -45,7 +45,7 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Default = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        PreferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
+        PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
@@ -60,7 +60,7 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Debug = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        PreferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
+        PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
