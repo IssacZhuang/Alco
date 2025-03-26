@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using System;
@@ -62,6 +63,10 @@ namespace Alco.Editor
                     DataContext = new ViewModels.Editor(),
                 };
                 EditorWindow.Closed += OnClose;
+
+                // Add key event handler for F11
+                EditorWindow.KeyDown += OnEditorKeyDown;
+
                 desktop.MainWindow = EditorWindow;
             }
 
@@ -107,6 +112,24 @@ namespace Alco.Editor
             Preference?.Save();
             Engine?.Dispose();
             TypeDatabase?.Dispose();
+        }
+
+        private void OnEditorKeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.F11)
+            {
+                OpenTestGpuWindow();
+                e.Handled = true;
+            }
+        }
+
+        public void OpenTestGpuWindow()
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var gpuWindow = new TestGpuWindow();
+                gpuWindow.Show();
+            }
         }
     }
 }

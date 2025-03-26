@@ -27,6 +27,8 @@ public unsafe partial class Sdl3Window : Window
 
     internal SDL_WindowID WindowId => SDL_GetWindowID(_window);
 
+    public SDL_Window NativeWindow => _window;
+
     public override WindowMode WindowMode
     {
         get
@@ -209,7 +211,13 @@ public unsafe partial class Sdl3Window : Window
     }
 
 
-    private static SurfaceSource GetSurfaceSource(SDL_Window window, bool useWayland)
+    /// <summary>
+    /// Get the surface source for the window
+    /// </summary>
+    /// <param name="window">The window to get the surface source for</param>
+    /// <param name="useWayland">Whether to use Wayland. Only used on Linux</param>
+    /// <returns>The surface source for the window</returns>
+    public static SurfaceSource GetSurfaceSource(SDL_Window window, bool useWayland)
     {
         if (OperatingSystem.IsWindows())
         {
