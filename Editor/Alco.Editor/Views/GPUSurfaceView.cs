@@ -1,22 +1,16 @@
 using System;
-using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using System.Threading;
 using Alco.Engine;
 using Alco.Graphics;
-using Alco.Rendering;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.LogicalTree;
+
 using Avalonia.Platform;
-using Avalonia.Rendering.Composition;
-using Avalonia.VisualTree;
-using SDL3;
-using static SDL3.SDL3;
+
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Rendering.SceneGraph;
+
 
 namespace Alco.Editor.Views;
 
@@ -69,7 +63,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
     private GPUSwapchain? _swapchain;
 
 
-    private readonly DispatcherTimer _renderTimer;
+    private DispatcherTimer? _renderTimer;
     private int _frameRate = 60;
     public IntPtr Handle { get; private set; }
     public int FrameRate
@@ -78,7 +72,10 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         set
         {
             _frameRate = value;
-            _renderTimer.Interval = TimeSpan.FromSeconds(1.0f / _frameRate);
+            if (_renderTimer != null)
+            {
+                _renderTimer.Interval = TimeSpan.FromSeconds(1.0f / _frameRate);
+            }
         }
     }
 
@@ -89,14 +86,43 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         _commandBuffer = _device.CreateCommandBuffer( "GPUSurfaceView_CommandBuffer");
 
         _frameRate = 60;
+        
+    }
+
+    ~GPUSurfaceView()
+    {
+        Log.Info("GPUSurfaceView is being finalized");
+        Dispose();
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        StopRenderTimer();
+        StartRenderTimer();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        StopRenderTimer();
+    }
+
+    private void StartRenderTimer()
+    {
         _renderTimer = new DispatcherTimer();
         _renderTimer.Interval = TimeSpan.FromSeconds(1.0f / _frameRate);
         _renderTimer.Tick += (sender, e) =>
         {
-            //mark the view as dirty to trigger the render
             InvalidateVisual();
         };
         _renderTimer.Start();
+    }
+
+    private void StopRenderTimer()
+    {
+        _renderTimer?.Stop();
+        _renderTimer = null;
     }
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
@@ -157,7 +183,10 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         uint height = math.max(1, (uint)bounds.Height);
 
         // Resize the swapchain
+
         _swapchain.Resize(width, height);
+        // Force an immediate render to apply the resize
+        InvalidateVisual();
 
         // Force an immediate render to apply the resize
         InvalidateVisual();
@@ -171,7 +200,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
     {
         _swapchain?.Dispose();
         _commandBuffer?.Dispose();
-        _renderTimer.Stop();
+        StopRenderTimer();
     }
 
     [LibraryImport("kernel32")]
