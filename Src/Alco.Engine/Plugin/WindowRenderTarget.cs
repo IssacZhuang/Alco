@@ -20,6 +20,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private Material _blitMaterial;
     private MaterialInstance? _overrideMaterial;
     private Mesh _mesh;
+    private bool _isSurfaceTextureUsable = false;
 
 
     private bool _shouldResize = false;
@@ -124,6 +125,11 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         }
 
         if (_isMinimized)
+        {
+            return;
+        }
+
+        if (!_windowSwapchain.RequestSurfaceTexture())
         {
             return;
         }

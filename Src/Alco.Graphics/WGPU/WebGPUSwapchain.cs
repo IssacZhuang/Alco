@@ -133,9 +133,14 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
         get => _device;
     }
 
+    public override bool RequestSurfaceTexture()
+    {
+        return _frameBuffer.RequestSurfaceTexture();
+    }
+
     public override void Present()
     {
-        _frameBuffer.SwapBuffers();
+        _frameBuffer.Present();
     }
 
     public override void Resize(uint width, uint height)

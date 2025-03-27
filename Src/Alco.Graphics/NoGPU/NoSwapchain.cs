@@ -24,6 +24,11 @@ internal class NoSwapchain : GPUSwapchain
         ));
     }
 
+    public override bool RequestSurfaceTexture()
+    {
+        return true;
+    }
+
     public override void Present()
     {
         
@@ -38,4 +43,6 @@ internal class NoSwapchain : GPUSwapchain
     {
 
     }
+
+    
 }
