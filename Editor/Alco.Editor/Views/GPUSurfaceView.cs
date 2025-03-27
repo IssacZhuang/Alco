@@ -20,8 +20,6 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
     private readonly GPUCommandBuffer _commandBuffer;
     private GPUSwapchain? _swapchain;
 
-    private int _frameRate = 60;
-
     private GPUSwapchain Swapchain
     {
         get
@@ -46,7 +44,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        App.Main.Engine.AddSystem(this);
+        App.Main.Engine.AddSystem(this);//run only when visible
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -61,14 +59,9 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
         var handle = base.CreateNativeControlCore(parent);
         Handle = handle.Handle;
 
-        Log.Info($"Native window handle created: {Handle:X}");
+        Log.Info($"Native window handle created: {handle.HandleDescriptor ?? "Unknown handle"} {Handle:X}");
 
         return handle;
-    }
-
-    private void OnRenderCore(GPUFrameBuffer frameBuffer)
-    {
-        OnRender(frameBuffer, 1f / _frameRate);
     }
 
     private GPUSwapchain CreateSwapchain()
@@ -76,6 +69,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
         var bounds = Bounds;
         uint width = math.max(1, (uint)bounds.Width);
         uint height = math.max(1, (uint)bounds.Height);
+        
 
         var swapchain = _device.CreateSwapchain(
             new SwapchainDescriptor(
@@ -124,8 +118,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
         // _commandBuffer?.Dispose();
     }
 
-    [LibraryImport("kernel32")]
-    private static partial nint GetModuleHandleW(ushort* lpModuleName);
+
 
     public void OnStart()
     {
@@ -148,7 +141,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
         {
             return;
         }
-        OnRenderCore(Swapchain.FrameBuffer);
+        OnRender(Swapchain.FrameBuffer, delta);
         Swapchain.Present();
     }
 
@@ -171,4 +164,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
     {
         
     }
+
+    [LibraryImport("kernel32")]
+    private static partial nint GetModuleHandleW(ushort* lpModuleName);
 }
