@@ -1,7 +1,10 @@
+
+
 using Alco.Editor.ViewModels;
 using Alco.Editor.Views;
 using Alco.Engine;
 using Avalonia;
+
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
@@ -9,30 +12,37 @@ using Avalonia.Data.Core.Plugins;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Rendering.Composition;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+
+#pragma warning disable CS8618
 
 namespace Alco.Editor
 {
     public partial class App : Application
     {
+        private EditorPlatform _platform;
         public static App Main
         {
             get => Current as App ?? throw new InvalidOperationException("App is not initialized");
         }
 
-        public Views.Editor? EditorWindow { get; private set; }
-        public EditorEngine Engine { get; }
-        public EditorPreference Preference { get; }
-        public TypeDatabase TypeDatabase { get; }
+        public Views.Editor EditorWindow { get; private set; }
+        public EditorEngine Engine { get; private set; }
+        public EditorPreference Preference { get; private set; }
+        public TypeDatabase TypeDatabase { get; private set; }
 
 
         public App()
         {
             if (!Design.IsDesignMode)
             {
-                Engine = new EditorEngine(GameEngineSetting.CreateGPUWithoutWindow());
+                _platform = new EditorPlatform();
+                GameEngineSetting setting = GameEngineSetting.CreateGPUWithoutWindow();
+                setting.Platform = _platform;
+                Engine = new EditorEngine(setting);
                 Preference = new EditorPreference(Engine);
                 TypeDatabase = new TypeDatabase();
             }
@@ -42,8 +52,6 @@ namespace Alco.Editor
                 Preference = null!;
                 TypeDatabase = null!;
             }
-
-
         }
 
         public override void Initialize()
@@ -62,12 +70,16 @@ namespace Alco.Editor
                 {
                     DataContext = new ViewModels.Editor(),
                 };
+
                 EditorWindow.Closed += OnClose;
 
                 // Add key event handler for F11
                 EditorWindow.KeyDown += OnEditorKeyDown;
 
                 desktop.MainWindow = EditorWindow;
+
+                _platform.SetWindow(EditorWindow);
+                Engine.Run();
             }
 
             base.OnFrameworkInitializationCompleted();

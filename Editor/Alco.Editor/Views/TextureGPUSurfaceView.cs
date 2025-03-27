@@ -121,7 +121,7 @@ public class TextureGPUSurfaceView : GPUSurfaceView
         _material.SetTexture(textureResourceId, _texture);
 
         // Draw the texture directly with the render context
-        _renderContext.DrawWithConstant(_mesh, _material, constant);
+        //_renderContext.DrawWithConstant(_mesh, _material, constant);
 
         _renderContext.End();
     }

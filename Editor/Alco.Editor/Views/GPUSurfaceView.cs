@@ -63,8 +63,27 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
     private GPUSwapchain? _swapchain;
 
 
+
     private DispatcherTimer? _renderTimer;
     private int _frameRate = 60;
+
+    private GPUSwapchain Swapchain
+    {
+        get
+        {
+            _swapchain ??= CreateSwapchain();
+            return _swapchain;
+        }
+    }
+
+    private GPURenderOperation RenderOperation
+    {
+        get
+        {
+            _renderOperation ??= new GPURenderOperation(this, Swapchain);
+            return _renderOperation;
+        }
+    }
     public IntPtr Handle { get; private set; }
     public int FrameRate
     {
@@ -132,11 +151,27 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
         Log.Info($"Native window handle created: {Handle:X}");
 
+        return handle;
+    }
+
+    public override void Render(DrawingContext context)
+    {
+        base.Render(context);
+        context.Custom(RenderOperation);
+    }
+
+    private void OnRenderCore(GPUFrameBuffer frameBuffer)
+    {
+        OnRender(frameBuffer, 1f / _frameRate);
+    }
+
+    private GPUSwapchain CreateSwapchain()
+    {
         var bounds = Bounds;
         uint width = math.max(1, (uint)bounds.Width);
         uint height = math.max(1, (uint)bounds.Height);
 
-        _swapchain = _device.CreateSwapchain(
+        var swapchain = _device.CreateSwapchain(
             new SwapchainDescriptor(
                 SurfaceSource.CreateWin32Window(Handle, GetModuleHandleW(null)),
                 _device.PrefferedSurfaceFomat,
@@ -145,23 +180,8 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
                 height,
                 true));
 
-        _renderOperation = new GPURenderOperation(this, _swapchain);
-
         Log.Success($"Swapchain created with size {width}x{height} in {_device.PrefferedSurfaceFomat}");
-
-        return handle;
-    }
-
-    public override void Render(DrawingContext context)
-    {
-        base.Render(context);
-        if (_renderOperation == null) return;
-        context.Custom(_renderOperation);
-    }
-
-    private void OnRenderCore(GPUFrameBuffer frameBuffer)
-    {
-        OnRender(frameBuffer, 1f / _frameRate);
+        return swapchain;
     }
 
     protected virtual void OnRender(GPUFrameBuffer frameBuffer, float deltaTime)
@@ -184,12 +204,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
         // Resize the swapchain
 
-        _swapchain.Resize(width, height);
-        // Force an immediate render to apply the resize
-        InvalidateVisual();
-
-        // Force an immediate render to apply the resize
-        InvalidateVisual();
+        _swapchain?.Resize(width, height);
 
         Log.Success($"Resize swapchain to {width}x{height}");
     }
@@ -200,7 +215,6 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
     {
         _swapchain?.Dispose();
         _commandBuffer?.Dispose();
-        StopRenderTimer();
     }
 
     [LibraryImport("kernel32")]

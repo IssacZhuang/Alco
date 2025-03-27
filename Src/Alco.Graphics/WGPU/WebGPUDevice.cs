@@ -85,7 +85,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuInstanceRelease(Instance);
         wgpuDeviceDestroy(Device);
         wgpuDeviceRelease(Device);
-        //wgpuSurfaceRelease(Surface);
         wgpuAdapterRelease(Adapter);
 
         _thisHandle.Free();
