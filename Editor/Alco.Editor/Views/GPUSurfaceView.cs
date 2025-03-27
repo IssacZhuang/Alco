@@ -14,57 +14,12 @@ using Avalonia.Rendering.SceneGraph;
 
 namespace Alco.Editor.Views;
 
-public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
+public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
 {
-    private class GPURenderOperation : ICustomDrawOperation
-    {
-        private readonly GPUSurfaceView _view;
-
-        private readonly GPUSwapchain _swapchain;
-
-        public GPURenderOperation(
-            GPUSurfaceView view,
-            GPUSwapchain swapchain
-        )
-        {
-            _view = view;
-            _swapchain = swapchain;
-        }
-        public Avalonia.Rect Bounds => _view.Bounds;
-
-        public void Dispose()
-        {
-            //not the real dispose because it is a reusable object
-        }
-
-        public bool Equals(ICustomDrawOperation? other)
-        {
-            return other is GPURenderOperation operation && operation._view == _view;
-        }
-
-        public bool HitTest(Avalonia.Point p)
-        {
-            return _view.Bounds.Contains(p);
-        }
-
-
-        public void Render(ImmediateDrawingContext context)
-        {
-            _view.OnRenderCore(_swapchain.FrameBuffer);
-            _swapchain.Present();
-        }
-
-    }
-
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandBuffer;
-    private GPURenderOperation? _renderOperation;
-    
     private GPUSwapchain? _swapchain;
 
-
-
-    private DispatcherTimer? _renderTimer;
     private int _frameRate = 60;
 
     private GPUSwapchain Swapchain
@@ -76,73 +31,30 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         }
     }
 
-    private GPURenderOperation RenderOperation
-    {
-        get
-        {
-            _renderOperation ??= new GPURenderOperation(this, Swapchain);
-            return _renderOperation;
-        }
-    }
     public IntPtr Handle { get; private set; }
-    public int FrameRate
-    {
-        get => _frameRate;
-        set
-        {
-            _frameRate = value;
-            if (_renderTimer != null)
-            {
-                _renderTimer.Interval = TimeSpan.FromSeconds(1.0f / _frameRate);
-            }
-        }
-    }
+
+    public int Order => 0;
 
     public GPUSurfaceView()
     {
         GameEngine engine = App.Main.Engine;
         _device = engine.Rendering.GraphicsDevice;
         _commandBuffer = _device.CreateCommandBuffer( "GPUSurfaceView_CommandBuffer");
-
-        _frameRate = 60;
         
-    }
-
-    ~GPUSurfaceView()
-    {
-        Log.Info("GPUSurfaceView is being finalized");
-        Dispose();
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        StopRenderTimer();
-        StartRenderTimer();
+        App.Main.Engine.AddSystem(this);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        StopRenderTimer();
+        App.Main.Engine.RemoveSystem(this);
     }
 
-    private void StartRenderTimer()
-    {
-        _renderTimer = new DispatcherTimer();
-        _renderTimer.Interval = TimeSpan.FromSeconds(1.0f / _frameRate);
-        _renderTimer.Tick += (sender, e) =>
-        {
-            InvalidateVisual();
-        };
-        _renderTimer.Start();
-    }
-
-    private void StopRenderTimer()
-    {
-        _renderTimer?.Stop();
-        _renderTimer = null;
-    }
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
     {
@@ -152,12 +64,6 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
         Log.Info($"Native window handle created: {Handle:X}");
 
         return handle;
-    }
-
-    public override void Render(DrawingContext context)
-    {
-        base.Render(context);
-        context.Custom(RenderOperation);
     }
 
     private void OnRenderCore(GPUFrameBuffer frameBuffer)
@@ -213,10 +119,56 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IDisposable
 
     public void Dispose()
     {
-        _swapchain?.Dispose();
-        _commandBuffer?.Dispose();
+        // just let GC to finalize the objects
+        // _swapchain?.Dispose();
+        // _commandBuffer?.Dispose();
     }
 
     [LibraryImport("kernel32")]
     private static partial nint GetModuleHandleW(ushort* lpModuleName);
+
+    public void OnStart()
+    {
+        
+    }
+
+    public void OnTick(float delta)
+    {
+        
+    }
+
+    public void OnPostTick(float delta)
+    {
+        
+    }
+
+    public void OnUpdate(float delta)
+    {
+        if(!Swapchain.RequestSurfaceTexture())
+        {
+            return;
+        }
+        OnRenderCore(Swapchain.FrameBuffer);
+        Swapchain.Present();
+    }
+
+    public void OnPostUpdate(float delta)
+    {
+        
+    }
+
+    public void OnBeginFrame(float deltaTime)
+    {
+        
+    }
+
+    public void OnEndFrame(float deltaTime)
+    {
+        
+    }
+
+    public void OnStop()
+    {
+        
+    }
 }
