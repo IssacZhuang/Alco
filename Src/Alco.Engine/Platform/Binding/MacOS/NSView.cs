@@ -24,11 +24,12 @@ public unsafe readonly struct NSView
         set => objc_msgSend(NativePtr, setLayer, value);
     }
 
-    public static void InitializeCAMetalLayer(IntPtr viewHandle)
+    public static CAMetalLayer InitializeCAMetalLayer(IntPtr viewHandle)
     {
         var layer = CAMetalLayer.New();
         NSView view = new(viewHandle);
         view.wantsLayer = true;
         view.layer = layer.Handle;
+        return layer;
     }
 }

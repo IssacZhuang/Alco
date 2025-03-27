@@ -13,9 +13,9 @@ public unsafe readonly struct NSWindow
 
     public ref NSView contentView => ref objc_msgSend<NSView>(NativePtr, "contentView");
 
-    public static void InitializeCAMetalLayer(IntPtr windowHandle)
+    public static CAMetalLayer InitializeCAMetalLayer(IntPtr windowHandle)
     {
         NSWindow window = new(windowHandle);
-        NSView.InitializeCAMetalLayer(window.contentView.NativePtr);
+        return NSView.InitializeCAMetalLayer(window.contentView.NativePtr);
     }
 }

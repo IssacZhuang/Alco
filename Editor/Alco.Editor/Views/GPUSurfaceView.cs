@@ -10,6 +10,7 @@ using Avalonia.Platform;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Rendering.SceneGraph;
+using Alco.Engine.MacOS;
 
 
 namespace Alco.Editor.Views;
@@ -69,11 +70,34 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
         var bounds = Bounds;
         uint width = math.max(1, (uint)bounds.Width);
         uint height = math.max(1, (uint)bounds.Height);
-        
+
+        SurfaceSource surfaceSource;
+        if (OperatingSystem.IsWindows())
+        {
+            //handle is HWND handle
+            surfaceSource = SurfaceSource.CreateWin32Window(Handle, GetModuleHandleW(null));
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            //handle is NSView handle
+            var layer = NSView.InitializeCAMetalLayer(Handle);
+            surfaceSource = SurfaceSource.CreateMetalLayer(layer.Handle);
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            // Handle is XID
+            // For Linux, we need to get the Display and Window (XID)
+            // but how to get display in Avalonia?
+            throw new NotImplementedException("Current operating system is not supported yet");
+        }
+        else
+        {
+            throw new NotImplementedException("Current operating system is not supported yet");
+        }
 
         var swapchain = _device.CreateSwapchain(
             new SwapchainDescriptor(
-                SurfaceSource.CreateWin32Window(Handle, GetModuleHandleW(null)),
+                surfaceSource,
                 _device.PrefferedSurfaceFomat,
                 null,
                 width,
