@@ -1,11 +1,11 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-using static Alco.Engine.ObjectiveCRuntime;
+using static Alco.Engine.MacOS.ObjectiveCRuntime;
 
-namespace Alco.Engine;
+namespace Alco.Engine.MacOS;
 
-internal static unsafe class ObjectiveCRuntime
+public static unsafe class ObjectiveCRuntime
 {
     private const string ObjCLibrary = "/usr/lib/libobjc.A.dylib";
 
@@ -50,7 +50,7 @@ internal static unsafe class ObjectiveCRuntime
 }
 
 
-internal unsafe readonly struct Selector
+public unsafe readonly struct Selector
 {
     public readonly IntPtr NativePtr;
 
@@ -83,13 +83,13 @@ internal unsafe readonly struct Selector
     public static implicit operator Selector(string s) => new(s);
 }
 
-internal static class Selectors
+public static class Selectors
 {
     internal static readonly Selector alloc = "alloc";
     internal static readonly Selector init = "init";
 }
 
-internal unsafe readonly struct ObjCClass
+public unsafe readonly struct ObjCClass
 {
     public readonly IntPtr NativePtr;
     public static implicit operator IntPtr(ObjCClass c) => c.NativePtr;
@@ -115,7 +115,7 @@ internal unsafe readonly struct ObjCClass
     }
 }
 
-internal readonly struct Bool8
+public readonly struct Bool8
 {
     public readonly byte Value;
 

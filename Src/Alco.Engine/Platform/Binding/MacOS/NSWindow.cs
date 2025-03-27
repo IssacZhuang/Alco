@@ -1,9 +1,9 @@
-using static Alco.Engine.ObjectiveCRuntime;
+using static Alco.Engine.MacOS.ObjectiveCRuntime;
 
-namespace Alco.Engine;
+namespace Alco.Engine.MacOS;
 
 
-internal unsafe readonly struct NSWindow
+public unsafe readonly struct NSWindow
 {
     public readonly IntPtr NativePtr;
     public NSWindow(IntPtr ptr)
@@ -12,4 +12,10 @@ internal unsafe readonly struct NSWindow
     }
 
     public ref NSView contentView => ref objc_msgSend<NSView>(NativePtr, "contentView");
+
+    public static void InitializeCAMetalLayer(IntPtr windowHandle)
+    {
+        NSWindow window = new(windowHandle);
+        NSView.InitializeCAMetalLayer(window.contentView.NativePtr);
+    }
 }

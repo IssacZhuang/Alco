@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SDL3;
 using Alco.Graphics;
+using Alco.Engine.MacOS;
 
 using static SDL3.SDL3;
 
