@@ -308,6 +308,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             //wgpuTextureDestroy(_texture);
             wgpuTextureRelease(_texture);
             wgpuTextureViewRelease(_defaultView);
+            wgpuSurfaceRelease(_surface);
         }
 
         #endregion

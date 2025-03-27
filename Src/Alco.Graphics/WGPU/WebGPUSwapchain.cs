@@ -102,6 +102,8 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
         _config.width = descriptor.Width;
         _config.height = descriptor.Height;
 
+        ///the life cycle of the _surface will be managed by the WebGPUSurfaceTexture
+        /// because it must be released after the native SurfaceTexture is released
         _frameBuffer = new WebGPUSurfaceFrameBuffer(_device, _renderPass, _surface, _config);
     }
 
