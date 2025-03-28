@@ -38,7 +38,107 @@
 
         <!-- Main content area (combined edit and preview) -->
         <Border Grid.Column="2">
-            <ContentControl x:Name="MainContentArea" />
+            <Grid RowDefinitions="Auto,*">
+                <!-- Tab control for multiple document tabs -->
+                <TabControl Grid.Row="0"
+                    TabStripPlacement="Top"
+                    x:Name="DocumentTabs"
+                    Margin="0,0,0,2">
+                    <TabControl.Styles>
+                        <!-- Enable multi-line tabs -->
+                        <Style Selector="TabItem">
+                            <Setter Property="FontSize" Value="16" />
+                            <Setter Property="Padding" Value="8,4" />
+                            <Setter Property="HeaderTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                            <!-- Tab text -->
+                                            <TextBlock Grid.Column="0"
+                                                Text="{Binding}"
+                                                VerticalAlignment="Center" />
+
+                                            <!-- Unsaved indicator (white dot) with reserved space -->
+                                            <Border Grid.Column="1"
+                                                Width="13" Height="13"
+                                                Margin="5,0,0,0">
+                                                <Ellipse
+                                                    Width="8" Height="8"
+                                                    Fill="White"
+                                                    x:Name="UnsavedIndicator"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="True"
+                                                />
+                                            </Border>
+
+                                            <!-- Close button with reserved space -->
+                                            <Border Grid.Column="3"
+                                                Width="16" Height="16"
+                                                Margin="0,0,0,0">
+                                                <Button
+                                                    x:Name="BtnCloseTab"
+                                                    Width="16" Height="16"
+                                                    Padding="0"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Click="OnBtnCloseTabClick">
+                                                    <TextBlock Text="✕"
+                                                        FontSize="10"
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center" />
+                                                </Button>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </TabControl.Styles>
+                    <TabControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </TabControl.ItemsPanel>
+
+
+                    <TabItem Header="README.md">
+                        <TextBlock Text="README.md Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="index.html">
+                        <TextBlock Text="HTML Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="style.css">
+                        <TextBlock Text="CSS Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="app.js">
+                        <TextBlock Text="JavaScript Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="main.cs">
+                        <TextBlock Text="C# Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="Program.cs">
+                        <TextBlock Text="C# Program Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="ExampleViewModel.cs">
+                        <TextBlock Text="ViewModel Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="MainWindow.axaml">
+                        <TextBlock Text="AXAML Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="data.json">
+                        <TextBlock Text="JSON Content" Margin="10" />
+                    </TabItem>
+                    <TabItem Header="package.json">
+                        <TextBlock Text="Package Config" Margin="10" />
+                    </TabItem>
+                </TabControl>
+
+                <!-- Main content area -->
+                <ContentControl Grid.Row="1" x:Name="MainContentArea" />
+            </Grid>
         </Border>
     </Grid>
 </UserControl> 

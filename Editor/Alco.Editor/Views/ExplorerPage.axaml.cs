@@ -93,9 +93,21 @@ public partial class ExplorerPage : UserControl
         NoFolderPanel.IsVisible = true;
     }
 
+    private void OnBtnCloseTabClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button &&
+            button.FindLogicalAncestorOfType<TabItem>() is TabItem tabItem)
+        {
+            // Get the parent TabControl
+            if (tabItem.FindLogicalAncestorOfType<TabControl>() is TabControl tabControl)
+            {
+                // Remove the tab
+                tabControl.Items.Remove(tabItem);
 
-
-
-
-
+                // You might also need to close the associated document/content
+                // Implement additional logic as needed
+                // For example, check if the document needs saving before closing
+            }
+        }
+    }
 }
