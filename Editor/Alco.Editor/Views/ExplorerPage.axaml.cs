@@ -87,15 +87,41 @@ public partial class ExplorerPage : UserControl
 
         FileSystemExplorer vmFileTree = new FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
         FileTreeView.DataContext = vmFileTree;
-        vmFileTree.OnFileOpened += async (file) =>
+        vmFileTree.OnFileTapped += async (file) =>
         {
             if (file == null) return;
+
+            foreach (var vmTabItem in _tabItems)
+            {
+                if (vmTabItem.Path == file.Path)
+                {
+                    DocumentTabs.SelectedItem = vmTabItem;
+                    return;
+                }
+            }
 
             Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
 
             // Add the new tab and select it
-            _tabItems.Add(new ViewModels.InspectorTabItem(inspector, Path.GetFileName(file.Path)));
-            DocumentTabs.SelectedItem = _tabItems.Last();
+            var tabItem = new ViewModels.InspectorTabItem(inspector, file.Path);
+            _tabItems.Add(tabItem);
+            DocumentTabs.SelectedItem = tabItem;
+
+            RemoveUnpinnedTabs(tabItem);
+        };
+
+        vmFileTree.OnFileDoubleTapped += (file) =>
+        {
+            if (file == null) return;
+
+            foreach (var tabItem in _tabItems)
+            {
+                if (tabItem.Path == file.Path)
+                {
+                    tabItem.IsPinned = true;
+                    return;
+                }
+            }
         };
     }
 
@@ -113,6 +139,18 @@ public partial class ExplorerPage : UserControl
             if (tabItem.DataContext is ViewModels.InspectorTabItem tabItemVM)
             {
                 _tabItems.Remove(tabItemVM);
+            }
+        }
+    }
+
+    private void RemoveUnpinnedTabs(ViewModels.InspectorTabItem except)
+    {
+        for (int i = _tabItems.Count - 1; i >= 0; i--)
+        {
+            var tabItem = _tabItems[i];
+            if (tabItem != except && !tabItem.IsPinned)
+            {
+                _tabItems.RemoveAt(i);
             }
         }
     }

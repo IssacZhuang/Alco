@@ -29,7 +29,13 @@ public abstract class FileExplorer : ViewModelBase
     /// Called when a file is double clicked
     /// </summary>
     /// <param name="file">file item</param>
-    public abstract void OpenFile(Models.ExplorerItem? file);
+    public abstract void TapFile(Models.ExplorerItem? file);
+
+    /// <summary>
+    /// Called when a file is double clicked
+    /// </summary>
+    /// <param name="file">file item</param>
+    public abstract void DoubleTapFile(Models.ExplorerItem? file);
 
     /// <summary>
     /// Create file context menu

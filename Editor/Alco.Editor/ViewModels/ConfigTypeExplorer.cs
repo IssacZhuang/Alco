@@ -43,7 +43,12 @@ public class ConfigTypeExplorer : FileExplorer
         return _items;
     }
 
-    public override void OpenFile(ExplorerItem? file)
+    public override void TapFile(ExplorerItem? file)
+    {
+        SelectedItem = file;
+    }
+
+    public override void DoubleTapFile(ExplorerItem? file)
     {
         SelectedItem = file;
     }
