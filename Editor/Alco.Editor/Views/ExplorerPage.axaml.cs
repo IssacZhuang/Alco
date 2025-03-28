@@ -26,8 +26,8 @@ namespace Alco.Editor.Views;
 /// </summary>
 public partial class ExplorerPage : UserControl
 {
-    
-    private ContextMenu? _contextMenu;
+    private ObservableCollection<ViewModels.InspectorTabItem> _tabItems = new();
+
     public ViewModels.ExplorerPage ViewModel => DataContext as ViewModels.ExplorerPage ?? throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
 
     public ExplorerPage()
@@ -37,6 +37,9 @@ public partial class ExplorerPage : UserControl
         {
             OnProjectOpened();
         }
+
+        DocumentTabs.ItemsSource = _tabItems;
+
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -82,7 +85,7 @@ public partial class ExplorerPage : UserControl
         FileTreeView.IsVisible = engine.IsProjectOpen;
         NoFolderPanel.IsVisible = !engine.IsProjectOpen;
 
-        ViewModels.FileSystemExplorer vmFileTree = new ViewModels.FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
+        FileSystemExplorer vmFileTree = new FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
         FileTreeView.DataContext = vmFileTree;
         vmFileTree.OnFileOpened += async (file) =>
         {
@@ -90,16 +93,9 @@ public partial class ExplorerPage : UserControl
 
             Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
 
-            // Create a new tab item
-            var tabItem = new TabItem
-            {
-                Header = System.IO.Path.GetFileName(file.Path),
-                Content = inspector.CreateControl()
-            };
-
             // Add the new tab and select it
-            DocumentTabs.Items.Add(tabItem);
-            DocumentTabs.SelectedItem = tabItem;
+            _tabItems.Add(new ViewModels.InspectorTabItem(inspector, Path.GetFileName(file.Path)));
+            DocumentTabs.SelectedItem = _tabItems.Last();
         };
     }
 
@@ -114,15 +110,9 @@ public partial class ExplorerPage : UserControl
         if (sender is Button button &&
             button.FindLogicalAncestorOfType<TabItem>() is TabItem tabItem)
         {
-            // Get the parent TabControl
-            if (tabItem.FindLogicalAncestorOfType<TabControl>() is TabControl tabControl)
+            if (tabItem.DataContext is ViewModels.InspectorTabItem tabItemVM)
             {
-                // Remove the tab
-                tabControl.Items.Remove(tabItem);
-
-                // You might also need to close the associated document/content
-                // Implement additional logic as needed
-                // For example, check if the document needs saving before closing
+                _tabItems.Remove(tabItemVM);
             }
         }
     }
