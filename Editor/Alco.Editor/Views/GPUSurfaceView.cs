@@ -62,6 +62,13 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
 
         Log.Info($"Native window handle created: {handle.HandleDescriptor ?? "Unknown handle"} {Handle:X}");
 
+        //clear the swapchain
+        if (_swapchain != null)
+        {
+            _swapchain.Dispose();
+            _swapchain = null;
+        }
+
         return handle;
     }
 

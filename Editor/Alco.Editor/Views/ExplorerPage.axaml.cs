@@ -20,6 +20,10 @@ using Alco.Editor.ViewModels;
 
 namespace Alco.Editor.Views;
 
+/// <summary>
+/// A user control that provides a file explorer interface with a file tree view and tabbed document interface.
+/// Supports opening multiple files in tabs, file navigation, and project management.
+/// </summary>
 public partial class ExplorerPage : UserControl
 {
     
@@ -82,8 +86,20 @@ public partial class ExplorerPage : UserControl
         FileTreeView.DataContext = vmFileTree;
         vmFileTree.OnFileOpened += async (file) =>
         {
-            Inspector inspector = await ViewModel.OpenFile(engine, file?.Path ?? "");
-            MainContentArea.Content = inspector;
+            if (file == null) return;
+
+            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
+
+            // Create a new tab item
+            var tabItem = new TabItem
+            {
+                Header = System.IO.Path.GetFileName(file.Path),
+                Content = inspector.CreateControl()
+            };
+
+            // Add the new tab and select it
+            DocumentTabs.Items.Add(tabItem);
+            DocumentTabs.SelectedItem = tabItem;
         };
     }
 
