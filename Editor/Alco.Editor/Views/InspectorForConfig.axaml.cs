@@ -71,7 +71,6 @@ public partial class InspectorForConfig : UserControl
         {
             TextError.IsVisible = false;
         }
-        TextFilename.Text = viewModel.Filename + " " + (viewModel.IsModified ? "*" : "");
     }
 
     private void OnGridSplitterDragCompleted(object? sender, VectorEventArgs e)

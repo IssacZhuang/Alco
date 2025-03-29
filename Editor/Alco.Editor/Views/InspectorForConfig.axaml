@@ -14,12 +14,9 @@
   </Design.DataContext>
 
   <Grid ColumnDefinitions="*, Auto, *">
-    <!-- Left Panel  -->
-    <StackPanel Orientation="Vertical" Grid.Column="0">
-      <TextBlock x:Name="TextFilename" Margin="15 10" />
-      <views:ObjectPropertiesEditor
+    <!-- Left Panel with ObjectPropertiesEditor -->
+    <views:ObjectPropertiesEditor
         x:Name="PropertiesEditor" />
-    </StackPanel>
 
     <!-- GridSplitter -->
     <GridSplitter Grid.Column="1"
