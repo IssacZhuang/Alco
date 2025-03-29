@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Alco.Editor.ViewModels;
@@ -42,10 +43,6 @@ public partial class ObjectPropertiesEditor : UserControl
         viewModel.SetupProperties();
     }
 
-    private string GetTitle(AccessMemberInfo member)
-    {
-        return GetTitle(member.Name, member.MemberType.Name, member.CanWrite);
-    }
 
     private string GetTitle(string name, string typeName, bool canWrite)
     {

@@ -76,13 +76,7 @@ public partial class PropertyListEditor : UserControl
     {
         _builder.Clear();
         _builder.Append(viewModel.Header);
-        _builder.Append(" [");
-        _builder.Append(viewModel.ListType.Name);
-        _builder.Append('<');
-        _builder.Append(viewModel.ItemType.Name);
-        _builder.Append('>');
-        _builder.Append(']');
-        _builder.Append(" Count = ");
+        _builder.Append(", Count = ");
         _builder.Append(viewModel.ItemCount);
         TextHeader.Text = _builder.ToString();
     }

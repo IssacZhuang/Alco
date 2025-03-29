@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Alco.Editor.Models;
 using Avalonia;
 using Avalonia.Controls;
@@ -43,7 +44,7 @@ public class ObjectPropertiesEditor : PropertyEditor
         Properties.Clear();
         foreach (var (member, propertyEditor) in _propertyEditors)
         {
-            var property = new Property(member.Name, propertyEditor.CreateControl());
+            var property = new Property(member.Name, GetTypeName(member.MemberType), propertyEditor.CreateControl());
             Properties.Add(property);
         }
         OnPropertyChanged(nameof(Properties));
@@ -52,6 +53,18 @@ public class ObjectPropertiesEditor : PropertyEditor
     private static AccessTypeInfo GetAccessTypeInfo(Type type)
     {
         return _accessTypeInfos.GetOrAdd(type, static (t) => new AccessTypeInfo(t, s_memberAccessor));
+    }
+
+    private string GetTypeName(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            string genericTypeName = type.GetGenericTypeDefinition().Name;
+            string genericArguments = string.Join(", ", type.GetGenericArguments().Select(GetTypeName));
+            return $"{type.Namespace}.{genericTypeName}<{genericArguments}>";
+        }
+
+        return $"{type.Namespace}.{type.Name}";
     }
 
     public override Control CreateControl()
