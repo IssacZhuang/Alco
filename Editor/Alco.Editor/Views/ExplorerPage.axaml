@@ -42,6 +42,7 @@
             <TabControl
                 TabStripPlacement="Top"
                 x:Name="DocumentTabs"
+                Padding="0,0,0,0"
                 Margin="0">
                 <TabControl.Styles>
                     <!-- Enable multi-line tabs -->

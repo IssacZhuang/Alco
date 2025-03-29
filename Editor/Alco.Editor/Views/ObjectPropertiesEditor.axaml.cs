@@ -40,36 +40,6 @@ public partial class ObjectPropertiesEditor : UserControl
     {
         TextHeader.Text = GetTitle(viewModel.Header, viewModel.Target.GetType().Name, true);
         viewModel.SetupProperties();
-
-        // Root.Children.Clear();
-
-        // foreach ((AccessMemberInfo member, PropertyEditor propertyEditor) in viewModel.PropertyEditors)
-        // {
-        //     Control control = propertyEditor.CreateControl();
-
-        //     if (propertyEditor.HasTitle)
-        //     {
-        //         TextBlock textBlock = CreateTextBlock(member);
-        //         textBlock.Margin = new Thickness(0, 5);
-        //         Root.Children.Add(textBlock);
-        //     }
-        //     else
-        //     {
-        //         //just spacing
-        //         UserControl userControl = new UserControl();
-        //         userControl.Margin = new Thickness(0, 5);
-        //         Root.Children.Add(userControl);
-        //     }
-
-        //     Root.Children.Add(control);
-        // }
-    }
-
-    private TextBlock CreateTextBlock(AccessMemberInfo member)
-    {
-        TextBlock textBlock = new TextBlock();
-        textBlock.Text = GetTitle(member);
-        return textBlock;
     }
 
     private string GetTitle(AccessMemberInfo member)
