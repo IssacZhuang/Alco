@@ -2,7 +2,10 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="clr-namespace:Alco.Editor.ViewModels"
+  xmlns:models="clr-namespace:Alco.Editor.Models"
   mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+  x:DataType="vm:ObjectPropertiesEditor"
   x:Class="Alco.Editor.Views.ObjectPropertiesEditor">
  
   <ScrollViewer x:Name="ScrollViewer" VerticalAlignment="Top" VerticalContentAlignment="Top">
@@ -11,8 +14,20 @@
       <Expander.Header>
         <TextBlock x:Name="TextHeader" Text="Header" />
       </Expander.Header>
-      <StackPanel x:Name="Root" Orientation="Vertical" Margin="0">
-      </StackPanel>
+      <ListBox x:Name="ListBox" ItemsSource="{Binding Properties}">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="models:Property">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition SharedSizeGroup="A" Width="*"/>
+                <ColumnDefinition Width="2*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{Binding Name}" Grid.Column="0" VerticalAlignment="Center" />
+              <ContentPresenter Content="{Binding Editor}" Grid.Column="1" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </Expander>
   </ScrollViewer>
 </UserControl>

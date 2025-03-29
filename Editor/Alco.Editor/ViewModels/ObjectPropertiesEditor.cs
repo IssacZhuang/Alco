@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Alco.Editor.Models;
 using Avalonia;
 using Avalonia.Controls;
 
@@ -19,6 +21,8 @@ public class ObjectPropertiesEditor : PropertyEditor
 
     public IEnumerable<(AccessMemberInfo, PropertyEditor)> PropertyEditors => _propertyEditors;
 
+    public ObservableCollection<Property> Properties { get; } = new();
+
     public ObjectPropertiesEditor(object target, string header, uint depth = 0) : base(target, AccessMemberInfo.Empty)
     {
         AccessTypeInfo = GetAccessTypeInfo(target.GetType());
@@ -31,6 +35,18 @@ public class ObjectPropertiesEditor : PropertyEditor
             _propertyEditors.Add((member, propertyEditor));
             propertyEditor.Parent = this;
         }
+    }
+
+    // must be called in UI thread
+    public void SetupProperties()
+    {
+        Properties.Clear();
+        foreach (var (member, propertyEditor) in _propertyEditors)
+        {
+            var property = new Property(member.Name, propertyEditor.CreateControl());
+            Properties.Add(property);
+        }
+        OnPropertyChanged(nameof(Properties));
     }
 
     private static AccessTypeInfo GetAccessTypeInfo(Type type)

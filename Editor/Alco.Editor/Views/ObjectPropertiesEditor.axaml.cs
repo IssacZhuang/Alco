@@ -39,28 +39,30 @@ public partial class ObjectPropertiesEditor : UserControl
     private void Setup(ViewModels.ObjectPropertiesEditor viewModel)
     {
         TextHeader.Text = GetTitle(viewModel.Header, viewModel.Target.GetType().Name, true);
-        Root.Children.Clear();
+        viewModel.SetupProperties();
 
-        foreach ((AccessMemberInfo member, PropertyEditor propertyEditor) in viewModel.PropertyEditors)
-        {
-            Control control = propertyEditor.CreateControl();
+        // Root.Children.Clear();
 
-            if (propertyEditor.HasTitle)
-            {
-                TextBlock textBlock = CreateTextBlock(member);
-                textBlock.Margin = new Thickness(0, 5);
-                Root.Children.Add(textBlock);
-            }
-            else
-            {
-                //just spacing
-                UserControl userControl = new UserControl();
-                userControl.Margin = new Thickness(0, 5);
-                Root.Children.Add(userControl);
-            }
+        // foreach ((AccessMemberInfo member, PropertyEditor propertyEditor) in viewModel.PropertyEditors)
+        // {
+        //     Control control = propertyEditor.CreateControl();
 
-            Root.Children.Add(control);
-        }
+        //     if (propertyEditor.HasTitle)
+        //     {
+        //         TextBlock textBlock = CreateTextBlock(member);
+        //         textBlock.Margin = new Thickness(0, 5);
+        //         Root.Children.Add(textBlock);
+        //     }
+        //     else
+        //     {
+        //         //just spacing
+        //         UserControl userControl = new UserControl();
+        //         userControl.Margin = new Thickness(0, 5);
+        //         Root.Children.Add(userControl);
+        //     }
+
+        //     Root.Children.Add(control);
+        // }
     }
 
     private TextBlock CreateTextBlock(AccessMemberInfo member)
@@ -92,6 +94,6 @@ public partial class ObjectPropertiesEditor : UserControl
     private void Clear()
     {
         TextHeader.Text = string.Empty;
-        Root.Children.Clear();
+        // Root.Children.Clear();
     }
 }
