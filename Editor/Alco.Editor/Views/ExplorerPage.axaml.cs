@@ -110,18 +110,27 @@ public partial class ExplorerPage : UserControl
             RemoveUnpinnedTabs(tabItem);
         };
 
-        vmFileTree.OnFileDoubleTapped += (file) =>
+        vmFileTree.OnFileDoubleTapped += async (file) =>
         {
             if (file == null) return;
 
-            foreach (var tabItem in _tabItems)
+            foreach (var vmTabItem in _tabItems)
             {
-                if (tabItem.Path == file.Path)
+                if (vmTabItem.Path == file.Path)
                 {
-                    tabItem.IsPinned = true;
+                    vmTabItem.IsPinned = true;
                     return;
                 }
             }
+
+            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
+
+            // Add the new tab and select it
+            var tabItem = new ViewModels.InspectorTabItem(inspector, file.Path);
+            _tabItems.Add(tabItem);
+            DocumentTabs.SelectedItem = tabItem;
+
+            RemoveUnpinnedTabs(tabItem);
         };
     }
 
