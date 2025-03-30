@@ -25,6 +25,8 @@ public abstract class PropertyListEditor : PropertyEditor
         Depth = depth;
     }
 
+    public abstract void SetupListValueControl();
+
     public override Control CreateControl()
     {
         Views.PropertyListEditor view = new()
@@ -78,6 +80,17 @@ public class PropertyListEditor<T> : PropertyListEditor
     public PropertyListEditor(IList<T> list, uint depth) : base(list, AccessMemberInfo.Empty, depth)
     {
         _list = list;
+        // the constructor might not be called in UI thread
+        // for (int i = 0; i < _list.Count; i++)
+        // {
+        //     AddControl(i);
+        // }
+    }
+
+    //must be called in UI thread
+    public override void SetupListValueControl()
+    {
+        _itemEditors.Clear();
         for (int i = 0; i < _list.Count; i++)
         {
             AddControl(i);

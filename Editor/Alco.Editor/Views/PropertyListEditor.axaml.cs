@@ -30,6 +30,7 @@ public partial class PropertyListEditor : UserControl
 
     private void Setup(ViewModels.PropertyListEditor viewModel)
     {
+        viewModel.SetupListValueControl();
         RefreshList(viewModel);
 
         BtnAdd.Click += Add;
