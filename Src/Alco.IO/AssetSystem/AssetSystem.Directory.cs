@@ -45,6 +45,10 @@ public sealed partial class AssetSystem
     /// <returns>True if the file exists</returns>
     public bool IsFileExist(string filename)
     {
+        if (_assetAliases.TryGetValue(filename, out string? alias))
+        {
+            return _fileEntries.ContainsKey(alias);
+        }
         return _fileEntries.ContainsKey(filename);
     }
 

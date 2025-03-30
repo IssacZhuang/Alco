@@ -45,7 +45,7 @@ public partial class PropertyStringEditor : UserControl
         var assetSystem = engine.Assets;
 
         // Set the items source to all file names in the asset system
-        InputText.ItemsSource = assetSystem.AllFileNames;
+        InputText.ItemsSource = assetSystem.AllFileAliases;
 
         // Set filter mode to Contains so that typing any part of a filename will show suggestions
         InputText.FilterMode = AutoCompleteFilterMode.Contains;
