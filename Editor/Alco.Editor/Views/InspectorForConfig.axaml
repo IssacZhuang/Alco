@@ -13,10 +13,20 @@
     <vm:InspectorForConfig />
   </Design.DataContext>
 
-  <Grid ColumnDefinitions="*, Auto, *">
+  <Grid ColumnDefinitions="*, 6, *" x:Name="Root">
     <!-- Left Panel with ObjectPropertiesEditor -->
-    <views:ObjectPropertiesEditor
+    <StackPanel Orientation="Vertical" Grid.Column="0" x:Name="LeftPanel">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="6">
+        <Button x:Name="BtnSave" Click="OnBtnSaveClick">
+          <PathIcon Data="{StaticResource Icons.Save}" Width="16" Height="16" />
+        </Button>
+        <Button x:Name="BtnPlay" Click="OnBtnPlayClick">
+          <PathIcon Data="{StaticResource Icons.Action}" Width="16" Height="16" />
+        </Button>
+      </StackPanel>
+      <views:ObjectPropertiesEditor
         x:Name="PropertiesEditor" />
+    </StackPanel>
 
     <!-- GridSplitter -->
     <GridSplitter Grid.Column="1"
@@ -24,10 +34,12 @@
       x:Name="GridSplitter"
       DragCompleted="OnGridSplitterDragCompleted"
       ResizeDirection="Columns"
+      IsVisible="{Binding IsPreviewEnabled}"
       Width="4" />
 
     <!-- Right Panel with TextEditor -->
-    <StackPanel Orientation="Vertical" Grid.Column="2">
+    <StackPanel Orientation="Vertical" Grid.Column="2" x:Name="RightPanel"
+      IsVisible="{Binding IsPreviewEnabled}">
       <TextBlock x:Name="TextError" 
        Margin="15 10"
        Foreground="Red"

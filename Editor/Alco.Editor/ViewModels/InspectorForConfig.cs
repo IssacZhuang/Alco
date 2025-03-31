@@ -20,8 +20,18 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
     private string? _serializedJson = null;
     private string? _filename = null;
     private string? _path;
+    private bool _isPreviewEnabled = true;
 
     public override bool IsModified => _isModified;
+    public bool IsPreviewEnabled
+    {
+        get => _isPreviewEnabled;
+        set
+        {
+            _isPreviewEnabled = value;
+            OnPropertyChanged(nameof(IsPreviewEnabled));
+        }
+    }
     public ViewModels.ObjectPropertiesEditor? PropertiesEditor { get; private set; }
 
     public string SerializedJson
@@ -79,7 +89,7 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         AssetSystem assetSystem = engine.Assets;
         using SafeMemoryHandle memory = assetSystem.EncodeToBinary(_asset);
         SerializedJson = Encoding.UTF8.GetString(memory.Span);
-        PropertiesEditor = new(asset, asset.Id, 0);
+        PropertiesEditor = new(asset, asset.Id);
         PropertiesEditor.OnValueChanged += OnValueChanged;
     }
 

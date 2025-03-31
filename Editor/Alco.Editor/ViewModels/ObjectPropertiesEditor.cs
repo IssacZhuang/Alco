@@ -12,11 +12,14 @@ public class ObjectPropertiesEditor : PropertyEditor
 {
     private static readonly MemberAccessor s_memberAccessor = MemberAccessor.CreateCompatibleCachedAccessor();
     private static readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
+    private static readonly object EmptyObject = new();
+    
     private readonly List<(AccessMemberInfo, PropertyEditor)> _propertyEditors = new();
     
     public AccessTypeInfo AccessTypeInfo { get; }
     public uint Depth { get; }
     public string Header { get; }
+    public bool IsNull => Target == EmptyObject;
 
     public override bool HasTitle => false;
 
@@ -24,8 +27,16 @@ public class ObjectPropertiesEditor : PropertyEditor
 
     public ObservableCollection<Property> Properties { get; } = new();
 
-    public ObjectPropertiesEditor(object target, string header, uint depth = 0) : base(target, AccessMemberInfo.Empty)
+    /// <summary>
+    /// Create a new ObjectPropertiesEditor.
+    /// </summary>
+    /// <param name="target">The target object.</param>
+    /// <param name="header">The header of the editor.</param>
+    /// <param name="depth">The depth of the editor.</param>
+    /// <param name="instanceType">Used to create a new instance of the target object if it is null.</param>
+    public ObjectPropertiesEditor(object? target, string header, uint depth = 0, Type? instanceType = null) : base(target ?? EmptyObject, AccessMemberInfo.Empty)
     {
+        target ??= EmptyObject;
         AccessTypeInfo = GetAccessTypeInfo(target.GetType());
         Depth = depth;
         Header = header;

@@ -50,6 +50,7 @@
     <Style Selector="Expander">
         <Setter Property="BorderThickness" Value="0,0,0,0"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="MinHeight" Value="36" />
     </Style>
 
     <Style Selector="Window">

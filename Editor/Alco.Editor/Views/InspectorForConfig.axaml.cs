@@ -12,19 +12,21 @@ using System.Linq;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
+using Avalonia.Interactivity;
 
 namespace Alco.Editor.Views;
 
 public partial class InspectorForConfig : UserControl
 {
+
     public InspectorForConfig()
     {
         InitializeComponent();
         var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
         var textMateInstallation = TextJsonPreview.InstallTextMate(registryOptions);
         textMateInstallation.SetGrammar(registryOptions.GetScopeByLanguageId(registryOptions.GetLanguageByExtension(".json").Id));
-    
-        this.KeyDown += OnKeyDown;
+
+        KeyDown += OnKeyDown;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -75,7 +77,8 @@ public partial class InspectorForConfig : UserControl
 
     private void OnGridSplitterDragCompleted(object? sender, VectorEventArgs e)
     {
-        Log.Info(PropertiesEditor.Width);
+        
+
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -105,5 +108,20 @@ public partial class InspectorForConfig : UserControl
         Refresh();
     }
 
-    
+    private void OnBtnSaveClick(object? sender, RoutedEventArgs e)
+    {
+        SaveDocument();
+    }
+
+    private void OnBtnPlayClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ViewModels.InspectorForConfig viewModel)
+        {
+            return;
+        }
+    }
+
+
+
+
 }

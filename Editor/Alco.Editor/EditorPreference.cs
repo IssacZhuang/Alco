@@ -71,6 +71,16 @@ public class EditorPreference
         Config.Floats[key] = value;
     }
 
+    public bool TryGetDouble(string key, out double value)
+    {
+        return Config.Doubles.TryGetValue(key, out value);
+    }
+
+    public void SetDouble(string key, double value)
+    {
+        Config.Doubles[key] = value;
+    }
+
     public bool TryGetBool(string key, out bool value)
     {
         return Config.Bools.TryGetValue(key, out value);

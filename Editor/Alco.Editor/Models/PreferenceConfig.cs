@@ -9,6 +9,7 @@ public class PreferenceConfig
 {
     public Dictionary<string, string> Strings { get; set; } = new();
     public Dictionary<string, float> Floats { get; set; } = new();
+    public Dictionary<string, double> Doubles { get; set; } = new();
     public Dictionary<string, int> Ints { get; set; } = new();
     public Dictionary<string, bool> Bools { get; set; } = new();
     public string OpenedProject { get; set; } = string.Empty;
