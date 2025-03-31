@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using System.Collections.Generic;
 using System.Numerics;
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco.Benchmark;
 

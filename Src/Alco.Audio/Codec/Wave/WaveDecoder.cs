@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco.Audio;
 

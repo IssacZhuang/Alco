@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
 using static StbVorbisSharp.StbVorbis;
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco.Audio;
 

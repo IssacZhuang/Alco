@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco
 {
