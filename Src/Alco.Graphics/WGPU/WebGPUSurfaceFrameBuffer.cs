@@ -30,7 +30,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     // dynamic
     private WGPUSurfaceConfiguration _config;
-    private bool _hasResized;
     private uint _width;
     private uint _height;
 
@@ -154,7 +153,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         wgpuSurfaceConfigure(surface, &config);
         _surface = surface;
         _config = config;
-        _hasResized = false;
 
         _descriptor = new WGPURenderPassDescriptor
         {
@@ -225,7 +223,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _config = config;
         _width = config.width;
         _height = config.height;
-        _hasResized = true;
     }
 
     public bool RequestSurfaceTexture()
