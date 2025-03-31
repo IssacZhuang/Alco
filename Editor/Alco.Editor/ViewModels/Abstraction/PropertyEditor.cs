@@ -84,6 +84,11 @@ public abstract class PropertyEditor : ViewModelBase
         }
     }
 
+    public virtual void SetDefaultValue()
+    {
+
+    }
+
     public void DoValueChangedEvent()
     {
         OnValueChanged?.Invoke();

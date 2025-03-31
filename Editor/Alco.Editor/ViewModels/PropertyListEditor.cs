@@ -103,7 +103,7 @@ public abstract class PropertyListEditor<T> : PropertyListEditor
     public override void Add()
     {
         _list.Add(CreateInstance());
-        AddControl(_list.Count - 1);
+        AddControl(_list.Count - 1, true);
         DoUIChangedEvent();
     }
 
@@ -135,12 +135,16 @@ public abstract class PropertyListEditor<T> : PropertyListEditor
         }
     }
 
-    private void AddControl(int index)
+    private void AddControl(int index, bool setDefaultValue = false)
     {
 
         //the index in the AccessListItemInfo might be changed during remove
         AccessListItemInfo<T> accessListItemInfo = new(_list, index);
         PropertyEditor propertyEditor = CreatePropertyEditor(_list, accessListItemInfo);
+        if (setDefaultValue)
+        {
+            propertyEditor.SetDefaultValue();
+        }
         propertyEditor.Parent = this;
 
         Button btnRemove = new Button()
