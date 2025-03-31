@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public static unsafe partial class ImGuiNative
     {

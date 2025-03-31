@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public unsafe partial struct ImFontAtlas
     {

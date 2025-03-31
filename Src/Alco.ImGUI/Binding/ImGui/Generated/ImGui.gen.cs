@@ -6,7 +6,7 @@ using System.Text;
 #pragma warning disable CS8600
 #pragma warning disable CS8604
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public static unsafe partial class ImGui
     {

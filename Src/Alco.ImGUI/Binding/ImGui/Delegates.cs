@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Numerics;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public delegate void Platform_CreateWindow(ImGuiViewportPtr vp);                    // Create a new platform window for the given viewport
     public delegate void Platform_DestroyWindow(ImGuiViewportPtr vp);

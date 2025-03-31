@@ -70,7 +70,9 @@ The `Sandbox/` directory contains numerous examples demonstrating various engine
 - [wgpu-native](https://github.com/gfx-rs/wgpu-native): WebGPU native implementation
 - [DirectX Compiler](https://github.com/microsoft/DirectXShaderCompiler): HLSL shader compilation
 - [System.IO.Hashing](https://www.nuget.org/packages/System.IO.Hashing) (v9.0.0): High-performance hashing
-- [StbSharp](https://github.com/StbSharp): Image and font processing (embedded as source code)
+- [StbSharp](https://github.com/StbSharp): Image and font processing (embedded as source code and modified)
+- [ImGui](https://github.com/ocornut/imgui): Immediate Mode Graphical User Interface
+- [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET): ImGui binding for .NET (embedded as source code and modified)
 
 All external libraries are used under their respective licenses, primarily MIT License.
 

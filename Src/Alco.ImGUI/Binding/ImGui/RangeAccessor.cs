@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public unsafe struct RangeAccessor<T> where T : struct
     {

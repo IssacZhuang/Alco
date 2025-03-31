@@ -1,4 +1,4 @@
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public enum ImGuiSelectionRequestType
     {

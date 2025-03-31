@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public unsafe struct ImVector
     {

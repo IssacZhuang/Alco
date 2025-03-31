@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     public static unsafe partial class ImGui
     {

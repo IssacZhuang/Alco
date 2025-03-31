@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace ImGuiNET
+namespace Alco.ImGUI
 {
     internal static unsafe class Util
     {

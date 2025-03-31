@@ -1,7 +1,9 @@
 
 using Alco;
 using Alco.Engine;
-using ImGuiNET;
+using Alco.ImGUI;
+
+namespace Alco.ImGUI;
 
 public class ImGUIInputHandler: AutoDisposable
 {
