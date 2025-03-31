@@ -54,8 +54,17 @@ public abstract class PropertyListEditor : PropertyEditor
             return false;
         }
 
-        Type editorType = typeof(PropertyListEditor<>).MakeGenericType(genericType);
-        editor = (PropertyListEditor)Activator.CreateInstance(editorType, list, depth)!;
+        if (genericType.IsClass)
+        {
+            Type type = typeof(PropertyClassListEditor<>).MakeGenericType(genericType);
+            editor = (PropertyListEditor)Activator.CreateInstance(type, list, depth)!;
+        }
+        else
+        {
+            Type type = typeof(PropertyStructListEditor<>).MakeGenericType(genericType);
+            editor = (PropertyListEditor)Activator.CreateInstance(type, list, depth)!;
+        }
+
         editor.Header = header;
         return true;
     }
@@ -67,9 +76,8 @@ public abstract class PropertyListEditor : PropertyEditor
     }
 }
 
-public class PropertyListEditor<T> : PropertyListEditor
+public abstract class PropertyListEditor<T> : PropertyListEditor
 {
-    private static readonly bool IsClass = typeof(T).IsClass;
     private readonly IList<T> _list;
     private readonly List<(PropertyEditor, Control)> _itemEditors = new();
     public override IEnumerable<(PropertyEditor, Control)> ItemEditors => _itemEditors;
@@ -80,11 +88,6 @@ public class PropertyListEditor<T> : PropertyListEditor
     public PropertyListEditor(IList<T> list, uint depth) : base(list, AccessMemberInfo.Empty, depth)
     {
         _list = list;
-        // the constructor might not be called in UI thread
-        // for (int i = 0; i < _list.Count; i++)
-        // {
-        //     AddControl(i);
-        // }
     }
 
     //must be called in UI thread
@@ -171,20 +174,30 @@ public class PropertyListEditor<T> : PropertyListEditor
         _itemEditors.Add((propertyEditor, grid));
     }
 
-    private static T CreateInstance()
+    protected abstract T CreateInstance();
+}
+
+public class PropertyClassListEditor<T> : PropertyListEditor<T> where T : class
+{
+    public PropertyClassListEditor(IList<T> list, uint depth) : base(list, depth)
     {
-        if (typeof(T) == typeof(string))
-        {
-            return (T)(object)"";
-        }
-        else if (IsClass)
-        {
-            return Activator.CreateInstance<T>();
-        }
-        else
-        {
-            return default!;
-        }
+    }
+
+    protected override T CreateInstance()
+    {
+        return null!;
+    }
+}
+
+public class PropertyStructListEditor<T> : PropertyListEditor<T> where T : struct
+{
+    public PropertyStructListEditor(IList<T> list, uint depth) : base(list, depth)
+    {
+    }
+
+    protected override T CreateInstance()
+    {
+        return default;
     }
 }
 

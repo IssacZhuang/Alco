@@ -43,8 +43,13 @@ public sealed partial class AssetSystem
     /// /// </summary>
     /// <param name="filename">The filename to check</param>
     /// <returns>True if the file exists</returns>
-    public bool IsFileExist(string filename)
+    public bool IsFileExist(string? filename)
     {
+        if (filename == null)
+        {
+            return false;
+        }
+
         if (_assetAliases.TryGetValue(filename, out string? alias))
         {
             return _fileEntries.ContainsKey(alias);
@@ -58,6 +63,7 @@ public sealed partial class AssetSystem
     /// <param name="fileSource">The file source to add</param>
     public void AddFileSource(IFileSource fileSource)
     {
+        ArgumentNullException.ThrowIfNull(fileSource);
         _fileSources.Add(fileSource);
         _isEntryDirty = true;
     }
@@ -68,6 +74,7 @@ public sealed partial class AssetSystem
     /// <param name="fileSource">The file source to remove</param>
     public void RemoveFileSource(IFileSource fileSource)
     {
+        ArgumentNullException.ThrowIfNull(fileSource);
         _fileSources.Remove(fileSource);
         _isEntryDirty = true;
     }
