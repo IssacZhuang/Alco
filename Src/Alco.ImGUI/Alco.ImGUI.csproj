@@ -4,11 +4,18 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CA2265;CS8625</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>False</Visible>
+    </Content>
+
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
-    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+
   </ItemGroup>
 
   <ItemGroup>

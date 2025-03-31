@@ -182,6 +182,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             _commandBuffer.Dispose();
             _viewProjectionBuffer.Dispose();
             _mesh.Dispose();
+            
         }
         _tmpIndexBuffer.Dispose();
         ImGui.DestroyContext(_imGuiContext);

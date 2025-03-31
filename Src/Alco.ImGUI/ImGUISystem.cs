@@ -42,7 +42,7 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIRenderer.End();
     }
 
-    public override void Dispose()
+    public override void OnStop()
     {
         _imGUIRenderer.Dispose();
         _material.Dispose();
