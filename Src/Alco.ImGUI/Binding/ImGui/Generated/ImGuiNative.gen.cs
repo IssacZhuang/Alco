@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Alco.ImGUI
 {
-    public static unsafe partial class ImGuiNative
+    internal static unsafe partial class ImGuiNative
     {
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
         public static extern ImGuiPayload* igAcceptDragDropPayload(byte* type, ImGuiDragDropFlags flags);
