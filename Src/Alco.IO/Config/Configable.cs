@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Alco.IO;
 
-public class BaseConfig
+public class Configable
 {
     public string Id { get; set; } = string.Empty;
 

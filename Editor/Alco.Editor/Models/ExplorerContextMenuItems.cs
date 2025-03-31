@@ -29,7 +29,7 @@ public static class ExplorerContextMenuItems
 
         dialog.OnTypeConfirmed += (filename, type) =>
         {
-            BaseConfig? instance = Activator.CreateInstance(type) as BaseConfig ?? throw new Exception($"The type {type.Name} is not a valid config type.");
+            Configable? instance = Activator.CreateInstance(type) as Configable ?? throw new Exception($"The type {type.Name} is not a valid config type.");
             SafeMemoryHandle handle = engine.Assets.EncodeToBinary(instance);
             path = Path.Combine(path, filename + ".json");
             File.WriteAllBytes(path, handle.Span);

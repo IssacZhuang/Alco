@@ -24,8 +24,8 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
 
     private static readonly MemberAccessor s_memberAccessor = MemberAccessor.CreateCompatibleCachedAccessor();
     private readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
-    private readonly ConditionalWeakTable<BaseConfig, ConfigReference> _configReferences = new();
-    private readonly ConcurrentDictionary<string, BaseConfig> _loadingConfigs = new();
+    private readonly ConditionalWeakTable<Configable, ConfigReference> _configReferences = new();
+    private readonly ConcurrentDictionary<string, Configable> _loadingConfigs = new();
     private readonly AssetSystem _assetSystem;
 
     public ConfigReferenceResolver(AssetSystem assetSystem)
@@ -33,7 +33,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         _assetSystem = assetSystem;
     }
 
-    public bool TryResolve(string id, string propertyName, Type propertyType, [NotNullWhen(true)] out BaseConfig? config)
+    public bool TryResolve(string id, string propertyName, Type propertyType, [NotNullWhen(true)] out Configable? config)
     {
         if (_loadingConfigs.TryGetValue(id, out var loadingConfig))
         {
@@ -43,13 +43,13 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
 
         //it might be loop loading if resolve the reference immediately
         //so just create a placeholder config to store the reference
-        BaseConfig placeHolder = Activator.CreateInstance(propertyType) as BaseConfig ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
+        Configable placeHolder = Activator.CreateInstance(propertyType) as Configable ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
         SetReference(placeHolder, new ConfigReference(id, propertyName, propertyType));
         config = placeHolder;
         return true;
     }
 
-    public void AddLoadingConfig(string filename, BaseConfig config)
+    public void AddLoadingConfig(string filename, Configable config)
     {
         _loadingConfigs.TryAdd(filename, config);
     }
@@ -59,21 +59,21 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         _loadingConfigs.TryRemove(filename, out _);
     }
 
-    public void ResolveRealReference(BaseConfig asset)
+    public void ResolveRealReference(Configable asset)
     {
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(asset.GetType());
         foreach (var accessMember in accessTypeInfo.Members)
         {
-            if (accessMember.MemberType.IsAssignableTo(typeof(BaseConfig)))
+            if (accessMember.MemberType.IsAssignableTo(typeof(Configable)))
             {
                 ResolveConfigProperty(asset, accessMember.Name, accessMember);
             }
         }
     }
 
-    private void ResolveConfigProperty(BaseConfig asset, string propertyName, AccessMemberInfo accessMember)
+    private void ResolveConfigProperty(Configable asset, string propertyName, AccessMemberInfo accessMember)
     {
-        var config = accessMember.GetValue<BaseConfig>(asset);
+        var config = accessMember.GetValue<Configable>(asset);
 
         if (TryGetReference(config, out var reference))
         {
@@ -85,7 +85,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         }
     }
 
-    private bool TryGetReference(BaseConfig? config, [NotNullWhen(true)] out ConfigReference? references)
+    private bool TryGetReference(Configable? config, [NotNullWhen(true)] out ConfigReference? references)
     {
         if (config == null)
         {
@@ -95,7 +95,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         return _configReferences.TryGetValue(config, out references);
     }
 
-    private void SetReference(BaseConfig config, ConfigReference reference)
+    private void SetReference(Configable config, ConfigReference reference)
     {
         _configReferences.AddOrUpdate(config, reference);
     }

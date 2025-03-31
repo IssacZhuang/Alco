@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Alco.IO;
 
-public class JsonConverterConfigReference : JsonConverter<BaseConfig>
+public class JsonConverterConfigReference : JsonConverter<Configable>
 {
     private readonly IConfigReferenceResolver _configResolver;
     private readonly string _propertyName;
@@ -21,7 +21,7 @@ public class JsonConverterConfigReference : JsonConverter<BaseConfig>
         _propertyType = realType;
     }
 
-    public override BaseConfig Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override Configable Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.String)
         {
@@ -37,7 +37,7 @@ public class JsonConverterConfigReference : JsonConverter<BaseConfig>
         return config;
     }
 
-    public override void Write(Utf8JsonWriter writer, BaseConfig value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, Configable value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.Id);
     }

@@ -8,22 +8,22 @@ namespace Alco.IO.Test;
 [TestFixture]
 public class TestJsonReference
 {
-    private class TestConfig : BaseConfig
+    private class TestConfig : Configable
     {
         public string Name { get; set; } = string.Empty;
-        public BaseConfig Reference { get; set; }
+        public Configable Reference { get; set; }
     }
 
     private class TestConfigReferenceResolver : IConfigReferenceResolver
     {
-        private readonly Dictionary<string, BaseConfig> _configs = new();
+        private readonly Dictionary<string, Configable> _configs = new();
 
-        public void AddConfig(BaseConfig config)
+        public void AddConfig(Configable config)
         {
             _configs[config.Id] = config;
         }
 
-        public bool TryResolve(string id, string propertyName, Type propertyType, out BaseConfig config)
+        public bool TryResolve(string id, string propertyName, Type propertyType, out Configable config)
         {
             return _configs.TryGetValue(id, out config);
         }

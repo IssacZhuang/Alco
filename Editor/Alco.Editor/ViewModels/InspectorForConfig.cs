@@ -12,11 +12,11 @@ using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
 
-[Inspector(typeof(BaseConfig), ".json")]
-public partial class InspectorForConfig : Inspector<BaseConfig>
+[Inspector(typeof(Configable), ".json")]
+public partial class InspectorForConfig : Inspector<Configable>
 {
     private bool _isModified = false;
-    private BaseConfig? _asset;
+    private Configable? _asset;
     private string? _serializedJson = null;
     private string? _filename = null;
     private string? _path;
@@ -49,7 +49,7 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         get => _filename ?? "Untitled";
     }
 
-    public BaseConfig? Asset => _asset;
+    public Configable? Asset => _asset;
 
     public int TestNumber { get; set; } = 100;
 
@@ -81,7 +81,7 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         return [];
     }
 
-    protected override void OnOpenAsset(EditorEngine engine, BaseConfig asset, string path)
+    protected override void OnOpenAsset(EditorEngine engine, Configable asset, string path)
     {
         _asset = asset;
         _path = path;

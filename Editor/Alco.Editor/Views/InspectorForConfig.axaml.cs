@@ -37,7 +37,7 @@ public partial class InspectorForConfig : UserControl
             return;
         }
 
-        BaseConfig? config = viewModel.Asset;
+        Configable? config = viewModel.Asset;
         if (config == null)
         {
             return;
