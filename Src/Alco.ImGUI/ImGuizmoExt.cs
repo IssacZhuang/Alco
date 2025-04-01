@@ -80,7 +80,7 @@ public static unsafe partial class ImGuizmo
         fixed (Matrix4x4* projectionPtr = &projection)
         {
             Matrix4x4* matrixPtr = &matrix;
-            bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)&matrixPtr, null, null, null, null) != 0;
+            bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, null, null, null) != 0;
             DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
             transform.Position = translation;
             transform.Rotation = math.euler(math.radians(eulerAngles));
@@ -96,7 +96,7 @@ public static unsafe partial class ImGuizmo
         fixed (Matrix4x4* projectionPtr = &projection)
         {
             Matrix4x4* matrixPtr = &matrix;
-            bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)&matrixPtr, null, null, null, null) != 0;
+            bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, null, null, null) != 0;
             DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
             transform.Position = new Vector2(translation.X, translation.Y);
             transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
