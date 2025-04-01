@@ -257,16 +257,13 @@ public unsafe partial class Sdl3Window : Window
 
 
     //create with native window
-    public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd)
+    public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd, WindowSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
+        SDL_PropertiesID props = 0;
 
         try
         {
+            props = CreateProperties(setting);
             SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER, hwnd);
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
@@ -282,17 +279,14 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateFromXID(GPUDevice device, ulong xWindow)
+    public static Sdl3Window CreateFromXID(GPUDevice device, long xWindow, WindowSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
+        SDL_PropertiesID props = 0;
 
         try
         {
-            SDL_SetNumberProperty(props, PropertyId_X11_WINDOW, (long)xWindow);
+            props = CreateProperties(setting);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, xWindow);
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
             {
@@ -307,16 +301,13 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView)
+    public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, WindowSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
-
+        SDL_PropertiesID props = 0;
+        
         try
         {
+            props = CreateProperties(setting);
             SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER, NSWindow);
             if (NSView != IntPtr.Zero)
             {
@@ -336,16 +327,13 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateWaylandWindow(GPUDevice device, IntPtr surface)
+    public static Sdl3Window CreateFromWaylandSurface(GPUDevice device, IntPtr surface, WindowSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
+        SDL_PropertiesID props = 0;
 
         try
         {
+            props = CreateProperties(setting);
             SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER, surface);
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
@@ -359,6 +347,32 @@ public unsafe partial class Sdl3Window : Window
         {
             SDL_DestroyProperties(props);
         }
+    }
+
+    private static SDL_PropertiesID CreateProperties(WindowSetting setting)
+    {
+        SDL_PropertiesID props = SDL_CreateProperties();
+        if (props == 0)
+        {
+            throw new Exception("Failed to create SDL properties");
+        }
+
+        if (setting.IsBorderless)
+        {
+            SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+        }
+
+        if (setting.IsTransparent)
+        {
+            SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, true);
+        }
+
+        //size
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, setting.Width);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, setting.Height);
+
+        return props;
+
     }
 
 
