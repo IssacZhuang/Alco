@@ -1,6 +1,7 @@
 ﻿using Alco;
 using Alco.Engine;
 using Alco.Graphics;
+using Alco.ImGUI;
 
 GameEngineSetting setting = new GameEngineSetting
 {
@@ -13,7 +14,8 @@ GameEngineSetting setting = new GameEngineSetting
 With<PluginDefaultAssets>().
 With<PluginHDR>().
 With<PluginBloom>().
-With<PluginDebugGUI>();
+With<PluginDebugGUI>().
+With<PluginImGUI>();
 
 using (Game game = new Game(setting))
 {

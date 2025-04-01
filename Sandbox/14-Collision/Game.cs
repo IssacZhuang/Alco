@@ -6,6 +6,7 @@ using Alco;
 using Random = Alco.Random;
 using Alco.Graphics;
 using Alco.GUI;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
@@ -101,6 +102,8 @@ public class Game : GameEngine
 
         DebugGUI.SameLine();
         DebugGUI.Text("Fov");
+
+        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE, MODE.LOCAL, ref _entity.transform, Vector3.Zero);
     }
 
 
