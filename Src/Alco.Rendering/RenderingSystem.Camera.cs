@@ -48,7 +48,7 @@ public partial class RenderingSystem
     /// Create a 3D perspective camera.
     /// </summary>
     /// <param name="fov">The field of view of the camera.</param>
-    /// <param name="aspectRatio">The aspect ratio of the camera. Usually the aspect ratio of the window.</param>
+    /// <param name="aspectRatio">The aspect ratio of the camera. Usually the aspect ratio of the view.</param>
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new perspective camera.</returns>

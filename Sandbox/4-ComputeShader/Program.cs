@@ -4,7 +4,7 @@ using Alco.Engine;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(400, 400, "Compute Shader"),
+    View = new ViewSetting(400, 400, "Compute Shader"),
 }.With<PluginDebugGUI>();
 
 using (Game game = new Game(setting))

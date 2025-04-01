@@ -4,7 +4,7 @@ using Alco.Engine;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Instancing"),
+    View = new ViewSetting(640, 360, "Instancing"),
 };
 
 using (Game game = new Game(setting))

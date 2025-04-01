@@ -6,9 +6,10 @@ namespace Alco.Engine;
 
 
 /// <summary>
-/// Represents a window in the application.
+/// The view used for GPU rendering. 
+/// It could be a window in standalone application or a view embedded in a UI framework.
 /// </summary>
-public unsafe abstract class Window : AutoDisposable//todo : change to disposable
+public unsafe abstract class View : AutoDisposable
 {
 
     public uint Width => Size.X;
@@ -16,47 +17,49 @@ public unsafe abstract class Window : AutoDisposable//todo : change to disposabl
 
     /// <summary>
     /// Gets or sets the window mode.
+    /// Only worked if the view is a window.
     /// </summary>
     public abstract WindowMode WindowMode { get; set; }
 
     /// <summary>
-    /// Gets or sets the position of the window.
+    /// Gets or sets the position of the view.
+    /// Only worked if the view is a window.
     /// </summary> 
     public abstract int2 Position { get; set; }
 
     /// <summary>
-    /// Gets the mouse position in the window. This is the local position of the mouse. Use <see cref="InputSystem.MousePosition"/> for global position.
+    /// Gets the mouse position in the view. This is the local position of the mouse. Use <see cref="InputSystem.MousePosition"/> for global position.
     /// </summary>
     public abstract int2 MousePosition { get; }
 
     /// <summary>
-    /// Gets or sets the size of the window.
+    /// Gets or sets the size of the view.
     /// </summary>
     public abstract uint2 Size { get; set; }
 
     /// <summary>
-    /// Gets or sets the title of the window.
+    /// Gets or sets the title of the view.
     /// </summary>
     public abstract string Title { get; set; }
 
     /// <summary>
-    /// The swapchain of the window.
+    /// The swapchain of the view.
     /// </summary>
     /// <value></value>
     public abstract GPUSwapchain? Swapchain { get; }
 
     /// <summary>
-    /// The window resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="WindowRenderTarget.OnResize"/> for safe deletion.
+    /// The view resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="ViewRenderTarget.OnResize"/> for safe deletion.
     /// </summary>
     public event Action<uint2>? OnResize;
 
     /// <summary>
-    /// The window minimize event. It will destroy the surface texture on this event.
+    /// The view minimize event. It will destroy the surface texture on this event.
     /// </summary>
     public event Action? OnMinimize;
 
     /// <summary>
-    /// The window restore event. It will recreate the surface texture on this event.
+    /// The view restore event. It will recreate the surface texture on this event.
     /// </summary>
     public event Action? OnRestore;
 
@@ -66,13 +69,13 @@ public unsafe abstract class Window : AutoDisposable//todo : change to disposabl
     public event Action<string>? OnTextInput;
 
     /// <summary>
-    /// Close the window.
+    /// Close the view.
     /// </summary>
     public abstract void Close();
 
 
     /// <summary>
-    /// Gets the aspect ratio of the window.
+    /// Gets the aspect ratio of the view.
     /// </summary>
     public float AspectRatio
     {

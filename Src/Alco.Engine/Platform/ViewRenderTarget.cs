@@ -6,12 +6,12 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Engine;
 
-public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
+public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
 {
     public const int SystemOrder = 10000;
-    private readonly Window _window;
+    private readonly View _view;
     private readonly RenderingSystem _rendering;
-    private readonly GPUSwapchain? _windowSwapchain;
+    private readonly GPUSwapchain? _viewSwapchain;
     private readonly GPUCommandBuffer _command;
     private GPURenderPass _renderPass;
     private RenderTexture _renderTexture;
@@ -28,23 +28,23 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
     private uint _height;
 
     /// <summary>
-    /// Handle the window resize event on the end of the frame, safe to delete the GPU resources in the event.
+    /// Handle the view resize event on the end of the frame, safe to delete the GPU resources in the event.
     /// </summary>
     public event Action<uint2>? OnResize;
 
     /// <summary>
-    /// The window that the render target is attached to
+    /// The view that the render target is attached to
     /// </summary>
     /// <value></value>
-    public Window Window
+    public View View
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _window;
+        get => _view;
     }
 
     /// <summary>
     /// The render texture of the render target
-    /// <br/>[Attention] The render texture will be recreated when the window is resized
+    /// <br/>[Attention] The render texture will be recreated when the view is resized
     /// </summary>
     /// <value></value>
     public RenderTexture RenderTexture
@@ -66,17 +66,17 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 
     public override int Order => SystemOrder;
 
-    internal WindowRenderTarget(GameEngine engine, Window window, GPURenderPass renderPass, Shader blitShader)
+    internal ViewRenderTarget(GameEngine engine, View view, GPURenderPass renderPass, Shader blitShader)
     {
-        _window = window;
-        _window.OnResize += OnWindowResize;
-        _window.OnMinimize += OnWindowMinimize;
-        _window.OnRestore += OnWindowRestore;
+        _view = view;
+        _view.OnResize += OnWindowResize;
+        _view.OnMinimize += OnWindowMinimize;
+        _view.OnRestore += OnWindowRestore;
 
         _rendering = engine.Rendering;
 
-        _width = math.max(1, window.Size.X);
-        _height = math.max(1, window.Size.Y);
+        _width = math.max(1, view.Size.X);
+        _height = math.max(1, view.Size.Y);
 
         _renderPass = renderPass;
         _renderer = _rendering.CreateRenderContext();
@@ -88,7 +88,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _blitMaterial = _rendering.CreateGraphicsMaterial(blitShader);
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
 
-        _windowSwapchain = window.Swapchain;
+        _viewSwapchain = view.Swapchain;
 
         _command = _rendering.GraphicsDevice.CreateCommandBuffer();
     }
@@ -118,7 +118,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 
     public override void OnEndFrame(float deltaTime)
     {
-        if (_windowSwapchain == null)
+        if (_viewSwapchain == null)
         {
             return;
         }
@@ -128,13 +128,13 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
             return;
         }
 
-        if (!_windowSwapchain.RequestSurfaceTexture())
+        if (!_viewSwapchain.RequestSurfaceTexture())
         {
             return;
         }
 
         //_converter.Blit(_windowSwapchain.FrameBuffer);
-        _renderer.Begin(_windowSwapchain.FrameBuffer);
+        _renderer.Begin(_viewSwapchain.FrameBuffer);
         if (_overrideMaterial != null)
         {
             _renderer.Draw(_mesh, _overrideMaterial);
@@ -144,7 +144,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
             _renderer.Draw(_mesh, _blitMaterial);
         }
         _renderer.End();
-        _windowSwapchain.Present();
+        _viewSwapchain.Present();
 
         if (_shouldResize)
         {
@@ -157,9 +157,9 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
 
     public override void Dispose()
     {
-        _window.OnResize -= OnWindowResize;
-        _window.OnMinimize -= OnWindowMinimize;
-        _window.OnRestore -= OnWindowRestore;
+        _view.OnResize -= OnWindowResize;
+        _view.OnMinimize -= OnWindowMinimize;
+        _view.OnRestore -= OnWindowRestore;
     }
 
     private void RecreateRenderTexture()
@@ -180,7 +180,7 @@ public class WindowRenderTarget : BaseEngineSystem, IRenderTarget
         _width = size.X;
         _height = size.Y;
         
-        _windowSwapchain?.Resize(_width, _height);
+        _viewSwapchain?.Resize(_width, _height);
     }
 
     private void OnWindowMinimize()

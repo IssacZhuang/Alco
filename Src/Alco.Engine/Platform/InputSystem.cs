@@ -10,7 +10,7 @@ public abstract class InputSystem
     /// <summary>
     /// Gets or sets the position of the mouse. The zero of coordinate system is top-left 
     /// <br/>[Attention] This is the global mouse position relative to the screen,
-    /// use <see cref="Window.MousePosition"/> if you want the local position in the window.
+    /// use <see cref="View.MousePosition"/> if you want the local position in the window.
     /// </summary>
     public abstract Vector2 MousePosition { get; set; }
 

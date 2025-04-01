@@ -47,7 +47,7 @@ public class Game : GameEngine
         _entity.transform.Position = new Vector3(2, 0, 0);
         _entity.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
 
-        MainWindow.OnResize += OnMainWindowResize;
+        MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)
@@ -63,9 +63,9 @@ public class Game : GameEngine
 
         _renderer.End();
 
-        Vector2 localMousePosition = MainWindow.MousePosition;
+        Vector2 localMousePosition = MainView.MousePosition;
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.Position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.Position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _entity.Shape, out RaycastHit3D rayCastHit);
 

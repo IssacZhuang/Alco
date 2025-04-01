@@ -8,12 +8,12 @@ namespace Alco.ImGUI;
 public class ImGUIInputHandler: AutoDisposable
 {
     private readonly InputSystem _inputSystem;
-    private readonly Window _window;
+    private readonly View _view;
 
-    public ImGUIInputHandler(Window window, InputSystem inputSystem)
+    public ImGUIInputHandler(View view, InputSystem inputSystem)
     {
         _inputSystem = inputSystem;
-        _window = window;
+        _view = view;
     }
 
     public void Update()
@@ -21,7 +21,7 @@ public class ImGUIInputHandler: AutoDisposable
         ImGuiIOPtr io = ImGui.GetIO();
         // do not use _inputSystem.MousePosition, it is the position relative to the screen, not the window
         //io.AddMousePosEvent(_inputSystem.MousePosition.X, _inputSystem.MousePosition.Y);
-        io.AddMousePosEvent(_window.MousePosition.X, _window.MousePosition.Y);
+        io.AddMousePosEvent(_view.MousePosition.X, _view.MousePosition.Y);
         io.AddMouseButtonEvent(0, _inputSystem.IsMousePressing(Mouse.Left));
         io.AddMouseButtonEvent(1, _inputSystem.IsMousePressing(Mouse.Right));
         io.AddMouseButtonEvent(2, _inputSystem.IsMousePressing(Mouse.Middle));

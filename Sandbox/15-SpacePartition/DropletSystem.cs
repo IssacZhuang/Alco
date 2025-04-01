@@ -28,10 +28,10 @@ public class DropletSystem : IDisposable
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
         private readonly Texture2D _texture;
-        private readonly WindowRenderTarget _renderTarget;
+        private readonly ViewRenderTarget _renderTarget;
 
 
-        public JobParallelRender(WindowRenderTarget renderTarget, RenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
+        public JobParallelRender(ViewRenderTarget renderTarget, RenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
         {
             _renderTarget = renderTarget;
             _renderContext = renderContext;
@@ -61,7 +61,7 @@ public class DropletSystem : IDisposable
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
     private readonly ParallelScheduler _scheduler = new ParallelScheduler(24);
-    private readonly WindowRenderTarget _renderTarget;
+    private readonly ViewRenderTarget _renderTarget;
     private readonly JobParallelRender _jobParallelRender;
     private int _spawnRate = 100;
     private int _spawnHeight = 280;
@@ -73,7 +73,7 @@ public class DropletSystem : IDisposable
 
     private readonly Profiler _profiler = new Profiler();
 
-    public DropletSystem(WindowRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
+    public DropletSystem(ViewRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderContext = new RenderContext[RenderThreadCount];
         _renderers = new SpriteRenderer[RenderThreadCount];

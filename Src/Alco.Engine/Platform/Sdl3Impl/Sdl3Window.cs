@@ -10,7 +10,7 @@ using static SDL3.SDL3;
 
 namespace Alco.Engine;
 
-public unsafe partial class Sdl3Window : Window
+public unsafe partial class Sdl3Window : View
 {
     private static readonly byte* PropertyId_HWND = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.win32.hwnd");
     private static readonly byte* PropertyId_NS_WINDOW = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.cocoa.window");
@@ -114,7 +114,7 @@ public unsafe partial class Sdl3Window : Window
 
 
 
-    public Sdl3Window(GPUDevice device, WindowSetting setting)
+    public Sdl3Window(GPUDevice device, ViewSetting setting)
     {
         SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
 
@@ -257,7 +257,7 @@ public unsafe partial class Sdl3Window : Window
 
 
     //create with native window
-    public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd, WindowSetting setting)
+    public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
 
@@ -279,7 +279,7 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateFromXID(GPUDevice device, long xWindow, WindowSetting setting)
+    public static Sdl3Window CreateFromXID(GPUDevice device, long xWindow, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
 
@@ -301,7 +301,7 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, WindowSetting setting)
+    public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
         
@@ -327,7 +327,7 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateFromWaylandSurface(GPUDevice device, IntPtr surface, WindowSetting setting)
+    public static Sdl3Window CreateFromWaylandSurface(GPUDevice device, IntPtr surface, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
 
@@ -349,7 +349,7 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    private static SDL_PropertiesID CreateProperties(WindowSetting setting)
+    private static SDL_PropertiesID CreateProperties(ViewSetting setting)
     {
         SDL_PropertiesID props = SDL_CreateProperties();
         if (props == 0)

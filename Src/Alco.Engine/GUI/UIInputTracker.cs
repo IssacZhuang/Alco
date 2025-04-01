@@ -7,14 +7,14 @@ namespace Alco.Engine;
 public class UIInputTracker : IUIInputTracker
 {
     private readonly InputSystem _input;
-    private readonly Window _window;
+    private readonly View _window;
 
     public event Action<string>? OnTextInput
     {
         add => _window.OnTextInput += value;
         remove => _window.OnTextInput -= value;
     }
-    public UIInputTracker(InputSystem system, Window window)
+    public UIInputTracker(InputSystem system, View window)
     {
         _input = system;
         _window = window;

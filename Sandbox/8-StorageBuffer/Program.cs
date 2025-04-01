@@ -4,7 +4,7 @@ using Alco.Engine;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Compute Buffer"),
+    View = new ViewSetting(640, 360, "Compute Buffer"),
 };
 
 

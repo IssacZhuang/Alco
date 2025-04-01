@@ -8,7 +8,7 @@ namespace Alco.Engine;
 public class BloomSystem : BaseEngineSystem
 {
 
-    private readonly WindowRenderTarget _renderTarget;
+    private readonly ViewRenderTarget _renderTarget;
     private readonly GameEngine _engine;
     private readonly RenderingSystem _rendering;
     private readonly Shader _blitShader;
@@ -19,7 +19,7 @@ public class BloomSystem : BaseEngineSystem
 
     public override int Order => 900;
 
-    public BloomSystem(GameEngine engine, WindowRenderTarget renderTarget)
+    public BloomSystem(GameEngine engine, ViewRenderTarget renderTarget)
     {
         _renderTarget = renderTarget;
 

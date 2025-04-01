@@ -6,14 +6,14 @@ namespace Alco.Engine;
 
 public partial class GameEngine
 {
-    public Window CreateWindow(WindowSetting setting)
+    public View CreateView(ViewSetting setting)
     {
-        return _platform.CreateWindow(_graphicsDevice, setting);
+        return _platform.CreateView(_graphicsDevice, setting);
     }
 
-    public WindowRenderTarget CreateWindowRenderTarget(Window window, GPURenderPass renderPass, Shader blitShader)
+    public ViewRenderTarget CreateViewRenderTarget(View view, GPURenderPass renderPass, Shader blitShader)
     {
-        return new WindowRenderTarget(this, window, renderPass, blitShader);
+        return new ViewRenderTarget(this, view, renderPass, blitShader);
     }
 
     private GPUDevice CreateGraphicsDevice(GraphicsSetting setting, uint disposeDelay)

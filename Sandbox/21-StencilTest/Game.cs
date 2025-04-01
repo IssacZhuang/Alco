@@ -86,7 +86,7 @@ public class Game : GameEngine
 
         _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
 
-        MainWindow.OnResize += OnMainWindowResize;
+        MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)

@@ -29,14 +29,14 @@ public unsafe class Sdl3Platform : Platform
         get => _input;
     }
 
-    public override Window CreateWindow(GPUDevice device, WindowSetting setting)
+    public override View CreateView(GPUDevice device, ViewSetting setting)
     {
         Sdl3Window window = new Sdl3Window(device, setting);
         _windows.Add(window.WindowId, window);
         return window;
     }
 
-    public override void CloseWindow(Window window)
+    public override void CloseView(View window)
     {
         if (window is Sdl3Window sdl3Window)
         {

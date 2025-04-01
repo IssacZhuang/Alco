@@ -40,7 +40,7 @@ namespace Alco.Editor
             if (!Design.IsDesignMode)
             {
                 _platform = new EditorPlatform();
-                GameEngineSetting setting = GameEngineSetting.CreateGPUWithoutWindow();
+                GameEngineSetting setting = GameEngineSetting.CreateGPUWithoutView();
                 setting.Platform = _platform;
                 Engine = new EditorEngine(setting);
                 Preference = new EditorPreference(Engine);

@@ -6,7 +6,7 @@ using Alco.ImGUI;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Collision"),
+    View = new ViewSetting(640, 360, "Collision"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan
     },

@@ -10,9 +10,9 @@ public class ImGUISystem: BaseEngineSystem
     private readonly Material _material;
     private readonly ImGUIRenderer _imGUIRenderer;
     private readonly ImGUIInputHandler _imGUIInputHandler;
-    private readonly WindowRenderTarget _mainRenderTarget;
+    private readonly ViewRenderTarget _mainRenderTarget;
 
-    public ImGUISystem(GameEngine engine, WindowRenderTarget mainRenderTarget)
+    public ImGUISystem(GameEngine engine, ViewRenderTarget mainRenderTarget)
     {
         RenderingSystem renderingSystem = engine.Rendering;
 
@@ -24,7 +24,7 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
         _mainRenderTarget = mainRenderTarget;
 
-        _imGUIInputHandler = new ImGUIInputHandler(engine.MainWindow, engine.Input);
+        _imGUIInputHandler = new ImGUIInputHandler(engine.MainView, engine.Input);
     }
 
     public override void OnBeginFrame(float deltaTime)

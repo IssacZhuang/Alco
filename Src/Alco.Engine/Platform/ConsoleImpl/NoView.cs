@@ -5,7 +5,7 @@ namespace Alco.Engine;
 /// <summary>
 /// Empty implementation of a window. Usually used for testing and server environments.
 /// </summary>
-public sealed class NoWindow : Window
+public sealed class NoView : View
 {
 
     /// <inheritdoc />
@@ -15,7 +15,7 @@ public sealed class NoWindow : Window
     public override uint2 Size { get; set; }
 
     /// <inheritdoc />
-    public override string Title { get; set; } = "No Window";
+    public override string Title { get; set; } = "No View";
 
     public override GPUSwapchain? Swapchain => null;
 

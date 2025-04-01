@@ -5,7 +5,7 @@ using Alco.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(1280, 720, "Bloom HDR"),
+    View = new ViewSetting(1280, 720, "Bloom HDR"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan
     },

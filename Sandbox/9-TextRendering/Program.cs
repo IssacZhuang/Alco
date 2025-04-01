@@ -5,7 +5,7 @@ using Alco.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Text Rendering"),
+    View = new ViewSetting(640, 360, "Text Rendering"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan,
     }

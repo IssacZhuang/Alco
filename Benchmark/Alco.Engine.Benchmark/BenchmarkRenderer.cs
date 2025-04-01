@@ -21,7 +21,7 @@ public class BenchmarkRenderer
 
     public BenchmarkRenderer()
     {
-        _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutWindow());
+        _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutView());
         RenderingSystem renderingSystem = _engine.Rendering;
         _texture = renderingSystem.TextureWhite;
         _target = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedHDRPass, 1920, 1080);

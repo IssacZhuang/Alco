@@ -33,17 +33,17 @@ public abstract class Platform : AutoDisposable
     public abstract void StopMainLoop();
 
     /// <summary>
-    /// Create a window
+    /// Create a view
     /// </summary>
     /// <param name="device">The graphics device</param>
-    /// <param name="setting">The window setting</param>
+    /// <param name="setting">The view setting</param>
     /// <returns></returns>
-    public abstract Window CreateWindow(GPUDevice device, WindowSetting setting);
+    public abstract View CreateView(GPUDevice device, ViewSetting setting);
 
     /// <summary>
-    /// Close a window
+    /// Close a view
     /// </summary> 
-    public abstract void CloseWindow(Window window);
+    public abstract void CloseView(View view);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected void DoTick(float deltaTime)

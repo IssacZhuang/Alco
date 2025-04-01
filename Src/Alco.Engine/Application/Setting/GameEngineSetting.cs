@@ -15,7 +15,7 @@ namespace Alco.Engine
         public GameEngineSetting()
         {
             GametTickRate = 60;
-            Window = WindowSetting.Default;
+            View = ViewSetting.Default;
             Graphics = GraphicsSetting.Default;
             Assets = AssetsSetting.Default;
         }
@@ -44,9 +44,9 @@ namespace Alco.Engine
         public bool RunOnce;
 
         /// <summary>
-        /// The window setting
+        /// The view setting
         /// </summary>
-        public WindowSetting Window;
+        public ViewSetting View;
 
         /// <summary>
         /// The graphics setting 
@@ -87,7 +87,7 @@ namespace Alco.Engine
             }.With<PluginDefaultAssets>();
         }
 
-        public static GameEngineSetting CreateGPUWithoutWindow()
+        public static GameEngineSetting CreateGPUWithoutView()
         {
             return new GameEngineSetting
             {

@@ -13,7 +13,7 @@ namespace Alco.Engine;
 
 /// <summary>
 /// The entry point for the game <br/>
-/// The integration of the game loop, base API, sdl window and graphics device
+/// The integration of the game loop, base API, view and graphics device
 /// </summary>
 public partial class GameEngine :
 IDisposable
@@ -34,8 +34,8 @@ IDisposable
 
     private readonly Platform _platform;
     private readonly InputSystem _input;
-    private readonly Window _mainWindow;
-    private readonly WindowRenderTarget _mainRenderTarget;
+    private readonly View _mainView;
+    private readonly ViewRenderTarget _mainRenderTarget;
 
     #endregion
 
@@ -87,15 +87,15 @@ IDisposable
     }
 
     /// <summary>
-    /// The window singleton of the game
+    /// The main view singleton of the game
     /// </summary>
-    public Window MainWindow
+    public View MainView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainWindow;
+        get => _mainView;
     }
 
-    public WindowRenderTarget MainRenderTarget
+    public ViewRenderTarget MainRenderTarget
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _mainRenderTarget;
@@ -208,9 +208,9 @@ IDisposable
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
-        //main window
-        _mainWindow = CreateWindow(_setting.Window);
-        _mainRenderTarget = CreateWindowRenderTarget(_mainWindow, _rendering.PrefferedSDRPass, shaderBlit.Result);
+        //main view
+        _mainView = CreateView(_setting.View);
+        _mainRenderTarget = CreateViewRenderTarget(_mainView, _rendering.PrefferedSDRPass, shaderBlit.Result);
         AddSystem(_mainRenderTarget);
 
         
@@ -404,7 +404,7 @@ IDisposable
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
         _renderScheduler.Dispose();
-        MainWindow.Close();
+        MainView.Close();
         _platform.Dispose();
 
         EventOnDispose?.Invoke();
