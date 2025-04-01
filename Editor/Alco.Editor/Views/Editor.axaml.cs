@@ -22,7 +22,7 @@ public partial class Editor : Window
     public Editor()
     {
         InitializeComponent();
-        RendererDiagnostics.DebugOverlays = RendererDebugOverlays.Fps | RendererDebugOverlays.LayoutTimeGraph | RendererDebugOverlays.RenderTimeGraph;
+        RendererDiagnostics.DebugOverlays = RendererDebugOverlays.Fps;
     }
 
     protected override void OnDataContextChanged(EventArgs e)

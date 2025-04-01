@@ -12,22 +12,23 @@ namespace Alco.Editor;
 
 public class EditorPlatform : Platform
 {
+    private static readonly InputSystem NoInputSystem = new NoInputSystem();
     private Avalonia.Controls.Window? _avaloniaWindow;
     private Compositor? _compositor;
-    private InputSystem _input;
+    private EditorInputSystem? _input;
     private EngineTimer _engineTimer;
     private bool _isRunning = false;
 
     public EditorPlatform()
     {
         _engineTimer = new EngineTimer();
-        _input = new NoInputSystem();
     }
 
     public void SetWindow(Avalonia.Controls.Window window)
     {
         _avaloniaWindow = window;
         _compositor = (ElementComposition.GetElementVisual(_avaloniaWindow)?.Compositor) ?? throw new Exception("Compositor is null");
+        _input = new EditorInputSystem(_avaloniaWindow);
     }
 
     private void Update()
@@ -43,6 +44,8 @@ public class EditorPlatform : Platform
         {
             RequestUpdate();
         }
+
+        _input?.Update();
     }
 
     private void RequestUpdate()
@@ -50,7 +53,7 @@ public class EditorPlatform : Platform
         _compositor?.RequestCompositionUpdate(Update);
     }
 
-    public override InputSystem Input => _input;
+    public override InputSystem Input => _input ?? NoInputSystem;
 
     public override void CloseWindow(Window window)
     {
@@ -80,7 +83,7 @@ public class EditorPlatform : Platform
 
     protected override void Dispose(bool disposing)
     {
-        
+        _input?.Dispose();
     }
 }
 
