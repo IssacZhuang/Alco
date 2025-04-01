@@ -34,6 +34,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
+        ImGuizmo.SetImGuiContext(_imGuiContext);
 
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
 
@@ -62,7 +63,10 @@ public unsafe class ImGUIRenderer : AutoDisposable
         io.DisplayFramebufferScale = new Vector2(1.0f, 1.0f);
         io.DeltaTime = deltaTime;
 
+        ImGuizmo.SetRect(0, 0, width, height);
+
         ImGui.NewFrame();
+        ImGuizmo.BeginFrame();
         _target = target;
     }
 
