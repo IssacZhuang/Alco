@@ -257,7 +257,7 @@ public unsafe partial class Sdl3Window : Window
 
 
     //create with native window
-    public static Sdl3Window CreateWin32Window(GPUDevice device, IntPtr hwnd)
+    public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd)
     {
         SDL_PropertiesID props = SDL_CreateProperties();
         if (props == 0)
@@ -282,7 +282,7 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateX11Window(GPUDevice device, ulong xWindow)
+    public static Sdl3Window CreateFromXID(GPUDevice device, ulong xWindow)
     {
         SDL_PropertiesID props = SDL_CreateProperties();
         if (props == 0)
@@ -307,7 +307,7 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateCocoaWindow(GPUDevice device, IntPtr windowPointer, IntPtr viewPointer)
+    public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView)
     {
         SDL_PropertiesID props = SDL_CreateProperties();
         if (props == 0)
@@ -317,10 +317,10 @@ public unsafe partial class Sdl3Window : Window
 
         try
         {
-            SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER, windowPointer);
-            if (viewPointer != IntPtr.Zero)
+            SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER, NSWindow);
+            if (NSView != IntPtr.Zero)
             {
-                SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER, viewPointer);
+                SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER, NSView);
             }
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
