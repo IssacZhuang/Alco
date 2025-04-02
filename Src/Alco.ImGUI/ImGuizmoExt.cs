@@ -15,13 +15,13 @@ public static unsafe partial class ImGuizmo
     /// <summary>
     /// Decomposes a 4x4 matrix into translation, rotation (euler angles), and scale components.
     /// </summary>
-    /// <param name="matrix">The matrix to decompose.</param>
+    /// <param name="transposedMatrix">The matrix from ImGuizmo (column-major).</param>
     /// <param name="translation">The resulting translation vector.</param>
     /// <param name="eulerAngles">The resulting rotation as euler angles in degrees.</param>
     /// <param name="scale">The resulting scale vector.</param>
-    public static void DecomposeMatrixToComponents(in Matrix4x4 matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale)
+    public static void DecomposeMatrixToComponents(in Matrix4x4 transposedMatrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale)
     {
-        fixed (Matrix4x4* matrixPtr = &matrix)
+        fixed (Matrix4x4* matrixPtr = &transposedMatrix)
         fixed (Vector3* translationPtr = &translation)
         fixed (Vector3* eulerAnglesPtr = &eulerAngles)
         fixed (Vector3* scalePtr = &scale)
@@ -36,7 +36,7 @@ public static unsafe partial class ImGuizmo
     /// <param name="translation">The translation vector.</param>
     /// <param name="eulerAngles">The rotation as euler angles in degrees.</param>
     /// <param name="scale">The scale vector.</param>
-    /// <param name="matrix">The resulting transformation matrix.</param>
+    /// <param name="matrix">The resulting transformation matrix. The matrix can be used in C# directly (row-major).</param>
     public static void RecomposeMatrixFromComponents(in Vector3 translation, in Vector3 eulerAngles, in Vector3 scale, out Matrix4x4 matrix)
     {
         fixed (Matrix4x4* matrixPtr = &matrix)
@@ -45,6 +45,8 @@ public static unsafe partial class ImGuizmo
         fixed (Vector3* scalePtr = &scale)
         {
             ImGuizmoNative.ImGuizmo_RecomposeMatrixFromComponents((float*)translationPtr, (float*)eulerAnglesPtr, (float*)scalePtr, (float*)matrixPtr);
+            //imguizmo returns a column-major matrix, so we need to transpose it to get a row-major matrix
+            matrix = Matrix4x4.Transpose(matrix);
         }
     }
 
@@ -55,14 +57,17 @@ public static unsafe partial class ImGuizmo
     /// <param name="projection">The projection matrix.</param>
     /// <param name="matrix">The model matrix.</param>
     /// <param name="gridSize">The size of the grid cells.</param>
-    public static void DrawGrid(in Matrix4x4 view, in Matrix4x4 projection, in Matrix4x4 matrix, float gridSize)
+    public static void DrawGrid(Matrix4x4 view, Matrix4x4 projection, Matrix4x4 matrix, float gridSize)
     {
-        fixed (Matrix4x4* viewPtr = &view)
-        fixed (Matrix4x4* projectionPtr = &projection)
-        fixed (Matrix4x4* matrixPtr = &matrix)
-        {
-            ImGuizmoNative.ImGuizmo_DrawGrid((float*)viewPtr, (float*)projectionPtr, (float*)matrixPtr, gridSize);
-        }
+        view = Matrix4x4.Transpose(view);
+        projection = Matrix4x4.Transpose(projection);
+        matrix = Matrix4x4.Transpose(matrix);
+
+        Matrix4x4* viewPtr = &view;
+        Matrix4x4* projectionPtr = &projection;
+        Matrix4x4* matrixPtr = &matrix;
+
+        ImGuizmoNative.ImGuizmo_DrawGrid((float*)viewPtr, (float*)projectionPtr, (float*)matrixPtr, gridSize);
     }
 
     /// <summary>
@@ -71,14 +76,21 @@ public static unsafe partial class ImGuizmo
     /// <param name="view">The view matrix.</param>
     /// <param name="projection">The projection matrix.</param>
     /// <param name="matrices">An array of transformation matrices for the cubes.</param>
-    public static void DrawCubes(in Matrix4x4 view, in Matrix4x4 projection, ReadOnlySpan<Matrix4x4> matrices)
+    public static void DrawCubes(Matrix4x4 view, Matrix4x4 projection, ReadOnlySpan<Matrix4x4> matrices)
     {
-        fixed (Matrix4x4* viewPtr = &view)
-        fixed (Matrix4x4* projectionPtr = &projection)
-        fixed (Matrix4x4* matricesPtr = matrices)
+        view = Matrix4x4.Transpose(view);
+        projection = Matrix4x4.Transpose(projection);
+        Matrix4x4* transposedMatrices = stackalloc Matrix4x4[matrices.Length];
+        for (int i = 0; i < matrices.Length; i++)
         {
-            ImGuizmoNative.ImGuizmo_DrawCubes((float*)viewPtr, (float*)projectionPtr, (float*)matricesPtr, matrices.Length);
+            transposedMatrices[i] = Matrix4x4.Transpose(matrices[i]);
         }
+
+        Matrix4x4* viewPtr = &view;
+        Matrix4x4* projectionPtr = &projection;
+        Matrix4x4* matricesPtr = transposedMatrices;
+
+        ImGuizmoNative.ImGuizmo_DrawCubes((float*)viewPtr, (float*)projectionPtr, (float*)matricesPtr, matrices.Length);
     }
 
     /// <summary>
