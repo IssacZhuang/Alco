@@ -51,9 +51,16 @@ V2F MainVS(Vertex input) {
     
     // Add particle position
     float3 worldPosition = float3(rotatedPosition + particle.position, 0.0);
-    
+
+#if defined(SPACE_MODE_WORLD)
+    // already in world space
+    float4 modelPosition = float4(worldPosition, 1.0);
+#else
     // Apply model and view-projection transform
     float4 modelPosition = mul(constants.model, float4(worldPosition, 1.0));
+#endif
+
+    //apply camera transform
     output.position = mul(viewProjection, modelPosition);
     
     // Pass UV coordinates and instance ID

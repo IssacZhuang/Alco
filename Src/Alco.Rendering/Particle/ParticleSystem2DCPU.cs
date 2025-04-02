@@ -21,7 +21,14 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         /// <param name="particle">Reference to the particle being simulated.</param>
         /// <param name="deltaTime">Time elapsed since the last simulation step.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
+        public void SimulateInLocal(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
+        {
+            particle.Position += particle.Velocity * deltaTime;
+            particle.Lifetime -= deltaTime;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SimulateInWorld(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
         {
             particle.Position += particle.Velocity * deltaTime;
             particle.Lifetime -= deltaTime;
@@ -171,7 +178,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 
         for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
         {
-            var particle = _emitter.Emit();
+            var particle = _emitter.EmitInLocal();
             particle.Lifetime = ParticleLifetime;
             _particles.Add(particle);
         }
@@ -218,7 +225,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 
             while (_emitAccumulator >= emissionInterval && _particles.Length < MaxParticles)
             {
-                var particle = _emitter.Emit();
+                var particle = _emitter.EmitInLocal();
                 particle.Lifetime = ParticleLifetime;
                 _particles.Add(particle);
 
@@ -297,7 +304,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void OnSimulate(ref ParticleData2D particle, float deltaTime)
     {
-        _simulator.Simulate(this, ref particle, deltaTime);
+        _simulator.SimulateInLocal(this, ref particle, deltaTime);
     }
 
     /// <summary>

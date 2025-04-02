@@ -6,8 +6,15 @@ namespace Alco.Rendering;
 public interface IParticleEmitter2D
 {
     /// <summary>
-    /// Emits a new particle and returns its data.
+    /// Emits a new particle and returns its data in local space.
     /// </summary>
     /// <returns>A <see cref="ParticleData2D"/> containing the emitted particle's properties.</returns>
-    ParticleData2D Emit();
+    ParticleData2D EmitInLocal();
+
+    /// <summary>
+    /// Emits a new particle and returns its data in world space.
+    /// </summary>
+    /// <param name="transform">The transform of the particle system.</param>
+    /// <returns>A <see cref="ParticleData2D"/> containing the emitted particle's properties.</returns>
+    ParticleData2D EmitInWorld(Transform2D transform);
 }

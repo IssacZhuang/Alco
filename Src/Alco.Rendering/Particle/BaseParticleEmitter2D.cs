@@ -69,7 +69,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     /// Emits a single particle with randomized properties within the configured ranges.
     /// </summary>
     /// <returns>A new particle with randomized position, velocity, rotation, color, size, and lifetime.</returns>
-    public ParticleData2D Emit()
+    public ParticleData2D EmitInLocal()
     {
         ParticleData2D particle = default;
         particle.Position = GeneratePosition();
@@ -95,6 +95,41 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         }
 
         particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
+
+        particle.Lifetime = _random.NextFloat(1, 2);
+        return particle;
+    }
+
+    public ParticleData2D EmitInWorld(Transform2D transform)
+    {
+        ParticleData2D particle = default;
+        //generate position in world space
+        particle.Position = GeneratePosition() * transform.Scale + transform.Position;
+
+        particle.Color = Color;
+        particle.Size = _random.NextFloat(MinSize, MaxSize);
+
+        // Create normalized random direction vector
+        float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
+        Rotation2D direction = Rotation2D.FromDegree(directionAngle);
+
+        // Apply random speed between MinSpeed and MaxSpeed
+        float speed = _random.NextFloat(MinSpeed, MaxSpeed);
+        //apply scale to velocity
+        particle.Velocity = math.rotate(Vector2.UnitX, direction) * speed * transform.Scale;
+
+        if (IsRotationFollowDirection)
+        {
+            particle.Rotation = math.inverse(direction);
+        }
+        else
+        {
+            particle.Rotation = Rotation2D.Identity;
+        }
+
+        particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
+        //transform the rotation to world space
+        particle.Rotation = transform.Rotation * particle.Rotation;
 
         particle.Lifetime = _random.NextFloat(1, 2);
         return particle;
