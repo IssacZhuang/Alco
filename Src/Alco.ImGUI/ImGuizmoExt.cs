@@ -139,10 +139,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, null, null, null) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = translation;
-            transform.Rotation = math.euler(math.radians(eulerAngles));
-            transform.Scale = scale;
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = translation;
+                transform.Rotation = EulerToQuaternion(eulerAngles);
+                transform.Scale = scale;
+            }
             return result;
         }
     }
@@ -270,10 +273,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, (float*)snapPtr, null, null) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = translation;
-            transform.Rotation = math.euler(math.radians(eulerAngles));
-            transform.Scale = scale;
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = translation;
+                transform.Rotation = EulerToQuaternion(eulerAngles);
+                transform.Scale = scale;
+            }
             return result;
         }
     }
@@ -299,10 +305,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, (float*)snapPtr, (float*)localBoundsPtr, null) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = translation;
-            transform.Rotation = math.euler(math.radians(eulerAngles));
-            transform.Scale = scale;
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = translation;
+                transform.Rotation = EulerToQuaternion(eulerAngles);
+                transform.Scale = scale;
+            }
             return result;
         }
     }
@@ -330,10 +339,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, (float*)snapPtr, (float*)localBoundsPtr, (float*)boundsSnapPtr) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = translation;
-            transform.Rotation = math.euler(math.radians(eulerAngles));
-            transform.Scale = scale;
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = translation;
+                transform.Rotation = EulerToQuaternion(eulerAngles);
+                transform.Scale = scale;
+            }
             return result;
         }
     }
@@ -357,10 +369,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, (float*)snapPtr, null, null) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = new Vector2(translation.X, translation.Y);
-            transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
-            transform.Scale = new Vector2(scale.X, scale.Y);
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = new Vector2(translation.X, translation.Y);
+                transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
+                transform.Scale = new Vector2(scale.X, scale.Y);
+            }
             return result;
         }
     }
@@ -386,10 +401,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, (float*)snapPtr, (float*)localBoundsPtr, null) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = new Vector2(translation.X, translation.Y);
-            transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
-            transform.Scale = new Vector2(scale.X, scale.Y);
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = new Vector2(translation.X, translation.Y);
+                transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
+                transform.Scale = new Vector2(scale.X, scale.Y);
+            }
             return result;
         }
     }
@@ -417,10 +435,13 @@ public static unsafe partial class ImGuizmo
         {
             Matrix4x4* matrixPtr = &matrix;
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, (float*)snapPtr, (float*)localBoundsPtr, (float*)boundsSnapPtr) != 0;
-            DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
-            transform.Position = new Vector2(translation.X, translation.Y);
-            transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
-            transform.Scale = new Vector2(scale.X, scale.Y);
+            if (result)
+            {
+                DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
+                transform.Position = new Vector2(translation.X, translation.Y);
+                transform.Rotation = Rotation2D.FromDegree(eulerAngles.Z);
+                transform.Scale = new Vector2(scale.X, scale.Y);
+            }
             return result;
         }
     }
@@ -439,5 +460,14 @@ public static unsafe partial class ImGuizmo
         {
             ImGuizmoNative.ImGuizmo_ViewManipulate((float*)viewPtr, length, position, size, backgroundColor);
         }
+    }
+
+    private static Quaternion EulerToQuaternion(Vector3 eulerAngles)
+    {
+        //not efficient but no need to optimize because only one matrix can be manipulated at a time
+        Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(math.TORADIANS * eulerAngles.X) *
+                                   Matrix4x4.CreateRotationY(math.TORADIANS * eulerAngles.Y) *
+                                   Matrix4x4.CreateRotationZ(math.TORADIANS * eulerAngles.Z);
+        return Quaternion.CreateFromRotationMatrix(rotationMatrix);
     }
 }
