@@ -41,8 +41,8 @@ public class Game : GameEngine
         // _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
-        _camaraChild.Position.Z = -10;
-        _camera.Tranform = math.transform(_camaraParent, _camaraChild);
+        _camaraChild.Position.X = -10;
+        _camera.Transform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = Rendering.CreateRenderContext();
 
@@ -78,11 +78,11 @@ public class Game : GameEngine
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
-            _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.X * 0.01f);
-            _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
+            _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.Y * 0.01f);
+            _camaraParent.Rotate(Vector3.UnitZ, Input.MouseDelta.X * 0.01f);
         }
 
-        _camera.Tranform = math.transform(_camaraParent, _camaraChild);
+        _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
 
         ImGui.Begin("Transform");

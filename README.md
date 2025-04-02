@@ -15,10 +15,20 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 - Auto memory management
 - Shader compilation tools
 
+## Cordinate System
+
+The cordinate system and matrix layout are following the DirectX style(same as Unreal Engine).
+
+- Left-handed coordinate system
+- The forward direction is +X
+- The up direction is +Z
+- The right direction is +Y
+- The matrix layout is row-major
+
 ## Project Structure
 
 - **Src/** - Core engine components
-  - **Alco/** - Base library
+  - **Alco/** - Base library including math, spatial, threading and some utilities
   - **Alco.Engine/** - Main engine implementation
   - **Alco.Graphics/** - Graphics abstraction layer
   - **Alco.Rendering/** - Rendering pipeline
@@ -36,7 +46,7 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 ## Examples
 
 The `Sandbox/` directory contains numerous examples demonstrating various engine features:
-
+****
 - Basic window creation
 - Rendering primitives
 - Texture handling

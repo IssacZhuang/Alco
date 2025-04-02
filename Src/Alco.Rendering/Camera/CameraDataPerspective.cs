@@ -13,7 +13,7 @@ public struct CameraDataPerspective : ICameraData
     public const float DefaultNear = 0.1f;
     public const float DefaultFar = 1000f;
 
-    public Transform3D tranform;
+    public Transform3D transform;
     public float near;
     public float far;
     public float fov;
@@ -22,7 +22,7 @@ public struct CameraDataPerspective : ICameraData
     public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Matrix4x4.CreateLookAtLeftHanded(tranform.Position, tranform.Position + Vector3.Transform(Vector3.UnitZ, tranform.Rotation), Vector3.UnitY);
+        get => Matrix4x4.CreateLookAtLeftHanded(transform.Position, transform.Position + Vector3.Transform(Vector3.UnitX, transform.Rotation), Vector3.UnitZ);
     }
 
 
@@ -48,6 +48,6 @@ public struct CameraDataPerspective : ICameraData
         this.far = far;
         this.aspectRatio = aspectRatio;
 
-        tranform = Transform3D.Identity;
+        transform = Transform3D.Identity;
     }
 }

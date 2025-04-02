@@ -25,7 +25,7 @@ namespace Alco.Rendering
         public Matrix4x4 ViewMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Matrix4x4.CreateLookAtLeftHanded(tranform.Position, tranform.Position + Vector3.Transform(Vector3.UnitZ, tranform.Rotation), Vector3.UnitY);
+            get => Matrix4x4.CreateLookAtLeftHanded(tranform.Position, tranform.Position + Vector3.Transform(Vector3.UnitX, tranform.Rotation), Vector3.UnitZ);
         }
 
 

@@ -32,7 +32,7 @@ public class Game : GameEngine
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
-        _camera.Tranform.Position.Z = -10;
+        _camera.Transform.Position.X = -10;
         _camera.UpdateMatrixToGPU();
 
         _renderer = Rendering.CreateRenderContext();
@@ -41,7 +41,7 @@ public class Game : GameEngine
         _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
         //_material["_texture"] = Rendering.TextureWhite;
 
-        _plane = new Plane3D(new Vector3(0, 0, 1), 0);
+        _plane = new Plane3D(new Vector3(1, 0, 0), 0);
 
         _entity = CreateCube(Color);
         _entity.transform.Position = new Vector3(2, 0, 0);
@@ -65,7 +65,7 @@ public class Game : GameEngine
 
         Vector2 localMousePosition = MainView.MousePosition;
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.Position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, _camera.Transform.Position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _entity.Shape, out RaycastHit3D rayCastHit);
 
@@ -81,10 +81,10 @@ public class Game : GameEngine
             _isDragging = true;
         }
 
-        if (_isDragging)
-        {
-            _entity.transform.Position = mouseWoldPosition + offset;
-        }
+        // if (_isDragging)
+        // {
+        //     _entity.transform.Position = mouseWoldPosition + offset;
+        // }
 
         if (Input.IsMouseUp(Mouse.Left))
         {
