@@ -36,7 +36,7 @@ public sealed class ParticleSimulatorColorLerp2D : IParticleSimulator2D
     {
         particle.Position += particle.Velocity * deltaTime;
         particle.Lifetime -= deltaTime;
-        float t = particle.Lifetime / system.ParticleLifetime;
+        float t = particle.Lifetime / particle.Duration;
         //lifetime is decreasing, so we need to lerp from end to start
         particle.Color = ColorFloat.Lerp(EndColor, StartColor, t);
     }

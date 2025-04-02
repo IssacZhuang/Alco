@@ -75,7 +75,8 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Position = GeneratePosition();
 
         particle.Color = Color;
-        particle.Size = _random.NextFloat(MinSize, MaxSize);
+        float scale = _random.NextFloat(MinSize, MaxSize);
+        particle.Scale = new Vector2(scale, scale);
 
         // Create normalized random direction vector
         float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
@@ -97,17 +98,20 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
 
         particle.Lifetime = _random.NextFloat(1, 2);
+        particle.Duration = particle.Lifetime;
         return particle;
     }
 
-    public ParticleData2D EmitInWorld(Transform2D transform)
+    public ParticleData2D EmitInWorld(in Transform2D transform)
     {
         ParticleData2D particle = default;
         //generate position in world space
         particle.Position = GeneratePosition() * transform.Scale + transform.Position;
 
         particle.Color = Color;
-        particle.Size = _random.NextFloat(MinSize, MaxSize);
+        float scale = _random.NextFloat(MinSize, MaxSize);
+        // transform the scale to world space
+        particle.Scale = new Vector2(scale, scale) * transform.Scale;
 
         // Create normalized random direction vector
         float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
@@ -132,6 +136,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Rotation = transform.Rotation * particle.Rotation;
 
         particle.Lifetime = _random.NextFloat(1, 2);
+        particle.Duration = particle.Lifetime;
         return particle;
     }
 }

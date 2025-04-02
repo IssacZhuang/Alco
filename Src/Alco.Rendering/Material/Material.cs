@@ -156,6 +156,12 @@ public abstract class Material: AutoDisposable
         _isPipelineDirty = true;
     }
 
+    public void ClearDefines()
+    {
+        _pipelineContext.Defines = [];
+        _isPipelineDirty = true;
+    }
+
     /// <summary>
     /// Get the shader pipeline.
     /// </summary>

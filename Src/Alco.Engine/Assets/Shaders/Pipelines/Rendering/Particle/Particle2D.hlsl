@@ -13,13 +13,15 @@ struct V2F {
     float4 color : COLOR0;
 };
 
+//same struct as Alco.Rendering.ParticleData2D in CSharp (ParticleData2D.cs)
 struct ParticleData2D{
     float2 position;
+    float2 rotation; // x, y represent the sin and cos of the rotation
+    float2 scale;
     float2 velocity;
     float4 color;
-    float2 rotation; // x, y represent the sin and cos of the rotation
     float lifetime;
-    float size;
+    float duration;
 };
 
 struct Constants{
@@ -41,15 +43,15 @@ V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
     ParticleData2D particle = _particles[input.instanceId];
     
-    // Apply size, rotation and position to the vertex
+    //transform mesh by rotation
     float2 rotatedPosition;
     rotatedPosition.x = input.position.x * particle.rotation.y - input.position.y * particle.rotation.x;
     rotatedPosition.y = input.position.x * particle.rotation.x + input.position.y * particle.rotation.y;
     
-    // Scale by size
-    rotatedPosition *= particle.size;
+    //transform mesh by scale
+    rotatedPosition *= particle.scale;
     
-    // Add particle position
+    //transform mesh by position
     float3 worldPosition = float3(rotatedPosition + particle.position, 0.0);
 
 #if defined(SPACE_MODE_WORLD)

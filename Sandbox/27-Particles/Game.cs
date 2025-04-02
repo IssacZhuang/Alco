@@ -17,6 +17,10 @@ public class Game : GameEngine
     private RenderContext _renderContext;
     private Texture2D _particleTexture;
     private float _boxRotation = 0f;
+    private readonly string[] spaceModes = new string[] { "Local", "World" };
+    private readonly string[] operationModes = new string[] { "Translate", "Scale", "Rotate" };
+    private int _operationIndex = 0;
+    private OPERATION _imGuizmoOperation = OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -69,7 +73,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y, MODE.LOCAL, ref _particleSystem.Transform);
+        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _imGuizmoOperation, MODE.LOCAL, ref _particleSystem.Transform);
 
         // Draw particles
         _renderContext.Begin(MainFrameBuffer);
@@ -83,6 +87,35 @@ public class Game : GameEngine
         strFramerate.Append(FrameRate);
 
         ImGui.Text(strFramerate);
+
+        ImGui.TextColored(new Vector4(1, 1, 0, 1), "Space Mode");
+
+        int currentSpaceMode = (int)_particleSystem.SpaceMode;
+
+        if (ImGui.Combo("Particle Space Mode", ref currentSpaceMode, spaceModes, spaceModes.Length))
+        {
+            _particleSystem.SpaceMode = (SpaceMode)currentSpaceMode;
+        }
+
+
+        if (ImGui.Combo("Particle Operation Mode", ref _operationIndex, operationModes, operationModes.Length))
+        {
+            switch(_operationIndex)
+            {
+                case 0:
+                    _imGuizmoOperation = OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y;
+                    break;
+                case 1:
+                    _imGuizmoOperation = OPERATION.SCALE_X | OPERATION.SCALE_Y;
+                    break;
+                case 2:
+                    _imGuizmoOperation = OPERATION.ROTATE;
+                    break;
+            }   
+        }
+
+        // Space Mode Controls
+        ImGui.Separator();
 
         // Particle System Controls
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Particle System");
@@ -236,10 +269,8 @@ public class Game : GameEngine
         {
             _simulator.EndColor = endColor;
         }
-        
-        
-        
 
+        
         ImGui.End();
     }
 

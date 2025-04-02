@@ -16,5 +16,5 @@ public interface IParticleEmitter2D
     /// </summary>
     /// <param name="transform">The transform of the particle system.</param>
     /// <returns>A <see cref="ParticleData2D"/> containing the emitted particle's properties.</returns>
-    ParticleData2D EmitInWorld(Transform2D transform);
+    ParticleData2D EmitInWorld(in Transform2D transform);
 }
