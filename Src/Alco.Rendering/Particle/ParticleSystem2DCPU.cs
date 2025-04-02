@@ -112,6 +112,11 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     /// </summary>
     public float ParticleLifetime { get; set; } = 5f;
 
+    /// <summary>
+    /// The transform of the particle system
+    /// </summary>
+    public Transform2D Transform = Transform2D.Identity;
+
     internal ParticleSystem2DCPU(
         RenderingSystem renderingSystem,
         Mesh mesh,
@@ -238,8 +243,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     /// Render the particle system.
     /// </summary>
     /// <param name="context">The render context.</param>
-    /// <param name="transformMatrix">The position, rotation and scale of the particle system.</param>
-    public unsafe void Render(RenderContext context, Matrix4x4 transformMatrix)
+    public unsafe void Render(RenderContext context)
     {
         if (!IsPlaying)
         {
@@ -286,7 +290,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
             int particleCount = Math.Min(drawCount2, MaxParticlePerBuffer);
             drawCount2 -= particleCount;
             _material.SetBuffer(_shaderId_particles, buffer);
-            context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, transformMatrix);
+            context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, Transform.Matrix);
         }
     }
 

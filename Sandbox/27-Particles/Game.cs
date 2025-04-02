@@ -17,7 +17,6 @@ public class Game : GameEngine
     private RenderContext _renderContext;
     private Texture2D _particleTexture;
     private float _boxRotation = 0f;
-    private Matrix4x4 _transformMatrix = Matrix4x4.Identity;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -70,9 +69,11 @@ public class Game : GameEngine
             Stop();
         }
 
+        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y, MODE.LOCAL, ref _particleSystem.Transform);
+
         // Draw particles
         _renderContext.Begin(MainFrameBuffer);
-        _particleSystem.Render(_renderContext, _transformMatrix);
+        _particleSystem.Render(_renderContext);
         _renderContext.End();
 
         // Show particle controls
@@ -123,8 +124,6 @@ public class Game : GameEngine
         {
             _particleSystem.MaxBurstCount = maxBurstCount;
         }
-
-        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y, MODE.LOCAL, ref _transformMatrix);
 
         // Separator
         ImGui.Separator();
