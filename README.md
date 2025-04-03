@@ -17,13 +17,21 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 
 ## Cordinate System
 
-The cordinate system and matrix layout are following the DirectX style(same as Unreal Engine).
+The cordinate system and matrix layout are following the DirectX style.
 
 - Left-handed coordinate system
-- The forward direction is +X
-- The up direction is +Z
-- The right direction is +Y
 - The matrix layout is row-major
+
+**3D**
+- (same as Unreal Engine)
+- x+ is forward
+- y+ is right
+- z+ is up
+
+**2D**
+- x+ is right
+- y+ is up
+- z+ is face into the screen
 
 ## Project Structure
 
