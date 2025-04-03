@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -465,9 +466,31 @@ public static unsafe partial class ImGuizmo
     private static Quaternion EulerToQuaternion(Vector3 eulerAngles)
     {
         //not efficient but no need to optimize because only one matrix can be manipulated at a time
-        Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(math.TORADIANS * eulerAngles.X) *
-                                   Matrix4x4.CreateRotationY(math.TORADIANS * eulerAngles.Y) *
-                                   Matrix4x4.CreateRotationZ(math.TORADIANS * eulerAngles.Z);
-        return Quaternion.CreateFromRotationMatrix(rotationMatrix);
+        // Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(math.radians(eulerAngles.X)) *
+        //                            Matrix4x4.CreateRotationY(math.radians(eulerAngles.Y)) *
+        //                            Matrix4x4.CreateRotationZ(math.radians(eulerAngles.Z));
+        // return Quaternion.CreateFromRotationMatrix(rotationMatrix);
+
+        float halfX = math.radians(eulerAngles.X) * 0.5f;
+        float halfY = math.radians(eulerAngles.Y) * 0.5f;
+        float halfZ = math.radians(eulerAngles.Z) * 0.5f;
+
+        Quaternion zRot = new Quaternion(0, 0, math.sin(halfZ), math.cos(halfZ));
+        Quaternion yRot = new Quaternion(0, math.sin(halfY), 0, math.cos(halfY));
+        Quaternion xRot = new Quaternion(math.sin(halfX), 0, 0, math.cos(halfX));
+
+        return zRot * yRot * xRot;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Matrix4x4 CreateRotationY(float radians)
+    {
+        (float sin, float cos) = float.SinCos(radians);
+        Unsafe.SkipInit(out Matrix4x4 result);
+        *(Vector4*)&result.M11 = Vector4.Create(cos, 0f, 0f - sin, 0f);
+        *(Vector4*)&result.M21 = Vector4.UnitY;
+        *(Vector4*)&result.M31 = Vector4.Create(sin, 0f, cos, 0f);
+        *(Vector4*)&result.M41 = Vector4.UnitW;
+        return result;
     }
 }
