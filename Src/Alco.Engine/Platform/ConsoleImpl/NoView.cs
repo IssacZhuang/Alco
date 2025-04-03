@@ -1,3 +1,4 @@
+using System.Numerics;
 using Alco.Graphics;
 
 namespace Alco.Engine;
@@ -21,9 +22,9 @@ public sealed class NoView : View
 
     public override int2 Position { get; set; }
 
-    public override int2 MousePosition
+    public override Vector2 MousePosition
     {
-        get => new int2(0, 0);
+        get => Vector2.Zero;
     }
 
     protected override void Dispose(bool disposing)

@@ -39,7 +39,7 @@ public class EditorInputSystem : InputSystem, IDisposable
     private Vector2 _mouseDelta;
     private float _mouseWheelDelta;
     private TopLevel? _topLevel;
-    private Avalonia.Controls.Window _window;
+    private Window _window;
 
     public override Vector2 MousePosition
     {
@@ -59,7 +59,7 @@ public class EditorInputSystem : InputSystem, IDisposable
 
     public override float MouseWheelDelta => _mouseWheelDelta;
 
-    public EditorInputSystem(Avalonia.Controls.Window window)
+    public EditorInputSystem(Window window)
     {
         _window = window;
         _topLevel = window.GetVisualRoot() as TopLevel;

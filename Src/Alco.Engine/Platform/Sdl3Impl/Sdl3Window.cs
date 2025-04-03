@@ -71,14 +71,14 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
-    public override int2 MousePosition
+    public override Vector2 MousePosition
     {
         get
         {
             Vector2 globalPosition = default;
             SDL_GetGlobalMouseState(&globalPosition.X, &globalPosition.Y);
-            int2 result = new int2((int)globalPosition.X, (int)globalPosition.Y);
-            return result - Position;
+            Vector2 windowPosition = Position;
+            return globalPosition - windowPosition;
         }
     }
 

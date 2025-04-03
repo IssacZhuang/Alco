@@ -1,4 +1,5 @@
 
+using System.Numerics;
 using Alco;
 using Alco.Engine;
 using Alco.ImGUI;
@@ -8,12 +9,21 @@ namespace Alco.ImGUI;
 public class ImGUIInputHandler: AutoDisposable
 {
     private readonly InputSystem _inputSystem;
-    private readonly View _view;
+    private Func<Vector2>? _getMousePosition;
 
-    public ImGUIInputHandler(View view, InputSystem inputSystem)
+    /// <summary>
+    /// The constructor of the ImGUIInputHandler.
+    /// </summary>
+    /// <param name="inputSystem">The input system.</param>
+    /// <param name="getMousePosition">The function to get the mouse position. 
+    /// The <see cref="InputSystem.MousePosition"/> is used if the function is not provided.
+    /// The default mouse position getter might not be correct because it is the position relative to the screen, not the window.
+    /// It it better to provide a custom mouse position getter that returns the position relative to the window.
+    /// </param>
+    public ImGUIInputHandler(InputSystem inputSystem, Func<Vector2>? getMousePosition)
     {
         _inputSystem = inputSystem;
-        _view = view;
+        _getMousePosition = getMousePosition;
     }
 
     public void Update()
@@ -21,7 +31,16 @@ public class ImGUIInputHandler: AutoDisposable
         ImGuiIOPtr io = ImGui.GetIO();
         // do not use _inputSystem.MousePosition, it is the position relative to the screen, not the window
         //io.AddMousePosEvent(_inputSystem.MousePosition.X, _inputSystem.MousePosition.Y);
-        io.AddMousePosEvent(_view.MousePosition.X, _view.MousePosition.Y);
+        if (_getMousePosition != null)
+        {
+            int2 mousePosition = _getMousePosition();
+            io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
+        }
+        else
+        {
+            Vector2 mousePosition = _inputSystem.MousePosition;
+            io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
+        }
         io.AddMouseButtonEvent(0, _inputSystem.IsMousePressing(Mouse.Left));
         io.AddMouseButtonEvent(1, _inputSystem.IsMousePressing(Mouse.Right));
         io.AddMouseButtonEvent(2, _inputSystem.IsMousePressing(Mouse.Middle));
@@ -36,7 +55,7 @@ public class ImGUIInputHandler: AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        
+        _getMousePosition = null;
     }
 
     private bool TryMapKey(KeyCode key, out ImGuiKey result)

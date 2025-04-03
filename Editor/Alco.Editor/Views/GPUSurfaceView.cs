@@ -11,12 +11,14 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Rendering.SceneGraph;
 using Alco.Engine.MacOS;
+using System.Numerics;
 
 
 namespace Alco.Editor.Views;
 
 public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
 {
+    private readonly InputSystem _inputSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandBuffer;
     private GPUSwapchain? _swapchain;
@@ -34,9 +36,23 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
 
     public int Order => 0;
 
+    public Vector2 MousePosition
+    {
+        get
+        {
+            //relative to the screen
+            Vector2 globalMousePosition = _inputSystem.MousePosition;
+            //control position relative to the screen
+            var controlPosition = this.PointToScreen(new Point(0, 0));
+            //relative to the control
+            return globalMousePosition - new Vector2(controlPosition.X, controlPosition.Y);
+        }
+    }
+
     public GPUSurfaceView()
     {
         GameEngine engine = App.Main.Engine;
+        _inputSystem = engine.Input;
         _device = engine.Rendering.GraphicsDevice;
         _commandBuffer = _device.CreateCommandBuffer( "GPUSurfaceView_CommandBuffer");
         
@@ -53,7 +69,6 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
         base.OnDetachedFromVisualTree(e);
         App.Main.Engine.RemoveSystem(this);
     }
-
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
     {

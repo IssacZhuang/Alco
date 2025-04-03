@@ -82,6 +82,8 @@ public class TextureGPUSurfaceView : GPUSurfaceView
             return;
         }
 
+        Log.Info($"OnRender: {MousePosition}");
+
         uint width = (uint)Math.Max(1, Bounds.Width);
         uint height = (uint)Math.Max(1, Bounds.Height);
 
