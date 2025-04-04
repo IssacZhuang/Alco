@@ -36,15 +36,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Vector2 v, float radians)
         {
-            sincos(radians, out float s, out float c);
-            return new Vector2(c * v.X - s * v.Y, s * v.X + c * v.Y);
+            return rotate(new Rotation2D(radians), v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(float radians, Vector2 v)
         {
-            sincos(radians, out float s, out float c);
-            return new Vector2(c * v.X - s * v.Y, s * v.X + c * v.Y);
+            return rotate(new Rotation2D(radians), v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

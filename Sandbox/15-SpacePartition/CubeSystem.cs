@@ -19,9 +19,9 @@ public class CubeSystem
 
     private Random _random = new Random(123);
 
-    public CubeSystem(RenderingSystem rendering, Material material, Texture2D texDroplet)
+    public CubeSystem(RenderingSystem rendering, Material material, Texture2D texCube)
     {
-        _texture = texDroplet;
+        _texture = texCube;
         _renderContext = rendering.CreateRenderContext();
         _spriteRenderer = rendering.CreateSpriteRenderer(_renderContext, material, "Sprite");
     }

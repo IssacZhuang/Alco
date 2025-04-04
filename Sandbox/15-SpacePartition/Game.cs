@@ -38,7 +38,7 @@ public class Game : GameEngine
         _dropletSystem = new DropletSystem(MainRenderTarget, Rendering, _camera, _shaderSprite, _texDroplet);
         Material cubeMaterial = Rendering.CreateGraphicsMaterial(_shaderSprite, "Sprite");
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        _cubeSystem = new CubeSystem(Rendering, cubeMaterial, _texDroplet);
+        _cubeSystem = new CubeSystem(Rendering, cubeMaterial, Rendering.TextureWhite);
     }
 
     protected override void OnTick(float delta)
