@@ -93,7 +93,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 radians(Vector4 a)
         {
-            return a * TORADIANS;
+            return a * TO_RADIANS;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

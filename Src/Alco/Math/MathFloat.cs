@@ -99,7 +99,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float radians(float a)
         {
-            return a * TORADIANS;
+            return a * TO_RADIANS;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -31,4 +31,13 @@ public class TestRotation
 
         AssertExt.AreEqual(quaternion, quaternion2);
     }
+
+    [Test]
+    public void TestDecompose()
+    {
+        Vector3 eulerAngles = new Vector3(12, 45, -45);
+        Quaternion quaternion = euler(radians(eulerAngles));
+        Vector3 decomposed = degree(decompose(quaternion));
+        AssertExt.AreEqual(decomposed, eulerAngles);
+    }
 }
