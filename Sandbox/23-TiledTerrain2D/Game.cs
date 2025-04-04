@@ -109,7 +109,7 @@ public class Game : GameEngine
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
-        _waterBlock.Transform.Position = new Vector3(0, -0.1f, -0.1f);
+        _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
         _waterBlock.UseLightMap = true;
         _waterBlock.LightMap = _lightMap.Texture;
 

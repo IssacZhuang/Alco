@@ -90,12 +90,12 @@ V2F VertexMain(Vertex input)
 #if defined(IS_CLIFF)
     offsetY += 1;
     gridY += 1;
-    pos.z = pos.y - 0.5f;
+    pos.z = 0.5f - pos.y;
 #endif
 
     float4 position = float4(pos, 1);
     float height = _heightData[input.instanceId];
-    position.z += height;
+    position.z -= height;
     position.xy += float2(offsetX, -offsetY) + float2(height, height) * data.heightOffsetFactor;
     position = mul(constants.model, position);
     position = mul(viewProjection, position);

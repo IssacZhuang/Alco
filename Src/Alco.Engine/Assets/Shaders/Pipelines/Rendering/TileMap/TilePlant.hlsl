@@ -86,12 +86,12 @@ V2F VertexMain(Vertex input)
     float waveOffeetY = cos((timeData.time + pos.y + offsetX * offsetY) * 8) * 0.02;
     pos.x += waveOffeetX;
     pos.y *= (1+waveOffeetY);
-    pos.z = pos.y;
+    pos.z = -pos.y;
 
     float4 position = float4(pos, 1);
 
     float height = _heightData[input.instanceId];
-    position.z += height;
+    position.z -= height;//z is depth, so it is negative
     position.xy += float2(offsetX, -offsetY) + float2(height, height) * data.heightOffsetFactor;
     position = mul(constants.model, position);
     position = mul(viewProjection, position);

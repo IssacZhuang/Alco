@@ -6,6 +6,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// The mathmatical representation of a 2D camera. Can be used in 2D scenes and UI.
+/// It can also consider as a orthographic camera looking along the Z axis.
 /// </summary>
 public struct CameraData2D: ICameraData
 {
@@ -31,7 +32,11 @@ public struct CameraData2D: ICameraData
     public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => math.matrix4translation(-transform.Position) * math.matrix4rotation(math.inverse(transform.Rotation));
+        get
+        {
+            Vector3 position = new Vector3(transform.Position, 0);
+            return Matrix4x4.CreateLookAtLeftHanded(position, position + Vector3.UnitZ, Vector3.UnitY);
+        }
     }
 
     public Matrix4x4 ProjectionMatrix
@@ -40,7 +45,7 @@ public struct CameraData2D: ICameraData
         get
         {
             Vector2 halfSize = transform.Scale * 0.5f;
-            return Matrix4x4.CreateOrthographicOffCenter(
+            return Matrix4x4.CreateOrthographicOffCenterLeftHanded(
                 -halfSize.X, halfSize.X,    // left, right
                 -halfSize.Y, halfSize.Y,    // bottom, top
                 near, far                    // near, far 
