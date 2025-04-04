@@ -14,10 +14,10 @@ public class Camera2D : BaseCamera<CameraData2D>
 
     public Vector2 Position
     {
-        get => _data.transform.Position;
+        get => _data.Transform.Position;
         set
         {
-            _data.transform.Position = value;
+            _data.Transform.Position = value;
             _dirty = true;
         }
     }
@@ -54,20 +54,20 @@ public class Camera2D : BaseCamera<CameraData2D>
 
     public float Near
     {
-        get => _data.near;
+        get => _data.Near;
         set
         {
-            _data.near = value;
+            _data.Near = value;
             _dirty = true;
         }
     }
 
     public float Far
     {
-        get => _data.far;
+        get => _data.Far;
         set
         {
-            _data.far = value;
+            _data.Far = value;
             _dirty = true;
         }
     }

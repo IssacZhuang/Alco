@@ -77,7 +77,7 @@ public class Game : GameEngine
         _texGreen = Rendering.CreateTexture2D(16, 16, 0x00FF00);
 
         camera = new CameraData2D();
-        camera.transform.Position = new Vector2(0, 2);
+        camera.Transform.Position = new Vector2(0, 2);
         camera.Size = new Vector2(16, 9);
         Log.Info(camera.ViewProjectionMatrix);
 

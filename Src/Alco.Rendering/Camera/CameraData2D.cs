@@ -10,23 +10,23 @@ namespace Alco.Rendering;
 /// </summary>
 public struct CameraData2D: ICameraData
 {
-    public Transform2D transform;
-    public float near;
-    public float far;
+    public Transform2D Transform;
+    public float Near;
+    public float Far;
 
     public CameraData2D()
     {
-        transform = Transform2D.Identity;
-        near = -1;
-        far = 1;
+        Transform = Transform2D.Identity;
+        Near = -1;
+        Far = 1;
     }
 
     public Vector2 Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => transform.Scale;
+        get => Transform.Scale;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => transform.Scale = value;
+        set => Transform.Scale = value;
     }
 
     public Matrix4x4 ViewMatrix
@@ -34,7 +34,7 @@ public struct CameraData2D: ICameraData
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            Vector3 position = new Vector3(transform.Position, 0);
+            Vector3 position = new Vector3(Transform.Position, 0);
             return Matrix4x4.CreateLookAtLeftHanded(position, position + Vector3.UnitZ, Vector3.UnitY);
         }
     }
@@ -44,11 +44,11 @@ public struct CameraData2D: ICameraData
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            Vector2 halfSize = transform.Scale * 0.5f;
+            Vector2 halfSize = Transform.Scale * 0.5f;
             return Matrix4x4.CreateOrthographicOffCenterLeftHanded(
                 -halfSize.X, halfSize.X,    // left, right
                 -halfSize.Y, halfSize.Y,    // bottom, top
-                near, far                    // near, far 
+                Near, Far                    // near, far 
             );
         }
     }

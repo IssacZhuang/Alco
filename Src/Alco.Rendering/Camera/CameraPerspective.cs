@@ -4,50 +4,50 @@ namespace Alco.Rendering
     {
         internal CameraPerspective(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
         {
-            _data.transform = Transform3D.Identity;
+            _data.Transform = Transform3D.Identity;
         }
 
         public ref Transform3D Transform
         {
-            get => ref _data.transform;
+            get => ref _data.Transform;
         }
 
         public float FieldOfView
         {
-            get => _data.fov;
+            get => _data.Fov;
             set
             {
-                _data.fov = value;
+                _data.Fov = value;
                 _dirty = true;
             }
         }
 
         public float AspectRatio
         {
-            get => _data.aspectRatio;
+            get => _data.AspectRatio;
             set
             {
-                _data.aspectRatio = value;
+                _data.AspectRatio = value;
                 _dirty = true;
             }
         }
 
         public float Near
         {
-            get => _data.near;
+            get => _data.Near;
             set
             {
-                _data.near = value;
+                _data.Near = value;
                 _dirty = true;
             }
         }
 
         public float Far
         {
-            get => _data.far;
+            get => _data.Far;
             set
             {
-                _data.far = value;
+                _data.Far = value;
                 _dirty = true;
             }
         }

@@ -13,26 +13,26 @@ public struct CameraDataPerspective : ICameraData
     public const float DefaultNear = 0.1f;
     public const float DefaultFar = 1000f;
 
-    public Transform3D transform;
-    public float near;
-    public float far;
-    public float fov;
-    public float aspectRatio;
+    public Transform3D Transform;
+    public float Near;
+    public float Far;
+    public float Fov;
+    public float AspectRatio;
 
     public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => Matrix4x4.CreateLookAtLeftHanded(
-            transform.Position,
-            transform.Position + Vector3.Transform(Vector3.UnitX, transform.Rotation),
-            Vector3.Transform(Vector3.UnitZ, transform.Rotation));
+            Transform.Position,
+            Transform.Position + Vector3.Transform(Vector3.UnitX, Transform.Rotation),
+            Vector3.Transform(Vector3.UnitZ, Transform.Rotation));
     }
 
 
     public Matrix4x4 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(fov, aspectRatio, near, far);
+        get => Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(Fov, AspectRatio, Near, Far);
     }
 
     public Matrix4x4 ViewProjectionMatrix
@@ -46,11 +46,11 @@ public struct CameraDataPerspective : ICameraData
 
     public CameraDataPerspective(float fov = DefaultFov, float aspectRatio = 16 / 9f, float near = DefaultNear, float far = DefaultFar)
     {
-        this.fov = fov;
-        this.near = near;
-        this.far = far;
-        this.aspectRatio = aspectRatio;
+        this.Fov = fov;
+        this.Near = near;
+        this.Far = far;
+        this.AspectRatio = aspectRatio;
 
-        transform = Transform3D.Identity;
+        Transform = Transform3D.Identity;
     }
 }

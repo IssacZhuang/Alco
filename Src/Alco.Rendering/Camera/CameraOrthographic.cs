@@ -6,56 +6,56 @@ public class CameraOrthographic : BaseCamera<CameraDataOrthographic>
 {
     internal CameraOrthographic(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
-        _data.transform = Transform3D.Identity;
+        _data.Transform = Transform3D.Identity;
     }
 
     public Vector2 ViewSize
     {
-        get => new Vector2(_data.width, _data.height);
+        get => new Vector2(_data.Width, _data.Height);
         set
         {
-            _data.width = value.X;
-            _data.height = value.Y;
+            _data.Width = value.X;
+            _data.Height = value.Y;
             _dirty = true;
         }
     }
 
     public float Width
     {
-        get => _data.width;
+        get => _data.Width;
         set
         {
-            _data.width = value;
+            _data.Width = value;
             _dirty = true;
         }
     }
 
     public float Height
     {
-        get => _data.height;
+        get => _data.Height;
         set
         {
-            _data.height = value;
+            _data.Height = value;
             _dirty = true;
         }
     }
 
     public float Far
     {
-        get => _data.far;
+        get => _data.Far;
         set
         {
-            _data.far = value;
+            _data.Far = value;
             _dirty = true;
         }
     }
 
     public float Near
     {
-        get => _data.near;
+        get => _data.Near;
         set
         {
-            _data.near = value;
+            _data.Near = value;
             _dirty = true;
         }
     }
