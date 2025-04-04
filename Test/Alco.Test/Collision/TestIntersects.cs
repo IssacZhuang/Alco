@@ -48,7 +48,7 @@ namespace Alco.Test
             boxA = new ShapeBox3D(new Vector3(8, 0.2f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45))));
             boxB = new ShapeBox3D(new Vector3(9.1f, 0.9f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45))));
 
-            Assert.IsFalse(UtilsCollision3D.BoxBox(boxA, boxB));
+            Assert.IsTrue(UtilsCollision3D.BoxBox(boxA, boxB));
 
             boxA = new ShapeBox3D(new Vector3(8, 4, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
             boxB = new ShapeBox3D(new Vector3(9.1f, 4.9f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
@@ -58,7 +58,7 @@ namespace Alco.Test
             boxA = new ShapeBox3D(new Vector3(8, 5, 7f), new Vector3(1f), Quaternion.Identity);
             boxB = new ShapeBox3D(new Vector3(9.1f, 5.9f, 7f), new Vector3(1f), math.euler(math.radians(new Vector3(45f))));
 
-            Assert.IsFalse(UtilsCollision3D.BoxBox(boxA, boxB));
+            Assert.IsTrue(UtilsCollision3D.BoxBox(boxA, boxB));
 
             boxA = new ShapeBox3D(new Vector3(8, 0.4f, 0f), new Vector3(1f), math.euler(math.radians(new Vector3(45))));
             boxB = new ShapeBox3D(new Vector3(9.1f, 0.9f, 0f), new Vector3(1f), Quaternion.Identity);

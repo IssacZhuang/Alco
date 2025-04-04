@@ -41,13 +41,35 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion euler(Vector3 xyz)
         {
-            return Quaternion.CreateFromYawPitchRoll(xyz.Y, xyz.X, xyz.Z);
+            //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
+            //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
+            //same as Unreal Engine
+
+            xyz.Y = -xyz.Y;
+            xyz.X = -xyz.X;
+            Vector3 halfAngles = xyz * 0.5f;
+            float sinX = sin(halfAngles.X);
+            float cosX = cos(halfAngles.X);
+            float sinY = sin(halfAngles.Y);
+            float cosY = cos(halfAngles.Y);
+            float sinZ = sin(halfAngles.Z);
+            float cosZ = cos(halfAngles.Z);
+
+            Quaternion result;
+
+            // Yaw(Z), Pitch(Y), Roll(X) order implementation
+            result.X = sinX * cosY * cosZ - cosX * sinY * sinZ;
+            result.Y = cosX * sinY * cosZ + sinX * cosY * sinZ;
+            result.Z = cosX * cosY * sinZ - sinX * sinY * cosZ;
+            result.W = cosX * cosY * cosZ + sinX * sinY * sinZ;
+
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion euler(float x, float y, float z)
         {
-            return Quaternion.CreateFromYawPitchRoll(y, x, z);
+            return euler(new Vector3(x, y, z));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

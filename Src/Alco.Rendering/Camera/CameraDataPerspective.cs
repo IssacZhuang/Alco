@@ -22,7 +22,10 @@ public struct CameraDataPerspective : ICameraData
     public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Matrix4x4.CreateLookAtLeftHanded(transform.Position, transform.Position + Vector3.Transform(Vector3.UnitX, transform.Rotation), Vector3.UnitZ);
+        get => Matrix4x4.CreateLookAtLeftHanded(
+            transform.Position,
+            transform.Position + Vector3.Transform(Vector3.UnitX, transform.Rotation),
+            Vector3.Transform(Vector3.UnitZ, transform.Rotation));
     }
 
 

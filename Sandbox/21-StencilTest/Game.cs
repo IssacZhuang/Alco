@@ -29,6 +29,8 @@ public class Game : GameEngine
 
     private readonly GPUCommandBuffer _commandClearScreen;
 
+    private Vector3 _rotationAngles = Vector3.Zero;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
 
@@ -98,6 +100,8 @@ public class Game : GameEngine
 
         DebugGUI.Text("Hold mouse middle button to rotate camera");
 
+        _camaraParent.Rotation = math.euler(math.radians(_rotationAngles));
+
         _commandClearScreen.Begin();
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
         _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
@@ -113,8 +117,9 @@ public class Game : GameEngine
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
-            _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.Y * 0.01f);
-            _camaraParent.Rotate(Vector3.UnitZ, Input.MouseDelta.X * 0.01f);
+            //_camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.Y * 0.01f);
+            // _camaraParent.Rotate(Vector3.UnitZ, Input.MouseDelta.X * 0.01f);
+            _rotationAngles += new Vector3(0, -Input.MouseDelta.Y , Input.MouseDelta.X );
         }
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);

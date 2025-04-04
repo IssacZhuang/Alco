@@ -31,6 +31,9 @@ public class Game : GameEngine
     private int _currentOperation = 0;
     private OPERATION _currentOperationEnum = OPERATION.TRANSLATE;
 
+    private Vector3 _rotationAngles = Vector3.Zero;
+    private Vector3 _cubeRotationAngles = Vector3.Zero;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
 
@@ -65,12 +68,15 @@ public class Game : GameEngine
             Stop();
         }
 
+        _camaraParent.Rotation = math.euler(math.radians(_rotationAngles));
+
         _commandClearScreen.Begin();
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
         _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
         _commandClearScreen.End();
         Rendering.ScheduleCommandBuffer(_commandClearScreen);
 
+        _cube.transform.Rotation = math.euler(math.radians(_cubeRotationAngles));
 
         _renderer.Begin(MainFrameBuffer);
         _cube.OnDraw(_renderer);
@@ -78,8 +84,8 @@ public class Game : GameEngine
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
-            _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.Y * 0.01f);
-            _camaraParent.Rotate(Vector3.UnitZ, Input.MouseDelta.X * 0.01f);
+            
+            _rotationAngles += new Vector3(0, -Input.MouseDelta.Y, Input.MouseDelta.X);
         }
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
@@ -87,6 +93,8 @@ public class Game : GameEngine
 
         ImGui.Begin("Transform");
         ImGui.Text("Hold mouse middle button to rotate camera");
+        ImGui.Text($"Mouse position: {Input.MousePosition}");
+        ImGui.DragFloat3("Rotation", ref _cubeRotationAngles);
         if (ImGui.Combo("Operation", ref _currentOperation, _operationNames, 3))
         {
             switch (_currentOperation){

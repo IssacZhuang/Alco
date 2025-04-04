@@ -16,7 +16,7 @@ namespace Alco.Rendering
         public const float DefaultFar = 1000f;
 
 
-        public Transform3D tranform;
+        public Transform3D transform;
         public float near;
         public float far;
         public float width;
@@ -25,7 +25,7 @@ namespace Alco.Rendering
         public Matrix4x4 ViewMatrix
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Matrix4x4.CreateLookAtLeftHanded(tranform.Position, tranform.Position + Vector3.Transform(Vector3.UnitX, tranform.Rotation), Vector3.UnitZ);
+            get => Matrix4x4.CreateLookAtLeftHanded(transform.Position, transform.Position + Vector3.Transform(Vector3.UnitX, transform.Rotation), Vector3.Transform(Vector3.UnitZ, transform.Rotation));
         }
 
 
@@ -49,7 +49,7 @@ namespace Alco.Rendering
             this.near = near;
             this.far = far;
 
-            tranform = Transform3D.Identity;
+            transform = Transform3D.Identity;
         }
     }
 }
