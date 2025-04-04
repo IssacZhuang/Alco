@@ -10,10 +10,24 @@ namespace Alco.Rendering;
 /// </summary>
 public struct CameraData2D: ICameraData
 {
+    /// <summary>
+    /// The 2D transform data containing position, rotation and scale.
+    /// </summary>
     public Transform2D Transform;
+
+    /// <summary>
+    /// The near clipping plane distance.
+    /// </summary>
     public float Near;
+
+    /// <summary>
+    /// The far clipping plane distance.
+    /// </summary>
     public float Far;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CameraData2D"/> struct with default values.
+    /// </summary>
     public CameraData2D()
     {
         Transform = Transform2D.Identity;
@@ -21,6 +35,9 @@ public struct CameraData2D: ICameraData
         Far = 1;
     }
 
+    /// <summary>
+    /// Gets or sets the size of the camera view.
+    /// </summary>
     public Vector2 Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -29,6 +46,9 @@ public struct CameraData2D: ICameraData
         set => Transform.Scale = value;
     }
 
+    /// <summary>
+    /// Gets the view matrix for the camera.
+    /// </summary>
     public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -39,6 +59,9 @@ public struct CameraData2D: ICameraData
         }
     }
 
+    /// <summary>
+    /// Gets the orthographic projection matrix for the camera.
+    /// </summary>
     public Matrix4x4 ProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -53,6 +76,9 @@ public struct CameraData2D: ICameraData
         }
     }
 
+    /// <summary>
+    /// Gets the combined view-projection matrix for the camera.
+    /// </summary>
     public Matrix4x4 ViewProjectionMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
