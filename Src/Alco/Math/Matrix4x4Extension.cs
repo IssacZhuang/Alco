@@ -40,7 +40,7 @@ public static class Matrix4x4Extension
         if (trace > 0.0f)
         {
             float invS = rsqrt(trace + 1.0f);
-            q.W = 0.5f * invS;
+            q.W = 0.5f * (1.0f / invS);
             invS *= 0.5f;
 
             q.X = (matrix.M23 - matrix.M32) * invS;
