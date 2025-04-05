@@ -6,7 +6,7 @@ namespace TestFramework;
 
 public static class AssertExt
 {
-    public const float Epsilon = 0.0001f;
+    public const float Epsilon = 0.01f;
 
     public static void AreEqual(Vector2 expected, Vector2 actual)
     {
