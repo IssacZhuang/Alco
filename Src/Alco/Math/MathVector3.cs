@@ -97,7 +97,7 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 degree(Vector3 radian)
+        public static Vector3 degrees(Vector3 radian)
         {
             return radian * TO_DEGREES;
         }

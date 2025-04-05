@@ -45,8 +45,6 @@ namespace Alco
             //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
             //same as Unreal Engine
 
-            xyz.Y = -xyz.Y;
-            xyz.X = -xyz.X;
             Vector3 halfAngles = xyz * 0.5f;
             float sinX = sin(halfAngles.X);
             float cosX = cos(halfAngles.X);
@@ -55,13 +53,15 @@ namespace Alco
             float sinZ = sin(halfAngles.Z);
             float cosZ = cos(halfAngles.Z);
 
+            float cosXY = cosX * cosY;
+            float sinXY = sinX * sinY;
+
             Quaternion result;
 
-            // Yaw(Z), Pitch(Y), Roll(X) order implementation
-            result.X = sinX * cosY * cosZ - cosX * sinY * sinZ;
-            result.Y = cosX * sinY * cosZ + sinX * cosY * sinZ;
-            result.Z = cosX * cosY * sinZ - sinX * sinY * cosZ;
-            result.W = cosX * cosY * cosZ + sinX * sinY * sinZ;
+            result.X = -sinX * cosY * cosZ + cosX * sinY * sinZ;
+            result.Y = -cosX * sinY * cosZ - sinX * cosY * sinZ;
+            result.Z = cosXY * sinZ - sinXY * cosZ;
+            result.W = cosXY * cosZ + sinXY * sinZ;
 
             return result;
         }
@@ -79,11 +79,11 @@ namespace Alco
 
             // ZYX order decomposition (yaw(Z), pitch(Y), roll(X))
             float yaw = atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
-            float pitch = asin(2 * (q.W * q.Y - q.Z * q.X));
-            float roll = atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+            float pitch = -asin(2 * (q.W * q.Y - q.Z * q.X));
+            float roll = -atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
 
             // Adjust signs to match engine's coordinate system
-            return new Vector3(-roll, -pitch, yaw);
+            return new Vector3(roll, pitch, yaw);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

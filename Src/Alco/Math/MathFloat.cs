@@ -103,6 +103,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float degrees(float a)
+        {
+            return a * TO_DEGREES;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float lerp(float a, float b, float t)
         {
             return a + (b - a) * t;

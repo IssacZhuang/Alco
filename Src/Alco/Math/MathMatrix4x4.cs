@@ -311,5 +311,56 @@ namespace Alco
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Matrix4x4 transpose(Matrix4x4 matrix)
+        {
+            return Matrix4x4.Transpose(matrix);
+        }
+
+        public static void decompose(Matrix4x4 matrix, out Transform3D transform)
+        {
+            Matrix4x4.Decompose(matrix, out Vector3 scale, out Quaternion rotation, out Vector3 translation);
+            transform.Position = translation;
+            transform.Rotation = rotation;
+            transform.Scale = scale;
+        }
+
+        public static void decompose(Matrix4x4 matrix, out Vector3 scale, out Quaternion rotation, out Vector3 translation)
+        {
+            Matrix4x4.Decompose(matrix, out scale, out rotation, out translation);
+        }
+
+        public static void decompose(Matrix4x4 matrix, out Vector3 scale, out Vector3 eulerAngles, out Vector3 translation)
+        {
+            Matrix4x4.Decompose(matrix, out scale, out Quaternion rotation, out translation);
+            eulerAngles = degrees(decompose(rotation));
+        }
+
+        public static void decompose(Matrix4x4 matrix, out Transform2D transform)
+        {
+            Matrix4x4.Decompose(matrix, out Vector3 scale, out Quaternion rotation, out Vector3 translation);
+            transform.Position = new Vector2(translation.X, translation.Y);
+            Vector3 euler = decompose(rotation);
+            transform.Rotation = new Rotation2D(euler.Z);
+            transform.Scale = new Vector2(scale.X, scale.Y);
+        }
+
+        public static void decompose(Matrix4x4 matrix, out Vector2 scale, out Rotation2D rotation, out Vector2 translation)
+        {
+            Matrix4x4.Decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
+            scale = new Vector2(scale3.X, scale3.Y);
+            Vector3 euler = decompose(rotation2);
+            rotation = new Rotation2D(euler.Z);
+            translation = new Vector2(translation3.X, translation3.Y);
+        }
+
+        public static void decompose(Matrix4x4 matrix, out Vector2 scale, out float angle, out Vector2 translation)
+        {
+            Matrix4x4.Decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
+            scale = new Vector2(scale3.X, scale3.Y);
+            Vector3 euler = decompose(rotation2);
+            angle = degrees(euler.Z);
+            translation = new Vector2(translation3.X, translation3.Y);
+        }
     }
 }
