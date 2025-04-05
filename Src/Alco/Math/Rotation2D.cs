@@ -47,9 +47,20 @@ namespace Alco
         /// Converts the rotation to an angle in radians.
         /// </summary>
         /// <returns>The angle in radians.</returns>
-        public float ToRadian()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly float ToRadian()
         {
             return math.atan2(S, C);
+        }
+
+        /// <summary>
+        /// Converts the rotation to an angle in degrees.
+        /// </summary>
+        /// <returns>The angle in degrees.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly float ToDegree()
+        {
+            return math.degrees(ToRadian());
         }
 
         /// <summary>

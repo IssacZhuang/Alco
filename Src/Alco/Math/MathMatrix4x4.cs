@@ -362,5 +362,11 @@ namespace Alco
             angle = degrees(euler.Z);
             translation = new Vector2(translation3.X, translation3.Y);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void decompose(Matrix4x4 matrix, out Vector3 translation)
+        {
+            translation = new Vector3(matrix.M41, matrix.M42, matrix.M43);
+        }
     }
 }
