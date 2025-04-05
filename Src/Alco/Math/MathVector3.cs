@@ -135,13 +135,15 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 cos(Vector3 a)
         {
-            return new Vector3(cos(a.X), cos(a.Y), cos(a.Z));
+            //simd
+            return Vector3.Cos(a);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 sin(Vector3 a)
         {
-            return new Vector3(sin(a.X), sin(a.Y), sin(a.Z));
+            //simd
+            return Vector3.Sin(a);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -171,8 +173,8 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void sincos(Vector3 a, out Vector3 s, out Vector3 c)
         {
-            s = sin(a);
-            c = cos(a);
+            //simd
+            (s, c) = Vector3.SinCos(a);
         }
 
     }

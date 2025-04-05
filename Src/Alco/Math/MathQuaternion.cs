@@ -39,29 +39,23 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion euler(Vector3 xyz)
+        public static Quaternion euler(Vector3 radians)
         {
             //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
             //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
             //same as Unreal Engine
 
-            Vector3 halfAngles = xyz * 0.5f;
-            float sinX = sin(halfAngles.X);
-            float cosX = cos(halfAngles.X);
-            float sinY = sin(halfAngles.Y);
-            float cosY = cos(halfAngles.Y);
-            float sinZ = sin(halfAngles.Z);
-            float cosZ = cos(halfAngles.Z);
+            Vector3 halfAngles = radians * 0.5f;
 
-            float cosXY = cosX * cosY;
-            float sinXY = sinX * sinY;
+            //simd
+            (Vector3 sin, Vector3 cos) = Vector3.SinCos(halfAngles);
 
             Quaternion result;
 
-            result.X = -sinX * cosY * cosZ + cosX * sinY * sinZ;
-            result.Y = -cosX * sinY * cosZ - sinX * cosY * sinZ;
-            result.Z = cosXY * sinZ - sinXY * cosZ;
-            result.W = cosXY * cosZ + sinXY * sinZ;
+            result.X = cos.X * sin.Y * sin.Z - sin.X * cos.Y * cos.Z;
+            result.Y = -cos.X * sin.Y * cos.Z - sin.X * cos.Y * sin.Z;
+            result.Z = cos.X * cos.Y * sin.Z - sin.X * sin.Y * cos.Z;
+            result.W = cos.X * cos.Y * cos.Z + sin.X * sin.Y * sin.Z;
 
             return result;
         }
@@ -75,14 +69,35 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 decompose(Quaternion q)
         {
-            q = Quaternion.Normalize(q);
+            //decompose quaternion to euler angles Roll(X), Pitch(Y), Yaw(Z) in radians
 
-            // ZYX order decomposition (yaw(Z), pitch(Y), roll(X))
-            float yaw = atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
-            float pitch = -asin(2 * (q.W * q.Y - q.Z * q.X));
-            float roll = -atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+            float singularityTest = q.Z * q.X - q.W * q.Y;
+            float yawY = 2 * (q.W * q.Z + q.X * q.Y);
+            float yawX = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
 
-            // Adjust signs to match engine's coordinate system
+            const float SINGULARITY_THRESHOLD = 0.4999995f;
+
+            float pitch, yaw, roll;
+
+            if (singularityTest < -SINGULARITY_THRESHOLD)
+            {
+                pitch = -PI * 0.5f;
+                yaw = atan2(yawY, yawX);
+                roll = -yaw - (2 * atan2(q.X, q.W));
+            }
+            else if (singularityTest > SINGULARITY_THRESHOLD)
+            {
+                pitch = PI * 0.5f;
+                yaw = atan2(yawY, yawX);
+                roll = yaw - (2 * atan2(q.X, q.W));
+            }
+            else
+            {
+                pitch = asin(2 * singularityTest);
+                yaw = atan2(yawY, yawX);
+                roll = atan2(-2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+            }
+
             return new Vector3(roll, pitch, yaw);
         }
 
