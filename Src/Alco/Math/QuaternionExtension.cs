@@ -17,5 +17,11 @@ namespace Alco
         {
             return math.euler(q) * math.DegToRad;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion Normalize(this Quaternion q)
+        {
+            return Quaternion.Normalize(q);
+        }
     }
 }

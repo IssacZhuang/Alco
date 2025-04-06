@@ -411,14 +411,14 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static void ExtractScale(ref Matrix4x4 matrix, out Vector3 scale)
+        private unsafe static void ExtractScale(ref Matrix4x4 matrix, out Vector3 scale, float tolerance = 1e-5f)
         {
             //assum tolerance is 0
             float squareSum0 = matrix.M11 * matrix.M11 + matrix.M12 * matrix.M12 + matrix.M13 * matrix.M13;
             float squareSum1 = matrix.M21 * matrix.M21 + matrix.M22 * matrix.M22 + matrix.M23 * matrix.M23;
             float squareSum2 = matrix.M31 * matrix.M31 + matrix.M32 * matrix.M32 + matrix.M33 * matrix.M33;
 
-            if (squareSum0 > 0)
+            if (squareSum0 > tolerance)
             {
                 float scale0 = MathF.Sqrt(squareSum0);
                 scale.X = scale0;
@@ -432,7 +432,7 @@ namespace Alco
                 scale.X = 0;
             }
 
-            if (squareSum1 > 0)
+            if (squareSum1 > tolerance)
             {
                 float scale1 = MathF.Sqrt(squareSum1);
                 scale.Y = scale1;
@@ -446,7 +446,7 @@ namespace Alco
                 scale.Y = 0;
             }
 
-            if (squareSum2 > 0)
+            if (squareSum2 > tolerance)
             {
                 float scale2 = MathF.Sqrt(squareSum2);
                 scale.Z = scale2;

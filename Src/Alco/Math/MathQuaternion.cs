@@ -38,6 +38,22 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static Quaternion quaternion(in Matrix4x4 matrix)
         {
+            const float tolerance = 1e-5f;
+            if (matrix.M11 < tolerance && matrix.M12 < tolerance && matrix.M13 < tolerance)
+            {
+                return Quaternion.Identity;
+            }
+
+            if (matrix.M21 < tolerance && matrix.M22 < tolerance && matrix.M23 < tolerance)
+            {
+                return Quaternion.Identity;
+            }
+
+            if (matrix.M31 < tolerance && matrix.M32 < tolerance && matrix.M33 < tolerance)
+            {
+                return Quaternion.Identity;
+            }
+
             float trace = matrix.M11 + matrix.M22 + matrix.M33;
 
             Quaternion q;
