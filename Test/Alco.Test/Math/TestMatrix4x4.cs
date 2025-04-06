@@ -1,155 +1,212 @@
-// using NUnit.Framework;
-// using System.Numerics;
-// using Alco;
+using NUnit.Framework;
+using System.Numerics;
+using Alco;
 
-// using static Alco.math;
+using static Alco.math;
 
-// namespace Alco.Test;
+namespace Alco.Test;
 
-// [TestFixture]
-// public class TestMatrix4x4
-// {
-//     [Test]
-//     public void TestDecomposeTransform3D()
-//     {
-//         // Create a matrix using TRS
-//         Vector3 originalPosition = new Vector3(1, 2, 3);
-//         Quaternion originalRotation = quaternion(30, 45, 60);
-//         Vector3 originalScale = new Vector3(2, 3, 4);
+[TestFixture]
+public class TestMatrix4x4
+{
+    [Test]
+    public void TestDecomposeTransform3DComponents()
+    {
+        float epsilon = 0.0001f;
 
-//         Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        // Create a matrix using TRS
+        Vector3 originalPosition = new Vector3(1, 2, 3);
+        Quaternion originalRotation = quaternion(30, 45, 60);
+        Vector3 originalScale = new Vector3(2, 3, 4);
 
-//         // Decompose the matrix
-//         Transform3D transform = new Transform3D();
-//         decompose(matrix, out transform);
+        Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
 
-//         // Check if decomposed values match the original values
-//         Assert.That(transform.Position, Is.EqualTo(originalPosition).Within(0.0001f));
-//         Assert.That(transform.Rotation, Is.EqualTo(originalRotation).Using<Quaternion>((q1, q2) =>
-//             (abs(q1.X - q2.X) < 0.0001f &&
-//              abs(q1.Y - q2.Y) < 0.0001f &&
-//              abs(q1.Z - q2.Z) < 0.0001f &&
-//              abs(q1.W - q2.W) < 0.0001f) ? 0 : 1));
-//         Assert.That(transform.Scale, Is.EqualTo(originalScale).Within(0.0001f));
-//     }
+        // Decompose the matrix
+        Vector3 scale;
+        Quaternion rotation;
+        Vector3 translation;
+        decompose(matrix, out scale, out rotation, out translation);
 
-//     [Test]
-//     public void TestDecomposeTransform3DComponents()
-//     {
-//         // Create a matrix using TRS
-//         Vector3 originalPosition = new Vector3(1, 2, 3);
-//         Quaternion originalRotation = quaternion(30, 45, 60);
-//         Vector3 originalScale = new Vector3(2, 3, 4);
+        // Check if decomposed values match the original values
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalPosition.X, Is.EqualTo(translation.X).Within(epsilon));
+            Assert.That(originalPosition.Y, Is.EqualTo(translation.Y).Within(epsilon));
+            Assert.That(originalPosition.Z, Is.EqualTo(translation.Z).Within(epsilon));
+        });
 
-//         Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        float dot = Quaternion.Dot(originalRotation, rotation);
+        Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
 
-//         // Decompose the matrix
-//         Vector3 scale;
-//         Quaternion rotation;
-//         Vector3 translation;
-//         decompose(matrix, out scale, out rotation, out translation);
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalScale.X, Is.EqualTo(scale.X).Within(epsilon));
+            Assert.That(originalScale.Y, Is.EqualTo(scale.Y).Within(epsilon));
+            Assert.That(originalScale.Z, Is.EqualTo(scale.Z).Within(epsilon));
+        });
 
-//         // Check if decomposed values match the original values
-//         Assert.That(translation, Is.EqualTo(originalPosition).Within(0.0001f));
-//         Assert.That(rotation, Is.EqualTo(originalRotation).Using<Quaternion>((q1, q2) =>
-//             (abs(q1.X - q2.X) < 0.0001f &&
-//              abs(q1.Y - q2.Y) < 0.0001f &&
-//              abs(q1.Z - q2.Z) < 0.0001f &&
-//              abs(q1.W - q2.W) < 0.0001f) ? 0 : 1));
-//         Assert.That(scale, Is.EqualTo(originalScale).Within(0.0001f));
-//     }
 
-//     [Test]
-//     public void TestDecomposeTransform3DEuler()
-//     {
-//         // Create a matrix using TRS
-//         Vector3 originalPosition = new Vector3(1, 2, 3);
-//         Vector3 originalEuler = new Vector3(30, 45, 60);
-//         Quaternion originalRotation = quaternion(originalEuler);
-//         Vector3 originalScale = new Vector3(2, 3, 4);
+        //negate scale
+        originalScale = new Vector3(-2, 4, -4);
+        matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        decompose(matrix, out scale, out rotation, out translation);
 
-//         Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalPosition.X, Is.EqualTo(translation.X).Within(epsilon));
+            Assert.That(originalPosition.Y, Is.EqualTo(translation.Y).Within(epsilon));
+            Assert.That(originalPosition.Z, Is.EqualTo(translation.Z).Within(epsilon));
+        });
 
-//         // Decompose the matrix
-//         Vector3 scale;
-//         Vector3 eulerAngles;
-//         Vector3 translation;
-//         decompose(matrix, out scale, out eulerAngles, out translation);
+        dot = Quaternion.Dot(originalRotation, rotation);
+        Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
 
-//         // Check if decomposed values match the original values
-//         Assert.That(translation, Is.EqualTo(originalPosition).Within(0.0001f));
-//         // Euler angles may differ slightly due to conversion, so use a larger tolerance
-//         Assert.That(eulerAngles, Is.EqualTo(originalEuler).Within(0.5f));
-//         Assert.That(scale, Is.EqualTo(originalScale).Within(0.0001f));
-//     }
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalScale.X, Is.EqualTo(scale.X).Within(epsilon));
+            Assert.That(originalScale.Y, Is.EqualTo(scale.Y).Within(epsilon));
+            Assert.That(originalScale.Z, Is.EqualTo(scale.Z).Within(epsilon));
+        });
 
-//     [Test]
-//     public void TestDecomposeTransform2D()
-//     {
-//         // Create a matrix using TRS for 2D
-//         Vector2 originalPosition = new Vector2(1, 2);
-//         float angleRadians = radians(45.0f);
-//         Rotation2D originalRotation = new Rotation2D(angleRadians);
-//         Vector2 originalScale = new Vector2(2, 3);
 
-//         Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        //zero scale
+        originalScale = new Vector3(0, 0, 0);
+        matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        decompose(matrix, out scale, out rotation, out translation);
 
-//         // Decompose the matrix
-//         Transform2D transform = new Transform2D();
-//         decompose(matrix, out transform);
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalPosition.X, Is.EqualTo(translation.X).Within(epsilon));
+            Assert.That(originalPosition.Y, Is.EqualTo(translation.Y).Within(epsilon));
+            Assert.That(originalPosition.Z, Is.EqualTo(translation.Z).Within(epsilon));
+        });
 
-//         // Check if decomposed values match the original values
-//         Assert.That(transform.Position, Is.EqualTo(originalPosition).Within(0.0001f));
-//         Assert.That(transform.Rotation.C, Is.EqualTo(originalRotation.C).Within(0.0001f));
-//         Assert.That(transform.Rotation.S, Is.EqualTo(originalRotation.S).Within(0.0001f));
-//         Assert.That(transform.Scale, Is.EqualTo(originalScale).Within(0.0001f));
-//     }
+        dot = Quaternion.Dot(originalRotation, rotation);
+        Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
 
-//     [Test]
-//     public void TestDecomposeTransform2DComponents()
-//     {
-//         // Create a matrix using TRS for 2D
-//         Vector2 originalPosition = new Vector2(1, 2);
-//         float angleRadians = radians(45.0f);
-//         Rotation2D originalRotation = new Rotation2D(angleRadians);
-//         Vector2 originalScale = new Vector2(2, 3);
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalScale.X, Is.EqualTo(scale.X).Within(epsilon));
+            Assert.That(originalScale.Y, Is.EqualTo(scale.Y).Within(epsilon));
+            Assert.That(originalScale.Z, Is.EqualTo(scale.Z).Within(epsilon));
+        });
+    }
 
-//         Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+    [Test]
+    public void TestDecomposeTransform3DEuler()
+    {
+        float epsilon = 0.0001f;
 
-//         // Decompose the matrix
-//         Vector2 scale;
-//         Rotation2D rotation;
-//         Vector2 translation;
-//         decompose(matrix, out scale, out rotation, out translation);
+        // Create a matrix using TRS
+        Vector3 originalPosition = new Vector3(1, 2, 3);
+        Vector3 originalEuler = new Vector3(30, 45, 60);
+        Quaternion originalRotation = quaternion(originalEuler);
+        Vector3 originalScale = new Vector3(2, 3, 4);
 
-//         // Check if decomposed values match the original values
-//         Assert.That(translation, Is.EqualTo(originalPosition).Within(0.0001f));
-//         Assert.That(rotation.C, Is.EqualTo(originalRotation.C).Within(0.0001f));
-//         Assert.That(rotation.S, Is.EqualTo(originalRotation.S).Within(0.0001f));
-//         Assert.That(scale, Is.EqualTo(originalScale).Within(0.0001f));
-//     }
+        Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
 
-//     [Test]
-//     public void TestDecomposeTransform2DAngle()
-//     {
-//         // Create a matrix using TRS for 2D
-//         Vector2 originalPosition = new Vector2(1, 2);
-//         float originalAngle = 45.0f; // degrees
-//         float angleRadians = radians(originalAngle);
-//         Rotation2D originalRotation = new Rotation2D(angleRadians);
-//         Vector2 originalScale = new Vector2(2, 3);
+        // Decompose the matrix
+        Vector3 scale;
+        Vector3 eulerAngles;
+        Vector3 translation;
+        decompose(matrix, out scale, out eulerAngles, out translation);
 
-//         Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+        // Check if decomposed values match the original values
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalPosition.X, Is.EqualTo(translation.X).Within(epsilon));
+            Assert.That(originalPosition.Y, Is.EqualTo(translation.Y).Within(epsilon));
+            Assert.That(originalPosition.Z, Is.EqualTo(translation.Z).Within(epsilon));
+        });
 
-//         // Decompose the matrix
-//         Vector2 scale;
-//         float angle;
-//         Vector2 translation;
-//         decompose(matrix, out scale, out angle, out translation);
+        // Euler angles may differ slightly due to conversion, so use a larger tolerance
+        float eulerEpsilon = 0.5f;
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalEuler.X, Is.EqualTo(eulerAngles.X).Within(eulerEpsilon));
+            Assert.That(originalEuler.Y, Is.EqualTo(eulerAngles.Y).Within(eulerEpsilon));
+            Assert.That(originalEuler.Z, Is.EqualTo(eulerAngles.Z).Within(eulerEpsilon));
+        });
 
-//         // Check if decomposed values match the original values
-//         Assert.That(translation, Is.EqualTo(originalPosition).Within(0.0001f));
-//         Assert.That(angle, Is.EqualTo(originalAngle).Within(0.1f));
-//         Assert.That(scale, Is.EqualTo(originalScale).Within(0.0001f));
-//     }
-// }
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalScale.X, Is.EqualTo(scale.X).Within(epsilon));
+            Assert.That(originalScale.Y, Is.EqualTo(scale.Y).Within(epsilon));
+            Assert.That(originalScale.Z, Is.EqualTo(scale.Z).Within(epsilon));
+        });
+    }
+
+    // [Test]
+    // public void TestDecomposeTransform2DComponents()
+    // {
+    //     float epsilon = 0.0001f;
+
+    //     // Create a matrix using TRS for 2D
+    //     Vector2 originalPosition = new Vector2(1, 2);
+    //     float angleRadians = radians(45.0f);
+    //     Rotation2D originalRotation = new Rotation2D(angleRadians);
+    //     Vector2 originalScale = new Vector2(2, 3);
+
+    //     Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+
+    //     // Decompose the matrix
+    //     Vector2 scale;
+    //     Rotation2D rotation;
+    //     Vector2 translation;
+    //     decompose(matrix, out scale, out rotation, out translation);
+
+    //     // Check if decomposed values match the original values
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(originalPosition.X, Is.EqualTo(translation.X).Within(epsilon));
+    //         Assert.That(originalPosition.Y, Is.EqualTo(translation.Y).Within(epsilon));
+    //     });
+
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(originalRotation.C, Is.EqualTo(rotation.C).Within(epsilon));
+    //         Assert.That(originalRotation.S, Is.EqualTo(rotation.S).Within(epsilon));
+    //     });
+
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(originalScale.X, Is.EqualTo(scale.X).Within(epsilon));
+    //         Assert.That(originalScale.Y, Is.EqualTo(scale.Y).Within(epsilon));
+    //     });
+    // }
+
+    // [Test]
+    // public void TestDecomposeTransform2DAngle()
+    // {
+    //     float epsilon = 0.0001f;
+
+    //     // Create a matrix using TRS for 2D
+    //     Vector2 originalPosition = new Vector2(1, 2);
+    //     float originalAngle = 45.0f; // degrees
+    //     Rotation2D originalRotation = Rotation2D.FromDegree(originalAngle);
+    //     Vector2 originalScale = new Vector2(2, 3);
+
+    //     Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
+
+    //     // Decompose the matrix
+    //     Vector2 scale;
+    //     float angle;
+    //     Vector2 translation;
+    //     decompose(matrix, out scale, out angle, out translation);
+
+    //     // Check if decomposed values match the original values
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(originalPosition.X, Is.EqualTo(translation.X).Within(epsilon));
+    //         Assert.That(originalPosition.Y, Is.EqualTo(translation.Y).Within(epsilon));
+    //     });
+
+    //     Assert.That(originalAngle, Is.EqualTo(angle).Within(0.1f));
+
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(originalScale.X, Is.EqualTo(scale.X).Within(epsilon));
+    //         Assert.That(originalScale.Y, Is.EqualTo(scale.Y).Within(epsilon));
+    //     });
+    // }
+}
