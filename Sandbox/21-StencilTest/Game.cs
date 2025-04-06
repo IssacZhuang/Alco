@@ -100,7 +100,7 @@ public class Game : GameEngine
 
         DebugGUI.Text("Hold mouse middle button to rotate camera");
 
-        _camaraParent.Rotation = math.euler(math.radians(_rotationAngles));
+        _camaraParent.Rotation = math.quaternion(math.radians(_rotationAngles));
 
         _commandClearScreen.Begin();
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);

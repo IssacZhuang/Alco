@@ -13,7 +13,7 @@ public class TestMatrix3D
     public void TestMatrix4trs()
     {
         Vector3 position = new Vector3(1, 2, 0);
-        Quaternion rotation = euler(0.5f, 0.8660254f, 0);
+        Quaternion rotation = quaternion(0.5f, 0.8660254f, 0);
         Vector3 scale = new Vector3(3, 4, 1);
 
         Matrix4x4 resultOptimized = matrix4trs(position, rotation, scale);
@@ -26,7 +26,7 @@ public class TestMatrix3D
     public void TestMatrix4tr()
     {
         Vector3 position = new Vector3(1, 2, 0);
-        Quaternion rotation = euler(0.5f, 0.8660254f, 0); 
+        Quaternion rotation = quaternion(0.5f, 0.8660254f, 0);
 
         Matrix4x4 resultOptimized = matrix4tr(position, rotation);
         Matrix4x4 resultOriginal = matrix4rotation(rotation) * matrix4translation(position);
@@ -49,7 +49,7 @@ public class TestMatrix3D
     [Test]
     public void TestMatrix4rs()
     {
-        Quaternion rotation = euler(0.5f, 0.8660254f, 0); 
+        Quaternion rotation = quaternion(0.5f, 0.8660254f, 0);
         Vector3 scale = new Vector3(3, 4, 1);
 
         Matrix4x4 resultOptimized = matrix4rs(rotation, scale);

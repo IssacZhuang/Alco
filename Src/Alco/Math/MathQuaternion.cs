@@ -39,7 +39,7 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion euler(Vector3 radians)
+        public static Quaternion quaternion(Vector3 radians)
         {
             //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
             //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
@@ -61,9 +61,9 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion euler(float x, float y, float z)
+        public static Quaternion quaternion(float x, float y, float z)
         {
-            return euler(new Vector3(x, y, z));
+            return quaternion(new Vector3(x, y, z));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -9,7 +9,7 @@ public class BenchmarkTransform
 
     private Vector3 _position3 = new Vector3(1, 2, 3);
     private Vector3 _scale3 = new Vector3(1, 1, 1);
-    private Quaternion _rotation3 = math.euler(1, 2, 3);
+    private Quaternion _rotation3 = math.quaternion(1, 2, 3);
 
     private Vector2 _position2 = new Vector2(1, 2);
     private Vector2 _scale2 = new Vector2(1, 1);

@@ -64,7 +64,7 @@ public class Game : GameEngine
         _textRenderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
 
         _textRenderer.DrawString( _font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString( _font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.euler(0, math.radians(_angle), 0), Pivot.Center, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.quaternion(0, math.radians(_angle), 0), Pivot.Center, new Vector4(1, 1, 1, 1));
 
         _renderContext.End();
     }

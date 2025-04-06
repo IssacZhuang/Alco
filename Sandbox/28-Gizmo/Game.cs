@@ -68,7 +68,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        _camaraParent.Rotation = math.euler(math.radians(_rotationAngles));
+        _camaraParent.Rotation = math.quaternion(math.radians(_rotationAngles));
 
         _commandClearScreen.Begin();
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
@@ -76,7 +76,7 @@ public class Game : GameEngine
         _commandClearScreen.End();
         Rendering.ScheduleCommandBuffer(_commandClearScreen);
 
-        _cube.transform.Rotation = math.euler(math.radians(_cubeRotationAngles));
+        _cube.transform.Rotation = math.quaternion(math.radians(_cubeRotationAngles));
 
         _renderer.Begin(MainFrameBuffer);
         _cube.OnDraw(_renderer);
