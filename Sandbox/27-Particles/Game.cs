@@ -89,7 +89,7 @@ public class Game : GameEngine
         ImGui.Text(strFramerate);
 
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Space Mode");
-        ImGui.Text($"Rotation: {_particleSystem.Transform.Rotation.ToRadian() / math.TO_RADIANS}");
+        ImGui.Text($"Rotation: {_particleSystem.Transform.Rotation.ToRadian() / math.DegToRad}");
 
         int currentSpaceMode = (int)_particleSystem.SpaceMode;
 

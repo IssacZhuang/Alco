@@ -9,7 +9,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 ToDegrees(this Quaternion q)
         {
-            return math.decompose(q) * math.TO_DEGREES;
+            return math.decompose(q) * math.RadToDeg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

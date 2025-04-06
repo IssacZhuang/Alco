@@ -7,6 +7,30 @@ namespace Alco
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 float3(float v)
+        {
+            return new Vector3(v, v, v);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 float3(float x, float y, float z)
+        {
+            return new Vector3(x, y, z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 float3(Vector2 xy, float z)
+        {
+            return new Vector3(xy.X, xy.Y, z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 float3(float x, Vector2 yz)
+        {
+            return new Vector3(x, yz.X, yz.Y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 min(Vector3 a, Vector3 b)
         {
             return Vector3.Min(a, b);
@@ -93,13 +117,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 radians(Vector3 degree)
         {
-            return degree * TO_RADIANS;
+            return degree * DegToRad;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 degrees(Vector3 radian)
         {
-            return radian * TO_DEGREES;
+            return radian * RadToDeg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

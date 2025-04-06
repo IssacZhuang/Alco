@@ -107,13 +107,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float radians(float a)
         {
-            return a * TO_RADIANS;
+            return a * DegToRad;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float degrees(float a)
         {
-            return a * TO_DEGREES;
+            return a * RadToDeg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

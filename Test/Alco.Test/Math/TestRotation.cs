@@ -18,7 +18,7 @@ public class TestRotation
         Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(radians(eulerAngles.X)) *
                                    Matrix4x4.CreateRotationY(radians(eulerAngles.Y)) *
                                    Matrix4x4.CreateRotationZ(radians(eulerAngles.Z));
-        Quaternion quat = Quaternion.CreateFromRotationMatrix(rotationMatrix);
+        Quaternion quat = quaternion(rotationMatrix);
 
         float halfX = radians(eulerAngles.X) * 0.5f;
         float halfY = radians(eulerAngles.Y) * 0.5f;
@@ -114,7 +114,7 @@ public class TestRotation
 
         Quaternion quat = quaternion(radians(new Vector3(12, 45, -45)));
         Matrix4x4 matrix = matrix4rotation(quat);
-        Quaternion quat2 = matrix.GetRotation();
+        Quaternion quat2 = quaternion(matrix);
 
         float dot = Quaternion.Dot(quat, quat2);
         Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
@@ -123,7 +123,7 @@ public class TestRotation
         quat = quaternion(radians(new Vector3(12, 23, 60)));
         Transform3D transform = new Transform3D(new Vector3(1, 2, 3), quat, Vector3.One);
         Matrix4x4 matrix2 = transform.Matrix;
-        quat2 = matrix2.GetRotation();
+        quat2 = quaternion(matrix2);
 
         dot = Quaternion.Dot(quat, quat2);
         Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
@@ -133,7 +133,7 @@ public class TestRotation
         quat = quaternion(radians(new Vector3(-41, 2, 87)));
         Transform3D transform2 = new Transform3D(new Vector3(1, 2, 3), quat, new Vector3(1, 2, 3));
         Matrix4x4 matrix3 = transform2.Matrix;
-        Quaternion quaternion4 = matrix3.GetRotation();
+        Quaternion quaternion4 = quaternion(matrix3);
 
         dot = Quaternion.Dot(quat, quaternion4);
         Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
@@ -142,7 +142,7 @@ public class TestRotation
         quat = quaternion(radians(new Vector3(65, -39, 11)));
         Transform3D transform3 = new Transform3D(new Vector3(1, 2, 3), quat, new Vector3(1, 2, 3));
         Matrix4x4 matrix4 = transform3.Matrix;
-        Quaternion quaternion5 = matrix4.GetRotation();
+        Quaternion quaternion5 = quaternion(matrix4);
 
         dot = Quaternion.Dot(quat, quaternion5);
         Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));

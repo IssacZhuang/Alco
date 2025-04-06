@@ -8,6 +8,85 @@ namespace Alco
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion quaternion(Vector3 radians)
+        {
+            //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
+            //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
+            //same as Unreal Engine
+
+            Vector3 halfAngles = radians * 0.5f;
+
+            //simd
+            (Vector3 sin, Vector3 cos) = Vector3.SinCos(halfAngles);
+
+            Quaternion result;
+
+            result.X = cos.X * sin.Y * sin.Z - sin.X * cos.Y * cos.Z;
+            result.Y = -cos.X * sin.Y * cos.Z - sin.X * cos.Y * sin.Z;
+            result.Z = cos.X * cos.Y * sin.Z - sin.X * sin.Y * cos.Z;
+            result.W = cos.X * cos.Y * cos.Z + sin.X * sin.Y * sin.Z;
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion quaternion(float x, float y, float z)
+        {
+            return quaternion(new Vector3(x, y, z));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static Quaternion quaternion(in Matrix4x4 matrix)
+        {
+            float trace = matrix.M11 + matrix.M22 + matrix.M33;
+
+            Quaternion q;
+
+            if (trace > 0.0f)
+            {
+                float invS = rsqrt(trace + 1.0f);
+                q.W = 0.5f * (1.0f / invS);
+                invS *= 0.5f;
+
+                q.X = (matrix.M23 - matrix.M32) * invS;
+                q.Y = (matrix.M31 - matrix.M13) * invS;
+                q.Z = (matrix.M12 - matrix.M21) * invS;
+
+            }
+            else
+            {
+                int i = 0;
+
+                if (matrix.M11 < matrix.M22)
+                    i = 1;
+
+                if (matrix.M33 < matrix[i, i])
+                    i = 2;
+
+                int* nxt = stackalloc int[3] { 1, 2, 0 };
+                int j = nxt[i];
+                int k = nxt[j];
+
+                float s = matrix[i, i] - matrix[j, j] - matrix[k, k] + 1.0f;
+                float invS = rsqrt(s);
+
+                float* qt = stackalloc float[4];
+                qt[i] = 0.5f * (1.0f / invS);
+                invS *= 0.5f;
+
+                qt[3] = (matrix[j, k] - matrix[k, j]) * invS;
+                qt[j] = (matrix[i, j] + matrix[j, i]) * invS;
+                qt[k] = (matrix[i, k] + matrix[k, i]) * invS;
+
+                q.X = qt[0];
+                q.Y = qt[1];
+                q.Z = qt[2];
+                q.W = qt[3];
+            }
+            return q;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion mul(Quaternion a, Quaternion b)
         {
             return Quaternion.Multiply(a, b);
@@ -38,33 +117,6 @@ namespace Alco
             return math.acos(math.min(math.abs(dot), 1f)) * 2f * math.sign(dot);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion quaternion(Vector3 radians)
-        {
-            //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
-            //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
-            //same as Unreal Engine
-
-            Vector3 halfAngles = radians * 0.5f;
-
-            //simd
-            (Vector3 sin, Vector3 cos) = Vector3.SinCos(halfAngles);
-
-            Quaternion result;
-
-            result.X = cos.X * sin.Y * sin.Z - sin.X * cos.Y * cos.Z;
-            result.Y = -cos.X * sin.Y * cos.Z - sin.X * cos.Y * sin.Z;
-            result.Z = cos.X * cos.Y * sin.Z - sin.X * sin.Y * cos.Z;
-            result.W = cos.X * cos.Y * cos.Z + sin.X * sin.Y * sin.Z;
-
-            return result;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion quaternion(float x, float y, float z)
-        {
-            return quaternion(new Vector3(x, y, z));
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 decompose(Quaternion q)
@@ -104,7 +156,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion direction(Vector3 dir)
         {
-            return Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(Vector3.Zero, dir, Vector3.UnitY));
+            return quaternion(Matrix4x4.CreateLookAtLeftHanded(Vector3.Zero, dir, Vector3.UnitZ));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

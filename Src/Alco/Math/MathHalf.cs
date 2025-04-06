@@ -8,8 +8,8 @@ namespace Alco
     {
         public static readonly Half FP16Zero = (Half)0.0f;
         public static readonly Half FP16One = (Half)1.0f;
-        public static readonly Half FP16TORADIANS = (Half)TO_RADIANS;
-        public static readonly Half FP16TODEGREES = (Half)TO_DEGREES;
+        public static readonly Half FP16TORADIANS = (Half)DegToRad;
+        public static readonly Half FP16TODEGREES = (Half)RadToDeg;
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
