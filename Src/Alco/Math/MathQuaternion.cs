@@ -8,13 +8,13 @@ namespace Alco
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion quaternion(Vector3 radians)
+        public static Quaternion quaternion(Vector3 degrees)
         {
             //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
             //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
             //same as Unreal Engine
 
-            Vector3 halfAngles = radians * 0.5f;
+            Vector3 halfAngles = degrees * 0.5f * DegToRad;
 
             //simd
             (Vector3 sin, Vector3 cos) = Vector3.SinCos(halfAngles);
@@ -150,7 +150,7 @@ namespace Alco
                 roll = atan2(-2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
             }
 
-            return new Vector3(roll, pitch, yaw);
+            return new Vector3(roll, pitch, yaw) * RadToDeg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

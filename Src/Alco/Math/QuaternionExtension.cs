@@ -9,13 +9,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 ToDegrees(this Quaternion q)
         {
-            return math.decompose(q) * math.RadToDeg;
+            return math.decompose(q);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 ToRadians(this Quaternion q)
         {
-            return math.decompose(q);
+            return math.decompose(q) * math.DegToRad;
         }
     }
 }

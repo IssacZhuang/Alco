@@ -15,14 +15,14 @@ public class TestRotation
         float epsilon = 0.001f;
         Vector3 eulerAngles = new Vector3(12, 45, -45);
 
-        Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(radians(eulerAngles.X)) *
-                                   Matrix4x4.CreateRotationY(radians(eulerAngles.Y)) *
-                                   Matrix4x4.CreateRotationZ(radians(eulerAngles.Z));
+        Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(eulerAngles.X) *
+                                   Matrix4x4.CreateRotationY(eulerAngles.Y) *
+                                   Matrix4x4.CreateRotationZ(eulerAngles.Z);
         Quaternion quat = quaternion(rotationMatrix);
 
-        float halfX = radians(eulerAngles.X) * 0.5f;
-        float halfY = radians(eulerAngles.Y) * 0.5f;
-        float halfZ = radians(eulerAngles.Z) * 0.5f;
+        float halfX = eulerAngles.X * 0.5f;
+        float halfY = eulerAngles.Y * 0.5f;
+        float halfZ = eulerAngles.Z * 0.5f;
 
         Quaternion zRot = new Quaternion(0, 0, sin(halfZ), cos(halfZ));
         Quaternion yRot = new Quaternion(0, sin(halfY), 0, cos(halfY));
@@ -44,8 +44,8 @@ public class TestRotation
         float epsilon = 0.001f;
         // Test case 1: Standard rotation
         Vector3 eulerAngles = new Vector3(12, 45, -45);
-        Quaternion quat = quaternion(radians(eulerAngles));
-        Vector3 decomposed = degrees(decompose(quat));
+        Quaternion quat = quaternion(eulerAngles);
+        Vector3 decomposed = decompose(quat);
         Assert.Multiple(() =>
         {
             Assert.That(decomposed.X, Is.EqualTo(eulerAngles.X).Within(epsilon));
@@ -55,8 +55,8 @@ public class TestRotation
 
         // Test case 2: Zero rotation
         eulerAngles = new Vector3(0, 0, 0);
-        quat = quaternion(radians(eulerAngles));
-        decomposed = degrees(decompose(quat));
+        quat = quaternion(eulerAngles);
+        decomposed = decompose(quat);
         Assert.Multiple(() =>
         {
             Assert.That(decomposed.X, Is.EqualTo(eulerAngles.X).Within(epsilon));
@@ -67,10 +67,10 @@ public class TestRotation
         // Test case 3: Rotation with gimbal lock consideration
         // When pitch (Y) is near 90 degrees, original representation isn't unique
         eulerAngles = new Vector3(90, 90, 90);
-        quat = quaternion(radians(eulerAngles));
-        decomposed = degrees(decompose(quat));
+        quat = quaternion(eulerAngles);
+        decomposed = decompose(quat);
         // Instead of direct comparison, verify the quaternions are equivalent
-        Quaternion recomposedQuaternion = quaternion(radians(decomposed));
+        Quaternion recomposedQuaternion = quaternion(decomposed);
         Assert.Multiple(() =>
         {
             Assert.That(quat.X, Is.EqualTo(recomposedQuaternion.X).Within(epsilon));
@@ -81,8 +81,8 @@ public class TestRotation
 
         // Test case 4: Negative angles
         eulerAngles = new Vector3(-30, -60, -90);
-        quat = quaternion(radians(eulerAngles));
-        decomposed = degrees(decompose(quat));
+        quat = quaternion(eulerAngles);
+        decomposed = decompose(quat);
         Assert.Multiple(() =>
         {
             Assert.That(decomposed.X, Is.EqualTo(eulerAngles.X).Within(epsilon));
@@ -92,8 +92,8 @@ public class TestRotation
 
         // Test case 5: Mixed large angles
         eulerAngles = new Vector3(120, -45, 180);
-        quat = quaternion(radians(eulerAngles));
-        decomposed = degrees(decompose(quat));
+        quat = quaternion(eulerAngles);
+        decomposed = decompose(quat);
 
         //-180 and 180 are equivalent rotations
         eulerAngles.Z = abs(eulerAngles.Z);
@@ -112,7 +112,7 @@ public class TestRotation
     {
         float epsilon = 0.001f;
 
-        Quaternion quat = quaternion(radians(new Vector3(12, 45, -45)));
+        Quaternion quat = quaternion(new Vector3(12, 45, -45));
         Matrix4x4 matrix = matrix4rotation(quat);
         Quaternion quat2 = quaternion(matrix);
 
@@ -120,7 +120,7 @@ public class TestRotation
         Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
 
         //mix with translation
-        quat = quaternion(radians(new Vector3(12, 23, 60)));
+        quat = quaternion(new Vector3(12, 23, 60));
         Transform3D transform = new Transform3D(new Vector3(1, 2, 3), quat, Vector3.One);
         Matrix4x4 matrix2 = transform.Matrix;
         quat2 = quaternion(matrix2);
@@ -130,7 +130,7 @@ public class TestRotation
 
 
         //mix with scale
-        quat = quaternion(radians(new Vector3(-41, 2, 87)));
+        quat = quaternion(new Vector3(-41, 2, 87));
         Transform3D transform2 = new Transform3D(new Vector3(1, 2, 3), quat, new Vector3(1, 2, 3));
         Matrix4x4 matrix3 = transform2.Matrix;
         Quaternion quaternion4 = quaternion(matrix3);
@@ -139,7 +139,7 @@ public class TestRotation
         Assert.That(abs(dot), Is.GreaterThan(1 - epsilon));
 
         //mix with translation and scale
-        quat = quaternion(radians(new Vector3(65, -39, 11)));
+        quat = quaternion(new Vector3(65, -39, 11));
         Transform3D transform3 = new Transform3D(new Vector3(1, 2, 3), quat, new Vector3(1, 2, 3));
         Matrix4x4 matrix4 = transform3.Matrix;
         Quaternion quaternion5 = quaternion(matrix4);
