@@ -32,7 +32,6 @@ public class Game : GameEngine
     private OPERATION _currentOperationEnum = OPERATION.TRANSLATE;
 
     private Vector3 _rotationAngles = Vector3.Zero;
-    private Vector3 _cubeRotationAngles = Vector3.Zero;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -76,7 +75,6 @@ public class Game : GameEngine
         _commandClearScreen.End();
         Rendering.ScheduleCommandBuffer(_commandClearScreen);
 
-        _cube.transform.Rotation = math.quaternion(_cubeRotationAngles);
 
         _renderer.Begin(MainFrameBuffer);
         _cube.OnDraw(_renderer);
@@ -94,7 +92,7 @@ public class Game : GameEngine
         ImGui.Begin("Transform");
         ImGui.Text("Hold mouse middle button to rotate camera");
         ImGui.Text($"Mouse position: {Input.MousePosition}");
-        ImGui.DragFloat3("Rotation", ref _cubeRotationAngles);
+        ImGui.EditTransform3D("Cube", ref _cube.transform);
         if (ImGui.Combo("Operation", ref _currentOperation, _operationNames, 3))
         {
             switch (_currentOperation){
