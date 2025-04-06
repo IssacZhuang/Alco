@@ -119,7 +119,7 @@ namespace Alco
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 decompose(Quaternion q)
+        public static Vector3 euler(Quaternion q)
         {
             //decompose quaternion to euler angles Roll(X), Pitch(Y), Yaw(Z) in radians
 

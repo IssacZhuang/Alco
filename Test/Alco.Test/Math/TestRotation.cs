@@ -45,7 +45,7 @@ public class TestRotation
         // Test case 1: Standard rotation
         Vector3 eulerAngles = new Vector3(12, 45, -45);
         Quaternion quat = quaternion(eulerAngles);
-        Vector3 decomposed = decompose(quat);
+        Vector3 decomposed = euler(quat);
         Assert.Multiple(() =>
         {
             Assert.That(decomposed.X, Is.EqualTo(eulerAngles.X).Within(epsilon));
@@ -56,7 +56,7 @@ public class TestRotation
         // Test case 2: Zero rotation
         eulerAngles = new Vector3(0, 0, 0);
         quat = quaternion(eulerAngles);
-        decomposed = decompose(quat);
+        decomposed = euler(quat);
         Assert.Multiple(() =>
         {
             Assert.That(decomposed.X, Is.EqualTo(eulerAngles.X).Within(epsilon));
@@ -68,7 +68,7 @@ public class TestRotation
         // When pitch (Y) is near 90 degrees, original representation isn't unique
         eulerAngles = new Vector3(90, 90, 90);
         quat = quaternion(eulerAngles);
-        decomposed = decompose(quat);
+        decomposed = euler(quat);
         // Instead of direct comparison, verify the quaternions are equivalent
         Quaternion recomposedQuaternion = quaternion(decomposed);
         Assert.Multiple(() =>
@@ -82,7 +82,7 @@ public class TestRotation
         // Test case 4: Negative angles
         eulerAngles = new Vector3(-30, -60, -90);
         quat = quaternion(eulerAngles);
-        decomposed = decompose(quat);
+        decomposed = euler(quat);
         Assert.Multiple(() =>
         {
             Assert.That(decomposed.X, Is.EqualTo(eulerAngles.X).Within(epsilon));
@@ -93,7 +93,7 @@ public class TestRotation
         // Test case 5: Mixed large angles
         eulerAngles = new Vector3(120, -45, 180);
         quat = quaternion(eulerAngles);
-        decomposed = decompose(quat);
+        decomposed = euler(quat);
 
         //-180 and 180 are equivalent rotations
         eulerAngles.Z = abs(eulerAngles.Z);

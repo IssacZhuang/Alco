@@ -333,15 +333,15 @@ namespace Alco
         public static void decompose(Matrix4x4 matrix, out Vector3 scale, out Vector3 eulerAngles, out Vector3 translation)
         {
             Matrix4x4.Decompose(matrix, out scale, out Quaternion rotation, out translation);
-            eulerAngles = decompose(rotation);
+            eulerAngles = euler(rotation);
         }
 
         public static void decompose(Matrix4x4 matrix, out Transform2D transform)
         {
             Matrix4x4.Decompose(matrix, out Vector3 scale, out Quaternion rotation, out Vector3 translation);
             transform.Position = new Vector2(translation.X, translation.Y);
-            Vector3 euler = decompose(rotation);
-            transform.Rotation = Rotation2D.FromDegree(euler.Z);
+            Vector3 angles = euler(rotation);
+            transform.Rotation = Rotation2D.FromDegree(angles.Z);
             transform.Scale = new Vector2(scale.X, scale.Y);
         }
 
@@ -349,8 +349,8 @@ namespace Alco
         {
             Matrix4x4.Decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
             scale = new Vector2(scale3.X, scale3.Y);
-            Vector3 euler = decompose(rotation2);
-            rotation = Rotation2D.FromDegree(euler.Z);
+            Vector3 angles = euler(rotation2);
+            rotation = Rotation2D.FromDegree(angles.Z);
             translation = new Vector2(translation3.X, translation3.Y);
         }
 
@@ -358,8 +358,8 @@ namespace Alco
         {
             Matrix4x4.Decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
             scale = new Vector2(scale3.X, scale3.Y);
-            Vector3 euler = decompose(rotation2);
-            angle = euler.Z;
+            Vector3 angles = euler(rotation2);
+            angle = angles.Z;
             translation = new Vector2(translation3.X, translation3.Y);
         }
 
