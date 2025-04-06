@@ -215,7 +215,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Rotation2D NextRotation2D()
         {
-            return new Rotation2D(NextFloat(2.0f * PI));
+            return Rotation2D.FromRadians(NextFloat(2.0f * PI));
         }
     }
 }

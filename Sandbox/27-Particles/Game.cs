@@ -179,7 +179,7 @@ public class Game : GameEngine
 
         if (ImGui.SliderFloat("Box Rotation", ref _boxRotation, 0, 360))
         {
-            _emitter.Shape.Rotation = Rotation2D.FromDegree(_boxRotation);
+            _emitter.Shape.Rotation = new Rotation2D(_boxRotation);
         }
 
         float minSpeed = _emitter.MinSpeed;

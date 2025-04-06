@@ -80,7 +80,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
 
         // Create normalized random direction vector
         float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
-        Rotation2D direction = Rotation2D.FromDegree(directionAngle);
+        Rotation2D direction = new Rotation2D(directionAngle);
 
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);
@@ -95,7 +95,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
             particle.Rotation = Rotation2D.Identity;
         }
 
-        particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
+        particle.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
 
         particle.Lifetime = _random.NextFloat(1, 2);
         particle.Duration = particle.Lifetime;
@@ -115,7 +115,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
 
         // Create normalized random direction vector
         float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
-        Rotation2D direction = Rotation2D.FromDegree(directionAngle);
+        Rotation2D direction = new Rotation2D(directionAngle);
 
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);
@@ -131,7 +131,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
             particle.Rotation = Rotation2D.Identity;
         }
 
-        particle.Rotation *= Rotation2D.FromDegree(_random.NextFloat(MinRotation, MaxRotation));
+        particle.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
         //transform the rotation to world space
         particle.Rotation = transform.Rotation * particle.Rotation;
 

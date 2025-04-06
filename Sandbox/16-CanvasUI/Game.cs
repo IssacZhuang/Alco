@@ -212,7 +212,7 @@ public class Game : GameEngine
 
         if (DebugGUI.SliderWithText("Angle", ref _angle, 0, 360))
         {
-            _inputBox.Rotation = Rotation2D.FromDegree(_angle);
+            _inputBox.Rotation = new Rotation2D(_angle);
         }
 
         if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))

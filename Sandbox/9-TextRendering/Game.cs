@@ -50,7 +50,7 @@ public class Game : GameEngine
         }
 
         _angle += delta * 45;
-        Rotation2D rotation = Rotation2D.FromDegree(_angle);
+        Rotation2D rotation = new Rotation2D(_angle);
 
 
         _renderContext.Begin(MainFrameBuffer);

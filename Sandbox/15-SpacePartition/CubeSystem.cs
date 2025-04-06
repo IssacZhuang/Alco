@@ -55,7 +55,7 @@ public class CubeSystem
             entity.Transform.Position = new Vector2(position.X, position.Y);
             entity.Color = DefaultColor;
             entity.PendingDestroy = false;
-            entity.Transform.Rotation = Rotation2D.FromDegree(_random.NextFloat(0,360));
+            entity.Transform.Rotation = new Rotation2D(_random.NextFloat(0,360));
             _activeList.Add(entity);
         }
     }

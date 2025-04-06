@@ -391,7 +391,7 @@ namespace Alco
             decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
             scale = new Vector2(scale3.X, scale3.Y);
             Vector3 angles = euler(rotation2);
-            rotation = Rotation2D.FromDegree(angles.Z);
+            rotation = new Rotation2D(angles.Z);
             translation = new Vector2(translation3.X, translation3.Y);
         }
 

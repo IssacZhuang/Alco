@@ -14,14 +14,14 @@ public class TestTransform2D()
         Transform2D parent = new Transform2D()
         {
             Position = new Vector2(1, 2),
-            Rotation = Rotation2D.FromDegree(45),
+            Rotation = new Rotation2D(45),
             Scale = new Vector2(2, 3)
         };
 
         Transform2D child = new Transform2D()
         {
             Position = new Vector2(5, 6),
-            Rotation = Rotation2D.FromDegree(90),
+            Rotation = new Rotation2D(90),
             Scale = new Vector2(8, 9)
         };
 
@@ -38,7 +38,7 @@ public class TestTransform2D()
         Transform2D parent = new Transform2D()
         {
             Position = new Vector2(1, 2),
-            Rotation = Rotation2D.FromDegree(45),
+            Rotation = new Rotation2D(45),
             Scale = new Vector2(2, 3)
         };
 

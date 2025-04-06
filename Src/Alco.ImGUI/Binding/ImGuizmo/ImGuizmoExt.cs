@@ -170,7 +170,7 @@ public static unsafe partial class ImGuizmo
             bool result = ImGuizmoNative.ImGuizmo_Manipulate((float*)viewPtr, (float*)projectionPtr, operation, mode, (float*)matrixPtr, null, null, null, null) != 0;
             DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
             transform.Position = new Vector2(translation.X, translation.Y);
-            transform.Rotation = Rotation2D.FromDegree(-eulerAngles.Z);
+            transform.Rotation = new Rotation2D(-eulerAngles.Z);
             transform.Scale = new Vector2(scale.X, scale.Y);
             return result;
         }
@@ -374,7 +374,7 @@ public static unsafe partial class ImGuizmo
             {
                 DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
                 transform.Position = new Vector2(translation.X, translation.Y);
-                transform.Rotation = Rotation2D.FromDegree(-eulerAngles.Z);
+                transform.Rotation = new Rotation2D(-eulerAngles.Z);
                 transform.Scale = new Vector2(scale.X, scale.Y);
             }
             return result;
@@ -406,7 +406,7 @@ public static unsafe partial class ImGuizmo
             {
                 DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
                 transform.Position = new Vector2(translation.X, translation.Y);
-                transform.Rotation = Rotation2D.FromDegree(-eulerAngles.Z);
+                transform.Rotation = new Rotation2D(-eulerAngles.Z);
                 transform.Scale = new Vector2(scale.X, scale.Y);
             }
             return result;
@@ -440,7 +440,7 @@ public static unsafe partial class ImGuizmo
             {
                 DecomposeMatrixToComponents(matrix, out Vector3 translation, out Vector3 eulerAngles, out Vector3 scale);
                 transform.Position = new Vector2(translation.X, translation.Y);
-                transform.Rotation = Rotation2D.FromDegree(-eulerAngles.Z);
+                transform.Rotation = new Rotation2D(-eulerAngles.Z);
                 transform.Scale = new Vector2(scale.X, scale.Y);
             }
             return result;

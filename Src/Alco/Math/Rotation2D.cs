@@ -24,12 +24,12 @@ namespace Alco
         public static Rotation2D Identity => new Rotation2D(0, 1);
 
         /// <summary>
-        /// Creates a rotation from an angle in radians.
+        /// Creates a rotation from an angle in degrees.
         /// </summary>
-        /// <param name="radian">The angle in radians.</param>
-        public Rotation2D(float radian)
+        /// <param name="degree">The angle in degrees.</param>
+        public Rotation2D(float degree)
         {
-            math.sincos(radian, out S, out C);
+            math.sincos(math.radians(degree), out S, out C);
         }
 
         /// <summary>
@@ -63,14 +63,10 @@ namespace Alco
             return math.degrees(ToRadian());
         }
 
-        /// <summary>
-        /// Creates a rotation from an angle in degrees.
-        /// </summary>
-        /// <param name="degree">The angle in degrees.</param>
-        /// <returns>A new Rotation2D instance.</returns>
-        public static Rotation2D FromDegree(float degree)
+
+        public static Rotation2D FromRadians(float radian)
         {
-            return new Rotation2D(math.radians(degree));
+            return new Rotation2D(math.degrees(radian));
         }
 
         /// <summary>

@@ -28,21 +28,21 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Rotation2D euler(float radians)
+        public static Rotation2D rotation2d(float degree)
         {
-            return new Rotation2D(radians);
+            return new Rotation2D(degree);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 rotate(Vector2 v, float radians)
+        public static Vector2 rotate(Vector2 v, float degree)
         {
-            return rotate(new Rotation2D(radians), v);
+            return rotate(new Rotation2D(degree), v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 rotate(float radians, Vector2 v)
+        public static Vector2 rotate(float degree, Vector2 v)
         {
-            return rotate(new Rotation2D(radians), v);
+            return rotate(new Rotation2D(degree), v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -108,7 +108,7 @@ public class Game : GameEngine
         float t = math.clamp((_timer - _timeMove) * 2, 0, 1);
         float movement = t * (1 - t) * 4;
         _transform1.Position.Y = movement;
-        _transform2.Rotation = new Rotation2D(math.radians(45 * movement));
+        _transform2.Rotation = new Rotation2D(45 * movement);
         _transform3.Scale = new Vector2(1 + movement, 1 + movement);
 
         _cameraBuffer.UpdateBuffer(camera.ViewProjectionMatrix);

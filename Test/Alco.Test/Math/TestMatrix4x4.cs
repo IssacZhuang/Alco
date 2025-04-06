@@ -160,7 +160,7 @@ public class TestMatrix4x4
     //     // Create a matrix using TRS for 2D
     //     Vector2 originalPosition = new Vector2(1, 2);
     //     float originalAngle = 45.0f; // degrees
-    //     Rotation2D originalRotation = Rotation2D.FromDegree(originalAngle);
+    //     Rotation2D originalRotation = new Rotation2D(originalAngle);
     //     Vector2 originalScale = new Vector2(2, 3);
 
     //     Matrix4x4 matrix = matrix4trs(originalPosition, originalRotation, originalScale);
