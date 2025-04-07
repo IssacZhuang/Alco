@@ -703,10 +703,10 @@ public class UINode
     public void Tick(Canvas canvas, float delta)
     {
         OnTick(canvas, delta);
-        for (int i = 0; i < _children.Count; i++)
-        {
-            _children[i].Tick(canvas, delta);
-        }
+        // for (int i = 0; i < _children.Count; i++)
+        // {
+        //     _children[i].Tick(canvas, delta);
+        // }
     }
 
 
@@ -719,10 +719,6 @@ public class UINode
         
         OnUpdate(canvas, delta);
         TryRefreshTransform();
-        for (int i = 0; i < _children.Count; i++)
-        {
-            _children[i].Update(canvas, delta);
-        }
     }
 
     #region Event

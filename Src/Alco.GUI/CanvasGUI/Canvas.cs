@@ -36,6 +36,8 @@ public partial class Canvas : AutoDisposable
     private readonly SpriteRenderer _spriteRenderer;
     private readonly TextRenderer _textRenderer;
 
+    private readonly Stack<UINode> _nodeStack;
+
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly MousePointCaster _mousePointCaster;
@@ -93,6 +95,8 @@ public partial class Canvas : AutoDisposable
 
     public Vector4 DebugDrawColor { get; set; }
 
+    public Action<Exception>? ErrorHandler;
+
     public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Material defaultSpriteMaterial, Material defaultTextMaterial)
     {
         _renderingSystem = system;
@@ -114,11 +118,43 @@ public partial class Canvas : AutoDisposable
 
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
+
+        _nodeStack = new Stack<UINode>();
     }
 
     public void Tick(UINode root, float delta)
     {
-        root.Tick(this, delta);
+        _nodeStack.Clear();
+        _nodeStack.Push(root);
+        while (_nodeStack.Count > 0)
+        {
+            UINode node = _nodeStack.Pop();
+            if (!node.IsEnable)
+            {
+                continue;
+            }
+
+            try
+            {
+                node.Tick(this, delta);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler != null)
+                {
+                    ErrorHandler(e);
+                }
+                else
+                {
+                    Log.Error($"Error in ticking {node.Name}: {e}");
+                }
+            }
+
+            for (int i = node.Children.Count - 1; i >= 0; i--)
+            {
+                _nodeStack.Push(node.Children[i]);
+            }
+        }
     }
 
     public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
@@ -126,7 +162,38 @@ public partial class Canvas : AutoDisposable
         _collisionWorld.ClearAll();
 
         _renderContext.Begin(renderTarget);
-        root.Update(this, delta);
+        _nodeStack.Clear();
+        _nodeStack.Push(root);
+        while (_nodeStack.Count > 0)
+        {
+            UINode node = _nodeStack.Pop();
+
+            if (!node.IsEnable)
+            {
+                continue;
+            }
+
+            try
+            {
+                node.Update(this, delta);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler != null)
+                {
+                    ErrorHandler(e);
+                }
+                else
+                {
+                    Log.Error($"Error in updating {node.Name}: {e}");
+                }
+            }
+
+            for (int i = node.Children.Count - 1; i >= 0; i--)
+            {
+                _nodeStack.Push(node.Children[i]);
+            }
+        }
         _renderContext.End();
 
         //DebugDraw(renderTarget, root);
