@@ -20,7 +20,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         public Vector2 VertexOffset;
     }
 
-    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, -0.5f);
+    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0f);
 
 
     private const int MaxTextInstancingCount = 300;

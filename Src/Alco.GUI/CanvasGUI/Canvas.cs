@@ -61,7 +61,7 @@ public partial class Canvas : AutoDisposable
         set
         {
             _camera.ViewSize = value;
-            _camera.UpdateBuffer();
+            _camera.UpdateMatrixToGPU();
             _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
             _bound = new BoundingBox2D(_camera.Position - value * 0.5f, _camera.Position + value * 0.5f);
         }
