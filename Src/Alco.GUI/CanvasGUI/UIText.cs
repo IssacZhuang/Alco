@@ -176,7 +176,6 @@ public class UIText : UISelectable
             return;
         }
 
-        CanvasRenderer renderer = canvas.Renderer;
 
         //use local transform
         Transform2D transform = Transform2D.Identity;
@@ -210,7 +209,7 @@ public class UIText : UISelectable
         for (int i = 0; i < _lines.Count; i++)
         {
             //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
-            DrawLine(renderer, i, _text.Slice(_lines[i].start, _lines[i].count), transform, mask);
+            DrawLine(canvas, i, _text.Slice(_lines[i].start, _lines[i].count), transform, mask);
             transform.Position.Y -= lineHeight;
         }
     }
@@ -246,9 +245,9 @@ public class UIText : UISelectable
         SetLineBreakDirty();
     }
 
-    protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
+    protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
-        renderer.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
     }
 
     protected void SetLineBreakDirty()

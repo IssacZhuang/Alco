@@ -234,7 +234,7 @@ public class UIInputBox : UIText, ITextInput
         return charIndex;
     }
 
-    protected override void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
+    protected override void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
     {
         float textAdvances = Font!.GetNormalizedTextWidth(chars);
 
@@ -251,7 +251,7 @@ public class UIInputBox : UIText, ITextInput
                 cursorTransform.Position.X += CursorOffsetInLine * FontSize + textOffsetX;
                 cursorTransform.Scale *= CursorScale;
 
-                renderer.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
+                canvas.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor, Bound);
             }
 
             //draw selection area
@@ -289,7 +289,7 @@ public class UIInputBox : UIText, ITextInput
                 selectionTransform.Position.X = (selectionLeftX + selectionRightX) * 0.5f;
                 selectionTransform.Scale = new Vector2(width, FontSize);
 
-                renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
+                canvas.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
             }
             else if (line > start.line && line < end.line)
             {
@@ -297,7 +297,7 @@ public class UIInputBox : UIText, ITextInput
                 selectionTransform.Position.X -= TextPivot.X * width;
                 selectionTransform.Scale = new Vector2(width, FontSize);
 
-                renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
+                canvas.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
             }
             else if (end.line > start.line && line == end.line)
             {
@@ -306,11 +306,11 @@ public class UIInputBox : UIText, ITextInput
                 selectionTransform.Position.X += textOffsetX + width * 0.5f;
                 selectionTransform.Scale = new Vector2(width, FontSize);
 
-                renderer.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
+                canvas.DrawQuad(math.transform(WorldTransform, selectionTransform).Matrix, SelectionAreaColor, Bound);
             }
         }
 
-        base.DrawLine(renderer, line, chars, textLineTransform, mask);
+        base.DrawLine(canvas, line, chars, textLineTransform, mask);
     }
 
 

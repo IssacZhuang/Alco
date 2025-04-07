@@ -5,7 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public class Canvas : AutoDisposable
+public partial class Canvas : AutoDisposable
 {
     private class MousePointCaster : ICollisionCaster
     {
@@ -31,7 +31,10 @@ public class Canvas : AutoDisposable
     private BoundingBox2D _bound;
 
     //for debug
-    private readonly CanvasRenderer _renderer;
+    private readonly RenderingSystem _renderingSystem;
+    private readonly RenderContext _renderContext;
+    private readonly SpriteRenderer _spriteRenderer;
+    private readonly TextRenderer _textRenderer;
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -43,14 +46,6 @@ public class Canvas : AutoDisposable
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
-
-
-
-    public CanvasRenderer Renderer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _renderer;
-    }
 
     public BoundingBox2D Bound
     {
@@ -66,6 +61,7 @@ public class Canvas : AutoDisposable
         set
         {
             _camera.ViewSize = value;
+            _camera.UpdateBuffer();
             _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
             _bound = new BoundingBox2D(_camera.Position - value * 0.5f, _camera.Position + value * 0.5f);
         }
@@ -97,14 +93,25 @@ public class Canvas : AutoDisposable
 
     public Vector4 DebugDrawColor { get; set; }
 
-    public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Shader shaderSprite, Shader shaderText)
+    public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Material defaultSpriteMaterial, Material defaultTextMaterial)
     {
+        _renderingSystem = system;
+
         _inputTracker = inputTracker;
         _inputTracker.RegisterTextInput(OnTextInput);
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
         _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
-        _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
+        _renderContext = system.CreateRenderContext();
+
+        MaterialInstance defaultSpriteMaterialInstance = defaultSpriteMaterial.CreateInstance();
+        defaultSpriteMaterialInstance.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        MaterialInstance defaultTextMaterialInstance = defaultTextMaterial.CreateInstance();
+        defaultTextMaterialInstance.TrySetBuffer(ShaderResourceId.Camera, _camera);
+
+        _spriteRenderer = system.CreateSpriteRenderer(_renderContext, defaultSpriteMaterialInstance);
+        _textRenderer = system.CreateTextRenderer(_renderContext, defaultTextMaterialInstance);
+
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
     }
@@ -118,9 +125,9 @@ public class Canvas : AutoDisposable
     {
         _collisionWorld.ClearAll();
 
-        _renderer.Begin(renderTarget);
+        _renderContext.Begin(renderTarget);
         root.Update(this, delta);
-        _renderer.End();
+        _renderContext.End();
 
         //DebugDraw(renderTarget, root);
 
@@ -247,7 +254,9 @@ public class Canvas : AutoDisposable
     {
         _inputTracker?.UnregisterTextInput(OnTextInput);
         _collisionWorld.Dispose();
-        _renderer.Dispose();
+        _renderContext.Dispose();
+        _spriteRenderer.Dispose();
+        _textRenderer.Dispose();
         _camera.Dispose();
     }
 

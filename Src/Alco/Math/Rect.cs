@@ -9,6 +9,8 @@ namespace Alco
     /// </summary>
     public struct Rect
     {
+        public static readonly Rect One = new Rect(0, 0, 1, 1);
+
         public Vector2 Origin;
         public Vector2 Size;
 
