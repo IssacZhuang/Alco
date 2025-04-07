@@ -349,6 +349,11 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    public void DoTextInputCore(string text)
+    {
+        DoTextInput(text);
+    }
+
     private static SDL_PropertiesID CreateProperties(ViewSetting setting)
     {
         SDL_PropertiesID props = SDL_CreateProperties();

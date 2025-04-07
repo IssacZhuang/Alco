@@ -92,7 +92,7 @@ public class Game : GameEngine
         ImGui.Begin("Transform");
         ImGui.Text("Hold mouse middle button to rotate camera");
         ImGui.Text($"Mouse position: {Input.MousePosition}");
-        ImGui.EditTransform3D("Cube", ref _cube.transform);
+        ImGui.EditTransform3D(ref _cube.transform);
         if (ImGui.Combo("Operation", ref _currentOperation, _operationNames, 3))
         {
             switch (_currentOperation){

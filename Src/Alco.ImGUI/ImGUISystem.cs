@@ -24,7 +24,7 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
         _mainRenderTarget = mainRenderTarget;
 
-        _imGUIInputHandler = new ImGUIInputHandler(engine.Input, () => _mainRenderTarget.View.MousePosition);
+        _imGUIInputHandler = new ImGUIInputHandler(engine.Input, engine.MainView);
     }
 
     public override void OnBeginFrame(float deltaTime)

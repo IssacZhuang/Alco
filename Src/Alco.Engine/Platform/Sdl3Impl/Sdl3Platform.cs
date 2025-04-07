@@ -142,7 +142,7 @@ public unsafe class Sdl3Platform : Platform
                 break;
             case SDL_EventType.TextInput:
                 Sdl3Window window1 = _windows[e.window.windowID];
-                window1.DoTextInput(e.text.GetText() ?? string.Empty);
+                window1.DoTextInputCore(e.text.GetText() ?? string.Empty);
                 break;
             case SDL_EventType.Quit:
                 StopMainLoop();

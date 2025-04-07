@@ -105,7 +105,7 @@ public unsafe abstract class View : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DoTextInput(string text)
+    protected void DoTextInput(string text)
     {
         OnTextInput?.Invoke(text);
     }

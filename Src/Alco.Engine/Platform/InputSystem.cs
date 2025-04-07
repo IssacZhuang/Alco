@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace Alco.Engine;
@@ -7,6 +8,11 @@ namespace Alco.Engine;
 /// </summary>
 public abstract class InputSystem
 {
+    public event Action<KeyCode>? OnKeyDown;
+    public event Action<KeyCode>? OnKeyUp;
+    public event Action<Mouse>? OnMouseDown;
+    public event Action<Mouse>? OnMouseUp;
+
     /// <summary>
     /// Gets or sets the position of the mouse. The zero of coordinate system is top-left 
     /// <br/>[Attention] This is the global mouse position relative to the screen,
@@ -91,4 +97,24 @@ public abstract class InputSystem
     /// Gets the text from the clipboard.
     /// </summary>
     public abstract ReadOnlySpan<char> GetClipboardText();
+
+    protected void DoKeyDown(KeyCode key)
+    {
+        OnKeyDown?.Invoke(key);
+    }
+
+    protected void DoKeyUp(KeyCode key)
+    {
+        OnKeyUp?.Invoke(key);
+    }
+
+    protected void DoMouseDown(Mouse button)
+    {
+        OnMouseDown?.Invoke(button);
+    }
+
+    protected void DoMouseUp(Mouse button)
+    {
+        OnMouseUp?.Invoke(button);
+    }
 }
