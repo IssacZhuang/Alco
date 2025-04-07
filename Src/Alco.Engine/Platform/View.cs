@@ -11,9 +11,31 @@ namespace Alco.Engine;
 /// </summary>
 public unsafe abstract class View : AutoDisposable
 {
+    private bool _isInputing = false;
 
     public uint Width => Size.X;
     public uint Height => Size.Y;
+
+    public bool IsTextInputEnabled
+    {
+        get => _isInputing;
+        set
+        {   
+            if(value == _isInputing)
+            {
+                return;
+            }
+
+            if(value)
+            {
+                StartTextInput();
+            }
+            else
+            {
+                EndTextInput();
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets the window mode.
@@ -82,9 +104,19 @@ public unsafe abstract class View : AutoDisposable
         get => (float)Size.X / Size.Y;
     }
 
-    public abstract void StartTextInput(int x, int y, int width, int height, int cursor);
+    /// <summary>
+    /// Set the text input area in view space.
+    /// </summary>
+    /// <param name="x">The x coordinate of the top-left corner of the text input area.</param>
+    /// <param name="y">The y coordinate of the top-left corner of the text input area.</param>
+    /// <param name="width">The width of the text input area.</param>
+    /// <param name="height">The height of the text input area.</param>
+    /// <param name="cursor">The cursor position of the text input area.</param>
+    public abstract void SetTextInputArea(int x, int y, int width, int height, int cursor);
 
-    public abstract void EndTextInput();
+    protected abstract void StartTextInput();
+
+    protected abstract void EndTextInput();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DoResize(uint2 size)

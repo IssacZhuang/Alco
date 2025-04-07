@@ -161,14 +161,18 @@ public unsafe partial class Sdl3Window : View
         });
     }
 
-    public override void StartTextInput(int x, int y, int width, int height, int cursor)
+    public override void SetTextInputArea(int x, int y, int width, int height, int cursor)
     {
         Rectangle rectangle = new Rectangle(x, y, width, height);
         var _ = SDL_SetTextInputArea(_window, &rectangle, cursor);
+    }
+
+    protected override void StartTextInput()
+    {
         _ = SDL_StartTextInput(_window);
     }
 
-    public override void EndTextInput()
+    protected override void EndTextInput()
     {
         _ = SDL_StopTextInput(_window);
     }

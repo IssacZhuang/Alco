@@ -32,12 +32,17 @@ public sealed class NoView : View
         
     }
 
-    public override void StartTextInput(int x, int y, int width, int height, int cursor)
+    public override void SetTextInputArea(int x, int y, int width, int height, int cursor)
     {
 
     }
 
-    public override void EndTextInput()
+    protected override void StartTextInput()
+    {
+
+    }
+
+    protected override void EndTextInput()
     {
 
     }

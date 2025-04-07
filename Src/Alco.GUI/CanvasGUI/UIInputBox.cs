@@ -153,7 +153,7 @@ public class UIInputBox : UIText, ITextInput
 
         if (_isInputAreaDirty)
         {
-            canvas.StartTextInput(this, InputArea, 0);
+            canvas.SetTextInputArea(this, InputArea, 0);
             _isInputAreaDirty = false;
         }
 
@@ -466,7 +466,6 @@ public class UIInputBox : UIText, ITextInput
     public override void OnDeselect(Canvas canvas, Vector2 mousePosition)
     {
         base.OnDeselect(canvas, mousePosition);
-        canvas.EndTextInput();
         _isSelecting = false;
     }
 
@@ -484,7 +483,7 @@ public class UIInputBox : UIText, ITextInput
     {
         base.OnPressUp(canvas, mousePosition);
         _isInputAreaDirty = true;
-        canvas.StartTextInput(this, InputArea, 0);
+        canvas.SetTextInputArea(this, InputArea, 0);
     }
 
     public override void OnDrag(Canvas canvas, Vector2 mousePosition)

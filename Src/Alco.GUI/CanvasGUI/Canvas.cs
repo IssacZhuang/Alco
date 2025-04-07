@@ -223,7 +223,7 @@ public class Canvas : AutoDisposable
         _collisionWorld.PushTarget(node, shape);
     }
 
-    public void StartTextInput(ITextInput node, BoundingBox2D inputArea, int cursor)
+    public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)
     {
         _textInput = node;
 
@@ -242,10 +242,6 @@ public class Canvas : AutoDisposable
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
-    public void EndTextInput()
-    {
-        _inputTracker?.EndTextInput();
-    }
 
     protected override void Dispose(bool disposing)
     {

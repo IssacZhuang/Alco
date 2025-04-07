@@ -159,6 +159,14 @@ public unsafe class Sdl3Platform : Platform
                 Sdl3Window windo3 = _windows[e.window.windowID];
                 windo3.DoRestore();
                 break;
+            case SDL_EventType.WindowFocusGained:
+                Sdl3Window window4 = _windows[e.window.windowID];
+                window4.IsTextInputEnabled = true;
+                break;
+            case SDL_EventType.WindowFocusLost:
+                Sdl3Window window5 = _windows[e.window.windowID];
+                window5.IsTextInputEnabled = false;
+                break;
         }
     }
 }
