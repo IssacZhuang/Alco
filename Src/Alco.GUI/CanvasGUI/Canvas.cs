@@ -117,18 +117,23 @@ public partial class Canvas : AutoDisposable
 
         _spriteMaterial = defaultSpriteMaterial.CreateInstance();
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-
-
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
-            FrontFace = StencilFaceState.CompareEqual,
-            BackFace = StencilFaceState.CompareEqual,
+            FrontFace = StencilFaceState.CompareNotEqual,
+            BackFace = StencilFaceState.CompareNotEqual,
             StencilReadMask = 0xFF,
             StencilWriteMask = 0xFF,
         };
 
         _textMaterial = defaultTextMaterial.CreateInstance();
         _textMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _textMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.CompareNotEqual,
+            BackFace = StencilFaceState.CompareNotEqual,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
 
         //stencil write
         _stencilWriteMaterial = defaultSpriteMaterial.CreateInstance();
