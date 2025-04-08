@@ -1,0 +1,1 @@
+- feature: Select asset reference in editor
