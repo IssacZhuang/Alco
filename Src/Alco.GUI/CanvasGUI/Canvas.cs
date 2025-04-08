@@ -24,6 +24,12 @@ public partial class Canvas : AutoDisposable
         }
     }
 
+    private struct UIStackItem
+    {
+        public UINode node;
+        public byte mask;
+    }
+
     // for rendering
 
     private readonly Camera2D _camera;
@@ -43,7 +49,7 @@ public partial class Canvas : AutoDisposable
 
     private byte _mask = 0;
 
-    private readonly Stack<UINode> _nodeStack;
+    private readonly Stack<UIStackItem> _nodeStack;
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -119,8 +125,8 @@ public partial class Canvas : AutoDisposable
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
-            FrontFace = StencilFaceState.CompareNotEqual,
-            BackFace = StencilFaceState.CompareNotEqual,
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
             StencilReadMask = 0xFF,
             StencilWriteMask = 0xFF,
         };
@@ -129,8 +135,8 @@ public partial class Canvas : AutoDisposable
         _textMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
         _textMaterial.DepthStencilState = DepthStencilState.Default with
         {
-            FrontFace = StencilFaceState.CompareNotEqual,
-            BackFace = StencilFaceState.CompareNotEqual,
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
             StencilReadMask = 0xFF,
             StencilWriteMask = 0xFF,
         };
@@ -162,16 +168,19 @@ public partial class Canvas : AutoDisposable
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
 
-        _nodeStack = new Stack<UINode>();
+        _nodeStack = new Stack<UIStackItem>();
     }
 
     public void Tick(UINode root, float delta)
     {
+        //just ignore the mask in tick
         _nodeStack.Clear();
-        _nodeStack.Push(root);
+        _nodeStack.Push(new UIStackItem { node = root });
         while (_nodeStack.Count > 0)
         {
-            UINode node = _nodeStack.Pop();
+            UIStackItem item = _nodeStack.Pop();
+            UINode node = item.node;
+            _mask = item.mask;
             if (!node.IsEnable)
             {
                 continue;
@@ -195,7 +204,7 @@ public partial class Canvas : AutoDisposable
 
             for (int i = node.Children.Count - 1; i >= 0; i--)
             {
-                _nodeStack.Push(node.Children[i]);
+                _nodeStack.Push(new UIStackItem { node = node.Children[i] });
             }
         }
     }
@@ -206,10 +215,13 @@ public partial class Canvas : AutoDisposable
 
         _renderContext.Begin(renderTarget);
         _nodeStack.Clear();
-        _nodeStack.Push(root);
+        _mask = 0;
+        _nodeStack.Push(new UIStackItem { node = root, mask = _mask });
         while (_nodeStack.Count > 0)
         {
-            UINode node = _nodeStack.Pop();
+            UIStackItem item = _nodeStack.Pop();
+            UINode node = item.node;
+            _mask = item.mask;
 
             if (!node.IsEnable)
             {
@@ -218,6 +230,7 @@ public partial class Canvas : AutoDisposable
 
             try
             {
+                //the value of _mask might be changed during update
                 node.Update(this, delta);
             }
             catch (Exception e)
@@ -234,7 +247,7 @@ public partial class Canvas : AutoDisposable
 
             for (int i = node.Children.Count - 1; i >= 0; i--)
             {
-                _nodeStack.Push(node.Children[i]);
+                _nodeStack.Push(new UIStackItem { node = node.Children[i], mask = _mask });
             }
         }
         _renderContext.End();

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -76,10 +77,30 @@ public sealed class RenderContext : AutoDisposable
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
     /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> Begin(GPUFrameBuffer target)
+    public IReadOnlyList<Exception> Begin(
+        GPUFrameBuffer target, 
+        Vector4? clearColor = null,
+        float? clearDepth = null,
+        uint? clearStencil = null
+        )
     {
         _command.Begin();
         _command.SetFrameBuffer(target);
+        if (clearColor.HasValue)
+        {
+            _command.ClearColor(clearColor.Value);
+        }
+
+        if (clearDepth.HasValue)
+        {
+            _command.ClearDepth(clearDepth.Value);
+        }
+
+        if (clearStencil.HasValue)
+        {
+            _command.ClearStencil(clearStencil.Value);
+        }
+
         _framebuffer = target;
 
         ClearCache();
