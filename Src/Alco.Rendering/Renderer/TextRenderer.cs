@@ -43,6 +43,12 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private int _instanceIndex;
     private bool _isDrawing;
 
+    public uint? StencilReference
+    {
+        get => _material.StencilReference;
+        set => _material.StencilReference = value;
+    }
+
 
     internal TextRenderer(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
     {

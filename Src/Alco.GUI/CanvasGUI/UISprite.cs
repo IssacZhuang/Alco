@@ -50,18 +50,6 @@ public class UISprite : UINode
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
-        BoundingBox2D mask = Mask;
-        if (!HasMask)
-        {
-            mask = canvas.Bound;
-        }
-        if (Texture != null)
-        {
-            canvas.DrawSprite(Texture, RenderTransform.Matrix, Color, mask);
-        }
-        else
-        {
-            canvas.DrawQuad(RenderTransform.Matrix, Color, mask);
-        }
+        canvas.DrawSprite(Texture, RenderTransform.Matrix, Color);
     }
 }

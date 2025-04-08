@@ -39,8 +39,9 @@ public partial class Canvas : AutoDisposable
     private readonly Material _textMaterial;
     private readonly Material _spriteMaterial;
     private readonly Material _stencilWriteMaterial;
+    private readonly uint _shaderId_texture;
 
-    private byte _mask = 1;
+    private byte _mask = 0;
 
     private readonly Stack<UINode> _nodeStack;
 
@@ -126,20 +127,26 @@ public partial class Canvas : AutoDisposable
             StencilWriteMask = 0xFF,
         };
 
-        // the stencil value 0 is the default value, which represent always pass
-        // 1 ~ 254 is the value of the mask
-        _spriteMaterial.StencilReference = 0;
-
         _textMaterial = defaultTextMaterial.CreateInstance();
         _textMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
 
         //stencil write
         _stencilWriteMaterial = defaultSpriteMaterial.CreateInstance();
         _stencilWriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+
+        _shaderId_texture = _stencilWriteMaterial.GetResourceId(ShaderResourceId.Texture);
+
+        StencilFaceState stencilIncrease = new StencilFaceState(
+            CompareFunction.Equal,
+            StencilOperation.IncrementWrap,
+            StencilOperation.Keep,
+            StencilOperation.Keep
+            );
+
         _stencilWriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
-            FrontFace = StencilFaceState.Write,
-            BackFace = StencilFaceState.Write,
+            FrontFace = stencilIncrease,
+            BackFace = stencilIncrease,
             StencilReadMask = 0xFF,
             StencilWriteMask = 0xFF,
         };

@@ -136,12 +136,18 @@ public class Game : GameEngine
             Anchor = Anchor.Stretch,
         };
 
+        UIMask mask = new UIMask()
+        {
+            Position = new Vector2(200, 100),
+            Size = new Vector2(100, 200)
+        };
+
         UIScrollable scrollable = new UIScrollable()
         {
             Position = new Vector2(200, 100),
             Size = new Vector2(100, 200),
             ScrollMode = SrollMode.Vertical | SrollMode.Horizontal,
-            IsMaskEnabled = true,
+            //IsMaskEnabled = true,
         };
 
 
@@ -150,7 +156,9 @@ public class Game : GameEngine
 
         scrollable.Content = layout;
 
-        _root.Add(scrollable);
+        mask.Add(scrollable);
+
+        _root.Add(mask);
 
         UISlider slider = _factory.CreateSlider();
         slider.Position = new Vector2(200, -100);
