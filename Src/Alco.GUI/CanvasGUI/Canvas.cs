@@ -36,6 +36,12 @@ public partial class Canvas : AutoDisposable
     private readonly SpriteRenderer _spriteRenderer;
     private readonly TextRenderer _textRenderer;
 
+    private readonly Material _textMaterial;
+    private readonly Material _spriteMaterial;
+    private readonly Material _stencilWriteMaterial;
+
+    private byte _mask = 1;
+
     private readonly Stack<UINode> _nodeStack;
 
     // for event handling
@@ -108,13 +114,38 @@ public partial class Canvas : AutoDisposable
         _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
         _renderContext = system.CreateRenderContext();
 
-        MaterialInstance defaultSpriteMaterialInstance = defaultSpriteMaterial.CreateInstance();
-        defaultSpriteMaterialInstance.TrySetBuffer(ShaderResourceId.Camera, _camera);
-        MaterialInstance defaultTextMaterialInstance = defaultTextMaterial.CreateInstance();
-        defaultTextMaterialInstance.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _spriteMaterial = defaultSpriteMaterial.CreateInstance();
+        _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
 
-        _spriteRenderer = system.CreateSpriteRenderer(_renderContext, defaultSpriteMaterialInstance);
-        _textRenderer = system.CreateTextRenderer(_renderContext, defaultTextMaterialInstance);
+
+        _spriteMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+        // the stencil value 0 is the default value, which represent always pass
+        // 1 ~ 254 is the value of the mask
+        _spriteMaterial.StencilReference = 0;
+
+        _textMaterial = defaultTextMaterial.CreateInstance();
+        _textMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+
+        //stencil write
+        _stencilWriteMaterial = defaultSpriteMaterial.CreateInstance();
+        _stencilWriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _stencilWriteMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.Write,
+            BackFace = StencilFaceState.Write,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+        _spriteRenderer = system.CreateSpriteRenderer(_renderContext, _spriteMaterial);
+        _textRenderer = system.CreateTextRenderer(_renderContext, _textMaterial);
 
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();

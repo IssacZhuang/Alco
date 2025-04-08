@@ -10,8 +10,6 @@ public class Game : GameEngine
 {
 
     private readonly Canvas _canvas;
-    private readonly Shader _shaderSprite;
-    private readonly Shader _shaderText;
     private readonly Font _font;
 
     private CanvasUIFactory _factory;
@@ -35,8 +33,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shaderSprite = BuiltInAssets.Shader_SpriteMasked;
-        _shaderText = BuiltInAssets.Shader_TextMasked;
         _font = BuiltInAssets.Font_Default;
 
         CavanUIFactoryStyle style = new CavanUIFactoryStyle
@@ -186,7 +182,6 @@ public class Game : GameEngine
             Stop();
         }
 
-        //Log.Info(_button.Mask, _button.MaskState);
         _canvas.Tick(_root, delta);
         _canvas.Update(MainFrameBuffer, _root, delta);
 
