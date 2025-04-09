@@ -142,6 +142,12 @@ public class Game : GameEngine
             Size = new Vector2(100, 200)
         };
 
+        UIMask mask2 = new UIMask()
+        {
+            Position = new Vector2(200, 300),
+            Size = new Vector2(100, 200)
+        };
+
         UIScrollable scrollable = new UIScrollable()
         {
             Position = new Vector2(200, 100),
@@ -158,7 +164,9 @@ public class Game : GameEngine
 
         mask.Add(scrollable);
 
+        _root.Add(mask2);
         _root.Add(mask);
+        
 
         UISlider slider = _factory.CreateSlider();
         slider.Position = new Vector2(200, -100);

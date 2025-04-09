@@ -27,7 +27,7 @@ public partial class Canvas : AutoDisposable
     private struct UIStackItem
     {
         public UINode node;
-        public byte mask;
+        public uint mask;
     }
 
     // for rendering
@@ -47,7 +47,7 @@ public partial class Canvas : AutoDisposable
     private readonly Material _stencilWriteMaterial;
     private readonly uint _shaderId_texture;
 
-    private byte _mask = 0;
+    private uint _mask = 0;
 
     private readonly Stack<UIStackItem> _nodeStack;
 

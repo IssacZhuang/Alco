@@ -19,7 +19,6 @@ public class UINode
     private bool _isTransformDirty = true;
 
     private MaskState _maskState = MaskState.None;
-    private bool _isMaskDirty = true;
 
     public virtual bool BubbleEvent { get; set; } = true;
 

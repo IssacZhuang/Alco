@@ -7,23 +7,30 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+<NoWarn>IDE0130</NoWarn>
     <RepositoryRootDirectory>$(MSBuildThisFileDirectory)</RepositoryRootDirectory>
     <BinDir>$(RepositoryRootDirectory)Bin</BinDir>
     <OutputPath>$([System.IO.Path]::GetFullPath('$(RepositoryRootDirectory)Bin\$(Configuration)'))\$(MSBuildProjectName)</OutputPath>
     <BaseIntermediateOutputPath>$([System.IO.Path]::GetFullPath('$(RepositoryRootDirectory)Bin\obj\$(MSBuildProjectName)'))\</BaseIntermediateOutputPath>
     <PackageOutputPath>$(BinDir)\Packages\$(Configuration)</PackageOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <DebugType>pdbonly</DebugType>
+    <!-- <DebugType>pdbonly</DebugType> -->
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Optimize>true</Optimize>
+    <!-- <Optimize>true</Optimize> -->
     <Deterministic>true</Deterministic>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
     <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
+  <!-- Add conditional Release configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
   </PropertyGroup>
 
   <PropertyGroup>

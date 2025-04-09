@@ -42,7 +42,8 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _stencilWriteMaterial.StencilReference = _mask++;
+        _stencilWriteMaterial.StencilReference = _mask;
+        _mask = (_mask + 1) % 0xFF;
         _stencilWriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
         _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilWriteMaterial, constant);
     }
