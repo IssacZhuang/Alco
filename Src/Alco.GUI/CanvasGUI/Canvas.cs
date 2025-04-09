@@ -24,11 +24,6 @@ public partial class Canvas : AutoDisposable
         }
     }
 
-    private struct UIStackItem
-    {
-        public UINode node;
-        public uint mask;
-    }
 
     // for rendering
 
@@ -48,8 +43,6 @@ public partial class Canvas : AutoDisposable
     private readonly uint _shaderId_texture;
 
     private uint _mask = 0;
-
-    private readonly Stack<UIStackItem> _nodeStack;
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -167,46 +160,11 @@ public partial class Canvas : AutoDisposable
 
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
-
-        _nodeStack = new Stack<UIStackItem>();
     }
 
     public void Tick(UINode root, float delta)
     {
-        //just ignore the mask in tick
-        _nodeStack.Clear();
-        _nodeStack.Push(new UIStackItem { node = root });
-        while (_nodeStack.Count > 0)
-        {
-            UIStackItem item = _nodeStack.Pop();
-            UINode node = item.node;
-            _mask = item.mask;
-            if (!node.IsEnable)
-            {
-                continue;
-            }
-
-            try
-            {
-                node.Tick(this, delta);
-            }
-            catch (Exception e)
-            {
-                if (ErrorHandler != null)
-                {
-                    ErrorHandler(e);
-                }
-                else
-                {
-                    Log.Error($"Error in ticking {node.Name}: {e}");
-                }
-            }
-
-            for (int i = node.Children.Count - 1; i >= 0; i--)
-            {
-                _nodeStack.Push(new UIStackItem { node = node.Children[i] });
-            }
-        }
+        TickNode(root, delta);
     }
 
     public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
@@ -214,42 +172,8 @@ public partial class Canvas : AutoDisposable
         _collisionWorld.ClearAll();
 
         _renderContext.Begin(renderTarget);
-        _nodeStack.Clear();
         _mask = 0;
-        _nodeStack.Push(new UIStackItem { node = root, mask = _mask });
-        while (_nodeStack.Count > 0)
-        {
-            UIStackItem item = _nodeStack.Pop();
-            UINode node = item.node;
-            _mask = item.mask;
-
-            if (!node.IsEnable)
-            {
-                continue;
-            }
-
-            try
-            {
-                //the value of _mask might be changed during update
-                node.Update(this, delta);
-            }
-            catch (Exception e)
-            {
-                if (ErrorHandler != null)
-                {
-                    ErrorHandler(e);
-                }
-                else
-                {
-                    Log.Error($"Error in updating {node.Name}: {e}");
-                }
-            }
-
-            for (int i = node.Children.Count - 1; i >= 0; i--)
-            {
-                _nodeStack.Push(new UIStackItem { node = node.Children[i], mask = _mask });
-            }
-        }
+        UpdateNode(root, delta);
         _renderContext.End();
 
         //DebugDraw(renderTarget, root);
@@ -348,6 +272,8 @@ public partial class Canvas : AutoDisposable
         }
     }
 
+    
+
     public void AddClickReciever(UINode node, ShapeBox2D shape)
     {
         _collisionWorld.PushTarget(node, shape);
@@ -411,5 +337,64 @@ public partial class Canvas : AutoDisposable
     private void OnTextInput(string text)
     {
         _textInput?.OnTextInput(this, text);
+    }
+
+    private void UpdateNode(UINode node, float delta)
+    {
+        uint mask = _mask;
+        if (node.IsEnable)
+        {
+            try
+            {
+                //mask might be changed during update
+                node.Update(this, delta);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler != null)
+                {
+                    ErrorHandler(e);
+                }
+                else
+                {
+                    Log.Error($"Error in updating {node.Name}: {e}");
+                }
+            }
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            UpdateNode(node.Children[i], delta);
+        }
+
+        //recover mask
+        _mask = mask;
+    }
+
+    private void TickNode(UINode node, float delta)
+    {
+        if (node.IsEnable)
+        {
+            try
+            {
+                node.Tick(this, delta);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler != null)
+                {
+                    ErrorHandler(e);
+                }
+                else
+                {
+                    Log.Error($"Error in ticking {node.Name}: {e}");
+                }
+            }
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            TickNode(node.Children[i], delta);
+        }
     }
 }
