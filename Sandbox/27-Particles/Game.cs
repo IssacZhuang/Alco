@@ -88,6 +88,8 @@ public class Game : GameEngine
 
         ImGui.Text(strFramerate);
 
+        ImGui.EditTransform2D(ref _particleSystem.Transform);
+
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Space Mode");
         ImGui.Text($"Rotation: {_particleSystem.Transform.Rotation.ToRadian() / math.DegToRad}");
 
@@ -240,16 +242,10 @@ public class Game : GameEngine
             _emitter.MaxRotation = maxRotation;
         }
 
-        float minDirectionAngle = _emitter.MinDirectionAngle;
-        if (ImGui.SliderFloat("Min Direction Angle", ref minDirectionAngle, 0, 360))
+        float coneAngle = _emitter.ConeAngle;
+        if (ImGui.SliderFloat("Cone Angle", ref coneAngle, 0, 360))
         {
-            _emitter.MinDirectionAngle = minDirectionAngle;
-        }
-        
-        float maxDirectionAngle = _emitter.MaxDirectionAngle;
-        if (ImGui.SliderFloat("Max Direction Angle", ref maxDirectionAngle, 0, 360))
-        {
-            _emitter.MaxDirectionAngle = maxDirectionAngle;
+            _emitter.ConeAngle = coneAngle;
         }
         
         

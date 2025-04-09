@@ -45,10 +45,12 @@ V2F MainVS(Vertex input) {
     
     float2 scaledPosition = input.position.xy * particle.scale;
 
-    // transform mesh by rotation
-    float2 rotatedPosition;
-    rotatedPosition.x = scaledPosition.x * particle.rotation.y - scaledPosition.y * particle.rotation.x;
-    rotatedPosition.y = scaledPosition.x * particle.rotation.x + scaledPosition.y * particle.rotation.y;
+    // rotation
+    float2x2 rotMatrix = {
+        particle.rotation.y, -particle.rotation.x,
+        particle.rotation.x, particle.rotation.y
+    };
+    float2 rotatedPosition = mul(rotMatrix, scaledPosition);
     
     
     //transform mesh by position

@@ -1,5 +1,3 @@
-
-
 using System.Numerics;
 using Alco.Graphics;
 
@@ -31,14 +29,9 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     public float MaxRotation = 360f;
 
     /// <summary>
-    /// Gets or sets the minimum direction angle in degrees for emitted particles.\
+    /// Gets or sets the angular spread of emission cone in degrees (total angle from edge to edge).
     /// </summary>
-    public float MinDirectionAngle = 0.0f;
-
-    /// <summary>
-    /// Gets or sets the maximum direction angle in degrees for emitted particles.
-    /// </summary>
-    public float MaxDirectionAngle = 360f;
+    public float ConeAngle = 360f;
 
     /// <summary>
     /// Gets or sets the color of emitted particles.
@@ -79,7 +72,8 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Scale = new Vector2(scale, scale);
 
         // Create normalized random direction vector
-        float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
+        float halfConeAngle = ConeAngle * 0.5f;
+        float directionAngle = _random.NextFloat(-halfConeAngle, halfConeAngle);
         Rotation2D direction = new Rotation2D(directionAngle);
 
         // Apply random speed between MinSpeed and MaxSpeed
@@ -114,8 +108,9 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Scale = new Vector2(scale, scale) * transform.Scale;
 
         // Create normalized random direction vector
-        Rotation2D localDirection = new Rotation2D(_random.NextFloat(MinDirectionAngle, MaxDirectionAngle));
-        Rotation2D direction = localDirection * transform.Rotation;
+        float halfConeAngle = ConeAngle * 0.5f;
+        float directionAngle = _random.NextFloat(-halfConeAngle, halfConeAngle);
+        Rotation2D localDirection = new Rotation2D(directionAngle);
 
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);
