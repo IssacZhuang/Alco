@@ -114,17 +114,18 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         particle.Scale = new Vector2(scale, scale) * transform.Scale;
 
         // Create normalized random direction vector
-        float directionAngle = _random.NextFloat(MinDirectionAngle, MaxDirectionAngle);
-        Rotation2D direction = new Rotation2D(directionAngle);
+        Rotation2D localDirection = new Rotation2D(_random.NextFloat(MinDirectionAngle, MaxDirectionAngle));
+        Rotation2D direction = localDirection * transform.Rotation;
 
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);
-        //apply scale to velocity
-        particle.Velocity = math.rotate(Vector2.UnitX, direction) * speed * transform.Scale;
+        //local velocity
+        particle.Velocity = math.rotate(Vector2.UnitX, localDirection) * speed * transform.Scale;
+        particle.Velocity = math.rotate(particle.Velocity, transform.Rotation);
 
         if (IsRotationFollowDirection)
         {
-            particle.Rotation = math.inverse(direction);
+            particle.Rotation = math.direction(particle.Velocity);
         }
         else
         {
@@ -132,8 +133,6 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         }
 
         particle.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
-        //transform the rotation to world space
-        particle.Rotation = transform.Rotation * particle.Rotation;
 
         particle.Lifetime = _random.NextFloat(1, 2);
         particle.Duration = particle.Lifetime;

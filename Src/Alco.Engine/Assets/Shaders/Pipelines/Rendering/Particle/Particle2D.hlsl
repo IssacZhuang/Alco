@@ -43,13 +43,13 @@ V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
     ParticleData2D particle = _particles[input.instanceId];
     
-    //transform mesh by rotation
+    float2 scaledPosition = input.position.xy * particle.scale;
+
+    // transform mesh by rotation
     float2 rotatedPosition;
-    rotatedPosition.x = input.position.x * particle.rotation.y - input.position.y * particle.rotation.x;
-    rotatedPosition.y = input.position.x * particle.rotation.x + input.position.y * particle.rotation.y;
+    rotatedPosition.x = scaledPosition.x * particle.rotation.y - scaledPosition.y * particle.rotation.x;
+    rotatedPosition.y = scaledPosition.x * particle.rotation.x + scaledPosition.y * particle.rotation.y;
     
-    //transform mesh by scale
-    rotatedPosition *= particle.scale;
     
     //transform mesh by position
     float3 worldPosition = float3(rotatedPosition + particle.position, 0.0);

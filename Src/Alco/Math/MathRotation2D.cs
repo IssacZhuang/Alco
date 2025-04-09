@@ -46,9 +46,10 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float direction(Vector2 a)
+        public static Rotation2D direction(Vector2 a)
         {
-            return atan2(a.Y, a.X);
+            Vector2 norm = normalize(a);
+            return new Rotation2D(norm.Y, norm.X);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
