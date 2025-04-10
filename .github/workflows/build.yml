@@ -40,26 +40,27 @@ jobs:
             runtime: osx-arm64
     
     steps:
-    - uses: actions/checkout@v3
-      with:
-        clean: true
-        submodules: true
+    - uses: actions/checkout@v4
     
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '9.x'
-    
-    - name: Test
-      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }}
-      
+        cache: true
+        
+    - name: Install dependencies
+      run: dotnet restore
+
     - name: Build
       run: dotnet build --configuration ${{ matrix.configuration }}
-      
-    - name: List files
-      run: |
-        if [ "${{ runner.os }}" == "Windows" ]; then
-          dir -Recurse Bin
-        else
-          ls -R Bin
-        fi 
+    
+    - name: Test
+      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }} --no-restore --logger trx --results-directory "TestResults-${{ runtime }}-${{ configuration }}"
+
+    - name: Upload dotnet test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dotnet-results-${{ runtime }}-${{ configuration }}
+        path: TestResults-${{ runtime }}-${{ configuration }}
+      # Use always() to always run this step to publish test results when there are test failures
+      if: ${{ always() }}
