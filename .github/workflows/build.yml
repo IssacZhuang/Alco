@@ -33,11 +33,11 @@ jobs:
           - build: MacOS_Debug
             os: macos-latest
             configuration: Debug
-            runtime: osx-x64
+            runtime: osx-arm64
           - build: MacOS_Release
             os: macos-latest
             configuration: Release
-            runtime: osx-x64
+            runtime: osx-arm64
     
     steps:
     - uses: actions/checkout@v3
