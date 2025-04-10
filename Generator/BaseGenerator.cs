@@ -11,6 +11,7 @@ public abstract class BaseGenerator
         string fullPath = Path.Combine(SolutionFolder, OutputFolder, path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         File.WriteAllText(fullPath, content);
+        Console.WriteLine($"Generated {path}");
     }
 
     protected void ClearFolder()

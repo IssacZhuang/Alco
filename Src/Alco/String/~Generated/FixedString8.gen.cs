@@ -8,7 +8,7 @@ namespace Alco;
 /// Represents a fixed-length string with a maximum capacity of 8 characters.
 /// This struct provides an efficient way to handle small strings with a predetermined maximum length.
 /// </summary>
-public unsafe struct FixedString8 : IEquatable<FixedString8>
+public partial unsafe struct FixedString8 : IEquatable<FixedString8>
 {
     /// <summary>
     /// The maximum number of characters that can be stored in this fixed-length string.
