@@ -55,12 +55,12 @@ jobs:
       run: dotnet build --configuration ${{ matrix.configuration }}
     
     - name: Test
-      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }} --no-restore --logger trx --results-directory "TestResults-${{ runtime }}-${{ configuration }}"
+      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }} --no-restore --logger trx --results-directory "TestResults-${{ matrix.runtime }}-${{ matrix.configuration }}"
 
     - name: Upload dotnet test results
       uses: actions/upload-artifact@v4
       with:
-        name: dotnet-results-${{ runtime }}-${{ configuration }}
-        path: TestResults-${{ runtime }}-${{ configuration }}
+        name: dotnet-results-${{ matrix.runtime }}-${{ matrix.configuration }}
+        path: TestResults-${{ matrix.runtime }}-${{ matrix.configuration }}
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
