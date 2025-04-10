@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 
 
 using Alco;
-using Alco.Unsafe;
 
 public unsafe struct GridMap<T> : IDisposable where T : unmanaged
 {

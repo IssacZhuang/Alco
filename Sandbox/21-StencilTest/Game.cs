@@ -29,6 +29,8 @@ public class Game : GameEngine
 
     private readonly GPUCommandBuffer _commandClearScreen;
 
+    private Vector3 _rotationAngles = Vector3.Zero;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
 
@@ -39,8 +41,8 @@ public class Game : GameEngine
         // _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
-        _camaraChild.Position.Z = -10;
-        _camera.Tranform = math.transform(_camaraParent, _camaraChild);
+        _camaraChild.Position.X = -10;
+        _camera.Transform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = Rendering.CreateRenderContext();
         _materialStencilWrite = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
@@ -74,19 +76,19 @@ public class Game : GameEngine
         _cubeStencilWrite = new Cube(Rendering.MeshCube, _materialStencilWrite);
         _cubeStencilWrite.Color = Color1;
         _cubeStencilWrite.transform.Position = new Vector3(0, 0, 0);
-        _cubeStencilWrite.transform.Scale = new Vector3(5f, 5f, 0.1f);
+        _cubeStencilWrite.transform.Scale = new Vector3(0.1f, 5f, 5f);
 
         _cubeStencilTest1 = new Cube(Rendering.MeshCube, _materialStencilTest);
         _cubeStencilTest1.Color = Color2;
-        _cubeStencilTest1.transform.Position = new Vector3(2, 0, 3f);
+        _cubeStencilTest1.transform.Position = new Vector3(2, 3f, 0);
 
         _cubeStencilTest2 = new Cube(Rendering.MeshCube, _materialStencilTest);
         _cubeStencilTest2.Color = Color3;
-        _cubeStencilTest2.transform.Position = new Vector3(-1, -1, 3f);
+        _cubeStencilTest2.transform.Position = new Vector3(1, -2f, 1);
 
         _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
 
-        MainWindow.OnResize += OnMainWindowResize;
+        MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)
@@ -97,6 +99,8 @@ public class Game : GameEngine
         }
 
         DebugGUI.Text("Hold mouse middle button to rotate camera");
+
+        _camaraParent.Rotation = math.quaternion(_rotationAngles);
 
         _commandClearScreen.Begin();
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
@@ -113,11 +117,12 @@ public class Game : GameEngine
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
-            _camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.X * 0.01f);
-            _camaraParent.Rotate(Vector3.UnitX, Input.MouseDelta.Y * 0.01f);
+            //_camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.Y * 0.01f);
+            // _camaraParent.Rotate(Vector3.UnitZ, Input.MouseDelta.X * 0.01f);
+            _rotationAngles += new Vector3(0, -Input.MouseDelta.Y , Input.MouseDelta.X );
         }
 
-        _camera.Tranform = math.transform(_camaraParent, _camaraChild);
+        _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
     }
 

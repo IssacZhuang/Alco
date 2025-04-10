@@ -25,37 +25,49 @@ namespace Alco
 
         public Transform3D()
         {
-            this.Position = Vector3.Zero;
-            this.Rotation = Quaternion.Identity;
-            this.Scale = Vector3.One;
+            Position = Vector3.Zero;
+            Rotation = Quaternion.Identity;
+            Scale = Vector3.One;
         }
 
         public Transform3D(Vector3 pos)
         {
-            this.Position = pos;
-            this.Rotation = Quaternion.Identity;
-            this.Scale = Vector3.One;
+            Position = pos;
+            Rotation = Quaternion.Identity;
+            Scale = Vector3.One;
         }
 
         public Transform3D(Vector3 pos, Quaternion rot)
         {
-            this.Position = pos;
-            this.Rotation = rot;
-            this.Scale = Vector3.One;
+            Position = pos;
+            Rotation = rot;
+            Scale = Vector3.One;
         }
 
         public Transform3D(Quaternion rot, Vector3 pos)
         {
-            this.Position = pos;
-            this.Rotation = rot;
-            this.Scale = Vector3.One;
+            Position = pos;
+            Rotation = rot;
+            Scale = Vector3.One;
         }
 
         public Transform3D(Vector3 pos, Quaternion rot, Vector3 scale)
         {
-            this.Position = pos;
-            this.Rotation = rot;
-            this.Scale = scale;
+            Position = pos;
+            Rotation = rot;
+            Scale = scale;
+        }
+
+        public Transform3D(Transform2D transform)
+        {
+            Position = new Vector3(transform.Position, 0);
+            Rotation = math.quaternion(0, 0, transform.Rotation.ToDegree());
+            Scale = new Vector3(transform.Scale, 1);
+        }
+
+        public Transform3D(Matrix4x4 matrix)
+        {
+
         }
 
         /// <summary>

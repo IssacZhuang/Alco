@@ -299,7 +299,7 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Matrix4x4 inverse(Matrix4x4 matrix)
+        public static Matrix4x4 inverse(in Matrix4x4 matrix)
         {
             if (Matrix4x4.Invert(matrix, out Matrix4x4 result))
             {
@@ -311,5 +311,160 @@ namespace Alco
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Matrix4x4 transpose(in Matrix4x4 matrix)
+        {
+            return Matrix4x4.Transpose(matrix);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float determinant(in Matrix4x4 matrix)
+        {
+            //left-handed
+            return matrix.M11 * (
+                matrix.M22 * (matrix.M33 * matrix.M44 - matrix.M34 * matrix.M43) -
+                matrix.M23 * (matrix.M32 * matrix.M44 - matrix.M34 * matrix.M42) +
+                matrix.M24 * (matrix.M32 * matrix.M43 - matrix.M33 * matrix.M42)
+            ) -
+            matrix.M12 * (
+                matrix.M21 * (matrix.M33 * matrix.M44 - matrix.M34 * matrix.M43) -
+                matrix.M23 * (matrix.M31 * matrix.M44 - matrix.M34 * matrix.M41) +
+                matrix.M24 * (matrix.M31 * matrix.M43 - matrix.M33 * matrix.M41)
+            ) +
+            matrix.M13 * (
+                matrix.M21 * (matrix.M32 * matrix.M44 - matrix.M34 * matrix.M42) -
+                matrix.M22 * (matrix.M31 * matrix.M44 - matrix.M34 * matrix.M41) +
+                matrix.M24 * (matrix.M31 * matrix.M42 - matrix.M32 * matrix.M41)
+            ) -
+            matrix.M14 * (
+                matrix.M21 * (matrix.M32 * matrix.M43 - matrix.M33 * matrix.M42) -
+                matrix.M22 * (matrix.M31 * matrix.M43 - matrix.M33 * matrix.M41) +
+                matrix.M23 * (matrix.M31 * matrix.M42 - matrix.M32 * matrix.M41)
+            );
+        }
+
+        /// <summary>
+        /// Decompose a matrix into scale, rotation, and translation in left-handed coordinate system.
+        /// </summary>
+        /// <param name="matrix">The matrix to decompose.</param>
+        /// <param name="scale">The scale of the matrix.</param>
+        /// <param name="rotation">The rotation of the matrix.</param>
+        /// <param name="translation">The translation of the matrix.</param>
+        public static void decompose(Matrix4x4 matrix, out Vector3 scale, out Quaternion rotation, out Vector3 translation)
+        {
+            // static void SetAxis(ref Matrix4x4 matrix, int axis, Vector3 vector)
+            // {
+            //     matrix[axis, 0] = vector.X;
+            //     matrix[axis, 1] = vector.Y;
+            //     matrix[axis, 2] = vector.Z;
+            // }
+
+            // static Vector3 GetScaledAxisX(in Matrix4x4 matrix)
+            // {
+            //     return new Vector3(matrix.M11, matrix.M12, matrix.M13);
+            // }
+
+            ExtractScale(ref matrix, out scale);
+            if (determinant(matrix) < 0)
+            {
+                scale.X = -scale.X;
+                //SetAxis(ref matrix, 0, -GetScaledAxisX(matrix));
+                matrix.M11 = -matrix.M11;
+                matrix.M12 = -matrix.M12;
+                matrix.M13 = -matrix.M13;
+            }
+
+            ExtractRotation(matrix, out rotation);
+            ExtractTranslation(matrix, out translation);
+
+            rotation = Quaternion.Normalize(rotation);
+        }
+
+        public static void decompose(in Matrix4x4 matrix, out Vector3 scale, out Vector3 eulerAngles, out Vector3 translation)
+        {
+            decompose(matrix, out scale, out Quaternion rotation, out translation);
+            eulerAngles = euler(rotation);
+        }
+
+        public static void decompose(in Matrix4x4 matrix, out Vector2 scale, out Rotation2D rotation, out Vector2 translation)
+        {
+            decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
+            scale = new Vector2(scale3.X, scale3.Y);
+            Vector3 angles = euler(rotation2);
+            rotation = new Rotation2D(angles.Z);
+            translation = new Vector2(translation3.X, translation3.Y);
+        }
+
+        public static void decompose(in Matrix4x4 matrix, out Vector2 scale, out float angle, out Vector2 translation)
+        {
+            decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
+            scale = new Vector2(scale3.X, scale3.Y);
+            Vector3 angles = euler(rotation2);
+            angle = angles.Z;
+            translation = new Vector2(translation3.X, translation3.Y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ExtractTranslation(in Matrix4x4 matrix, out Vector3 translation)
+        {
+            translation = new Vector3(matrix.M41, matrix.M42, matrix.M43);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe static void ExtractScale(ref Matrix4x4 matrix, out Vector3 scale, float tolerance = 1e-5f)
+        {
+            //assum tolerance is 0
+            float squareSum0 = matrix.M11 * matrix.M11 + matrix.M12 * matrix.M12 + matrix.M13 * matrix.M13;
+            float squareSum1 = matrix.M21 * matrix.M21 + matrix.M22 * matrix.M22 + matrix.M23 * matrix.M23;
+            float squareSum2 = matrix.M31 * matrix.M31 + matrix.M32 * matrix.M32 + matrix.M33 * matrix.M33;
+
+            if (squareSum0 > tolerance)
+            {
+                float scale0 = MathF.Sqrt(squareSum0);
+                scale.X = scale0;
+                float invScale0 = 1.0f / scale0;
+                matrix.M11 *= invScale0;
+                matrix.M12 *= invScale0;
+                matrix.M13 *= invScale0;
+            }
+            else
+            {
+                scale.X = 0;
+            }
+
+            if (squareSum1 > tolerance)
+            {
+                float scale1 = MathF.Sqrt(squareSum1);
+                scale.Y = scale1;
+                float invScale1 = 1.0f / scale1;
+                matrix.M21 *= invScale1;
+                matrix.M22 *= invScale1;
+                matrix.M23 *= invScale1;
+            }
+            else
+            {
+                scale.Y = 0;
+            }
+
+            if (squareSum2 > tolerance)
+            {
+                float scale2 = MathF.Sqrt(squareSum2);
+                scale.Z = scale2;
+                float invScale2 = 1.0f / scale2;
+                matrix.M31 *= invScale2;
+                matrix.M32 *= invScale2;
+                matrix.M33 *= invScale2;
+            }
+            else
+            {
+                scale.Z = 0;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ExtractRotation(in Matrix4x4 matrix, out Quaternion rotation)
+        {
+            rotation = quaternion(matrix);
+        }
     }
 }

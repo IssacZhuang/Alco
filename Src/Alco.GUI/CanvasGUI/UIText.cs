@@ -176,7 +176,6 @@ public class UIText : UISelectable
             return;
         }
 
-        CanvasRenderer renderer = canvas.Renderer;
 
         //use local transform
         Transform2D transform = Transform2D.Identity;
@@ -187,30 +186,10 @@ public class UIText : UISelectable
         transform.Position.Y += offsetY;
 
 
-        BoundingBox2D mask = Mask;
-        if (!HasMask)
-        {
-            mask = canvas.Bound;
-        }
-
-        if (_overflowHorizontal == OverflowModeHorizontal.Clamp)
-        {
-            //mask = Bound;
-            mask.Min.X = math.max(mask.Min.X, Bound.Min.X);
-            mask.Max.X = math.min(mask.Max.X, Bound.Max.X);
-        }
-
-        if (_overflowVertical == OverflowModeVertical.Clamp)
-        {
-            //mask = Bound;
-            mask.Min.Y = math.max(mask.Min.Y, Bound.Min.Y);
-            mask.Max.Y = math.min(mask.Max.Y, Bound.Max.Y);
-        }
-
         for (int i = 0; i < _lines.Count; i++)
         {
             //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
-            DrawLine(renderer, i, _text.Slice(_lines[i].start, _lines[i].count), transform, mask);
+            DrawLine(canvas, i, _text.Slice(_lines[i].start, _lines[i].count), transform);
             transform.Position.Y -= lineHeight;
         }
     }
@@ -246,9 +225,9 @@ public class UIText : UISelectable
         SetLineBreakDirty();
     }
 
-    protected virtual void DrawLine(CanvasRenderer renderer, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform, BoundingBox2D mask)
+    protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform)
     {
-        renderer.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f, mask);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f);
     }
 
     protected void SetLineBreakDirty()

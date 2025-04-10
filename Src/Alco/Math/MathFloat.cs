@@ -1,6 +1,8 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace Alco
 {
@@ -73,6 +75,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static float rsqrt(float a)
+        {
+            return MathF.ReciprocalSqrtEstimate(a);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float log(float a)
         {
             return MathF.Log(a);
@@ -99,7 +107,13 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float radians(float a)
         {
-            return a * TORADIANS;
+            return a * DegToRad;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float degrees(float a)
+        {
+            return a * RadToDeg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

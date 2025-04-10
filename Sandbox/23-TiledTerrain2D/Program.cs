@@ -5,14 +5,14 @@ using Alco.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Tiled Terrain 2D"),
+    View = new ViewSetting(640, 360, "Tiled Terrain 2D"),
     Graphics = GraphicsSetting.Default with
     {
         Backend = GraphicsBackend.Vulkan
     },
 }.
 With<PluginDefaultAssets>().
-With(new PluginHDR(1f, 1/2.2f)).
+With(new PluginHDR()).
 //With<PluginBloom>().
 With<PluginDebugGUI>();
 

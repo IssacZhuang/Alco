@@ -9,7 +9,6 @@ public class Game : GameEngine
 
     private Camera2D _camera;
     private Shader _shader;
-    private OldTextRenderer _renderer;
 
     private Material _material;
     private RenderContext _renderContext;
@@ -26,8 +25,6 @@ public class Game : GameEngine
         _font = BuiltInAssets.Font_Default;
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
-
-        _renderer = Rendering.CreateOldTextRenderer(_camera, _shader);
 
         _material = Rendering.CreateGraphicsMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -53,23 +50,8 @@ public class Game : GameEngine
         }
 
         _angle += delta * 45;
-        Rotation2D rotation = Rotation2D.FromDegree(_angle);
+        Rotation2D rotation = new Rotation2D(_angle);
 
-        // _renderer.Begin(MainFrameBuffer);
-        // _renderer.DrawString(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-
-        // _renderer.DrawString(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        // _renderer.DrawString(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
-        // _renderer.DrawString(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        // _renderer.DrawString(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        // _renderer.DrawString(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
-        // _renderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
-
-        // _renderer.DrawString(_font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
-
-        // _renderer.DrawString(_font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.euler(0, math.radians(_angle), 0), Pivot.Center, new Vector4(1, 1, 1, 1));
-
-        // _renderer.End();
 
         _renderContext.Begin(MainFrameBuffer);
 
@@ -82,7 +64,7 @@ public class Game : GameEngine
         _textRenderer.DrawString(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
 
         _textRenderer.DrawString( _font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawString( _font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.euler(0, math.radians(_angle), 0), Pivot.Center, new Vector4(1, 1, 1, 1));
+        _textRenderer.DrawString(_font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.quaternion(0, _angle, 0), Pivot.Center, new Vector4(1, 1, 1, 1));
 
         _renderContext.End();
     }
@@ -92,6 +74,5 @@ public class Game : GameEngine
         _renderContext.Dispose();
         _material.Dispose();
         _textRenderer.Dispose();
-        _renderer.Dispose();
     }
 }

@@ -10,7 +10,7 @@ public struct DeviceDescriptor
     public DeviceDescriptor(
         IGPUDeviceHost loopProvider,
         GraphicsBackend backend = GraphicsBackend.Auto,
-        PixelFormat preferredSurfaceFormat = PixelFormat.BGRA8UnormSrgb,
+        PixelFormat preferredSurfaceFormat = PixelFormat.BGRA8Unorm,
         bool debug = false,        
         uint pushConstantsSize = 128,
         uint disposeDelay = 0,
@@ -48,6 +48,6 @@ public struct DeviceDescriptor
     public uint PushConstantsSize { get; init; } = 128;
     
     public uint DisposeDelay { get; init; } = 0;
-    public PixelFormat PreferredSurfaceFormat { get; init; } = PixelFormat.BGRA8UnormSrgb;
+    public PixelFormat PreferredSurfaceFormat { get; init; } = PixelFormat.BGRA8Unorm;
     public string Name { get; init; } = "Alco Graphics Device";
 }

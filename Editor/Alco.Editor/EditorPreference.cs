@@ -22,8 +22,8 @@ public class EditorPreference
     {
         _engine = engine;
         _preferenceFilePath = Path.Combine(_tmpDirectory, PreferenceFileName);
-        _jsonSerializerOptions = BaseConfig.BuildJsonSerializerOptions();
-        
+        _jsonSerializerOptions = Configable.BuildJsonSerializerOptions();
+
         if (!Directory.Exists(_tmpDirectory))
         {
             Directory.CreateDirectory(_tmpDirectory);
@@ -69,6 +69,16 @@ public class EditorPreference
     public void SetFloat(string key, float value)
     {
         Config.Floats[key] = value;
+    }
+
+    public bool TryGetDouble(string key, out double value)
+    {
+        return Config.Doubles.TryGetValue(key, out value);
+    }
+
+    public void SetDouble(string key, double value)
+    {
+        Config.Doubles[key] = value;
     }
 
     public bool TryGetBool(string key, out bool value)

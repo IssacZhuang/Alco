@@ -22,7 +22,7 @@ internal sealed class WebGPUBindGroup : GPUBindGroup
 
     protected override void Dispose(bool disposing)
     {
-        wgpuBindGroupLayoutReference(_native);
+        wgpuBindGroupLayoutRelease(_native);
     }
 
     #endregion
@@ -49,13 +49,14 @@ internal sealed class WebGPUBindGroup : GPUBindGroup
             nativeEntries[i] = entries[i].ConvertToWebGPU();
         }
 
-        fixed (byte* ptrName = Name.GetUtf8Span())
+        ReadOnlySpan<byte> name = Name.GetUtf8Span();
+        fixed (byte* ptrName = name)
         {
             WGPUBindGroupLayoutDescriptor nativeDescriptor = new WGPUBindGroupLayoutDescriptor()
             {
                 entryCount = (uint)entries.Length,
                 entries = nativeEntries,
-                label = ptrName,
+                label = new WGPUStringView(ptrName, name.Length),
             };
             _native = wgpuDeviceCreateBindGroupLayout(nativeDevice, &nativeDescriptor);
         }

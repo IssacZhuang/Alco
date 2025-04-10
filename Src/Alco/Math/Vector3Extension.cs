@@ -71,5 +71,17 @@ namespace Alco
         {
             return new Vector2(v.Z, v.Y);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion DegreesToQuaternion(this Vector3 v)
+        {
+            return math.quaternion(v * math.DegToRad);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion RadiansToQuaternion(this Vector3 v)
+        {
+            return math.quaternion(v);
+        }
     }
 }

@@ -49,7 +49,7 @@ public readonly struct MaterialCommandContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
     {
-        _commandBuffer.PushConstants(stage, 0, data);
+        _commandBuffer.PushGraphicsConstants(stage, 0, data);
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public readonly struct MaterialCommandContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
     {
-        _commandBuffer.PushConstants(stage, bufferOffset, data);
+        _commandBuffer.PushGraphicsConstants(stage, bufferOffset, data);
     }
 
     /// <summary>
@@ -73,7 +73,7 @@ public readonly struct MaterialCommandContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
-        _commandBuffer.PushConstants(stage, bufferOffset, data, size);
+        _commandBuffer.PushGraphicsConstants(stage, bufferOffset, data, size);
     }
 
     /// <summary>

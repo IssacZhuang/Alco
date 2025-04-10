@@ -1,8 +1,8 @@
-using static Alco.Engine.ObjectiveCRuntime;
+using static Alco.Engine.MacOS.ObjectiveCRuntime;
 
-namespace Alco.Engine;
+namespace Alco.Engine.MacOS;
 
-internal unsafe readonly struct CAMetalLayer
+public unsafe readonly struct CAMetalLayer
 {
     public readonly IntPtr Handle;
 

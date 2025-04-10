@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Alco.Unsafe
+namespace Alco
 {
     public static unsafe class UtilsMemory
     {

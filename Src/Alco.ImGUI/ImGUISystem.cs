@@ -10,32 +10,21 @@ public class ImGUISystem: BaseEngineSystem
     private readonly Material _material;
     private readonly ImGUIRenderer _imGUIRenderer;
     private readonly ImGUIInputHandler _imGUIInputHandler;
-    private readonly WindowRenderTarget _mainRenderTarget;
+    private readonly ViewRenderTarget _mainRenderTarget;
 
-    public ImGUISystem(GameEngine engine)
+    public ImGUISystem(GameEngine engine, ViewRenderTarget mainRenderTarget)
     {
         RenderingSystem renderingSystem = engine.Rendering;
 
         // Use embedded shader resource instead of built-in asset
-        string shaderCode = ResourceHelper.GetEmbeddedResourceString("ImGui.hlsl");
-        _shader = renderingSystem.CreateShader(shaderCode, "ImGui_Embedded", [
-            new(){
-                Elements = new VertexElement[] {
-                    new(0, 0, VertexFormat.Float32x2, "POSITION"),
-                    new(1, 8, VertexFormat.Float32x2, "TEXCOORD0"),
-                    new(2, 16, VertexFormat.Unorm8x4, "COLOR"),//the imgui vertex use uint as color
-                },
-                Stride = 20,
-                StepMode = VertexStepMode.Vertex,
-            }
-        ]);
+        _shader = ImGUIResourceHelper.GetImGUIShader(renderingSystem);
 
         _material = renderingSystem.CreateGraphicsMaterial(_shader, "ImGuiMaterial");
         _material.BlendState = BlendState.AlphaBlend;
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
-        _mainRenderTarget = engine.MainRenderTarget;
+        _mainRenderTarget = mainRenderTarget;
 
-        _imGUIInputHandler = new ImGUIInputHandler(engine.MainWindow, engine.Input);
+        _imGUIInputHandler = new ImGUIInputHandler(engine.Input, engine.MainView);
     }
 
     public override void OnBeginFrame(float deltaTime)
@@ -53,9 +42,10 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIRenderer.End();
     }
 
-    public override void Dispose()
+    public override void OnStop()
     {
         _imGUIRenderer.Dispose();
+        _imGUIInputHandler.Dispose();
         _material.Dispose();
         _shader.Dispose();
     }

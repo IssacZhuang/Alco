@@ -32,6 +32,11 @@ public sealed class Shader : AutoDisposable
     public string Name { get; }
 
     /// <summary>
+    /// Whether the shader is a compute shader
+    /// </summary>
+    public bool IsComputeShader { get; }
+
+    /// <summary>
     /// Create a new shader
     /// </summary>
     /// <param name="renderingSystem">The rendering system</param>
@@ -45,7 +50,9 @@ public sealed class Shader : AutoDisposable
 
         //default permutation
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        _modulesCache[hash] = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
+        ShaderModulesInfo modulesInfo = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
+        _modulesCache[hash] = modulesInfo;
+        IsComputeShader = modulesInfo.IsComputeShader;
 
         _customVertexLayouts = customVertexLayouts;
     }
@@ -390,6 +397,7 @@ public sealed class Shader : AutoDisposable
             ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
                 modulesInfo.ComputeShader!.Value,
                 bindGroups,
+                reflectionInfo.PushConstantsRanges.ToArray(),
                 Name);
 
             GPUPipeline pipelineNew = device.CreateComputePipeline(descriptor);

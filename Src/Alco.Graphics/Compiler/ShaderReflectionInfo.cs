@@ -102,9 +102,12 @@ public sealed class ShaderReflectionInfo
     /// <param name="id">The shader resource ID.</param>
     /// <returns>The resource name.</returns>
     public string GetResourceName(uint id)
-
     {
-        return _idToName[id];
+        if (id < _idToName.Length)
+        {
+            return _idToName[id];
+        }
+        return $"Invalid Resource ID: {id}";
     }
 
     /// <summary>

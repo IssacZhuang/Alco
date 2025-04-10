@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco.Benchmark;
 

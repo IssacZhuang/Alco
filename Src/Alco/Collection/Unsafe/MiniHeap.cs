@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 
-using static Alco.Unsafe.UtilsMemory;
+using static Alco.UtilsMemory;
 
-namespace Alco.Unsafe;
+namespace Alco;
 
 public unsafe struct MiniHeap<T> : IDisposable where T : unmanaged
 {

@@ -2,6 +2,8 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+// resource factory
+
 public partial class RenderingSystem
 {
     private Texture2D? _textureWhite;

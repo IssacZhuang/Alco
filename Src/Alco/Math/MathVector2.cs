@@ -7,6 +7,12 @@ namespace Alco
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 float2(float x, float y)
+        {
+            return new Vector2(x, y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 min(Vector2 a, Vector2 b)
         {
             return Vector2.Min(a, b);
@@ -93,7 +99,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 radians(Vector2 a)
         {
-            return a * TORADIANS;
+            return a * DegToRad;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

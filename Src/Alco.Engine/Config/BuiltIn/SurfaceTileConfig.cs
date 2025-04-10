@@ -8,7 +8,7 @@ namespace Alco.Engine;
 /// Configuration for surface tiles in the game engine.
 /// Defines appearance, texturing, and blending properties for tiles.
 /// </summary>
-public class TileConfig : BaseConfig, IValidatableConfig
+public class TileConfig : Configable, IValidatableConfig
 {
     /// <summary>
     /// The display name of the tile.

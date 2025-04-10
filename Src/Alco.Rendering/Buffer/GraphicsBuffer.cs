@@ -89,7 +89,7 @@ public class GraphicsBuffer : AutoDisposable
     /// <param name="data">The data to update. </param>
     /// <param name="offset">The offset in GPU memory. </param>
     /// <typeparam name="T">The type of the data.</typeparam>
-    public unsafe void UpdateBuffer<T>(T[] data, uint offset = 0) where T : unmanaged
+    public unsafe void UpdateBuffer<T>(ReadOnlySpan<T> data, uint offset = 0) where T : unmanaged
     {
         fixed (T* ptr = data)
         {

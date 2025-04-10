@@ -8,7 +8,7 @@ public class PluginImGUI: BaseEnginePlugin
 {
     public override void OnPostInitialize(GameEngine engine)
     {
-        ImGUISystem imGUISystem = new ImGUISystem(engine);
+        ImGUISystem imGUISystem = new ImGUISystem(engine, engine.MainRenderTarget);
         engine.AddSystem(imGUISystem);
     }
 

@@ -1,17 +1,35 @@
-
+using System;
+using System.Numerics;
 using Alco;
 using Alco.Engine;
-using ImGuiNET;
+using Alco.ImGUI;
+
+namespace Alco.ImGUI;
 
 public class ImGUIInputHandler: AutoDisposable
 {
     private readonly InputSystem _inputSystem;
-    private readonly Window _window;
+    private readonly View _view;
 
-    public ImGUIInputHandler(Window window, InputSystem inputSystem)
+    /// <summary>
+    /// The constructor of the ImGUIInputHandler.
+    /// </summary>
+    /// <param name="inputSystem">The input system.</param>
+    /// <param name="getMousePosition">The function to get the mouse position. 
+    /// The <see cref="InputSystem.MousePosition"/> is used if the function is not provided.
+    /// The default mouse position getter might not be correct because it is the position relative to the screen, not the window.
+    /// It it better to provide a custom mouse position getter that returns the position relative to the window.
+    /// </param>
+    public ImGUIInputHandler(InputSystem inputSystem, View view)
     {
         _inputSystem = inputSystem;
-        _window = window;
+        _view = view;
+
+        _inputSystem.OnKeyDown += OnKeyDown;
+        _inputSystem.OnKeyUp += OnKeyUp;
+        _inputSystem.OnMouseDown += OnMouseDown;
+        _inputSystem.OnMouseUp += OnMouseUp;
+        _view.OnTextInput += OnTextInput;
     }
 
     public void Update()
@@ -19,25 +37,97 @@ public class ImGUIInputHandler: AutoDisposable
         ImGuiIOPtr io = ImGui.GetIO();
         // do not use _inputSystem.MousePosition, it is the position relative to the screen, not the window
         //io.AddMousePosEvent(_inputSystem.MousePosition.X, _inputSystem.MousePosition.Y);
-        io.AddMousePosEvent(_window.MousePosition.X, _window.MousePosition.Y);
-        io.AddMouseButtonEvent(0, _inputSystem.IsMousePressing(Mouse.Left));
-        io.AddMouseButtonEvent(1, _inputSystem.IsMousePressing(Mouse.Right));
-        io.AddMouseButtonEvent(2, _inputSystem.IsMousePressing(Mouse.Middle));
-        io.AddMouseButtonEvent(3, _inputSystem.IsMousePressing(Mouse.Button4));
-        io.AddMouseButtonEvent(4, _inputSystem.IsMousePressing(Mouse.Button5));
-        io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta);
 
-        
-        
-        
+        Vector2 mousePosition = _view.MousePosition;
+        io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
+
+        io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta);
+    
     }
 
     protected override void Dispose(bool disposing)
     {
-        
+        _inputSystem.OnKeyDown -= OnKeyDown;
+        _inputSystem.OnKeyUp -= OnKeyUp;
+        _inputSystem.OnMouseDown -= OnMouseDown;
+        _inputSystem.OnMouseUp -= OnMouseUp;
+        _view.OnTextInput -= OnTextInput;
     }
 
-    private bool TryMapKey(KeyCode key, out ImGuiKey result)
+    private unsafe void OnTextInput(string str)
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        fixed (char* ptr = str)
+        {
+            for (int i = 0; i < str.Length; i++)
+            {
+                io.AddInputCharacterUTF16(ptr[i]);
+            }
+        }
+    }
+
+    private void OnKeyDown(KeyCode key)
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        if (TryMapKey(key, out ImGuiKey result))
+        {
+            io.AddKeyEvent(result, true);
+        }
+    }
+
+    private void OnKeyUp(KeyCode key)
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        if (TryMapKey(key, out ImGuiKey result))
+        {
+            io.AddKeyEvent(result, false);
+        }
+    }
+
+    private void OnMouseDown(Mouse mouse)
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        if (TryMapMouse(mouse, out int result))
+        {
+            io.AddMouseButtonEvent(result, true);
+        }
+    }
+
+    private void OnMouseUp(Mouse mouse)
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        if (TryMapMouse(mouse, out int result))
+        {
+            io.AddMouseButtonEvent(result, false);
+        }
+    }
+
+    private static bool TryMapMouse(Mouse mouse, out int result)
+    {
+        switch (mouse)
+        {
+            case Mouse.Left:
+                result = 0;
+                return true;
+            case Mouse.Right:
+                result = 1;
+                return true;
+            case Mouse.Middle:
+                result = 2;
+                return true;
+            case Mouse.Button4:
+                result = 3;
+                return true;
+            case Mouse.Button5:
+                result = 4;
+                return true;
+        }
+        result = 0;
+        return false;
+    }
+
+
+    private static bool TryMapKey(KeyCode key, out ImGuiKey result)
     {
         ImGuiKey keyToImGuiKeyShortcut(KeyCode keyToConvert, KeyCode startKey1, ImGuiKey startKey2)
         {

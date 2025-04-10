@@ -20,7 +20,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         public Vector2 VertexOffset;
     }
 
-    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, -0.5f);
+    public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0f);
 
 
     private const int MaxTextInstancingCount = 300;
@@ -42,6 +42,12 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
     private int _instanceIndex;
     private bool _isDrawing;
+
+    public uint? StencilReference
+    {
+        get => _material.StencilReference;
+        set => _material.StencilReference = value;
+    }
 
 
     internal TextRenderer(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)

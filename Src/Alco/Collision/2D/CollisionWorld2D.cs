@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco;
 

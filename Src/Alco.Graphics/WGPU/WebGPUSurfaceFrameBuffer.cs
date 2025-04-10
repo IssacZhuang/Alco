@@ -30,7 +30,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     // dynamic
     private WGPUSurfaceConfiguration _config;
-    private bool _hasResized;
     private uint _width;
     private uint _height;
 
@@ -154,7 +153,6 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         wgpuSurfaceConfigure(surface, &config);
         _surface = surface;
         _config = config;
-        _hasResized = false;
 
         _descriptor = new WGPURenderPassDescriptor
         {
@@ -225,21 +223,23 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _config = config;
         _width = config.width;
         _height = config.height;
-        _hasResized = true;
     }
 
-    public void SwapBuffers()
+    public bool RequestSurfaceTexture()
     {
-        _colorTextures[0].PresentAnDrop();
-        if (_hasResized)
+        bool isTextureUsable = _colorTextures[0].GetNewOutputTexture(ref (*_colorAttachments).view, out bool shouldResize);
+        if (shouldResize)
         {
-            
             WGPUSurfaceConfiguration config = _config;
             wgpuSurfaceConfigure(_surface, &config);
             ResizeDepthTexture();
-            _hasResized = false;
         }
-        _colorTextures[0].GetNewOutputTexture(ref (*_colorAttachments).view);
+        return isTextureUsable;
+    }
+
+    public void Present()
+    {
+        _colorTextures[0].PresentAndDrop();
     }
 
     private void ResizeDepthTexture()
@@ -247,7 +247,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         if (_renderPass.WebGPUDepthInfo.HasValue)
         {
             //_depthTexture?.Dispose();
-            _depthStencilTexture?.Destroy();
+            _depthStencilTexture?.Dispose();
             _depthStencilView?.Dispose();
             _depthView?.Dispose();
             _stencilView?.Dispose();
@@ -306,8 +306,15 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         protected override void Dispose(bool disposing)
         {
             //wgpuTextureDestroy(_texture);
-            wgpuTextureRelease(_texture);
-            wgpuTextureViewRelease(_defaultView);
+            if (_texture != WGPUTexture.Null)
+            {
+                wgpuTextureRelease(_texture);
+            }
+            if (_defaultView != WGPUTextureView.Null)
+            {
+                wgpuTextureViewRelease(_defaultView);
+            }
+            wgpuSurfaceRelease(_surface);
         }
 
         #endregion
@@ -371,17 +378,46 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             PixelFormat = UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(_texture));
         }
 
-        public unsafe void PresentAnDrop()
+        public unsafe void PresentAndDrop()
         {
             wgpuSurfacePresent(_surface);
             wgpuTextureRelease(_texture);
             wgpuTextureViewRelease(_defaultView);
+            _defaultView = WGPUTextureView.Null;
+            _texture = WGPUTexture.Null;
         }
 
-        public unsafe void GetNewOutputTexture(ref WGPUTextureView view)
+        //return true if the texture is usable
+        public unsafe bool GetNewOutputTexture(ref WGPUTextureView view, out bool shouldResize)
         {
+            if (_texture != WGPUTexture.Null)
+            {
+                //already acquired
+                PresentAndDrop();
+            }
+
+
             WGPUSurfaceTexture surfaceTexture = default;
             wgpuSurfaceGetCurrentTexture(_surface, &surfaceTexture);
+            WGPUSurfaceGetCurrentTextureStatus status = surfaceTexture.status;
+            switch (surfaceTexture.status)
+            {
+                case WGPUSurfaceGetCurrentTextureStatus.SuccessOptimal:
+                case WGPUSurfaceGetCurrentTextureStatus.SuccessSuboptimal:
+                    // All good
+                    break;
+                case WGPUSurfaceGetCurrentTextureStatus.Timeout:
+                case WGPUSurfaceGetCurrentTextureStatus.Outdated:
+                case WGPUSurfaceGetCurrentTextureStatus.Lost:
+                    // Skip this frame, and re-configure surface.
+                    shouldResize = true;
+                    return false;
+                case WGPUSurfaceGetCurrentTextureStatus.OutOfMemory:
+                case WGPUSurfaceGetCurrentTextureStatus.DeviceLost:
+                    // Fatal error
+                    throw new GraphicsException($"{nameof(wgpuSurfaceGetCurrentTexture)} status = {surfaceTexture.status}");
+            }
+
             _texture = surfaceTexture.texture;
             _width = wgpuTextureGetWidth(_texture);
             _height = wgpuTextureGetHeight(_texture);
@@ -390,6 +426,9 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             
             _defaultView = wgpuTextureCreateView(_texture, null);
             view = _defaultView;
+
+            shouldResize = false;
+            return true;
         }
         #endregion
     }

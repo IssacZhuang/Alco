@@ -13,7 +13,7 @@ public class Game : GameEngine
     private readonly Camera2D _camera;
 
     private readonly Shader _shaderSprite;
-    private readonly OldSpriteRenderer _spriteRenderer;
+
     private readonly DropletSystem _dropletSystem;
     private readonly CubeSystem _cubeSystem;
     private readonly Texture2D _texDroplet;
@@ -34,10 +34,11 @@ public class Game : GameEngine
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
-        _spriteRenderer = Rendering.CreateOldSpriteRenderer(_camera, _shaderSprite);
 
         _dropletSystem = new DropletSystem(MainRenderTarget, Rendering, _camera, _shaderSprite, _texDroplet);
-        _cubeSystem = new CubeSystem(_spriteRenderer, Rendering.TextureWhite);
+        Material cubeMaterial = Rendering.CreateGraphicsMaterial(_shaderSprite, "Sprite");
+        cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
+        _cubeSystem = new CubeSystem(Rendering, cubeMaterial, Rendering.TextureWhite);
     }
 
     protected override void OnTick(float delta)
@@ -60,7 +61,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainWindow.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainView.MousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
 
         if (Input.IsMouseDown(Mouse.Right))
         {
@@ -81,7 +82,6 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         base.OnStop();
-        _spriteRenderer.Dispose();
         _dropletSystem.Dispose();
         _texDroplet.Dispose();
         _shaderSprite.Dispose();

@@ -1,14 +1,15 @@
 #include "Shaders/Libs/Core.hlsli"
 
+struct Constants {
+    float attenuationSide;
+    float attenuationCorner;
+};
 
 // light map texture
 DEFINE_TEX2D_STORAGE(0, _frontBuffer, float4, "rgba16f");
 DEFINE_TEX2D_STORAGE(1, _backBuffer, float4, "rgba16f");
-DEFINE_UNIFORM(2, _data) {
-    float attenuationSide;
-    float attenuationCorner;
-    int2 size;
-};
+
+PUSH_CONSTANT Constants constants;
 
 
 
@@ -35,7 +36,8 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
         _frontBuffer[id.xy + int2(-1, -1)],
     };
 
-
+    float attenuationSide = constants.attenuationSide;
+    float attenuationCorner = constants.attenuationCorner;
 
     float4 color = _frontBuffer[id.xy];
     color = max(color, colors[0] - attenuationSide);

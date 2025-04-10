@@ -1,8 +1,8 @@
 using System.Numerics;
 using Alco.Graphics;
 using Alco.Rendering;
-using Alco.Unsafe;
-using ImGuiNET;
+using Alco;
+using Alco.ImGUI;
 
 namespace Alco.ImGUI;
 
@@ -34,6 +34,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
+        ImGuizmo.SetImGuiContext(_imGuiContext);
 
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
 
@@ -62,7 +63,10 @@ public unsafe class ImGUIRenderer : AutoDisposable
         io.DisplayFramebufferScale = new Vector2(1.0f, 1.0f);
         io.DeltaTime = deltaTime;
 
+        ImGuizmo.SetRect(0, 0, width, height);
+
         ImGui.NewFrame();
+        ImGuizmo.BeginFrame();
         _target = target;
     }
 
@@ -150,7 +154,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
                     _commandBuffer.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
                 }
                 Vector4 uvRect = new Vector4(0, 0, 1, 1);
-                _commandBuffer.PushConstants(pipelineInfo.PushConstantsStages, uvRect);
+                _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, uvRect);
 
                 Vector4 clipRect = cmd.ClipRect;
 
@@ -182,6 +186,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             _commandBuffer.Dispose();
             _viewProjectionBuffer.Dispose();
             _mesh.Dispose();
+            
         }
         _tmpIndexBuffer.Dispose();
         ImGui.DestroyContext(_imGuiContext);

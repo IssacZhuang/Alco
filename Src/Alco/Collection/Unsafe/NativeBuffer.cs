@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
 
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco
 {

@@ -7,6 +7,48 @@ namespace Alco
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(float v)
+        {
+            return new Vector4(v, v, v, v);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(float x, float y, float z, float w)
+        {
+            return new Vector4(x, y, z, w);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(Vector2 xy, float z, float w)
+        {
+            return new Vector4(xy.X, xy.Y, z, w);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(float x, Vector2 yz, float w)
+        {
+            return new Vector4(x, yz.X, yz.Y, w);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(float x, float y, Vector2 zw)
+        {
+            return new Vector4(x, y, zw.X, zw.Y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(Vector3 xyz, float w)
+        {
+            return new Vector4(xyz.X, xyz.Y, xyz.Z, w);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 float4(float x, Vector3 yzw)
+        {
+            return new Vector4(x, yzw.X, yzw.Y, yzw.Z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 min(Vector4 a, Vector4 b)
         {
             return Vector4.Min(a, b);
@@ -93,7 +135,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 radians(Vector4 a)
         {
-            return a * TORADIANS;
+            return a * DegToRad;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

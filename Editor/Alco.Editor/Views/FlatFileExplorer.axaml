@@ -18,7 +18,7 @@
     </StackPanel>
     <Grid Margin="10,0,10,5" ColumnDefinitions="*">
       <TextBox x:Name="InputSearch" Grid.Column="0" Watermark="Search files..."
-        KeyDown="OnSearchBoxKeyDown">
+        KeyDown="OnSearchBoxKeyDown" >
         <TextBox.InnerRightContent>
           <Button x:Name="BtnClear" Click="OnBtnClearClick" Margin="0,0,5,0" Background="Transparent"
                  IsVisible="{Binding #InputSearch.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">

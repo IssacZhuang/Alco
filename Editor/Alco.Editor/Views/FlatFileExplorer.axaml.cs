@@ -85,6 +85,13 @@ public partial class FlatFileExplorer : UserControl
         {
             EnterFolder(node.Backend?.Path);
         }
+        else if (sender is Grid { DataContext: ViewModels.FileTreeNode { IsFolder: false } node2 })
+        {
+            if (DataContext is ViewModels.FileExplorer vm)
+            {
+                vm.DoubleTapFile(node2.Backend);
+            }
+        }
     }
 
     private void OnRowsSelectionChanged(object sender, SelectionChangedEventArgs _)
@@ -95,9 +102,9 @@ public partial class FlatFileExplorer : UserControl
         if (sender is ListBox { SelectedItem: ViewModels.FileTreeNode node } && DataContext is ViewModels.FileExplorer vm)
         {
             if (!node.IsFolder)
-                vm.OpenFile(node.Backend);
+                vm.TapFile(node.Backend);
             else
-                vm.OpenFile(null);
+                vm.TapFile(null);
         }
     }
 

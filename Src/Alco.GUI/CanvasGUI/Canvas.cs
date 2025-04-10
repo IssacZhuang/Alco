@@ -5,7 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public class Canvas : AutoDisposable
+public partial class Canvas : AutoDisposable
 {
     private class MousePointCaster : ICollisionCaster
     {
@@ -24,6 +24,14 @@ public class Canvas : AutoDisposable
         }
     }
 
+    private struct MaskContext
+    {
+        public Texture2D? texture;
+        public Matrix4x4 matrix;
+        public Rect uvRect;
+    }
+
+
     // for rendering
 
     private readonly Camera2D _camera;
@@ -31,7 +39,18 @@ public class Canvas : AutoDisposable
     private BoundingBox2D _bound;
 
     //for debug
-    private readonly CanvasRenderer _renderer;
+    private readonly RenderingSystem _renderingSystem;
+    private readonly RenderContext _renderContext;
+    private readonly SpriteRenderer _spriteRenderer;
+    private readonly TextRenderer _textRenderer;
+
+    private readonly Material _textMaterial;
+    private readonly Material _spriteMaterial;
+    private readonly Material _stencilIncreaseMaterial;
+    private readonly Material _stencilDecreaseMaterial;
+    private readonly uint _shaderId_texture;
+
+    private uint _mask = 0;
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
@@ -43,14 +62,6 @@ public class Canvas : AutoDisposable
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
-
-
-
-    public CanvasRenderer Renderer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _renderer;
-    }
 
     public BoundingBox2D Bound
     {
@@ -66,6 +77,7 @@ public class Canvas : AutoDisposable
         set
         {
             _camera.ViewSize = value;
+            _camera.UpdateMatrixToGPU();
             _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
             _bound = new BoundingBox2D(_camera.Position - value * 0.5f, _camera.Position + value * 0.5f);
         }
@@ -97,30 +109,102 @@ public class Canvas : AutoDisposable
 
     public Vector4 DebugDrawColor { get; set; }
 
-    public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Shader shaderSprite, Shader shaderText)
+    public Action<Exception>? ErrorHandler;
+
+    public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Material defaultSpriteMaterial, Material defaultTextMaterial)
     {
+        _renderingSystem = system;
+
         _inputTracker = inputTracker;
         _inputTracker.RegisterTextInput(OnTextInput);
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
         _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
-        _renderer = system.CreateCanvasRenderer(_camera, shaderSprite, shaderText);
+        _renderContext = system.CreateRenderContext();
+
+        _spriteMaterial = defaultSpriteMaterial.CreateInstance();
+        _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _spriteMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+        _textMaterial = defaultTextMaterial.CreateInstance();
+        _textMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _textMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+        //stencil write
+        _stencilIncreaseMaterial = defaultSpriteMaterial.CreateInstance();
+        _stencilIncreaseMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+
+        _shaderId_texture = _stencilIncreaseMaterial.GetResourceId(ShaderResourceId.Texture);
+
+        StencilFaceState stencilIncrease = new StencilFaceState(
+            CompareFunction.Equal,
+            StencilOperation.IncrementWrap,
+            StencilOperation.Keep,
+            StencilOperation.Keep
+            );
+
+        _stencilIncreaseMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = stencilIncrease,
+            BackFace = stencilIncrease,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+        StencilFaceState stencilDecrease = new StencilFaceState(
+            CompareFunction.Equal,
+            StencilOperation.DecrementWrap,
+            StencilOperation.Keep,
+            StencilOperation.Keep
+            );
+
+        _stencilDecreaseMaterial = defaultSpriteMaterial.CreateInstance();
+        _stencilDecreaseMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _stencilDecreaseMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = stencilDecrease,
+            BackFace = stencilDecrease,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+
+        _shaderId_texture = _stencilDecreaseMaterial.GetResourceId(ShaderResourceId.Texture);
+
+
+
+        _spriteRenderer = system.CreateSpriteRenderer(_renderContext, _spriteMaterial);
+        _textRenderer = system.CreateTextRenderer(_renderContext, _textMaterial);
+
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
     }
 
     public void Tick(UINode root, float delta)
     {
-        root.Tick(this, delta);
+        TickNode(root, delta);
     }
 
     public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
     {
         _collisionWorld.ClearAll();
 
-        _renderer.Begin(renderTarget);
-        root.Update(this, delta);
-        _renderer.End();
+        _renderContext.Begin(renderTarget);
+        _mask = 0;
+        UpdateNode(root, delta);
+        _renderContext.End();
 
         //DebugDraw(renderTarget, root);
 
@@ -218,12 +302,14 @@ public class Canvas : AutoDisposable
         }
     }
 
+    
+
     public void AddClickReciever(UINode node, ShapeBox2D shape)
     {
         _collisionWorld.PushTarget(node, shape);
     }
 
-    public void StartTextInput(ITextInput node, BoundingBox2D inputArea, int cursor)
+    public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)
     {
         _textInput = node;
 
@@ -242,16 +328,14 @@ public class Canvas : AutoDisposable
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
-    public void EndTextInput()
-    {
-        _inputTracker?.EndTextInput();
-    }
 
     protected override void Dispose(bool disposing)
     {
         _inputTracker?.UnregisterTextInput(OnTextInput);
         _collisionWorld.Dispose();
-        _renderer.Dispose();
+        _renderContext.Dispose();
+        _spriteRenderer.Dispose();
+        _textRenderer.Dispose();
         _camera.Dispose();
     }
 
@@ -283,5 +367,83 @@ public class Canvas : AutoDisposable
     private void OnTextInput(string text)
     {
         _textInput?.OnTextInput(this, text);
+    }
+
+    private void UpdateNode(UINode node, float delta)
+    {
+        uint mask = _mask;
+        MaskContext? maskContext = null;
+        if (node.IsEnable)
+        {
+            //increase stencil value if the node is a mask
+            if (node is IUIMask maskNode)
+            {
+                maskContext = new MaskContext
+                {
+                    texture = maskNode.MaskTexture,
+                    matrix = maskNode.MaskTransform,
+                    uvRect = maskNode.MaskTextureUvRect
+                };
+                IncreaceStencil(maskNode.MaskTexture, maskNode.MaskTransform, maskNode.MaskTextureUvRect);
+            }
+
+            try
+            {
+
+                node.Update(this, delta);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler != null)
+                {
+                    ErrorHandler(e);
+                }
+                else
+                {
+                    Log.Error($"Error in updating {node.Name}: {e}");
+                }
+            }
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            UpdateNode(node.Children[i], delta);
+        }
+
+        //recover stencil buffer
+        if (maskContext != null)
+        {
+            DecreaseMask(maskContext.Value.texture, maskContext.Value.matrix, maskContext.Value.uvRect);
+        }
+
+        //recover stencil value in CPU
+        _mask = mask;
+    }
+
+    private void TickNode(UINode node, float delta)
+    {
+        if (node.IsEnable)
+        {
+            try
+            {
+                node.Tick(this, delta);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler != null)
+                {
+                    ErrorHandler(e);
+                }
+                else
+                {
+                    Log.Error($"Error in ticking {node.Name}: {e}");
+                }
+            }
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            TickNode(node.Children[i], delta);
+        }
     }
 }

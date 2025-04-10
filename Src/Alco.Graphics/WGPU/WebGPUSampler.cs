@@ -40,12 +40,13 @@ internal sealed class WebGPUSampler : GPUSampler
         Device = device;
 
         WGPUDevice nativeDevice = device.Native;
-        fixed (byte* ptrName = descriptor.Name.GetUtf8Span())
+        ReadOnlySpan<byte> name = descriptor.Name.GetUtf8Span();
+        fixed (byte* ptrName = name)
         {
             WGPUSamplerDescriptor nativeDescriptor = new WGPUSamplerDescriptor()
             {
                 nextInChain = null,
-                label = ptrName,
+                label = new WGPUStringView(ptrName, name.Length),
                 addressModeU = UtilsWebGPU.AddressModeToWebGPU(descriptor.AddressModeU),
                 addressModeV = UtilsWebGPU.AddressModeToWebGPU(descriptor.AddressModeV),
                 addressModeW = UtilsWebGPU.AddressModeToWebGPU(descriptor.AddressModeW),

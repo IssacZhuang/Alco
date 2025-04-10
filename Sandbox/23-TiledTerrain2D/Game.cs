@@ -59,8 +59,8 @@ public class Game : GameEngine
 
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        float aspectRatio = MainWindow.Width / (float)MainWindow.Height;
- 
+        float aspectRatio = MainView.Width / (float)MainView.Height;
+
         _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
         _renderer = Rendering.CreateRenderContext();
 
@@ -109,7 +109,7 @@ public class Game : GameEngine
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
-        _waterBlock.Transform.Position = new Vector3(0, -0.1f, -0.1f);
+        _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
         _waterBlock.UseLightMap = true;
         _waterBlock.LightMap = _lightMap.Texture;
 
@@ -244,7 +244,7 @@ public class Game : GameEngine
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
-            float speed = _zoom / MainWindow.Height;
+            float speed = _zoom / MainView.Height;
             _camera.Position += new Vector2(-Input.MouseDelta.X * speed, Input.MouseDelta.Y * speed);
         }
 
@@ -254,10 +254,10 @@ public class Game : GameEngine
             _targetZoom = math.clamp(_targetZoom, 2, 20);
         }
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainWindow.MousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainView.MousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
 
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
-        _camera.Width = _zoom * MainWindow.AspectRatio; 
+        _camera.Width = _zoom * MainView.AspectRatio;
         _camera.Height = _zoom;
 
         _camera.UpdateMatrixToGPU();

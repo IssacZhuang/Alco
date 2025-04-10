@@ -24,7 +24,7 @@ public class AssetEncoderConfig : IAssetEncoder
         //all class that inherit from BaseConfig and BaseConfig itself
         return AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => type.IsSubclassOf(typeof(BaseConfig)))
-            .Concat([typeof(BaseConfig)]);
+            .Where(type => type.IsSubclassOf(typeof(Configable)))
+            .Concat([typeof(Configable)]);
     }
 }

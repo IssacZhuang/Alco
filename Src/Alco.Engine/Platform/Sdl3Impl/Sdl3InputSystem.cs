@@ -118,6 +118,7 @@ public unsafe class Sdl3InputSystem : InputSystem
         int k = SdlKeyMap[key];
         _state.iskeyDown[k] = true;
         _state.iskeyPressing[k] = true;
+        DoKeyDown((KeyCode)k);
     }
 
     internal void OnSdlKeyUp(SDL_Keycode key)
@@ -125,6 +126,7 @@ public unsafe class Sdl3InputSystem : InputSystem
         int k = SdlKeyMap[key];
         _state.iskeyUp[k] = true;
         _state.iskeyPressing[k] = false;
+        DoKeyUp((KeyCode)k);
     }
 
     internal void OnSdlMouseButtonDown(uint button)
@@ -132,6 +134,7 @@ public unsafe class Sdl3InputSystem : InputSystem
         Mouse b = ConvertMosueButton(button);
         _state.isMouseDown[(int)b] = true;
         _state.isMousePressing[(int)b] = true;
+        DoMouseDown(b); 
     }
 
     internal void OnSdlMouseButtonUp(uint button)
@@ -139,6 +142,7 @@ public unsafe class Sdl3InputSystem : InputSystem
         Mouse b = ConvertMosueButton(button);
         _state.isMouseUp[(int)b] = true;
         _state.isMousePressing[(int)b] = false;
+        DoMouseUp(b);
     }
 
     public override bool IsMouseWheelScrolling(out float delta)

@@ -43,38 +43,50 @@ public abstract class PropertyEditor : ViewModelBase
 
     public static PropertyEditor CreatePropertyEditor(object target, AccessMemberInfo memberInfo, uint depth = 0)
     {
-        if (_propertyEditors.TryGetValue(memberInfo.MemberType, out Type? propertyEditorType))
+        try
         {
-            return (PropertyEditor)Activator.CreateInstance(propertyEditorType, target, memberInfo)!;
-        }
+            if (_propertyEditors.TryGetValue(memberInfo.MemberType, out Type? propertyEditorType))
+            {
+                return (PropertyEditor)Activator.CreateInstance(propertyEditorType, target, memberInfo)!;
+            }
 
-        if (memberInfo.MemberType.IsEnum)
+            if (memberInfo.MemberType.IsEnum)
+            {
+                //is enum
+                return new PropertyEnumEditor(target, memberInfo);
+            }
+
+            if (!memberInfo.MemberType.IsClass)
+            {
+                return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
+            }
+
+            object? value = memberInfo.GetValue<object>(target);
+
+            if (value is null)
+            {
+                return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
+            }
+
+            if (PropertyListEditor.TryCreate(value, memberInfo.Name, depth + 1, out PropertyListEditor? propertyListEditor))
+            {
+                //is list
+                return propertyListEditor;
+            }
+
+            //is object
+            ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
+            return objectPropertiesEditor;
+        }
+        catch (Exception e)
         {
-            //is enum
-            return new PropertyEnumEditor(target, memberInfo);
+            return new PropertyEditorException(target, memberInfo, e.ToString());
         }
+    }
 
-        if (!memberInfo.MemberType.IsClass)
-        {
-            return new PropertyEditorException(target, memberInfo, $"No property editor found for type {memberInfo.MemberType}");
-        }
+    public virtual void SetDefaultValue()
+    {
 
-        object? value = memberInfo.GetValue<object>(target);
-
-        if (value is null)
-        {
-            return new PropertyEditorException(target, memberInfo, $"Value is null for type {memberInfo.MemberType}");
-        }
-
-        if (PropertyListEditor.TryCreate(value, memberInfo.Name, depth + 1, out PropertyListEditor? propertyListEditor))
-        {
-            //is list
-            return propertyListEditor;
-        }
-
-        //is object
-        ObjectPropertiesEditor objectPropertiesEditor = new(value, memberInfo.Name, depth + 1);
-        return objectPropertiesEditor;
     }
 
     public void DoValueChangedEvent()

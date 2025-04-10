@@ -10,8 +10,7 @@ namespace Alco.Rendering;
 /// <br/> Not thread safe but each thread can have its own renderer instance for multi-thread rendering.
 /// 
 /// </summary>
-[Obsolete]
-public sealed class OldSpriteRenderer : AutoDisposable
+internal sealed class OldSpriteRenderer : AutoDisposable
 {
     public const string ShaderId_camera = "_camera";
     public const string ShaderId_texture = "_texture";
@@ -168,7 +167,7 @@ public sealed class OldSpriteRenderer : AutoDisposable
         };
 
         _command.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
-        _command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _command.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
         _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 

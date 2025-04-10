@@ -2,6 +2,9 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Represents a 2D camera for rendering.
+/// </summary>
 public class Camera2D : BaseCamera<CameraData2D>
 {
     internal Camera2D(RenderingSystem renderingSystem, Vector2 size, float near, float far, string name) : base(renderingSystem, name)
@@ -12,16 +15,22 @@ public class Camera2D : BaseCamera<CameraData2D>
         Far = far;
     }
 
+    /// <summary>
+    /// Gets or sets the position of the camera.
+    /// </summary>
     public Vector2 Position
     {
-        get => _data.transform.Position;
+        get => _data.Transform.Position;
         set
         {
-            _data.transform.Position = value;
+            _data.Transform.Position = value;
             _dirty = true;
         }
     }
 
+    /// <summary>
+    /// Gets or sets the view size of the camera.
+    /// </summary>
     public Vector2 ViewSize
     {
         get => _data.Size;
@@ -32,6 +41,9 @@ public class Camera2D : BaseCamera<CameraData2D>
         }
     }
 
+    /// <summary>
+    /// Gets or sets the width of the camera view.
+    /// </summary>
     public float Width
     {
         get => _data.Size.X;
@@ -42,6 +54,9 @@ public class Camera2D : BaseCamera<CameraData2D>
         }
     }
 
+    /// <summary>
+    /// Gets or sets the height of the camera view.
+    /// </summary>
     public float Height
     {
         get => _data.Size.Y;
@@ -52,22 +67,28 @@ public class Camera2D : BaseCamera<CameraData2D>
         }
     }
 
+    /// <summary>
+    /// Gets or sets the near clipping plane distance.
+    /// </summary>
     public float Near
     {
-        get => _data.near;
+        get => _data.Near;
         set
         {
-            _data.near = value;
+            _data.Near = value;
             _dirty = true;
         }
     }
 
+    /// <summary>
+    /// Gets or sets the far clipping plane distance.
+    /// </summary>
     public float Far
     {
-        get => _data.far;
+        get => _data.Far;
         set
         {
-            _data.far = value;
+            _data.Far = value;
             _dirty = true;
         }
     }

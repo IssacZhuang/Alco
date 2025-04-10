@@ -1,11 +1,12 @@
 ﻿using Alco;
 using Alco.Engine;
 using Alco.Graphics;
+using Alco.ImGUI;
 
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Collision"),
+    View = new ViewSetting(640, 360, "Collision"),
     Graphics = GraphicsSetting.Default with{
         Backend = GraphicsBackend.Vulkan
     },
@@ -13,7 +14,8 @@ GameEngineSetting setting = new GameEngineSetting
 With<PluginDefaultAssets>().
 With<PluginHDR>().
 With<PluginBloom>().
-With<PluginDebugGUI>();
+With<PluginDebugGUI>().
+With<PluginImGUI>();
 
 using (Game game = new Game(setting))
 {

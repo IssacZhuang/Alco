@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    
+    strategy:
+      matrix:
+        include:
+          - build: Windows_Debug
+            os: windows-2022
+            configuration: Debug
+            runtime: win-x64
+          - build: Windows_Release
+            os: windows-2022
+            configuration: Release
+            runtime: win-x64
+          - build: Linux_Debug
+            os: ubuntu-latest
+            configuration: Debug
+            runtime: linux-x64
+          - build: Linux_Release
+            os: ubuntu-latest
+            configuration: Release
+            runtime: linux-x64
+          - build: MacOS_Debug
+            os: macos-latest
+            configuration: Debug
+            runtime: osx-x64
+          - build: MacOS_Release
+            os: macos-latest
+            configuration: Release
+            runtime: osx-x64
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        clean: true
+        submodules: true
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '9.x'
+    
+    - name: Test
+      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }}
+      
+    - name: Build
+      run: dotnet build --configuration ${{ matrix.configuration }}
+      
+    - name: List files
+      run: |
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          dir -Recurse Bin
+        else
+          ls -R Bin
+        fi 

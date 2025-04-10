@@ -2,7 +2,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-
+// font factory
 public partial class RenderingSystem
 {
     public Font CreateFontByFile(ReadOnlySpan<byte> fileBytes, string name = "font")

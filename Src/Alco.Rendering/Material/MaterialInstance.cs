@@ -48,7 +48,7 @@ public sealed class MaterialInstance : Material
                 continue;
             }
 
-            throw new Exception($"Missing required resources for bind group {i}. Resources must be set on either the parent material '{_parent.Name}' or this material instance '{Name}'.");
+            throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
         }
     }
 

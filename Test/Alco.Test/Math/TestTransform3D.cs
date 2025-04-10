@@ -14,14 +14,14 @@ public class TestTransform3D()
         Transform3D parent = new Transform3D()
         {
             Position = new Vector3(1, 2, 3),
-            Rotation = math.euler(0.1f, 0.2f, 0.3f),
+            Rotation = math.quaternion(10, 20, 30),
             Scale = new Vector3(2, 3, 4)
         };
 
         Transform3D child = new Transform3D()
         {
             Position = new Vector3(5, 6, 7),
-            Rotation = math.euler(0.4f, 0.5f, 0.6f),
+            Rotation = math.quaternion(40, 50, 60),
             Scale = new Vector3(8, 9, 10)
         };
 
@@ -37,7 +37,7 @@ public class TestTransform3D()
         Transform3D parent = new Transform3D()
         {
             Position = new Vector3(1, 2, 3),
-            Rotation = math.euler(0.1f, 0.2f, 0.3f),
+            Rotation = math.quaternion(10, 20, 30),
             Scale = new Vector3(2, 3, 4)
         };
 

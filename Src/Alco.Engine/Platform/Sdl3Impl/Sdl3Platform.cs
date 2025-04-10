@@ -29,14 +29,14 @@ public unsafe class Sdl3Platform : Platform
         get => _input;
     }
 
-    public override Window CreateWindow(GPUDevice device, WindowSetting setting)
+    public override View CreateView(GPUDevice device, ViewSetting setting)
     {
         Sdl3Window window = new Sdl3Window(device, setting);
         _windows.Add(window.WindowId, window);
         return window;
     }
 
-    public override void CloseWindow(Window window)
+    public override void CloseView(View window)
     {
         if (window is Sdl3Window sdl3Window)
         {
@@ -142,7 +142,7 @@ public unsafe class Sdl3Platform : Platform
                 break;
             case SDL_EventType.TextInput:
                 Sdl3Window window1 = _windows[e.window.windowID];
-                window1.DoTextInput(e.text.GetText() ?? string.Empty);
+                window1.DoTextInputCore(e.text.GetText() ?? string.Empty);
                 break;
             case SDL_EventType.Quit:
                 StopMainLoop();
@@ -158,6 +158,14 @@ public unsafe class Sdl3Platform : Platform
             case SDL_EventType.WindowRestored:
                 Sdl3Window windo3 = _windows[e.window.windowID];
                 windo3.DoRestore();
+                break;
+            case SDL_EventType.WindowFocusGained:
+                Sdl3Window window4 = _windows[e.window.windowID];
+                window4.IsTextInputEnabled = true;
+                break;
+            case SDL_EventType.WindowFocusLost:
+                Sdl3Window window5 = _windows[e.window.windowID];
+                window5.IsTextInputEnabled = false;
                 break;
         }
     }

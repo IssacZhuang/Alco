@@ -25,7 +25,7 @@ public class Game : GameEngine
     {
         Material blitMaterial = Rendering.CreateGraphicsMaterial(Assets.Load<Shader>("InverserGamma.hlsl"));
 
-        _camera = Rendering.CreateCamera2D(MainWindow.Size, 1000);
+        _camera = Rendering.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = Rendering.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -57,7 +57,10 @@ public class Game : GameEngine
         }
 
         DebugGUI.Text(FrameRate);
-        DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100);
+        if (DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100))
+        {
+            _tileLightMap.Iteration = _iterations;
+        }
         DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
         if(DebugGUI.Button("Reset")) {
             _tileLightMap.AttenuationCorner = 0.1f;
@@ -78,12 +81,12 @@ public class Game : GameEngine
         }
 
 
-        _camera.ViewSize = MainWindow.Size;
+        _camera.ViewSize = MainView.Size;
         _camera.UpdateMatrixToGPU();
 
         Transform2D transform = Transform2D.Identity;
-        float scale = MainWindow.Width / _tileLightMap.Width;
-        scale = math.min(scale, MainWindow.Height / _tileLightMap.Height);
+        float scale = MainView.Width / _tileLightMap.Width;
+        scale = math.min(scale, MainView.Height / _tileLightMap.Height);
         transform.Scale = new Vector2(_tileLightMap.Width * scale, _tileLightMap.Height * scale);
 
         SpriteConstant constant = new SpriteConstant
@@ -100,5 +103,10 @@ public class Game : GameEngine
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
         _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
+    }
+
+    protected override void OnStop()
+    {
+        _tileLightMap.Dispose();
     }
 }

@@ -8,6 +8,101 @@ namespace Alco
     public static partial class math
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion quaternion(Vector3 degrees)
+        {
+            //do not use Quaternion.CreateFromYawPitchRoll because it is Yaw(Y), Pitch(X), Roll(Z) (XNA style)
+            //but in Alco Engine, the rotation order is Yaw(Z), Pitch(Y), Roll(X) in left-handed clockwise
+            //same as Unreal Engine
+
+            Vector3 halfAngles = degrees * 0.5f * DegToRad;
+
+            //simd
+            (Vector3 sin, Vector3 cos) = Vector3.SinCos(halfAngles);
+
+            Quaternion result;
+
+            result.X = cos.X * sin.Y * sin.Z - sin.X * cos.Y * cos.Z;
+            result.Y = -cos.X * sin.Y * cos.Z - sin.X * cos.Y * sin.Z;
+            result.Z = cos.X * cos.Y * sin.Z - sin.X * sin.Y * cos.Z;
+            result.W = cos.X * cos.Y * cos.Z + sin.X * sin.Y * sin.Z;
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion quaternion(float x, float y, float z)
+        {
+            return quaternion(new Vector3(x, y, z));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static Quaternion quaternion(in Matrix4x4 matrix)
+        {
+            const float tolerance = 1e-5f;
+            if (matrix.M11 < tolerance && matrix.M12 < tolerance && matrix.M13 < tolerance)
+            {
+                return Quaternion.Identity;
+            }
+
+            if (matrix.M21 < tolerance && matrix.M22 < tolerance && matrix.M23 < tolerance)
+            {
+                return Quaternion.Identity;
+            }
+
+            if (matrix.M31 < tolerance && matrix.M32 < tolerance && matrix.M33 < tolerance)
+            {
+                return Quaternion.Identity;
+            }
+
+            float trace = matrix.M11 + matrix.M22 + matrix.M33;
+
+            Quaternion q;
+
+            if (trace > 0.0f)
+            {
+                float invS = rsqrt(trace + 1.0f);
+                q.W = 0.5f * (1.0f / invS);
+                invS *= 0.5f;
+
+                q.X = (matrix.M23 - matrix.M32) * invS;
+                q.Y = (matrix.M31 - matrix.M13) * invS;
+                q.Z = (matrix.M12 - matrix.M21) * invS;
+
+            }
+            else
+            {
+                int i = 0;
+
+                if (matrix.M11 < matrix.M22)
+                    i = 1;
+
+                if (matrix.M33 < matrix[i, i])
+                    i = 2;
+
+                int* nxt = stackalloc int[3] { 1, 2, 0 };
+                int j = nxt[i];
+                int k = nxt[j];
+
+                float s = matrix[i, i] - matrix[j, j] - matrix[k, k] + 1.0f;
+                float invS = rsqrt(s);
+
+                float* qt = stackalloc float[4];
+                qt[i] = 0.5f * (1.0f / invS);
+                invS *= 0.5f;
+
+                qt[3] = (matrix[j, k] - matrix[k, j]) * invS;
+                qt[j] = (matrix[i, j] + matrix[j, i]) * invS;
+                qt[k] = (matrix[i, k] + matrix[k, i]) * invS;
+
+                q.X = qt[0];
+                q.Y = qt[1];
+                q.Z = qt[2];
+                q.W = qt[3];
+            }
+            return q;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion mul(Quaternion a, Quaternion b)
         {
             return Quaternion.Multiply(a, b);
@@ -38,22 +133,46 @@ namespace Alco
             return math.acos(math.min(math.abs(dot), 1f)) * 2f * math.sign(dot);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion euler(Vector3 xyz)
-        {
-            return Quaternion.CreateFromYawPitchRoll(xyz.Y, xyz.X, xyz.Z);
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Quaternion euler(float x, float y, float z)
+        public static Vector3 euler(Quaternion q)
         {
-            return Quaternion.CreateFromYawPitchRoll(y, x, z);
+            //decompose quaternion to euler angles Roll(X), Pitch(Y), Yaw(Z) in radians
+
+            float singularityTest = q.Z * q.X - q.W * q.Y;
+            float yawY = 2 * (q.W * q.Z + q.X * q.Y);
+            float yawX = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+
+            const float SINGULARITY_THRESHOLD = 0.4999995f;
+
+            float pitch, yaw, roll;
+
+            if (singularityTest < -SINGULARITY_THRESHOLD)
+            {
+                pitch = -PI * 0.5f;
+                yaw = atan2(yawY, yawX);
+                roll = -yaw - (2 * atan2(q.X, q.W));
+            }
+            else if (singularityTest > SINGULARITY_THRESHOLD)
+            {
+                pitch = PI * 0.5f;
+                yaw = atan2(yawY, yawX);
+                roll = yaw - (2 * atan2(q.X, q.W));
+            }
+            else
+            {
+                pitch = asin(2 * singularityTest);
+                yaw = atan2(yawY, yawX);
+                roll = atan2(-2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+            }
+
+            return new Vector3(roll, pitch, yaw) * RadToDeg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion direction(Vector3 dir)
         {
-            return Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(Vector3.Zero, dir, Vector3.UnitY));
+            return quaternion(Matrix4x4.CreateLookAtLeftHanded(Vector3.Zero, dir, Vector3.UnitZ));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

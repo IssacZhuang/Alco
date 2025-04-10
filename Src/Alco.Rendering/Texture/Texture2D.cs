@@ -1,6 +1,6 @@
 using Alco.Graphics;
 using StbImageSharp;
-using static Alco.Unsafe.UtilsMemory;
+using static Alco.UtilsMemory;
 using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;

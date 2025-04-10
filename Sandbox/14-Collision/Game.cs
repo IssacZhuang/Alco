@@ -6,6 +6,7 @@ using Alco;
 using Random = Alco.Random;
 using Alco.Graphics;
 using Alco.GUI;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
@@ -31,7 +32,7 @@ public class Game : GameEngine
 
         _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
-        _camera.Tranform.Position.Z = -10;
+        _camera.Transform.Position.X = -10;
         _camera.UpdateMatrixToGPU();
 
         _renderer = Rendering.CreateRenderContext();
@@ -40,13 +41,13 @@ public class Game : GameEngine
         _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
         //_material["_texture"] = Rendering.TextureWhite;
 
-        _plane = new Plane3D(new Vector3(0, 0, 1), 0);
+        _plane = new Plane3D(new Vector3(1, 0, 0), 0);
 
         _entity = CreateCube(Color);
         _entity.transform.Position = new Vector3(2, 0, 0);
         _entity.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
 
-        MainWindow.OnResize += OnMainWindowResize;
+        MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)
@@ -62,9 +63,9 @@ public class Game : GameEngine
 
         _renderer.End();
 
-        Vector2 localMousePosition = MainWindow.MousePosition;
+        Vector2 localMousePosition = MainView.MousePosition;
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainWindow.Size, _camera.Data.ViewProjectionMatrix, _camera.Tranform.Position);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, _camera.Transform.Position);
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _entity.Shape, out RaycastHit3D rayCastHit);
 
@@ -80,10 +81,10 @@ public class Game : GameEngine
             _isDragging = true;
         }
 
-        if (_isDragging)
-        {
-            _entity.transform.Position = mouseWoldPosition + offset;
-        }
+        // if (_isDragging)
+        // {
+        //     _entity.transform.Position = mouseWoldPosition + offset;
+        // }
 
         if (Input.IsMouseUp(Mouse.Left))
         {
@@ -101,6 +102,8 @@ public class Game : GameEngine
 
         DebugGUI.SameLine();
         DebugGUI.Text("Fov");
+
+        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE, MODE.LOCAL, ref _entity.transform, Vector3.Zero);
     }
 
 

@@ -54,6 +54,20 @@ public class ConcurrentGraphicsBufferPool : AutoDisposable, IGraphicsBufferPool
     }
 
     /// <summary>
+    /// Gets a buffer from the pool.
+    /// </summary>
+    /// <param name="size">The size of the buffer to get.</param>
+    /// <returns>The buffer from the pool.</returns>
+    public GraphicsBuffer GetBuffer(uint size)
+    {
+        if (TryGetBuffer(size, out var buffer))
+        {
+            return buffer;
+        }
+        throw new InvalidOperationException($"No buffer of size {size} found in the pool");
+    }
+
+    /// <summary>
     /// Attempts to return a buffer to the pool.
     /// The buffer must be the exact size of the pool.
     /// </summary>

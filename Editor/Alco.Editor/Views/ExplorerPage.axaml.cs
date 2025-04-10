@@ -20,10 +20,14 @@ using Alco.Editor.ViewModels;
 
 namespace Alco.Editor.Views;
 
+/// <summary>
+/// A user control that provides a file explorer interface with a file tree view and tabbed document interface.
+/// Supports opening multiple files in tabs, file navigation, and project management.
+/// </summary>
 public partial class ExplorerPage : UserControl
 {
-    
-    private ContextMenu? _contextMenu;
+    private ObservableCollection<ViewModels.InspectorTabItem> _tabItems = new();
+
     public ViewModels.ExplorerPage ViewModel => DataContext as ViewModels.ExplorerPage ?? throw new InvalidOperationException("DataContext is not a ViewModels.ExplorerPage");
 
     public ExplorerPage()
@@ -33,6 +37,9 @@ public partial class ExplorerPage : UserControl
         {
             OnProjectOpened();
         }
+
+        DocumentTabs.ItemsSource = _tabItems;
+
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -78,12 +85,52 @@ public partial class ExplorerPage : UserControl
         FileTreeView.IsVisible = engine.IsProjectOpen;
         NoFolderPanel.IsVisible = !engine.IsProjectOpen;
 
-        ViewModels.FileSystemExplorer vmFileTree = new ViewModels.FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
+        FileSystemExplorer vmFileTree = new FileSystemExplorer(App.Main.Engine.ProjectDirectory!);
         FileTreeView.DataContext = vmFileTree;
-        vmFileTree.OnFileOpened += async (file) =>
+        vmFileTree.OnFileTapped += async (file) =>
         {
-            Inspector inspector = await ViewModel.OpenFile(engine, file?.Path ?? "");
-            MainContentArea.Content = inspector;
+            if (file == null) return;
+
+            foreach (var vmTabItem in _tabItems)
+            {
+                if (vmTabItem.Path == file.Path)
+                {
+                    DocumentTabs.SelectedItem = vmTabItem;
+                    return;
+                }
+            }
+
+            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
+
+            // Add the new tab and select it
+            var tabItem = new ViewModels.InspectorTabItem(inspector, file.Path);
+            _tabItems.Add(tabItem);
+            DocumentTabs.SelectedItem = tabItem;
+
+            RemoveUnpinnedTabs(tabItem);
+        };
+
+        vmFileTree.OnFileDoubleTapped += async (file) =>
+        {
+            if (file == null) return;
+
+            foreach (var vmTabItem in _tabItems)
+            {
+                if (vmTabItem.Path == file.Path)
+                {
+                    vmTabItem.IsPinned = true;
+                    return;
+                }
+            }
+
+            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
+
+            // Add the new tab and select it
+            var tabItem = new ViewModels.InspectorTabItem(inspector, file.Path);
+            _tabItems.Add(tabItem);
+            DocumentTabs.SelectedItem = tabItem;
+
+            RemoveUnpinnedTabs(tabItem);
         };
     }
 
@@ -93,9 +140,27 @@ public partial class ExplorerPage : UserControl
         NoFolderPanel.IsVisible = true;
     }
 
+    private void OnBtnCloseTabClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button &&
+            button.FindLogicalAncestorOfType<TabItem>() is TabItem tabItem)
+        {
+            if (tabItem.DataContext is ViewModels.InspectorTabItem tabItemVM)
+            {
+                _tabItems.Remove(tabItemVM);
+            }
+        }
+    }
 
-
-
-
-
+    private void RemoveUnpinnedTabs(ViewModels.InspectorTabItem except)
+    {
+        for (int i = _tabItems.Count - 1; i >= 0; i--)
+        {
+            var tabItem = _tabItems[i];
+            if (tabItem != except && !tabItem.IsPinned)
+            {
+                _tabItems.RemoveAt(i);
+            }
+        }
+    }
 }

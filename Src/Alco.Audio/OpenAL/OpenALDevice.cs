@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 
 using Silk.NET.OpenAL;
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco.Audio.OpenAL;
 

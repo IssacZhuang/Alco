@@ -4,12 +4,13 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SDL3;
 using Alco.Graphics;
+using Alco.Engine.MacOS;
 
 using static SDL3.SDL3;
 
 namespace Alco.Engine;
 
-public unsafe partial class Sdl3Window : Window
+public unsafe partial class Sdl3Window : View
 {
     private static readonly byte* PropertyId_HWND = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.win32.hwnd");
     private static readonly byte* PropertyId_NS_WINDOW = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.cocoa.window");
@@ -26,6 +27,8 @@ public unsafe partial class Sdl3Window : Window
     private string _title;
 
     internal SDL_WindowID WindowId => SDL_GetWindowID(_window);
+
+    public SDL_Window NativeWindow => _window;
 
     public override WindowMode WindowMode
     {
@@ -68,14 +71,14 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public override int2 MousePosition
+    public override Vector2 MousePosition
     {
         get
         {
             Vector2 globalPosition = default;
             SDL_GetGlobalMouseState(&globalPosition.X, &globalPosition.Y);
-            int2 result = new int2((int)globalPosition.X, (int)globalPosition.Y);
-            return result - Position;
+            Vector2 windowPosition = Position;
+            return globalPosition - windowPosition;
         }
     }
 
@@ -111,7 +114,7 @@ public unsafe partial class Sdl3Window : Window
 
 
 
-    public Sdl3Window(GPUDevice device, WindowSetting setting)
+    public Sdl3Window(GPUDevice device, ViewSetting setting)
     {
         SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
 
@@ -158,14 +161,18 @@ public unsafe partial class Sdl3Window : Window
         });
     }
 
-    public override void StartTextInput(int x, int y, int width, int height, int cursor)
+    public override void SetTextInputArea(int x, int y, int width, int height, int cursor)
     {
         Rectangle rectangle = new Rectangle(x, y, width, height);
         var _ = SDL_SetTextInputArea(_window, &rectangle, cursor);
+    }
+
+    protected override void StartTextInput()
+    {
         _ = SDL_StartTextInput(_window);
     }
 
-    public override void EndTextInput()
+    protected override void EndTextInput()
     {
         _ = SDL_StopTextInput(_window);
     }
@@ -209,7 +216,13 @@ public unsafe partial class Sdl3Window : Window
     }
 
 
-    private static SurfaceSource GetSurfaceSource(SDL_Window window, bool useWayland)
+    /// <summary>
+    /// Get the surface source for the window
+    /// </summary>
+    /// <param name="window">The window to get the surface source for</param>
+    /// <param name="useWayland">Whether to use Wayland. Only used on Linux</param>
+    /// <returns>The surface source for the window</returns>
+    public static SurfaceSource GetSurfaceSource(SDL_Window window, bool useWayland)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -248,16 +261,13 @@ public unsafe partial class Sdl3Window : Window
 
 
     //create with native window
-    public static Sdl3Window CreateWin32Window(GPUDevice device, IntPtr hwnd)
+    public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd, ViewSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
+        SDL_PropertiesID props = 0;
 
         try
         {
+            props = CreateProperties(setting);
             SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER, hwnd);
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
@@ -273,17 +283,14 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateX11Window(GPUDevice device, ulong xWindow)
+    public static Sdl3Window CreateFromXID(GPUDevice device, long xWindow, ViewSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
+        SDL_PropertiesID props = 0;
 
         try
         {
-            SDL_SetNumberProperty(props, PropertyId_X11_WINDOW, (long)xWindow);
+            props = CreateProperties(setting);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, xWindow);
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
             {
@@ -298,20 +305,17 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateCocoaWindow(GPUDevice device, IntPtr windowPointer, IntPtr viewPointer)
+    public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, ViewSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
-
+        SDL_PropertiesID props = 0;
+        
         try
         {
-            SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER, windowPointer);
-            if (viewPointer != IntPtr.Zero)
+            props = CreateProperties(setting);
+            SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER, NSWindow);
+            if (NSView != IntPtr.Zero)
             {
-                SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER, viewPointer);
+                SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER, NSView);
             }
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
@@ -327,16 +331,13 @@ public unsafe partial class Sdl3Window : Window
         }
     }
 
-    public static Sdl3Window CreateWaylandWindow(GPUDevice device, IntPtr surface)
+    public static Sdl3Window CreateFromWaylandSurface(GPUDevice device, IntPtr surface, ViewSetting setting)
     {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        if (props == 0)
-        {
-            throw new Exception("Failed to create SDL properties");
-        }
+        SDL_PropertiesID props = 0;
 
         try
         {
+            props = CreateProperties(setting);
             SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER, surface);
             SDL_Window window = SDL_CreateWindowWithProperties(props);
             if (window.IsNull)
@@ -350,6 +351,37 @@ public unsafe partial class Sdl3Window : Window
         {
             SDL_DestroyProperties(props);
         }
+    }
+
+    public void DoTextInputCore(string text)
+    {
+        DoTextInput(text);
+    }
+
+    private static SDL_PropertiesID CreateProperties(ViewSetting setting)
+    {
+        SDL_PropertiesID props = SDL_CreateProperties();
+        if (props == 0)
+        {
+            throw new Exception("Failed to create SDL properties");
+        }
+
+        if (setting.IsBorderless)
+        {
+            SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+        }
+
+        if (setting.IsTransparent)
+        {
+            SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, true);
+        }
+
+        //size
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, setting.Width);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, setting.Height);
+
+        return props;
+
     }
 
 

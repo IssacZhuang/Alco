@@ -132,6 +132,11 @@ public abstract class Material: AutoDisposable
         _system = system;
         _shader = shader;
 
+        if(shader.IsComputeShader)
+        {
+            throw new InvalidOperationException("The shader required for material must be a graphics shader");
+        }
+
         ShaderReflectionInfo reflectionInfo = shader.GetShaderModules().ReflectionInfo;
         _parameters = new ShaderParameterSet(reflectionInfo);
         UpdateSlotResources(reflectionInfo);
@@ -148,6 +153,12 @@ public abstract class Material: AutoDisposable
     {
         ArgumentNullException.ThrowIfNull(defines);
         _pipelineContext.Defines = defines;
+        _isPipelineDirty = true;
+    }
+
+    public void ClearDefines()
+    {
+        _pipelineContext.Defines = [];
         _isPipelineDirty = true;
     }
 

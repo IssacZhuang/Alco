@@ -15,10 +15,27 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 - Auto memory management
 - Shader compilation tools
 
+## Cordinate System
+
+The cordinate system and matrix layout are following the Unreal Engine style.
+
+- Left-handed coordinate system
+- The matrix layout is row-major
+
+**3D**
+- x+ is forward
+- y+ is right
+- z+ is up
+
+**2D**
+- x+ is right
+- y+ is up
+- z+ is face into the screen (depth)
+
 ## Project Structure
 
 - **Src/** - Core engine components
-  - **Alco/** - Base library
+  - **Alco/** - Base library including math, spatial, threading and some utilities
   - **Alco.Engine/** - Main engine implementation
   - **Alco.Graphics/** - Graphics abstraction layer
   - **Alco.Rendering/** - Rendering pipeline
@@ -36,7 +53,7 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 ## Examples
 
 The `Sandbox/` directory contains numerous examples demonstrating various engine features:
-
+****
 - Basic window creation
 - Rendering primitives
 - Texture handling
@@ -70,7 +87,9 @@ The `Sandbox/` directory contains numerous examples demonstrating various engine
 - [wgpu-native](https://github.com/gfx-rs/wgpu-native): WebGPU native implementation
 - [DirectX Compiler](https://github.com/microsoft/DirectXShaderCompiler): HLSL shader compilation
 - [System.IO.Hashing](https://www.nuget.org/packages/System.IO.Hashing) (v9.0.0): High-performance hashing
-- [StbSharp](https://github.com/StbSharp): Image and font processing (embedded as source code)
+- [StbSharp](https://github.com/StbSharp): Image and font processing (embedded as source code and modified)
+- [ImGui](https://github.com/ocornut/imgui): Immediate Mode Graphical User Interface
+- [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET): ImGui binding for .NET (embedded as source code and modified)
 
 All external libraries are used under their respective licenses, primarily MIT License.
 

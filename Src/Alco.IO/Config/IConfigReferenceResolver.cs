@@ -7,6 +7,6 @@ public interface IConfigReferenceResolver
         string id,
         string propertyName,
         Type propertyType,
-        [NotNullWhen(true)] out BaseConfig? config);
+        [NotNullWhen(true)] out Configable? config);
 }
 

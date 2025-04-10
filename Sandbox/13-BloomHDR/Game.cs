@@ -14,7 +14,8 @@ public class Game : GameEngine
 
     private readonly Texture2D _quad;
     private readonly Shader _spriteShader;
-    private readonly OldSpriteRenderer _spriteRenderer;
+    private readonly RenderContext _renderContext;
+    private readonly SpriteRenderer _renderer;
     private float _intensity = 3;
     private bool _enabled = true;
 
@@ -28,7 +29,11 @@ public class Game : GameEngine
         _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
 
         _camera = Rendering.CreateCamera2D(640, 360, 100);
-        _spriteRenderer = Rendering.CreateOldSpriteRenderer(_camera, _spriteShader);
+
+        Material material = Rendering.CreateGraphicsMaterial(_spriteShader);
+        material.SetBuffer(ShaderResourceId.Camera, _camera);
+        _renderContext = Rendering.CreateRenderContext("renderer");
+        _renderer = Rendering.CreateSpriteRenderer(_renderContext, material);
     }
 
     protected override void OnUpdate(float delta)
@@ -54,15 +59,15 @@ public class Game : GameEngine
         Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
         spritePosition.Y = -spritePosition.Y;
 
-        _spriteRenderer.Begin(MainFrameBuffer);
+        _renderContext.Begin(MainFrameBuffer);
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
         if(_enabled){
-             _spriteRenderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
+            _renderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
         }
        
 
-        _spriteRenderer.End();
+        _renderContext.End();
 
         DebugGUI.Text(FrameRate);
         DebugGUI.SameLine();

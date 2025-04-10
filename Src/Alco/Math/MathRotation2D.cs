@@ -28,29 +28,28 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Rotation2D euler(float radians)
+        public static Rotation2D rotation2d(float degree)
         {
-            return new Rotation2D(radians);
+            return new Rotation2D(degree);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 rotate(Vector2 v, float radians)
+        public static Vector2 rotate(Vector2 v, float degree)
         {
-            sincos(radians, out float s, out float c);
-            return new Vector2(c * v.X - s * v.Y, s * v.X + c * v.Y);
+            return rotate(new Rotation2D(degree), v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 rotate(float radians, Vector2 v)
+        public static Vector2 rotate(float degree, Vector2 v)
         {
-            sincos(radians, out float s, out float c);
-            return new Vector2(c * v.X - s * v.Y, s * v.X + c * v.Y);
+            return rotate(new Rotation2D(degree), v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float direction(Vector2 a)
+        public static Rotation2D direction(Vector2 a)
         {
-            return atan2(a.Y, a.X);
+            Vector2 norm = normalize(a);
+            return new Rotation2D(norm.Y, norm.X);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

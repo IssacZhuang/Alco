@@ -19,7 +19,10 @@ public class FileSystemExplorer : FileExplorer
     public string BasePath { get; }
     public List<TreeItem<ContextMenuItem?>> ContextMenuItemInfos { get; } = [];
 
-    public event Action<Models.ExplorerItem?>? OnFileOpened;
+    public event Action<Models.ExplorerItem?>? OnFileTapped;
+    public event Action<Models.ExplorerItem?>? OnFileDoubleTapped;
+
+
 
     public FileSystemExplorer(string basePath)
     {
@@ -103,9 +106,14 @@ public class FileSystemExplorer : FileExplorer
         }, cancellationToken);
     }
 
-    public override void OpenFile(Models.ExplorerItem? file)
+    public override void TapFile(Models.ExplorerItem? file)
     {
-        OnFileOpened?.Invoke(file);
+        OnFileTapped?.Invoke(file);
+    }
+
+    public override void DoubleTapFile(Models.ExplorerItem? file)
+    {
+        OnFileDoubleTapped?.Invoke(file);
     }
 
     public override ContextMenu CreateFileContextMenu(Models.ExplorerItem file)

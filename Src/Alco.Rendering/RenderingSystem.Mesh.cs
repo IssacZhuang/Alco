@@ -3,6 +3,8 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+// mesh factory
+
 public partial class RenderingSystem
 {
     public const uint DefaultVertexBufferSize = 64;

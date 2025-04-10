@@ -31,6 +31,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_Unlit = "Shaders/Pipelines/Rendering/Basic/Unlit.hlsl";
 
+   public const string Shader_Particle2D = "Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl";
+
    public const string Shader_Sprite = "Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl";
 
    public const string Shader_Sprite9Slice = "Shaders/Pipelines/Rendering/Sprite/Sprite9Slice.hlsl";

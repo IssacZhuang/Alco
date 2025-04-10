@@ -5,7 +5,7 @@ using Alco.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(640, 360, "Basic Window"),
+    View = new ViewSetting(640, 360, "Basic Window"),
 };
 
 using (Game game = new Game(setting))

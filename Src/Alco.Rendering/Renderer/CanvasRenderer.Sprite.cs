@@ -79,7 +79,7 @@ public sealed partial class CanvasRenderer
         };
 
         _command.SetGraphicsResources(_spriteShaderId_texture, texture.EntrySample);
-        _command.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _command.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
         _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 

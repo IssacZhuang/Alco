@@ -38,32 +38,6 @@ namespace Alco.Test
 
             Assert.IsFalse(reference.IsAlive);
         }
-
-        [Test(Description = "WeakCache")]
-        public void TestWeakCache()
-        {
-            WeakCache<string,TestObject> cache = new WeakCache<string,TestObject>();
-            TestObject obj = new TestObject(){
-                Value = 123
-            };
-            cache.Set("test", obj);
-
-            GC.Collect();
-            GC.WaitForFullGCComplete();
-            GC.WaitForPendingFinalizers();
-
-            Assert.IsTrue(cache.TryGet("test", out TestObject resutl) && resutl != null);
-            //refer the object to keep it alive
-            Log.Info(obj.Value);
-
-            obj = null;
-            GC.Collect();
-            GC.WaitForFullGCComplete();
-            GC.WaitForPendingFinalizers();
-
-            Assert.IsFalse(cache.TryGet("test", out resutl) && resutl != null);
-            Log.Info(cache.TryGet("test", out resutl), resutl == null);
-        }
     }
 }
 

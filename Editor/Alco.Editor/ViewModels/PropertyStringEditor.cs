@@ -28,4 +28,9 @@ public class PropertyStringEditor : PropertyEditor
             DataContext = this,
         };
     }
+
+    public override void SetDefaultValue()
+    {
+        Value = string.Empty;
+    }
 }

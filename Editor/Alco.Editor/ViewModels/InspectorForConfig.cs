@@ -12,16 +12,26 @@ using Avalonia.Controls;
 
 namespace Alco.Editor.ViewModels;
 
-[Inspector(typeof(BaseConfig), ".json")]
-public partial class InspectorForConfig : Inspector<BaseConfig>
+[Inspector(typeof(Configable), ".json")]
+public partial class InspectorForConfig : Inspector<Configable>
 {
     private bool _isModified = false;
-    private BaseConfig? _asset;
+    private Configable? _asset;
     private string? _serializedJson = null;
     private string? _filename = null;
     private string? _path;
+    private bool _isPreviewEnabled = true;
 
     public override bool IsModified => _isModified;
+    public bool IsPreviewEnabled
+    {
+        get => _isPreviewEnabled;
+        set
+        {
+            _isPreviewEnabled = value;
+            OnPropertyChanged(nameof(IsPreviewEnabled));
+        }
+    }
     public ViewModels.ObjectPropertiesEditor? PropertiesEditor { get; private set; }
 
     public string SerializedJson
@@ -39,7 +49,7 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         get => _filename ?? "Untitled";
     }
 
-    public BaseConfig? Asset => _asset;
+    public Configable? Asset => _asset;
 
     public int TestNumber { get; set; } = 100;
 
@@ -66,12 +76,12 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
     {
         if (_asset is IValidatableConfig validatableConfig)
         {
-            return validatableConfig.Validate(engine);
+            return validatableConfig.ValidateSafely(engine);
         }
         return [];
     }
 
-    protected override void OnOpenAsset(EditorEngine engine, BaseConfig asset, string path)
+    protected override void OnOpenAsset(EditorEngine engine, Configable asset, string path)
     {
         _asset = asset;
         _path = path;
@@ -79,7 +89,7 @@ public partial class InspectorForConfig : Inspector<BaseConfig>
         AssetSystem assetSystem = engine.Assets;
         using SafeMemoryHandle memory = assetSystem.EncodeToBinary(_asset);
         SerializedJson = Encoding.UTF8.GetString(memory.Span);
-        PropertiesEditor = new(asset, asset.Id, 0);
+        PropertiesEditor = new(asset, asset.Id);
         PropertiesEditor.OnValueChanged += OnValueChanged;
     }
 

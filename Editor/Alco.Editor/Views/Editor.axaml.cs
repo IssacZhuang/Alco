@@ -8,6 +8,7 @@ using Alco.Editor.ViewModels;
 using System;
 using Avalonia.Interactivity;
 using System.Reflection;
+using Avalonia.Rendering;
 
 namespace Alco.Editor.Views;
 
@@ -21,6 +22,7 @@ public partial class Editor : Window
     public Editor()
     {
         InitializeComponent();
+        RendererDiagnostics.DebugOverlays = RendererDebugOverlays.Fps;
     }
 
     protected override void OnDataContextChanged(EventArgs e)

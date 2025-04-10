@@ -38,17 +38,18 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
 
         WGPUDevice nativeDevice = device.Native;
 
+        ReadOnlySpan<byte> entryPoint = descriptor.Source.EntryPoint.GetUtf8Span();
+        ReadOnlySpan<byte> name = Name.GetUtf8Span();
 
-
-        fixed (byte* ptrEntry = descriptor.Source.EntryPoint.GetUtf8Span())
-        fixed (byte* ptrName = Name.GetUtf8Span())
+        fixed (byte* ptrEntry = entryPoint)
+        fixed (byte* ptrName = name)
         {
             WGPUShaderModule module = nativeDevice.CreateShaderModule(descriptor.Source);
 
             WGPUProgrammableStageDescriptor stageDescriptor = new WGPUProgrammableStageDescriptor()
             {
                 module = module,
-                entryPoint = ptrEntry,
+                entryPoint = new WGPUStringView(ptrEntry, entryPoint.Length),
                 constantCount = 0,
                 constants = null
             };
@@ -64,10 +65,38 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
             WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor
             {
                 nextInChain = null,
-                label = null,
+                label = new WGPUStringView(ptrName, name.Length),
                 bindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
                 bindGroupLayouts = bindGroupLayouts,
             };
+
+            if (descriptor.PushConstantsRanges != null)
+            {
+                WGPUPushConstantRange* pushConstants = stackalloc WGPUPushConstantRange[descriptor.PushConstantsRanges.Length];
+                for (int i = 0; i < descriptor.PushConstantsRanges.Length; i++)
+                {
+                    PushConstantsRange range = descriptor.PushConstantsRanges[i];
+                    pushConstants[i] = new WGPUPushConstantRange
+                    {
+
+                        stages = UtilsWebGPU.ConvertShaderStage(range.Stage),
+                        start = range.Start,
+                        end = range.End
+                    };
+                }
+                WGPUPipelineLayoutExtras extras = new WGPUPipelineLayoutExtras
+                {
+                    chain = new WGPUChainedStruct
+                    {
+                        sType = (WGPUSType)WGPUNativeSType.PipelineLayoutExtras,
+                        next = null,
+                    },
+                    pushConstantRangeCount = (uint)descriptor.PushConstantsRanges.Length,
+                    pushConstantRanges = pushConstants,
+                };
+
+                pipelineLayoutDescriptor.nextInChain = &extras.chain;
+            }
 
             WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(nativeDevice, &pipelineLayoutDescriptor);
 
@@ -75,7 +104,7 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
             {
                 layout = pipelineLayout,
                 compute = stageDescriptor,
-                label = ptrName,
+                label = new WGPUStringView(ptrName, name.Length),
                 nextInChain = null
             };
 

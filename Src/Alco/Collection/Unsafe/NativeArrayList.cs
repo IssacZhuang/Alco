@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-using Alco.Unsafe;
+using Alco;
 
 namespace Alco
 {
@@ -38,6 +38,12 @@ namespace Alco
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
+        }
+
+        public readonly Span<T> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Span<T>((T*)_ptrBuffer, _length);
         }
 
         public int Stride => sizeof(T);

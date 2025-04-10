@@ -6,12 +6,12 @@ namespace Alco.Graphics.WebGPU;
 
 internal static partial class UtilsWebGPU
 {
-    public static WGPUTextureDataLayout GetTextureDataLayout(PixelFormat pixelFormat, uint width, uint height)
+    public static WGPUTexelCopyBufferLayout GetTextureDataLayout(PixelFormat pixelFormat, uint width, uint height)
     {
         //uncompresed formats
         if (UtilsPixelFormat.TryGetPixelSize(pixelFormat, out var pixelSize))
         { 
-            return new WGPUTextureDataLayout
+            return new WGPUTexelCopyBufferLayout
             {
                 offset = 0,
                 bytesPerRow = width * pixelSize,
@@ -25,7 +25,7 @@ internal static partial class UtilsWebGPU
         {
             // BC formats use 4x4 pixel blocks
             uint blocksPerRow = (width + 3) / 4;
-            return new WGPUTextureDataLayout
+            return new WGPUTexelCopyBufferLayout
             {
                 offset = 0,
                 bytesPerRow = blocksPerRow * blockSize,

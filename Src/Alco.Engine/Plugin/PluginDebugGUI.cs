@@ -11,9 +11,9 @@ public class PluginDebugGUI : BaseEnginePlugin
     private class DebugGUISystem : BaseEngineSystem
     {
         private readonly DebugGUIRenderer _renderer;
-        private readonly WindowRenderTarget _renderTarget;
+        private readonly ViewRenderTarget _renderTarget;
 
-        public DebugGUISystem(DebugGUIRenderer renderer, WindowRenderTarget renderTarget)
+        public DebugGUISystem(DebugGUIRenderer renderer, ViewRenderTarget renderTarget)
         {
             _renderer = renderer;
             _renderTarget = renderTarget;
@@ -56,7 +56,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         Shader ShaderBlit = builtInAssets.Shader_Blit;
         Font font = builtInAssets.Font_Default;
 
-        DebugGUIRenderer renderer = new(engine.Input, engine.MainWindow, engine.MainWindow.Size.X, engine.MainWindow.Size.Y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
+        DebugGUIRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.Rendering, shaderText, shaderSprite, ShaderBlit);
         DebugGUIStyle style = new DebugGUIStyle
         {
             Font = font,

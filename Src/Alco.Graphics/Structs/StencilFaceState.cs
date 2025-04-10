@@ -39,6 +39,12 @@ public struct StencilFaceState
         StencilOperation.Keep,
         StencilOperation.Keep);
 
+    public static readonly StencilFaceState CompareNotEqual = new(
+        CompareFunction.NotEqual,
+        StencilOperation.Keep,
+        StencilOperation.Keep,
+        StencilOperation.Keep);
+
     public static bool operator ==(StencilFaceState left, StencilFaceState right)
     {
         return left.Compare == right.Compare &&

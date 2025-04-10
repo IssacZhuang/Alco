@@ -18,9 +18,7 @@ public class UINode
     private Transform2D _worldTransform = Transform2D.Identity;
     private bool _isTransformDirty = true;
 
-    private BoundingBox2D _mask;
     private MaskState _maskState = MaskState.None;
-    private bool _isMaskDirty = true;
 
     public virtual bool BubbleEvent { get; set; } = true;
 
@@ -226,52 +224,6 @@ public class UINode
 
     #region Mask Properties
 
-    /// <summary>
-    /// The mask state of the node.
-    /// </summary>
-    /// <value></value>
-    public MaskState MaskState
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _maskState;
-        protected set
-        {
-            _maskState = value;
-            SetMaskDirty();
-        }
-    }
-
-    /// <summary>
-    /// Is the mask enabled for the node.
-    /// </summary>
-    /// <value></value>
-    public bool IsMaskEnabled
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (_maskState & MaskState.Self) != 0;
-        set
-        {
-            if (value)
-            {
-                _maskState |= MaskState.Self;
-            }
-            else
-            {
-                _maskState &= ~MaskState.Self;
-            }
-            SetMaskDirty();
-        }
-    }
-
-    /// <summary>
-    /// Is the node has mask from parent.
-    /// </summary>
-    /// <value></value>
-    public bool HasMaskFromParent
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (_maskState & MaskState.Parent) != 0;
-    }
 
     /// <summary>
     /// Is the node has mask.
@@ -282,26 +234,6 @@ public class UINode
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _maskState != MaskState.None;
     }
-
-    /// <summary>
-    /// The bounding box of the mask in the world space.
-    /// </summary>
-    /// <value></value>
-    public BoundingBox2D Mask
-    {
-        get
-        {
-            TryRefreshMask();
-            return _mask;
-        }
-        set
-        {
-            _mask = value;
-            _isMaskDirty = true;
-        }
-    }
-
-
 
     #endregion
 
@@ -443,7 +375,6 @@ public class UINode
         }
 
         child.SetTransformDirty();
-        SetMaskDirty();
     }
 
     #endregion
@@ -587,7 +518,7 @@ public class UINode
     }
     protected virtual void OnUpdate(Canvas canvas, float delta)
     {
-        TryRefreshMask();
+        
     }
 
     private void TryRefreshTransform()
@@ -612,7 +543,6 @@ public class UINode
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 
-        _isMaskDirty = true;
         SpreadTransformDirty();
         _isTransformDirty = false;
     }
@@ -633,62 +563,6 @@ public class UINode
 
     }
 
-    private void TryRefreshMask()
-    {
-        if (!_isMaskDirty)
-        {
-            return;
-        }
-        ForceRefreshMask();
-        
-    }
-
-    private void ForceRefreshMask()
-    {
-        BoundingBox2D mask;
-        BoundingBox2D maskSelf = Bound;
-        if (HasMaskFromParent && Parent != null)
-        {
-            mask = Parent.Mask;
-        }
-        else
-        {
-            mask = maskSelf;
-        }
-
-        if (IsMaskEnabled)
-        {
-            mask = BoundingBox2D.GetIntersection(mask, maskSelf);
-        }
-
-        _mask = mask;
-        SpreadMaskState();
-        _isMaskDirty = false;
-    }
-
-    private void SpreadMaskState()
-    {
-
-        for (int i = 0; i < _children.Count; i++)
-        {
-            UINode child = _children[i];
-            if (IsMaskEnabled || HasMaskFromParent)
-            {
-                child.MaskState |= MaskState.Parent;
-            }
-            else
-            {
-                child.MaskState &= ~MaskState.Parent;
-            }
-            child.SetMaskDirty();
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetMaskDirty()
-    {
-        _isMaskDirty = true;
-    }
 
     private Vector2 GetParentSize()
     {
@@ -703,10 +577,10 @@ public class UINode
     public void Tick(Canvas canvas, float delta)
     {
         OnTick(canvas, delta);
-        for (int i = 0; i < _children.Count; i++)
-        {
-            _children[i].Tick(canvas, delta);
-        }
+        // for (int i = 0; i < _children.Count; i++)
+        // {
+        //     _children[i].Tick(canvas, delta);
+        // }
     }
 
 
@@ -719,10 +593,6 @@ public class UINode
         
         OnUpdate(canvas, delta);
         TryRefreshTransform();
-        for (int i = 0; i < _children.Count; i++)
-        {
-            _children[i].Update(canvas, delta);
-        }
     }
 
     #region Event

@@ -10,32 +10,29 @@ public class FloodFillLightMap : AutoDisposable
     private readonly RenderTexture _lightMapBack;
     private readonly DoubleBuffer<RenderTexture> _lightMaps;
     private readonly BitmapFloat16RGBA _lightMapCPU;
-    private readonly GraphicsValueBuffer<FloodFillLightingData> _dataBuffer;
+
     private readonly ComputeMaterial _material;
     private readonly GPUCommandBuffer _command;
-    private bool _isDirty = true;
 
     private uint _shaderId_front;
     private uint _shaderId_back;
+
+    private FloodFillLightingConstant _data;
 
 
     public int Iteration { get; set; } = 32;
     public float AttenuationSide
     {
-        get => _dataBuffer.Value.AttenuationSide;
-        set {
-            _dataBuffer.Value.AttenuationSide = value;
-            _isDirty = true;
-        }
+        get => _data.AttenuationSide;
+        set => _data.AttenuationSide = value;
+
     }
 
     public float AttenuationCorner
     {
-        get => _dataBuffer.Value.AttenuationCorner;
-        set {
-            _dataBuffer.Value.AttenuationCorner = value;
-            _isDirty = true;
-        }
+        get => _data.AttenuationCorner;
+        set => _data.AttenuationCorner = value;
+
     }
 
     public RenderTexture Texture => _lightMaps.Front;
@@ -62,12 +59,11 @@ public class FloodFillLightMap : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();
 
-        _dataBuffer = renderingSystem.CreateGraphicsValueBuffer<FloodFillLightingData>();
-        _dataBuffer.Value.AttenuationSide = 0.1f;
-        _dataBuffer.Value.AttenuationCorner = 0.14141414f;
-        _dataBuffer.Value.Size = new int2(width, height);
-        _dataBuffer.UpdateBuffer();
-        _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
+        _data = new FloodFillLightingConstant
+        {
+            AttenuationSide = 0.1f,
+            AttenuationCorner = 0.14141414f,
+        };
 
         _shaderId_front = _material.GetResourceId(ShaderResourceId.FrontBuffer);
         _shaderId_back = _material.GetResourceId(ShaderResourceId.BackBuffer);
@@ -95,10 +91,7 @@ public class FloodFillLightMap : AutoDisposable
 
     public void Render()
     {
-        if(_isDirty){
-            _dataBuffer.UpdateBuffer();
-            _isDirty = false;
-        }
+
         _lightMaps.Reset();
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
         _command.Begin();
@@ -107,7 +100,7 @@ public class FloodFillLightMap : AutoDisposable
         {
             _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
             _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-            _material.DispatchByGroup(_command, groupX, groupY, groupZ);
+            _material.DispatchByGroupWithConstant(_command, groupX, groupY, groupZ, _data);
             _lightMaps.Swap();
         }
         _command.End();

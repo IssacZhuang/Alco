@@ -10,8 +10,6 @@ public class Game : GameEngine
 {
 
     private readonly Canvas _canvas;
-    private readonly Shader _shaderSprite;
-    private readonly Shader _shaderText;
     private readonly Font _font;
 
     private CanvasUIFactory _factory;
@@ -35,8 +33,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shaderSprite = BuiltInAssets.Shader_SpriteMasked;
-        _shaderText = BuiltInAssets.Shader_TextMasked;
         _font = BuiltInAssets.Font_Default;
 
         CavanUIFactoryStyle style = new CavanUIFactoryStyle
@@ -63,9 +59,16 @@ public class Game : GameEngine
 
         _factory = new CanvasUIFactory(style);
 
-        UIInputTracker inputTracker = new UIInputTracker(Input, MainWindow);
-        _canvas = Rendering.CreateCanvas(inputTracker, _shaderSprite, _shaderText);
-        _canvas.Size = new Vector2(setting.Window.Width, setting.Window.Height);
+        UIInputTracker inputTracker = new UIInputTracker(Input, MainView);
+
+        Material defaultSpriteMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        defaultSpriteMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+        Material defaultTextMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
+        defaultTextMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+
+
+        _canvas = Rendering.CreateCanvas(inputTracker, defaultSpriteMaterial, defaultTextMaterial);
+        _canvas.Size = new Vector2(setting.View.Width, setting.View.Height);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 
         _root = new UINode
@@ -133,12 +136,24 @@ public class Game : GameEngine
             Anchor = Anchor.Stretch,
         };
 
+        UIMask mask = new UIMask()
+        {
+            Position = new Vector2(200, 100),
+            Size = new Vector2(100, 200)
+        };
+
+        UIMask mask2 = new UIMask()
+        {
+            Position = new Vector2(200, 300),
+            Size = new Vector2(100, 200)
+        };
+
         UIScrollable scrollable = new UIScrollable()
         {
             Position = new Vector2(200, 100),
             Size = new Vector2(100, 200),
             ScrollMode = SrollMode.Vertical | SrollMode.Horizontal,
-            IsMaskEnabled = true,
+            //IsMaskEnabled = true,
         };
 
 
@@ -147,7 +162,11 @@ public class Game : GameEngine
 
         scrollable.Content = layout;
 
-        _root.Add(scrollable);
+        mask.Add(scrollable);
+
+        _root.Add(mask2);
+        _root.Add(mask);
+        
 
         UISlider slider = _factory.CreateSlider();
         slider.Position = new Vector2(200, -100);
@@ -179,7 +198,6 @@ public class Game : GameEngine
             Stop();
         }
 
-        //Log.Info(_button.Mask, _button.MaskState);
         _canvas.Tick(_root, delta);
         _canvas.Update(MainFrameBuffer, _root, delta);
 
@@ -212,7 +230,7 @@ public class Game : GameEngine
 
         if (DebugGUI.SliderWithText("Angle", ref _angle, 0, 360))
         {
-            _inputBox.Rotation = Rotation2D.FromDegree(_angle);
+            _inputBox.Rotation = new Rotation2D(_angle);
         }
 
         if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))

@@ -5,9 +5,9 @@ namespace Alco.Engine;
 /// <summary>
 /// The window setting
 /// </summary>
-public struct WindowSetting
+public struct ViewSetting
 {
-    public WindowSetting(int width, int height, string title)
+    public ViewSetting(int width, int height, string title)
     {
         Width = width;
         Height = height;
@@ -56,7 +56,7 @@ public struct WindowSetting
     /// <summary>
     /// The default window setting
     /// </summary>
-    public static readonly WindowSetting Default = new WindowSetting
+    public static readonly ViewSetting Default = new ViewSetting
     {
         Width = 640,
         Height = 360,

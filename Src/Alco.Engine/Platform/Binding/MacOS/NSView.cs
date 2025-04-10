@@ -1,8 +1,8 @@
-using static Alco.Engine.ObjectiveCRuntime;
+using static Alco.Engine.MacOS.ObjectiveCRuntime;
 
-namespace Alco.Engine;
+namespace Alco.Engine.MacOS;
 
-internal unsafe readonly struct NSView
+public unsafe readonly struct NSView
 {
     internal static readonly Selector setWantsLayer = "setWantsLayer:";
     internal static readonly Selector setLayer = "setLayer:";
@@ -22,5 +22,14 @@ internal unsafe readonly struct NSView
     {
         get => IntPtr_objc_msgSend(NativePtr, "layer");
         set => objc_msgSend(NativePtr, setLayer, value);
+    }
+
+    public static CAMetalLayer InitializeCAMetalLayer(IntPtr viewHandle)
+    {
+        var layer = CAMetalLayer.New();
+        NSView view = new(viewHandle);
+        view.wantsLayer = true;
+        view.layer = layer.Handle;
+        return layer;
     }
 }

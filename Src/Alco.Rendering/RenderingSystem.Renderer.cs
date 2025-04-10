@@ -4,13 +4,10 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
+// renderer factory
+
 public partial class RenderingSystem
 {
-    public OldTextRenderer CreateOldTextRenderer(GraphicsBuffer camera, Shader shader)
-    {
-        return new OldTextRenderer(this, MeshTrueType, camera, shader);
-    }
-
     /// <summary>
     /// Create a text renderer that uses a render context and a material.
     /// </summary>
@@ -21,11 +18,6 @@ public partial class RenderingSystem
     public TextRenderer CreateTextRenderer(RenderContext renderContext, Material material, string name = "text_renderer")
     {
         return new TextRenderer(this, renderContext, MeshTrueType, material, name);
-    }
-
-    public OldSpriteRenderer CreateOldSpriteRenderer(GraphicsBuffer camera, Shader shader)
-    {
-        return new OldSpriteRenderer(this, MeshCenteredSprite, camera, shader);
     }
 
     public SpriteRenderer CreateSpriteRenderer(RenderContext renderContext, Material material, string name = "sprite_renderer")

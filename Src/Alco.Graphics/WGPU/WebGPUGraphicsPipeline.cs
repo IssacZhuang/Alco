@@ -89,9 +89,11 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
             vertexAttributes += vertexInputLayouts[i].Elements.Length;
         }
 
-        // TODO: bind groups/pipline layout
-        fixed (byte* pVertexEntry = vertex.EntryPoint.GetUtf8Span())
-        fixed (byte* pPixelEntry = pixel.EntryPoint.GetUtf8Span())
+        ReadOnlySpan<byte> vertexEntry = vertex.EntryPoint.GetUtf8Span();
+        ReadOnlySpan<byte> pixelEntry = pixel.EntryPoint.GetUtf8Span();
+
+        fixed (byte* pVertexEntry = vertexEntry)
+        fixed (byte* pPixelEntry = pixelEntry)
         {
 
 
@@ -121,7 +123,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
             WGPUFragmentState fragmentState = new WGPUFragmentState()
             {
                 module = pixelShader,
-                entryPoint = pPixelEntry,
+                entryPoint = new WGPUStringView(pPixelEntry, pixelEntry.Length),
                 targetCount = (uint)descriptor.ColorFormats.Length,
                 targets = targets,
                 constantCount = 0,
@@ -135,7 +137,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
             WGPUVertexState vertexState = new WGPUVertexState
             {
                 module = vertexShader,
-                entryPoint = pVertexEntry,
+                entryPoint = new WGPUStringView(pVertexEntry, vertexEntry.Length),
                 buffers = vertexBufferLayouts,
                 bufferCount = (uint)vertexInputLayouts.Length,
                 constantCount = 0,
@@ -156,7 +158,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
             WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor
             {
                 nextInChain = null,
-                label = null,
+                label = WGPUStringView.Empty,
                 bindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
                 bindGroupLayouts = bindGroupLayouts,
             };
@@ -243,7 +245,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
                 {
                     nextInChain = null,
                     format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthStencilFormat.Value),
-                    depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled,
+                    depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled ? WGPUOptionalBool.True : WGPUOptionalBool.False,
                     depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
                     stencilFront = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
                     stencilBack = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
@@ -260,17 +262,6 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
         wgpuShaderModuleRelease(vertexShader);
         wgpuShaderModuleRelease(pixelShader);
-    }
-
-    [UnmanagedCallersOnly]
-    private unsafe static void ShaderCompileErrorCallback(WGPUCompilationInfoRequestStatus status, WGPUCompilationInfo* info, nint userData)
-    {
-        for (nuint i = 0; i < info->messageCount; i++)
-        {
-            WGPUCompilationMessage message = info->messages[i];
-            string? messageStr = Interop.GetString(message.message);
-            Console.WriteLine(messageStr ?? "");
-        }
     }
 
     #endregion

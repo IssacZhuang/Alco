@@ -5,7 +5,7 @@ using Alco.Graphics;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    Window = new WindowSetting(400, 400, "Asset Loader HLSL"),
+    View = new ViewSetting(400, 400, "Asset Loader HLSL"),
 };
 
 using (Game game = new Game(setting))

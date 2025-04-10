@@ -14,14 +14,14 @@ public class ConsolePlatform : Platform
         _timer = new EngineTimer();
     }
 
-    public override void CloseWindow(Window window)
+    public override void CloseView(View window)
     {
         
     }
 
-    public override Window CreateWindow(GPUDevice device, WindowSetting setting)
+    public override View CreateView(GPUDevice device, ViewSetting setting)
     {
-        return new NoWindow();
+        return new NoView();
     }
 
     public override void RunMainLoop(bool runOnce)

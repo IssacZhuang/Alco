@@ -304,7 +304,7 @@ public class TestJsonConverters
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Type>("\"NonExistentType\"", options));
     }
 
-    private class TestConfig : BaseConfig
+    private class TestConfig : Configable
     {
         public string Name { get; set; }
         public int Value { get; set; }
@@ -332,10 +332,10 @@ public class TestJsonConverters
             Value = 42
         };
 
-        string json = JsonSerializer.Serialize<BaseConfig>(original, options);
+        string json = JsonSerializer.Serialize<Configable>(original, options);
         TestContext.WriteLine($"Config JSON: {json}");
 
-        var deserialized = JsonSerializer.Deserialize<BaseConfig>(json, options) as TestConfig;
+        var deserialized = JsonSerializer.Deserialize<Configable>(json, options) as TestConfig;
 
         Assert.That(deserialized, Is.Not.Null);
         Assert.Multiple(() =>
@@ -354,11 +354,11 @@ public class TestJsonConverters
             TypeInfoResolver = typeResolver
         };
 
-        BaseConfig original = null;
-        string json = JsonSerializer.Serialize<BaseConfig>(original, options);
+        Configable original = null;
+        string json = JsonSerializer.Serialize<Configable>(original, options);
         TestContext.WriteLine($"Null Config JSON: {json}");
 
-        var deserialized = JsonSerializer.Deserialize<BaseConfig>(json, options);
+        var deserialized = JsonSerializer.Deserialize<Configable>(json, options);
         Assert.That(deserialized, Is.Null);
     }
 
@@ -374,6 +374,6 @@ public class TestJsonConverters
         string invalidJson = @"{""$type"":""NonExistentType"",""name"":""test""}";
 
         Assert.Throws<JsonException>(() =>
-            JsonSerializer.Deserialize<BaseConfig>(invalidJson, options));
+            JsonSerializer.Deserialize<Configable>(invalidJson, options));
     }
 }
