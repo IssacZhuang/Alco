@@ -1,9 +1,10 @@
 
+using System.Numerics;
 using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public class UIMask : UINode
+public class UIMask : UINode, IUIMask
 {
     /// <summary>
     /// The texture of the sprite. The white quad will be rendered if it is null.
@@ -11,9 +12,9 @@ public class UIMask : UINode
     /// <value></value>
     public Texture2D? Texture { get; set; } = null;
 
-    protected override void OnUpdate(Canvas canvas, float delta)
-    {
-        base.OnUpdate(canvas, delta);
-        canvas.DrawMask(Texture, RenderTransform.Matrix, Rect.One);
-    }
+    Texture2D? IUIMask.MaskTexture => Texture;
+
+    Matrix4x4 IUIMask.MaskTransform => RenderTransform.Matrix;
+
+    Rect IUIMask.MaskTextureUvRect => Rect.One;
 }

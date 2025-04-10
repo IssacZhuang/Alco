@@ -33,7 +33,7 @@ public partial class Canvas : AutoDisposable
         return _textRenderer.DrawChars(font, str, matrix, pivot, color, lineSpacing);
     }
 
-    public void DrawMask(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
+    protected void IncreaceStencil(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
     {
         SpriteConstant constant = new SpriteConstant
         {
@@ -42,9 +42,32 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _stencilWriteMaterial.StencilReference = _mask;
+        _stencilIncreaseMaterial.StencilReference = _mask;
         _mask = (_mask + 1) % 0xFF;
-        _stencilWriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilWriteMaterial, constant);
+        _stencilIncreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
+        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilIncreaseMaterial, constant);
+    }
+
+    protected void DecreaseMask(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
+    {
+        SpriteConstant constant = new SpriteConstant
+        {
+            Model = matrix,
+            Color = new ColorFloat(1, 1, 1, 0),
+            UvRect = uvRect
+        };
+
+        _stencilDecreaseMaterial.StencilReference = _mask;
+
+        if (_mask == 0)
+        {
+            _mask = 0xFF;
+        }
+        else
+        {
+            _mask--;
+        }
+        _stencilDecreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
+        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilDecreaseMaterial, constant);
     }
 }

@@ -24,6 +24,13 @@ public partial class Canvas : AutoDisposable
         }
     }
 
+    private struct MaskContext
+    {
+        public Texture2D? texture;
+        public Matrix4x4 matrix;
+        public Rect uvRect;
+    }
+
 
     // for rendering
 
@@ -39,7 +46,8 @@ public partial class Canvas : AutoDisposable
 
     private readonly Material _textMaterial;
     private readonly Material _spriteMaterial;
-    private readonly Material _stencilWriteMaterial;
+    private readonly Material _stencilIncreaseMaterial;
+    private readonly Material _stencilDecreaseMaterial;
     private readonly uint _shaderId_texture;
 
     private uint _mask = 0;
@@ -135,10 +143,10 @@ public partial class Canvas : AutoDisposable
         };
 
         //stencil write
-        _stencilWriteMaterial = defaultSpriteMaterial.CreateInstance();
-        _stencilWriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _stencilIncreaseMaterial = defaultSpriteMaterial.CreateInstance();
+        _stencilIncreaseMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
 
-        _shaderId_texture = _stencilWriteMaterial.GetResourceId(ShaderResourceId.Texture);
+        _shaderId_texture = _stencilIncreaseMaterial.GetResourceId(ShaderResourceId.Texture);
 
         StencilFaceState stencilIncrease = new StencilFaceState(
             CompareFunction.Equal,
@@ -147,13 +155,35 @@ public partial class Canvas : AutoDisposable
             StencilOperation.Keep
             );
 
-        _stencilWriteMaterial.DepthStencilState = DepthStencilState.Default with
+        _stencilIncreaseMaterial.DepthStencilState = DepthStencilState.Default with
         {
             FrontFace = stencilIncrease,
             BackFace = stencilIncrease,
             StencilReadMask = 0xFF,
             StencilWriteMask = 0xFF,
         };
+
+        StencilFaceState stencilDecrease = new StencilFaceState(
+            CompareFunction.Equal,
+            StencilOperation.DecrementWrap,
+            StencilOperation.Keep,
+            StencilOperation.Keep
+            );
+
+        _stencilDecreaseMaterial = defaultSpriteMaterial.CreateInstance();
+        _stencilDecreaseMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _stencilDecreaseMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = stencilDecrease,
+            BackFace = stencilDecrease,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+
+        _shaderId_texture = _stencilDecreaseMaterial.GetResourceId(ShaderResourceId.Texture);
+
+
 
         _spriteRenderer = system.CreateSpriteRenderer(_renderContext, _spriteMaterial);
         _textRenderer = system.CreateTextRenderer(_renderContext, _textMaterial);
@@ -342,11 +372,24 @@ public partial class Canvas : AutoDisposable
     private void UpdateNode(UINode node, float delta)
     {
         uint mask = _mask;
+        MaskContext? maskContext = null;
         if (node.IsEnable)
         {
+            //increase stencil value if the node is a mask
+            if (node is IUIMask maskNode)
+            {
+                maskContext = new MaskContext
+                {
+                    texture = maskNode.MaskTexture,
+                    matrix = maskNode.MaskTransform,
+                    uvRect = maskNode.MaskTextureUvRect
+                };
+                IncreaceStencil(maskNode.MaskTexture, maskNode.MaskTransform, maskNode.MaskTextureUvRect);
+            }
+
             try
             {
-                //mask might be changed during update
+
                 node.Update(this, delta);
             }
             catch (Exception e)
@@ -367,7 +410,13 @@ public partial class Canvas : AutoDisposable
             UpdateNode(node.Children[i], delta);
         }
 
-        //recover mask
+        //recover stencil buffer
+        if (maskContext != null)
+        {
+            DecreaseMask(maskContext.Value.texture, maskContext.Value.matrix, maskContext.Value.uvRect);
+        }
+
+        //recover stencil value in CPU
         _mask = mask;
     }
 
