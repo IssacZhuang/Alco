@@ -4,7 +4,7 @@ namespace Alco.IO;
 
 internal class AssetHandle
 {
-    private WeakReference<object>? _weakReference;
+    private WeakReference? _weakReference;
     private object? _strongReference;
     private bool _isLoading = false;
 
@@ -27,9 +27,9 @@ internal class AssetHandle
     {
         get
         {
-            if (_weakReference != null && _weakReference.TryGetTarget(out object? target))
+            if (_weakReference != null && _weakReference.IsAlive)
             {
-                return target;
+                return _weakReference.Target;
             }
 
             return _strongReference;
@@ -40,7 +40,7 @@ internal class AssetHandle
     {
         if (cacheMode == AssetCacheMode.Recyclable)
         {
-            _weakReference = new WeakReference<object>(obj);
+            _weakReference = new WeakReference(obj);
         }
         else if (cacheMode == AssetCacheMode.Persistent)
         {

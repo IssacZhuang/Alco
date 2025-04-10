@@ -541,7 +541,11 @@ public class TestAssetSystem
 
     }
 
+// the garbage collect is lazy in debug mode
+// it might cause the test failed
+#if !DEBUG
     [Test]
+#endif
     public void TestGarbagCollect()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
