@@ -45,7 +45,7 @@ public class Game : GameEngine
             FixedString8 strFramerate = new FixedString8();
             strFramerate.Append(FrameRate);
 
-            ImGui.Text(strFramerate.AsReadOnlySpan());
+            ImGui.Text(strFramerate);
             ImGui.Text("Welcome to ImGUI in Alco Engine!");
             ImGui.Spacing();
 

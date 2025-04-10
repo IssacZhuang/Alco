@@ -151,23 +151,6 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
         }
     }
 
-    // /// <summary>
-    // /// Implicitly converts a FixedString8 to a string.
-    // /// </summary>
-    // /// <param name="value">The FixedString8 to convert.</param>
-    // public static implicit operator string(FixedString8 value)
-    // {
-    //     return value.ToString();
-    // }
-
-    // /// <summary>
-    // /// Implicitly converts a string to a FixedString8.
-    // /// </summary>
-    // /// <param name="value">The string to convert.</param>
-    // public static implicit operator FixedString8(string value)
-    // {
-    //     return new FixedString8(value);
-    // }
 
     /// <summary>
     /// Implicitly converts a ReadOnlySpan of characters to a FixedString8.
@@ -185,6 +168,24 @@ public unsafe struct FixedString8 : IEquatable<FixedString8>
     public static implicit operator ReadOnlySpan<char>(FixedString8 value)
     {
         return new ReadOnlySpan<char>(value.Buffer, value.Length);
+    }
+
+    /// <summary>
+    /// Implicitly converts a FixedString8 to a string.
+    /// </summary>
+    /// <param name="value">The FixedString8 to convert.</param>
+    public static explicit operator string(FixedString8 value)
+    {
+        return value.ToString();
+    }
+
+    /// <summary>
+    /// Implicitly converts a string to a FixedString8.
+    /// </summary>
+    /// <param name="value">The string to convert.</param>
+    public static implicit operator FixedString8(string value)
+    {
+        return new FixedString8(value);
     }
 
     /// <summary>
