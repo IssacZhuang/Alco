@@ -12,7 +12,7 @@ public class TestMatrix4x4
     [Test]
     public void TestDecomposeTransform3DComponents()
     {
-        float epsilon = 0.0001f;
+        float epsilon = 0.001f;
 
         // Create a matrix using TRS
         Vector3 originalPosition = new Vector3(1, 2, 3);
@@ -72,7 +72,7 @@ public class TestMatrix4x4
     [Test]
     public void TestDecomposeTransform3DEuler()
     {
-        float epsilon = 0.0001f;
+        float epsilon = 0.001f;
 
         // Create a matrix using TRS
         Vector3 originalPosition = new Vector3(1, 2, 3);

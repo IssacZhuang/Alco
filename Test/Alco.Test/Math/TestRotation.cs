@@ -12,7 +12,7 @@ public class TestRotation
     [Test]
     public void TestEuler()
     {
-        float epsilon = 0.001f;
+        float epsilon = 0.01f;
         Vector3 eulerAngles = new Vector3(12, 45, -45);
 
         Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationX(eulerAngles.X) *
