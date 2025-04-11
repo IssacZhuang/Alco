@@ -42,6 +42,7 @@ IDisposable
 
     #region  Internal Controllers
     private EngineProfiler _profiler;
+    private readonly GameSynchronizationContext _synchronizationContext;
 
     #endregion
 
@@ -172,6 +173,7 @@ IDisposable
     public GameEngine(GameEngineSetting setting)
     {
         _setting = setting;
+        _synchronizationContext = new GameSynchronizationContext();
         _assets = new AssetSystem(this, _setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
 
         if (setting.Graphics.DefferedRenderSchedule)
@@ -213,7 +215,7 @@ IDisposable
         _mainRenderTarget = CreateViewRenderTarget(_mainView, _rendering.PrefferedSDRPass, shaderBlit.Result);
         AddSystem(_mainRenderTarget);
 
-        
+
         InitializePlugins(_setting.Plugins);
     }
 
@@ -310,6 +312,9 @@ IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalUpdate(float delta)
     {
+        // Process any callbacks queued for the main thread
+        _synchronizationContext.ProcessCallbacks();
+
         try
         {
             OnBeginFrame();
@@ -362,6 +367,9 @@ IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalStart()
     {
+        // Install the game's synchronization context on the main thread
+        _synchronizationContext.Install();
+
         try
         {
             OnStart();

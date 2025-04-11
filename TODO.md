@@ -1,2 +1,3 @@
 - feature: Select asset reference in editor
-- feature: Fixed string code generator
+- opt: reduce allocation in GameSynchronizationContext
+- test: SetSynchronizationContext

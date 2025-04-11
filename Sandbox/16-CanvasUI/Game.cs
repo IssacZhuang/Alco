@@ -254,6 +254,21 @@ public class Game : GameEngine
 
             _layout.UpdateLayout();
         }
+
+        if (DebugGUI.Button("Test Async"))
+        {
+            TestAsync();
+        }
+    }
+
+    private async void TestAsync()
+    {
+        await Task.Delay(1000);
+        Log.Info("TestAsync 1");
+        await Task.Delay(1000);
+        Log.Info("TestAsync 2");
+        await Task.Delay(1000);
+        Log.Info("TestAsync 3");
     }
 
     protected override void OnStop()
