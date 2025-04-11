@@ -192,7 +192,7 @@ namespace Alco.Test
 
         private class QuickJob : IJob
         {
-            public int value;
+            public volatile int value;
 
             public void Execute()
             {
@@ -202,7 +202,7 @@ namespace Alco.Test
 
         private class SlowJob : IJob
         {
-            public int value;
+            public volatile int value;
             public void Execute()
             {
                 Thread.Sleep(50);
@@ -220,7 +220,7 @@ namespace Alco.Test
 
         private struct ValueJob : IJob
         {
-            public int value;
+            public volatile int value;
 
             public void Execute()
             {

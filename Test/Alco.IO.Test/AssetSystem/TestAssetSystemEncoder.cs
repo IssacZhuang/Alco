@@ -3,6 +3,8 @@ using NUnit.Framework;
 
 namespace Alco.IO.Test;
 
+#pragma warning disable CS0067
+
 public class TestAssetSystemEncoder
 {
     private class LifeCycleProvider : IAssetSystemHost, IDisposable

@@ -4,6 +4,9 @@ using NUnit.Framework;
 
 namespace Alco.Test;
 
+#pragma warning disable CS0414
+#pragma warning disable CS0649
+
 [TestFixture]
 public class TestAccessTypeInfo
 {

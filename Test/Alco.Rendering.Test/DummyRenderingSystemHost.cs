@@ -2,6 +2,8 @@
 
 namespace Alco.Rendering.Test;
 
+#pragma warning disable CS0067
+
 public class DummyRenderingSystemHost : IRenderingSystemHost, IDisposable
 {
     public event Action<float> OnUpdate;
