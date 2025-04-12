@@ -312,7 +312,7 @@ public class TestAssetSystem
 #if !DEBUG
     [Test]
 #endif
-    public async void TestGarbagCollect()
+    public async Task TestGarbagCollect()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
         AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
