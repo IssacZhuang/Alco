@@ -2,7 +2,6 @@ namespace Alco.IO;
 
 public interface IAssetSystemHost
 {
-    event Action OnHandleAssetLoaded;
     event Action OnDispose;
     void LogInfo(ReadOnlySpan<char> message);
     void LogWarning(ReadOnlySpan<char> message);

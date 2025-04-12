@@ -55,28 +55,6 @@ public readonly struct AssetInfo
     }
 
     /// <summary>
-    /// <c>[Thread Safe]</c> Loads the asset asynchronously as the specified type.
-    /// </summary>
-    /// <param name="type">The type to load the asset as.</param>
-    /// <param name="onComplete">The callback to invoke when loading is complete. Provides the loaded asset and any exception that occurred.</param>
-    /// <param name="cacheMode">The cache mode to use when loading the asset. Default is Recyclable.</param>
-    public void LoadAsync(Type type, Action<object, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
-    {
-        AssetSystem.LoadAsync(Path, type, onComplete, cacheMode);
-    }
-
-    /// <summary>
-    /// <c>[Thread Safe]</c> Loads the asset asynchronously as the specified type.
-    /// </summary>
-    /// <typeparam name="T">The type to load the asset as.</typeparam>
-    /// <param name="onComplete">The callback to invoke when loading is complete. Provides the loaded asset and any exception that occurred.</param>
-    /// <param name="cacheMode">The cache mode to use when loading the asset. Default is Recyclable.</param>
-    public void LoadAsync<T>(Action<T, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where T : class
-    {
-        AssetSystem.LoadAsync(Path, onComplete, cacheMode);
-    }
-
-    /// <summary>
     /// <c>[Thread Safe]</c> Loads the asset asynchronously as the specified type and returns a Task.
     /// </summary>
     /// <param name="type">The type to load the asset as.</param>

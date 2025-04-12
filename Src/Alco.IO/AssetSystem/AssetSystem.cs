@@ -24,8 +24,6 @@ namespace Alco.IO
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Priority.CompareTo(b.Priority));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
 
-        private readonly ThreadWorkerQueue<AsyncPreprocessJob>? _asyncLoadQueue;
-        private AtomicSpinLock _lockJobQueue = new AtomicSpinLock();
         private readonly object _lockEntry = new object();
         private readonly object _lockExtensions = new object();
 
@@ -34,35 +32,11 @@ namespace Alco.IO
 
         private readonly IAssetSystemHost _host;
 
-        // Threads
-        private struct AsyncPreprocessJob : IJob
-        {
-            public AssetSystem system;
-            public AssetHandle handle;
-            public string name;
-            public Type type;
-            public AssetCacheMode cacheMode;
-            public void Execute()
-            {
-                handle.tmpAsset = system.Load(name, type, cacheMode);
-            }
-        }
-
         public bool IsProfileEnabled { get; set; } = false;
 
-        public AssetSystem(IAssetSystemHost host, int threadCount, bool isProfileEnabled = false)
+        public AssetSystem(IAssetSystemHost host, bool isProfileEnabled = false)
         {
-            if (threadCount < 0)
-            {
-                throw new ArgumentException("Thread count must be greater or equal than 0");
-            }
-
             IsProfileEnabled = isProfileEnabled;
-            if (threadCount > 0)
-            {
-                _asyncLoadQueue = new ThreadWorkerQueue<AsyncPreprocessJob>(threadCount);
-            }
-            host.OnHandleAssetLoaded += OnHandleAssetLoaded;
             host.OnDispose += Dispose;
 
             _host = host;
@@ -75,11 +49,9 @@ namespace Alco.IO
         private void Dispose()
         {
             RemoveAllFileSource();
-            _asyncLoadQueue?.Dispose();
             Profiler.Dispose();
 
             _host.LogInfo("Asset system closed");
-            _host.OnHandleAssetLoaded -= OnHandleAssetLoaded;
             _host.OnDispose -= Dispose;
 
             _httpClient?.Dispose();

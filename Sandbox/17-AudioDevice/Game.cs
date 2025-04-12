@@ -31,78 +31,40 @@ public class Game : GameEngine
         {
             _source.Pitch = _pitch;
         }
-
-        // if (DebugGUI.Button("play Sword.mp3"))
-        // {
-        //     Assets.LoadAsync<AudioClip>("Sword.mp3", (asset, e) =>
-        //     {
-
-        //         _source.AudioClip = asset;
-        //         _source.Play();
-        //     });
-        // }
         
         if (DebugGUI.Button("play Shot.ogg"))
         {
-            Assets.LoadAsync<AudioClip>("Shot.ogg", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("Shot.ogg");
         }
 
         if (DebugGUI.Button("play Song.ogg"))
         {
-            Assets.LoadAsync<AudioClip>("Song.ogg", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("Song.ogg");
         }
 
         if (DebugGUI.Button("play ShotPcm16.wav"))
         {
-            Assets.LoadAsync<AudioClip>("ShotPcm16.wav", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("ShotPcm16.wav");
         }
 
         if (DebugGUI.Button("play ShotPcm24.wav"))
         {
-            Assets.LoadAsync<AudioClip>("ShotPcm24.wav", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("ShotPcm24.wav");
         }
 
         if (DebugGUI.Button("play ShotPcm32.wav"))
         {
-            Assets.LoadAsync<AudioClip>("ShotPcm32.wav", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("ShotPcm32.wav");
         }
 
         if (DebugGUI.Button("play Song.wav"))
         {
-            Assets.LoadAsync<AudioClip>("Song.wav", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("Song.wav");
         }
 
         if (DebugGUI.Button("play Song.flac"))
         {
-            Assets.LoadAsync<AudioClip>("Song.flac", (asset, e) =>
-            {
-                _source.AudioClip = asset;
-                _source.Play();
-            });
+            LoadAudioClipAsync("Song.flac");
         }
 
         bool isLooping = _source.IsLooping;
@@ -136,6 +98,13 @@ public class Game : GameEngine
             GC.Collect(2);
             GC.WaitForPendingFinalizers();
         }
+    }
+
+    private async void LoadAudioClipAsync(string filename)
+    {
+        AudioClip audioClip = await Assets.LoadAsync<AudioClip>(filename);
+        _source.AudioClip = audioClip;
+        _source.Play();
     }
 
     protected override void OnStop()

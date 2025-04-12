@@ -121,7 +121,7 @@ public class TestAssetSystemEncoder
     public void Setup()
     {
         var host = new LifeCycleProvider();
-        _assetSystem = new AssetSystem(host, 2, false);
+        _assetSystem = new AssetSystem(host, false);
         _fileSource = new WriteableTestFileSource();
         _encoder = new TestAssetEncoder();
 

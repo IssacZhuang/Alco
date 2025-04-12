@@ -23,12 +23,6 @@ IAudioDeviceHost
         remove => EventOnEndFrame -= value;
     }
 
-    event Action IAssetSystemHost.OnHandleAssetLoaded
-    {
-        add => EventOnHandleAssetLoaded += value;
-        remove => EventOnHandleAssetLoaded -= value;
-    }
-
     event Action IAssetSystemHost.OnDispose
     {
         add => EventOnDispose += value;

@@ -79,10 +79,12 @@ public class Game : GameEngine
 
         if (Input.IsKeyDown(KeyCode.Space))
         {
-            Assets.LoadAsync<Texture2D>("test.png", (texture, exception) =>
-            {
-                _selected = texture;
-            });
+            // Assets.LoadAsync<Texture2D>("test.png", (texture, exception) =>
+            // {
+            //     _selected = texture;
+            // });
+
+            LoadTexture();
         }
 
         _timer += delta;
@@ -97,6 +99,12 @@ public class Game : GameEngine
         _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
+    }
+
+    private async void LoadTexture()
+    {
+        Texture2D texture = await Assets.LoadAsync<Texture2D>("test.png");
+        _selected = texture;
     }
 
 

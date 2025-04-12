@@ -30,7 +30,6 @@ public class TestAssetSystem
 
     private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
-        public event Action OnHandleAssetLoaded;
         public event Action OnDispose;
 
         public void Dispose()
@@ -181,7 +180,7 @@ public class TestAssetSystem
     public void TestLoad()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
@@ -217,7 +216,7 @@ public class TestAssetSystem
     public void TestLoadConcurrent()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
 
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
@@ -277,53 +276,12 @@ public class TestAssetSystem
         //assetSystem.Dispose();
     }
 
-    [Test]
-    public void TestLoadAsync()
-    {
-        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
-        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestExceptionAssetLoader());
-        assetSystem.AddFileSource(new TestFileSource());
-
-        assetSystem.LoadAsync<TestFastAsset>("test.fast", (asset, exception) =>
-        {
-            Assert.IsNull(exception);
-            Assert.NotNull(asset);
-        });
-
-        assetSystem.LoadAsync<TestSlowAsset>("test.slow", (asset, exception) =>
-        {
-            Assert.IsNull(exception);
-            Assert.NotNull(asset);
-        });
-
-        assetSystem.LoadAsync<TestFastAsset>("test.empty", (asset, exception) =>
-        {
-            Assert.NotNull(exception);
-            Assert.IsNull(asset);
-        });
-
-        assetSystem.LoadAsync<TestFastAsset>("test.exception", (asset, exception) =>
-        {
-            Assert.NotNull(exception);
-            Assert.IsNull(asset);
-        });
-
-        int count = assetSystem.DebugWaitForAllJobComplete();
-
-        Assert.That(count, Is.EqualTo(4));
-
-        //assetSystem.Dispose();
-    }
 
     [Test]
     public async Task TestLoadAsyncTask()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
@@ -347,211 +305,17 @@ public class TestAssetSystem
         });
     }
 
-    [Test]
-    public void TestLoadAsyncConcurrent()
-    {
-        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
 
-        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestExceptionAssetLoader());
-
-        assetSystem.AddFileSource(new TestFileSource());
-
-        int count = 50;
-        TestFastAsset[] fastAssets = new TestFastAsset[count];
-        Exception[] fastExceptions = new Exception[count];
-        TestSlowAsset[] slowAssets = new TestSlowAsset[count];
-        Exception[] slowExceptions = new Exception[count];
-
-        Profiler profiler = new Profiler();
-
-        profiler.Start();
-        Parallel.For(0, count * 2, i =>
-        {
-            if (i % 2 == 0)
-            {
-                assetSystem.LoadAsync<TestFastAsset>("test.fast", (asset, exception) =>
-                {
-                    fastAssets[i / 2] = asset;
-                    fastExceptions[i / 2] = exception;
-                });
-            }
-            else
-            {
-                assetSystem.LoadAsync<TestSlowAsset>("test.slow", (asset, exception) =>
-                {
-                    slowAssets[i / 2] = asset;
-                    slowExceptions[i / 2] = exception;
-                });
-            }
-        });
-
-        TestContext.WriteLine($"dispatch load job: {profiler.End().Miliseconds}");
-
-        profiler.Start();
-        int jobCount = assetSystem.DebugWaitForAllJobComplete();
-
-        TestContext.WriteLine($"Wait for all job complete: {profiler.End().Miliseconds}");
-
-        //only 2 jobs for fast and slow, not 100
-        Assert.That(jobCount, Is.EqualTo(2));
-
-        TestFastAsset checkFastAsset = null;
-        TestSlowAsset checkSlowAsset = null;
-        for (int i = 0; i < count; i++)
-        {
-            if (checkFastAsset == null)
-            {
-                checkFastAsset = fastAssets[i];
-            }
-            else
-            {
-                Assert.That(checkFastAsset, Is.SameAs(fastAssets[i]));
-            }
-
-            if (checkSlowAsset == null)
-            {
-                checkSlowAsset = slowAssets[i];
-            }
-            else
-            {
-                Assert.That(checkSlowAsset, Is.SameAs(slowAssets[i]));
-            }
-
-            Assert.IsNull(fastExceptions[i]);
-            Assert.IsNull(slowExceptions[i]);
-        }
-
-        Assert.NotNull(checkFastAsset);
-        Assert.NotNull(checkSlowAsset);
-
-        object[] emptyAssets = new object[count];
-        Exception[] emptyExceptions = new Exception[count];
-
-        object[] exceptionAssets = new object[count];
-        Exception[] exceptionExceptions = new Exception[count];
-        //test error handling
-        Parallel.For(0, count * 2, i =>
-        {
-            if (i % 2 == 0)
-            {
-                assetSystem.LoadAsync<TestFastAsset>("test.empty", (asset, exception) =>
-                {
-                    emptyAssets[i / 2] = asset;
-                    emptyExceptions[i / 2] = exception;
-                });
-            }
-            else
-            {
-                assetSystem.LoadAsync<TestFastAsset>("test.exception", (asset, exception) =>
-                {
-                    exceptionAssets[i / 2] = asset;
-                    exceptionExceptions[i / 2] = exception;
-                });
-            }
-        });
-
-        jobCount = assetSystem.DebugWaitForAllJobComplete();
-
-        Assert.That(jobCount, Is.EqualTo(2));
-
-        for (int i = 0; i < count; i++)
-        {
-            Assert.IsNull(emptyAssets[i]);
-            Assert.NotNull(emptyExceptions[i]);
-
-            Assert.IsNull(exceptionAssets[i]);
-            Assert.NotNull(exceptionExceptions[i]);
-        }
-
-        //assetSystem.Dispose();
-    }
-
-    [Test]
-    public void TestLoadSyncWithAsyncConcurrent()
-    {
-        int count = 50;
-        // half is Load, half is LoadAsync
-        // in parallel  
-        //use slow asset only
-        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
-
-        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestEmptyAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestExceptionAssetLoader());
-
-        assetSystem.AddFileSource(new TestFileSource());
-
-       
-
-        TestSlowAsset[] slowAssets = new TestSlowAsset[count];
-        Exception[] slowExceptions = new Exception[count];
-
-        Profiler profiler = new Profiler();
-
-        profiler.Start();
-
-        Parallel.For(0, count * 2, i =>
-        {
-            if (i % 2 == 0)
-            {
-                assetSystem.LoadAsync<TestSlowAsset>("test.slow", (asset, exception) =>
-                {
-                    slowAssets[i / 2] = asset;
-                    slowExceptions[i / 2] = exception;
-                });
-                
-            }
-            else
-            {
-                slowAssets[i / 2] = assetSystem.Load<TestSlowAsset>("test.slow");
-            }
-        });
-
-        TestContext.WriteLine($"TestLoadSyncWithAsyncConcurrent dispatch load job: {profiler.End().Miliseconds}");
-
-        profiler.Start();
-        int jobCount = assetSystem.DebugWaitForAllJobComplete();
-
-        TestContext.WriteLine($"TestLoadSyncWithAsyncConcurrent Wait for all job complete: {profiler.End().Miliseconds}");
-
-        //Assert.That(jobCount, Is.EqualTo(1));
-
-        TestSlowAsset checkSlowAsset = null;
-        for (int i = 0; i < count; i++)
-        {
-            if (checkSlowAsset == null)
-            {
-                checkSlowAsset = slowAssets[i];
-            }
-            else
-            {
-                Assert.That(checkSlowAsset, Is.SameAs(slowAssets[i]));
-            }
-
-            Assert.IsNull(slowExceptions[i]);
-        }
-
-        Assert.NotNull(checkSlowAsset);
-
-        //assetSystem.Dispose();
-
-    }
-
+   
 // the garbage collect is lazy in debug mode
 // it might cause the test failed
 #if !DEBUG
     [Test]
 #endif
-    public void TestGarbagCollect()
+    public async void TestGarbagCollect()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
-        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider, 2);
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
         assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.AddFileSource(new TestFileSource());
@@ -574,11 +338,7 @@ public class TestAssetSystem
         Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
 
         //async load
-        assetSystem.LoadAsync<TestFastAsset>("test.fast", (asset, exception) =>{
-            fastAsset = asset;
-            asset = null;
-        });
-        assetSystem.DebugWaitForAllJobComplete();
+        fastAsset = await assetSystem.LoadAsync<TestFastAsset>("test.fast");
         Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
 
         fastAsset = null;

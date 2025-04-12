@@ -60,7 +60,7 @@ public class TestAssetLoaderConfig
     public void Setup()
     {
         var lifeCycleProvider = new LifeCycleProvider();
-        _assetSystem = new AssetSystem(lifeCycleProvider, 2);
+        _assetSystem = new AssetSystem(lifeCycleProvider);
         var configReferenceResolver = new ConfigReferenceResolver(_assetSystem);
         var jsonSerializerOptions = Configable.BuildJsonSerializerOptions(configReferenceResolver);
         _configLoader = new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver);
@@ -231,19 +231,6 @@ public class TestAssetLoaderConfig
 
     private class LifeCycleProvider : IAssetSystemHost
     {
-        event Action IAssetSystemHost.OnHandleAssetLoaded
-        {
-            add
-            {
-
-            }
-
-            remove
-            {
-
-            }
-        }
-
         event Action IAssetSystemHost.OnDispose
         {
             add

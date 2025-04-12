@@ -185,69 +185,6 @@ public sealed partial class AssetSystem
 
 
     /// <summary>
-    /// <c>[Thread Safe]</c> Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
-    /// </summary>
-    /// <param name="filename">Path and name of the asset file.</param>
-    /// <param name="type">The type of the asset to load.</param>
-    /// <param name="onComplete">The callback action when the asset is loaded.</param>
-    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
-    public void LoadAsync(string filename, Type type, Action<object, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
-    {
-        if (_asyncLoadQueue == null)
-        {
-            throw new InvalidOperationException("The thread count should be greater than 0 when create the asset system if you want to use LoadAsync");
-        }
-
-
-        filename = ParseEntry(filename);
-
-        AssetHandle handle = GetAssetHandle(filename);
-        lock (handle)
-        {
-            //try load from cache
-            object? cachedAsset = handle.CachedAsset;
-            if (cachedAsset != null && type.IsInstanceOfType(cachedAsset))
-            {
-                onComplete(cachedAsset, null);
-                return;
-            }
-
-            // check the asset loader
-            handle.OnLoadComplete += (asset, exception) => onComplete(asset, exception);
-
-            if (handle.IsLoading)
-            {
-                return;
-            }
-
-            handle.IsLoading = true;
-
-            AsyncPreprocessJob job = new AsyncPreprocessJob()
-            {
-                system = this,
-                name = filename,
-                type = type,
-                handle = handle,
-                cacheMode = cacheMode
-            };
-
-            PushJob(job);
-        }
-    }
-
-    /// <summary>
-    /// <c>[Thread Safe]</c> Load asset file and preprocess the asset asynchronously, then call the onComplete action on the main thread.
-    /// </summary>
-    /// <typeparam name="TAsset">The type of the asset to load.</typeparam>
-    /// <param name="filename">The filename of the asset to load.</param>
-    /// <param name="onComplete">The callback action when the asset is loaded.</param>
-    /// <param name="cacheMode">The cache mode for the loaded asset. Default is <see cref="AssetCacheMode.Recyclable"/>.</param>
-    public void LoadAsync<TAsset>(string filename, Action<TAsset, Exception?> onComplete, AssetCacheMode cacheMode = AssetCacheMode.Recyclable) where TAsset : class
-    {
-        LoadAsync(filename, typeof(TAsset), (asset, exception) => onComplete((TAsset)asset, exception), cacheMode);
-    }
-
-    /// <summary>
     /// <c>[Thread Safe]</c> Try to load the raw data of the asset from the file source.
     /// </summary>
     /// <param name="filename">The filename of the asset.</param>
@@ -351,48 +288,6 @@ public sealed partial class AssetSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void PushJob(AsyncPreprocessJob job)
-    {
-        if (_asyncLoadQueue == null)
-        {
-            return;
-        }
-        _lockJobQueue.Lock();
-        _asyncLoadQueue.Push(job);
-        _lockJobQueue.Unlock();
-    }
-
-    // Only called from the GameEngine class
-    private void OnHandleAssetLoaded()
-    {
-        if (_asyncLoadQueue == null)
-        {
-            return;
-        }
-        int count = 0;
-        //allow cas failed in serveral times
-        while (count < FetchJobAttempCount)
-        {
-            StealingResult result = _asyncLoadQueue.TryGetFinishedTask(out AsyncPreprocessJob job, out Exception? exception);
-            if (result == StealingResult.Empty)
-            {
-                break;
-            }
-            else if (result == StealingResult.Success)
-            {
-                HanleFinishedJob(job, exception);
-            }
-            else
-            {
-                //cas failed
-                count++;
-            }
-        }
-
-        ProcessHotReloadQueue();
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryLoadAssetCore(string filename, Type type, AssetHandle handle, IAssetLoader loader, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string failedReason)
     {
         // assume the handle is locked
@@ -433,42 +328,5 @@ public sealed partial class AssetSystem
         return true;
     }
 
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void HanleFinishedJob(AsyncPreprocessJob job, Exception? exception)
-    {
-        AssetHandle handle = job.handle;
-
-        if (exception != null)
-        {
-            _host.LogError($"Exception on creating asset '{job.name}': {exception}");
-        }
-
-        object? asset = handle.tmpAsset;
-        if (asset == null)
-        {
-            _host.LogError($"Failed to load asset: {job.name}");
-        }
-
-        lock (handle)
-        {
-
-            try
-            {
-                handle.DoLoadComplete(asset!, exception);
-            }
-            catch (Exception e)
-            {
-                _host.LogError($"Exception on creating asset '{job.name}': {e}");
-            }
-
-            // already cached in async job
-            // if (asset != null)
-            // {
-            //     handle.SetCache(asset, job.cacheMode);
-            // }
-            handle.ResetLoadingState();
-        }
-    }
 
 }

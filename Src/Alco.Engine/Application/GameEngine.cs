@@ -174,7 +174,7 @@ IDisposable
     {
         _setting = setting;
         _synchronizationContext = new GameSynchronizationContext();
-        _assets = new AssetSystem(this, _setting.Assets.LoaderThreadCount, _setting.Assets.IsProfilingEnabled);
+        _assets = new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
 
         if (setting.Graphics.DefferedRenderSchedule)
         {
@@ -198,6 +198,8 @@ IDisposable
 
         _builtInAssets = new BuiltInAssets(_assets);
 
+        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
+
         _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
         InitializeDefaultAssetLoader(setting);
 
@@ -207,8 +209,6 @@ IDisposable
         _input = _platform.Input;
 
         _profiler = new EngineProfiler(this);
-
-        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
         //main view
         _mainView = CreateView(_setting.View);
