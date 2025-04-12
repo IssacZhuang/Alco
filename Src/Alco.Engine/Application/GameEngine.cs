@@ -28,7 +28,6 @@ IDisposable
     private readonly AssetSystem _assets;
 
     private readonly RenderingSystem _rendering;
-    private readonly IRenderScheduler _renderScheduler;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
 
@@ -176,21 +175,11 @@ IDisposable
         _synchronizationContext = new GameSynchronizationContext();
         _assets = new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
 
-        if (setting.Graphics.DefferedRenderSchedule)
-        {
-            _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 1);
-            _renderScheduler = new DefferedRenderScheduler(_graphicsDevice);
-        }
-        else
-        {
-            _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 0);
-            _renderScheduler = new ImmediateRenderScheduler(_graphicsDevice);
-        }
+        _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 0);
 
         _rendering = new RenderingSystem(
             this,
             _graphicsDevice,
-            _renderScheduler,
             _setting.Graphics.PreferredSDRFormat,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat
@@ -327,7 +316,6 @@ IDisposable
         OnSystemBeginFrame(delta);
 
         EventOnUpdate?.Invoke(delta);
-        _renderScheduler.OnEndFrame();
 
         OnSystemUpdate(delta);
 
@@ -358,7 +346,6 @@ IDisposable
 
         OnSystemEndFrame(delta);
 
-        _renderScheduler.OnBeginFrame();
         EventOnEndFrame?.Invoke();
 
     }
@@ -411,7 +398,6 @@ IDisposable
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
         DisposePlugins(_setting.Plugins);
-        _renderScheduler.Dispose();
         MainView.Close();
         _platform.Dispose();
 

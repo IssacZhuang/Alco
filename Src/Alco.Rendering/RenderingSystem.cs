@@ -12,7 +12,6 @@ public partial class RenderingSystem
 
     private readonly GPUDevice _device;
     private readonly IRenderingSystemHost _host;
-    private readonly IRenderScheduler _renderThread;
 
     //preffered
     private readonly GPURenderPass _prefferedSDRPass;
@@ -112,7 +111,6 @@ public partial class RenderingSystem
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
-        IRenderScheduler renderScheduler,//the render thread need update every frame, so it is controlled a external object
         PixelFormat prefferedSDRFormat, 
         PixelFormat prefferedHDRFormat,
         PixelFormat prefferedDepthStencilFormat
@@ -120,7 +118,6 @@ public partial class RenderingSystem
     {
         _device = device;
         _host = host;
-        _renderThread = renderScheduler;
 
         _prefferedSDRFormat = prefferedSDRFormat;
         _prefferedHDRFormat = prefferedHDRFormat;
@@ -199,8 +196,7 @@ public partial class RenderingSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
-        _renderThread.ScheduleCommandBuffer(commandBuffer);
-        //_device.Submit(commandBuffer);
+        _device.Submit(commandBuffer);
     }
 
     private void OnUpdate(float deltaTime)
