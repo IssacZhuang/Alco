@@ -33,11 +33,6 @@ public struct GraphicsSetting
     /// </summary>
     public int RenderThreadCount { get; set; }
 
-    /// <summary>
-    /// Deffered render schedule
-    /// </summary>
-    public bool DefferedRenderSchedule;
-
 
     /// <summary>
     /// The default graphics setting
@@ -50,7 +45,6 @@ public struct GraphicsSetting
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         RenderThreadCount = Environment.ProcessorCount,
-        DefferedRenderSchedule = false,
         DebugInfo = false,
     };
 
@@ -65,7 +59,6 @@ public struct GraphicsSetting
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         RenderThreadCount = Environment.ProcessorCount,
-        DefferedRenderSchedule = false,
         DebugInfo = true,
     };
 
@@ -77,7 +70,6 @@ public struct GraphicsSetting
     {
         Backend = GraphicsBackend.None,
         RenderThreadCount = Environment.ProcessorCount,
-        DefferedRenderSchedule = false,
         DebugInfo = false,
     };
 }
