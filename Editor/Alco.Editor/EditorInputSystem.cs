@@ -63,23 +63,23 @@ public class EditorInputSystem : InputSystem, IDisposable
     {
         _window = window;
         _topLevel = window.GetVisualRoot() as TopLevel;
-        window.PointerMoved += OnMouseMove;
-        window.KeyDown += OnKeyDown;
-        window.KeyUp += OnKeyUp;
-        window.PointerPressed += OnMouseDown;
-        window.PointerReleased += OnMouseUp;
-        window.PointerWheelChanged += OnMouseWheel;
+        window.PointerMoved += OnAvaloniaMouseMove;
+        window.KeyDown += OnAvaloniaKeyDown;
+        window.KeyUp += OnAvaloniaKeyUp;
+        window.PointerPressed += OnAvaloniaMouseDown;
+        window.PointerReleased += OnAvaloniaMouseUp;
+        window.PointerWheelChanged += OnAvaloniaMouseWheel;
         Reset();
     }
 
     public void Dispose()
     {
-        _window.PointerMoved -= OnMouseMove;
-        _window.KeyDown -= OnKeyDown;
-        _window.KeyUp -= OnKeyUp;
-        _window.PointerPressed -= OnMouseDown;
-        _window.PointerReleased -= OnMouseUp;
-        _window.PointerWheelChanged -= OnMouseWheel;
+        _window.PointerMoved -= OnAvaloniaMouseMove;
+        _window.KeyDown -= OnAvaloniaKeyDown;
+        _window.KeyUp -= OnAvaloniaKeyUp;
+        _window.PointerPressed -= OnAvaloniaMouseDown;
+        _window.PointerReleased -= OnAvaloniaMouseUp;
+        _window.PointerWheelChanged -= OnAvaloniaMouseWheel;
     }
 
     public void Update()
@@ -141,21 +141,21 @@ public class EditorInputSystem : InputSystem, IDisposable
         return _mouseWheelDelta != 0;
     }
 
-    public void OnKeyDown(object? sender, KeyEventArgs e)
+    private void OnAvaloniaKeyDown(object? sender, KeyEventArgs e)
     {
         int k = ConvertAvaloniaKey(e.Key);
         _state.iskeyDown[k] = true;
         _state.iskeyPressing[k] = true;
     }
 
-    public void OnKeyUp(object? sender, KeyEventArgs e)
+    private void OnAvaloniaKeyUp(object? sender, KeyEventArgs e)
     {
         int k = ConvertAvaloniaKey(e.Key);
         _state.iskeyUp[k] = true;
         _state.iskeyPressing[k] = false;
     }
 
-    public void OnMouseMove(object? sender, PointerEventArgs e)
+    private void OnAvaloniaMouseMove(object? sender, PointerEventArgs e)
     {
         if (_topLevel != null)
         {
@@ -165,21 +165,21 @@ public class EditorInputSystem : InputSystem, IDisposable
         }
     }
 
-    public void OnMouseDown(object? sender, PointerPressedEventArgs e)
+    private void OnAvaloniaMouseDown(object? sender, PointerPressedEventArgs e)
     {
         Mouse button = ConvertAvaloniaMouseButton(e.GetCurrentPoint(null).Properties.PointerUpdateKind);
         _state.isMouseDown[(int)button] = true;
         _state.isMousePressing[(int)button] = true;
     }
 
-    public void OnMouseUp(object? sender, PointerReleasedEventArgs e)
+    private void OnAvaloniaMouseUp(object? sender, PointerReleasedEventArgs e)
     {
         Mouse button = ConvertAvaloniaMouseButton(e.GetCurrentPoint(null).Properties.PointerUpdateKind);
         _state.isMouseUp[(int)button] = true;
         _state.isMousePressing[(int)button] = false;
     }
 
-    public void OnMouseWheel(object? sender, PointerWheelEventArgs e)
+    private void OnAvaloniaMouseWheel(object? sender, PointerWheelEventArgs e)
     {
         _mouseWheelDelta = (float)e.Delta.Y;
     }
