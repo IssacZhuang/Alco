@@ -18,7 +18,7 @@ public class JsonConverterType : JsonConverter<Type>
 
     public JsonConverterType()
     {
-        _typeHelper = new TypeHelper();
+        _typeHelper = new TypeHelper(true);
     }
 
     public JsonConverterType(TypeHelper typeHelper)

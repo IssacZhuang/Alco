@@ -5,6 +5,11 @@ namespace Alco.IO;
 public sealed partial class AssetSystem
 {
     /// <summary>
+    /// Get all registered asset loaders
+    /// </summary>
+    public IReadOnlyCollection<IAssetLoader> AllAssetLoaders => _assetLoaders.Values;
+
+    /// <summary>
     /// Register the asset loader to the asset manager
     /// </summary>
     /// <param name="assetLoader">The asset loader to register</param>
