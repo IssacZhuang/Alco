@@ -1,0 +1,27 @@
+{
+  "$type": "Alco.Engine.TileConfig",
+  "Name": "",
+  "Textures": [],
+  "Color": [
+    1,
+    1,
+    1,
+    1
+  ],
+  "MeshScale": [
+    1,
+    1
+  ],
+  "UvScale": [
+    1,
+    1
+  ],
+  "HeightOffsetFactor": [
+    0,
+    1
+  ],
+  "BlendPriority": 0,
+  "BlendFactor": 0.35,
+  "EdgeSmoothFactor": 0.15,
+  "Id": ""
+}

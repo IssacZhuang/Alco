@@ -1,25 +1,43 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Alco.Engine;
 using Alco.IO;
 
 namespace Alco.Project;
 
 public class AlcoProject
 {
-    public string FullPath { get; }
-    public AlcoProjectConfig Config { get; }
+    private readonly List<IFileSource> _fileSources = [];
 
-    public AlcoProject(string projectFilePath)
+    public string ProjectFilePath { get; }
+    public string ProjectDirectory { get; }
+    public AlcoProjectConfig Config { get; }
+    public AssetDatabase AssetDatabase { get; }
+    public IReadOnlyList<IFileSource> FileSources => _fileSources;
+
+
+    public AlcoProject(GameEngine engine, string projectFilePath)
     {
-        FullPath = projectFilePath;
+        ProjectFilePath = projectFilePath;
+        ProjectDirectory = Path.GetDirectoryName(projectFilePath) ?? throw new FileNotFoundException("Project directory not found");
         Config = JsonSerializer.Deserialize<AlcoProjectConfig>(File.ReadAllText(projectFilePath)) ?? throw new FileNotFoundException("Alco.Project.json not found");
+        AssetDatabase = new AssetDatabase(engine.Assets);
+
+        foreach (var fileSource in Config.AssetsPaths)
+        {
+            string fullPath = Path.Combine(ProjectDirectory, fileSource);
+            if (Directory.Exists(fullPath))
+            {
+                _fileSources.Add(new DirectoryFileSource(fullPath));
+            }
+        }
     }
 
     public CSharpProject OpenCSharpProject()
     {
         //get same filename that ends with .csproj in same directory
-        string csharpProjectPath = Path.Combine(FullPath, $"{Path.GetFileNameWithoutExtension(FullPath)}.csproj");
+        string csharpProjectPath = Path.Combine(ProjectFilePath, $"{Path.GetFileNameWithoutExtension(ProjectFilePath)}.csproj");
 
         if (!File.Exists(csharpProjectPath))
         {
@@ -28,4 +46,6 @@ public class AlcoProject
 
         return new CSharpProject(csharpProjectPath);
     }
+
+
 }

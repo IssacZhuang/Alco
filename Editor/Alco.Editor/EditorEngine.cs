@@ -15,31 +15,17 @@ namespace Alco.Editor;
 /// </summary>
 public class EditorEngine : GameEngine
 {
-    private readonly List<string> _allFilesInProject = new();
     private readonly List<DirectoryFileSource> _fileSources = new();
     private readonly Lock _lockProjectFiles = new();
     private readonly Lock _lockProject = new();
     private FileSystemWatcher? _projectWatcher;
-    private volatile string? _projectDirectory;
     private volatile AlcoProject? _project;
 
-    public bool IsProjectOpen => _projectDirectory != null;
-    public string? ProjectDirectory => _projectDirectory;
+    public bool IsProjectOpen => _project != null;
+    public string? ProjectDirectory => _project?.ProjectDirectory;
     public AlcoProject? Project => _project;
 
-    /// <summary>
-    /// All files in the project.
-    /// </summary>
-    public IReadOnlyList<string> AllFilesInProject
-    {
-        get
-        {
-            using (_lockProjectFiles.EnterScope())
-            {
-                return _allFilesInProject;
-            }
-        }
-    }
+
 
     /// <summary>
     /// Event triggered when the files in the project are updated.
@@ -58,7 +44,7 @@ public class EditorEngine : GameEngine
 
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
-
+        
     }
 
     /// <summary>
@@ -101,10 +87,11 @@ public class EditorEngine : GameEngine
         }
         try
         {
-            _project = new AlcoProject(projectFilePath);
-            _projectDirectory = directory;
-            UpdateAllFilesInProject();
-            AddFileSources();
+            _project = new AlcoProject(this, projectFilePath);
+            foreach (var fileSource in _project.FileSources)
+            {
+                Assets.AddFileSource(fileSource);
+            }
             SetupProjectWatcher();
             if (OnProjectOpened != null)
             {
@@ -137,9 +124,6 @@ public class EditorEngine : GameEngine
             _projectWatcher = null;
         }
 
-        _projectDirectory = null;
-        _allFilesInProject.Clear();
-
         RemoveFileSources();
 
         if (OnProjectClosed != null)
@@ -171,70 +155,10 @@ public class EditorEngine : GameEngine
     private void OnProjectFileChanged(object sender, FileSystemEventArgs e)
     {
         if (ProjectDirectory == null) return;
-        Dispatcher.UIThread.InvokeAsync(async () =>
+        Dispatcher.UIThread.Invoke(() =>
         {
-            await Task.Run(UpdateAllFilesInProject);
             OnFilesInProjectUpdated?.Invoke();
         });
-    }
-
-    private void UpdateAllFilesInProject()
-    {
-        using (_lockProjectFiles.EnterScope())
-        {
-            if (ProjectDirectory == null)
-            {
-                return;
-            }
-            try
-            {
-                _allFilesInProject.Clear();
-
-                var entries = new List<(string Path, bool IsDirectory)>();
-                foreach (var entry in Directory.EnumerateFileSystemEntries(ProjectDirectory, "*", SearchOption.AllDirectories))
-                {
-                    entries.Add((entry, Directory.Exists(entry)));
-                }
-
-                entries.Sort((a, b) =>
-                {
-                    if (a.IsDirectory != b.IsDirectory)
-                    {
-                        return a.IsDirectory ? -1 : 1;
-                    }
-                    return string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase);
-                });
-
-                foreach (var entry in entries)
-                {
-                    _allFilesInProject.Add(FixPath(Path.GetRelativePath(ProjectDirectory, entry.Path)));
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to update project files: {ex}");
-                throw;
-            }
-        }
-    }
-
-    private void AddFileSources()
-    {
-        if (_project == null) return;
-        if (ProjectDirectory == null) return;
-        RemoveFileSources();
-
-        foreach (var file in _project.Config.AssetsPaths)
-        {
-            string fullPath = Path.Combine(ProjectDirectory, file);
-            if (Directory.Exists(fullPath))
-            {
-                var fileSource = new DirectoryFileSource(fullPath);
-                _fileSources.Add(fileSource);
-                Assets.AddFileSource(fileSource);
-            }
-        }
-        Assets.TryRefreshEntries();
     }
 
     private void RemoveFileSources()

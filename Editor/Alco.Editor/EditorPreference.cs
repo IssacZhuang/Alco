@@ -103,7 +103,7 @@ public class EditorPreference
 
     public void Save()
     {
-        string projectPath = _engine.Project?.FullPath ?? string.Empty;
+        string projectPath = _engine.Project?.ProjectFilePath ?? string.Empty;
         Config.OpenedProject = projectPath;
         
         string json = JsonSerializer.Serialize(Config, _jsonSerializerOptions);
