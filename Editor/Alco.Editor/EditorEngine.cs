@@ -117,6 +117,8 @@ public class EditorEngine : GameEngine
 
     private void CloseProjectCore()
     {
+        if (_project == null) return;
+        
         if (_projectWatcher != null)
         {
             _projectWatcher.EnableRaisingEvents = false;
@@ -124,7 +126,10 @@ public class EditorEngine : GameEngine
             _projectWatcher = null;
         }
 
-        RemoveFileSources();
+        foreach (var fileSource in _project.FileSources)
+        {
+            Assets.RemoveFileSource(fileSource);
+        }
 
         if (OnProjectClosed != null)
         {
@@ -159,15 +164,6 @@ public class EditorEngine : GameEngine
         {
             OnFilesInProjectUpdated?.Invoke();
         });
-    }
-
-    private void RemoveFileSources()
-    {
-        foreach (var fileSource in _fileSources)
-        {
-            Assets.RemoveFileSource(fileSource);
-        }
-        _fileSources.Clear();
     }
 
     private static string FixPath(string path)
