@@ -67,7 +67,7 @@ public class AssetDatabase
         return BackgroundTask.Run(UpdateConfigMeta);
     }
 
-    private void UpdateConfigMeta(CancellationToken token)
+    public void UpdateConfigMeta(CancellationToken token)
     {
         IEnumerable<string> allAssetPaths = _assetSystem.AllFileNames;
         Dictionary<string, ConfigMeta> configMetas = new();

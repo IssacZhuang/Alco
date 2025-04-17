@@ -3,6 +3,7 @@
 using Alco.Editor.ViewModels;
 using Alco.Editor.Views;
 using Alco.Engine;
+using Alco.Project;
 using Avalonia;
 
 using Avalonia.Controls;
@@ -29,10 +30,15 @@ namespace Alco.Editor
             get => Current as App ?? throw new InvalidOperationException("App is not initialized");
         }
 
+        public static AlcoProject? CurrentProject
+        {
+            get => Main.Engine?.Project;
+        }
+
         public Views.Editor EditorWindow { get; private set; }
         public EditorEngine Engine { get; private set; }
         public EditorPreference Preference { get; private set; }
-        public TypeDatabase TypeDatabase { get; private set; }
+
 
 
         public App()
@@ -44,13 +50,11 @@ namespace Alco.Editor
                 setting.Platform = _platform;
                 Engine = new EditorEngine(setting);
                 Preference = new EditorPreference(Engine);
-                TypeDatabase = new TypeDatabase();
             }
             else
             {
                 Engine = null!;
                 Preference = null!;
-                TypeDatabase = null!;
             }
         }
 
@@ -123,7 +127,6 @@ namespace Alco.Editor
         {
             Preference?.Save();
             Engine?.Dispose();
-            TypeDatabase?.Dispose();
         }
 
         private void OnEditorKeyDown(object? sender, KeyEventArgs e)

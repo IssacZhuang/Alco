@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Alco.IO;
 
-namespace Alco.Editor;
+namespace Alco.Project;
 
 public class TypeDatabase : IDisposable
 {

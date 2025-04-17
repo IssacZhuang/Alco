@@ -6,22 +6,27 @@ using Alco.IO;
 
 namespace Alco.Project;
 
-public class AlcoProject
+public partial class AlcoProject: AutoDisposable
 {
     private readonly List<IFileSource> _fileSources = [];
+    private readonly GameEngine _engine;
 
     public string ProjectFilePath { get; }
     public string ProjectDirectory { get; }
     public AlcoProjectConfig Config { get; }
     public AssetDatabase AssetDatabase { get; }
+    public TypeDatabase TypeDatabase { get; }
     public IReadOnlyList<IFileSource> FileSources => _fileSources;
 
 
     public AlcoProject(GameEngine engine, string projectFilePath)
     {
+        _engine = engine;
+
         ProjectFilePath = projectFilePath;
         ProjectDirectory = Path.GetDirectoryName(projectFilePath) ?? throw new FileNotFoundException("Project directory not found");
         Config = JsonSerializer.Deserialize<AlcoProjectConfig>(File.ReadAllText(projectFilePath)) ?? throw new FileNotFoundException("Alco.Project.json not found");
+        TypeDatabase = new TypeDatabase();
         AssetDatabase = new AssetDatabase(engine.Assets);
 
         foreach (var fileSource in Config.AssetsPaths)
@@ -32,6 +37,8 @@ public class AlcoProject
                 _fileSources.Add(new DirectoryFileSource(fullPath));
             }
         }
+
+        AssetDatabase.UpdateConfigMeta(CancellationToken.None);
     }
 
     public CSharpProject OpenCSharpProject()
@@ -45,6 +52,10 @@ public class AlcoProject
         }
 
         return new CSharpProject(csharpProjectPath);
+    }
+    protected override void Dispose(bool disposing)
+    {
+        TypeDatabase.Dispose();
     }
 
 
