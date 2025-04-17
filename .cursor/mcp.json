@@ -1,0 +1,7 @@
+{
+    "mcpServers": {
+        "editor_mcp": {
+            "command": "./Bin/Debug/Alco.Project.Mcp/win-x64/Alco.Project.Mcp.exe"
+        }
+    }
+}
