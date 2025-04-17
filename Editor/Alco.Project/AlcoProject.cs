@@ -10,12 +10,12 @@ public partial class AlcoProject: AutoDisposable
 {
     private readonly List<IFileSource> _fileSources = [];
     private readonly GameEngine _engine;
+    private readonly TypeDatabase _typeDatabase;
 
     public string ProjectFilePath { get; }
     public string ProjectDirectory { get; }
     public AlcoProjectConfig Config { get; }
     public AssetDatabase AssetDatabase { get; }
-    public TypeDatabase TypeDatabase { get; }
     public IReadOnlyList<IFileSource> FileSources => _fileSources;
 
 
@@ -26,7 +26,7 @@ public partial class AlcoProject: AutoDisposable
         ProjectFilePath = projectFilePath;
         ProjectDirectory = Path.GetDirectoryName(projectFilePath) ?? throw new FileNotFoundException("Project directory not found");
         Config = JsonSerializer.Deserialize<AlcoProjectConfig>(File.ReadAllText(projectFilePath)) ?? throw new FileNotFoundException("Alco.Project.json not found");
-        TypeDatabase = new TypeDatabase();
+        _typeDatabase = new TypeDatabase();
         AssetDatabase = new AssetDatabase(engine.Assets);
 
         foreach (var fileSource in Config.AssetsPaths)
@@ -55,7 +55,7 @@ public partial class AlcoProject: AutoDisposable
     }
     protected override void Dispose(bool disposing)
     {
-        TypeDatabase.Dispose();
+        _typeDatabase.Dispose();
     }
 
 

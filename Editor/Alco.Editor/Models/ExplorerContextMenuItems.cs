@@ -21,7 +21,7 @@ public static class ExplorerContextMenuItems
         {
             return;
         }
-        var types = project.TypeDatabase.ConfigTypes;
+        var types = project.ConfigTypes;
         var dialog = new ViewModels.CreateConfigDialog(types.ToArray());
 
         if (engine.ProjectDirectory == null)
