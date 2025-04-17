@@ -24,7 +24,7 @@ public partial class ProjectPage : UserControl
 
         if (App.Main.Engine.IsProjectOpen)
         {
-            OnProjectOpened();
+            OnProjectOpened(App.Main.Engine.Project!);
         }
 
         EditorEngine editorEngine = App.Main.Engine;
@@ -32,20 +32,15 @@ public partial class ProjectPage : UserControl
         editorEngine.OnProjectClosed += OnProjectClosed;
     }
 
-    private void OnProjectOpened()
+    private void OnProjectOpened(AlcoProject project)
     {
-        AlcoProject? project = App.Main.Engine.Project;
-        if (project == null)
-        {
-            return;
-        }
         AlcoProjectConfig config = project.Config;
         ViewModels.ObjectPropertiesEditor objectPropertiesEditor = new(config, "Project Config");
         ObjectPropertiesEditor.DataContext = objectPropertiesEditor;
         objectPropertiesEditor.OnValueChanged += () => PrintJson(config);
     }
 
-    private void OnProjectClosed()
+    private void OnProjectClosed(AlcoProject project)
     {
         ObjectPropertiesEditor.DataContext = null;
     }

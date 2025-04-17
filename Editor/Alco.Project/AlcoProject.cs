@@ -11,6 +11,7 @@ public partial class AlcoProject: AutoDisposable
     private readonly List<IFileSource> _fileSources = [];
     private readonly GameEngine _engine;
     private readonly TypeDatabase _typeDatabase;
+    private FileSystemWatcher _projectWatcher;
 
     public string ProjectFilePath { get; }
     public string ProjectDirectory { get; }
@@ -18,6 +19,10 @@ public partial class AlcoProject: AutoDisposable
     public AssetDatabase AssetDatabase { get; }
     public IReadOnlyList<IFileSource> FileSources => _fileSources;
 
+    /// <summary>
+    /// Event triggered when the files in the project are updated.
+    /// </summary>
+    public event Action<FileSystemEventArgs>? OnFilesInProjectUpdated;
 
     public AlcoProject(GameEngine engine, string projectFilePath)
     {
@@ -39,6 +44,19 @@ public partial class AlcoProject: AutoDisposable
         }
 
         AssetDatabase.UpdateConfigMeta(CancellationToken.None);
+
+        _projectWatcher = new FileSystemWatcher
+        {
+            Path = ProjectDirectory,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+            Filter = "*.*",
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true
+        };
+
+        _projectWatcher.Created += OnProjectFileChanged;
+        _projectWatcher.Deleted += OnProjectFileChanged;
+        _projectWatcher.Renamed += OnProjectFileChanged;
     }
 
     public CSharpProject OpenCSharpProject()
@@ -56,7 +74,12 @@ public partial class AlcoProject: AutoDisposable
     protected override void Dispose(bool disposing)
     {
         _typeDatabase.Dispose();
+        _projectWatcher.EnableRaisingEvents = false;
+        _projectWatcher.Dispose();
     }
 
-
+    private void OnProjectFileChanged(object sender, FileSystemEventArgs e)
+    {
+        OnFilesInProjectUpdated?.Invoke(e);
+    }
 }

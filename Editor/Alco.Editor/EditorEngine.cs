@@ -18,29 +18,21 @@ public class EditorEngine : GameEngine
     private readonly List<DirectoryFileSource> _fileSources = new();
     private readonly Lock _lockProjectFiles = new();
     private readonly Lock _lockProject = new();
-    private FileSystemWatcher? _projectWatcher;
     private volatile AlcoProject? _project;
 
     public bool IsProjectOpen => _project != null;
     public string? ProjectDirectory => _project?.ProjectDirectory;
     public AlcoProject? Project => _project;
 
-
-
-    /// <summary>
-    /// Event triggered when the files in the project are updated.
-    /// </summary>
-    public event Action? OnFilesInProjectUpdated;
-
     /// <summary>
     /// Event triggered when the project is opened.
     /// </summary>
-    public event Action? OnProjectOpened;
+    public event Action<AlcoProject>? OnProjectOpened;
 
     /// <summary>
     /// Event triggered when the project is closed.
     /// </summary>
-    public event Action? OnProjectClosed;
+    public event Action<AlcoProject>? OnProjectClosed;
 
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
@@ -92,10 +84,9 @@ public class EditorEngine : GameEngine
             {
                 Assets.AddFileSource(fileSource);
             }
-            SetupProjectWatcher();
             if (OnProjectOpened != null)
             {
-                Dispatcher.UIThread.InvokeAsync(OnProjectOpened);
+                Dispatcher.UIThread.Invoke(() => OnProjectOpened(_project));
             }
             Log.Info($"Project opened: {projectFilePath}");
         }
@@ -118,13 +109,7 @@ public class EditorEngine : GameEngine
     private void CloseProjectCore()
     {
         if (_project == null) return;
-        
-        if (_projectWatcher != null)
-        {
-            _projectWatcher.EnableRaisingEvents = false;
-            _projectWatcher.Dispose();
-            _projectWatcher = null;
-        }
+
 
         foreach (var fileSource in _project.FileSources)
         {
@@ -133,38 +118,23 @@ public class EditorEngine : GameEngine
 
         if (OnProjectClosed != null)
         {
-            Dispatcher.UIThread.InvokeAsync(OnProjectClosed);
+            Dispatcher.UIThread.Invoke(() => OnProjectClosed(_project));
         }
 
+        try
+        {
+            _project.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Failed to dispose project: {ex}");
+        }
+
+        _project = null;
         Log.Info("Project closed");
     }
 
-    private void SetupProjectWatcher()
-    {
-        if (ProjectDirectory == null) return;
 
-        _projectWatcher = new FileSystemWatcher
-        {
-            Path = ProjectDirectory,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
-            Filter = "*.*",
-            IncludeSubdirectories = true,
-            EnableRaisingEvents = true
-        };
-
-        _projectWatcher.Created += OnProjectFileChanged;
-        _projectWatcher.Deleted += OnProjectFileChanged;
-        _projectWatcher.Renamed += OnProjectFileChanged;
-    }
-
-    private void OnProjectFileChanged(object sender, FileSystemEventArgs e)
-    {
-        if (ProjectDirectory == null) return;
-        Dispatcher.UIThread.Invoke(() =>
-        {
-            OnFilesInProjectUpdated?.Invoke();
-        });
-    }
 
     private static string FixPath(string path)
     {

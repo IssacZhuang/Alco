@@ -16,6 +16,8 @@ using Alco.Editor.Utility;
 using Avalonia;
 using Avalonia.LogicalTree;
 using Alco.Editor.ViewModels;
+using Alco.Project;
+using Avalonia.Threading;
 
 
 namespace Alco.Editor.Views;
@@ -35,11 +37,10 @@ public partial class ExplorerPage : UserControl
         InitializeComponent();
         if (!Design.IsDesignMode && App.Main.Engine.IsProjectOpen)
         {
-            OnProjectOpened();
+            OnProjectOpened(App.Main.Engine.Project!);
         }
 
         DocumentTabs.ItemsSource = _tabItems;
-
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -47,7 +48,6 @@ public partial class ExplorerPage : UserControl
         if (!Design.IsDesignMode)
         {
             EditorEngine engine = App.Main.Engine;
-            engine.OnFilesInProjectUpdated += OnRefreshProjectFiles;
             engine.OnProjectOpened += OnProjectOpened;
             engine.OnProjectClosed += OnProjectClosed;
 
@@ -62,7 +62,6 @@ public partial class ExplorerPage : UserControl
         if (!Design.IsDesignMode)
         {
             EditorEngine engine = App.Main.Engine;
-            engine.OnFilesInProjectUpdated -= OnRefreshProjectFiles;
             engine.OnProjectOpened -= OnProjectOpened;
             engine.OnProjectClosed -= OnProjectClosed;
         }
@@ -75,12 +74,19 @@ public partial class ExplorerPage : UserControl
         await App.Main.ShowOpenProjectDialog();
     }
 
-    private void OnRefreshProjectFiles()
+    //calling from watcher thread
+    private void OnProjectFileChanged(FileSystemEventArgs e)
     {
-        FileTreeView.Refresh();
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            FileTreeView.Refresh();
+        });
     }
-    private void OnProjectOpened()
+
+    private void OnProjectOpened(AlcoProject project)
     {
+        project.OnFilesInProjectUpdated += OnProjectFileChanged;
+
         EditorEngine engine = App.Main.Engine;
         FileTreeView.IsVisible = engine.IsProjectOpen;
         NoFolderPanel.IsVisible = !engine.IsProjectOpen;
@@ -134,8 +140,10 @@ public partial class ExplorerPage : UserControl
         };
     }
 
-    private void OnProjectClosed()
+    private void OnProjectClosed(AlcoProject project)
     {
+        project.OnFilesInProjectUpdated -= OnProjectFileChanged;
+
         FileTreeView.IsVisible = false;
         NoFolderPanel.IsVisible = true;
     }
