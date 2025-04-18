@@ -381,10 +381,10 @@ public partial class Canvas : AutoDisposable
                 maskContext = new MaskContext
                 {
                     texture = maskNode.MaskTexture,
-                    matrix = maskNode.MaskTransform,
+                    matrix = maskNode.MaskTransform.Matrix,
                     uvRect = maskNode.MaskTextureUvRect
                 };
-                IncreaceStencil(maskNode.MaskTexture, maskNode.MaskTransform, maskNode.MaskTextureUvRect);
+                IncreaceStencil(maskNode.MaskTexture, maskNode.MaskTransform.Matrix, maskNode.MaskTextureUvRect);
             }
 
             try
