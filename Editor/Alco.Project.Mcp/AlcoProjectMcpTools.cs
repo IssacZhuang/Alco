@@ -1,4 +1,3 @@
-
 using System.ComponentModel;
 using ModelContextProtocol.Protocol.Messages;
 using ModelContextProtocol.Protocol.Types;
@@ -7,7 +6,7 @@ using ModelContextProtocol.Server;
 namespace Alco.Project.Mcp;
 
 [McpServerToolType]
-public partial class AlcoProjectMcp
+public partial class AlcoProjectMcpTools
 {
     private static IAlcoProjectContext? _context;
 

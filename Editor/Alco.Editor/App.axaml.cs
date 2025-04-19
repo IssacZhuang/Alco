@@ -27,7 +27,9 @@ namespace Alco.Editor
 {
     public partial class App : Application
     {
-        private EditorPlatform _platform;
+        private readonly EditorPlatform _platform;
+        private readonly WebApplication? _mcpServer;
+
         public static App Main
         {
             get => Current as App ?? throw new InvalidOperationException("App is not initialized");
@@ -62,17 +64,18 @@ namespace Alco.Editor
 
             try
             {
-                AlcoProjectMcp.SetContext(Engine);
+                AlcoProjectMcpTools.SetContext(Engine);
 
                 var builder = WebApplication.CreateBuilder();
                 builder.Services.AddMcpServer().
-                WithTools<AlcoProjectMcp>().
+                WithTools<AlcoProjectMcpTools>().
+                WithPrompts<AlcoProjectMcpPrompts>().
                 WithHttpTransport();
 
-                var mcpServer = builder.Build();
-                mcpServer.MapMcp();
+                _mcpServer = builder.Build();
+                _mcpServer.MapMcp();
                 // not block main thread
-                StartMcpServer(mcpServer);
+                StartMcpServer(_mcpServer);
             }
             catch (Exception e)
             {
@@ -156,6 +159,7 @@ namespace Alco.Editor
         {
             Preference?.Save();
             Engine?.Dispose();
+            _mcpServer?.StopAsync();
         }
 
         private void OnEditorKeyDown(object? sender, KeyEventArgs e)
