@@ -141,13 +141,14 @@ public class Game : GameEngine
         Assets.OnHotReload += OnHotReload;
     }
 
-    protected override void InitializeDefaultAssetLoader(GameEngineSetting setting)
+    public override IEnumerable<IFileSource> CreateDefaultFileSources()
     {
-        base.InitializeDefaultAssetLoader(setting);
-        DirectoryWatcherFileSource fileSource1 = new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), Assets);
-        Assets.AddFileSource(fileSource1);
-        DirectoryWatcherFileSource fileSource2 = new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), Assets);
-        Assets.AddFileSource(fileSource2);
+        foreach (var fileSource in base.CreateDefaultFileSources())
+        {
+            yield return fileSource;
+        }
+        yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), Assets);
+        yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), Assets);
     }
 
     protected override void OnUpdate(float delta)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Alco.Engine;
@@ -79,11 +80,7 @@ public class EditorEngine : GameEngine
         }
         try
         {
-            _project = new AlcoProject(this, projectFilePath);
-            foreach (var fileSource in _project.FileSources)
-            {
-                Assets.AddFileSource(fileSource);
-            }
+            _project = new AlcoProject(projectFilePath, this);
             if (OnProjectOpened != null)
             {
                 Dispatcher.UIThread.Invoke(() => OnProjectOpened(_project));
@@ -109,12 +106,6 @@ public class EditorEngine : GameEngine
     private void CloseProjectCore()
     {
         if (_project == null) return;
-
-
-        foreach (var fileSource in _project.FileSources)
-        {
-            Assets.RemoveFileSource(fileSource);
-        }
 
         if (OnProjectClosed != null)
         {

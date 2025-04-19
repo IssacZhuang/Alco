@@ -8,7 +8,7 @@ public partial class AlcoProject
 
     public void WriteConfig(Configable config, string path, string filename)
     {
-        using SafeMemoryHandle handle = _engine.Assets.EncodeToBinary(config);
+        using SafeMemoryHandle handle = _assetSystem.EncodeToBinary(config);
         File.WriteAllBytes(Path.Combine(path, filename+".json"), handle.Span);
     }
 }

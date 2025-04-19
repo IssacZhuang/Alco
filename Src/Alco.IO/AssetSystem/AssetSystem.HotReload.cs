@@ -28,10 +28,13 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <typeparam name="TAsset">The asset type</typeparam>
     /// <param name="hotReloader">The hot reloader implementation</param>
-    public void RegisterAssetHotReloader<TAsset>(IAssetHotReloader hotReloader) where TAsset : class
+    public void RegisterAssetHotReloader(IAssetHotReloader hotReloader)
     {
         ArgumentNullException.ThrowIfNull(hotReloader);
-        _hotReloaders[typeof(TAsset)] = hotReloader;
+        foreach (var type in hotReloader.GetSupportedTypes())
+        {
+            _hotReloaders[type] = hotReloader;
+        }
     }
 
     /// <summary>
@@ -39,9 +42,15 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <typeparam name="TAsset">The asset type</typeparam>
     /// <param name="hotReloader">The hot reloader implementation</param>
-    public void UnregisterAssetHotReloader<TAsset>(IAssetHotReloader hotReloader) where TAsset : class
+    public void UnregisterAssetHotReloader(IAssetHotReloader hotReloader)
     {
-        _hotReloaders.TryRemove(typeof(TAsset), out _);
+        foreach (var type in hotReloader.GetSupportedTypes())
+        {
+            if (_hotReloaders.TryGetValue(type, out var value) && ReferenceEquals(value, hotReloader))
+            {
+                _hotReloaders.TryRemove(type, out _);
+            }
+        }
     }
 
     /// <summary>

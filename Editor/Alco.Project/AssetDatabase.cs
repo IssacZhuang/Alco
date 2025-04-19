@@ -30,41 +30,13 @@ public class AssetDatabase
     private volatile HashSet<string> _configFileExtensions = [];
     private volatile HashSet<string> _textureFileExtensions = [];
 
-    private BackgroundTask? _taskUpdateConfig;
-
     public AssetDatabase(AssetSystem assetSystem)
     {
         _assetSystem = assetSystem;
         _typeHelper = new TypeHelper(true);
         UpdateConfigFileExtensions();
         UpdateTextureFileExtensions();
-    }
-
-    public bool TryGetConfigType(string path, [NotNullWhen(true)] out Type? type)
-    {
-        _taskUpdateConfig?.TryWait();
-
-        if (_configMetas.TryGetValue(path, out ConfigMeta meta))
-        {
-            type = meta.Type;
-            return true;
-        }
-        type = null;
-        return false;
-    }
-
-    public void UpdateConfigMeta()
-    {
-        if (_taskUpdateConfig != null && !_taskUpdateConfig.IsCompleted)
-        {
-            _taskUpdateConfig.Cancel();
-        }
-        _taskUpdateConfig = UpdateConfigMetaAsync();
-    }
-
-    private BackgroundTask UpdateConfigMetaAsync()
-    {
-        return BackgroundTask.Run(UpdateConfigMeta);
+        UpdateConfigMeta(CancellationToken.None);
     }
 
     public void UpdateConfigMeta(CancellationToken token)
@@ -93,7 +65,7 @@ public class AssetDatabase
                         Log.Error($"type {strType} not found");
                         continue;
                     }
-                    _configMetas.TryAdd(assetPath, new ConfigMeta(assetPath, type));
+                    configMetas.TryAdd(assetPath, new ConfigMeta(assetPath, type));
                 }
             }
             catch (Exception e)
@@ -112,7 +84,10 @@ public class AssetDatabase
         {
             if (loader.CanHandleType(typeof(Configable)))
             {
-                configFileExtensions.UnionWith(loader.FileExtensions);
+                foreach (var extension in loader.FileExtensions)
+                {
+                    configFileExtensions.Add(extension);
+                }
             }
         }
         _configFileExtensions = configFileExtensions;
@@ -125,7 +100,10 @@ public class AssetDatabase
         {
             if (loader.CanHandleType(typeof(Texture2D)))
             {
-                textureFileExtensions.UnionWith(loader.FileExtensions);
+                foreach (var extension in loader.FileExtensions)
+                {
+                    textureFileExtensions.Add(extension);
+                }
             }
         }
         _textureFileExtensions = textureFileExtensions;

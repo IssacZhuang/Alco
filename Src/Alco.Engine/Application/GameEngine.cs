@@ -167,6 +167,11 @@ IDisposable
     /// </summary>
     public bool IsDisposed => _disposed != 0;
 
+    /// <summary>
+    /// The setting of the game engine
+    /// </summary>
+    public GameEngineSetting Setting => _setting;
+
     #endregion
 
     public GameEngine(GameEngineSetting setting)
@@ -189,8 +194,25 @@ IDisposable
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
-        _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
-        InitializeDefaultAssetLoader(setting);
+        foreach (var fileSource in CreateDefaultFileSources())
+        {
+            _assets.AddFileSource(fileSource);
+        }
+
+        foreach (var assetLoader in CreateDefaultAssetLoaders())
+        {
+            _assets.RegisterAssetLoader(assetLoader);
+        }
+
+        foreach (var assetHotReloader in CreateDefaultAssetHotReloaders())
+        {
+            _assets.RegisterAssetHotReloader(assetHotReloader);
+        }
+
+        foreach (var assetEncoder in CreateDefaultAssetEncoders())
+        {
+            _assets.RegisterAssetEncoder(assetEncoder);
+        }
 
         Task<Shader> shaderBlit = _assets.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
 
