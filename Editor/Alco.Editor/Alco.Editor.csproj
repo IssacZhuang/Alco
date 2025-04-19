@@ -27,13 +27,15 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <PackageReference Include="AvaloniaEdit.TextMate" Version="11.1.0" />
-  
-  
+
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.1.0-preview.10" />
+
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\Alco.Project\Alco.Project.csproj" />
+    <ProjectReference Include="..\Alco.Project.Mcp\Alco.Project.Mcp.csproj" />
     <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
   </ItemGroup>
 

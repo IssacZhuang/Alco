@@ -4,6 +4,7 @@ using Alco.Editor.ViewModels;
 using Alco.Editor.Views;
 using Alco.Engine;
 using Alco.Project;
+using Alco.Project.Mcp;
 using Avalonia;
 
 using Avalonia.Controls;
@@ -14,6 +15,8 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Rendering.Composition;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -56,6 +59,32 @@ namespace Alco.Editor
                 Engine = null!;
                 Preference = null!;
             }
+
+            try
+            {
+                AlcoProjectMcp.SetContext(Engine);
+
+                var builder = WebApplication.CreateBuilder();
+                builder.Services.AddMcpServer().
+                WithTools<AlcoProjectMcp>().
+                WithHttpTransport();
+
+                var mcpServer = builder.Build();
+                mcpServer.MapMcp();
+                // not block main thread
+                StartMcpServer(mcpServer);
+            }
+            catch (Exception e)
+            {
+                Log.Error("Failed to start Mcp server", e);
+            }
+        }
+
+        private async void StartMcpServer(WebApplication mcpServer)
+        {
+            Log.Info($"Running Mcp server on {string.Join(", ", mcpServer.Urls)}");
+            await mcpServer.RunAsync();
+            Log.Info("Mcp server stoped");
         }
 
         public override void Initialize()

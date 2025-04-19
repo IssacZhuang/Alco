@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Alco.Engine;
 using Alco.IO;
 using Alco.Project;
+using Alco.Project.Mcp;
 using Avalonia.Threading;
 
 namespace Alco.Editor;
@@ -14,7 +15,7 @@ namespace Alco.Editor;
 /// <summary>
 /// The engine for the editor.
 /// </summary>
-public class EditorEngine : GameEngine
+public class EditorEngine : GameEngine, IAlcoProjectContext
 {
     private readonly List<DirectoryFileSource> _fileSources = new();
     private readonly Lock _lockProjectFiles = new();
@@ -85,6 +86,7 @@ public class EditorEngine : GameEngine
             {
                 Dispatcher.UIThread.Invoke(() => OnProjectOpened(_project));
             }
+
             Log.Info($"Project opened: {projectFilePath}");
         }
         catch (Exception ex)

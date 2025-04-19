@@ -49,10 +49,15 @@ public class TestAssetSystem
 
         public void LogSuccess(ReadOnlySpan<char> message)
         {
-            
+             
         }
 
         public void LogWarning(ReadOnlySpan<char> message)
+        {
+            
+        }
+
+        void IAssetSystemHost.PostToMainThread(Action action)
         {
             
         }

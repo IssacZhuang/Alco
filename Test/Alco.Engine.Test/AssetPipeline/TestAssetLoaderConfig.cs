@@ -244,6 +244,11 @@ public class TestAssetLoaderConfig
             }
         }
 
+        public void PostToMainThread(Action action)
+        {
+            action();
+        }
+
         void IAssetSystemHost.LogError(ReadOnlySpan<char> message)
         {
             TestContext.WriteLine($"[Error] {message}");
