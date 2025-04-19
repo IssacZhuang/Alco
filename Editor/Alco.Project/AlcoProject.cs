@@ -11,6 +11,7 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
     //individual asset system for this project
     private readonly AssetSystem _assetSystem;
     private readonly AssetDatabase _assetDatabase;
+    private readonly GameEngine _engine;
 
     public string ProjectFilePath { get; }
     public string ProjectDirectory { get; }
@@ -23,6 +24,7 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
 
     public AlcoProject(string projectFilePath, GameEngine engine)
     {
+        _engine = engine;
         ProjectFilePath = projectFilePath;
         ProjectDirectory = Path.GetDirectoryName(projectFilePath) ?? throw new FileNotFoundException("Project directory not found");
         Config = JsonSerializer.Deserialize<AlcoProjectConfig>(File.ReadAllText(projectFilePath)) ?? throw new FileNotFoundException("Alco.Project.json not found");
@@ -133,5 +135,10 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
     void IAssetSystemHost.LogSuccess(ReadOnlySpan<char> message)
     {
         Log.Success(message);
+    }
+
+    void IAssetSystemHost.PostToMainThread(Action action)
+    {
+        _engine.PostToMainThread(action);
     }
 }

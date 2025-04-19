@@ -59,36 +59,35 @@ public sealed partial class AssetSystem
     /// <param name="filename">The asset filename</param>
     public void EnqueueHotReload(string filename)
     {
-        string extension = Path.GetExtension(filename);
-        if (!IsRecongizedExtension(extension))
+        _host.PostToMainThread(() =>
         {
-            return;
-        }
+            // Cancel existing task if any
+            if (_hotReloadTasks.TryGetValue(filename, out var existingTask))
+            {
+                existingTask.CancellationSource.Cancel();
+                existingTask.CancellationSource.Dispose();
+                _host.LogInfo($"Hot reload task for {filename} interrupted with a new task");
+            }
 
-        // Cancel existing task if any
-        if (_hotReloadTasks.TryGetValue(filename, out var existingTask))
-        {
-            existingTask.CancellationSource.Cancel();
-            existingTask.CancellationSource.Dispose();
-            _host.LogInfo($"Hot reload task for {filename} interrupted with a new task");
-        }
+            AssetHandle handle = GetAssetHandle(filename);
+            if (handle.CachedAsset is null)
+            {
+                return;
+            }
 
-        AssetHandle handle = GetAssetHandle(filename);
-        if (handle.CachedAsset is null)
-        {
-            return;
-        }
-
-        if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
-        {
-            var cts = new CancellationTokenSource();
-            var task = GetHotReloadIOTask(filename, fileSource, cts.Token);
-            _hotReloadTasks[filename] = new HotReloadTask(task, cts);
-        }
-        else
-        {
-            _host.LogError($"File source for {filename} not found");
-        }
+            if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
+            {
+                var cts = new CancellationTokenSource();
+                var task = GetHotReloadIOTask(filename, fileSource, cts.Token);
+                HotReloadTask hotReloadTask = new HotReloadTask(task, cts);
+                _hotReloadTasks[filename] = hotReloadTask;
+                ProcessHotReloadTask(filename, hotReloadTask);
+            }
+            else
+            {
+                _host.LogError($"File source for {filename} not found");
+            }
+        });
     }
 
     private void HotReload(string filename, ReadOnlySpan<byte> data)
@@ -110,7 +109,7 @@ public sealed partial class AssetSystem
         }
     }
 
-    private async Task<SafeMemoryHandle?> GetHotReloadIOTask(string filename, IFileSource fileSource, CancellationToken cancellationToken)
+    private static async Task<SafeMemoryHandle?> GetHotReloadIOTask(string filename, IFileSource fileSource, CancellationToken cancellationToken)
     {
         int attempt = 10;
         while (attempt > 0 && !cancellationToken.IsCancellationRequested)
@@ -132,43 +131,37 @@ public sealed partial class AssetSystem
         return null;
     }
 
-    private void ProcessHotReloadQueue()
+    private async void ProcessHotReloadTask(string filename, HotReloadTask hotReloadTask)
     {
-        foreach (var entry in _hotReloadTasks.ToArray())
+        using SafeMemoryHandle? data = await hotReloadTask.Task;
+
+        if (data is null)
         {
-            string filename = entry.Key;
-            var hotReloadTask = entry.Value;
+            return;
+        }
 
-            if (!hotReloadTask.Task.IsCompleted)
-            {
-                continue;
-            }
+        if (hotReloadTask.CancellationSource.IsCancellationRequested)
+        {
+            return;
+        }
 
+        AssetHandle handle = GetAssetHandle(filename);
+        object? cachedAsset = handle.CachedAsset;
+        if (cachedAsset is null)
+        {
+            return;
+        }
+
+        if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out IAssetHotReloader? hotReloader))
+        {
+            hotReloader.HotReload(cachedAsset, data.Span);
+            OnHotReload?.Invoke(filename, cachedAsset);
             _hotReloadTasks.TryRemove(filename, out _);
-            hotReloadTask.CancellationSource.Dispose();
-
-            AssetHandle handle = GetAssetHandle(filename);
-            object? cachedAsset = handle.CachedAsset;
-            if (cachedAsset is null)
-            {
-                continue;
-            }
-
-            try
-            {
-                var data = hotReloadTask.Task.Result;
-                if (data != null)
-                {
-                    HotReload(filename, data.Span);
-                    OnHotReload?.Invoke(filename, cachedAsset);
-                    data.Dispose();
-                    _host.LogSuccess($"Hot reload asset {filename} success");
-                }
-            }
-            catch (Exception ex)
-            {
-                _host.LogError($"Failed to hot reload asset {filename}: {ex}");
-            }
+            _host.LogSuccess($"Hot reload asset {filename} success");
+        }
+        else
+        {
+            throw new Exception($"No hot reloader found for type {cachedAsset.GetType().Name}");
         }
     }
 }

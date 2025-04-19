@@ -125,6 +125,11 @@ public class EditorEngine : GameEngine
         Log.Info("Project closed");
     }
 
+    public override void PostToMainThread(SendOrPostCallback action, object? state)
+    {
+        Dispatcher.UIThread.Invoke(() => action(state));
+    }
+
 
 
     private static string FixPath(string path)
