@@ -48,19 +48,8 @@ public class AssetDatabase
 
             try
             {
-                string extension = Path.GetExtension(assetPath);
-                if (_configFileExtensions.Contains(extension) && _assetSystem.TryLoadRaw(assetPath, out SafeMemoryHandle handle))
+                if (TryGetConfigType(assetPath, out Type? type))
                 {
-                    string json = Encoding.UTF8.GetString(handle.Span);
-                    using JsonDocument doc = JsonDocument.Parse(json);
-                    //get $type
-                    string strType = doc.RootElement.GetProperty("$type").GetString() ?? throw new Exception("type is null");
-                    Type? type = _typeHelper.FindType(strType);
-                    if (type == null)
-                    {
-                        Log.Error($"type {strType} not found");
-                        continue;
-                    }
                     configMetas.TryAdd(assetPath, new ConfigMeta(assetPath, type));
                 }
             }
@@ -71,6 +60,26 @@ public class AssetDatabase
         };
 
         _configMetas = configMetas;
+    }
+
+    private bool TryGetConfigType(string assetPath, [NotNullWhen(true)] out Type? type)
+    {
+        string extension = Path.GetExtension(assetPath);
+        if (!_configFileExtensions.Contains(extension))
+        {
+            type = null;
+            return false;
+        }
+        if (_assetSystem.TryLoadRaw(assetPath, out SafeMemoryHandle handle))
+        {
+            string json = Encoding.UTF8.GetString(handle.Span);
+            using JsonDocument doc = JsonDocument.Parse(json);
+            string strType = doc.RootElement.GetProperty("$type").GetString() ?? throw new Exception("type is null");
+            type = _typeHelper.FindType(strType);
+            return type != null;
+        }
+        type = null;
+        return false;
     }
 
     private void UpdateConfigFileExtensions()

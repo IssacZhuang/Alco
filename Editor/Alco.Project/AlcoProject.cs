@@ -32,13 +32,15 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
         _assetSystem = new AssetSystem(this);
 
         // add file sources from this project
-        foreach (var fileSource in Config.AssetsPaths)
+
+        string fullPath = Path.Combine(ProjectDirectory, Config.AssetPath);
+        if (Directory.Exists(fullPath))
         {
-            string fullPath = Path.Combine(ProjectDirectory, fileSource);
-            if (Directory.Exists(fullPath))
-            {
-                _assetSystem.AddFileSource(new DirectoryFileSource(fullPath));
-            }
+            _assetSystem.AddFileSource(new DirectoryFileSource(fullPath));
+        }
+        else
+        {
+            Log.Error($"Asset path {fullPath} not found");
         }
 
         foreach (var fileSource in engine.CreateDefaultFileSources())

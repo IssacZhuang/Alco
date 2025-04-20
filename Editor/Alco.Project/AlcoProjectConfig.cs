@@ -9,5 +9,5 @@ namespace Alco.Project;
 /// </summary>
 public class AlcoProjectConfig
 {
-    public List<string> AssetsPaths { get; set; } = new List<string>();
+    public string AssetPath { get; set; } = string.Empty;
 }
