@@ -21,23 +21,17 @@ public static class ExplorerContextMenuItems
         {
             return;
         }
-        var types = project.ConfigTypes;
-        var dialog = new ViewModels.CreateConfigDialog(types.ToArray());
 
         if (engine.ProjectDirectory == null)
         {
             return;
         }
-
-
         string path = Path.Combine(engine.ProjectDirectory, localPath);
         path = File.Exists(path) ? Path.GetDirectoryName(path) ?? string.Empty : path;
 
-        dialog.OnTypeConfirmed += (filename, type) =>
-        {
-            Configable? instance = Activator.CreateInstance(type) as Configable ?? throw new Exception($"The type {type.Name} is not a valid config type.");
-            project.WriteConfig(instance, path, filename);
-        };
+        var types = project.ConfigTypes;
+        var dialog = new ViewModels.CreateConfigDialog(path, types.ToArray());
+
         var window = dialog.CreateControl();
         ShowDialog(window);
     }

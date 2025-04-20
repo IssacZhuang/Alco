@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Alco.Editor.Models;
+using Alco.IO;
 
 namespace Alco.Editor.ViewModels;
 
@@ -12,10 +13,11 @@ public class CreateConfigDialog : ViewModelBase
     private readonly List<Type> _types;
     private string? _warning;
     private bool _hasWarning;
+    private string _path;
+    
     public ConfigTypeExplorer ConfigTypeExplorer { get; }
     public string Filename { get; set; } = string.Empty;
 
-    public event Action<string, Type>? OnTypeConfirmed;
 
     public bool HasWarning 
     {
@@ -28,9 +30,10 @@ public class CreateConfigDialog : ViewModelBase
     }
 
 
-    public CreateConfigDialog(params Type[] types)
+    public CreateConfigDialog(string path, params Type[] types)
     {
         _types = types.ToList();
+        _path = path;
         ConfigTypeExplorer = new ConfigTypeExplorer(types);
     }
 
@@ -68,7 +71,8 @@ public class CreateConfigDialog : ViewModelBase
             return false;
         }
 
-        OnTypeConfirmed?.Invoke(Filename, type);
+        Configable? instance = Activator.CreateInstance(type) as Configable ?? throw new Exception($"The type {type.Name} is not a valid config type.");
+        App.CurrentProject?.WriteConfig(instance, _path, Filename);
         return true;
     }
 }
