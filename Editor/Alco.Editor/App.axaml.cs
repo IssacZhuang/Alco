@@ -166,9 +166,28 @@ namespace Alco.Editor
         {
             if (e.Key == Key.F11)
             {
-                OpenTestGpuWindow();
+                // OpenTestGpuWindow();
+                OpenSelectConfigDialog();
                 e.Handled = true;
             }
+        }
+
+        public void OpenSelectConfigDialog()
+        {
+            ConfigMeta[] metas = CurrentProject?.ConfigMetas.ToArray() ?? [];
+            if (metas.Length == 0)
+            {
+                Log.Error("No config found");
+                return;
+            }
+
+            ViewModels.SelectConfigDialog dataContext = new ViewModels.SelectConfigDialog(metas);
+            Views.SelectConfigDialog dialog = new Views.SelectConfigDialog()
+            {
+
+                DataContext = dataContext
+            };
+            dialog.ShowDialog(EditorWindow);
         }
 
         public void OpenTestGpuWindow()

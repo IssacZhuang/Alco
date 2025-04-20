@@ -24,6 +24,8 @@ public class AssetDatabase
     private volatile HashSet<string> _configFileExtensions = [];
     private volatile HashSet<string> _textureFileExtensions = [];
 
+    public IEnumerable<ConfigMeta> ConfigMetas => _configMetas.Values;
+
     public AssetDatabase(AssetSystem assetSystem)
     {
         _assetSystem = assetSystem;
