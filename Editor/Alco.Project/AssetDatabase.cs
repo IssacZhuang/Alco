@@ -16,12 +16,6 @@ namespace Alco.Project;
 
 public class AssetDatabase
 {
-    private struct ConfigMeta(string path, Type type)
-    {
-        public string Path = path;
-        public Type Type = type;
-    }
-
     private readonly AssetSystem _assetSystem;
     private volatile Dictionary<string, ConfigMeta> _configMetas = [];
 
