@@ -157,12 +157,27 @@ public class EditorInputSystem : InputSystem, IDisposable
 
     private void OnAvaloniaMouseMove(object? sender, PointerEventArgs e)
     {
-        if (_topLevel != null)
+        // Try to get TopLevel if it's null (might happen if handler attached early)
+        if (_topLevel == null)
         {
-            var position = e.GetPosition(_window);
-            var screenPosition = _topLevel.PointToScreen(position);
-            _mousePosition = new Vector2(screenPosition.X, screenPosition.Y);
+            _topLevel = _window.GetVisualRoot() as TopLevel;
+            if (_topLevel == null)
+            {
+                // Log.Warning("Could not get TopLevel in OnAvaloniaMouseMove."); // Optional: Add logging if needed
+                // Fallback or decide how to handle this case
+                // For now, let's keep using window coordinates as a fallback
+                var fallbackPosition = e.GetPosition(_window);
+                _mousePosition = new Vector2((float)fallbackPosition.X, (float)fallbackPosition.Y);
+                return;
+            }
         }
+
+        // Get position relative to the window
+        var position = e.GetPosition(_window);
+        // Convert window position to screen position
+        var screenPosition = _topLevel.PointToScreen(position);
+        // Store screen position as Vector2 (with explicit casts)
+        _mousePosition = new Vector2((float)screenPosition.X, (float)screenPosition.Y);
     }
 
     private void OnAvaloniaMouseDown(object? sender, PointerPressedEventArgs e)
